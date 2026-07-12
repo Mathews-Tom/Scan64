@@ -1,0 +1,57 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "les_full",
+  "source": { "kind": "player_game", "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1" },
+  "diagnosis": {
+    "primary": "openings.e4.response",
+    "secondary": ["tactics.basic"],
+    "confidence": 0.95,
+    "evidence_refs": ["ev_123"]
+  },
+  "objective": { "type": "play_move", "instruction": "Respond to e4." },
+  "interaction": {
+    "input": "move",
+    "maximum_attempts": 3,
+    "accepted_moves": [
+      { "san": "e5", "lan": "e7e5", "reason": "Controls the center" },
+      { "san": "c5", "lan": "c7c5", "reason": "Sicilian defense" }
+    ]
+  },
+  "hints": [
+    {
+      "level": 1,
+      "kind": "prompt",
+      "text": "Think about the center.",
+      "squares": ["d5", "e5"],
+      "visualizations": [
+        {
+          "command": "highlight_region",
+          "description": "Highlight central squares",
+          "squares": ["d5", "e5", "d4", "e4"]
+        }
+      ]
+    }
+  ],
+  "explanation": {
+    "text": "e5 or c5 are standard responses to e4.",
+    "visualizations": [
+      {
+        "command": "animate_line",
+        "description": "Show the move e5",
+        "moves": ["e5"]
+      }
+    ]
+  },
+  "verification": {
+    "status": "verified",
+    "engine": "Stockfish 16.1",
+    "engine_binary_digest": "abcdef",
+    "nodes": 1000000,
+    "multipv": 1,
+    "verified_at": "2024-01-01T12:00:00Z"
+  },
+  "mastery": {
+    "skill_key": "openings.e4",
+    "delta": 0.1
+  }
+}
