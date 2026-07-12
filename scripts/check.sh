@@ -15,6 +15,9 @@ uv run ruff check .
 echo "== python: mypy --strict =="
 uv run mypy --strict src/
 
+echo "== python: dependency license check =="
+uv run python scripts/check_licenses.py
+
 echo "== frontend: build =="
 (cd apps/scan64-web && pnpm build)
 
