@@ -1,5 +1,6 @@
 import pytest
 
+from src.scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
 from src.scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 
@@ -28,3 +29,21 @@ async def test_stockfish_focused_pass():
     # Note: Sometimes Stockfish may return fewer PVs if the position is very simple,
     # but for starting position it should return 4 at 10k nodes.
     assert len(result.raw_result) > 1
+
+
+@pytest.mark.asyncio
+async def test_fast_pass_orchestrator():
+    adapter = StockfishAdapter(StockfishConfig())
+    orchestrator = FastPassOrchestrator(
+        adapter, FastPassConfig(nodes=10000, swing_threshold_cp=100)
+    )
+
+    # 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 (a mistake, gives up e5 and drops evaluation)
+    moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4"]
+
+    candidates = await orchestrator.run_fast_pass(moves)
+
+    assert len(candidates) >= 1
+    # Nd4 is the 6th move (index 5)
+    assert candidates[-1].move_index == 5
+    assert candidates[-1].swing_cp >= 100
