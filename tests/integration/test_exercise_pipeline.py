@@ -1,5 +1,8 @@
+from pathlib import Path
+
 import pytest
 
+from benchmarks.diagnosis.bundle import export_reproducibility_bundle
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.lessonspec.models import Diagnosis
@@ -50,3 +53,23 @@ async def test_template_explanation_provider() -> None:
     )
     explanation_unknown = await provider.explain(diagnosis_unknown)
     assert "scan for forcing moves" in explanation_unknown.text
+
+
+def test_export_reproducibility_bundle(tmp_path: Path) -> None:
+    bundle_dir = export_reproducibility_bundle(
+        output_dir=tmp_path,
+        bundle_id="test_bundle",
+        pgn_content="[Event \"Test\"]\n\n1. e4 e5",
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        engine_config={"name": "stockfish", "version": "16"},
+        analysis_response={"score": 30},
+        detector_versions={"tactics": "0.1.0"},
+        diagnosis_result={"primary": "tactics.knight_fork"},
+        profile_snapshot={"rating": 1200},
+        lesson_spec={"schema_version": "0.1.0"},
+        verification_report={"status": "verified"}
+    )
+
+    assert bundle_dir.exists()
+    assert (bundle_dir / "source.pgn").exists()
+    assert (bundle_dir / "manifest.json").exists()
