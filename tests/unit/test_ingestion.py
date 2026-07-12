@@ -41,9 +41,9 @@ def test_ingest_pgn_valid():
 [EventDate "2017.09.03"]
 [ECO "C55"]
 
-1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 h6 5. O-O d6 6. c3 g6 7. Re1 Bg7 
-8. h3 O-O 9. Nbd2 Kh7 10. b4 a6 11. a4 Nh5 12. Nf1 Qe8 13. Ne3 f5 
-14. Nd5 Qd8 15. a5 Ne7 16. Nxe7 Qxe7 17. exf5 gxf5 18. Ng5+ Kg6 19. Nf3 Kh7 
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 h6 5. O-O d6 6. c3 g6 7. Re1 Bg7
+8. h3 O-O 9. Nbd2 Kh7 10. b4 a6 11. a4 Nh5 12. Nf1 Qe8 13. Ne3 f5
+14. Nd5 Qd8 15. a5 Ne7 16. Nxe7 Qxe7 17. exf5 gxf5 18. Ng5+ Kg6 19. Nf3 Kh7
 20. Ng5+ Kg6 21. Nf3 Kh7 22. Ng5+ Kg6 23. Nf3 Kh7 0-1
 """
     game, positions = ingest_pgn(pgn)
