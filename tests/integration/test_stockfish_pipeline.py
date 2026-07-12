@@ -1,6 +1,11 @@
 import pytest
 
-from src.scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from src.scan64.chess.analysis.orchestration import (
+    FastPassConfig,
+    FastPassOrchestrator,
+    FocusedPassConfig,
+    FocusedPassOrchestrator,
+)
 from src.scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 
@@ -47,3 +52,26 @@ async def test_fast_pass_orchestrator():
     # Nd4 is the 6th move (index 5)
     assert candidates[-1].move_index == 5
     assert candidates[-1].swing_cp >= 100
+
+
+@pytest.mark.asyncio
+async def test_focused_pass_orchestrator():
+    adapter = StockfishAdapter(StockfishConfig())
+    fast_orchestrator = FastPassOrchestrator(
+        adapter, FastPassConfig(nodes=10000, swing_threshold_cp=100)
+    )
+    focused_orchestrator = FocusedPassOrchestrator(
+        adapter, FocusedPassConfig(nodes=50000, multipv=4)
+    )
+
+    moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4"]
+    candidates = await fast_orchestrator.run_fast_pass(moves)
+
+    # Nd4 is the mistake
+    assert len(candidates) >= 1
+
+    focused_results = await focused_orchestrator.run_focused_pass(candidates)
+
+    assert len(focused_results) == len(candidates)
+    assert focused_results[-1].config["multipv"] == 4
+    assert len(focused_results[-1].raw_result) > 1

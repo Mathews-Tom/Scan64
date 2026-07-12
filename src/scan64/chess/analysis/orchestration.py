@@ -96,3 +96,27 @@ class FastPassOrchestrator:
                 )
 
         return candidates
+
+
+@dataclass
+class FocusedPassConfig:
+    nodes: int = 1000000
+    multipv: int = 4
+
+
+class FocusedPassOrchestrator:
+    def __init__(self, adapter: StockfishAdapter, config: FocusedPassConfig = FocusedPassConfig()):
+        self.adapter = adapter
+        self.config = config
+
+    async def run_focused_pass(self, candidates: list[CandidatePosition]) -> list[EngineAnalysis]:
+        """
+        Runs a focused pass over a list of candidate positions to get deep MultiPV analysis.
+        """
+        results = []
+        for candidate in candidates:
+            analysis = await self.adapter.analyze_position(
+                candidate.fen, nodes=self.config.nodes, multipv=self.config.multipv
+            )
+            results.append(analysis)
+        return results
