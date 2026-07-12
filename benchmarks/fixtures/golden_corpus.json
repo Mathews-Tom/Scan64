@@ -2,73 +2,157 @@
   {
     "id": "pos_1",
     "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 6 5",
-    "expected_label": "Development",
-    "tags": [
-      "false_positive_trap"
-    ]
+    "expected_label": "board_awareness.hanging_piece",
+    "tags": ["false_positive_trap"],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 3.0,
+        "engine_eval_after": -1.0
+      },
+      "evidence_list": [
+        {"kind": "blunder_analysis", "payload": {"is_hanging_piece_blunder": true}}
+      ]
+    }
   },
   {
     "id": "pos_2",
     "fen": "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQR1K1 b - - 7 6",
-    "expected_label": "Prophylaxis",
-    "tags": [
-      "quiet_move_case"
-    ]
+    "expected_label": "threat_processing.missed_check",
+    "tags": ["quiet_move_case"],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "missed_opportunity", "payload": {"is_missed_check": true, "was_unique_best": true}}
+      ]
+    }
   },
   {
     "id": "pos_3",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 3",
-    "expected_label": "Centralization",
-    "tags": [
-      "multiple_acceptable_moves"
-    ]
+    "expected_label": "threat_processing.missed_capture",
+    "tags": ["multiple_acceptable_moves"],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "missed_opportunity", "payload": {"is_missed_capture": true, "was_only_winning_line": true}}
+      ]
+    }
   },
   {
     "id": "pos_4",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 4",
-    "expected_label": "Motif_4",
-    "tags": []
+    "expected_label": "threat_processing.missed_direct_threat",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 1.0,
+        "engine_eval_after": -3.0
+      },
+      "evidence_list": [
+        {"kind": "blunder_analysis", "payload": {"is_missed_direct_threat": true, "opponent_executed_threat": true}}
+      ]
+    }
   },
   {
     "id": "pos_5",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 5",
-    "expected_label": "Motif_0",
-    "tags": []
+    "expected_label": "tactics.fork.knight",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "missed_tactic", "payload": {"tactic_type": "knight_fork", "results_in_material_gain": true}}
+      ]
+    }
   },
   {
     "id": "pos_6",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 6",
-    "expected_label": "Motif_1",
-    "tags": []
+    "expected_label": "tactics.pin",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "missed_tactic", "payload": {"tactic_type": "pin", "wins_material": true}}
+      ]
+    }
   },
   {
     "id": "pos_7",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 7",
-    "expected_label": "Motif_2",
-    "tags": []
+    "expected_label": "tactics.overloaded_defender",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "missed_tactic", "payload": {"tactic_type": "overloaded_defender", "wins_material": true}}
+      ]
+    }
   },
   {
     "id": "pos_8",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 8",
-    "expected_label": "Motif_3",
-    "tags": []
+    "expected_label": "calculation.stopped_too_early",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 2.0,
+        "engine_eval_after": 0.0
+      },
+      "evidence_list": [
+        {"kind": "calculation_error", "payload": {"error_type": "stopped_early", "sequence_plies": 4, "sharp_eval_swing": true}}
+      ]
+    }
   },
   {
     "id": "pos_9",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 9",
-    "expected_label": "Motif_4",
-    "tags": []
+    "expected_label": "opening.delayed_development",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 0.0,
+        "engine_eval_after": -2.0
+      },
+      "evidence_list": [
+        {"kind": "opening_analysis", "payload": {"issue": "delayed_development", "tempo_loss": 2.0}}
+      ]
+    }
   },
   {
     "id": "pos_10",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 10",
-    "expected_label": "Motif_0",
-    "tags": []
+    "expected_label": "positional.king_safety_neglect",
+    "tags": [],
+    "mock_evidence": {
+      "opportunity": {
+        "engine_eval_before": 1.0,
+        "engine_eval_after": -2.0
+      },
+      "evidence_list": [
+        {"kind": "positional_analysis", "payload": {"issue": "king_safety_neglect", "incoming_threat": true}}
+      ]
+    }
   },
   {
     "id": "pos_11",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 11",
-    "expected_label": "Motif_1",
+    "expected_label": "Motif_2",
     "tags": []
   },
   {
