@@ -37,7 +37,7 @@ class AdmissionController:
     def _get_current_date(self) -> str:
         return time.strftime("%Y-%m-%d")
 
-    def _increment_usage(self, player_id: str):
+    def _increment_usage(self, player_id: str) -> None:
         date_str = self._get_current_date()
         if player_id in self.usage:
             last_date, count = self.usage[player_id]
@@ -61,7 +61,7 @@ class AdmissionController:
     ) -> asyncio.Future[Any]:
         future: asyncio.Future[Any] = asyncio.Future()
 
-        async def wrapped_task():
+        async def wrapped_task() -> None:
             try:
                 result = await task_func()
                 future.set_result(result)
@@ -86,7 +86,7 @@ class AdmissionController:
 
         return future
 
-    async def _fair_share_worker(self):
+    async def _fair_share_worker(self) -> None:
         while not self._stop_event.is_set():
             if not self.active_players:
                 # Sleep briefly if no players have queued tasks
@@ -110,7 +110,7 @@ class AdmissionController:
             if self.queues[player_id]:
                 self.active_players.append(player_id)
 
-    def stop(self):
+    def stop(self) -> None:
         self._stop_event.set()
         if self._worker_task:
             self._worker_task.cancel()

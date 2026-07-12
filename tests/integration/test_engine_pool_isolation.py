@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from src.scan64.providers.stockfish.adapter import StockfishConfig
-from src.scan64.providers.stockfish.pool import EnginePoolManager
+from scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 
 @pytest.mark.asyncio

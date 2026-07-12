@@ -1,27 +1,28 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import chess
 import chess.engine
 
-from src.scan64.chess.analysis.models import EngineAnalysis
-from src.scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.providers.stockfish.adapter import StockfishConfig
 
 
 class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
-        self._engine = None
+        self._engine: chess.engine.UciProtocol | None = None
 
-    async def ensure_started(self):
+    async def ensure_started(self) -> None:
         if self._engine is None:
             _, self._engine = await chess.engine.popen_uci(self.config.binary_path)
             await self._engine.configure(
                 {"Threads": self.config.threads, "Hash": self.config.hash_size}
             )
 
-    async def quit(self):
+    async def quit(self) -> None:
         if self._engine is not None:
             await self._engine.quit()
             self._engine = None
@@ -35,19 +36,21 @@ class PooledStockfishAdapter:
         multipv: int = 1,
     ) -> EngineAnalysis:
         await self.ensure_started()
+        assert self._engine is not None
+        engine = self._engine
         board = chess.Board(fen)
         limit = chess.engine.Limit(
             nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
         )
 
-        info_result = await self._engine.analyse(board, limit, multipv=multipv)
+        info_result = await engine.analyse(board, limit, multipv=multipv)
 
         if not isinstance(info_result, list):
             info_result = [info_result]
 
         raw_result = []
         for info in info_result:
-            res = {}
+            res: dict[str, Any] = {}
             if "pv" in info:
                 res["pv"] = [m.uci() for m in info["pv"]]
             if "score" in info:
@@ -58,7 +61,7 @@ class PooledStockfishAdapter:
                     res["score_cp"] = score.score()
             raw_result.append(res)
 
-        engine_name = self._engine.id.get("name", "Stockfish")
+        engine_name = engine.id.get("name", "Stockfish")
 
         config_dict = {
             "engine_name": engine_name,
@@ -79,7 +82,7 @@ class EnginePool:
         self._queue: asyncio.Queue[PooledStockfishAdapter] = asyncio.Queue()
         self._initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         if self._initialized:
             return
         for _ in range(self.concurrency):
@@ -88,7 +91,7 @@ class EnginePool:
             self._queue.put_nowait(adapter)
         self._initialized = True
 
-    async def close(self):
+    async def close(self) -> None:
         while not self._queue.empty():
             adapter = self._queue.get_nowait()
             await adapter.quit()
@@ -111,7 +114,7 @@ class EnginePoolManager:
         self.interactive_pool = EnginePool(config, interactive_concurrency)
         self.batch_pool = EnginePool(config, batch_concurrency)
 
-    async def close(self):
+    async def close(self) -> None:
         await self.interactive_pool.close()
         await self.batch_pool.close()
 
@@ -122,7 +125,7 @@ class EnginePoolManager:
         depth: int | None = None,
         multipv: int = 1,
         time_ms: int | None = None,
-    ):
+    ) -> EngineAnalysis:
         async with self.interactive_pool.acquire() as adapter:
             return await adapter.analyze_position(
                 fen, nodes=nodes, depth=depth, multipv=multipv, time_ms=time_ms
@@ -135,7 +138,7 @@ class EnginePoolManager:
         depth: int | None = None,
         multipv: int = 1,
         time_ms: int | None = None,
-    ):
+    ) -> EngineAnalysis:
         async with self.batch_pool.acquire() as adapter:
             return await adapter.analyze_position(
                 fen, nodes=nodes, depth=depth, multipv=multipv, time_ms=time_ms

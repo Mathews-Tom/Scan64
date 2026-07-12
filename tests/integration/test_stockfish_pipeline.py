@@ -1,12 +1,12 @@
 import pytest
 
-from src.scan64.chess.analysis.orchestration import (
+from scan64.chess.analysis.orchestration import (
     FastPassConfig,
     FastPassOrchestrator,
     FocusedPassConfig,
     FocusedPassOrchestrator,
 )
-from src.scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 
 @pytest.mark.asyncio

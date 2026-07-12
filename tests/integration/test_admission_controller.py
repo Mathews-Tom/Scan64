@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from src.scan64.chess.analysis.admission import AdmissionConfig, AdmissionController
+from scan64.chess.analysis.admission import AdmissionConfig, AdmissionController
 
 
 @pytest.mark.asyncio
