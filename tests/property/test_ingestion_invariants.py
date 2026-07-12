@@ -15,10 +15,11 @@ def random_legal_board(draw) -> chess.Board:
     for _ in range(num_moves):
         legal_moves = list(board.legal_moves)
         if not legal_moves:
-            break # Game over
+            break  # Game over
         move = draw(st.sampled_from(legal_moves))
         board.push(move)
     return board
+
 
 @given(random_legal_board())
 def test_ingest_fen_invariant(board: chess.Board):
@@ -29,7 +30,7 @@ def test_ingest_fen_invariant(board: chess.Board):
     assert pos.fen == fen
     assert pos.half_move_clock == board.halfmove_clock
     assert pos.full_move_number == board.fullmove_number
-    assert pos.side_to_move == ('w' if board.turn == chess.WHITE else 'b')
+    assert pos.side_to_move == ("w" if board.turn == chess.WHITE else "b")
     assert pos.canonical_id == _get_canonical_id(board)
 
     # If the board has no moves from the initial position, test it as a standard game

@@ -60,4 +60,3 @@ def test_explanation_visualizations():
     )
     assert len(explanation.visualizations) == 1
     assert explanation.visualizations[0].command == "animate_line"
-

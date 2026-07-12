@@ -14,6 +14,7 @@ def session_fixture():
     with Session(engine) as session:
         yield session
 
+
 def test_persist_game_and_positions(session: Session):
     pgn = """[Event "Test"]
 [White "Player1"]
@@ -37,7 +38,8 @@ def test_persist_game_and_positions(session: Session):
 
     # Retrieve positions
     saved_positions = session.exec(select(Position).where(Position.game_id == game.id)).all()
-    assert len(saved_positions) == 5 # initial pos + 4 moves
+    assert len(saved_positions) == 5  # initial pos + 4 moves
+
 
 def test_persist_skill_state(session: Session):
     state = SkillState(player_id="user1", concept_code="tactics.pin")

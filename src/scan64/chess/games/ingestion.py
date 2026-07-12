@@ -11,12 +11,15 @@ from scan64.chess.positions.models import Position
 class InvalidGameError(Exception):
     pass
 
+
 class NonStandardVariantError(InvalidGameError):
     pass
+
 
 def _get_canonical_id(board: chess.Board) -> str:
     # Epd without move counters but keeps castling and en passant
     return board.epd()
+
 
 def ingest_fen(fen: str, game_id: UUID | None = None) -> Position:
     try:
@@ -34,9 +37,10 @@ def ingest_fen(fen: str, game_id: UUID | None = None) -> Position:
         fen=board.fen(),
         half_move_clock=board.halfmove_clock,
         full_move_number=board.fullmove_number,
-        side_to_move='w' if board.turn == chess.WHITE else 'b',
-        canonical_id=_get_canonical_id(board)
+        side_to_move="w" if board.turn == chess.WHITE else "b",
+        canonical_id=_get_canonical_id(board),
     )
+
 
 def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:
     pgn_io = io.StringIO(pgn_string)
@@ -63,14 +67,16 @@ def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:
     positions = []
 
     # Store the initial position
-    positions.append(Position(
-        game_id=game_id,
-        fen=board.fen(),
-        half_move_clock=board.halfmove_clock,
-        full_move_number=board.fullmove_number,
-        side_to_move='w' if board.turn == chess.WHITE else 'b',
-        canonical_id=_get_canonical_id(board)
-    ))
+    positions.append(
+        Position(
+            game_id=game_id,
+            fen=board.fen(),
+            half_move_clock=board.halfmove_clock,
+            full_move_number=board.fullmove_number,
+            side_to_move="w" if board.turn == chess.WHITE else "b",
+            canonical_id=_get_canonical_id(board),
+        )
+    )
 
     # If the PGN has setup fen but no moves it will just be the initial pos
     for move in game_node.mainline_moves():
@@ -80,14 +86,16 @@ def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:
         moves.append(move.uci())
         board.push(move)
 
-        positions.append(Position(
-            game_id=game_id,
-            fen=board.fen(),
-            half_move_clock=board.halfmove_clock,
-            full_move_number=board.fullmove_number,
-            side_to_move='w' if board.turn == chess.WHITE else 'b',
-            canonical_id=_get_canonical_id(board)
-        ))
+        positions.append(
+            Position(
+                game_id=game_id,
+                fen=board.fen(),
+                half_move_clock=board.halfmove_clock,
+                full_move_number=board.fullmove_number,
+                side_to_move="w" if board.turn == chess.WHITE else "b",
+                canonical_id=_get_canonical_id(board),
+            )
+        )
 
     # Check if there are any errors in parsing
     if game_node.errors:
@@ -101,7 +109,7 @@ def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:
         white=headers.get("White", "Unknown"),
         black=headers.get("Black", "Unknown"),
         result=headers.get("Result", "*"),
-        date=headers.get("Date", None)
+        date=headers.get("Date", None),
     )
 
     return game, positions

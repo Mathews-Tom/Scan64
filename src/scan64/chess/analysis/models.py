@@ -25,3 +25,12 @@ class EngineAnalysis(SQLModel, table=True):
     # Store the result, e.g., MultiPV dict
     # Each entry in the list could be a dict like {"pv": ["e2e4", "e7e5"], "score_cp": 50}
     raw_result: list[dict[str, Any]] = Field(default_factory=list, sa_type=JSON)
+
+
+class AnalysisJob(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    game_id: UUID = Field(foreign_key="game.id")
+    status: str = "pending"  # pending, running, completed, failed
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None
+    error: str | None = None

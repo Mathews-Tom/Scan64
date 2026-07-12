@@ -1,4 +1,3 @@
-
 from scan64.lessonspec.models import (
     AcceptedMove,
     Diagnosis,
@@ -40,5 +39,5 @@ async def generate_exact_replay_exercise(
         objective=objective,
         interaction=interaction,
         hints=hints,
-        verification=verification
+        verification=verification,
     )

@@ -7,8 +7,7 @@ from scan64.learning.profiling.models import SkillState
 
 
 @given(
-    alpha=st.floats(min_value=0.1, max_value=100.0),
-    beta=st.floats(min_value=0.1, max_value=100.0)
+    alpha=st.floats(min_value=0.1, max_value=100.0), beta=st.floats(min_value=0.1, max_value=100.0)
 )
 def test_success_increases_mastery(alpha, beta):
     state = SkillState(player_id="test", concept_code="test", alpha=alpha, beta=beta)
@@ -18,9 +17,9 @@ def test_success_increases_mastery(alpha, beta):
 
     assert state.expected_mastery > initial_mastery
 
+
 @given(
-    alpha=st.floats(min_value=0.1, max_value=100.0),
-    beta=st.floats(min_value=0.1, max_value=100.0)
+    alpha=st.floats(min_value=0.1, max_value=100.0), beta=st.floats(min_value=0.1, max_value=100.0)
 )
 def test_failure_decreases_mastery(alpha, beta):
     state = SkillState(player_id="test", concept_code="test", alpha=alpha, beta=beta)
@@ -30,10 +29,11 @@ def test_failure_decreases_mastery(alpha, beta):
 
     assert state.expected_mastery < initial_mastery
 
+
 @given(
     dt_days=st.floats(min_value=0.1, max_value=3650.0),
     alpha_evidence=st.floats(min_value=0.0, max_value=50.0),
-    beta_evidence=st.floats(min_value=0.0, max_value=50.0)
+    beta_evidence=st.floats(min_value=0.0, max_value=50.0),
 )
 def test_decay_shrinks_evidence(dt_days, alpha_evidence, beta_evidence):
     # Set up state with some prior and accumulated evidence
@@ -51,7 +51,7 @@ def test_decay_shrinks_evidence(dt_days, alpha_evidence, beta_evidence):
         beta=initial_beta,
         prior_alpha=prior_alpha,
         prior_beta=prior_beta,
-        last_updated=now
+        last_updated=now,
     )
 
     # We invoke _decay directly to avoid adding a new observation for pure decay test
@@ -70,10 +70,8 @@ def test_decay_shrinks_evidence(dt_days, alpha_evidence, beta_evidence):
     assert state.alpha >= prior_alpha - 1e-7
     assert state.beta >= prior_beta - 1e-7
 
-@given(
-    success=st.booleans(),
-    hint_assisted=st.booleans()
-)
+
+@given(success=st.booleans(), hint_assisted=st.booleans())
 def test_uncertainty_shrinks_with_evidence(success, hint_assisted):
     state = SkillState(player_id="test", concept_code="test", alpha=1.0, beta=1.0)
     initial_uncertainty = state.uncertainty

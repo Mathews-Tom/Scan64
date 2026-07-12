@@ -13,6 +13,7 @@ class Game(SQLModel, table=True):
     result: str = "*"
     date: str | None = None
 
+
 class PlaySession(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     player_id: str
