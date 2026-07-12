@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Local equivalent of CI: run every lint, type-check, and test gate for the
+# Python backend and the scan64-web frontend. This repository is private and
+# does not run hosted CI; this script is the source of truth for "green".
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+echo "== python: pytest =="
+uv run pytest
+
+echo "== python: ruff =="
+uv run ruff check .
+
+echo "== python: mypy --strict =="
+uv run mypy --strict src/
+
+echo "== frontend: build =="
+(cd apps/scan64-web && pnpm build)
+
+echo "== frontend: test =="
+(cd apps/scan64-web && pnpm test -- --run)
+
+echo "All checks passed."
