@@ -12,3 +12,11 @@ class Game(SQLModel, table=True):
     black: str = "Unknown"
     result: str = "*"
     date: str | None = None
+
+class PlaySession(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    player_id: str
+    game_id: UUID | None = Field(default=None, foreign_key="game.id")
+    opponent_config: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
+    clock_config: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
+    status: str = "active"
