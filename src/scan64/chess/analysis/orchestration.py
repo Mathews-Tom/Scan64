@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 import chess
 
-from src.scan64.chess.analysis.models import EngineAnalysis
-from src.scan64.providers.stockfish.adapter import StockfishAdapter
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.providers.stockfish.adapter import StockfishAdapter
 
 
 @dataclass
@@ -60,13 +60,13 @@ class FastPassOrchestrator:
             def get_white_cp(analysis: EngineAnalysis, is_white_to_move: bool) -> float:
                 raw = analysis.raw_result[0]
                 if "score_mate" in raw:
-                    mate_val = raw["score_mate"]
+                    mate_val = int(raw["score_mate"])
                     # If mate in N, treat as a very large CP
                     cp = 10000 - abs(mate_val) * 10 if mate_val > 0 else -10000 + abs(mate_val) * 10
-                    return cp if is_white_to_move else -cp
+                    return float(cp if is_white_to_move else -cp)
                 elif "score_cp" in raw:
-                    cp = raw["score_cp"]
-                    return cp if is_white_to_move else -cp
+                    cp = int(raw["score_cp"])
+                    return float(cp if is_white_to_move else -cp)
                 return 0.0
 
             is_white_before = board.turn == chess.WHITE

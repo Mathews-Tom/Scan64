@@ -4,7 +4,7 @@ from typing import Any
 import chess
 import chess.engine
 
-from src.scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
+from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
 
 
 @dataclass
