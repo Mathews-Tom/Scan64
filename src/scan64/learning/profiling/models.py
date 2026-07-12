@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlmodel import Field, SQLModel
 
 
-class SkillState(SQLModel, table=False):
+class SkillState(SQLModel, table=True):
     """
     Represents a player's mastery of a specific skill concept.
     Uses a Beta distribution (alpha, beta) for Bayesian knowledge tracing.
