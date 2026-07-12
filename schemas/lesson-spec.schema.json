@@ -37,6 +37,64 @@
       "title": "AcceptedMove",
       "type": "object"
     },
+    "AnimateLineCommand": {
+      "properties": {
+        "command": {
+          "const": "animate_line",
+          "default": "animate_line",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "moves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Moves",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description",
+        "moves"
+      ],
+      "title": "AnimateLineCommand",
+      "type": "object"
+    },
+    "ComparePositionsCommand": {
+      "properties": {
+        "command": {
+          "const": "compare_positions",
+          "default": "compare_positions",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "fen_a": {
+          "title": "Fen A",
+          "type": "string"
+        },
+        "fen_b": {
+          "title": "Fen B",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "fen_a",
+        "fen_b"
+      ],
+      "title": "ComparePositionsCommand",
+      "type": "object"
+    },
     "Diagnosis": {
       "properties": {
         "primary": {
@@ -69,17 +127,282 @@
       "title": "Diagnosis",
       "type": "object"
     },
+    "DimIrrelevantPiecesCommand": {
+      "properties": {
+        "command": {
+          "const": "dim_irrelevant_pieces",
+          "default": "dim_irrelevant_pieces",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "DimIrrelevantPiecesCommand",
+      "type": "object"
+    },
+    "DrawArrowCommand": {
+      "properties": {
+        "command": {
+          "const": "draw_arrow",
+          "default": "draw_arrow",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "origin": {
+          "title": "Origin",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "origin",
+        "target"
+      ],
+      "title": "DrawArrowCommand",
+      "type": "object"
+    },
+    "DrawAttackMapCommand": {
+      "properties": {
+        "command": {
+          "const": "draw_attack_map",
+          "default": "draw_attack_map",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "square"
+      ],
+      "title": "DrawAttackMapCommand",
+      "type": "object"
+    },
+    "DrawDefenceMapCommand": {
+      "properties": {
+        "command": {
+          "const": "draw_defence_map",
+          "default": "draw_defence_map",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "square"
+      ],
+      "title": "DrawDefenceMapCommand",
+      "type": "object"
+    },
     "Explanation": {
       "properties": {
         "text": {
           "title": "Text",
           "type": "string"
+        },
+        "visualizations": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HighlightSquareCommand"
+              },
+              {
+                "$ref": "#/$defs/HighlightRegionCommand"
+              },
+              {
+                "$ref": "#/$defs/HighlightPieceCommand"
+              },
+              {
+                "$ref": "#/$defs/DimIrrelevantPiecesCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawArrowCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawAttackMapCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawDefenceMapCommand"
+              },
+              {
+                "$ref": "#/$defs/ShowGhostPieceCommand"
+              },
+              {
+                "$ref": "#/$defs/AnimateLineCommand"
+              },
+              {
+                "$ref": "#/$defs/FlipBoardCommand"
+              },
+              {
+                "$ref": "#/$defs/HideCoordinatesCommand"
+              },
+              {
+                "$ref": "#/$defs/TemporarilyHidePiecesCommand"
+              },
+              {
+                "$ref": "#/$defs/ComparePositionsCommand"
+              }
+            ]
+          },
+          "title": "Visualizations",
+          "type": "array"
         }
       },
       "required": [
         "text"
       ],
       "title": "Explanation",
+      "type": "object"
+    },
+    "FlipBoardCommand": {
+      "properties": {
+        "command": {
+          "const": "flip_board",
+          "default": "flip_board",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "FlipBoardCommand",
+      "type": "object"
+    },
+    "HideCoordinatesCommand": {
+      "properties": {
+        "command": {
+          "const": "hide_coordinates",
+          "default": "hide_coordinates",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "HideCoordinatesCommand",
+      "type": "object"
+    },
+    "HighlightPieceCommand": {
+      "properties": {
+        "command": {
+          "const": "highlight_piece",
+          "default": "highlight_piece",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "square"
+      ],
+      "title": "HighlightPieceCommand",
+      "type": "object"
+    },
+    "HighlightRegionCommand": {
+      "properties": {
+        "command": {
+          "const": "highlight_region",
+          "default": "highlight_region",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "squares": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description",
+        "squares"
+      ],
+      "title": "HighlightRegionCommand",
+      "type": "object"
+    },
+    "HighlightSquareCommand": {
+      "properties": {
+        "command": {
+          "const": "highlight_square",
+          "default": "highlight_square",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "square"
+      ],
+      "title": "HighlightSquareCommand",
       "type": "object"
     },
     "Hint": {
@@ -101,6 +424,53 @@
             "type": "string"
           },
           "title": "Squares",
+          "type": "array"
+        },
+        "visualizations": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HighlightSquareCommand"
+              },
+              {
+                "$ref": "#/$defs/HighlightRegionCommand"
+              },
+              {
+                "$ref": "#/$defs/HighlightPieceCommand"
+              },
+              {
+                "$ref": "#/$defs/DimIrrelevantPiecesCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawArrowCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawAttackMapCommand"
+              },
+              {
+                "$ref": "#/$defs/DrawDefenceMapCommand"
+              },
+              {
+                "$ref": "#/$defs/ShowGhostPieceCommand"
+              },
+              {
+                "$ref": "#/$defs/AnimateLineCommand"
+              },
+              {
+                "$ref": "#/$defs/FlipBoardCommand"
+              },
+              {
+                "$ref": "#/$defs/HideCoordinatesCommand"
+              },
+              {
+                "$ref": "#/$defs/TemporarilyHidePiecesCommand"
+              },
+              {
+                "$ref": "#/$defs/ComparePositionsCommand"
+              }
+            ]
+          },
+          "title": "Visualizations",
           "type": "array"
         }
       },
@@ -173,6 +543,36 @@
       "title": "Objective",
       "type": "object"
     },
+    "ShowGhostPieceCommand": {
+      "properties": {
+        "command": {
+          "const": "show_ghost_piece",
+          "default": "show_ghost_piece",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        },
+        "piece": {
+          "title": "Piece",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "square",
+        "piece"
+      ],
+      "title": "ShowGhostPieceCommand",
+      "type": "object"
+    },
     "Source": {
       "properties": {
         "kind": {
@@ -194,6 +594,34 @@
         "fen"
       ],
       "title": "Source",
+      "type": "object"
+    },
+    "TemporarilyHidePiecesCommand": {
+      "properties": {
+        "command": {
+          "const": "temporarily_hide_pieces",
+          "default": "temporarily_hide_pieces",
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description for screen readers and text-only clients",
+          "title": "Description",
+          "type": "string"
+        },
+        "squares": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description",
+        "squares"
+      ],
+      "title": "TemporarilyHidePiecesCommand",
       "type": "object"
     },
     "Verification": {
