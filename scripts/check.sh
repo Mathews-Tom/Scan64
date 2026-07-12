@@ -18,6 +18,9 @@ uv run mypy --strict src/
 echo "== python: dependency license check =="
 uv run python scripts/check_licenses.py
 
+echo "== frontend: install =="
+(cd apps/scan64-web && pnpm install --frozen-lockfile)
+
 echo "== frontend: build =="
 (cd apps/scan64-web && pnpm build)
 
