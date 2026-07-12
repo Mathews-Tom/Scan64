@@ -1,0 +1,308 @@
+[
+  {
+    "id": "pos_1",
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 6 5",
+    "expected_label": "Development",
+    "tags": [
+      "false_positive_trap"
+    ]
+  },
+  {
+    "id": "pos_2",
+    "fen": "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQR1K1 b - - 7 6",
+    "expected_label": "Prophylaxis",
+    "tags": [
+      "quiet_move_case"
+    ]
+  },
+  {
+    "id": "pos_3",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 3",
+    "expected_label": "Centralization",
+    "tags": [
+      "multiple_acceptable_moves"
+    ]
+  },
+  {
+    "id": "pos_4",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 4",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_5",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 5",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_6",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 6",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_7",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 7",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_8",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 8",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_9",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 9",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_10",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 10",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_11",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 11",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_12",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 12",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_13",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 13",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_14",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 14",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_15",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 15",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_16",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 16",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_17",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 17",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_18",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 18",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_19",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 19",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_20",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 20",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_21",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 21",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_22",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 22",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_23",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 23",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_24",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 24",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_25",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 25",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_26",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 26",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_27",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 27",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_28",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 28",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_29",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 29",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_30",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 30",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_31",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 31",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_32",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 32",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_33",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 33",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_34",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 34",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_35",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 35",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_36",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 36",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_37",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 37",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_38",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 38",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_39",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 39",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_40",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 40",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_41",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 41",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_42",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 42",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_43",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 43",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_44",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 44",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_45",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 45",
+    "expected_label": "Motif_0",
+    "tags": []
+  },
+  {
+    "id": "pos_46",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 46",
+    "expected_label": "Motif_1",
+    "tags": []
+  },
+  {
+    "id": "pos_47",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 47",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_48",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 48",
+    "expected_label": "Motif_3",
+    "tags": []
+  },
+  {
+    "id": "pos_49",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 49",
+    "expected_label": "Motif_4",
+    "tags": []
+  },
+  {
+    "id": "pos_50",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 50",
+    "expected_label": "Motif_0",
+    "tags": []
+  }
+]
