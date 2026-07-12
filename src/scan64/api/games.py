@@ -68,12 +68,13 @@ def get_game(game_id: UUID, session: Session = Depends(get_session)):
 def simulate_analysis_job(job_id: UUID):
     # This is a mock function simulating a background task
     # We create a new session because background tasks run outside the request lifecycle
-    from scan64.persistence.database import engine
-    from datetime import datetime, UTC
     import time
-    
-    time.sleep(0.1) # simulate work
-    
+    from datetime import UTC, datetime
+
+    from scan64.persistence.database import engine
+
+    time.sleep(0.1)  # simulate work
+
     with Session(engine) as session:
         job = session.get(AnalysisJob, job_id)
         if job:
@@ -95,7 +96,6 @@ def create_analysis_job(
     session.add(job)
     session.commit()
     session.refresh(job)
-
 
     background_tasks.add_task(simulate_analysis_job, job.id)
     return job
