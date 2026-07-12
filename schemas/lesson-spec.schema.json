@@ -1,0 +1,332 @@
+{
+  "$defs": {
+    "AcceptedMove": {
+      "properties": {
+        "san": {
+          "title": "San",
+          "type": "string"
+        },
+        "lan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lan"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "san"
+      ],
+      "title": "AcceptedMove",
+      "type": "object"
+    },
+    "Diagnosis": {
+      "properties": {
+        "primary": {
+          "title": "Primary",
+          "type": "string"
+        },
+        "secondary": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Secondary",
+          "type": "array"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "primary",
+        "confidence"
+      ],
+      "title": "Diagnosis",
+      "type": "object"
+    },
+    "Explanation": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Explanation",
+      "type": "object"
+    },
+    "Hint": {
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "squares": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        }
+      },
+      "required": [
+        "level",
+        "kind",
+        "text"
+      ],
+      "title": "Hint",
+      "type": "object"
+    },
+    "Interaction": {
+      "properties": {
+        "input": {
+          "title": "Input",
+          "type": "string"
+        },
+        "maximum_attempts": {
+          "title": "Maximum Attempts",
+          "type": "integer"
+        },
+        "accepted_moves": {
+          "items": {
+            "$ref": "#/$defs/AcceptedMove"
+          },
+          "title": "Accepted Moves",
+          "type": "array"
+        }
+      },
+      "required": [
+        "input",
+        "maximum_attempts"
+      ],
+      "title": "Interaction",
+      "type": "object"
+    },
+    "MasteryImpact": {
+      "properties": {
+        "skill_key": {
+          "title": "Skill Key",
+          "type": "string"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "skill_key",
+        "delta"
+      ],
+      "title": "MasteryImpact",
+      "type": "object"
+    },
+    "Objective": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "instruction": {
+          "title": "Instruction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "instruction"
+      ],
+      "title": "Objective",
+      "type": "object"
+    },
+    "Source": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "player_game",
+            "custom",
+            "external"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "fen": {
+          "title": "Fen",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "fen"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Verification": {
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "engine": {
+          "title": "Engine",
+          "type": "string"
+        },
+        "engine_binary_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine Binary Digest"
+        },
+        "nodes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nodes"
+        },
+        "multipv": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Multipv"
+        },
+        "verified_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verified At"
+        }
+      },
+      "required": [
+        "status",
+        "engine"
+      ],
+      "title": "Verification",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "lesson_id": {
+      "title": "Lesson Id",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "diagnosis": {
+      "$ref": "#/$defs/Diagnosis"
+    },
+    "objective": {
+      "$ref": "#/$defs/Objective"
+    },
+    "interaction": {
+      "$ref": "#/$defs/Interaction"
+    },
+    "hints": {
+      "items": {
+        "$ref": "#/$defs/Hint"
+      },
+      "title": "Hints",
+      "type": "array"
+    },
+    "explanation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Explanation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "verification": {
+      "$ref": "#/$defs/Verification"
+    },
+    "mastery": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MasteryImpact"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "lesson_id",
+    "source",
+    "diagnosis",
+    "objective",
+    "interaction",
+    "verification"
+  ],
+  "title": "LessonSpec",
+  "type": "object"
+}

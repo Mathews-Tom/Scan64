@@ -1,0 +1,46 @@
+{
+  "description": "Standard envelope for internal domain events.",
+  "properties": {
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "correlation_id": {
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "causation_id": {
+      "title": "Causation Id",
+      "type": "string"
+    },
+    "event_type": {
+      "title": "Event Type",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    }
+  },
+  "required": [
+    "event_id",
+    "occurred_at",
+    "schema_version",
+    "correlation_id",
+    "causation_id",
+    "event_type",
+    "payload"
+  ],
+  "title": "DomainEventEnvelope",
+  "type": "object"
+}
