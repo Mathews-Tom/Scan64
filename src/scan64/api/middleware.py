@@ -1,8 +1,12 @@
 import json
+from collections.abc import Awaitable, Callable, Generator
+from typing import cast
 
 from fastapi import Request, Response
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Session, SQLModel
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import StreamingResponse
+from starlette.types import ASGIApp
 
 
 class IdempotencyRecord(SQLModel, table=True):
@@ -13,11 +17,17 @@ class IdempotencyRecord(SQLModel, table=True):
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, get_session_callable):
+    def __init__(
+        self,
+        app: ASGIApp,
+        get_session_callable: Callable[[], Generator[Session, None, None]],
+    ) -> None:
         super().__init__(app)
         self.get_session = get_session_callable
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if request.method not in ["POST", "PUT", "PATCH", "DELETE"]:
             return await call_next(request)
 
@@ -40,10 +50,15 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
             response = await call_next(request)
 
-            # Read response body
+            # BaseHTTPMiddleware's call_next is typed as returning Response, but at
+            # runtime it always returns a StreamingResponse; cast to access body_iterator.
+            streaming_response = cast(StreamingResponse, response)
             body = b""
-            async for chunk in response.body_iterator:
-                body += chunk
+            async for chunk in streaming_response.body_iterator:
+                if isinstance(chunk, str):
+                    body += chunk.encode("utf-8")
+                else:
+                    body += bytes(chunk)
 
             # Reconstruct response to return it
             reconstructed_response = Response(

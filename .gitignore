@@ -61,6 +61,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# SQLite runtime databases (scan64 default persistence file, test artifacts)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # Flask stuff:
 instance/
 .webassets-cache

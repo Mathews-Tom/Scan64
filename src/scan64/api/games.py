@@ -2,8 +2,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, col, select
 
+from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
 from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.games.models import Game
 from scan64.persistence.database import get_session
@@ -30,7 +31,7 @@ class AnalysisJobRead(BaseModel):
 
 
 @router.post("/v1/games", response_model=GameRead)
-def create_game(game_in: GameCreate, session: Session = Depends(get_session)):
+def create_game(game_in: GameCreate, session: Session = Depends(get_session)) -> Game:
     import io
 
     import chess.pgn
@@ -57,15 +58,52 @@ def create_game(game_in: GameCreate, session: Session = Depends(get_session)):
     return game
 
 
+@router.get("/v1/games", response_model=PaginatedResponse[GameRead])
+def list_games(
+    cursor: str | None = None, limit: int = 50, session: Session = Depends(get_session)
+) -> PaginatedResponse[GameRead]:
+    limit = min(limit, 100)
+    query = select(Game).order_by(col(Game.created_at).desc())
+
+    if cursor:
+        cursor_data = decode_cursor(cursor)
+        if "created_at" in cursor_data and "id" in cursor_data:
+            from datetime import datetime
+            from uuid import UUID
+
+            created_at = datetime.fromisoformat(cursor_data["created_at"])
+            query = query.where(
+                (Game.created_at < created_at)
+                | ((Game.created_at == created_at) & (Game.id < UUID(cursor_data["id"])))
+            )
+
+    query = query.limit(limit + 1)
+    games = session.exec(query).all()
+
+    next_cursor = None
+    if len(games) > limit:
+        next_game = games[limit - 1]
+        next_cursor = encode_cursor(
+            {"created_at": next_game.created_at.isoformat(), "id": str(next_game.id)}
+        )
+        games = games[:limit]
+
+    game_reads = [
+        GameRead(id=g.id, pgn=g.pgn, white=g.white, black=g.black, result=g.result)
+        for g in games
+    ]
+    return PaginatedResponse(items=game_reads, next_cursor=next_cursor)
+
+
 @router.get("/v1/games/{game_id}", response_model=GameRead)
-def get_game(game_id: UUID, session: Session = Depends(get_session)):
+def get_game(game_id: UUID, session: Session = Depends(get_session)) -> Game:
     game = session.get(Game, game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     return game
 
 
-def simulate_analysis_job(job_id: UUID):
+def simulate_analysis_job(job_id: UUID) -> None:
     # This is a mock function simulating a background task
     # We create a new session because background tasks run outside the request lifecycle
     import time
@@ -87,7 +125,7 @@ def simulate_analysis_job(job_id: UUID):
 @router.post("/v1/games/{game_id}/analysis-jobs", response_model=AnalysisJobRead)
 def create_analysis_job(
     game_id: UUID, background_tasks: BackgroundTasks, session: Session = Depends(get_session)
-):
+) -> AnalysisJob:
     game = session.get(Game, game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -102,7 +140,7 @@ def create_analysis_job(
 
 
 @router.get("/v1/analysis-jobs/{job_id}", response_model=AnalysisJobRead)
-def get_analysis_job(job_id: UUID, session: Session = Depends(get_session)):
+def get_analysis_job(job_id: UUID, session: Session = Depends(get_session)) -> AnalysisJob:
     job = session.get(AnalysisJob, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Analysis job not found")
