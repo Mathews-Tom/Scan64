@@ -20,10 +20,11 @@ def test_skill_definition_valid_creation() -> None:
         confidence_calculation="1.0 if both targets are undefended, 0.8 otherwise.",
         compatible_exercise_templates=["find_the_fork", "visualize_knight_move"],
         incompatible_diagnoses=["tactics.fork.bishop"],
-        minimum_engine_evidence="Eval change >= 2.0"
+        minimum_engine_evidence="Eval change >= 2.0",
     )
     assert skill.skill_id == "tactics.fork.knight"
     assert skill.tier == SkillTier.EVENT
+
 
 def test_skill_definition_schema_matches_file() -> None:
     schema_path = Path("schemas/taxonomy.schema.json")
@@ -35,6 +36,7 @@ def test_skill_definition_schema_matches_file() -> None:
     msg = "Schema file is out of date. Run generate_taxonomy_schema.py"
     assert saved_schema == current_schema, msg
 
+
 def test_skill_definition_requires_fields() -> None:
     with pytest.raises(ValidationError):
         SkillDefinition(
@@ -42,6 +44,7 @@ def test_skill_definition_requires_fields() -> None:
             name="Knight Fork",
             # missing parent_id and others
         )
+
 
 def test_seed_codes_are_valid() -> None:
     # SEED_CODES instantiation already triggered Pydantic validation,
@@ -52,9 +55,15 @@ def test_seed_codes_are_valid() -> None:
         assert code.skill_id == code_id
         # Check that it ends up in a valid top-level category prefix
         valid_parents = [
-            "board_awareness", "tactics", "threat_processing",
-            "candidate_move_generation", "calculation", "positional",
-            "opening", "endgame", "behaviour_and_metacognition"
+            "board_awareness",
+            "tactics",
+            "threat_processing",
+            "candidate_move_generation",
+            "calculation",
+            "positional",
+            "opening",
+            "endgame",
+            "behaviour_and_metacognition",
         ]
 
         # It should either be one of the top level, or its parent_id should be in the hierarchy

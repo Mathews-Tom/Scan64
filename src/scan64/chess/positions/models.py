@@ -9,5 +9,5 @@ class Position(SQLModel, table=True):
     fen: str
     half_move_clock: int = 0
     full_move_number: int = 1
-    side_to_move: str # 'w' or 'b'
-    canonical_id: str # typically board FEN without move numbers/clocks
+    side_to_move: str  # 'w' or 'b'
+    canonical_id: str  # typically board FEN without move numbers/clocks

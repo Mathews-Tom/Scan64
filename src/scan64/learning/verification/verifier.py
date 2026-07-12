@@ -16,6 +16,7 @@ from scan64.lessonspec.models import (
 class LessonVerificationError(Exception):
     pass
 
+
 def verify_lesson(spec: LessonSpec) -> None:
     """
     Verify that a LessonSpec adheres to §7.7 rules.
@@ -40,20 +41,21 @@ def verify_lesson(spec: LessonSpec) -> None:
 
     # 4. Provenance retention
     if not spec.source.fen or not spec.diagnosis.primary:
-         raise LessonVerificationError("Lesson must retain source FEN and primary diagnosis")
+        raise LessonVerificationError("Lesson must retain source FEN and primary diagnosis")
 
     # 5. Overlay square validity
     for hint in spec.hints:
         for sq in hint.squares:
-             if not chess.SQUARE_NAMES.count(sq) and not sq == "":
-                  raise LessonVerificationError(f"Invalid square {sq} in hint")
+            if not chess.SQUARE_NAMES.count(sq) and not sq == "":
+                raise LessonVerificationError(f"Invalid square {sq} in hint")
 
         for vis in hint.visualizations:
             _verify_visualization(vis)
 
     if spec.explanation:
         for vis in spec.explanation.visualizations:
-             _verify_visualization(vis)
+            _verify_visualization(vis)
+
 
 def _verify_visualization(vis: VisualizationCommand) -> None:
     squares_to_check = []

@@ -9,6 +9,7 @@ class SkillState(SQLModel, table=True):
     Represents a player's mastery of a specific skill concept.
     Uses a Beta distribution (alpha, beta) for Bayesian knowledge tracing.
     """
+
     player_id: str = Field(primary_key=True)
     concept_code: str = Field(primary_key=True)
 
@@ -70,4 +71,4 @@ class SkillState(SQLModel, table=True):
     def uncertainty(self) -> float:
         """Variance of the Beta distribution"""
         total = self.alpha + self.beta
-        return (self.alpha * self.beta) / ((total ** 2) * (total + 1.0))
+        return (self.alpha * self.beta) / ((total**2) * (total + 1.0))

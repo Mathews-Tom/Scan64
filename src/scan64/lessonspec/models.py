@@ -43,6 +43,7 @@ class AcceptedMove(BaseModel):
 
 class VisualizationCommand(BaseModel):
     """Base class for visualization commands."""
+
     command: str
     description: str = Field(
         ...,

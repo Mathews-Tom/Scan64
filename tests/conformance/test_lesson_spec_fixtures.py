@@ -23,6 +23,7 @@ def test_fixture_roundtrip(fixture_path):
     # The dumped dictionary should match the original data exactly
     assert dumped == data
 
+
 def test_visualizations_have_description():
     # Load the visualization fixture specifically
     viz_fixture = FIXTURES_DIR / "valid_visualizations.json"

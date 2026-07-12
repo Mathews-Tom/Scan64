@@ -11,12 +11,14 @@ def test_initial_state():
     assert state.expected_mastery == 0.5
     assert state.uncertainty > 0.0
 
+
 def test_independent_success():
     state = SkillState(player_id="user1", concept_code="tactics.pin")
     state.apply_observation(success=True, hint_assisted=False)
     assert state.alpha == 2.0
     assert state.beta == 1.0
     assert state.expected_mastery == 2.0 / 3.0
+
 
 def test_hint_assisted_success():
     state = SkillState(player_id="user1", concept_code="tactics.pin")
@@ -26,12 +28,14 @@ def test_hint_assisted_success():
     assert state.expected_mastery == 1.5 / 2.5
     assert state.expected_mastery < (2.0 / 3.0)  # less than independent success
 
+
 def test_failure():
     state = SkillState(player_id="user1", concept_code="tactics.pin")
     state.apply_observation(success=False)
     assert state.alpha == 1.0
     assert state.beta == 2.0
     assert state.expected_mastery == 1.0 / 3.0
+
 
 def test_uncertainty_decreases_with_evidence():
     state = SkillState(player_id="user1", concept_code="tactics.pin")
@@ -50,6 +54,7 @@ def test_uncertainty_decreases_with_evidence():
 
     assert uncertainty_50 < uncertainty_5
 
+
 def test_decay_over_time():
     now = datetime(2025, 1, 1, 12, 0, 0)
     state = SkillState(player_id="user1", concept_code="tactics.pin")
@@ -67,6 +72,7 @@ def test_decay_over_time():
     # Since decay is applied BEFORE the new observation is added,
     # at exactly tau days, the previous evidence should be scaled by exp(-1) ≈ 0.3678
     import math
+
     expected_decayed_alpha = 1.0 + (evidence_alpha - 1.0) * math.exp(-1)
 
     # After decay, the new observation (failure) is added
@@ -75,6 +81,7 @@ def test_decay_over_time():
     # Beta prior is 1.0, and decay should have applied to evidence (0), so it stays 1.0,
     # then failure adds 1.0 to beta
     assert abs(state.beta - 2.0) < 1e-5
+
 
 def test_priors_table():
     prior_low = get_prior_for_rating(800)
