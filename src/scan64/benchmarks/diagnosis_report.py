@@ -3,6 +3,7 @@ import asyncio
 import json
 from pathlib import Path
 
+from scan64.learning.diagnosis.detectors.base import PatternDetector
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.detectors.calculation import StoppedCalculationEarlyDetector
 from scan64.learning.diagnosis.detectors.opening import DelayedDevelopmentDetector
@@ -34,12 +35,12 @@ SEED_CODES = [
 ]
 
 
-async def run_report(fixtures_dir: Path):
+async def run_report(fixtures_dir: Path) -> None:
     corpus_path = fixtures_dir / "golden_corpus.json"
     with open(corpus_path) as f:
         fixtures = json.load(f)
 
-    detectors = [
+    detectors: list[PatternDetector] = [
         HangingPieceDetector(),
         MissedCheckDetector(),
         MissedCaptureDetector(),
@@ -53,7 +54,7 @@ async def run_report(fixtures_dir: Path):
     ]
 
     # Initialize stats
-    stats = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}
+    stats: dict[str, dict[str, int]] = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}
 
     ctx = PlayerContext(player_id="bench_player")
 
@@ -127,7 +128,7 @@ async def run_report(fixtures_dir: Path):
     print("\nAll 10 seed detectors achieved non-zero precision and recall.")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixtures", required=True, type=str)
     args = parser.parse_args()
