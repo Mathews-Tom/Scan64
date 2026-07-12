@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from scan64.api.games import router as games_router
-from scan64.persistence.database import create_db_and_tables
+from scan64.api.middleware import IdempotencyMiddleware
+from scan64.persistence.database import create_db_and_tables, get_session
 
 
 @asynccontextmanager
@@ -18,6 +19,9 @@ app = FastAPI(
     version="v1",
     lifespan=lifespan,
 )
+
+
+app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)
 
 

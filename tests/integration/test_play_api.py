@@ -4,9 +4,6 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
-from scan64.chess.games.models import Game
-from scan64.chess.positions.models import Position
-from scan64.chess.analysis.models import EngineAnalysis, AnalysisJob
 from scan64.chess.games.models import PlaySession
 from scan64.persistence.database import get_session
 
@@ -17,6 +14,7 @@ def session_fixture():
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     from scan64.persistence import database
+
     database.engine = engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
