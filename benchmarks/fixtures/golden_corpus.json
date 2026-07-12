@@ -33,7 +33,7 @@
     "id": "pos_3",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 3",
     "expected_label": "threat_processing.missed_capture",
-    "tags": [],
+    "tags": ["multiple_acceptable_moves"],
     "mock_evidence": {
       "opportunity": {
         "engine_eval_before": 2.0,
@@ -152,6 +152,12 @@
   {
     "id": "pos_11",
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 11",
+    "expected_label": "Motif_2",
+    "tags": []
+  },
+  {
+    "id": "pos_12",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 12",
     "expected_label": "Motif_2",
     "tags": []
   },
