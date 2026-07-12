@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "SkillTier": {
+      "enum": [
+        "event-tier",
+        "process-tier"
+      ],
+      "title": "SkillTier",
+      "type": "string"
+    }
+  },
+  "description": "Defines a diagnostic taxonomy entry for Scan64.\nMatches the governance requirements in \u00a78.10 of the system design.",
+  "properties": {
+    "skill_id": {
+      "description": "Unique identifier for the skill/diagnosis code",
+      "title": "Skill Id",
+      "type": "string"
+    },
+    "name": {
+      "description": "Human-readable name",
+      "title": "Name",
+      "type": "string"
+    },
+    "parent_id": {
+      "description": "Parent code ID terminating at a top-level category (\u00a78.1-\u00a78.9)",
+      "title": "Parent Id",
+      "type": "string"
+    },
+    "tier": {
+      "$ref": "#/$defs/SkillTier",
+      "description": "Event-tier or process-tier tag"
+    },
+    "detection_requirements": {
+      "description": "How this skill is detected in a game or exercise",
+      "title": "Detection Requirements",
+      "type": "string"
+    },
+    "positive_examples": {
+      "description": "FENs or game states demonstrating the skill",
+      "items": {
+        "type": "string"
+      },
+      "title": "Positive Examples",
+      "type": "array"
+    },
+    "counterexamples": {
+      "description": "FENs or game states demonstrating confusable situations that are NOT this skill",
+      "items": {
+        "type": "string"
+      },
+      "title": "Counterexamples",
+      "type": "array"
+    },
+    "confidence_calculation": {
+      "description": "How confidence in the diagnosis is calculated",
+      "title": "Confidence Calculation",
+      "type": "string"
+    },
+    "compatible_exercise_templates": {
+      "description": "IDs of exercise templates compatible with this skill",
+      "items": {
+        "type": "string"
+      },
+      "title": "Compatible Exercise Templates",
+      "type": "array"
+    },
+    "incompatible_diagnoses": {
+      "description": "Other skill IDs that cannot be simultaneously diagnosed",
+      "items": {
+        "type": "string"
+      },
+      "title": "Incompatible Diagnoses",
+      "type": "array"
+    },
+    "minimum_engine_evidence": {
+      "description": "Engine requirements to validate this diagnosis",
+      "title": "Minimum Engine Evidence",
+      "type": "string"
+    }
+  },
+  "required": [
+    "skill_id",
+    "name",
+    "parent_id",
+    "tier",
+    "detection_requirements",
+    "confidence_calculation",
+    "minimum_engine_evidence"
+  ],
+  "title": "SkillDefinition",
+  "type": "object"
+}
