@@ -30,11 +30,11 @@ def test_golden_fixture_corpus_integrity():
 
         if "multiple_acceptable_moves" in fixture["tags"]:
             has_multiple_acceptable = True
-            
+
     assert has_false_positive_trap, "Corpus missing at least one 'false_positive_trap' case"
     assert has_quiet_move_case, "Corpus missing at least one 'quiet_move_case'"
     assert has_multiple_acceptable, "Corpus missing at least one 'multiple_acceptable_moves' case"
-    
+
     with open(REVIEW_FILE, encoding="utf-8") as f:
         review_content = f.read()
 
