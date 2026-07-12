@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
-from pydantic import ValidationError
+
 import pytest
+from pydantic import ValidationError
 
 from scan64.learning.diagnosis.taxonomy.models import SkillDefinition, SkillTier
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+
 
 def test_skill_definition_valid_creation() -> None:
     skill = SkillDefinition(
@@ -26,11 +28,12 @@ def test_skill_definition_valid_creation() -> None:
 def test_skill_definition_schema_matches_file() -> None:
     schema_path = Path("schemas/taxonomy.schema.json")
     assert schema_path.exists(), "Schema file must be generated"
-    
+
     saved_schema = json.loads(schema_path.read_text())
     current_schema = SkillDefinition.model_json_schema()
-    
-    assert saved_schema == current_schema, "Schema file is out of date. Run generate_taxonomy_schema.py"
+
+    msg = "Schema file is out of date. Run generate_taxonomy_schema.py"
+    assert saved_schema == current_schema, msg
 
 def test_skill_definition_requires_fields() -> None:
     with pytest.raises(ValidationError):
@@ -44,7 +47,7 @@ def test_seed_codes_are_valid() -> None:
     # SEED_CODES instantiation already triggered Pydantic validation,
     # but we can do a sanity check to ensure all 10 are present.
     assert len(SEED_CODES) == 10
-    
+
     for code_id, code in SEED_CODES.items():
         assert code.skill_id == code_id
         # Check that it ends up in a valid top-level category prefix
@@ -53,7 +56,7 @@ def test_seed_codes_are_valid() -> None:
             "candidate_move_generation", "calculation", "positional",
             "opening", "endgame", "behaviour_and_metacognition"
         ]
-        
+
         # It should either be one of the top level, or its parent_id should be in the hierarchy
         # We just check the top-level categories explicitly for the seeds
         is_valid_parent = any(code.parent_id.startswith(p) for p in valid_parents)
