@@ -1,0 +1,36 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "les_viz",
+  "source": { "kind": "custom", "fen": "8/8/8/8/8/8/8/8 w - - 0 1" },
+  "diagnosis": {
+    "primary": "test.viz",
+    "confidence": 1.0
+  },
+  "objective": { "type": "view", "instruction": "Look at the visualizations." },
+  "interaction": {
+    "input": "none",
+    "maximum_attempts": 0
+  },
+  "explanation": {
+    "text": "All commands.",
+    "visualizations": [
+      { "command": "highlight_square", "description": "hl sq", "square": "e4" },
+      { "command": "highlight_region", "description": "hl reg", "squares": ["e4", "d4"] },
+      { "command": "highlight_piece", "description": "hl pc", "square": "e4" },
+      { "command": "dim_irrelevant_pieces", "description": "dim" },
+      { "command": "draw_arrow", "description": "arr", "origin": "e2", "target": "e4" },
+      { "command": "draw_attack_map", "description": "att", "square": "e4" },
+      { "command": "draw_defence_map", "description": "def", "square": "e4" },
+      { "command": "show_ghost_piece", "description": "ghost", "square": "e4", "piece": "P" },
+      { "command": "animate_line", "description": "anim", "moves": ["e4", "e5"] },
+      { "command": "flip_board", "description": "flip" },
+      { "command": "hide_coordinates", "description": "hide coords" },
+      { "command": "temporarily_hide_pieces", "description": "temp hide", "squares": ["e4"] },
+      { "command": "compare_positions", "description": "compare", "fen_a": "8/8/8/8/8/8/8/8 w - - 0 1", "fen_b": "8/8/8/8/8/8/8/8 b - - 0 1" }
+    ]
+  },
+  "verification": {
+    "status": "unverified",
+    "engine": "none"
+  }
+}
