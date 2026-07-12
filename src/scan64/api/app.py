@@ -5,14 +5,19 @@ from fastapi import FastAPI
 
 from scan64.api.games import router as games_router
 from scan64.api.middleware import IdempotencyMiddleware
+from scan64.api.players import router as players_router
 from scan64.persistence.database import create_db_and_tables, get_session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    from scan64.chess.games.models import Game, PlaySession  # noqa: F401
+    from scan64.chess.positions.models import Position  # noqa: F401
+    from scan64.chess.analysis.models import EngineAnalysis, AnalysisJob  # noqa: F401
+    from scan64.api.middleware import IdempotencyRecord  # noqa: F401
+    from scan64.api.models import Player, PlayerProfile  # noqa: F401
     create_db_and_tables()
     yield
-
 
 app = FastAPI(
     title="Scan64 API",
@@ -23,6 +28,7 @@ app = FastAPI(
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)
+app.include_router(players_router)
 
 
 @app.get("/health")

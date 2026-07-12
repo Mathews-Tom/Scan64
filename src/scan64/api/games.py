@@ -2,8 +2,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 
+from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
 from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.games.models import Game
 from scan64.persistence.database import get_session
@@ -55,6 +56,37 @@ def create_game(game_in: GameCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(game)
     return game
+
+
+@router.get("/v1/games", response_model=PaginatedResponse[GameRead])
+def list_games(cursor: str | None = None, limit: int = 50, session: Session = Depends(get_session)):
+    limit = min(limit, 100)
+    query = select(Game).order_by(Game.created_at.desc())
+
+    if cursor:
+        cursor_data = decode_cursor(cursor)
+        if "created_at" in cursor_data and "id" in cursor_data:
+            from datetime import datetime
+            from uuid import UUID
+
+            created_at = datetime.fromisoformat(cursor_data["created_at"])
+            query = query.where(
+                (Game.created_at < created_at)
+                | ((Game.created_at == created_at) & (Game.id < UUID(cursor_data["id"])))
+            )
+
+    query = query.limit(limit + 1)
+    games = session.exec(query).all()
+
+    next_cursor = None
+    if len(games) > limit:
+        next_game = games[limit - 1]
+        next_cursor = encode_cursor(
+            {"created_at": next_game.created_at.isoformat(), "id": str(next_game.id)}
+        )
+        games = games[:limit]
+
+    return PaginatedResponse(items=games, next_cursor=next_cursor)
 
 
 @router.get("/v1/games/{game_id}", response_model=GameRead)
