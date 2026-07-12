@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
@@ -11,12 +13,12 @@ router = APIRouter(tags=["players"])
 class PlayerCreate(BaseModel):
     id: str
     display_name: str | None = None
-    preferences: dict = {}
+    preferences: dict[str, Any] = {}
 
 
 class PlayerRead(BaseModel):
     id: str
-    preferences: dict
+    preferences: dict[str, Any]
 
 
 class PlayerProfileRead(BaseModel):
@@ -26,7 +28,7 @@ class PlayerProfileRead(BaseModel):
 
 
 @router.post("/v1/players", response_model=PlayerRead)
-def create_player(player_in: PlayerCreate, session: Session = Depends(get_session)):
+def create_player(player_in: PlayerCreate, session: Session = Depends(get_session)) -> Player:
     existing = session.get(Player, player_in.id)
     if existing:
         raise HTTPException(status_code=409, detail="Player already exists")
@@ -41,7 +43,7 @@ def create_player(player_in: PlayerCreate, session: Session = Depends(get_sessio
 
 
 @router.get("/v1/players/{player_id}/profile", response_model=PlayerProfileRead)
-def get_player_profile(player_id: str, session: Session = Depends(get_session)):
+def get_player_profile(player_id: str, session: Session = Depends(get_session)) -> PlayerProfile:
     profile = session.get(PlayerProfile, player_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")

@@ -4,12 +4,12 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
-from scan64.chess.games.models import Game, PlaySession  # noqa: F401
-from scan64.chess.positions.models import Position  # noqa: F401
-from scan64.chess.analysis.models import EngineAnalysis, AnalysisJob  # noqa: F401
+from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
 from scan64.api.models import Player, PlayerProfile  # noqa: F401
-from scan64.api.app import app
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
+from scan64.chess.games.models import Game, PlaySession  # noqa: F401
+from scan64.chess.positions.models import Position  # noqa: F401
 from scan64.persistence.database import get_session
 
 
