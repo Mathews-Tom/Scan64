@@ -1,0 +1,9 @@
+[Event "Scan64 CLI Fixture"]
+[Site "?"]
+[Date "2026.07.13"]
+[Round "2"]
+[White "FixturePlayerB"]
+[Black "FixtureOpponentB"]
+[Result "*"]
+
+1. Nf3 Nc6 2. e4 Nf6 3. Ne5 Nxe5 4. Nc3 d6 5. d4 g6 6. Be3 Bg7 7. Be2 O-O *
