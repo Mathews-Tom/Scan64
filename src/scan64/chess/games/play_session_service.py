@@ -37,7 +37,7 @@ class PlaySessionService:
         assert play_session.game_id is not None
         fetched = self.db.get(Game, play_session.game_id)
         if not fetched:
-             raise ValueError("Game not found")
+            raise ValueError("Game not found")
 
         board = chess.Board()
         for m in fetched.moves:
@@ -66,14 +66,13 @@ class PlaySessionService:
         time_limit = clock.get("time_remaining_ms") if clock else None
 
         context = OpponentContext(
-            strength_setting=strength,
-            time_remaining_ms=int(time_limit) if time_limit else None
+            strength_setting=strength, time_remaining_ms=int(time_limit) if time_limit else None
         )
 
         position = Position(
             fen=board.fen(),
             side_to_move="w" if board.turn == chess.WHITE else "b",
-            canonical_id=board.fen().split(" ")[0]
+            canonical_id=board.fen().split(" ")[0],
         )
 
         # Get opponent move
@@ -81,7 +80,7 @@ class PlaySessionService:
 
         opp_move = chess.Move.from_uci(decision.uci_move)
         if opp_move not in board.legal_moves:
-             raise RuntimeError(f"Opponent produced illegal move: {decision.uci_move}")
+            raise RuntimeError(f"Opponent produced illegal move: {decision.uci_move}")
 
         board.push(opp_move)
         fetched.moves = fetched.moves + [decision.uci_move]
@@ -95,4 +94,3 @@ class PlaySessionService:
         self.db.commit()
 
         return decision.uci_move
-

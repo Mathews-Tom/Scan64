@@ -34,3 +34,10 @@ class AnalysisJob(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     error: str | None = None
+
+
+class PersistedLessonOpportunity(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    game_id: UUID = Field(foreign_key="game.id", index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    lesson_spec: dict[str, Any] = Field(sa_type=JSON)

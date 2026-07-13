@@ -13,6 +13,7 @@ from scan64.providers.stockfish.adapter import StockfishConfig
 
 pytestmark = pytest.mark.asyncio
 
+
 async def test_stockfish_opponent_provider_unit():
     provider = StockfishOpponentProvider(StockfishConfig())
     position = Position(fen=chess.STARTING_FEN, side_to_move="w", canonical_id="start")
@@ -24,6 +25,7 @@ async def test_stockfish_opponent_provider_unit():
     context_strong = OpponentContext(strength_setting=20)
     decision_strong = await provider.choose_move(position, context_strong)
     assert decision_strong.uci_move != "0000"
+
 
 async def test_stockfish_move_quality_differential():
     provider = StockfishOpponentProvider(StockfishConfig())
@@ -65,8 +67,6 @@ async def test_stockfish_move_quality_differential():
     assert diff_found, "Strong engine should find a measurably better move than weak engine"
 
 
-
-
 @pytest_asyncio.fixture
 async def db_session():
     engine = create_engine(
@@ -75,6 +75,7 @@ async def db_session():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
+
 
 async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
     provider = StockfishOpponentProvider(StockfishConfig())
@@ -114,4 +115,3 @@ async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
     db_session.refresh(game)
     assert game.result == "0-1"
     assert game.moves == [*prelude_moves, "g2g4", opponent_move]
-

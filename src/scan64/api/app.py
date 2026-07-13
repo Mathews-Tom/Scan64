@@ -14,11 +14,17 @@ from scan64.persistence.database import create_db_and_tables, get_session
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from scan64.api.middleware import IdempotencyRecord  # noqa: F401
     from scan64.api.models import Player, PlayerProfile  # noqa: F401
-    from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
+    from scan64.chess.analysis.models import (  # noqa: F401
+        AnalysisJob,
+        EngineAnalysis,
+        PersistedLessonOpportunity,
+    )
     from scan64.chess.games.models import Game, PlaySession  # noqa: F401
     from scan64.chess.positions.models import Position  # noqa: F401
+
     create_db_and_tables()
     yield
+
 
 app = FastAPI(
     title="Scan64 API",

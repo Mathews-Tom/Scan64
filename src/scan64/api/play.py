@@ -65,9 +65,7 @@ def create_play_session(
 
 
 @router.get("/v1/play-sessions/{session_id}", response_model=PlaySessionRead)
-def get_play_session(
-    session_id: UUID, session: Session = Depends(get_session)
-) -> PlaySession:
+def get_play_session(session_id: UUID, session: Session = Depends(get_session)) -> PlaySession:
     play_session = session.get(PlaySession, session_id)
     if not play_session:
         raise HTTPException(status_code=404, detail="PlaySession not found")
@@ -88,4 +86,3 @@ async def create_move(
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
-
