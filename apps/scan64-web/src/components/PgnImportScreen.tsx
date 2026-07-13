@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { ApiClient } from '../api/client';
-import { LessonSpec } from '../api/types';
+import type { LessonSpec } from '../api/types';
+import { LessonReviewScreen } from './LessonReviewScreen';
 
 export function PgnImportScreen() {
   const [pgn, setPgn] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lessons, setLessons] = useState<LessonSpec[]>([]);
-
+  const [selectedLesson, setSelectedLesson] = useState<LessonSpec | null>(null);
   const handleImport = async () => {
     if (!pgn.trim()) return;
     setLoading(true);
@@ -28,6 +29,15 @@ export function PgnImportScreen() {
       setLoading(false);
     }
   };
+
+  if (selectedLesson) {
+    return (
+      <div>
+        <button onClick={() => setSelectedLesson(null)}>Back to Import</button>
+        <LessonReviewScreen lesson={selectedLesson} />
+      </div>
+    );
+  }
 
   return (
     <div className="pgn-import" data-testid="pgn-import">
@@ -54,6 +64,12 @@ export function PgnImportScreen() {
             {lessons.map(lesson => (
               <li key={lesson.lesson_id}>
                 {lesson.diagnosis.primary} (confidence: {lesson.diagnosis.confidence})
+                <button 
+                  data-testid={`review-btn-${lesson.lesson_id}`}
+                  onClick={() => setSelectedLesson(lesson)}
+                >
+                  Review
+                </button>
               </li>
             ))}
           </ul>

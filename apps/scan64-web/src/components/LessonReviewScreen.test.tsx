@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LessonReviewScreen } from './LessonReviewScreen';
-import { LessonSpec } from '../api/types';
+import type { LessonSpec } from '../api/types';
 
 const mockLesson: LessonSpec = {
   schema_version: '0.1.0',
@@ -22,7 +22,7 @@ const mockLesson: LessonSpec = {
 describe('LessonReviewScreen', () => {
   it('renders objective and first hint button', () => {
     render(<LessonReviewScreen lesson={mockLesson} />);
-    expect(screen.getByText((content, element) => {
+    expect(screen.getByText((_, element) => {
       return element?.textContent === 'Objective: Find the best move';
     })).toBeTruthy();
     expect(screen.queryByTestId('hint-0')).toBeNull();

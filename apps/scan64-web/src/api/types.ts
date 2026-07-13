@@ -96,3 +96,38 @@ export interface PlaySession {
   pgn: string;
   status: string;
 }
+
+export interface PlayerCreate {
+  id: string;
+  display_name?: string;
+  preferences?: Record<string, unknown>;
+}
+
+export interface PlayerRead {
+  id: string;
+  preferences: Record<string, unknown>;
+}
+
+
+export interface PlaySessionCreate {
+  player_id: string;
+  opponent_config?: Record<string, string>;
+  clock_config?: Record<string, string>;
+}
+
+export interface PlaySessionRead {
+  id: string;
+  player_id: string;
+  game_id?: string;
+  opponent_config: Record<string, string>;
+  clock_config?: Record<string, string>;
+  status: string;
+}
+
+export interface PlayMoveCreate {
+  move: string;
+}
+
+export interface PlayMoveResponse {
+  opponent_move: string | null;
+}

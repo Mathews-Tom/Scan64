@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LessonSpec } from '../api/types';
+import type { LessonSpec } from '../api/types';
 
 interface Props {
   lesson: LessonSpec;
