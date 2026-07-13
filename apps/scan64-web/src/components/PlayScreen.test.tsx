@@ -70,6 +70,11 @@ describe('PlayScreen', () => {
       expect(ApiClient.createPlayer).toHaveBeenCalledWith({ id: 'test-player', display_name: 'Anonymous' });
       expect(ApiClient.createPlaySession).toHaveBeenCalledWith({ player_id: 'test-player', opponent_config: { strength: '1500' } });
       expect(screen.getByTestId('session-info').textContent).toContain('Status: active');
+      expect(chessgroundMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          movable: expect.objectContaining({ color: 'white' }),
+        })
+      );
     });
   });
 
