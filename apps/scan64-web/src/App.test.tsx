@@ -13,4 +13,10 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Play Game'));
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
   });
+
+  it('navigates to import screen', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Import PGN'));
+    expect(screen.getByTestId('pgn-import')).toBeInTheDocument();
+  });
 });
