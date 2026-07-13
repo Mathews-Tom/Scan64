@@ -147,6 +147,32 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
             <button onClick={handleLoadFen}>Load FEN</button>
           </div>
 
+          <div className="pgn-export" style={{ marginBottom: '1rem' }}>
+            <h3>Export</h3>
+            <button
+              onClick={() => {
+                const pgn = chess.pgn();
+                const blob = new Blob([pgn], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'analysis.pgn';
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download PGN
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(chess.fen());
+              }}
+              style={{ marginLeft: '0.5rem' }}
+            >
+              Copy FEN
+            </button>
+          </div>
+
 
           <div className="controls" style={{ marginBottom: '1rem' }}>
             <button onClick={goPrev} disabled={currentIndex === 0}>
