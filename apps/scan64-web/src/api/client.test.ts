@@ -29,7 +29,7 @@ describe('ApiClient', () => {
   it('getLearningOpportunities calls GET /v1/games/{id}/learning-opportunities', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ([{ lesson_id: 'abc' }]),
+      json: async () => ({ items: [{ lesson_id: 'abc' }] }),
     });
 
     const res = await ApiClient.getLearningOpportunities('123');

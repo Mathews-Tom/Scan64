@@ -1,4 +1,4 @@
-import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate } from './types';
+import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead } from './types';
 
 const API_BASE = '/v1';
 
@@ -22,7 +22,30 @@ export class ApiClient {
       throw new Error(`Failed to get learning opportunities: ${response.statusText}`);
     }
     const json = await response.json();
-    return json as unknown as LessonSpec[];
+    if (json && typeof json === 'object' && 'items' in json && Array.isArray(json.items)) {
+      return json.items as LessonSpec[];
+    }
+    return [];
+  }
+
+  static async createAnalysisJob(gameId: string): Promise<AnalysisJobRead> {
+    const response = await fetch(`${API_BASE}/games/${gameId}/analysis-jobs`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create analysis job: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as AnalysisJobRead;
+  }
+
+  static async getAnalysisJob(jobId: string): Promise<AnalysisJobRead> {
+    const response = await fetch(`${API_BASE}/analysis-jobs/${jobId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get analysis job: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as AnalysisJobRead;
   }
 
   static async createPlaySession(data: PlaySessionCreate): Promise<PlaySessionRead> {

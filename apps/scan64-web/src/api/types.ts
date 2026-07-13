@@ -90,6 +90,13 @@ export interface PlaySessionMove {
   lan: string;
 }
 
+export interface AnalysisJobRead {
+  id: string;
+  game_id: string;
+  status: string;
+}
+
+
 export interface PlaySession {
   id: string;
   fen: string;
