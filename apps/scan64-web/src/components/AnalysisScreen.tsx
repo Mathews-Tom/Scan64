@@ -21,6 +21,9 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fenInput, setFenInput] = useState(chess.fen());
+
+  const updateFenInput = () => setFenInput(chess.fen());
 
   useEffect(() => {
     if (gameId) {
@@ -31,6 +34,7 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
           if (data.length > 0) {
             chess.load(data[0].fen);
             setCurrentIndex(0);
+            updateFenInput();
           }
         })
         .catch((err) => setError(err.message))
@@ -55,6 +59,7 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
                 fen: chess.fen(),
                 movable: { dests: getDests(chess) },
               });
+              updateFenInput();
             } catch (e) {
               api.set({ fen: chess.fen() });
             }
@@ -83,6 +88,7 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
       const nextIdx = currentIndex + 1;
       chess.load(positions[nextIdx].fen);
       setCurrentIndex(nextIdx);
+      updateFenInput();
     }
   };
 
@@ -91,6 +97,17 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
       const prevIdx = currentIndex - 1;
       chess.load(positions[prevIdx].fen);
       setCurrentIndex(prevIdx);
+      updateFenInput();
+    }
+  };
+
+  const handleLoadFen = () => {
+    try {
+      chess.load(fenInput);
+      if (cg) cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+      setError(null);
+    } catch (e: any) {
+      setError('Invalid FEN');
     }
   };
 
@@ -107,6 +124,18 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
+          <div className="fen-setup" style={{ marginBottom: '1rem' }}>
+            <h3>FEN Setup</h3>
+            <input
+              type="text"
+              value={fenInput}
+              onChange={(e) => setFenInput(e.target.value)}
+              placeholder="Paste FEN here"
+              style={{ width: '100%', marginBottom: '0.5rem' }}
+            />
+            <button onClick={handleLoadFen}>Load FEN</button>
+          </div>
+
           <div className="controls" style={{ marginBottom: '1rem' }}>
             <button onClick={goPrev} disabled={currentIndex === 0}>
               Previous
