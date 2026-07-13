@@ -37,6 +37,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const cgRef = useRef<Api | null>(null);
   const [playerId, setPlayerId] = useState('');
   const [coachMode, setCoachMode] = useState(false);
+  const [independentCalculationMode, setIndependentCalculationMode] = useState(false);
   const [interruptionLesson, setInterruptionLesson] = useState<LessonSpec | null>(null);
   const coachModeRef = useRef(false);
   useEffect(() => { coachModeRef.current = coachMode; }, [coachMode]);
@@ -124,6 +125,20 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   }, []);
   
   useEffect(() => {
+    (window as unknown as Record<string, unknown>).__e2e_move = async () => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) throw new Error('activeSession is null!');
+      const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: 'e2e4' });
+      if (coachModeRef.current && response.interruption_lesson) {
+        setInterruptionLesson(response.interruption_lesson);
+      }
+    };
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__e2e_move;
+    };
+  }, [handleMove]);
+
+  useEffect(() => {
     if (boardRef.current && !cg) {
       const api = Chessground(boardRef.current, {
         fen: chessRef.current.fen(),
@@ -172,6 +187,15 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
             />
             Coach Mode
           </label>
+          <label>
+            <input 
+              type="checkbox" 
+              checked={independentCalculationMode} 
+              onChange={e => setIndependentCalculationMode(e.target.checked)} 
+              data-testid="independent-calculation-mode-toggle"
+            />
+            Independent Calculation Mode
+          </label>
           <button onClick={startGame} data-testid="start-btn">Start Game</button>
         </div>
       )}
@@ -185,6 +209,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         {interruptionLesson && (
           <CriticalMomentReview
             lesson={interruptionLesson}
+            requireIntent={independentCalculationMode}
             onComplete={() => {
               setInterruptionLesson(null);
               if (cgRef.current) {

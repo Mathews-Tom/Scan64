@@ -57,3 +57,17 @@ describe('CriticalMomentReview', () => {
     expect(onComplete).toHaveBeenCalled();
   });
 });
+
+  it('enforces requireIntent if provided', () => {
+    render(<CriticalMomentReview lesson={mockLesson} requireIntent={true} />);
+    
+    // Step 1: Restore
+    fireEvent.click(screen.getByTestId('next-step-btn'));
+
+    // Step 2: Inspect
+    const btn = screen.getByTestId('next-step-btn') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    
+    fireEvent.change(screen.getByTestId('intent-input'), { target: { value: 'Now I have an intent.' } });
+    expect(btn.disabled).toBe(false);
+  });
