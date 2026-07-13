@@ -1,6 +1,11 @@
 import chess
 import pytest
+import pytest_asyncio
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
+from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.protocols import OpponentContext
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
@@ -58,4 +63,55 @@ async def test_stockfish_move_quality_differential():
                 break
 
     assert diff_found, "Strong engine should find a measurably better move than weak engine"
+
+
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+
+async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
+    provider = StockfishOpponentProvider(StockfishConfig())
+    service = PlaySessionService(db_session, provider)
+
+    prelude_moves = ["f2f3", "e7e5"]
+    game = Game(pgn="", moves=prelude_moves, white="Player", black="Opponent")
+    db_session.add(game)
+    db_session.commit()
+    db_session.refresh(game)
+
+    play_session = PlaySession(
+        player_id="test_player",
+        game_id=game.id,
+        opponent_config={"strength": 20},
+        clock_config={"time_remaining_ms": 1000},
+    )
+    db_session.add(play_session)
+    db_session.commit()
+    db_session.refresh(play_session)
+
+    opponent_move = await service.make_move(play_session.id, "g2g4")
+
+    assert opponent_move == "d8h4"
+
+    board = chess.Board()
+    for move in [*prelude_moves, "g2g4"]:
+        board.push_uci(move)
+    response = chess.Move.from_uci(opponent_move)
+    assert response in board.legal_moves
+    board.push(response)
+    assert board.is_checkmate()
+
+    db_session.refresh(play_session)
+    assert play_session.status == "completed"
+
+    db_session.refresh(game)
+    assert game.result == "0-1"
+    assert game.moves == [*prelude_moves, "g2g4", opponent_move]
 

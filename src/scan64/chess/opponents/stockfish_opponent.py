@@ -26,11 +26,13 @@ class StockfishOpponentProvider(OpponentPolicy):
         _, engine = await chess.engine.popen_uci(self.config.binary_path)
         try:
             skill_level = max(0, min(20, context.strength_setting))
-            await engine.configure({
-                "Threads": self.config.threads,
-                "Hash": self.config.hash_size,
-                "Skill Level": skill_level,
-            })
+            await engine.configure(
+                {
+                    "Threads": self.config.threads,
+                    "Hash": self.config.hash_size,
+                    "Skill Level": skill_level,
+                }
+            )
 
             # Stockfish Skill Level works better with depth limits too, but time is fine.
             # We'll use a fast limit so tests don't take forever.
@@ -49,7 +51,8 @@ class StockfishOpponentProvider(OpponentPolicy):
                 pov_score = result.info["score"].pov(board.turn)
                 if pov_score.is_mate():
                     # High arbitrary value for mate
-                    score = 10000 if pov_score.mate() > 0 else -10000
+                    mate_v = pov_score.mate()
+                    score = 10000 if (mate_v is not None and mate_v > 0) else -10000
                 else:
                     score = pov_score.score()
 
