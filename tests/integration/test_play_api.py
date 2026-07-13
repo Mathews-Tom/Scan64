@@ -89,11 +89,12 @@ def test_create_get_analysis_job(client: TestClient):
     assert get_job_response.status_code == 200
     assert get_job_response.json()["status"] == "completed"
 
+
 def test_create_and_get_play_session_api(client: TestClient):
     req_body = {
         "player_id": "player_123",
         "opponent_config": {"strength": "10"},
-        "clock_config": {"time_remaining_ms": "60000"}
+        "clock_config": {"time_remaining_ms": "60000"},
     }
     create_resp = client.post("/v1/play-sessions", json=req_body)
     assert create_resp.status_code == 200, create_resp.text
@@ -106,20 +107,16 @@ def test_create_and_get_play_session_api(client: TestClient):
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == session_id
 
+
 def test_play_session_moves_api(client: TestClient):
-    req_body = {
-        "player_id": "player_123",
-        "opponent_config": {"strength": "10"}
-    }
+    req_body = {"player_id": "player_123", "opponent_config": {"strength": "10"}}
     create_resp = client.post("/v1/play-sessions", json=req_body)
     session_id = create_resp.json()["id"]
 
     # First move
     move_req = {"move": "e2e4"}
     move_resp = client.post(
-        f"/v1/play-sessions/{session_id}/moves",
-        json=move_req,
-        headers={"Idempotency-Key": "move1"}
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers={"Idempotency-Key": "move1"}
     )
     assert move_resp.status_code == 200, move_resp.text
     move_data = move_resp.json()
@@ -128,9 +125,7 @@ def test_play_session_moves_api(client: TestClient):
 
     # Retry first move (idempotency)
     retry_resp = client.post(
-        f"/v1/play-sessions/{session_id}/moves",
-        json=move_req,
-        headers={"Idempotency-Key": "move1"}
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers={"Idempotency-Key": "move1"}
     )
     assert retry_resp.status_code == 200
     assert retry_resp.json() == move_data
@@ -139,6 +134,6 @@ def test_play_session_moves_api(client: TestClient):
     illegal_resp = client.post(
         f"/v1/play-sessions/{session_id}/moves",
         json={"move": "e2e5"},
-        headers={"Idempotency-Key": "move2"}
+        headers={"Idempotency-Key": "move2"},
     )
     assert illegal_resp.status_code == 400

@@ -14,7 +14,7 @@ def export_reproducibility_bundle(
     diagnosis_result: dict[str, Any],
     profile_snapshot: dict[str, Any],
     lesson_spec: dict[str, Any],
-    verification_report: dict[str, Any]
+    verification_report: dict[str, Any],
 ) -> Path:
     """
     Export a reproducibility bundle for a generated lesson (§26.2).

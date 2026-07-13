@@ -9,5 +9,6 @@ def main():
     with open("schemas/events.schema.json", "w") as f:
         json.dump(DomainEventEnvelope.model_json_schema(), f, indent=2)
 
+
 if __name__ == "__main__":
     main()

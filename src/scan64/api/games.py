@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
 from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
-from scan64.chess.analysis.models import AnalysisJob
+from scan64.chess.analysis.jobs import execute_analysis_job
+from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.lessonspec.models import LessonSpec
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["games"])
@@ -89,8 +91,7 @@ def list_games(
         games = games[:limit]
 
     game_reads = [
-        GameRead(id=g.id, pgn=g.pgn, white=g.white, black=g.black, result=g.result)
-        for g in games
+        GameRead(id=g.id, pgn=g.pgn, white=g.white, black=g.black, result=g.result) for g in games
     ]
     return PaginatedResponse(items=game_reads, next_cursor=next_cursor)
 
@@ -103,23 +104,49 @@ def get_game(game_id: UUID, session: Session = Depends(get_session)) -> Game:
     return game
 
 
-def simulate_analysis_job(job_id: UUID) -> None:
-    # This is a mock function simulating a background task
-    # We create a new session because background tasks run outside the request lifecycle
-    import time
-    from datetime import UTC, datetime
+@router.get(
+    "/v1/games/{game_id}/learning-opportunities", response_model=PaginatedResponse[LessonSpec]
+)
+def list_learning_opportunities(
+    game_id: UUID,
+    cursor: str | None = None,
+    limit: int = 50,
+    session: Session = Depends(get_session),
+) -> PaginatedResponse[LessonSpec]:
+    limit = min(limit, 100)
+    query = (
+        select(PersistedLessonOpportunity)
+        .where(PersistedLessonOpportunity.game_id == game_id)
+        .order_by(col(PersistedLessonOpportunity.created_at).desc())
+    )
 
-    from scan64.persistence.database import engine
+    if cursor:
+        cursor_data = decode_cursor(cursor)
+        if "created_at" in cursor_data and "id" in cursor_data:
+            from datetime import datetime
 
-    time.sleep(0.1)  # simulate work
+            created_at = datetime.fromisoformat(cursor_data["created_at"])
+            query = query.where(
+                (PersistedLessonOpportunity.created_at < created_at)
+                | (
+                    (PersistedLessonOpportunity.created_at == created_at)
+                    & (PersistedLessonOpportunity.id < UUID(cursor_data["id"]))
+                )
+            )
 
-    with Session(engine) as session:
-        job = session.get(AnalysisJob, job_id)
-        if job:
-            job.status = "completed"
-            job.completed_at = datetime.now(UTC)
-            session.add(job)
-            session.commit()
+    query = query.limit(limit + 1)
+    opportunities = session.exec(query).all()
+
+    next_cursor = None
+    if len(opportunities) > limit:
+        next_opp = opportunities[limit - 1]
+        next_cursor = encode_cursor(
+            {"created_at": next_opp.created_at.isoformat(), "id": str(next_opp.id)}
+        )
+        opportunities = opportunities[:limit]
+
+    specs = [LessonSpec(**opp.lesson_spec) for opp in opportunities]
+    return PaginatedResponse(items=specs, next_cursor=next_cursor)
 
 
 @router.post("/v1/games/{game_id}/analysis-jobs", response_model=AnalysisJobRead)
@@ -135,7 +162,7 @@ def create_analysis_job(
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(simulate_analysis_job, job.id)
+    background_tasks.add_task(execute_analysis_job, job.id)
     return job
 
 
