@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import type { PlaySessionRead } from '../api/types';
+import { CriticalMomentReview } from './CriticalMomentReview';
+import type { LessonSpec } from '../api/types';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
@@ -34,6 +36,10 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const sessionRef = useRef<PlaySessionRead | null>(initialSession || null);
   const cgRef = useRef<Api | null>(null);
   const [playerId, setPlayerId] = useState('');
+  const [coachMode, setCoachMode] = useState(false);
+  const [interruptionLesson, setInterruptionLesson] = useState<LessonSpec | null>(null);
+  const coachModeRef = useRef(false);
+  useEffect(() => { coachModeRef.current = coachMode; }, [coachMode]);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const chessRef = useRef(new Chess(initialFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'));
@@ -86,14 +92,17 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       board.set({ fen: chessRef.current.fen(), movable: { color: undefined } });
 
       const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
-      if (response.opponent_move) {
+      
+      if (coachModeRef.current && response.interruption_lesson) {
+        chessRef.current.undo();
+        setInterruptionLesson(response.interruption_lesson);
+      } else if (response.opponent_move) {
         const from = response.opponent_move.slice(0, 2);
         const to = response.opponent_move.slice(2, 4);
         const promotion =
           response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
         chessRef.current.move({ from, to, promotion });
       }
-
       board.set({
         fen: chessRef.current.fen(),
         movable: {
@@ -154,15 +163,43 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
             value={playerName} 
             onChange={e => setPlayerName(e.target.value)} 
           />
+          <label>
+            <input 
+              type="checkbox" 
+              checked={coachMode} 
+              onChange={e => setCoachMode(e.target.checked)} 
+              data-testid="coach-mode-toggle"
+            />
+            Coach Mode
+          </label>
           <button onClick={startGame} data-testid="start-btn">Start Game</button>
         </div>
       )}
       {error && <div className="error">{error}</div>}
-      <div 
-        ref={boardRef} 
-        style={{ width: '400px', height: '400px' }} 
-        data-testid="chessground-board" 
-      />
+      <div style={{ display: 'flex', gap: '20px' }}>
+        <div 
+          ref={boardRef} 
+          style={{ width: '400px', height: '400px' }} 
+          data-testid="chessground-board" 
+        />
+        {interruptionLesson && (
+          <CriticalMomentReview
+            lesson={interruptionLesson}
+            onComplete={() => {
+              setInterruptionLesson(null);
+              if (cgRef.current) {
+                cgRef.current.set({
+                  fen: chessRef.current.fen(),
+                  movable: {
+                    color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+                    dests: getDests(chessRef.current),
+                  },
+                });
+              }
+            }}
+          />
+        )}
+      </div>
       {session && (
         <div data-testid="session-info">
           Status: {session.status}

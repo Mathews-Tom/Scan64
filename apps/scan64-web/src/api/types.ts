@@ -138,6 +138,7 @@ export interface PlayMoveCreate {
 
 export interface PlayMoveResponse {
   opponent_move: string | null;
+  interruption_lesson?: LessonSpec | null;
 }
 
 export interface EngineAnalysisRead {
