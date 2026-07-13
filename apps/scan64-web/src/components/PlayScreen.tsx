@@ -13,6 +13,7 @@ export function PlayScreen() {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const [session, setSession] = useState<PlaySessionRead | null>(null);
+  const sessionRef = useRef<PlaySessionRead | null>(null);
   const [playerId, setPlayerId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export function PlayScreen() {
         player_id: pid, 
         opponent_config: { strength: '1500' } 
       });
+      sessionRef.current = newSession;
       setSession(newSession);
       chessRef.current.reset();
       if (cg) {
@@ -76,13 +78,14 @@ export function PlayScreen() {
   };
 
   const handleMove = async (orig: string, dest: string) => {
-    if (!session || !cg) return;
+    const activeSession = sessionRef.current;
+    if (!activeSession || !cg) return;
     try {
       const lan = `${orig}${dest}`;
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
       cg.set({ fen: chessRef.current.fen(), movable: { color: undefined } }); // Lock board while waiting
 
-      const res = await ApiClient.makePlaySessionMove(session.id, { move: lan });
+      const res = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
       
       if (res.opponent_move) {
         const from = res.opponent_move.slice(0, 2);
