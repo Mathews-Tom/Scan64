@@ -15,6 +15,7 @@ router = APIRouter(tags=["play-sessions"])
 
 class PlaySessionCreate(BaseModel):
     player_id: str
+    game_id: UUID | None = None
     opponent_config: dict[str, str] = {}
     clock_config: dict[str, str] | None = None
 
@@ -55,6 +56,7 @@ def create_play_session(
 ) -> PlaySession:
     play_session = PlaySession(
         player_id=session_in.player_id,
+        game_id=session_in.game_id,
         opponent_config=session_in.opponent_config,
         clock_config=session_in.clock_config,
     )

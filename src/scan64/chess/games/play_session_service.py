@@ -39,7 +39,8 @@ class PlaySessionService:
         if not fetched:
             raise ValueError("Game not found")
 
-        board = chess.Board()
+        initial_fen = fetched.headers.get("FEN") if fetched.headers else None
+        board = chess.Board(initial_fen) if initial_fen else chess.Board()
         for m in fetched.moves:
             board.push_uci(m)
 

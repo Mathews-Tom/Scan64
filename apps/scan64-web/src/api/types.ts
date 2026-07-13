@@ -118,6 +118,7 @@ export interface PlayerRead {
 
 export interface PlaySessionCreate {
   player_id: string;
+  game_id?: string;
   opponent_config?: Record<string, string>;
   clock_config?: Record<string, string>;
 }

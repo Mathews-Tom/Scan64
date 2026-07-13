@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import type { PlaySessionRead } from '../api/types';
 import { Chessground } from 'chessground';
@@ -9,27 +9,36 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 
-export function PlayScreen() {
+function getDests(chess: Chess): Map<Key, Key[]> {
+  const dests = new Map<Key, Key[]>();
+  chess.moves({ verbose: true }).forEach((move) => {
+    const from = move.from as Key;
+    const to = move.to as Key;
+    const destinations = dests.get(from) ?? [];
+    destinations.push(to);
+    dests.set(from, destinations);
+  });
+  return dests;
+}
+
+
+export interface PlayScreenProps {
+  initialSession?: PlaySessionRead;
+  initialFen?: string;
+}
+
+export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {}) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
-  const [session, setSession] = useState<PlaySessionRead | null>(null);
-  const sessionRef = useRef<PlaySessionRead | null>(null);
+  const [session, setSession] = useState<PlaySessionRead | null>(initialSession || null);
+  const sessionRef = useRef<PlaySessionRead | null>(initialSession || null);
+  const cgRef = useRef<Api | null>(null);
   const [playerId, setPlayerId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const chessRef = useRef(new Chess());
+  const chessRef = useRef(new Chess(initialFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'));
 
-  useEffect(() => {
-    if (boardRef.current && !cg) {
-      const api = Chessground(boardRef.current, {
-        movable: {
-          color: 'white',
-          free: false,
-        },
-      });
-      setCg(api);
-    }
-  }, [cg]);
+
 
   const startGame = async () => {
     try {
@@ -52,7 +61,7 @@ export function PlayScreen() {
         cg.set({
           fen: chessRef.current.fen(),
           movable: {
-            color: 'white',
+            color: chessRef.current.turn() === 'w' ? 'white' : 'black',
             dests: getDests(chessRef.current),
             events: {
               after: handleMove,
@@ -65,50 +74,67 @@ export function PlayScreen() {
     }
   };
 
-  const getDests = (chess: Chess) => {
-    const dests = new Map<Key, Key[]>();
-    chess.moves({ verbose: true }).forEach((m) => {
-      const from = m.from as Key;
-      const to = m.to as Key;
-      const d = dests.get(from) || [];
-      d.push(to);
-      dests.set(from, d);
-    });
-    return dests;
-  };
 
-  const handleMove = async (orig: string, dest: string) => {
+  const handleMove = useCallback(async (orig: string, dest: string) => {
     const activeSession = sessionRef.current;
-    if (!activeSession || !cg) return;
+    const board = cgRef.current;
+    if (!activeSession || !board) return;
+
     try {
       const lan = `${orig}${dest}`;
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
-      cg.set({ fen: chessRef.current.fen(), movable: { color: undefined } }); // Lock board while waiting
+      board.set({ fen: chessRef.current.fen(), movable: { color: undefined } });
 
-      const res = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
-      
-      if (res.opponent_move) {
-        const from = res.opponent_move.slice(0, 2);
-        const to = res.opponent_move.slice(2, 4);
-        const prom = res.opponent_move.length > 4 ? res.opponent_move.slice(4) : undefined;
-        chessRef.current.move({ from, to, promotion: prom });
+      const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
+      if (response.opponent_move) {
+        const from = response.opponent_move.slice(0, 2);
+        const to = response.opponent_move.slice(2, 4);
+        const promotion =
+          response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
+        chessRef.current.move({ from, to, promotion });
       }
-      
-      cg.set({
+
+      board.set({
         fen: chessRef.current.fen(),
         movable: {
-          color: 'white',
+          color: chessRef.current.turn() === 'w' ? 'white' : 'black',
           dests: getDests(chessRef.current),
         },
       });
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Unknown error');
       chessRef.current.undo();
-      if (cg) {
-        cg.set({ fen: chessRef.current.fen() });
-      }
+      board.set({
+        fen: chessRef.current.fen(),
+        movable: {
+          color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+          dests: getDests(chessRef.current),
+        },
+      });
     }
-  };
+  }, []);
+  
+  useEffect(() => {
+    if (boardRef.current && !cg) {
+      const api = Chessground(boardRef.current, {
+        fen: chessRef.current.fen(),
+        movable: {
+          color: sessionRef.current
+            ? chessRef.current.turn() === 'w'
+              ? 'white'
+              : 'black'
+            : undefined,
+          free: false,
+          dests: sessionRef.current ? getDests(chessRef.current) : undefined,
+          events: {
+            after: handleMove,
+          },
+        },
+      });
+      cgRef.current = api;
+      setCg(api);
+    }
+  }, [cg, handleMove]);
 
   return (
     <div className="play-screen" data-testid="play-screen">
