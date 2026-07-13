@@ -125,6 +125,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   }, []);
   
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     (window as unknown as Record<string, unknown>).__e2e_move = async () => {
       const activeSession = sessionRef.current;
       if (!activeSession) throw new Error('activeSession is null!');
@@ -136,7 +137,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
     return () => {
       delete (window as unknown as Record<string, unknown>).__e2e_move;
     };
-  }, [handleMove]);
+  }, []);
 
   useEffect(() => {
     if (boardRef.current && !cg) {
