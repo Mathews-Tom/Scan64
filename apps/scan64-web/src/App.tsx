@@ -3,10 +3,11 @@ import './App.css';
 import { PlayScreen } from './components/PlayScreen';
 import { PgnImportScreen } from './components/PgnImportScreen';
 import { AnalysisScreen } from './components/AnalysisScreen';
+import { OpeningExplorerScreen } from './components/OpeningExplorerScreen';
 import type { PlaySessionRead } from './api/types';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'play' | 'import' | 'analysis'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'play' | 'import' | 'analysis' | 'explorer'>('home');
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
   const [activeAnalysisGameId, setActiveAnalysisGameId] = useState<string | undefined>();
 
@@ -17,6 +18,7 @@ function App() {
         <button onClick={() => { setActivePlaySession(null); setCurrentView('play'); }}>Play Game</button>
         <button onClick={() => setCurrentView('import')}>Import PGN</button>
         <button onClick={() => setCurrentView('analysis')}>Analysis Board</button>
+        <button onClick={() => setCurrentView('explorer')}>Opening Explorer</button>
       </nav>
       
       <main>
@@ -44,6 +46,9 @@ function App() {
               setCurrentView('play');
             }} 
           />
+        )}
+        {currentView === 'explorer' && (
+          <OpeningExplorerScreen />
         )}
       </main>
     </>
