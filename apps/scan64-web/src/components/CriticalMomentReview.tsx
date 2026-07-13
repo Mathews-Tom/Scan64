@@ -3,10 +3,11 @@ import type { LessonSpec } from '../api/types';
 
 interface Props {
   lesson: LessonSpec;
+  requireIntent?: boolean;
   onComplete?: () => void;
 }
 
-export function CriticalMomentReview({ lesson, onComplete }: Props) {
+export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Props) {
   const [step, setStep] = useState<number>(1);
   const [intent, setIntent] = useState('');
   const [hintIndex, setHintIndex] = useState(-1);
@@ -15,6 +16,7 @@ export function CriticalMomentReview({ lesson, onComplete }: Props) {
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
+      if (requireIntent && !intent.trim()) return;
       setStep(3);
     } else if (step === 3) {
       if (lesson.hints.length > 0) {
@@ -54,7 +56,7 @@ export function CriticalMomentReview({ lesson, onComplete }: Props) {
             {step === 2 && (
               <textarea 
                 data-testid="intent-input"
-                placeholder="Optional: What were you thinking?"
+                placeholder={requireIntent ? "Required: What were you thinking?" : "Optional: What were you thinking?"}
                 value={intent}
                 onChange={(e) => setIntent(e.target.value)}
               />
@@ -104,7 +106,13 @@ export function CriticalMomentReview({ lesson, onComplete }: Props) {
 
       <div className="actions">
         {step < 3 && (
-          <button onClick={handleNextStep} data-testid="next-step-btn">Continue</button>
+          <button 
+            onClick={handleNextStep} 
+            data-testid="next-step-btn"
+            disabled={step === 2 && requireIntent && !intent.trim()}
+          >
+            Continue
+          </button>
         )}
         {step === 3 && (
           <button onClick={handleNextStep} data-testid="request-cue-btn">Request Cue</button>

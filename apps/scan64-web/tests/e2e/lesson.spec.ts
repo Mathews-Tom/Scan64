@@ -51,7 +51,7 @@ test.describe('Lesson Review Flow', () => {
     await page.getByTestId(`review-btn-${lessonSpec.lesson_id}`).click();
 
     // Now in LessonReviewScreen
-    await expect(page.getByTestId('lesson-review')).toBeVisible();
+    await expect(page.getByTestId('critical-moment-review')).toBeVisible();
 
     // Check objective
     await expect(page.getByText(lessonSpec.objective.instruction)).toBeVisible();
@@ -59,9 +59,21 @@ test.describe('Lesson Review Flow', () => {
     // Initial state: no hints
     await expect(page.getByTestId('hint-0')).not.toBeVisible();
 
-    // Show hints progressively
-    for (let i = 0; i < lessonSpec.hints.length; i++) {
-      const hintBtn = page.getByTestId('next-hint-btn');
+    // Flow through the steps
+    // Step 1 -> 2
+    await page.getByTestId('next-step-btn').click();
+    // Step 2 -> 3
+    await page.getByTestId('next-step-btn').click();
+    // Step 3 -> 4
+    await page.getByTestId('request-cue-btn').click();
+
+    // Hint 1 should be visible
+    const hintEl0 = page.getByTestId('hint-0');
+    await expect(hintEl0).toContainText(lessonSpec.hints[0].text);
+
+    // Step 4 -> 5 -> 6 (Assist until Answer)
+    for (let i = 1; i < lessonSpec.hints.length; i++) {
+      const hintBtn = page.getByTestId('request-assist-btn');
       await hintBtn.click();
 
       const hintEl = page.getByTestId(`hint-${i}`);
@@ -73,6 +85,12 @@ test.describe('Lesson Review Flow', () => {
           await expect(hintEl).toContainText(vis.description);
         }
       }
+    }
+    
+    // We need one more click to move to Step 6 (Explanation)
+    const finalAssistBtn = page.getByTestId('request-assist-btn');
+    if (await finalAssistBtn.isVisible()) {
+        await finalAssistBtn.click();
     }
 
     // Verify explanation appears
