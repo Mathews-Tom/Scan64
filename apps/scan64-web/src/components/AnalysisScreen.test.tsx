@@ -69,4 +69,19 @@ describe('AnalysisScreen', () => {
     expect(fenInput).toHaveValue(testFen);
     expect(screen.queryByText('Invalid FEN')).not.toBeInTheDocument();
   });
+
+  it('copies the current FEN to the clipboard', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<AnalysisScreen />);
+    fireEvent.click(screen.getByText('Copy FEN'));
+
+    expect(writeText).toHaveBeenCalledWith(
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    );
+  });
 });
