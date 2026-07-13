@@ -1,13 +1,16 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import case
 from sqlmodel import Session, col, select
 
 from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
 from scan64.chess.analysis.jobs import execute_analysis_job
-from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.lessonspec.models import LessonSpec
 from scan64.persistence.database import get_session
 
@@ -172,3 +175,46 @@ def get_analysis_job(job_id: UUID, session: Session = Depends(get_session)) -> A
     if not job:
         raise HTTPException(status_code=404, detail="Analysis job not found")
     return job
+
+
+class EngineAnalysisRead(BaseModel):
+    id: UUID
+    config: dict[str, Any]
+    raw_result: list[dict[str, Any]]
+
+
+class PositionRead(BaseModel):
+    id: UUID
+    fen: str
+    half_move_clock: int
+    full_move_number: int
+    side_to_move: str
+    canonical_id: str
+    analysis: EngineAnalysisRead | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.get("/v1/games/{game_id}/positions", response_model=list[PositionRead])
+def get_game_positions(
+    game_id: UUID, session: Session = Depends(get_session)
+) -> list[PositionRead]:
+    positions = session.exec(
+        select(Position)
+        .where(Position.game_id == game_id)
+        .order_by(
+            Position.full_move_number,
+            case((Position.side_to_move == "w", 0), else_=1),
+        )
+    ).all()
+    result: list[PositionRead] = []
+    for position in positions:
+        analysis = session.exec(
+            select(EngineAnalysis)
+            .where(EngineAnalysis.position_id == position.id)
+            .order_by(col(EngineAnalysis.created_at).desc())
+        ).first()
+        position_data = position.model_dump()
+        position_data["analysis"] = analysis
+        result.append(PositionRead.model_validate(position_data))
+    return result

@@ -24,6 +24,7 @@ describe('PgnImportScreen', () => {
   });
 
   it('imports PGN and displays learning opportunities', async () => {
+    const onExploreAnalysis = vi.fn();
     vi.mocked(ApiClient.createGame).mockResolvedValueOnce({
       id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*'
     });
@@ -47,7 +48,7 @@ describe('PgnImportScreen', () => {
       }
     ]);
 
-    render(<PgnImportScreen />);
+    render(<PgnImportScreen onExploreAnalysis={onExploreAnalysis} />);
     const textarea = screen.getByTestId('pgn-textarea');
     fireEvent.change(textarea, { target: { value: '1. e4 e5' } });
     
@@ -59,5 +60,8 @@ describe('PgnImportScreen', () => {
       expect(ApiClient.getLearningOpportunities).toHaveBeenCalledWith('game-1');
       expect(screen.getByTestId('lessons-list').textContent).toContain('tactics.fork');
     }, { timeout: 3000 });
+
+    fireEvent.click(screen.getByTestId('explore-analysis-btn'));
+    expect(onExploreAnalysis).toHaveBeenCalledWith('game-1');
   });
 });
