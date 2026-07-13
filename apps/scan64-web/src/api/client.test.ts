@@ -5,7 +5,7 @@ describe('ApiClient', () => {
   const mockFetch = vi.fn();
   
   beforeEach(() => {
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
   });
   
   afterEach(() => {
@@ -19,22 +19,21 @@ describe('ApiClient', () => {
     });
 
     const res = await ApiClient.createGame({ pgn: '...' });
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/games', {
+    expect(mockFetch).toHaveBeenCalledWith('/v1/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pgn: '...' }),
     });
     expect(res.id).toBe('123');
   });
-
   it('getLearningOpportunities calls GET /v1/games/{id}/learning-opportunities', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ([{ lesson_id: 'abc' }]),
+      json: async () => ({ items: [{ lesson_id: 'abc' }] }),
     });
 
     const res = await ApiClient.getLearningOpportunities('123');
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/games/123/learning-opportunities');
+    expect(mockFetch).toHaveBeenCalledWith('/v1/games/123/learning-opportunities');
     expect(res[0].lesson_id).toBe('abc');
   });
 
@@ -44,11 +43,11 @@ describe('ApiClient', () => {
       json: async () => ({ id: 'sess-1' }),
     });
 
-    const res = await ApiClient.createPlaySession('1500');
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/play-sessions', {
+    const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { strength: '1500' } });
+    expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opponent: '1500' }),
+      body: JSON.stringify({ player_id: 'test', opponent_config: { strength: '1500' } }),
     });
     expect(res.id).toBe('sess-1');
   });
@@ -56,16 +55,16 @@ describe('ApiClient', () => {
   it('makePlaySessionMove calls POST /v1/play-sessions/{id}/moves', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ id: 'sess-1', status: 'active' }),
+      json: async () => ({ opponent_move: 'e7e5' }),
     });
 
-    const res = await ApiClient.makePlaySessionMove('sess-1', { lan: 'e2e4' });
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/play-sessions/sess-1/moves', {
+    const res = await ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' });
+    expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions/sess-1/moves', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lan: 'e2e4' }),
+      body: JSON.stringify({ move: 'e2e4' }),
     });
-    expect(res.status).toBe('active');
+    expect(res.opponent_move).toBe('e7e5');
   });
 
   it('throws on non-ok response', async () => {

@@ -1,6 +1,6 @@
-import { GameCreate, GameRead, LessonSpec, PlaySession, PlaySessionMove } from './types';
+import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead } from './types';
 
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 export class ApiClient {
   static async createGame(data: GameCreate): Promise<GameRead> {
@@ -22,23 +22,46 @@ export class ApiClient {
       throw new Error(`Failed to get learning opportunities: ${response.statusText}`);
     }
     const json = await response.json();
-    return json as unknown as LessonSpec[];
+    if (json && typeof json === 'object' && 'items' in json && Array.isArray(json.items)) {
+      return json.items as LessonSpec[];
+    }
+    return [];
   }
 
-  static async createPlaySession(opponentStrength: string): Promise<PlaySession> {
+  static async createAnalysisJob(gameId: string): Promise<AnalysisJobRead> {
+    const response = await fetch(`${API_BASE}/games/${gameId}/analysis-jobs`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create analysis job: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as AnalysisJobRead;
+  }
+
+  static async getAnalysisJob(jobId: string): Promise<AnalysisJobRead> {
+    const response = await fetch(`${API_BASE}/analysis-jobs/${jobId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get analysis job: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as AnalysisJobRead;
+  }
+
+  static async createPlaySession(data: PlaySessionCreate): Promise<PlaySessionRead> {
     const response = await fetch(`${API_BASE}/play-sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opponent: opponentStrength }),
+      body: JSON.stringify(data),
     });
     if (!response.ok) {
       throw new Error(`Failed to create play session: ${response.statusText}`);
     }
     const json = await response.json();
-    return json as unknown as PlaySession;
+    return json as unknown as PlaySessionRead;
   }
 
-  static async makePlaySessionMove(sessionId: string, move: PlaySessionMove): Promise<PlaySession> {
+  static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
     const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/moves`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,6 +71,19 @@ export class ApiClient {
       throw new Error(`Failed to make move: ${response.statusText}`);
     }
     const json = await response.json();
-    return json as unknown as PlaySession;
+    return json as unknown as PlayMoveResponse;
+  }
+
+  static async createPlayer(data: PlayerCreate): Promise<PlayerRead> {
+    const response = await fetch(`${API_BASE}/players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create player: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as PlayerRead;
   }
 }

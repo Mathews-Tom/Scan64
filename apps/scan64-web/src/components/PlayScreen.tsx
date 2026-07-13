@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
-import { PlaySession } from '../api/types';
+import type { PlaySessionRead } from '../api/types';
 import { Chessground } from 'chessground';
-import { Api } from 'chessground/api';
+import type { Api } from 'chessground/api';
+import type { Key } from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
@@ -11,7 +12,10 @@ import { Chess } from 'chess.js';
 export function PlayScreen() {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
-  const [session, setSession] = useState<PlaySession | null>(null);
+  const [session, setSession] = useState<PlaySessionRead | null>(null);
+  const sessionRef = useRef<PlaySessionRead | null>(null);
+  const [playerId, setPlayerId] = useState('');
+  const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const chessRef = useRef(new Chess());
 
@@ -30,12 +34,23 @@ export function PlayScreen() {
   const startGame = async () => {
     try {
       setError(null);
-      const newSession = await ApiClient.createPlaySession('1500');
+      let pid = playerId;
+      if (!pid) {
+        pid = 'player-' + Date.now();
+        setPlayerId(pid);
+      }
+      await ApiClient.createPlayer({ id: pid, display_name: playerName || 'Anonymous' });
+      
+      const newSession = await ApiClient.createPlaySession({ 
+        player_id: pid, 
+        opponent_config: { strength: '1500' } 
+      });
+      sessionRef.current = newSession;
       setSession(newSession);
-      chessRef.current.load(newSession.fen);
+      chessRef.current.reset();
       if (cg) {
         cg.set({
-          fen: newSession.fen,
+          fen: chessRef.current.fen(),
           movable: {
             color: 'white',
             dests: getDests(chessRef.current),
@@ -51,10 +66,10 @@ export function PlayScreen() {
   };
 
   const getDests = (chess: Chess) => {
-    const dests = new Map<string, string[]>();
+    const dests = new Map<Key, Key[]>();
     chess.moves({ verbose: true }).forEach((m) => {
-      const from = m.from;
-      const to = m.to;
+      const from = m.from as Key;
+      const to = m.to as Key;
       const d = dests.get(from) || [];
       d.push(to);
       dests.set(from, d);
@@ -63,20 +78,24 @@ export function PlayScreen() {
   };
 
   const handleMove = async (orig: string, dest: string) => {
-    if (!session || !cg) return;
+    const activeSession = sessionRef.current;
+    if (!activeSession || !cg) return;
     try {
       const lan = `${orig}${dest}`;
-      // Note: simplistic move applying. Real implementation needs promotion handling, 
-      // but for "minimal production-shaped" we assume standard moves.
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
       cg.set({ fen: chessRef.current.fen(), movable: { color: undefined } }); // Lock board while waiting
 
-      const updatedSession = await ApiClient.makePlaySessionMove(session.id, { lan });
-      setSession(updatedSession);
-      chessRef.current.load(updatedSession.fen);
+      const res = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
+      
+      if (res.opponent_move) {
+        const from = res.opponent_move.slice(0, 2);
+        const to = res.opponent_move.slice(2, 4);
+        const prom = res.opponent_move.length > 4 ? res.opponent_move.slice(4) : undefined;
+        chessRef.current.move({ from, to, promotion: prom });
+      }
       
       cg.set({
-        fen: updatedSession.fen,
+        fen: chessRef.current.fen(),
         movable: {
           color: 'white',
           dests: getDests(chessRef.current),
@@ -84,15 +103,34 @@ export function PlayScreen() {
       });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
-      // Revert board to last known good state on error
-      cg.set({ fen: chessRef.current.fen() });
+      chessRef.current.undo();
+      if (cg) {
+        cg.set({ fen: chessRef.current.fen() });
+      }
     }
   };
 
   return (
     <div className="play-screen" data-testid="play-screen">
       <h1>Play against Scan64</h1>
-      <button onClick={startGame} data-testid="start-btn">Start Game</button>
+      {!session && (
+        <div className="player-setup">
+          <input 
+            type="text" 
+            placeholder="Player ID" 
+            value={playerId} 
+            onChange={e => setPlayerId(e.target.value)} 
+            data-testid="player-id-input"
+          />
+          <input 
+            type="text" 
+            placeholder="Display Name" 
+            value={playerName} 
+            onChange={e => setPlayerName(e.target.value)} 
+          />
+          <button onClick={startGame} data-testid="start-btn">Start Game</button>
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
       <div 
         ref={boardRef} 
