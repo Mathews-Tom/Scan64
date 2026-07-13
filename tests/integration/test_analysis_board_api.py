@@ -4,6 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.persistence.database import get_session
@@ -69,6 +70,14 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
     game = Game(pgn="")
     session.add(game)
     session.flush()
+    initial_position = Position(
+        game_id=game.id,
+        fen="8/8/8/8/8/8/8/K6k w - - 0 1",
+        half_move_clock=0,
+        full_move_number=1,
+        side_to_move="w",
+        canonical_id="initial",
+    )
     session.add_all(
         [
             Position(
@@ -87,15 +96,16 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
                 side_to_move="b",
                 canonical_id="after-white",
             ),
-            Position(
-                game_id=game.id,
-                fen="8/8/8/8/8/8/8/K6k w - - 0 1",
-                half_move_clock=0,
-                full_move_number=1,
-                side_to_move="w",
-                canonical_id="initial",
-            ),
+            initial_position,
         ]
+    )
+    session.flush()
+    session.add(
+        EngineAnalysis(
+            position_id=initial_position.id,
+            config={"multipv": 1},
+            raw_result=[{"pv": ["e2e4"], "score_cp": 20}],
+        )
     )
     session.commit()
 
@@ -106,3 +116,6 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
         (position["full_move_number"], position["side_to_move"])
         for position in response.json()
     ] == [(1, "w"), (1, "b"), (2, "b")]
+    assert response.json()[0]["analysis"]["raw_result"] == [
+        {"pv": ["e2e4"], "score_cp": 20}
+    ]

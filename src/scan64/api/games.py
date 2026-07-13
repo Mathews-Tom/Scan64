@@ -182,6 +182,8 @@ class EngineAnalysisRead(BaseModel):
     config: dict[str, Any]
     raw_result: list[dict[str, Any]]
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PositionRead(BaseModel):
     id: UUID
