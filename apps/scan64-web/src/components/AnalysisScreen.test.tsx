@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalysisScreen } from './AnalysisScreen';
 import { ApiClient } from '../api/client';
@@ -55,5 +55,18 @@ describe('AnalysisScreen', () => {
     render(<AnalysisScreen />);
     expect(screen.getByText('Analysis Board')).toBeInTheDocument();
     expect(screen.getByText('No engine analysis available for this position.')).toBeInTheDocument();
+  });
+  it('allows setting arbitrary FEN positions', () => {
+    render(<AnalysisScreen />);
+
+    const fenInput = screen.getByPlaceholderText('Paste FEN here');
+    const loadBtn = screen.getByText('Load FEN');
+    const testFen = 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2';
+
+    fireEvent.change(fenInput, { target: { value: testFen } });
+    fireEvent.click(loadBtn);
+
+    expect(fenInput).toHaveValue(testFen);
+    expect(screen.queryByText('Invalid FEN')).not.toBeInTheDocument();
   });
 });

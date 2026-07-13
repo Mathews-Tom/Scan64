@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import 'chessground/assets/chessground.base.css';
@@ -21,6 +21,9 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fenInput, setFenInput] = useState(chess.fen());
+
+  const updateFenInput = useCallback(() => setFenInput(chess.fen()), [chess]);
 
   useEffect(() => {
     if (gameId) {
@@ -31,12 +34,15 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
           if (data.length > 0) {
             chess.load(data[0].fen);
             setCurrentIndex(0);
+            updateFenInput();
           }
         })
-        .catch((err) => setError(err.message))
+        .catch((error: unknown) =>
+          setError(error instanceof Error ? error.message : 'Failed to load analysis')
+        )
         .finally(() => setLoading(false));
     }
-  }, [gameId, chess]);
+  }, [gameId, chess, updateFenInput]);
 
   useEffect(() => {
     if (boardRef.current && !cg) {
@@ -50,12 +56,13 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         events: {
           move: (orig, dest) => {
             try {
-              chess.move({ from: orig, to: dest });
+              chess.move({ from: orig, to: dest, promotion: 'q' });
               api.set({
                 fen: chess.fen(),
                 movable: { dests: getDests(chess) },
               });
-            } catch (e) {
+              updateFenInput();
+            } catch {
               api.set({ fen: chess.fen() });
             }
           },
@@ -70,19 +77,25 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         setCg(null);
       }
     };
-  }, [cg, chess]);
+  }, [cg, chess, updateFenInput]);
 
   useEffect(() => {
-    if (cg) {
-      cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+    const currentPosition = positions[currentIndex];
+    if (cg && currentPosition) {
+      chess.load(currentPosition.fen);
+      cg.set({
+        fen: chess.fen(),
+        movable: { dests: getDests(chess) },
+      });
     }
-  }, [currentIndex, cg, chess]);
+  }, [cg, chess, currentIndex, positions]);
 
   const goNext = () => {
     if (currentIndex < positions.length - 1) {
       const nextIdx = currentIndex + 1;
       chess.load(positions[nextIdx].fen);
       setCurrentIndex(nextIdx);
+      updateFenInput();
     }
   };
 
@@ -91,8 +104,21 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
       const prevIdx = currentIndex - 1;
       chess.load(positions[prevIdx].fen);
       setCurrentIndex(prevIdx);
+      updateFenInput();
     }
   };
+
+  const handleLoadFen = () => {
+    try {
+      chess.load(fenInput);
+      if (cg) cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+      setError(null);
+    } catch {
+      setError('Invalid FEN');
+    }
+  };
+
+
 
   const currentPos = positions[currentIndex];
   const multiPv = currentPos?.analysis?.raw_result || [];
@@ -107,6 +133,21 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
+          
+
+          <div className="fen-setup" style={{ marginBottom: '1rem' }}>
+            <h3>FEN Setup</h3>
+            <input
+              type="text"
+              value={fenInput}
+              onChange={(e) => setFenInput(e.target.value)}
+              placeholder="Paste FEN here"
+              style={{ width: '100%', marginBottom: '0.5rem' }}
+            />
+            <button onClick={handleLoadFen}>Load FEN</button>
+          </div>
+
+
           <div className="controls" style={{ marginBottom: '1rem' }}>
             <button onClick={goPrev} disabled={currentIndex === 0}>
               Previous
