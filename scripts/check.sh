@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Local verification: run every lint, type-check, and test gate for the
-# Python backend and the scan64-web frontend. This script is the single
-# source of truth for "green" and is invoked by the hosted CI workflow.
+# Local equivalent of CI: run every lint, type-check, and test gate for the
+# Python backend and the scan64-web frontend. This repository is private and
+# does not run hosted CI; this script is the source of truth for "green".
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
