@@ -8,6 +8,12 @@ importers:
 
   apps/scan64-web:
     dependencies:
+      chess.js:
+        specifier: ^1.4.0
+        version: 1.4.0
+      chessground:
+        specifier: ^9.2.1
+        version: 9.2.1
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -493,6 +499,13 @@ packages:
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
     engines: {node: '>=18'}
+
+  chess.js@1.4.0:
+    resolution: {integrity: sha512-BBJgrrtKQOzFLonR0l+k64A98NLemPwNsCskwb+29bRwobUa4iTm51E1kwGPbWXAcfdDa18nad6vpPPKPWarqw==}
+
+  chessground@9.2.1:
+    resolution: {integrity: sha512-KIdxm0zD69e62XRwdnFB0XUNYSzn5HM3pMazRCwpfruRUowFI8y+1OAK5YSyBff29myeV1/4o5Q8T191+Irbog==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -1249,6 +1262,10 @@ snapshots:
       require-from-string: 2.0.2
 
   chai@6.2.2: {}
+
+  chess.js@1.4.0: {}
+
+  chessground@9.2.1: {}
 
   convert-source-map@2.0.0: {}
 
