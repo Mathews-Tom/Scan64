@@ -6,6 +6,9 @@ import { ApiClient } from '../api/client';
 vi.mock('../api/client', () => ({
   ApiClient: {
     getPositions: vi.fn(),
+    createGame: vi.fn(),
+    createPlayer: vi.fn(),
+    createPlaySession: vi.fn(),
   },
 }));
 
@@ -81,6 +84,42 @@ describe('AnalysisScreen', () => {
     fireEvent.click(screen.getByText('Copy FEN'));
 
     expect(writeText).toHaveBeenCalledWith(
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    );
+  });
+
+  it('starts a play session from the analysed position', async () => {
+    const onPlayFromHere = vi.fn();
+    const playSession = {
+      id: 'session-1',
+      player_id: 'player-1',
+      game_id: 'game-1',
+      opponent_config: { strength: '1500' },
+      status: 'active',
+    };
+    vi.mocked(ApiClient.createGame).mockResolvedValue({
+      id: 'game-1',
+      pgn: '',
+      white: 'White',
+      black: 'Black',
+      result: '*',
+    });
+    vi.mocked(ApiClient.createPlayer).mockResolvedValue({
+      id: 'player-1',
+      preferences: {},
+    });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
+
+    render(<AnalysisScreen onPlayFromHere={onPlayFromHere} />);
+    fireEvent.click(screen.getByTestId('play-from-here'));
+
+    await waitFor(() => {
+      expect(ApiClient.createPlaySession).toHaveBeenCalledWith(
+        expect.objectContaining({ game_id: 'game-1' })
+      );
+    });
+    expect(onPlayFromHere).toHaveBeenCalledWith(
+      playSession,
       'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
   });
