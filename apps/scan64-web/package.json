@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "chess.js": "^1.4.0",
+    "chessground": "^9.2.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

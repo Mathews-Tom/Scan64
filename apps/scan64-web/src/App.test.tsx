@@ -1,10 +1,16 @@
-import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
 
 describe('App', () => {
-  it('renders Vite and React logos', () => {
+  it('renders welcome message by default', () => {
     render(<App />);
-    expect(screen.getByAltText('Vite logo')).toBeInTheDocument();
+    expect(screen.getByText('Welcome to Scan64')).toBeInTheDocument();
+  });
+
+  it('navigates to play screen', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Play Game'));
+    expect(screen.getByTestId('play-screen')).toBeInTheDocument();
   });
 });
