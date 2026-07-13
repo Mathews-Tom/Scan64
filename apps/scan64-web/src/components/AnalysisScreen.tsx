@@ -6,14 +6,15 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient } from '../api/client';
-import type { PositionRead } from '../api/types';
+import type { PlaySessionRead, PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
 interface AnalysisScreenProps {
   gameId?: string;
+  onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
 }
 
-export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
+export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const [chess] = useState(() => new Chess());
@@ -118,6 +119,31 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
     }
   };
 
+  const playFromHere = async () => {
+    if (!onPlayFromHere) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const fen = chess.fen();
+      const game = await ApiClient.createGame({
+        pgn: `[FEN "${fen}"]\n[SetUp "1"]\n\n`,
+      });
+      const playerId = `player-${Date.now()}`;
+      await ApiClient.createPlayer({ id: playerId });
+      const playSession = await ApiClient.createPlaySession({
+        player_id: playerId,
+        game_id: game.id,
+        opponent_config: { strength: '1500' },
+      });
+      onPlayFromHere(playSession, fen);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to start game');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
 
   const currentPos = positions[currentIndex];
@@ -133,6 +159,12 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
+
+          <div className="play-from-here" style={{ marginBottom: '1rem' }}>
+            <button onClick={playFromHere} disabled={loading} data-testid="play-from-here">
+              {loading ? 'Starting...' : 'Play from here'}
+            </button>
+          </div>
           
 
           <div className="fen-setup" style={{ marginBottom: '1rem' }}>
