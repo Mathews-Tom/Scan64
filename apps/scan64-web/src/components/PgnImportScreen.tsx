@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
-import { LessonReviewScreen } from './LessonReviewScreen';
+import { CriticalMomentReview } from './CriticalMomentReview';
 
 interface PgnImportScreenProps {
   onExploreAnalysis?: (gameId: string) => void;
@@ -96,7 +96,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     return (
       <div>
         <button onClick={() => setSelectedLesson(null)}>Back to Import</button>
-        <LessonReviewScreen lesson={selectedLesson} />
+        <CriticalMomentReview lesson={selectedLesson} />
       </div>
     );
   }
