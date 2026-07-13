@@ -1,4 +1,4 @@
-import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead } from './types';
+import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead , PositionRead } from './types';
 
 const API_BASE = '/v1';
 
@@ -14,6 +14,16 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as GameRead;
+  }
+
+  static async getPositions(gameId: string): Promise<PositionRead[]> {
+    const response = await fetch(`${API_BASE}/games/${gameId}/positions`);
+    if (!response.ok) {
+      if (response.status === 404) return [];
+      throw new Error(`Failed to get positions: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as PositionRead[];
   }
 
   static async getLearningOpportunities(gameId: string): Promise<LessonSpec[]> {

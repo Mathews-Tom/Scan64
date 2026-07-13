@@ -3,7 +3,12 @@ import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
 import { LessonReviewScreen } from './LessonReviewScreen';
 
-export function PgnImportScreen() {
+interface PgnImportScreenProps {
+  onExploreAnalysis?: (gameId: string) => void;
+}
+
+
+export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const [pgn, setPgn] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,6 +25,7 @@ export function PgnImportScreen() {
 
   const [lessons, setLessons] = useState<LessonSpec[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<LessonSpec | null>(null);
+  const [analyzedGameId, setAnalyzedGameId] = useState<string | null>(null);
   const handleImport = async () => {
     if (!pgn.trim()) return;
     
@@ -72,8 +78,8 @@ export function PgnImportScreen() {
       const opportunities = await ApiClient.getLearningOpportunities(game.id);
       if (signal.aborted) return;
 
-      // Only verified opportunities, if there's a verification field
       const verifiedLessons = opportunities.filter(op => op.verification?.status === 'verified' || !op.verification);
+      setAnalyzedGameId(game.id);
       setLessons(verifiedLessons);
       setStatusText(null);
     } catch (e: unknown) {
@@ -116,6 +122,14 @@ export function PgnImportScreen() {
       {error && <div className="error" data-testid="import-error">{error}</div>}
 
 
+      {analyzedGameId && onExploreAnalysis && (
+        <button
+          data-testid="explore-analysis-btn"
+          onClick={() => onExploreAnalysis(analyzedGameId)}
+        >
+          Explore analysis board
+        </button>
+      )}
       {lessons.length > 0 && (
         <div data-testid="lessons-list">
           <h3>Learning Opportunities Found</h3>
