@@ -203,8 +203,8 @@ def get_game_positions(
         select(Position)
         .where(Position.game_id == game_id)
         .order_by(
-            Position.full_move_number,
-            case((Position.side_to_move == "w", 0), else_=1),
+            col(Position.full_move_number),
+            case((col(Position.side_to_move) == "w", 0), else_=1),
         )
     ).all()
     result: list[PositionRead] = []
