@@ -6,15 +6,14 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient } from '../api/client';
-import type { PositionRead, PlaySessionRead } from '../api/types';
+import type { PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
 interface AnalysisScreenProps {
   gameId?: string;
-  onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
 }
 
-export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) {
+export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const [chess] = useState(() => new Chess());
@@ -120,31 +119,6 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
   };
 
 
-  const playFromHere = async () => {
-    if (!onPlayFromHere) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const fen = chess.fen();
-      const pgn = `[FEN "${fen}"]
-[SetUp "1"]
-
-`;
-      const game = await ApiClient.createGame({ pgn });
-      const pid = 'player-' + Date.now();
-      await ApiClient.createPlayer({ id: pid });
-      const playSession = await ApiClient.createPlaySession({
-        player_id: pid,
-        game_id: game.id,
-        opponent_config: { strength: '1500' },
-      });
-      onPlayFromHere(playSession, fen);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to start game');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const currentPos = positions[currentIndex];
   const multiPv = currentPos?.analysis?.raw_result || [];
@@ -160,11 +134,6 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
           
-          <div className="play-from-here" style={{ marginBottom: '1rem' }}>
-            <button onClick={playFromHere} disabled={loading} data-testid="play-from-here">
-              {loading ? 'Starting...' : 'Play from here'}
-            </button>
-          </div>
 
           <div className="fen-setup" style={{ marginBottom: '1rem' }}>
             <h3>FEN Setup</h3>
@@ -178,33 +147,6 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
             <button onClick={handleLoadFen}>Load FEN</button>
           </div>
 
-          
-          <div className="pgn-export" style={{ marginBottom: '1rem' }}>
-            <h3>Export</h3>
-            <button
-              onClick={() => {
-                const pgn = chess.pgn();
-                const blob = new Blob([pgn], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'analysis.pgn';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-            >
-              Download PGN
-            </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(chess.fen());
-                alert('FEN copied to clipboard!');
-              }}
-              style={{ marginLeft: '0.5rem' }}
-            >
-              Copy FEN
-            </button>
-          </div>
 
           <div className="controls" style={{ marginBottom: '1rem' }}>
             <button onClick={goPrev} disabled={currentIndex === 0}>
