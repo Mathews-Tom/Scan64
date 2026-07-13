@@ -1,6 +1,34 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpeningExplorerScreen } from './OpeningExplorerScreen';
+
+type MoveHandler = (orig: string, dest: string) => void;
+
+const chessgroundMock = vi.hoisted(() => ({
+  after: undefined as MoveHandler | undefined,
+  set: vi.fn(),
+}));
+
+vi.mock('chessground', () => ({
+  Chessground: (
+    _element: Element,
+    config: { movable: { events?: { after?: MoveHandler } } },
+  ) => {
+    chessgroundMock.after = config.movable.events?.after;
+    return {
+      set: (update: { movable?: { events?: { after?: MoveHandler } } }) => {
+        const after = update.movable?.events?.after;
+        if (after) chessgroundMock.after = after;
+        chessgroundMock.set(update);
+      },
+    };
+  },
+}));
+
+beforeEach(() => {
+  chessgroundMock.after = undefined;
+  chessgroundMock.set.mockReset();
+});
 
 describe('OpeningExplorerScreen', () => {
   it('renders the opening explorer with seed families', () => {
@@ -24,4 +52,27 @@ describe('OpeningExplorerScreen', () => {
     expect(screen.getByText(/Develop both minor pieces before starting an attack/)).toBeInTheDocument();
     expect(screen.getByText(/minor_pieces_developed/)).toBeInTheDocument();
   });
+
+  it('surfaces a rejected board move and resynchronizes Chessground', async () => {
+    render(<OpeningExplorerScreen />);
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+    const after = chessgroundMock.after;
+    if (!after) throw new Error('Chessground move handler was not registered');
+
+    await act(async () => {
+      after('e2', 'e8');
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid move');
+    expect(chessgroundMock.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      }),
+    );
+  });
 });
+
+

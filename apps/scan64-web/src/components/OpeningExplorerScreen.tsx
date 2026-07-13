@@ -72,10 +72,22 @@ function getDests(chess: Chess): Map<Key, Key[]> {
   return dests;
 }
 
+function syncBoard(chess: Chess, board: Api): void {
+  board.set({
+    fen: chess.fen(),
+    turnColor: chess.turn() === 'w' ? 'white' : 'black',
+    movable: {
+      color: chess.turn() === 'w' ? 'white' : 'black',
+      dests: getDests(chess),
+    },
+  });
+}
+
 export function OpeningExplorerScreen() {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<OpeningFamily | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const chessRef = useRef(new Chess());
 
   useEffect(() => {
@@ -94,59 +106,51 @@ export function OpeningExplorerScreen() {
   }, [cg]);
 
   useEffect(() => {
-    if (cg) {
-      cg.set({
-        movable: {
-          events: {
-            after: (orig, dest, _metadata) => {
-              try {
-                chessRef.current.move({ from: orig, to: dest });
-                cg.set({
-                  fen: chessRef.current.fen(),
-                  turnColor: chessRef.current.turn() === 'w' ? 'white' : 'black',
-                  movable: {
-                    color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-                    dests: getDests(chessRef.current)
-                  }
-                });
-              } catch (e) {
-                // Ignore invalid moves
-              }
+    if (!cg) return;
+
+    cg.set({
+      movable: {
+        events: {
+          after: (orig, dest, _metadata) => {
+            try {
+              chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
+              setError(null);
+            } catch (error: unknown) {
+              setError(error instanceof Error ? error.message : 'Could not apply opening move.');
             }
-          }
-        }
-      });
-    }
+            syncBoard(chessRef.current, cg);
+          },
+        },
+      },
+    });
   }, [cg]);
 
   const loadFamily = (family: OpeningFamily) => {
-    setSelectedFamily(family);
     chessRef.current.reset();
-    
-    // Play main line
-    for (const move of family.moves) {
-      try {
+
+    try {
+      for (const move of family.moves) {
         chessRef.current.move(move);
-      } catch (e) {
-        break;
       }
+    } catch (error: unknown) {
+      chessRef.current.reset();
+      setSelectedFamily(null);
+      setError(
+        error instanceof Error ? `Could not load ${family.name}: ${error.message}` : `Could not load ${family.name}.`,
+      );
+      if (cg) syncBoard(chessRef.current, cg);
+      return;
     }
-    
-    if (cg) {
-      cg.set({
-        fen: chessRef.current.fen(),
-        turnColor: chessRef.current.turn() === 'w' ? 'white' : 'black',
-        movable: {
-          color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-          dests: getDests(chessRef.current)
-        }
-      });
-    }
+
+    setSelectedFamily(family);
+    setError(null);
+    if (cg) syncBoard(chessRef.current, cg);
   };
 
   return (
     <div className="opening-explorer" data-testid="opening-explorer">
       <h2>Opening Explorer</h2>
+      {error && <p role="alert">{error}</p>}
       <div style={{ display: 'flex', gap: '20px' }}>
         <div>
           <h3>Families</h3>
