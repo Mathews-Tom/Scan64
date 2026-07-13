@@ -57,6 +57,7 @@ def validate_solution_line(fen: object, solution: object) -> str | None:
     ):
         return "solution must be a non-empty list of UCI moves"
 
+
     try:
         board = chess.Board(fen)
     except ValueError as error:
@@ -130,7 +131,6 @@ def validate_tablebase_solution(
 
 def validate_endgames() -> bool:
     from scan64.content.endgames.curated import ENDGAME_PUZZLES
-
     if not ENDGAME_PUZZLES:
         print("Error: ENDGAME_PUZZLES is empty")
         return False
@@ -181,7 +181,6 @@ def main() -> None:
         success = False
     if args.domain in ["endgames", "all"] and not validate_endgames():
         success = False
-
     if not success:
         sys.exit(1)
 
