@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import 'chessground/assets/chessground.base.css';
@@ -6,14 +6,15 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient } from '../api/client';
-import type { PositionRead } from '../api/types';
+import type { PositionRead, PlaySessionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
 interface AnalysisScreenProps {
   gameId?: string;
+  onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
 }
 
-export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
+export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const [chess] = useState(() => new Chess());
@@ -23,7 +24,7 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [fenInput, setFenInput] = useState(chess.fen());
 
-  const updateFenInput = () => setFenInput(chess.fen());
+  const updateFenInput = useCallback(() => setFenInput(chess.fen()), [chess]);
 
   useEffect(() => {
     if (gameId) {
@@ -37,10 +38,12 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
             updateFenInput();
           }
         })
-        .catch((err) => setError(err.message))
+        .catch((error: unknown) =>
+          setError(error instanceof Error ? error.message : 'Failed to load analysis')
+        )
         .finally(() => setLoading(false));
     }
-  }, [gameId, chess]);
+  }, [gameId, chess, updateFenInput]);
 
   useEffect(() => {
     if (boardRef.current && !cg) {
@@ -54,13 +57,13 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         events: {
           move: (orig, dest) => {
             try {
-              chess.move({ from: orig, to: dest });
+              chess.move({ from: orig, to: dest, promotion: 'q' });
               api.set({
                 fen: chess.fen(),
                 movable: { dests: getDests(chess) },
               });
               updateFenInput();
-            } catch (e) {
+            } catch {
               api.set({ fen: chess.fen() });
             }
           },
@@ -75,13 +78,18 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         setCg(null);
       }
     };
-  }, [cg, chess]);
+  }, [cg, chess, updateFenInput]);
 
   useEffect(() => {
-    if (cg) {
-      cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+    const currentPosition = positions[currentIndex];
+    if (cg && currentPosition) {
+      chess.load(currentPosition.fen);
+      cg.set({
+        fen: chess.fen(),
+        movable: { dests: getDests(chess) },
+      });
     }
-  }, [currentIndex, cg, chess]);
+  }, [cg, chess, currentIndex, positions]);
 
   const goNext = () => {
     if (currentIndex < positions.length - 1) {
@@ -106,8 +114,35 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
       chess.load(fenInput);
       if (cg) cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
       setError(null);
-    } catch (e: any) {
+    } catch {
       setError('Invalid FEN');
+    }
+  };
+
+
+  const playFromHere = async () => {
+    if (!onPlayFromHere) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const fen = chess.fen();
+      const pgn = `[FEN "${fen}"]
+[SetUp "1"]
+
+`;
+      const game = await ApiClient.createGame({ pgn });
+      const pid = 'player-' + Date.now();
+      await ApiClient.createPlayer({ id: pid });
+      const playSession = await ApiClient.createPlaySession({
+        player_id: pid,
+        game_id: game.id,
+        opponent_config: { strength: '1500' },
+      });
+      onPlayFromHere(playSession, fen);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to start game');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -124,6 +159,13 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
         <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
+          
+          <div className="play-from-here" style={{ marginBottom: '1rem' }}>
+            <button onClick={playFromHere} disabled={loading} data-testid="play-from-here">
+              {loading ? 'Starting...' : 'Play from here'}
+            </button>
+          </div>
+
           <div className="fen-setup" style={{ marginBottom: '1rem' }}>
             <h3>FEN Setup</h3>
             <input
@@ -134,6 +176,34 @@ export function AnalysisScreen({ gameId }: AnalysisScreenProps) {
               style={{ width: '100%', marginBottom: '0.5rem' }}
             />
             <button onClick={handleLoadFen}>Load FEN</button>
+          </div>
+
+          
+          <div className="pgn-export" style={{ marginBottom: '1rem' }}>
+            <h3>Export</h3>
+            <button
+              onClick={() => {
+                const pgn = chess.pgn();
+                const blob = new Blob([pgn], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analysis.pgn';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download PGN
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(chess.fen());
+                alert('FEN copied to clipboard!');
+              }}
+              style={{ marginLeft: '0.5rem' }}
+            >
+              Copy FEN
+            </button>
           </div>
 
           <div className="controls" style={{ marginBottom: '1rem' }}>
