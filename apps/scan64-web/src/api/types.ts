@@ -138,3 +138,23 @@ export interface PlayMoveCreate {
 export interface PlayMoveResponse {
   opponent_move: string | null;
 }
+
+export interface EngineAnalysisRead {
+  id: string;
+  config: Record<string, unknown>;
+  raw_result: Array<{
+    pv: string[];
+    score_cp?: number;
+    score_mate?: number;
+  }>;
+}
+
+export interface PositionRead {
+  id: string;
+  fen: string;
+  half_move_clock: number;
+  full_move_number: number;
+  side_to_move: string;
+  canonical_id: string;
+  analysis?: EngineAnalysisRead;
+}
