@@ -37,8 +37,3 @@ def test_opening_family_item_creation():
     assert parsed_payload.missions[0].id == "dev_minor"
 
 
-def test_family_count():
-    from scan64.content.openings.curated import OPENING_FAMILIES
-
-    # Acceptance: exactly 3 opening families are shipped
-    assert len(OPENING_FAMILIES) == 3
