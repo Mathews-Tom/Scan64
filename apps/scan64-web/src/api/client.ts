@@ -133,7 +133,8 @@ export class ApiClient {
   }
 
   static async getTrainingSession(): Promise<LessonSpec[]> {
-    const response = await fetch(`${API_BASE}/learning/session`);
+    const playerId = localStorage.getItem('scan64_player_id') || 'player1';
+    const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch training session: ${response.statusText}`);
     }
