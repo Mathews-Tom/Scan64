@@ -1,10 +1,11 @@
 from uuid import UUID
 
+import chess
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import Session
 
-from scan64.chess.games.models import PlaySession
+from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import get_session
@@ -18,6 +19,17 @@ class PlaySessionCreate(BaseModel):
     game_id: UUID | None = None
     opponent_config: dict[str, str] = {}
     clock_config: dict[str, str] | None = None
+    initial_fen: str | None = None
+
+    @field_validator("initial_fen")
+    @classmethod
+    def validate_initial_fen(cls, initial_fen: str | None) -> str | None:
+        if initial_fen is None:
+            return None
+        board = chess.Board(initial_fen)
+        if not board.is_valid():
+            raise ValueError("initial_fen must be a valid chess position")
+        return initial_fen
 
 
 class PlaySessionRead(BaseModel):
@@ -54,9 +66,22 @@ def get_play_session_service(
 def create_play_session(
     session_in: PlaySessionCreate, session: Session = Depends(get_session)
 ) -> PlaySession:
+    game_id = session_in.game_id
+    if session_in.initial_fen is not None:
+        game = Game(
+            pgn="",
+            headers={"FEN": session_in.initial_fen},
+            moves=[],
+            white="Player",
+            black="Opponent",
+        )
+        session.add(game)
+        session.flush()
+        game_id = game.id
+
     play_session = PlaySession(
         player_id=session_in.player_id,
-        game_id=session_in.game_id,
+        game_id=game_id,
         opponent_config=session_in.opponent_config,
         clock_config=session_in.clock_config,
     )

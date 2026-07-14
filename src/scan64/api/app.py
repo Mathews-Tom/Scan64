@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from scan64.api.content import router as content_router
 from scan64.api.games import router as games_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
@@ -31,6 +32,7 @@ app = FastAPI(
     version="v1",
     lifespan=lifespan,
 )
+app.include_router(content_router)
 app.include_router(play_router)
 
 
