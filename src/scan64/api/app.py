@@ -9,6 +9,7 @@ from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
+from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.persistence.database import create_db_and_tables, get_session
 
 
@@ -41,6 +42,7 @@ app.include_router(learning_router)
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)
 app.include_router(players_router)
+app.include_router(data_lifecycle_router)
 
 
 @app.get("/health")
