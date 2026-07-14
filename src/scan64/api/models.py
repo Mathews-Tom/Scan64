@@ -14,3 +14,9 @@ class PlayerProfile(SQLModel, table=True):
     player_id: str = Field(primary_key=True, foreign_key="player.id")
     rating: int = 1500
     display_name: str | None = None
+
+class DeletionAudit(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    player_id: str = Field(index=True)
+    deleted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    affected_rows: dict[str, int] = Field(default_factory=dict, sa_type=JSON)
