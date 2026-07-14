@@ -86,11 +86,19 @@ def test_scheduler_draws_from_all_content_sources(db_session: Session):
     Integration test verifying that the scheduler can accept and compose a session
     drawing from M15 (endgame tablebase), M16 (openings), M17 (famous games), and M9 (exercises).
     """
-    # Persist a real M9 opportunity to test it is picked up
-    import uuid
+    from scan64.chess.games.models import Game, PlaySession
+
+    game = Game(pgn="", white="w", black="b", result="*")
+    db_session.add(game)
+    db_session.commit()
+    db_session.refresh(game)
+
+    ps = PlaySession(player_id="player1", game_id=game.id)
+    db_session.add(ps)
+    db_session.commit()
+
     opp = PersistedLessonOpportunity(
-        player_id="player1",
-        game_id=uuid.uuid4(),
+        game_id=game.id,
         lesson_spec={
             "schema_version": "1.0",
             "lesson_id": "opp1",
