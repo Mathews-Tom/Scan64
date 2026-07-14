@@ -25,6 +25,7 @@ vi.mock('../api/client', () => ({
     getFamousGames: vi.fn(),
     recordFamousGameAttempt: vi.fn(),
   },
+  getOrCreatePlayerId: vi.fn(() => 'player-1'),
 }));
 
 const games: FamousGameRead[] = [

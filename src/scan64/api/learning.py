@@ -5,9 +5,13 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.games.models import PlaySession
 from scan64.content.endgames.curated import ENDGAME_PUZZLES
 from scan64.content.famous_games.curated import FAMOUS_GAMES
+from scan64.content.famous_games.models import FamousGameDecision, FamousGameDefinition
+from scan64.content.models import ContentItem
 from scan64.content.openings.curated import OPENING_FAMILIES
+from scan64.content.openings.models import OpeningFamilyPayload
 from scan64.learning.scheduling.composer import SessionComposer
 from scan64.learning.scheduling.priority import PriorityFactors
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -46,17 +50,20 @@ def make_endgame_spec(puzzle: dict[str, Any]) -> LessonSpec:
         verification=Verification(status="verified", engine="syzygy")
     )
 
-def make_opening_spec(family_item: Any) -> LessonSpec:
-    payload = family_item.payload
-    name = payload.get("name", "Unknown Opening")
-    moves = payload.get("moves", [])
+def make_opening_spec(family_item: ContentItem) -> LessonSpec:
+    payload = OpeningFamilyPayload.model_validate(family_item.payload)
+    name = payload.name
+    moves = payload.moves
+
+    if not moves:
+        raise ValueError(f"Opening {name} has no moves defined")
 
     import chess
     board = chess.Board()
     for m in moves[:-1]:
         board.push_san(m)
     fen = board.fen()
-    last_move = moves[-1] if moves else "e4"
+    last_move = moves[-1]
 
     return LessonSpec(
         schema_version="1.0",
@@ -74,7 +81,7 @@ def make_opening_spec(family_item: Any) -> LessonSpec:
         verification=Verification(status="verified", engine="expert")
     )
 
-def make_famous_game_spec(game: Any, decision: Any) -> LessonSpec:
+def make_famous_game_spec(game: FamousGameDefinition, decision: FamousGameDecision) -> LessonSpec:
     return LessonSpec(
         schema_version="1.0",
         lesson_id=f"{game.id}_{decision.id}",
@@ -130,7 +137,11 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
             })
 
     # Persisted M9 Opportunities
-    opportunities = db.exec(select(PersistedLessonOpportunity)).all()
+    opportunities = db.exec(
+        select(PersistedLessonOpportunity)
+        .join(PlaySession, PlaySession.game_id == PersistedLessonOpportunity.game_id)  # type: ignore[arg-type]
+        .where(PlaySession.player_id == player_id)
+    ).all()
     for opp in opportunities:
         spec = LessonSpec.model_validate(opp.lesson_spec)
         pool.append({
@@ -146,7 +157,12 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
         schedule = db.get(ReviewSchedule, (player_id, item["id"]))
         if schedule:
             is_due = schedule.is_due(now)
-            item["type"] = "due" if is_due else "exploration"
+            if is_due:
+                item["type"] = "due"
+            else:
+                item["type"] = (
+                    "transfer" if item["content_type"] == "famous_game" else "exploration"
+                )
             pf = PriorityFactors(
                 review_due=1.0 if is_due else 0.0,
                 weakness_severity=0.8 if item["content_type"] == "exercise" else 0.0,
@@ -154,7 +170,10 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
             )
             item["priority"] = pf.compute_priority(session_fatigue=0.0)
         else:
-            item["type"] = "exploration" if item["content_type"] != "exercise" else "mistakes"
+            item["type"] = (
+                "mistakes" if item["content_type"] == "exercise"
+                else ("transfer" if item["content_type"] == "famous_game" else "exploration")
+            )
             pf = PriorityFactors(
                 review_due=0.0,
                 weakness_severity=0.8 if item["content_type"] == "exercise" else 0.0,
