@@ -1,4 +1,7 @@
+from datetime import datetime, timedelta
+
 from scan64.learning.scheduling.priority import PriorityFactors, compute_session_fatigue
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
 
 def test_priority_ranking_formula_bounds():
@@ -44,3 +47,22 @@ def test_session_fatigue_increases_measurably():
         consecutive_lessons=30, baseline_response_time_ms=1000.0, rolling_response_time_ms=3000.0
     )
     assert fatigue_max == 1.0
+
+
+def test_review_schedule_due_selection():
+    now = datetime(2026, 7, 14, 12, 0, 0)
+    schedule = ReviewSchedule(
+        player_id="player1", item_id="item1", next_review_at=now - timedelta(hours=1)
+    )
+
+    assert schedule.is_due(now)
+
+    schedule.update(success=True, current_time=now)
+    assert not schedule.is_due(now)
+    assert schedule.interval_days > 1.0
+    assert schedule.next_review_at > now
+
+    schedule_not_due = ReviewSchedule(
+        player_id="player1", item_id="item2", next_review_at=now + timedelta(hours=1)
+    )
+    assert not schedule_not_due.is_due(now)

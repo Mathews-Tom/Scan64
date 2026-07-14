@@ -44,7 +44,8 @@ def compute_session_fatigue(
     Returns a value bounded to [0, 1].
 
     - Base fatigue from lesson count (e.g. maxes out at 20 lessons).
-    - Degradation fatigue based on how much slower the rolling response time is compared to baseline.
+    - Degradation fatigue based on how much slower the rolling response time
+      is compared to baseline.
     """
     if consecutive_lessons < 0:
         consecutive_lessons = 0
