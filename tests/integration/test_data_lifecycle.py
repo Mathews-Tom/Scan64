@@ -300,3 +300,15 @@ def test_import_rejects_cross_player_records(client: TestClient, db_session: Ses
     )
 
     assert response.status_code == 400
+
+
+def test_lifecycle_does_not_reveal_player_existence_without_token(client: TestClient):
+    response = client.post("/v1/exports", json={"player_id": "missing-player"})
+    assert response.status_code == 401
+
+    response = client.request(
+        "DELETE",
+        "/v1/players/missing-player/data",
+        json={"dry_run": True},
+    )
+    assert response.status_code == 401

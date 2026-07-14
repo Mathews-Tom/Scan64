@@ -77,10 +77,10 @@ def export_player_data(
     request: Request, req: ExportRequest, session: Session = Depends(get_session)
 ) -> ExportArchive:
     player_id = req.player_id
+    credential_hash = require_player_token(request, player_id, session)
     player = session.get(Player, player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
-    credential_hash = require_player_token(request, player_id, session)
 
     profile = session.get(PlayerProfile, player_id)
     play_sessions = session.exec(
@@ -282,10 +282,10 @@ def delete_player_data(
     req: DeletionRequest,
     session: Session = Depends(get_session),
 ) -> DeletionResponse:
+    require_player_token(request, player_id, session)
     player = session.get(Player, player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
-    require_player_token(request, player_id, session)
 
     if not req.dry_run and req.confirmation != f"delete-{player_id}":
         raise HTTPException(
