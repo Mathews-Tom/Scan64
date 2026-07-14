@@ -1,15 +1,15 @@
+from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from datetime import datetime, UTC
 
-from scan64.persistence.database import get_session
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.models import ContentAttempt, ContentItem
-from scan64.learning.profiling.models import SkillState
 from scan64.content.tracking import apply_content_attempt_to_profile
+from scan64.learning.profiling.models import SkillState
+from scan64.persistence.database import get_session
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -61,7 +61,7 @@ def record_famous_game_attempt(
         licence="mixed",
         skill_mapping=game_data["skill_mapping"]
     )
-    
+
     attempt = ContentAttempt(
         item_id=item.id,
         player_id=attempt_in.player_id,

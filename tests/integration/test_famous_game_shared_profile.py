@@ -1,13 +1,13 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
-import uuid
-import datetime
+from sqlmodel import select
 
 from scan64.api.app import app
-from scan64.persistence.database import get_session, create_db_and_tables
 from scan64.content.models import ContentAttempt
 from scan64.learning.profiling.models import SkillState
+from scan64.persistence.database import create_db_and_tables, get_session
 
 client = TestClient(app)
 
@@ -27,12 +27,12 @@ def test_famous_game_attempt_updates_shared_profile():
         "hint_assisted": False,
         "response_payload": {"move": "Rxd4"}
     }
-    
+
     response = client.post("/content/famous-games/game-3-kasparov/attempts", json=attempt_data)
     # If 404 router is not yet registered in app.py, this will fail.
     if response.status_code == 404:
         pytest.skip("Content router not registered yet in app.py")
-        
+
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["success"] is True
@@ -46,8 +46,10 @@ def test_famous_game_attempt_updates_shared_profile():
         skill_codes = {s.concept_code for s in skills}
         assert "tactics.king_hunt" in skill_codes
         assert "calculation.depth" in skill_codes
-        
+
         # Verify attempt was recorded for this player
-        attempts = session.exec(select(ContentAttempt).where(ContentAttempt.player_id == player_id)).all()
+        attempts = session.exec(
+            select(ContentAttempt).where(ContentAttempt.player_id == player_id)
+        ).all()
         assert len(attempts) == 1
         assert attempts[0].item_id == "game-3-kasparov"
