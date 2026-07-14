@@ -131,4 +131,13 @@ export class ApiClient {
     const json = await response.json();
     return json as unknown as AttemptRead;
   }
+
+  static async getTrainingSession(): Promise<LessonSpec[]> {
+    const response = await fetch(`${API_BASE}/learning/session`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch training session: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as LessonSpec[];
+  }
 }

@@ -19,4 +19,10 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Import PGN'));
     expect(screen.getByTestId('pgn-import')).toBeInTheDocument();
   });
+  it('navigates to daily training screen', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Daily Training'));
+    // DailyTrainingScreen will initially show loading or an error if fetch fails
+    expect(await screen.findByTestId('error-message')).toBeInTheDocument();
+  });
 });
