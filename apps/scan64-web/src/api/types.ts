@@ -160,3 +160,27 @@ export interface PositionRead {
   canonical_id: string;
   analysis?: EngineAnalysisRead;
 }
+
+export interface FamousGameRead {
+  id: string;
+  payload: {
+    title: string;
+    fen: string;
+    moves: string;
+    [key: string]: unknown;
+  };
+  skill_mapping: Record<string, number>;
+}
+
+export interface AttemptCreate {
+  player_id: string;
+  success: boolean;
+  hint_assisted: boolean;
+  response_payload: Record<string, unknown>;
+}
+
+export interface AttemptRead {
+  id: string;
+  success: boolean;
+  hint_assisted: boolean;
+}

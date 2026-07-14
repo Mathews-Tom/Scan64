@@ -1,4 +1,8 @@
-import type { GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead , PositionRead } from './types';
+import type { 
+  GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, 
+  PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead, PositionRead,
+  FamousGameRead, AttemptCreate, AttemptRead 
+} from './types';
 
 const API_BASE = '/v1';
 
@@ -95,5 +99,36 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as PlayerRead;
+  }
+
+  static async getFamousGames(): Promise<FamousGameRead[]> {
+    const response = await fetch(`${API_BASE}/content/famous-games`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch famous games: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as FamousGameRead[];
+  }
+
+  static async getFamousGame(id: string): Promise<FamousGameRead> {
+    const response = await fetch(`${API_BASE}/content/famous-games/${id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch famous game: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as FamousGameRead;
+  }
+
+  static async recordFamousGameAttempt(id: string, attempt: AttemptCreate): Promise<AttemptRead> {
+    const response = await fetch(`${API_BASE}/content/famous-games/${id}/attempts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(attempt),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to record attempt: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as AttemptRead;
   }
 }

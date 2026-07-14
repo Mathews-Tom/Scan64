@@ -7,6 +7,7 @@ from scan64.api.games import router as games_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
+from scan64.api.content import router as content_router
 from scan64.persistence.database import create_db_and_tables, get_session
 
 
@@ -31,7 +32,7 @@ app = FastAPI(
     version="v1",
     lifespan=lifespan,
 )
-app.include_router(play_router)
+app.include_router(content_router)
 
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
