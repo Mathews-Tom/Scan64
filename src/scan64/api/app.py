@@ -4,12 +4,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from scan64.api.content import router as content_router
+from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.games import router as games_router
 from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
-from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.persistence.database import create_db_and_tables, get_session
 
 
