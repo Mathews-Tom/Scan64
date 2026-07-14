@@ -312,3 +312,25 @@ def test_lifecycle_does_not_reveal_player_existence_without_token(client: TestCl
         json={"dry_run": True},
     )
     assert response.status_code == 401
+
+
+def test_reports_endpoints(client: TestClient, db_session: Session):
+    player_id = "test-reports-user"
+    client.post(
+        "/v1/players", json={"id": player_id, "display_name": "Reports User", "preferences": {}}
+    )
+
+    resp = client.get(f"/v1/players/{player_id}/progress")
+    assert resp.status_code == 200
+
+    resp = client.get(f"/v1/players/{player_id}/evidence")
+    assert resp.status_code == 200
+
+    resp = client.get(f"/v1/players/{player_id}/patterns")
+    assert resp.status_code == 200
+
+    resp = client.get(f"/v1/reports/weekly?player_id={player_id}")
+    assert resp.status_code == 200
+
+    resp = client.get(f"/v1/reports/openings?player_id={player_id}")
+    assert resp.status_code == 200
