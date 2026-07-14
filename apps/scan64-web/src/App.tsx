@@ -7,9 +7,10 @@ import { FamousGameStudyScreen } from './components/FamousGameStudyScreen';
 import { OpeningExplorerScreen } from './components/OpeningExplorerScreen';
 import type { PlaySessionRead } from './api/types';
 import { DailyTrainingScreen } from './components/DailyTrainingScreen';
+import { ProfileScreen } from './components/ProfileScreen';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'play' | 'import' | 'analysis' | 'explorer' | 'famous' | 'training'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'play' | 'import' | 'analysis' | 'explorer' | 'famous' | 'training' | 'profile'>('home');
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
   const [activeAnalysisGameId, setActiveAnalysisGameId] = useState<string | undefined>();
 
@@ -23,6 +24,7 @@ function App() {
         <button onClick={() => setCurrentView('analysis')}>Analysis Board</button>
         <button onClick={() => setCurrentView('explorer')}>Opening Explorer</button>
         <button onClick={() => setCurrentView('training')}>Daily Training</button>
+        <button onClick={() => setCurrentView('profile')}>Profile</button>
       </nav>
       
       <main>
@@ -64,6 +66,9 @@ function App() {
         )}
         {currentView === 'training' && (
           <DailyTrainingScreen />
+        )}
+        {currentView === 'profile' && (
+          <ProfileScreen />
         )}
       </main>
     </>
