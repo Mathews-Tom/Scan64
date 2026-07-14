@@ -73,3 +73,32 @@ describe('App', () => {
     expect(screen.getByText('Find the winning tactic.')).toBeInTheDocument();
   });
 });
+
+  it('navigates to profile screen', async () => {
+    // Mock global fetch for the ProfileScreen
+    const mockFetch = vi.fn((url: string) => {
+      if (url.includes('/progress')) {
+        return Promise.resolve({ json: () => Promise.resolve({ skills: [] }) });
+      }
+      if (url.includes('/evidence')) {
+        return Promise.resolve({ json: () => Promise.resolve({ evidence_items: [] }) });
+      }
+      if (url.includes('/patterns')) {
+        return Promise.resolve({ json: () => Promise.resolve({ recurring_habits: [] }) });
+      }
+      return Promise.resolve({ json: () => Promise.resolve({}) });
+    }) as any;
+    
+    vi.stubGlobal('fetch', mockFetch);
+
+    render(<App />);
+    fireEvent.click(screen.getByText('Profile'));
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-screen')).toBeInTheDocument();
+    });
+    
+    expect(screen.getByText(/Player Profile/i)).toBeInTheDocument();
+    
+    vi.unstubAllGlobals();
+  });
