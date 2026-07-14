@@ -6,6 +6,9 @@ from pathlib import Path
 import chess
 import chess.syzygy
 
+from scan64.content.famous_games.curated import FAMOUS_GAMES
+from scan64.content.famous_games.models import FamousGameDefinition
+
 CONTENT_KEYS = (
     "id",
     "fen",
@@ -56,7 +59,6 @@ def validate_solution_line(fen: object, solution: object) -> str | None:
         or not all(isinstance(move, str) for move in solution)
     ):
         return "solution must be a non-empty list of UCI moves"
-
 
     try:
         board = chess.Board(fen)
@@ -131,6 +133,7 @@ def validate_tablebase_solution(
 
 def validate_endgames() -> bool:
     from scan64.content.endgames.curated import ENDGAME_PUZZLES
+
     if not ENDGAME_PUZZLES:
         print("Error: ENDGAME_PUZZLES is empty")
         return False
@@ -166,12 +169,69 @@ def validate_tactics() -> bool:
     return True
 
 
+def validate_famous_game(game: FamousGameDefinition, index: int) -> str | None:
+    if len(game.payload.moves) < 24:
+        return f"game {index} has fewer than 24 score plies"
+
+    board = chess.Board()
+    for ply, san in enumerate(game.payload.moves):
+        try:
+            board.push_san(san)
+        except ValueError as error:
+            return f"game {index} has invalid SAN at ply {ply}: {error}"
+
+    for decision in game.payload.decisions:
+        if decision.ply >= len(game.payload.moves):
+            return f"game {index} decision {decision.id} exceeds the score"
+
+        decision_board = chess.Board()
+        try:
+            for san in game.payload.moves[: decision.ply]:
+                decision_board.push_san(san)
+        except ValueError as error:
+            return f"game {index} decision {decision.id} cannot replay score: {error}"
+
+        if decision_board.fen() != decision.fen:
+            return f"game {index} decision {decision.id} FEN does not match score"
+
+        legal_sans = {decision_board.san(move) for move in decision_board.legal_moves}
+        if game.payload.moves[decision.ply] != decision.played_move:
+            return f"game {index} decision {decision.id} played move does not match score"
+        if decision.played_move not in legal_sans:
+            return f"game {index} decision {decision.id} played move is illegal"
+        if any(move not in legal_sans for move in decision.accepted_moves):
+            return f"game {index} decision {decision.id} has an illegal accepted move"
+        if any(alternative.san not in legal_sans for alternative in decision.verified_alternatives):
+            return f"game {index} decision {decision.id} has an illegal alternative"
+
+    return None
+
+
+def validate_famous_games() -> bool:
+    if len(FAMOUS_GAMES) != 5:
+        print(f"[famous_games] ERROR: expected 5 games, found {len(FAMOUS_GAMES)}")
+        return False
+
+    errors = [
+        error
+        for index, game in enumerate(FAMOUS_GAMES)
+        if (error := validate_famous_game(game, index)) is not None
+    ]
+    if errors:
+        for error in errors:
+            print(f"[famous_games] ERROR: {error}")
+        return False
+
+    print(f"Successfully validated {len(FAMOUS_GAMES)} famous games.")
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate curated content sets")
     parser.add_argument(
         "--domain",
         default="all",
-        choices=["tactics", "endgames", "all"],
+        choices=["tactics", "endgames", "famous_games", "all"],
         help="Domain to validate (default: all)",
     )
     args = parser.parse_args()
@@ -180,6 +240,8 @@ def main() -> None:
     if args.domain in ["tactics", "all"] and not validate_tactics():
         success = False
     if args.domain in ["endgames", "all"] and not validate_endgames():
+        success = False
+    if args.domain in ["famous_games", "all"] and not validate_famous_games():
         success = False
     if not success:
         sys.exit(1)
