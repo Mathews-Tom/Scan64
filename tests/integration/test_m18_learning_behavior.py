@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -8,6 +9,7 @@ from sqlmodel.pool import StaticPool
 from scan64.api.app import app
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence import database
 
 
@@ -20,6 +22,7 @@ def db_session() -> Session:
     with Session(engine) as session:
         yield session
 
+
 @pytest.fixture
 def client(db_session: Session) -> TestClient:
     def override_get_session():
@@ -29,6 +32,7 @@ def client(db_session: Session) -> TestClient:
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
 
 def test_player_scoped_persisted_opportunities(client: TestClient, db_session: Session) -> None:
     player_1 = f"player_{uuid4()}"
@@ -58,7 +62,7 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
         "diagnosis": {"primary": "tactics", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
-        "verification": {"status": "verified", "engine": "syzygy"}
+        "verification": {"status": "verified", "engine": "syzygy"},
     }
     spec2 = {
         "schema_version": "1.0",
@@ -67,7 +71,7 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
         "diagnosis": {"primary": "tactics", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
-        "verification": {"status": "verified", "engine": "syzygy"}
+        "verification": {"status": "verified", "engine": "syzygy"},
     }
 
     opp1 = PersistedLessonOpportunity(game_id=g1.id, lesson_spec=spec1)
@@ -118,8 +122,37 @@ def test_actual_transfer_selection(client: TestClient) -> None:
 
     # We should have at least one famous game in the session
     lesson_ids = [item["lesson_id"] for item in data]
-    famous_game_prefix = "morphy-" # all current famous games start with morphy-
+    famous_game_prefix = "morphy-"  # all current famous games start with morphy-
     has_famous = any(lid.startswith(famous_game_prefix) for lid in lesson_ids)
 
     assert has_famous, f"Famous game not selected in session. Lesson IDs: {lesson_ids}"
 
+
+def test_due_schedule_survives_sqlite_datetime_round_trip(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = f"player_{uuid4()}"
+    db_session.add_all(
+        [
+            ReviewSchedule(
+                player_id=player_id,
+                item_id="morphy-opera-1858_opera-open-lines",
+                next_review_at=datetime.now(UTC) - timedelta(days=1),
+            ),
+            ReviewSchedule(
+                player_id=player_id,
+                item_id="morphy-paulsen-1857_paulsen-outpost",
+                next_review_at=datetime.now(UTC) + timedelta(days=1),
+            ),
+        ]
+    )
+    db_session.commit()
+    db_session.expire_all()
+
+    response = client.get(f"/v1/learning/session?player_id={player_id}")
+    assert response.status_code == 200
+
+    lesson_ids = [item["lesson_id"] for item in response.json()]
+    assert lesson_ids.index("morphy-opera-1858_opera-open-lines") < lesson_ids.index(
+        "morphy-paulsen-1857_paulsen-outpost"
+    )

@@ -1,6 +1,12 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Field, SQLModel
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class ReviewSchedule(SQLModel, table=True):
@@ -21,7 +27,7 @@ class ReviewSchedule(SQLModel, table=True):
         """
         Check whether this item is due for review based on next_review_at.
         """
-        return current_time >= self.next_review_at
+        return _as_utc(current_time) >= _as_utc(self.next_review_at)
 
     def update(self, success: bool, current_time: datetime) -> None:
         """
@@ -40,9 +46,5 @@ class ReviewSchedule(SQLModel, table=True):
             self.interval_days = 1.0
             # Decrease ease factor, minimum 1.3
             self.ease_factor = max(1.3, self.ease_factor - 0.2)
-
-        # Assuming python's datetime timedelta requires integers or timedelta obj, wait,
-        # sqlmodel usually persists datetimes. Let's just store interval_days and compute next.
-        from datetime import timedelta
 
         self.next_review_at = current_time + timedelta(days=self.interval_days)
