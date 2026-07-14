@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from scan64.api.content import router as content_router
+from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.games import router as games_router
 from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
@@ -41,6 +42,7 @@ app.include_router(learning_router)
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)
 app.include_router(players_router)
+app.include_router(data_lifecycle_router)
 
 
 @app.get("/health")
