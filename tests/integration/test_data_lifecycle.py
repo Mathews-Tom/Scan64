@@ -268,3 +268,35 @@ def test_lifecycle_rejects_other_player_token(client: TestClient, db_session: Se
         headers=authorization_header(victim_token),
     )
     assert response.status_code == 200
+
+
+def test_import_rejects_cross_player_records(client: TestClient, db_session: Session):
+    player_id = "test-import-owner"
+    access_token = create_player_token(client, player_id, "Import Owner")
+    victim_id = "test-import-victim"
+    create_player_token(client, victim_id, "Victim")
+
+    response = client.post(
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=authorization_header(access_token),
+    )
+    assert response.status_code == 200
+    archive = response.json()
+    archive["skill_states"] = [{"player_id": victim_id, "concept_code": "tactics.fork"}]
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{player_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{player_id}"},
+        headers=authorization_header(access_token),
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        "/v1/imports",
+        json=archive,
+        headers=authorization_header(access_token),
+    )
+
+    assert response.status_code == 400

@@ -176,50 +176,89 @@ def import_player_data(
     if existing:
         raise HTTPException(status_code=409, detail="Player already exists")
 
-    session.add(Player.model_validate(archive.player))
-    session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
-    if archive.profile:
-        session.add(PlayerProfile.model_validate(archive.profile))
+    player = Player.model_validate(archive.player)
+    profile = PlayerProfile.model_validate(archive.profile) if archive.profile else None
+    play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
+    games = [Game.model_validate(data) for data in archive.games]
+    positions = [Position.model_validate(data) for data in archive.positions]
+    engine_analyses = [EngineAnalysis.model_validate(data) for data in archive.engine_analyses]
+    analysis_jobs = [AnalysisJob.model_validate(data) for data in archive.analysis_jobs]
+    lesson_opportunities = [
+        PersistedLessonOpportunity.model_validate(data) for data in archive.lesson_opportunities
+    ]
+    skill_states = [SkillState.model_validate(data) for data in archive.skill_states]
+    review_schedules = [ReviewSchedule.model_validate(data) for data in archive.review_schedules]
+    study_sessions = [StudySession.model_validate(data) for data in archive.study_sessions]
+    content_attempts = [ContentAttempt.model_validate(data) for data in archive.content_attempts]
 
-    for game_data in archive.games:
-        game = Game.model_validate(game_data)
+    game_ids = {play_session.game_id for play_session in play_sessions if play_session.game_id}
+    position_ids = {position.id for position in positions}
+    study_session_ids = {study_session.id for study_session in study_sessions}
+    has_foreign_owner = (
+        player.id != player_id
+        or profile is not None
+        and profile.player_id != player_id
+        or any(play_session.player_id != player_id for play_session in play_sessions)
+        or any(skill_state.player_id != player_id for skill_state in skill_states)
+        or any(schedule.player_id != player_id for schedule in review_schedules)
+        or any(study_session.player_id != player_id for study_session in study_sessions)
+        or any(content_attempt.player_id != player_id for content_attempt in content_attempts)
+        or any(
+            content_attempt.session_id is not None
+            and content_attempt.session_id not in study_session_ids
+            for content_attempt in content_attempts
+        )
+        or {game.id for game in games} != game_ids
+        or any(position.game_id not in game_ids for position in positions)
+        or any(analysis.position_id not in position_ids for analysis in engine_analyses)
+        or any(analysis_job.game_id not in game_ids for analysis_job in analysis_jobs)
+        or any(opportunity.game_id not in game_ids for opportunity in lesson_opportunities)
+    )
+    if has_foreign_owner:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid archive: records do not belong to the authorized player",
+        )
+
+    session.add(player)
+    session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
+    if profile:
+        session.add(profile)
+
+    for game in games:
         if session.get(Game, game.id) is None:
             session.add(game)
 
-    for position_data in archive.positions:
-        position = Position.model_validate(position_data)
+    for position in positions:
         if session.get(Position, position.id) is None:
             session.add(position)
 
-    for analysis_data in archive.engine_analyses:
-        analysis = EngineAnalysis.model_validate(analysis_data)
+    for analysis in engine_analyses:
         if session.get(EngineAnalysis, analysis.id) is None:
             session.add(analysis)
 
-    for analysis_job_data in archive.analysis_jobs:
-        analysis_job = AnalysisJob.model_validate(analysis_job_data)
+    for analysis_job in analysis_jobs:
         if session.get(AnalysisJob, analysis_job.id) is None:
             session.add(analysis_job)
 
-    for opportunity_data in archive.lesson_opportunities:
-        opportunity = PersistedLessonOpportunity.model_validate(opportunity_data)
+    for opportunity in lesson_opportunities:
         if session.get(PersistedLessonOpportunity, opportunity.id) is None:
             session.add(opportunity)
 
-    for play_session_data in archive.play_sessions:
-        session.add(PlaySession.model_validate(play_session_data))
+    for play_session in play_sessions:
+        session.add(play_session)
 
-    for skill_state_data in archive.skill_states:
-        session.add(SkillState.model_validate(skill_state_data))
+    for skill_state in skill_states:
+        session.add(skill_state)
 
-    for review_schedule_data in archive.review_schedules:
-        session.add(ReviewSchedule.model_validate(review_schedule_data))
+    for review_schedule in review_schedules:
+        session.add(review_schedule)
 
-    for study_session_data in archive.study_sessions:
-        session.add(StudySession.model_validate(study_session_data))
+    for study_session in study_sessions:
+        session.add(study_session)
 
-    for content_attempt_data in archive.content_attempts:
-        session.add(ContentAttempt.model_validate(content_attempt_data))
+    for content_attempt in content_attempts:
+        session.add(content_attempt)
 
     session.commit()
     return {"status": "imported"}
