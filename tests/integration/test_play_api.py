@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
@@ -106,6 +108,39 @@ def test_create_and_get_play_session_api(client: TestClient):
     get_resp = client.get(f"/v1/play-sessions/{session_id}")
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == session_id
+
+
+def test_create_play_session_persists_initial_fen(client: TestClient, session: Session) -> None:
+    initial_fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+
+    response = client.post(
+        "/v1/play-sessions",
+        json={
+            "player_id": "player_123",
+            "opponent_config": {"strength": "10"},
+            "initial_fen": initial_fen,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    game_id = response.json()["game_id"]
+    assert game_id is not None
+    game = session.get(Game, UUID(game_id))
+    assert game is not None
+    assert game.headers == {"FEN": initial_fen}
+
+
+def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
+    response = client.post(
+        "/v1/play-sessions",
+        json={
+            "player_id": "player_123",
+            "opponent_config": {"strength": "10"},
+            "initial_fen": "not a FEN",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_play_session_moves_api(client: TestClient):

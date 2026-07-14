@@ -121,6 +121,7 @@ export interface PlaySessionCreate {
   game_id?: string;
   opponent_config?: Record<string, string>;
   clock_config?: Record<string, string>;
+  initial_fen?: string;
 }
 
 export interface PlaySessionRead {
@@ -161,20 +162,40 @@ export interface PositionRead {
   analysis?: EngineAnalysisRead;
 }
 
+export interface VerifiedAlternative {
+  san: string;
+  explanation: string;
+}
+
+export interface FamousGameDecision {
+  id: string;
+  ply: number;
+  fen: string;
+  prompt: string;
+  played_move: string;
+  accepted_moves: string[];
+  verified_alternatives: VerifiedAlternative[];
+  hints: string[];
+  comparison: string;
+}
+
+export interface FamousGamePayload {
+  title: string;
+  historical_context: string;
+  strategic_context: string;
+  moves: string[];
+  decisions: FamousGameDecision[];
+}
+
 export interface FamousGameRead {
   id: string;
-  payload: {
-    title: string;
-    fen: string;
-    moves: string;
-    [key: string]: unknown;
-  };
+  payload: FamousGamePayload;
   skill_mapping: Record<string, number>;
 }
 
 export interface AttemptCreate {
   player_id: string;
-  success: boolean;
+  decision_id: string;
   hint_assisted: boolean;
   response_payload: Record<string, unknown>;
 }
