@@ -23,7 +23,7 @@ test.describe('Review Interaction Sequencing', () => {
     
     // Intercept API calls
     await page.route('**/v1/players', async route => {
-      await route.fulfill({ json: { id: 'player-1', display_name: 'Test' } });
+      await route.fulfill({ json: { id: 'player-1', preferences: {}, access_token: 'test-token' } });
     });
 
     await page.route('**/v1/play-sessions', async route => {

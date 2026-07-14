@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient } from './client';
+import { ApiClient, getPlayerAuthorizationHeader } from './client';
 
 describe('ApiClient', () => {
   const mockFetch = vi.fn();
   
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch);
+    localStorage.clear();
   });
   
   afterEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
   });
 
   it('createGame calls POST /v1/games', async () => {
@@ -65,6 +67,20 @@ describe('ApiClient', () => {
       body: JSON.stringify({ move: 'e2e4' }),
     });
     expect(res.opponent_move).toBe('e7e5');
+  });
+
+  it('stores a player token outside the public player result', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'player-1', preferences: {}, access_token: 'token-1' }),
+    });
+
+    const player = await ApiClient.createPlayer({ id: 'player-1' });
+
+    expect(player).toEqual({ id: 'player-1', preferences: {} });
+    expect(getPlayerAuthorizationHeader('player-1')).toEqual({
+      Authorization: 'Bearer token-1',
+    });
   });
 
   it('throws on non-ok response', async () => {

@@ -1,11 +1,20 @@
+from __future__ import annotations
+
+from hmac import compare_digest
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlmodel import Session, col, delete, select
 
-from scan64.api.models import DeletionAudit, Player, PlayerProfile
+from scan64.api.models import (
+    DeletionAudit,
+    Player,
+    PlayerCredential,
+    PlayerProfile,
+    player_token_hash,
+)
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
@@ -15,6 +24,32 @@ from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["data_lifecycle"])
+
+
+def require_player_token(
+    request: Request,
+    player_id: str,
+    session: Session,
+    expected_token_hash: str | None = None,
+) -> str:
+    authorization = request.headers.get("Authorization")
+    scheme, separator, token = authorization.partition(" ") if authorization else ("", "", "")
+    if scheme != "Bearer" or not separator or not token:
+        raise HTTPException(
+            status_code=401,
+            detail="A player bearer token is required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token_hash = player_token_hash(token)
+    if expected_token_hash is None:
+        credential = session.get(PlayerCredential, player_id)
+        expected_token_hash = credential.token_hash if credential else None
+
+    if expected_token_hash is None or not compare_digest(token_hash, expected_token_hash):
+        raise HTTPException(status_code=403, detail="Player bearer token does not match")
+
+    return token_hash
 
 
 class ExportRequest(BaseModel):
@@ -34,16 +69,18 @@ class ExportArchive(BaseModel):
     review_schedules: list[dict[str, Any]] = Field(default_factory=list)
     study_sessions: list[dict[str, Any]] = Field(default_factory=list)
     content_attempts: list[dict[str, Any]] = Field(default_factory=list)
+    credential_hash: str | None = None
 
 
 @router.post("/v1/exports", response_model=ExportArchive)
 def export_player_data(
-    req: ExportRequest, session: Session = Depends(get_session)
+    request: Request, req: ExportRequest, session: Session = Depends(get_session)
 ) -> ExportArchive:
     player_id = req.player_id
     player = session.get(Player, player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
+    credential_hash = require_player_token(request, player_id, session)
 
     profile = session.get(PlayerProfile, player_id)
     play_sessions = session.exec(
@@ -112,25 +149,35 @@ def export_player_data(
         content_attempts=[
             content_attempt.model_dump(mode="json") for content_attempt in content_attempts
         ],
+        credential_hash=credential_hash,
     )
 
 
 @router.post("/v1/imports")
 def import_player_data(
-    archive: ExportArchive, session: Session = Depends(get_session)
+    request: Request, archive: ExportArchive, session: Session = Depends(get_session)
 ) -> dict[str, str]:
     if not archive.player:
         raise HTTPException(status_code=400, detail="Invalid archive: missing player data")
 
     player_id = archive.player.get("id")
-    if not player_id:
+    if not isinstance(player_id, str) or not player_id:
         raise HTTPException(status_code=400, detail="Invalid archive: missing player id")
+    if archive.credential_hash is None:
+        raise HTTPException(status_code=400, detail="Invalid archive: missing credential hash")
 
+    token_hash = require_player_token(
+        request,
+        player_id,
+        session,
+        expected_token_hash=archive.credential_hash,
+    )
     existing = session.get(Player, player_id)
     if existing:
         raise HTTPException(status_code=409, detail="Player already exists")
 
     session.add(Player.model_validate(archive.player))
+    session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     if archive.profile:
         session.add(PlayerProfile.model_validate(archive.profile))
 
@@ -191,11 +238,15 @@ class DeletionResponse(BaseModel):
 
 @router.delete("/v1/players/{player_id}/data", response_model=DeletionResponse)
 def delete_player_data(
-    player_id: str, req: DeletionRequest, session: Session = Depends(get_session)
+    player_id: str,
+    request: Request,
+    req: DeletionRequest,
+    session: Session = Depends(get_session),
 ) -> DeletionResponse:
     player = session.get(Player, player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
+    require_player_token(request, player_id, session)
 
     if not req.dry_run and req.confirmation != f"delete-{player_id}":
         raise HTTPException(
@@ -303,6 +354,7 @@ def delete_player_data(
     profile = session.get(PlayerProfile, player_id)
     if profile:
         session.delete(profile)
+    session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)
 
     audit_id = str(uuid4())

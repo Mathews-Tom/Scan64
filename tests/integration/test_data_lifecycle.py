@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from scan64.api.models import DeletionAudit, Player, PlayerProfile
+from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
@@ -46,20 +46,34 @@ def create_game_records(session: Session, player_id: str) -> dict[str, object]:
     }
 
 
-def test_export_import_roundtrip(client: TestClient, db_session: Session):
-    player_id = "test-export-user"
+def create_player_token(client: TestClient, player_id: str, display_name: str) -> str:
     response = client.post(
         "/v1/players",
-        json={"id": player_id, "display_name": "Test User", "preferences": {}},
+        json={"id": player_id, "display_name": display_name, "preferences": {}},
     )
     assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+def authorization_header(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_export_import_roundtrip(client: TestClient, db_session: Session):
+    player_id = "test-export-user"
+    access_token = create_player_token(client, player_id, "Test User")
     record_ids = create_game_records(db_session, player_id)
 
-    response = client.post("/v1/exports", json={"player_id": player_id})
+    response = client.post(
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=authorization_header(access_token),
+    )
     assert response.status_code == 200
     archive = response.json()
 
     assert archive["player"]["id"] == player_id
+    assert archive["credential_hash"] != access_token
     assert archive["profile"]["display_name"] == "Test User"
     assert len(archive["play_sessions"]) == 1
     assert len(archive["games"]) == 1
@@ -72,16 +86,22 @@ def test_export_import_roundtrip(client: TestClient, db_session: Session):
         "DELETE",
         f"/v1/players/{player_id}/data",
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
+        headers=authorization_header(access_token),
     )
     assert response.status_code == 200
     assert db_session.get(Player, player_id) is None
+    assert db_session.get(PlayerCredential, player_id) is None
     assert db_session.get(Game, record_ids["game"]) is None
     assert db_session.get(Position, record_ids["position"]) is None
     assert db_session.get(EngineAnalysis, record_ids["engine_analysis"]) is None
     assert db_session.get(AnalysisJob, record_ids["analysis_job"]) is None
     assert db_session.get(PersistedLessonOpportunity, record_ids["lesson_opportunity"]) is None
 
-    response = client.post("/v1/imports", json=archive)
+    response = client.post(
+        "/v1/imports",
+        json=archive,
+        headers=authorization_header(access_token),
+    )
     assert response.status_code == 200
     assert db_session.get(Player, player_id) is not None
     assert db_session.get(PlayerProfile, player_id).display_name == "Test User"
@@ -91,21 +111,19 @@ def test_export_import_roundtrip(client: TestClient, db_session: Session):
     assert db_session.get(EngineAnalysis, record_ids["engine_analysis"]) is not None
     assert db_session.get(AnalysisJob, record_ids["analysis_job"]) is not None
     assert db_session.get(PersistedLessonOpportunity, record_ids["lesson_opportunity"]) is not None
+    assert db_session.get(PlayerCredential, player_id) is not None
 
 
 def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_session: Session):
     player_id = "test-delete-user"
-    response = client.post(
-        "/v1/players",
-        json={"id": player_id, "display_name": "Delete User", "preferences": {}},
-    )
-    assert response.status_code == 200
+    access_token = create_player_token(client, player_id, "Delete User")
     record_ids = create_game_records(db_session, player_id)
 
     response = client.request(
         "DELETE",
         f"/v1/players/{player_id}/data",
         json={"dry_run": True},
+        headers=authorization_header(access_token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -131,17 +149,14 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
 
 def test_deletion_confirmed_removes_complete_owned_data(client: TestClient, db_session: Session):
     player_id = "test-delete-confirmed"
-    response = client.post(
-        "/v1/players",
-        json={"id": player_id, "display_name": "Delete User", "preferences": {}},
-    )
-    assert response.status_code == 200
+    access_token = create_player_token(client, player_id, "Delete User")
     record_ids = create_game_records(db_session, player_id)
 
     response = client.request(
         "DELETE",
         f"/v1/players/{player_id}/data",
         json={"dry_run": False},
+        headers=authorization_header(access_token),
     )
     assert response.status_code == 400
 
@@ -149,6 +164,7 @@ def test_deletion_confirmed_removes_complete_owned_data(client: TestClient, db_s
         "DELETE",
         f"/v1/players/{player_id}/data",
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
+        headers=authorization_header(access_token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -173,12 +189,10 @@ def test_deletion_confirmed_removes_complete_owned_data(client: TestClient, db_s
 def test_deletion_preserves_shared_game_for_other_player(client: TestClient, db_session: Session):
     deleting_player_id = "test-delete-shared"
     remaining_player_id = "test-keep-shared"
-    for player_id in (deleting_player_id, remaining_player_id):
-        response = client.post(
-            "/v1/players",
-            json={"id": player_id, "display_name": player_id, "preferences": {}},
-        )
-        assert response.status_code == 200
+    access_tokens = {
+        player_id: create_player_token(client, player_id, player_id)
+        for player_id in (deleting_player_id, remaining_player_id)
+    }
 
     game = Game(pgn="1. e4 e5")
     db_session.add(game)
@@ -197,9 +211,60 @@ def test_deletion_preserves_shared_game_for_other_player(client: TestClient, db_
             "dry_run": False,
             "confirmation": f"delete-{deleting_player_id}",
         },
+        headers=authorization_header(access_tokens[deleting_player_id]),
     )
     assert response.status_code == 200
     assert response.json()["affected_rows"]["games"] == 0
     assert db_session.get(Game, game.id) is not None
     assert db_session.get(PlaySession, deleting_session.id) is None
     assert db_session.get(PlaySession, remaining_session.id) is not None
+
+
+def test_lifecycle_rejects_requests_without_player_token(client: TestClient, db_session: Session):
+    player_id = "test-token-required"
+    response = client.post(
+        "/v1/players",
+        json={"id": player_id, "display_name": "Protected User", "preferences": {}},
+    )
+    assert response.status_code == 200
+    create_game_records(db_session, player_id)
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{player_id}/data",
+        json={"dry_run": True},
+    )
+
+    assert response.status_code == 401
+
+
+def test_lifecycle_rejects_other_player_token(client: TestClient, db_session: Session):
+    victim_id = "test-token-victim"
+    victim_token = create_player_token(client, victim_id, "Victim")
+    other_token = create_player_token(client, "test-token-other", "Other")
+    record_ids = create_game_records(db_session, victim_id)
+
+    response = client.post(
+        "/v1/exports",
+        json={"player_id": victim_id},
+        headers=authorization_header(other_token),
+    )
+    assert response.status_code == 403
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{victim_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{victim_id}"},
+        headers=authorization_header(other_token),
+    )
+    assert response.status_code == 403
+    assert db_session.get(Player, victim_id) is not None
+    assert db_session.get(Game, record_ids["game"]) is not None
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{victim_id}/data",
+        json={"dry_run": True},
+        headers=authorization_header(victim_token),
+    )
+    assert response.status_code == 200

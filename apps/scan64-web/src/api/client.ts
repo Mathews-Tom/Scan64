@@ -5,6 +5,7 @@ import type {
 } from './types';
 
 const API_BASE = '/v1';
+const PLAYER_TOKEN_STORAGE_PREFIX = 'scan64_player_token:';
 
 export function getOrCreatePlayerId(): string {
   const existingPlayerId = localStorage.getItem('scan64_player_id');
@@ -13,6 +14,16 @@ export function getOrCreatePlayerId(): string {
   const playerId = crypto.randomUUID();
   localStorage.setItem('scan64_player_id', playerId);
   return playerId;
+}
+
+
+export function getPlayerAuthorizationHeader(playerId: string): Record<string, string> {
+  const token = localStorage.getItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${playerId}`);
+  if (!token) {
+    throw new Error(`No access token is stored for player ${playerId}`);
+  }
+
+  return { Authorization: `Bearer ${token}` };
 }
 
 export class ApiClient {
@@ -106,8 +117,12 @@ export class ApiClient {
     if (!response.ok) {
       throw new Error(`Failed to create player: ${response.statusText}`);
     }
-    const json = await response.json();
-    return json as unknown as PlayerRead;
+    const json = await response.json() as PlayerRead & { access_token?: unknown };
+    if (typeof json.access_token !== 'string') {
+      throw new Error('Player creation response did not include an access token');
+    }
+    localStorage.setItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${json.id}`, json.access_token);
+    return { id: json.id, preferences: json.preferences };
   }
 
   static async getFamousGames(): Promise<FamousGameRead[]> {
