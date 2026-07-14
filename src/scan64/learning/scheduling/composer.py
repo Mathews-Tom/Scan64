@@ -63,7 +63,10 @@ class SessionComposer:
             # Re-collect all unused items
             used_ids = {id(item) for item in session}
             remaining = [item for item in pool if id(item) not in used_ids]
-            remaining.sort(key=lambda x: x.get("priority", 0.0), reverse=True)
+            remaining.sort(
+                key=lambda x: (x.get("priority", 0.0), 1 if x.get("type") == "due" else 0),
+                reverse=True
+            )
 
             # How many more do we need?
             needed = session_size - len(session)
@@ -97,7 +100,10 @@ class SessionComposer:
 
             # Pool remaining exploration with other items, sort by priority
             pool_for_remaining = remaining_exploration + other_items
-            pool_for_remaining.sort(key=lambda x: x.get("priority", 0.0), reverse=True)
+            pool_for_remaining.sort(
+                key=lambda x: (x.get("priority", 0.0), 1 if x.get("type") == "due" else 0),
+                reverse=True
+            )
 
             final_session.extend(pool_for_remaining[:slots_left])
             session = final_session
