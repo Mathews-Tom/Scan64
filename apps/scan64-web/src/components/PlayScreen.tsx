@@ -1,4 +1,11 @@
-import { queueMove, getQueuedMoves, removeQueuedMove } from '../api/offlineQueue';
+import {
+  getQueuedMoves,
+  QUEUED_MOVE_SYNC_FAILED,
+  QUEUED_MOVE_SYNC_SUCCEEDED,
+  queueMove,
+  type QueuedMoveSyncFailure,
+  type QueuedMoveSyncSuccess,
+} from '../api/offlineQueue';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
@@ -84,6 +91,31 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   };
 
 
+  const applyMoveResponse = useCallback((response: PlayMoveResponse) => {
+    const board = cgRef.current;
+    if (!board) return;
+
+    if (coachModeRef.current && response.interruption_lesson) {
+      chessRef.current.undo();
+      setInterruptionLesson(response.interruption_lesson);
+    } else if (response.opponent_move) {
+      const from = response.opponent_move.slice(0, 2);
+      const to = response.opponent_move.slice(2, 4);
+      const promotion =
+        response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
+      chessRef.current.move({ from, to, promotion });
+    }
+
+    board.set({
+      fen: chessRef.current.fen(),
+      movable: {
+        color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+        dests: getDests(chessRef.current),
+      },
+    });
+    setError(null);
+  }, []);
+
   const handleMove = useCallback(async (orig: string, dest: string) => {
     const activeSession = sessionRef.current;
     const board = cgRef.current;
@@ -94,35 +126,17 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
       board.set({ fen: chessRef.current.fen(), movable: { color: undefined } });
 
-      let response: PlayMoveResponse | null = null;
       try {
-        response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
-      } catch (err) {
+        const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
+        applyMoveResponse(response);
+      } catch (error: unknown) {
         if (!navigator.onLine) {
           await queueMove(activeSession.id, lan);
           setError('Offline. Move queued. Waiting for network to resume game...');
-          return; // Stay in the "waiting for opponent" board state
+          return;
         }
-        throw err;
+        throw error;
       }
-      
-      if (coachModeRef.current && response.interruption_lesson) {
-        chessRef.current.undo();
-        setInterruptionLesson(response.interruption_lesson);
-      } else if (response.opponent_move) {
-        const from = response.opponent_move.slice(0, 2);
-        const to = response.opponent_move.slice(2, 4);
-        const promotion =
-          response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
-        chessRef.current.move({ from, to, promotion });
-      }
-      board.set({
-        fen: chessRef.current.fen(),
-        movable: {
-          color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-          dests: getDests(chessRef.current),
-        },
-      });
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Unknown error');
       chessRef.current.undo();
@@ -134,65 +148,60 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         },
       });
     }
-  }, []);
-  
+  }, [applyMoveResponse]);
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     (window as unknown as Record<string, unknown>).__e2e_move = async () => {
-      const activeSession = sessionRef.current;
-      if (!activeSession) throw new Error('activeSession is null!');
-      const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: 'e2e4' });
-      if (coachModeRef.current && response.interruption_lesson) {
-        setInterruptionLesson(response.interruption_lesson);
-      }
+      await handleMove('e2', 'e4');
     };
     return () => {
       delete (window as unknown as Record<string, unknown>).__e2e_move;
     };
-  }, []);
+  }, [handleMove]);
+
   useEffect(() => {
-    const handleOnline = async () => {
-      setError(null);
-      const moves = await getQueuedMoves();
-      const activeSession = sessionRef.current;
-      if (!activeSession) return;
-      
-      for (const queued of moves) {
-        if (queued.sessionId === activeSession.id) {
-          try {
-            const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: queued.move });
-            await removeQueuedMove(queued.sessionId, queued.move, queued.timestamp);
-            
-            if (coachModeRef.current && response.interruption_lesson) {
-              chessRef.current.undo();
-              setInterruptionLesson(response.interruption_lesson);
-            } else if (response.opponent_move) {
-              const from = response.opponent_move.slice(0, 2);
-              const to = response.opponent_move.slice(2, 4);
-              const promotion =
-                response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
-              chessRef.current.move({ from, to, promotion });
-            }
-            
-            if (cgRef.current) {
-              cgRef.current.set({
-                fen: chessRef.current.fen(),
-                movable: {
-                  color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-                  dests: getDests(chessRef.current),
-                },
-              });
-            }
-          } catch (e) {
-            console.error('Failed to sync queued move', e);
-          }
-        }
+    const handleSyncSuccess = (event: Event) => {
+      const { queuedMove, response } =
+        (event as CustomEvent<QueuedMoveSyncSuccess>).detail;
+      if (queuedMove.sessionId === sessionRef.current?.id) {
+        applyMoveResponse(response);
+      }
+    };
+    const handleSyncFailure = (event: Event) => {
+      const { queuedMove, message } =
+        (event as CustomEvent<QueuedMoveSyncFailure>).detail;
+      if (!queuedMove || queuedMove.sessionId === sessionRef.current?.id) {
+        setError(`Queued move could not be synchronized: ${message}. Reconnect to retry.`);
       }
     };
 
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, []);
+    window.addEventListener(QUEUED_MOVE_SYNC_SUCCEEDED, handleSyncSuccess);
+    window.addEventListener(QUEUED_MOVE_SYNC_FAILED, handleSyncFailure);
+    return () => {
+      window.removeEventListener(QUEUED_MOVE_SYNC_SUCCEEDED, handleSyncSuccess);
+      window.removeEventListener(QUEUED_MOVE_SYNC_FAILED, handleSyncFailure);
+    };
+  }, [applyMoveResponse]);
+
+  useEffect(() => {
+    const activeSession = sessionRef.current;
+    if (!activeSession) return;
+
+    void getQueuedMoves()
+      .then((queuedMoves) => {
+        if (queuedMoves.some((queuedMove) => queuedMove.sessionId === activeSession.id)) {
+          setError('Queued move is waiting to synchronize. Reconnect to resume the game.');
+        }
+      })
+      .catch((error: unknown) => {
+        setError(
+          `Unable to inspect queued moves: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        );
+      });
+  }, [session?.id]);
 
 
   useEffect(() => {
