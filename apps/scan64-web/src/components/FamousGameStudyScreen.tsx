@@ -2,21 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
-import { ApiClient } from '../api/client';
+import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
 
 export interface FamousGameStudyScreenProps {
   onPlayFromHere: (session: PlaySessionRead, fen: string) => void;
 }
 
-function playerIdFromStorage(): string {
-  const existingPlayerId = localStorage.getItem('scan64_player_id');
-  if (existingPlayerId) return existingPlayerId;
-
-  const playerId = crypto.randomUUID();
-  localStorage.setItem('scan64_player_id', playerId);
-  return playerId;
-}
 
 export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenProps) {
   const [games, setGames] = useState<FamousGameRead[]>([]);
@@ -38,7 +30,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   const studyComplete = selectedGame !== null && currentDecision === null;
 
   useEffect(() => {
-    setPlayerId(playerIdFromStorage());
+    setPlayerId(getOrCreatePlayerId());
     let active = true;
 
     void ApiClient.getFamousGames()

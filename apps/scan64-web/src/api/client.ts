@@ -6,6 +6,15 @@ import type {
 
 const API_BASE = '/v1';
 
+export function getOrCreatePlayerId(): string {
+  const existingPlayerId = localStorage.getItem('scan64_player_id');
+  if (existingPlayerId) return existingPlayerId;
+
+  const playerId = crypto.randomUUID();
+  localStorage.setItem('scan64_player_id', playerId);
+  return playerId;
+}
+
 export class ApiClient {
   static async createGame(data: GameCreate): Promise<GameRead> {
     const response = await fetch(`${API_BASE}/games`, {
@@ -133,7 +142,7 @@ export class ApiClient {
   }
 
   static async getTrainingSession(): Promise<LessonSpec[]> {
-    const playerId = localStorage.getItem('scan64_player_id') || 'player1';
+    const playerId = getOrCreatePlayerId();
     const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch training session: ${response.statusText}`);
