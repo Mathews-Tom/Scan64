@@ -1,5 +1,7 @@
+import chess
 import pytest
 
+from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import (
     AssetItem,
     FamousGameDecision,
@@ -7,6 +9,7 @@ from scan64.content.famous_games.models import (
     FamousGamePayload,
     VerifiedAlternative,
 )
+from scan64.content.validate import validate_famous_game, validate_famous_games
 
 
 def make_definition() -> FamousGameDefinition:
@@ -67,3 +70,27 @@ def test_famous_game_definition_rejects_missing_asset_category() -> None:
     with pytest.raises(ValueError, match="score and study material"):
         definition.model_copy(update={"assets": definition.assets[:1]}).validate_assets()
 
+
+def test_curated_famous_games_are_complete_and_legal() -> None:
+    assert validate_famous_games()
+    assert len(FAMOUS_GAMES) == 5
+    assert all(len(game.payload.moves) >= 24 for game in FAMOUS_GAMES)
+    assert all(game.payload.decisions for game in FAMOUS_GAMES)
+    assert all(
+        score.source_url == "https://archive.org/details/morphysgamesofch00morpiala"
+        and score.content_identifier.startswith("morphysgamesofch00morpiala:")
+        for game in FAMOUS_GAMES
+        for score in game.assets
+        if score.asset_type == "game_score"
+    )
+
+
+def test_famous_game_validator_rejects_mismatched_decision_position() -> None:
+    game = FAMOUS_GAMES[0]
+    decision = game.payload.decisions[0].model_copy(update={"fen": chess.STARTING_FEN})
+    payload = game.payload.model_copy(update={"decisions": [decision]})
+    invalid_game = game.model_copy(update={"payload": payload})
+
+    assert validate_famous_game(invalid_game, 0) == (
+        "game 0 decision opera-open-lines FEN does not match score"
+    )
