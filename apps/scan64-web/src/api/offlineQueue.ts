@@ -1,6 +1,12 @@
 import { ApiClient } from './client';
+import type { PlayMoveResponse } from './types';
 
 import { get, set } from 'idb-keyval';
+
+const QUEUED_MOVES_KEY = 'scan64_offline_moves';
+
+export const QUEUED_MOVE_SYNC_SUCCEEDED = 'scan64-queued-move-sync-succeeded';
+export const QUEUED_MOVE_SYNC_FAILED = 'scan64-queued-move-sync-failed';
 
 export interface QueuedMove {
   sessionId: string;
@@ -8,47 +14,90 @@ export interface QueuedMove {
   timestamp: number;
 }
 
-export async function queueMove(sessionId: string, move: string) {
-  const queue = await get<QueuedMove[]>('scan64_offline_moves') || [];
+export interface QueuedMoveSyncSuccess {
+  queuedMove: QueuedMove;
+  response: PlayMoveResponse;
+}
+
+export interface QueuedMoveSyncFailure {
+  queuedMove: QueuedMove | null;
+  message: string;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown synchronization error';
+}
+
+function dispatchSyncEvent<T>(name: string, detail: T): void {
+  window.dispatchEvent(new CustomEvent<T>(name, { detail }));
+}
+
+export async function queueMove(sessionId: string, move: string): Promise<void> {
+  const queue = (await get<QueuedMove[]>(QUEUED_MOVES_KEY)) ?? [];
   queue.push({ sessionId, move, timestamp: Date.now() });
-  await set('scan64_offline_moves', queue);
+  await set(QUEUED_MOVES_KEY, queue);
 }
 
 export async function getQueuedMoves(): Promise<QueuedMove[]> {
-  return (await get<QueuedMove[]>('scan64_offline_moves')) || [];
+  return (await get<QueuedMove[]>(QUEUED_MOVES_KEY)) ?? [];
 }
 
-export async function clearQueuedMoves() {
-  await set('scan64_offline_moves', []);
+export async function clearQueuedMoves(): Promise<void> {
+  await set(QUEUED_MOVES_KEY, []);
 }
 
-export async function removeQueuedMove(sessionId: string, move: string, timestamp: number) {
-  const queue = await get<QueuedMove[]>('scan64_offline_moves') || [];
-  const filtered = queue.filter(m => !(m.sessionId === sessionId && m.move === move && m.timestamp === timestamp));
-  await set('scan64_offline_moves', filtered);
+export async function removeQueuedMove(
+  sessionId: string,
+  move: string,
+  timestamp: number,
+): Promise<void> {
+  const queue = (await get<QueuedMove[]>(QUEUED_MOVES_KEY)) ?? [];
+  const filtered = queue.filter(
+    (queuedMove) =>
+      !(
+        queuedMove.sessionId === sessionId &&
+        queuedMove.move === move &&
+        queuedMove.timestamp === timestamp
+      ),
+  );
+  await set(QUEUED_MOVES_KEY, filtered);
 }
 
-export async function syncMoves() {
-  const moves = await getQueuedMoves();
-  if (moves.length === 0) return;
-  
-  for (const queued of moves) {
+export async function syncQueuedMoves(): Promise<void> {
+  let queuedMoves: QueuedMove[];
+
+  try {
+    queuedMoves = await getQueuedMoves();
+  } catch (error: unknown) {
+    dispatchSyncEvent<QueuedMoveSyncFailure>(QUEUED_MOVE_SYNC_FAILED, {
+      queuedMove: null,
+      message: errorMessage(error),
+    });
+    return;
+  }
+
+  for (const queuedMove of queuedMoves) {
     try {
-      await ApiClient.makePlaySessionMove(queued.sessionId, { move: queued.move });
-      await removeQueuedMove(queued.sessionId, queued.move, queued.timestamp);
-    } catch (e) {
-      if (!navigator.onLine) {
-        break;
-      }
-      console.error('Failed to sync move', queued, e);
-      // We should probably remove it if it's a 4xx error but ApiClient just throws Error
-      // We will leave it in the queue for now or we could add more granular error handling
+      const response = await ApiClient.makePlaySessionMove(queuedMove.sessionId, {
+        move: queuedMove.move,
+      });
+      await removeQueuedMove(queuedMove.sessionId, queuedMove.move, queuedMove.timestamp);
+      dispatchSyncEvent<QueuedMoveSyncSuccess>(QUEUED_MOVE_SYNC_SUCCEEDED, {
+        queuedMove,
+        response,
+      });
+    } catch (error: unknown) {
+      dispatchSyncEvent<QueuedMoveSyncFailure>(QUEUED_MOVE_SYNC_FAILED, {
+        queuedMove,
+        message: errorMessage(error),
+      });
+      return;
     }
   }
-  
-  window.dispatchEvent(new CustomEvent('scan64-moves-synced'));
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', syncMoves);
+  window.addEventListener('online', () => {
+    void syncQueuedMoves();
+  });
 }
