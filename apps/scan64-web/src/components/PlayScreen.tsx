@@ -1,6 +1,8 @@
+import { queueMove, getQueuedMoves, removeQueuedMove } from '../api/offlineQueue';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
-import type { PlaySessionRead } from '../api/types';
+import type { PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { LessonSpec } from '../api/types';
 import { Chessground } from 'chessground';
@@ -92,7 +94,17 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
       board.set({ fen: chessRef.current.fen(), movable: { color: undefined } });
 
-      const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
+      let response: PlayMoveResponse | null = null;
+      try {
+        response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
+      } catch (err) {
+        if (!navigator.onLine) {
+          await queueMove(activeSession.id, lan);
+          setError('Offline. Move queued. Waiting for network to resume game...');
+          return; // Stay in the "waiting for opponent" board state
+        }
+        throw err;
+      }
       
       if (coachModeRef.current && response.interruption_lesson) {
         chessRef.current.undo();
@@ -138,6 +150,50 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       delete (window as unknown as Record<string, unknown>).__e2e_move;
     };
   }, []);
+  useEffect(() => {
+    const handleOnline = async () => {
+      setError(null);
+      const moves = await getQueuedMoves();
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+      
+      for (const queued of moves) {
+        if (queued.sessionId === activeSession.id) {
+          try {
+            const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: queued.move });
+            await removeQueuedMove(queued.sessionId, queued.move, queued.timestamp);
+            
+            if (coachModeRef.current && response.interruption_lesson) {
+              chessRef.current.undo();
+              setInterruptionLesson(response.interruption_lesson);
+            } else if (response.opponent_move) {
+              const from = response.opponent_move.slice(0, 2);
+              const to = response.opponent_move.slice(2, 4);
+              const promotion =
+                response.opponent_move.length > 4 ? response.opponent_move.slice(4) : undefined;
+              chessRef.current.move({ from, to, promotion });
+            }
+            
+            if (cgRef.current) {
+              cgRef.current.set({
+                fen: chessRef.current.fen(),
+                movable: {
+                  color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+                  dests: getDests(chessRef.current),
+                },
+              });
+            }
+          } catch (e) {
+            console.error('Failed to sync queued move', e);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
 
   useEffect(() => {
     if (boardRef.current && !cg) {
