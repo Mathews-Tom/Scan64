@@ -4,7 +4,7 @@
     "target": "es2024",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vite-plugin-pwa/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
