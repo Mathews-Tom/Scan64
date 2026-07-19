@@ -44,7 +44,11 @@ def retrieve_positions_by_motif_and_difficulty(
         .where(TransferPosition.skill_id == skill_id)
         .where(TransferPosition.difficulty >= minimum_difficulty)
         .where(TransferPosition.difficulty <= maximum_difficulty)
-        .order_by(func.abs(col(TransferPosition.difficulty) - target_difficulty))
+        .order_by(
+            func.abs(col(TransferPosition.difficulty) - target_difficulty),
+            col(TransferPosition.difficulty),
+            col(TransferPosition.id),
+        )
         .limit(limit)
     )
     return list(session.exec(statement))
