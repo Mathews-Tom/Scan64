@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from scan64.learning.profiling.models import SkillState
 
+DEFAULT_MINIMUM_CONTEXT_OPPORTUNITIES = 10
+
 
 @dataclass(frozen=True, slots=True)
 class SkillContext:
@@ -48,6 +50,16 @@ class ContextEstimate:
     global_mastery: float
 
 
+@dataclass(frozen=True, slots=True)
+class ContextMasteryClaim:
+    """A display-safe mastery claim with its evidence source recorded."""
+
+    context: SkillContext
+    mastery: float
+    opportunities: int
+    is_context_conditioned: bool
+
+
 class ContextConditionedSkillModel:
     """Shrinks sparse context-cell mastery estimates toward global skill mastery."""
 
@@ -86,4 +98,24 @@ class ContextConditionedSkillModel:
             mastery=mastery,
             opportunities=opportunities,
             global_mastery=self._global_mastery,
+        )
+
+    def surfaced_claim(
+        self,
+        context: SkillContext,
+        *,
+        minimum_opportunities: int = DEFAULT_MINIMUM_CONTEXT_OPPORTUNITIES,
+    ) -> ContextMasteryClaim:
+        """Return a display-safe claim, falling back to global mastery when needed."""
+        if minimum_opportunities <= 0:
+            raise ValueError("minimum_opportunities must be positive")
+
+        estimate = self.estimate(context)
+        is_context_conditioned = estimate.opportunities >= minimum_opportunities
+        mastery = estimate.mastery if is_context_conditioned else self._global_mastery
+        return ContextMasteryClaim(
+            context=context,
+            mastery=mastery,
+            opportunities=estimate.opportunities,
+            is_context_conditioned=is_context_conditioned,
         )
