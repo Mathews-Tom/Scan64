@@ -13,7 +13,6 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.providers.llm.contracts import ExplanationRequest
 
-
 type AnalysisRequest = EngineAnalysisConfig
 type AnalysisResult = EngineAnalysis
 type PlayerState = SkillState

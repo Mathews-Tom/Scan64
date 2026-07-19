@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from chess_lesson_spec import Diagnosis, Explanation, LessonSpec
 
 from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
@@ -14,6 +15,9 @@ from scan64.learning.plugins import (
     LessonVerifier,
     OpponentPolicy,
     PatternDetector,
+    PluginKind,
+    PluginRegistrationError,
+    PluginRegistry,
     VerificationResult,
 )
 from scan64.learning.plugins.interfaces import (
@@ -69,3 +73,47 @@ def test_plugin_protocols_are_runtime_checkable_extension_contracts() -> None:
     assert isinstance(ExampleLessonVerifier(), LessonVerifier)
     assert isinstance(ExampleExplanationProvider(), ExplanationProvider)
     assert isinstance(ExampleOpponentPolicy(), OpponentPolicy)
+
+
+def test_plugin_registration_accepts_a_conforming_plugin() -> None:
+    registry = PluginRegistry()
+    detector = ExamplePatternDetector()
+
+    registry.register(
+        kind=PluginKind.PATTERN_DETECTOR,
+        name="third_party.example_detector",
+        plugin=detector,
+    )
+
+    assert registry.get(
+        kind=PluginKind.PATTERN_DETECTOR,
+        name="third_party.example_detector",
+    ) is detector
+    assert registry.names(kind=PluginKind.PATTERN_DETECTOR) == ("third_party.example_detector",)
+
+
+def test_plugin_registration_rejects_invalid_or_duplicate_plugins() -> None:
+    registry = PluginRegistry()
+    detector = ExamplePatternDetector()
+
+    with pytest.raises(PluginRegistrationError, match="must not be blank"):
+        registry.register(kind=PluginKind.PATTERN_DETECTOR, name="  ", plugin=detector)
+    with pytest.raises(PluginRegistrationError, match="does not implement"):
+        registry.register(
+            kind=PluginKind.PATTERN_DETECTOR,
+            name="third_party.invalid_detector",
+            plugin=object(),
+        )
+
+    registry.register(
+        kind=PluginKind.PATTERN_DETECTOR,
+        name="third_party.example_detector",
+        plugin=detector,
+    )
+
+    with pytest.raises(PluginRegistrationError, match="already registered"):
+        registry.register(
+            kind=PluginKind.PATTERN_DETECTOR,
+            name="third_party.example_detector",
+            plugin=detector,
+        )

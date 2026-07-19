@@ -14,6 +14,7 @@ from scan64.learning.plugins.interfaces import (
     PlayerState,
     VerificationResult,
 )
+from scan64.learning.plugins.registry import PluginKind, PluginRegistrationError, PluginRegistry
 
 __all__ = [
     "AnalysisProvider",
@@ -30,4 +31,7 @@ __all__ = [
     "PatternDetector",
     "PlayerState",
     "VerificationResult",
+    "PluginKind",
+    "PluginRegistrationError",
+    "PluginRegistry",
 ]
