@@ -233,6 +233,13 @@
           "title": "Text",
           "type": "string"
         },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ExplanationClaim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
         "visualizations": {
           "items": {
             "anyOf": [
@@ -285,6 +292,52 @@
         "text"
       ],
       "title": "Explanation",
+      "type": "object"
+    },
+    "ExplanationClaim": {
+      "additionalProperties": false,
+      "description": "A structured factual claim that can be checked against verified evidence.",
+      "properties": {
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "evidence_ref": {
+          "minLength": 1,
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "line": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Line",
+          "type": "array"
+        },
+        "certainty": {
+          "default": "observed",
+          "enum": [
+            "observed",
+            "likely",
+            "certain"
+          ],
+          "title": "Certainty",
+          "type": "string"
+        },
+        "disclosure_level": {
+          "minimum": 1,
+          "title": "Disclosure Level",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text",
+        "evidence_ref",
+        "disclosure_level"
+      ],
+      "title": "ExplanationClaim",
       "type": "object"
     },
     "FlipBoardCommand": {

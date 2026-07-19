@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from scan64.explanations.claims import ExplanationClaim
+
 
 class DomainEventEnvelope(BaseModel):
     """Standard envelope for internal domain events."""
@@ -149,6 +151,7 @@ class Hint(BaseModel):
 
 class Explanation(BaseModel):
     text: str
+    claims: list[ExplanationClaim] = Field(default_factory=list)
     visualizations: list[VisualizationType] = Field(default_factory=list)
 
 
