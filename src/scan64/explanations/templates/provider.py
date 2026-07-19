@@ -1,4 +1,4 @@
-from scan64.lessonspec.models import Diagnosis, Explanation
+from chess_lesson_spec import Diagnosis, Explanation
 
 
 class TemplateExplanationProvider:

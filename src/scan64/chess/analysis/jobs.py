@@ -2,6 +2,7 @@ import asyncio
 from uuid import UUID, uuid4
 
 import chess
+from chess_lesson_spec import Diagnosis
 from sqlmodel import Session
 
 from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
@@ -13,7 +14,6 @@ from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
-from scan64.lessonspec.models import Diagnosis
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 

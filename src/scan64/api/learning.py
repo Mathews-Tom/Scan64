@@ -3,6 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from chess_lesson_spec import (
+    AcceptedMove,
+    Diagnosis,
+    Interaction,
+    LessonSpec,
+    Objective,
+    Source,
+    Verification,
+)
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, col, select
 
@@ -21,15 +30,6 @@ from scan64.learning.scheduling.opening_rotation import (
 )
 from scan64.learning.scheduling.priority import PriorityFactors
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
-from scan64.lessonspec.models import (
-    AcceptedMove,
-    Diagnosis,
-    Interaction,
-    LessonSpec,
-    Objective,
-    Source,
-    Verification,
-)
 from scan64.persistence.database import get_session
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"])

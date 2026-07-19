@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from chess_lesson_spec import ExplanationClaim
 from pydantic import BaseModel, ConfigDict, Field
-
-from scan64.explanations.claims import ExplanationClaim
 
 
 class LLMMessage(BaseModel):

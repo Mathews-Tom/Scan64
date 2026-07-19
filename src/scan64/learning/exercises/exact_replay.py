@@ -1,4 +1,4 @@
-from scan64.lessonspec.models import (
+from chess_lesson_spec import (
     AcceptedMove,
     Diagnosis,
     Hint,

@@ -1,4 +1,5 @@
-from scan64.explanations.claims import ExplanationClaim
+from chess_lesson_spec import ExplanationClaim
+
 from scan64.providers.llm.adapters import (
     HostedExplanationAdapter,
     LLMExplanationProvider,

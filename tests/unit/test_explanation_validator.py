@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Literal
 
 import pytest
+from chess_lesson_spec import Diagnosis, ExplanationClaim, LessonSpec
 
-from scan64.explanations.claims import ExplanationClaim
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
@@ -13,7 +13,6 @@ from scan64.explanations.validator import (
 )
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
-from scan64.lessonspec.models import Diagnosis, LessonSpec
 from scan64.providers.llm.contracts import (
     ExplanationRequest,
     GeneratedExplanation,

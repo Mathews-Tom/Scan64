@@ -2,8 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
-
-from scan64.lessonspec.models import LessonSpec
+from chess_lesson_spec import LessonSpec
 
 FIXTURES_DIR = Path(__file__).parent / "lesson_spec"
 
