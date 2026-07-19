@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     from scan64.chess.games.models import Game, PlaySession  # noqa: F401
     from scan64.chess.positions.models import Position  # noqa: F401
+    from scan64.learning.exercises.transfer import TransferPosition  # noqa: F401
 
     create_db_and_tables()
     yield
