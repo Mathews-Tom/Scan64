@@ -1,16 +1,14 @@
+from __future__ import annotations
+
 import math
+from collections.abc import Collection
 from typing import Any
 
 
 class SessionComposer:
     def __init__(
         self, mix_config: dict[str, float] | None = None, hard_exploration_floor: float = 0.1
-    ):
-        """
-        mix_config defines the ideal proportion of each item type.
-        e.g. {"due": 0.4, "mistakes": 0.3, "transfer": 0.2, "exploration": 0.1}
-        hard_exploration_floor is the minimum proportion that must be exploration/fundamentals.
-        """
+    ) -> None:
         self.mix_config = mix_config or {
             "due": 0.4,
             "mistakes": 0.3,
@@ -20,93 +18,136 @@ class SessionComposer:
         self.hard_exploration_floor = hard_exploration_floor
 
     def compose_session(
-        self, pool: list[dict[str, Any]], session_size: int = 15
+        self,
+        pool: list[dict[str, Any]],
+        session_size: int = 15,
+        required_item_ids: Collection[str] = (),
     ) -> list[dict[str, Any]]:
-        """
-        Compose a session from a candidate pool of items.
-        Each item in the pool should have a 'type' matching the mix_config keys,
-        and ideally a 'priority' score.
-        """
+        """Compose a priority-ranked session while retaining required content."""
         if not pool or session_size <= 0:
             return []
 
-        # Group candidates by type, sorted by priority (highest first)
+        required_items = self._required_items(pool, required_item_ids, session_size)
+        required_object_ids = {id(item) for item in required_items}
+        grouped_candidates = self._group_candidates(pool, required_object_ids)
+        exploration_min = int(math.ceil(session_size * self.hard_exploration_floor))
+        target_counts = self._target_counts(session_size, required_items, exploration_min)
+
+        session = list(required_items)
+        for item_type, target in target_counts.items():
+            session.extend(grouped_candidates.get(item_type, [])[:target])
+
+        if len(session) < session_size:
+            session.extend(self._remaining_items(pool, session)[: session_size - len(session)])
+
+        if len(session) > session_size:
+            session = self._trim_session(
+                session,
+                session_size,
+                exploration_min,
+                required_object_ids,
+            )
+
+        return session
+
+    @staticmethod
+    def _required_items(
+        pool: list[dict[str, Any]],
+        required_item_ids: Collection[str],
+        session_size: int,
+    ) -> list[dict[str, Any]]:
+        unique_required_item_ids = tuple(dict.fromkeys(required_item_ids))
+        required_items: list[dict[str, Any]] = []
+        for item_id in unique_required_item_ids:
+            matching_items = [item for item in pool if item.get("id") == item_id]
+            if len(matching_items) != 1:
+                raise ValueError(f"Required session item {item_id!r} is missing or ambiguous")
+            required_items.append(matching_items[0])
+
+        if len(required_items) > session_size:
+            raise ValueError("Required session items exceed session size")
+        return required_items
+
+    @staticmethod
+    def _group_candidates(
+        pool: list[dict[str, Any]],
+        excluded_object_ids: set[int],
+    ) -> dict[str, list[dict[str, Any]]]:
         grouped_candidates: dict[str, list[dict[str, Any]]] = {}
         for item in pool:
-            t = item.get("type", "exploration")  # Default to exploration if unknown
-            grouped_candidates.setdefault(t, []).append(item)
+            if id(item) in excluded_object_ids:
+                continue
+            item_type = item.get("type", "exploration")
+            grouped_candidates.setdefault(item_type, []).append(item)
 
-        for t in grouped_candidates:
-            grouped_candidates[t].sort(key=lambda x: x.get("priority", 0.0), reverse=True)
+        for candidates in grouped_candidates.values():
+            candidates.sort(key=lambda item: item.get("priority", 0.0), reverse=True)
+        return grouped_candidates
 
-        session = []
-
-        # Calculate target counts based on mix config
+    def _target_counts(
+        self,
+        session_size: int,
+        required_items: list[dict[str, Any]],
+        exploration_min: int,
+    ) -> dict[str, int]:
         target_counts = {
-            t: int(math.ceil(session_size * proportion))
-            for t, proportion in self.mix_config.items()
+            item_type: int(math.ceil(session_size * proportion))
+            for item_type, proportion in self.mix_config.items()
         }
+        target_counts["exploration"] = max(
+            target_counts.get("exploration", 0),
+            exploration_min,
+        )
 
-        # Ensure hard floor for exploration
-        exploration_min = int(math.ceil(session_size * self.hard_exploration_floor))
-        target_counts["exploration"] = max(target_counts.get("exploration", 0), exploration_min)
+        for item in required_items:
+            item_type = item.get("type", "exploration")
+            target_counts[item_type] = max(target_counts.get(item_type, 0) - 1, 0)
+        return target_counts
 
-        # We might over-allocate slightly due to ceil, but we'll truncate at the end
+    @staticmethod
+    def _remaining_items(
+        pool: list[dict[str, Any]],
+        session: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        selected_object_ids = {id(item) for item in session}
+        remaining_items = [
+            item for item in pool if id(item) not in selected_object_ids
+        ]
+        remaining_items.sort(
+            key=lambda item: (
+                item.get("priority", 0.0),
+                item.get("type") == "due",
+            ),
+            reverse=True,
+        )
+        return remaining_items
 
-        for t, target in target_counts.items():
-            candidates = grouped_candidates.get(t, [])
-            selected = candidates[:target]
-            session.extend(selected)
-
-        # If we are short, fill with whatever is highest priority across remaining items
-        if len(session) < session_size:
-            # Re-collect all unused items
-            used_ids = {id(item) for item in session}
-            remaining = [item for item in pool if id(item) not in used_ids]
-            remaining.sort(
-                key=lambda x: (x.get("priority", 0.0), 1 if x.get("type") == "due" else 0),
-                reverse=True
-            )
-
-            # How many more do we need?
-            needed = session_size - len(session)
-            session.extend(remaining[:needed])
-
-        # Still over capacity? We need to trim, but MUST respect exploration floor
-        if len(session) > session_size:
-            # We want to keep up to session_size items.
-            # First, secure the exploration items
-            exploration_items = [item for item in session if item.get("type") == "exploration"]
-            other_items = [item for item in session if item.get("type") != "exploration"]
-
-            # Sort other items by priority
-            other_items.sort(key=lambda x: x.get("priority", 0.0), reverse=True)
-
-            # How many exploration items to keep? At least exploration_min, up to available
-            keep_exploration = min(len(exploration_items), exploration_min)
-
-            # We might keep more exploration if we are short on other items,
-            # but usually we trim the lowest priority non-exploration items.
-            # Let's just do a simple selection
-
-            final_session = []
-
-            # Secure minimum exploration
-            final_session.extend(exploration_items[:keep_exploration])
-            remaining_exploration = exploration_items[keep_exploration:]
-
-            # How many slots left?
-            slots_left = session_size - len(final_session)
-
-            # Pool remaining exploration with other items, sort by priority
-            pool_for_remaining = remaining_exploration + other_items
-            pool_for_remaining.sort(
-                key=lambda x: (x.get("priority", 0.0), 1 if x.get("type") == "due" else 0),
-                reverse=True
-            )
-
-            final_session.extend(pool_for_remaining[:slots_left])
-            session = final_session
-
-        # Return the final composed session
-        return session
+    @classmethod
+    def _trim_session(
+        cls,
+        session: list[dict[str, Any]],
+        session_size: int,
+        exploration_min: int,
+        required_object_ids: set[int],
+    ) -> list[dict[str, Any]]:
+        required_items = [item for item in session if id(item) in required_object_ids]
+        optional_items = [item for item in session if id(item) not in required_object_ids]
+        required_exploration_count = sum(
+            item.get("type") == "exploration" for item in required_items
+        )
+        additional_exploration_needed = max(
+            exploration_min - required_exploration_count,
+            0,
+        )
+        available_exploration_slots = max(session_size - len(required_items), 0)
+        exploration_items = sorted(
+            (item for item in optional_items if item.get("type") == "exploration"),
+            key=lambda item: item.get("priority", 0.0),
+            reverse=True,
+        )[:min(additional_exploration_needed, available_exploration_slots)]
+        secured_object_ids = {id(item) for item in required_items + exploration_items}
+        remaining_items = cls._remaining_items(optional_items, exploration_items)
+        slots_left = max(session_size - len(required_items) - len(exploration_items), 0)
+        return required_items + exploration_items + [
+            item for item in remaining_items if id(item) not in secured_object_ids
+        ][:slots_left]
