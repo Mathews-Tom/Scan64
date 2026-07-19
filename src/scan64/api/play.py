@@ -1,8 +1,10 @@
+import os
+from pathlib import Path
 from uuid import UUID
 
 import chess
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from scan64.chess.games.models import Game, PlaySession
@@ -17,9 +19,17 @@ router = APIRouter(tags=["play-sessions"])
 class PlaySessionCreate(BaseModel):
     player_id: str
     game_id: UUID | None = None
-    opponent_config: dict[str, str] = {}
+    opponent_config: dict[str, str] = Field(default_factory=dict)
     clock_config: dict[str, str] | None = None
     initial_fen: str | None = None
+
+    @field_validator("opponent_config")
+    @classmethod
+    def validate_opponent_config(cls, opponent_config: dict[str, str]) -> dict[str, str]:
+        provider_name = opponent_config.get("provider", "stockfish")
+        if provider_name not in {"stockfish", "maia"}:
+            raise ValueError(f"Unsupported opponent provider: {provider_name}")
+        return opponent_config
 
     @field_validator("initial_fen")
     @classmethod
@@ -50,16 +60,23 @@ class PlayMoveResponse(BaseModel):
 
 
 def get_opponent_provider() -> StockfishOpponentProvider:
-    # Provide the default stockfish opponent as required by
-    # "existing M11 Stockfish opponent integration"
     return StockfishOpponentProvider(StockfishConfig())
+
+
+def get_maia_config_path() -> Path | None:
+    raw_path = os.environ.get("SCAN64_MAIA_CONFIG")
+    return Path(raw_path) if raw_path is not None else None
 
 
 def get_play_session_service(
     session: Session = Depends(get_session),
-    opponent_provider: StockfishOpponentProvider = Depends(get_opponent_provider),
+    stockfish_provider: StockfishOpponentProvider = Depends(get_opponent_provider),
 ) -> PlaySessionService:
-    return PlaySessionService(db_session=session, opponent_provider=opponent_provider)
+    return PlaySessionService(
+        db_session=session,
+        stockfish_provider=stockfish_provider,
+        maia_config_path=get_maia_config_path(),
+    )
 
 
 @router.post("/v1/play-sessions", response_model=PlaySessionRead)
