@@ -1,4 +1,6 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +15,12 @@ class OpeningMission(BaseModel):
 
 
 class OpeningFamilyPayload(BaseModel):
+    family_id: str
     name: str
     instructional_purpose: str
+    structure: Literal["open_centre", "queen_pawn", "solid_defence"]
+    learner_colour: Literal["white", "black"]
+    opponent_response_moves: list[str] = Field(min_length=1)
     moves: list[str] = Field(default_factory=list)
     missions: list[OpeningMission] = Field(default_factory=list)
 
