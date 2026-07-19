@@ -331,3 +331,80 @@ def test_reporting_rejects_incomplete_cohort_lifecycle(session: Session) -> None
             cohort_id="cohort-july",
             skill_id=skill_id,
         )
+
+
+def test_synthetic_cohort_transfer_measurement_pipeline(session: Session) -> None:
+    skill_id = "tactics.pin"
+    cohort_id = "synthetic-cohort"
+    player_outcomes = (
+        ("player-a", True, True, True),
+        ("player-b", True, False, False),
+        ("player-c", False, True, False),
+    )
+    now = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
+    add_transfer_positions(session, skill_id)
+    instrument_transfer_measurements(
+        session,
+        cohort_id=cohort_id,
+        player_ids=tuple(outcome[0] for outcome in player_outcomes),
+        skill_id=skill_id,
+        target_difficulty=1550,
+        difficulty_tolerance=100,
+        now=now,
+    )
+    measurements = {
+        (measurement.player_id, measurement.measurement_point): measurement
+        for measurement in session.exec(select(TransferMeasurement))
+    }
+
+    for player_id, pre_success, immediate_success, delayed_success in player_outcomes:
+        pre_test = measurements[player_id, MeasurementPoint.PRE_TEST]
+        record_transfer_measurement(
+            session,
+            measurement_id=pre_test.id,
+            player_id=player_id,
+            succeeded=pre_success,
+            now=now,
+        )
+        immediate_post_test, delayed_test = record_training_completion(
+            session,
+            cohort_id=cohort_id,
+            player_id=player_id,
+            skill_id=skill_id,
+            completed_at=now + timedelta(hours=1),
+        )
+        record_transfer_measurement(
+            session,
+            measurement_id=immediate_post_test.id,
+            player_id=player_id,
+            succeeded=immediate_success,
+            now=now + timedelta(hours=1),
+        )
+        record_transfer_measurement(
+            session,
+            measurement_id=delayed_test.id,
+            player_id=player_id,
+            succeeded=delayed_success,
+            now=now + timedelta(days=8),
+        )
+
+    report = build_transfer_measurement_report(
+        session,
+        cohort_id=cohort_id,
+        skill_id=skill_id,
+    )
+    summaries = {summary.measurement_point: summary for summary in report.measurements}
+
+    assert [
+        (
+            summaries[measurement_point].assigned_count,
+            summaries[measurement_point].completed_count,
+            summaries[measurement_point].successful_count,
+            summaries[measurement_point].success_rate,
+        )
+        for measurement_point in MeasurementPoint
+    ] == [
+        (3, 3, 2, 2 / 3),
+        (3, 3, 2, 2 / 3),
+        (3, 3, 1, 1 / 3),
+    ]
