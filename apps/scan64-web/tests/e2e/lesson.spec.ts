@@ -8,7 +8,10 @@ test.describe('Lesson Review Flow', () => {
   test('renders hint ladder matching LessonSpec fixture', async ({ page }) => {
     // Read the conformance fixture
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const fixturePath = path.resolve(__dirname, '../../../../tests/conformance/lesson_spec/valid_full.json');
+    const fixturePath = path.resolve(
+      __dirname,
+      '../../../../packages/chess-lesson-spec/src/chess_lesson_spec/fixtures/valid_full.json',
+    );
     const lessonSpec = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as LessonSpec;
 
     // Intercept API calls

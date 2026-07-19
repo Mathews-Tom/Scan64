@@ -1,13 +1,13 @@
 import json
-from pathlib import Path
 
 import pytest
 from chess_lesson_spec import LessonSpec
+from chess_lesson_spec.fixtures import fixture_paths
 
-FIXTURES_DIR = Path(__file__).parent / "lesson_spec"
+FIXTURES = fixture_paths()
 
 
-@pytest.mark.parametrize("fixture_path", list(FIXTURES_DIR.glob("*.json")), ids=lambda p: p.name)
+@pytest.mark.parametrize("fixture_path", FIXTURES, ids=lambda p: p.name)
 def test_fixture_roundtrip(fixture_path):
     with open(fixture_path) as f:
         data = json.load(f)
@@ -25,7 +25,7 @@ def test_fixture_roundtrip(fixture_path):
 
 def test_visualizations_have_description():
     # Load the visualization fixture specifically
-    viz_fixture = FIXTURES_DIR / "valid_visualizations.json"
+    viz_fixture = next(path for path in FIXTURES if path.name == "valid_visualizations.json")
     with open(viz_fixture) as f:
         data = json.load(f)
 
