@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from scan64.chess.positions.models import Position
 
@@ -18,6 +18,7 @@ class MoveDecision:
     time_taken_ms: int | None = None
 
 
+@runtime_checkable
 class OpponentPolicy(Protocol):
     async def choose_move(
         self,

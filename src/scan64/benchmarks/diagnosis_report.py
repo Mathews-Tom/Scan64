@@ -3,7 +3,6 @@ import asyncio
 import json
 from pathlib import Path
 
-from scan64.learning.diagnosis.detectors.base import PatternDetector
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.detectors.calculation import StoppedCalculationEarlyDetector
 from scan64.learning.diagnosis.detectors.opening import DelayedDevelopmentDetector
@@ -20,6 +19,7 @@ from scan64.learning.diagnosis.detectors.threat_processing import (
 )
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.plugins.interfaces import PatternDetector
 
 SEED_CODES = [
     "board_awareness.hanging_piece",
