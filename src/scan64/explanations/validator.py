@@ -5,10 +5,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 import chess
+from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
-from scan64.explanations.claims import ExplanationClaim
 from scan64.learning.evidence.models import Evidence
-from scan64.lessonspec.models import Explanation, LessonSpec
 from scan64.providers.llm.adapters import LLMExplanationProvider
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 

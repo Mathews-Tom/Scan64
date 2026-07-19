@@ -1,6 +1,6 @@
 import json
 
-from scan64.lessonspec.models import DomainEventEnvelope, LessonSpec
+from chess_lesson_spec import DomainEventEnvelope, LessonSpec
 
 
 def main():

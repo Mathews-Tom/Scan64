@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
+from chess_lesson_spec import Diagnosis
 
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.verification.verifier import verify_lesson
-from scan64.lessonspec.models import Diagnosis
 from scan64.providers.llm.config import LLMProviderConfig, create_llm_provider
 
 

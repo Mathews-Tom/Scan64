@@ -1,6 +1,7 @@
 from typing import Any
 from uuid import UUID
 
+from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import case
@@ -11,7 +12,6 @@ from scan64.chess.analysis.jobs import execute_analysis_job
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
-from scan64.lessonspec.models import LessonSpec
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["games"])

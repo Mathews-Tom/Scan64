@@ -1,7 +1,5 @@
 import pytest
-
-from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
-from scan64.lessonspec.models import (
+from chess_lesson_spec import (
     AcceptedMove,
     Diagnosis,
     HighlightSquareCommand,
@@ -12,6 +10,8 @@ from scan64.lessonspec.models import (
     Source,
     Verification,
 )
+
+from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 
 
 def _create_valid_spec() -> LessonSpec:

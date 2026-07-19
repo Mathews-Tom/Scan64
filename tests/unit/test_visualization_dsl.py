@@ -1,13 +1,12 @@
 import pytest
-from pydantic import ValidationError
-
-from scan64.lessonspec.models import (
+from chess_lesson_spec import (
     AnimateLineCommand,
     DrawArrowCommand,
     Explanation,
     HighlightSquareCommand,
     Hint,
 )
+from pydantic import ValidationError
 
 
 def test_visualization_commands_require_description():

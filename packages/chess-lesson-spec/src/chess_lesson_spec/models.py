@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from scan64.explanations.claims import ExplanationClaim
+from chess_lesson_spec.claims import ExplanationClaim
 
 
 class DomainEventEnvelope(BaseModel):
