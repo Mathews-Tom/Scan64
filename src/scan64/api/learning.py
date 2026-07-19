@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
-from scan64.chess.games.models import PlaySession
+from scan64.chess.games.models import Game, PlaySession
 from scan64.content.endgames.curated import ENDGAME_PUZZLES
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import FamousGameDecision, FamousGameDefinition
@@ -13,6 +15,10 @@ from scan64.content.models import ContentItem
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
 from scan64.learning.scheduling.composer import SessionComposer
+from scan64.learning.scheduling.opening_rotation import (
+    OpeningRotationPlanner,
+    classify_opening_family,
+)
 from scan64.learning.scheduling.priority import PriorityFactors
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.lessonspec.models import (
@@ -96,6 +102,26 @@ def make_famous_game_spec(game: FamousGameDefinition, decision: FamousGameDecisi
         verification=Verification(status="verified", engine="expert")
     )
 
+def _recent_opening_family_ids(
+    player_id: str,
+    db: Session,
+    opening_families: list[OpeningFamilyPayload],
+    history_window: int,
+) -> list[str]:
+    recent_games = db.exec(
+        select(Game)
+        .join(PlaySession, PlaySession.game_id == Game.id)  # type: ignore[arg-type]
+        .where(PlaySession.player_id == player_id)
+        .order_by(col(Game.created_at).desc())
+        .limit(history_window)
+    ).all()
+    return list(reversed([
+        family_id
+        for game in recent_games
+        if (family_id := classify_opening_family(game.moves, opening_families)) is not None
+    ]))
+
+
 @router.get("/session", response_model=list[LessonSpec])
 def get_training_session(player_id: str, db: Session = Depends(get_session)) -> list[LessonSpec]:
     now = datetime.now(UTC)
@@ -114,14 +140,21 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
         })
 
     # Openings
-    for op in OPENING_FAMILIES:
-        spec = make_opening_spec(op)
+    opening_payloads = [
+        OpeningFamilyPayload.model_validate(family_item.payload)
+        for family_item in OPENING_FAMILIES
+    ]
+    opening_lesson_ids: dict[str, str] = {}
+    for family_item, payload in zip(OPENING_FAMILIES, opening_payloads, strict=True):
+        spec = make_opening_spec(family_item)
+        opening_lesson_ids[payload.family_id] = spec.lesson_id
         pool.append({
             "id": spec.lesson_id,
             "source": "m16_opening",
             "content_type": "opening",
+            "opening_family_id": payload.family_id,
             "spec": spec,
-            "base_priority": 0.5
+            "base_priority": 0.5,
         })
 
     # Famous Games
@@ -152,7 +185,21 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
             "base_priority": 0.9 # High priority for actual mistakes
         })
 
+    rotation_planner = OpeningRotationPlanner()
+    rotation_plan = rotation_planner.plan(
+        opening_payloads,
+        _recent_opening_family_ids(
+            player_id,
+            db,
+            opening_payloads,
+            rotation_planner.history_window,
+        ),
+    )
+
     # 2. Attach scheduling metadata (ReviewSchedule)
+    familiar_family_id = rotation_plan.familiar_family_id
+    response_review_family_id = rotation_plan.response_review_family_id
+
     for item in pool:
         schedule = db.get(ReviewSchedule, (player_id, item["id"]))
         if schedule:
@@ -181,9 +228,30 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
                 curriculum_relevance=0.8 if item["content_type"] in ("endgame", "opening") else 0.0
             )
             item["priority"] = pf.compute_priority(session_fatigue=0.0)
+        if (
+            familiar_family_id is not None
+            and item.get("opening_family_id") == familiar_family_id
+        ):
+            item["priority"] += 0.05
+        if (
+            response_review_family_id is not None
+            and item.get("opening_family_id") == response_review_family_id
+        ):
+            item["priority"] += 0.05
+
+
+    required_rotation_item_ids: tuple[str, ...] = ()
+    if rotation_plan.required_family_id is not None:
+        required_rotation_item_ids = (
+            opening_lesson_ids[rotation_plan.required_family_id],
+        )
 
     # 3. Compose session
     composer = SessionComposer()
-    composed_session = composer.compose_session(pool, session_size=5)
+    composed_session = composer.compose_session(
+        pool,
+        session_size=5,
+        required_item_ids=required_rotation_item_ids,
+    )
 
     return [item["spec"] for item in composed_session]
