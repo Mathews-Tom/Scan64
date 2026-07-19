@@ -11,6 +11,7 @@ from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
     TransferMeasurementError,
+    build_transfer_measurement_report,
     due_transfer_measurements,
     instrument_transfer_measurements,
     record_training_completion,
@@ -196,4 +197,137 @@ def test_instrumentation_requires_completed_pre_test_before_post_tests(session: 
             player_id="player-a",
             skill_id=skill_id,
             completed_at=now,
+        )
+
+
+def test_reporting_aggregates_cohort_transfer_success(session: Session) -> None:
+    skill_id = "tactics.pin"
+    cohort_id = "cohort-july"
+    player_ids = ("player-a", "player-b")
+    now = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
+    add_transfer_positions(session, skill_id)
+    instrument_transfer_measurements(
+        session,
+        cohort_id=cohort_id,
+        player_ids=player_ids,
+        skill_id=skill_id,
+        target_difficulty=1550,
+        difficulty_tolerance=100,
+        now=now,
+    )
+    measurements = list(session.exec(select(TransferMeasurement)))
+    pre_tests = {
+        measurement.player_id: measurement
+        for measurement in measurements
+        if measurement.measurement_point is MeasurementPoint.PRE_TEST
+    }
+    for player_id, succeeded in (("player-a", True), ("player-b", False)):
+        record_transfer_measurement(
+            session,
+            measurement_id=pre_tests[player_id].id,
+            player_id=player_id,
+            succeeded=succeeded,
+            now=now,
+        )
+
+    post_tests = [
+        record_training_completion(
+            session,
+            cohort_id=cohort_id,
+            player_id=player_id,
+            skill_id=skill_id,
+            completed_at=now + timedelta(hours=1),
+        )[0]
+        for player_id in player_ids
+    ]
+    for measurement, succeeded in zip(post_tests, (False, True), strict=True):
+        record_transfer_measurement(
+            session,
+            measurement_id=measurement.id,
+            player_id=measurement.player_id,
+            succeeded=succeeded,
+            now=now + timedelta(hours=1),
+        )
+
+    report = build_transfer_measurement_report(
+        session,
+        cohort_id=cohort_id,
+        skill_id=skill_id,
+    )
+    summaries = {summary.measurement_point: summary for summary in report.measurements}
+
+    assert report.cohort_id == cohort_id
+    assert report.skill_id == skill_id
+    assert summaries[MeasurementPoint.PRE_TEST].assigned_count == 2
+    assert summaries[MeasurementPoint.PRE_TEST].completed_count == 2
+    assert summaries[MeasurementPoint.PRE_TEST].successful_count == 1
+    assert summaries[MeasurementPoint.PRE_TEST].success_rate == 0.5
+    assert summaries[MeasurementPoint.IMMEDIATE_POST_TEST].assigned_count == 2
+    assert summaries[MeasurementPoint.IMMEDIATE_POST_TEST].completed_count == 2
+    assert summaries[MeasurementPoint.IMMEDIATE_POST_TEST].successful_count == 1
+    assert summaries[MeasurementPoint.IMMEDIATE_POST_TEST].success_rate == 0.5
+    assert summaries[MeasurementPoint.DELAYED_TEST].assigned_count == 2
+    assert summaries[MeasurementPoint.DELAYED_TEST].completed_count == 0
+    assert summaries[MeasurementPoint.DELAYED_TEST].successful_count == 0
+    assert summaries[MeasurementPoint.DELAYED_TEST].success_rate is None
+    delayed_test = next(
+        measurement
+        for measurement in session.exec(select(TransferMeasurement))
+        if measurement.player_id == "player-a"
+        and measurement.measurement_point is MeasurementPoint.DELAYED_TEST
+    )
+    record_transfer_measurement(
+        session,
+        measurement_id=delayed_test.id,
+        player_id="player-a",
+        succeeded=True,
+        now=now + timedelta(days=8),
+    )
+    partial_report = build_transfer_measurement_report(
+        session,
+        cohort_id=cohort_id,
+        skill_id=skill_id,
+    )
+    partial_summaries = {
+        summary.measurement_point: summary for summary in partial_report.measurements
+    }
+    assert partial_summaries[MeasurementPoint.DELAYED_TEST].completed_count == 1
+    assert partial_summaries[MeasurementPoint.DELAYED_TEST].successful_count == 1
+    assert partial_summaries[MeasurementPoint.DELAYED_TEST].success_rate is None
+
+
+def test_reporting_rejects_missing_measurements(session: Session) -> None:
+    with pytest.raises(TransferMeasurementError, match="do not exist"):
+        build_transfer_measurement_report(
+            session,
+            cohort_id="cohort-july",
+            skill_id="tactics.pin",
+        )
+
+
+def test_reporting_rejects_incomplete_cohort_lifecycle(session: Session) -> None:
+    skill_id = "tactics.pin"
+    add_transfer_positions(session, skill_id)
+    instrument_transfer_measurements(
+        session,
+        cohort_id="cohort-july",
+        player_ids=("player-a",),
+        skill_id=skill_id,
+        target_difficulty=1550,
+        difficulty_tolerance=100,
+        now=datetime(2026, 7, 20, 12, 0, tzinfo=UTC),
+    )
+    delayed_test = next(
+        measurement
+        for measurement in session.exec(select(TransferMeasurement))
+        if measurement.measurement_point is MeasurementPoint.DELAYED_TEST
+    )
+    session.delete(delayed_test)
+    session.commit()
+
+    with pytest.raises(TransferMeasurementError, match="lifecycle is incomplete"):
+        build_transfer_measurement_report(
+            session,
+            cohort_id="cohort-july",
+            skill_id=skill_id,
         )

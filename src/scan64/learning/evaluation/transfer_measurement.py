@@ -82,6 +82,26 @@ class TransferMeasurementInstrumentation:
     measurements: tuple[TransferMeasurement, ...]
 
 
+@dataclass(frozen=True)
+class TransferSuccessMeasurement:
+    """Aggregate transfer success for one measurement point without player-level data."""
+
+    measurement_point: MeasurementPoint
+    assigned_count: int
+    completed_count: int
+    successful_count: int
+    success_rate: float | None
+
+
+@dataclass(frozen=True)
+class TransferMeasurementReport:
+    """Cohort-level transfer-success results for one learned skill."""
+
+    cohort_id: str
+    skill_id: str
+    measurements: tuple[TransferSuccessMeasurement, ...]
+
+
 def instrument_transfer_measurements(
     session: Session,
     *,
@@ -170,6 +190,64 @@ def due_transfer_measurements(
         if (schedule := session.get(ReviewSchedule, (player_id, measurement.id))) is not None
         and schedule.is_due(current_time)
     ]
+
+
+def build_transfer_measurement_report(
+    session: Session,
+    *,
+    cohort_id: str,
+    skill_id: str,
+) -> TransferMeasurementReport:
+    """Aggregate pre, immediate-post, and delayed transfer success for one cohort skill."""
+    _require_identifier("cohort_id", cohort_id)
+    _require_identifier("skill_id", skill_id)
+    measurements = list(
+        session.exec(
+            select(TransferMeasurement)
+            .where(TransferMeasurement.cohort_id == cohort_id)
+            .where(TransferMeasurement.skill_id == skill_id)
+        )
+    )
+    if not measurements:
+        raise TransferMeasurementError("Transfer measurements do not exist for cohort and skill")
+
+    player_ids = {measurement.player_id for measurement in measurements}
+    summaries: list[TransferSuccessMeasurement] = []
+    for measurement_point in MEASUREMENT_POINTS:
+        point_measurements = [
+            measurement
+            for measurement in measurements
+            if measurement.measurement_point is measurement_point
+        ]
+        if {measurement.player_id for measurement in point_measurements} != player_ids:
+            raise TransferMeasurementError("Transfer measurement cohort lifecycle is incomplete")
+        completed_measurements = [
+            measurement
+            for measurement in point_measurements
+            if measurement.completed_at is not None
+        ]
+        successful_count = sum(
+            measurement.succeeded is True for measurement in completed_measurements
+        )
+        completed_count = len(completed_measurements)
+        summaries.append(
+            TransferSuccessMeasurement(
+                measurement_point=measurement_point,
+                assigned_count=len(point_measurements),
+                completed_count=completed_count,
+                successful_count=successful_count,
+                success_rate=(
+                    successful_count / completed_count
+                    if completed_count == len(point_measurements)
+                    else None
+                ),
+            )
+        )
+    return TransferMeasurementReport(
+        cohort_id=cohort_id,
+        skill_id=skill_id,
+        measurements=tuple(summaries),
+    )
 
 
 def record_transfer_measurement(
