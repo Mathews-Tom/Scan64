@@ -14,6 +14,14 @@ from scan64.learning.plugins.interfaces import (
     PlayerState,
     VerificationResult,
 )
+from scan64.learning.plugins.promotion import (
+    DetectorMetrics,
+    GoldenFixture,
+    PromotionGateError,
+    PromotionGateResult,
+    evaluate_detector_promotion,
+    load_golden_fixtures,
+)
 from scan64.learning.plugins.registry import PluginKind, PluginRegistrationError, PluginRegistry
 
 __all__ = [
@@ -34,4 +42,10 @@ __all__ = [
     "PluginKind",
     "PluginRegistrationError",
     "PluginRegistry",
+    "DetectorMetrics",
+    "GoldenFixture",
+    "PromotionGateError",
+    "PromotionGateResult",
+    "evaluate_detector_promotion",
+    "load_golden_fixtures",
 ]
