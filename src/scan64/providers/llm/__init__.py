@@ -1,3 +1,4 @@
+from scan64.explanations.claims import ExplanationClaim
 from scan64.providers.llm.adapters import (
     HostedExplanationAdapter,
     LLMExplanationProvider,
@@ -10,7 +11,6 @@ from scan64.providers.llm.config import (
     create_llm_provider,
 )
 from scan64.providers.llm.contracts import (
-    ExplanationClaim,
     ExplanationRequest,
     GeneratedExplanation,
     LLMMessage,

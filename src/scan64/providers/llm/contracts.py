@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from scan64.explanations.claims import ExplanationClaim
+
 
 class LLMMessage(BaseModel):
     """One prompt message sent to an explanation provider."""
@@ -14,16 +16,6 @@ class LLMMessage(BaseModel):
     content: str = Field(min_length=1)
 
 
-class ExplanationClaim(BaseModel):
-    """A structured factual claim returned by an LLM provider."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    text: str = Field(min_length=1)
-    evidence_ref: str = Field(min_length=1)
-    line: tuple[str, ...] = ()
-    certainty: Literal["observed", "likely", "certain"] = "observed"
-    disclosure_level: int = Field(ge=1)
 
 
 class GeneratedExplanation(BaseModel):
