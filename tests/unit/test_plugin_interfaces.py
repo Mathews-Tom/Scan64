@@ -25,6 +25,11 @@ from scan64.learning.plugins.interfaces import (
     ExplanationPolicy,
     PlayerState,
 )
+from scan64.learning.plugins.reference_detector import (
+    REFERENCE_DETECTOR_NAME,
+    ReferenceHangingPieceDetector,
+    register_reference_detector,
+)
 
 
 class ExampleAnalysisProvider:
@@ -117,3 +122,125 @@ def test_plugin_registration_rejects_invalid_or_duplicate_plugins() -> None:
             name="third_party.example_detector",
             plugin=detector,
         )
+
+
+@pytest.mark.asyncio
+async def test_reference_detector_registers_through_plugin_interface() -> None:
+    registry = PluginRegistry()
+
+    register_reference_detector(registry)
+
+    detector = registry.get(
+        kind=PluginKind.PATTERN_DETECTOR,
+        name=REFERENCE_DETECTOR_NAME,
+    )
+    assert isinstance(detector, PatternDetector)
+    candidates = await detector.detect(
+        LearningOpportunity(
+            opportunity_id="opportunity-1",
+            position_id="position-1",
+            player_id="player-1",
+            played_move="e4",
+            engine_eval_before=3.0,
+            engine_eval_after=-1.0,
+        ),
+        [
+            Evidence(
+                evidence_id="evidence-1",
+                kind="blunder_analysis",
+                position_id="position-1",
+                engine_analysis_id="analysis-1",
+                claim="The bishop was left en prise.",
+                payload={"is_hanging_piece_blunder": True},
+            )
+        ],
+        PlayerContext(player_id="player-1"),
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].skill_id == "board_awareness.hanging_piece"
+    assert candidates[0].confidence == 0.75
+    assert candidates[0].metadata["detector"] == REFERENCE_DETECTOR_NAME
+
+
+@pytest.mark.asyncio
+async def test_reference_detector_uses_its_configured_evaluation_drop_floor() -> None:
+    detector = ReferenceHangingPieceDetector(minimum_eval_drop=1.0)
+
+    candidates = await detector.detect(
+        LearningOpportunity(
+            opportunity_id="opportunity-2",
+            position_id="position-2",
+            player_id="player-1",
+            played_move="e4",
+            engine_eval_before=2.0,
+            engine_eval_after=1.0,
+        ),
+        [
+            Evidence(
+                evidence_id="evidence-2",
+                kind="blunder_analysis",
+                position_id="position-2",
+                engine_analysis_id="analysis-2",
+                claim="The knight was left en prise.",
+                payload={"blunder_type": "hanging_piece_lost"},
+            )
+        ],
+        PlayerContext(player_id="player-1"),
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].confidence == 0.65
+
+
+@pytest.mark.asyncio
+async def test_reference_detector_rejects_insufficient_or_unrelated_evidence() -> None:
+    detector = ReferenceHangingPieceDetector()
+    player_context = PlayerContext(player_id="player-1")
+    hanging_piece_evidence = [
+        Evidence(
+            evidence_id="evidence-3",
+            kind="blunder_analysis",
+            position_id="position-3",
+            engine_analysis_id="analysis-3",
+            claim="A piece was left en prise.",
+            payload={"is_hanging_piece_blunder": True},
+        )
+    ]
+
+    insufficient = await detector.detect(
+        LearningOpportunity(
+            opportunity_id="opportunity-3",
+            position_id="position-3",
+            player_id="player-1",
+            played_move="e4",
+            engine_eval_before=2.0,
+            engine_eval_after=1.0,
+        ),
+        hanging_piece_evidence,
+        player_context,
+    )
+    unrelated = await detector.detect(
+        LearningOpportunity(
+            opportunity_id="opportunity-4",
+            position_id="position-4",
+            player_id="player-1",
+            played_move="e4",
+            engine_eval_before=4.0,
+            engine_eval_after=0.0,
+        ),
+        [
+            Evidence(
+                evidence_id="evidence-4",
+                kind="engine_analysis",
+                position_id="position-4",
+                engine_analysis_id="analysis-4",
+                claim="No hanging piece signal exists.",
+                payload={},
+            )
+        ],
+        player_context,
+    )
+
+    assert insufficient == []
+    assert unrelated == []
