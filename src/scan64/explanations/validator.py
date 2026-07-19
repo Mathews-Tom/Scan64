@@ -8,8 +8,9 @@ import chess
 
 from scan64.explanations.claims import ExplanationClaim
 from scan64.learning.evidence.models import Evidence
-from scan64.lessonspec.models import Explanation
-from scan64.providers.llm.contracts import GeneratedExplanation
+from scan64.lessonspec.models import Explanation, LessonSpec
+from scan64.providers.llm.adapters import LLMExplanationProvider
+from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
 
 class GroundedExplanationValidationError(ValueError):
@@ -53,6 +54,21 @@ def validate_generated_explanation(
         text=" ".join(claim.text for claim in generated.claims),
         claims=list(generated.claims),
     )
+
+async def attach_validated_explanation(
+    lesson: LessonSpec,
+    provider: LLMExplanationProvider,
+    request: ExplanationRequest,
+    context: GroundedExplanationContext,
+) -> None:
+    """Attach provider output only after the full grounded-claim contract passes."""
+
+    if lesson.source.fen != context.fen:
+        raise GroundedExplanationValidationError(
+            "Lesson source FEN and explanation grounding context must match"
+        )
+    generated = await provider.generate(request)
+    lesson.explanation = validate_generated_explanation(generated, context)
 
 
 def _evidence_ids(evidence: tuple[Evidence, ...]) -> set[str]:
