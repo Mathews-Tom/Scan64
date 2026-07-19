@@ -205,3 +205,56 @@ export interface AttemptRead {
   success: boolean;
   hint_assisted: boolean;
 }
+
+export interface PlayerProfileRead {
+  player_id: string;
+  rating: number;
+  display_name: string | null;
+}
+
+export interface PatternRead {
+  description?: string;
+  rule_id?: string;
+}
+
+export interface PatternsReport {
+  player_id: string;
+  recurring_habits: PatternRead[];
+}
+
+export interface EvidenceItemRead {
+  evidence_id: string;
+  kind: string;
+  position_id: string;
+  claim: string;
+  payload: Record<string, unknown>;
+  producer: Record<string, unknown>;
+}
+
+export interface EvidenceReport {
+  player_id: string;
+  evidence_items: EvidenceItemRead[];
+}
+
+export interface CoachStudentDashboard {
+  student_id: string;
+  profile: PlayerProfileRead;
+  patterns: PatternsReport;
+  evidence: EvidenceReport;
+}
+
+export interface CoachDashboard {
+  coach_id: string;
+  students: CoachStudentDashboard[];
+}
+
+export interface ProgressSkillRead {
+  concept: string;
+  mastery: number;
+  uncertainty: number;
+}
+
+export interface PlayerProgressReport {
+  player_id: string;
+  skills: ProgressSkillRead[];
+}
