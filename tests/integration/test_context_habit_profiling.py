@@ -7,7 +7,7 @@ from scan64.learning.profiling.context import (
     ContextObservation,
     SkillContext,
 )
-from scan64.learning.profiling.habits import GameAnnotation
+from scan64.learning.profiling.habits import GameAnnotation, HabitDetector, HabitRule
 from scan64.learning.profiling.models import SkillState
 
 
@@ -54,3 +54,33 @@ def test_play_history_surfaces_context_claim_after_minimum_evidence(
     assert claim.is_context_conditioned is True
     assert claim.opportunities == 10
     assert claim.mastery == pytest.approx(0.625)
+
+
+def test_play_history_surfaces_habit_with_context_conditioned_skill(
+    synthetic_play_history: tuple[list[ContextObservation], list[GameAnnotation]],
+) -> None:
+    observations, annotations = synthetic_play_history
+    global_skill = SkillState(
+        player_id="player-1",
+        concept_code="tactics.fork",
+        alpha=3.0,
+        beta=1.0,
+    )
+    context_claim = ContextConditionedSkillModel(
+        global_skill,
+        observations,
+    ).surfaced_claim(observations[0].context)
+    early_queen_rule = HabitRule(
+        rule_id="early-queen-move",
+        description="Moves the queen early",
+        max_move_number=10,
+        piece_type="Q",
+    )
+    habits = HabitDetector(
+        [early_queen_rule],
+        {early_queen_rule.rule_id: 0.05},
+    ).detect(annotations)
+
+    assert context_claim.is_context_conditioned is True
+    assert [habit.rule_id for habit in habits] == [early_queen_rule.rule_id]
+    assert habits[0].support_count == 5
