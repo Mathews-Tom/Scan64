@@ -92,6 +92,8 @@ def generate_far_transfer_exercise(
         raise TransferClassificationError("skill_id must not be empty")
     if source.skill_id != skill_id or target.skill_id != skill_id:
         raise TransferClassificationError("Both positions must match skill_id")
+    _validate_far_position(source, "source")
+    _validate_far_position(target, "target")
     if source.fen == target.fen:
         raise TransferClassificationError("Far transfer requires a distinct target position")
 
@@ -191,6 +193,22 @@ def _validated_board(fen: str) -> Board:
     if not board.is_valid():
         raise PositionTransformationError("FEN does not represent a legal chess position")
     return board
+
+
+def _validate_far_position(position: TransferPosition, role: str) -> None:
+    try:
+        board = _validated_board(position.fen)
+    except PositionTransformationError as error:
+        raise TransferClassificationError(f"{role} position FEN must be legal") from error
+
+    if position.material_count != len(board.piece_map()):
+        raise TransferClassificationError(
+            f"{role} material_count must match the FEN piece count"
+        )
+    if position.move_number != board.fullmove_number:
+        raise TransferClassificationError(
+            f"{role} move_number must match the FEN full-move number"
+        )
 
 
 def _transfer_variations(
