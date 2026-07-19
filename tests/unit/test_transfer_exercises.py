@@ -7,8 +7,14 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from scan64.learning.exercises.transfer import (
+    TransferClassificationError,
+    TransferKind,
     TransferPosition,
     TransferRetrievalError,
+    TransferVariation,
+    generate_far_transfer_exercise,
+    generate_near_transfer_exercise,
+    mirror_and_swap_colours,
     retrieve_positions_by_motif_and_difficulty,
 )
 
@@ -28,6 +34,7 @@ def session() -> Generator[Session, None, None]:
 def make_position(
     skill_id: str,
     difficulty: float,
+    fen: str = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
     *,
     opening: str = "Sicilian Defence",
     board_side: str = "kingside",
@@ -38,7 +45,7 @@ def make_position(
     return TransferPosition(
         skill_id=skill_id,
         difficulty=difficulty,
-        fen="r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+        fen=fen,
         opening=opening,
         board_side=board_side,
         attacking_piece=attacking_piece,
@@ -109,3 +116,108 @@ def test_retrieval_rejects_invalid_requests(
             difficulty_tolerance=difficulty_tolerance,
             limit=limit,
         )
+
+
+def test_near_transfer_uses_a_verified_mirror() -> None:
+    source = make_position("tactics.pin", 1500)
+    exercise = generate_near_transfer_exercise(source)
+
+    assert exercise.skill_id == source.skill_id
+    assert exercise.target_fen == mirror_and_swap_colours(source.fen)
+    assert exercise.transfer_kind is TransferKind.NEAR
+    assert exercise.variations == frozenset()
+    assert exercise.target_position_id is None
+
+
+def test_far_transfer_records_multiple_superficial_variations() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        opening="French Defence",
+        board_side="queenside",
+    )
+
+    exercise = generate_far_transfer_exercise("tactics.pin", source, target)
+
+    assert exercise.transfer_kind is TransferKind.FAR
+    assert exercise.variations == {
+        TransferVariation.OPENING,
+        TransferVariation.BOARD_SIDE,
+    }
+    assert exercise.target_position_id == target.id
+
+
+def test_far_transfer_rejects_single_variation() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        opening="French Defence",
+    )
+
+    with pytest.raises(TransferClassificationError, match="at least two"):
+        generate_far_transfer_exercise("tactics.pin", source, target)
+
+
+def test_far_transfer_records_every_remaining_variation() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        attacking_piece="knight",
+        material_count=10,
+        move_number=24,
+    )
+
+    exercise = generate_far_transfer_exercise("tactics.pin", source, target)
+
+    assert exercise.variations == {
+        TransferVariation.ATTACKING_PIECE,
+        TransferVariation.MATERIAL_COUNT,
+        TransferVariation.MOVE_NUMBER,
+    }
+
+
+def test_far_transfer_rejects_empty_skill_id() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        opening="French Defence",
+        board_side="queenside",
+    )
+
+    with pytest.raises(TransferClassificationError, match="skill_id"):
+        generate_far_transfer_exercise("", source, target)
+
+
+def test_far_transfer_rejects_mismatched_skill_id() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.fork",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        opening="French Defence",
+        board_side="queenside",
+    )
+
+    with pytest.raises(TransferClassificationError, match="match skill_id"):
+        generate_far_transfer_exercise("tactics.pin", source, target)
+
+
+def test_far_transfer_rejects_identical_positions() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        opening="French Defence",
+        board_side="queenside",
+    )
+
+    with pytest.raises(TransferClassificationError, match="distinct target"):
+        generate_far_transfer_exercise("tactics.pin", source, target)
