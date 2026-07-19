@@ -10,6 +10,6 @@ Scan64 uses engines such as Stockfish for authoritative analysis and can use hum
 
 ## Maia model weights
 
-Scan64 can use Maia only with checkpoints provisioned by the operator. It does not bundle, download, cache, redistribute, or host Maia model weights. The licence and redistribution terms for the separately released Maia checkpoint files remain unresolved; upstream clarification is tracked in [CSSLab/maia-chess#76](https://github.com/CSSLab/maia-chess/issues/76). Operators must confirm their right to obtain and use any checkpoint before configuring it. See `docs/maia.md` for the local, fail-closed setup.
+Scan64 can use Maia only with checkpoints provisioned by the operator. It does not bundle, download, cache, redistribute, or host Maia model weights. The licence and redistribution terms for the separately released Maia checkpoint files remain unresolved; upstream clarification is tracked in [CSSLab/maia-chess#76](https://github.com/CSSLab/maia-chess/issues/76). Operators must confirm their right to obtain and use any checkpoint before configuring it. Follow the [operator provisioning guide](docs/maia.md) for the local, fail-closed setup.
 
 Language models are optional and are used only to verbalize verified analysis and provide conversational coaching. Chess legality, exercise validation, player modelling, and learning progress remain deterministic, inspectable, and available for fully local use.
