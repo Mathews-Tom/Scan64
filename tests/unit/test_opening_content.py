@@ -7,6 +7,10 @@ from scan64.content.openings.models import (
 
 def test_opening_family_item_creation():
     payload = OpeningFamilyPayload(
+        family_id="italian",
+        structure="open_centre",
+        learner_colour="white",
+        opponent_response_moves=["e5", "Nc6"],
         name="Italian Game",
         instructional_purpose="Rapid development, central tension, king safety.",
         moves=["e4", "e5", "Nf3", "Nc6", "Bc4"],
@@ -34,6 +38,8 @@ def test_opening_family_item_creation():
 
     parsed_payload = OpeningFamilyPayload.model_validate(item.payload)
     assert parsed_payload.name == "Italian Game"
+    assert parsed_payload.family_id == "italian"
+    assert parsed_payload.learner_colour == "white"
     assert parsed_payload.missions[0].id == "dev_minor"
 
 
