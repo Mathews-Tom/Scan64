@@ -232,3 +232,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Operator-provided neural-network weights
+*.pb.gz
