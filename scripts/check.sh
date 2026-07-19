@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 echo "== python: pytest =="
-uv run pytest
+uv run pytest -m "not real_model"
 
 echo "== python: ruff =="
 uv run ruff check src tests scripts benchmarks

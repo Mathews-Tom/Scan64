@@ -33,6 +33,9 @@ ignore = []
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+markers = [
+    "real_model: requires operator-provided Maia and Stockfish binaries and weights",
+]
 
 [tool.mypy]
 python_version = "3.12"
