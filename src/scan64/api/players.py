@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session
 
+from scan64.api.auth import require_player_token
 from scan64.api.models import (
     Player,
     PlayerCredential,
@@ -62,9 +63,18 @@ def create_player(
     )
 
 
-@router.get("/v1/players/{player_id}/profile", response_model=PlayerProfileRead)
-def get_player_profile(player_id: str, session: Session = Depends(get_session)) -> PlayerProfile:
+def read_player_profile(player_id: str, session: Session) -> PlayerProfileRead:
     profile = session.get(PlayerProfile, player_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
+    return PlayerProfileRead.model_validate(profile.model_dump())
+
+
+@router.get("/v1/players/{player_id}/profile", response_model=PlayerProfileRead)
+def get_player_profile(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> PlayerProfileRead:
+    require_player_token(request, player_id, session)
+    return read_player_profile(player_id, session)

@@ -374,18 +374,19 @@ def test_lifecycle_does_not_reveal_player_existence_without_token(client: TestCl
 
 def test_reports_endpoints(client: TestClient, db_session: Session):
     player_id = "test-reports-user"
-    client.post(
-        "/v1/players", json={"id": player_id, "display_name": "Reports User", "preferences": {}}
+    player_response = client.post(
+        "/v1/players",
+        json={"id": player_id, "display_name": "Reports User", "preferences": {}},
     )
+    assert player_response.status_code == 200
+    headers = authorization_header(player_response.json()["access_token"])
 
-    resp = client.get(f"/v1/players/{player_id}/progress")
-    assert resp.status_code == 200
+    for endpoint in ("progress", "evidence", "patterns"):
+        response = client.get(f"/v1/players/{player_id}/{endpoint}", headers=headers)
+        assert response.status_code == 200
 
-    resp = client.get(f"/v1/players/{player_id}/evidence")
-    assert resp.status_code == 200
-
-    resp = client.get(f"/v1/players/{player_id}/patterns")
-    assert resp.status_code == 200
+    response = client.get(f"/v1/players/{player_id}/evidence")
+    assert response.status_code == 401
 
     resp = client.get(f"/v1/reports/weekly?player_id={player_id}")
     assert resp.status_code == 200
