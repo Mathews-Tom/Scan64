@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.games import router as games_router
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     from scan64.chess.games.models import Game, PlaySession  # noqa: F401
     from scan64.chess.positions.models import Position  # noqa: F401
+    from scan64.coach.models import CoachStudentLink  # noqa: F401
     from scan64.learning.exercises.transfer import TransferPosition  # noqa: F401
 
     create_db_and_tables()
@@ -43,6 +45,7 @@ app.include_router(learning_router)
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)
+app.include_router(coach_linkage_router)
 app.include_router(players_router)
 app.include_router(data_lifecycle_router)
 app.include_router(reports_router)

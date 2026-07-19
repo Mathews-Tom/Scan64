@@ -5,6 +5,7 @@ from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerPro
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
+from scan64.coach.models import CoachStudentLink
 
 
 def create_game_records(session: Session, player_id: str) -> dict[str, object]:
@@ -141,6 +142,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "review_schedules": 0,
         "study_sessions": 0,
         "content_attempts": 0,
+        "coach_student_links": 0,
     }
     assert data["audit_id"] is None
     assert db_session.get(Player, player_id) is not None
@@ -185,6 +187,62 @@ def test_deletion_confirmed_removes_complete_owned_data(client: TestClient, db_s
     assert audit.player_id == player_id
     assert audit.affected_rows == data["affected_rows"]
 
+
+
+def test_deletion_removes_coach_student_links(client: TestClient, db_session: Session):
+    coach_id = "test-delete-coach"
+    student_id = "test-delete-student"
+    create_player_token(client, coach_id, "Coach")
+    student_token = create_player_token(client, student_id, "Student")
+    link_response = client.post(
+        f"/v1/coaches/{coach_id}/students/{student_id}",
+        headers=authorization_header(student_token),
+    )
+    assert link_response.status_code == 201
+
+    dry_run = client.request(
+        "DELETE",
+        f"/v1/players/{student_id}/data",
+        json={"dry_run": True},
+        headers=authorization_header(student_token),
+    )
+    assert dry_run.status_code == 200
+    assert dry_run.json()["affected_rows"]["coach_student_links"] == 1
+    assert db_session.get(CoachStudentLink, (coach_id, student_id)) is not None
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{student_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{student_id}"},
+        headers=authorization_header(student_token),
+    )
+    assert response.status_code == 200
+    assert response.json()["affected_rows"]["coach_student_links"] == 1
+    assert db_session.get(CoachStudentLink, (coach_id, student_id)) is None
+
+
+def test_deletion_removes_coach_student_links_when_coach_is_deleted(
+    client: TestClient, db_session: Session
+):
+    coach_id = "test-delete-coach"
+    student_id = "test-keep-student"
+    coach_token = create_player_token(client, coach_id, "Coach")
+    student_token = create_player_token(client, student_id, "Student")
+    link_response = client.post(
+        f"/v1/coaches/{coach_id}/students/{student_id}",
+        headers=authorization_header(student_token),
+    )
+    assert link_response.status_code == 201
+
+    response = client.request(
+        "DELETE",
+        f"/v1/players/{coach_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{coach_id}"},
+        headers=authorization_header(coach_token),
+    )
+    assert response.status_code == 200
+    assert response.json()["affected_rows"]["coach_student_links"] == 1
+    assert db_session.get(CoachStudentLink, (coach_id, student_id)) is None
 
 def test_deletion_preserves_shared_game_for_other_player(client: TestClient, db_session: Session):
     deleting_player_id = "test-delete-shared"

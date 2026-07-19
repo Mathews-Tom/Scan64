@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from hmac import compare_digest
 from typing import Any
 from uuid import uuid4
 
@@ -8,16 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlmodel import Session, col, delete, select
 
-from scan64.api.models import (
-    DeletionAudit,
-    Player,
-    PlayerCredential,
-    PlayerProfile,
-    player_token_hash,
-)
+from scan64.api.auth import require_player_token
+from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
+from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, StudySession
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -26,30 +21,6 @@ from scan64.persistence.database import get_session
 router = APIRouter(tags=["data_lifecycle"])
 
 
-def require_player_token(
-    request: Request,
-    player_id: str,
-    session: Session,
-    expected_token_hash: str | None = None,
-) -> str:
-    authorization = request.headers.get("Authorization")
-    scheme, separator, token = authorization.partition(" ") if authorization else ("", "", "")
-    if scheme != "Bearer" or not separator or not token:
-        raise HTTPException(
-            status_code=401,
-            detail="A player bearer token is required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token_hash = player_token_hash(token)
-    if expected_token_hash is None:
-        credential = session.get(PlayerCredential, player_id)
-        expected_token_hash = credential.token_hash if credential else None
-
-    if expected_token_hash is None or not compare_digest(token_hash, expected_token_hash):
-        raise HTTPException(status_code=403, detail="Player bearer token does not match")
-
-    return token_hash
 
 
 class ExportRequest(BaseModel):
@@ -340,6 +311,13 @@ def delete_player_data(
         else []
     )
 
+    coach_student_links = session.exec(
+        select(CoachStudentLink).where(
+            (col(CoachStudentLink.coach_id) == player_id)
+            | (col(CoachStudentLink.student_id) == player_id)
+        )
+    ).all()
+
     affected_rows = {
         "player": 1,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
@@ -365,6 +343,7 @@ def delete_player_data(
                 select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
             ).all()
         ),
+        "coach_student_links": len(coach_student_links),
     }
 
     if req.dry_run:
@@ -386,6 +365,12 @@ def delete_player_data(
     session.exec(delete(StudySession).where(col(StudySession.player_id) == player_id))
     session.exec(delete(ReviewSchedule).where(col(ReviewSchedule.player_id) == player_id))
     session.exec(delete(SkillState).where(col(SkillState.player_id) == player_id))
+    session.exec(
+        delete(CoachStudentLink).where(
+            (col(CoachStudentLink.coach_id) == player_id)
+            | (col(CoachStudentLink.student_id) == player_id)
+        )
+    )
     session.exec(delete(PlaySession).where(col(PlaySession.player_id) == player_id))
     if owned_game_ids:
         session.exec(delete(Game).where(col(Game.id).in_(owned_game_ids)))
