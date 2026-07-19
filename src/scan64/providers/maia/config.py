@@ -83,15 +83,43 @@ class MaiaConfig:
         return cls(binary_path=binary_path, checkpoints=sorted_checkpoints, threads=raw_threads)
 
     def select(self, requested_rating: int) -> MaiaSelection:
-        for checkpoint in self.checkpoints:
-            if checkpoint.rating == requested_rating:
-                return MaiaSelection(
-                    checkpoint=checkpoint,
-                    requested_rating=requested_rating,
-                    disclosure=None,
-                )
-        raise MaiaConfigurationError(
-            f"No Maia checkpoint configured for requested rating: {requested_rating}"
+        lowest = self.checkpoints[0]
+        highest = self.checkpoints[-1]
+        if requested_rating < lowest.rating:
+            return MaiaSelection(
+                checkpoint=lowest,
+                requested_rating=requested_rating,
+                disclosure=(
+                    f"Maia has no checkpoint below {lowest.rating}; requested rating "
+                    f"{requested_rating} uses the {lowest.rating} checkpoint."
+                ),
+            )
+        if requested_rating > highest.rating:
+            return MaiaSelection(
+                checkpoint=highest,
+                requested_rating=requested_rating,
+                disclosure=(
+                    f"Maia has no checkpoint above {highest.rating}; requested rating "
+                    f"{requested_rating} uses the {highest.rating} checkpoint."
+                ),
+            )
+        checkpoint = min(
+            self.checkpoints,
+            key=lambda candidate: (
+                abs(candidate.rating - requested_rating),
+                candidate.rating,
+            ),
+        )
+        disclosure = None
+        if requested_rating != checkpoint.rating:
+            disclosure = (
+                "Maia checkpoints use approximately 100-Elo granularity; requested "
+                f"rating {requested_rating} uses the nearest {checkpoint.rating} checkpoint."
+            )
+        return MaiaSelection(
+            checkpoint=checkpoint,
+            requested_rating=requested_rating,
+            disclosure=disclosure,
         )
 
     def validate_runtime(self, selection: MaiaSelection) -> None:

@@ -15,14 +15,14 @@ threads = 1
 1900 = "/srv/scan64/maia/maia-1900.pb.gz"
 ```
 
-Set `SCAN64_MAIA_CONFIG` to the absolute path before starting the API. Select it for a play session with `opponent_config.provider = "maia"` and a numeric `opponent_config.strength` rating.
+Set `SCAN64_MAIA_CONFIG` to the absolute path before starting the API. Select it for a play session with `opponent_config.provider = "maia"` and a numeric `opponent_config.strength` rating. Scan64 selects the nearest configured checkpoint. Any requested rating that differs from the selected checkpoint produces a persistent selection disclosure because Maia checkpoints provide only approximate 100-Elo granularity. A request below the lowest checkpoint or above the highest checkpoint additionally discloses that coverage gap.
 
 Maia selection fails closed when `SCAN64_MAIA_CONFIG`, the Lc0 binary, or the selected weights file is missing. Use Stockfish explicitly with `opponent_config.provider = "stockfish"` for conventional engine play.
 
 Run the real-model quality gate only with locally provisioned binaries and weights:
 
 ```text
-SCAN64_MAIA_BINARY=/opt/homebrew/bin/lc0 SCAN64_MAIA_1500_WEIGHTS=/srv/scan64/maia/maia-1500.pb.gz SCAN64_STOCKFISH_BINARY=/opt/homebrew/bin/stockfish uv run pytest -m real_model tests/integration/test_maia_provider.py tests/integration/test_maia_realism.py
+SCAN64_MAIA_BINARY=/opt/homebrew/bin/lc0 SCAN64_MAIA_1500_WEIGHTS=/srv/scan64/maia/maia-1500.pb.gz SCAN64_STOCKFISH_BINARY=/opt/homebrew/bin/stockfish uv run pytest -m real_model tests/integration/test_maia_real_model.py tests/integration/test_maia_realism.py
 ```
 
 The tests exercise a configured API session and compare Maia's root-policy distribution against a fixed, provenance-recorded human-game reference set and a Stockfish engine constrained to Elo 1500. They have no network access and are excluded from the ordinary local quality gate because the required weights are operator-provided.
