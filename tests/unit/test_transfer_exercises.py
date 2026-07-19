@@ -39,8 +39,8 @@ def make_position(
     opening: str = "Sicilian Defence",
     board_side: str = "kingside",
     attacking_piece: str = "bishop",
-    material_count: int = 12,
-    move_number: int = 18,
+    material_count: int = 32,
+    move_number: int = 3,
 ) -> TransferPosition:
     return TransferPosition(
         skill_id=skill_id,
@@ -134,7 +134,7 @@ def test_far_transfer_records_multiple_superficial_variations() -> None:
     target = make_position(
         "tactics.pin",
         1550,
-        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        fen="r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 3 3",
         opening="French Defence",
         board_side="queenside",
     )
@@ -154,10 +154,9 @@ def test_far_transfer_rejects_single_variation() -> None:
     target = make_position(
         "tactics.pin",
         1550,
-        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        fen="r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 3 3",
         opening="French Defence",
     )
-
     with pytest.raises(TransferClassificationError, match="at least two"):
         generate_far_transfer_exercise("tactics.pin", source, target)
 
@@ -167,10 +166,10 @@ def test_far_transfer_records_every_remaining_variation() -> None:
     target = make_position(
         "tactics.pin",
         1550,
-        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        fen="rnbqkbnr/1ppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
         attacking_piece="knight",
-        material_count=10,
-        move_number=24,
+        material_count=31,
+        move_number=1,
     )
 
     exercise = generate_far_transfer_exercise("tactics.pin", source, target)
@@ -220,4 +219,18 @@ def test_far_transfer_rejects_identical_positions() -> None:
     )
 
     with pytest.raises(TransferClassificationError, match="distinct target"):
+        generate_far_transfer_exercise("tactics.pin", source, target)
+
+
+def test_far_transfer_rejects_fen_metadata_mismatch() -> None:
+    source = make_position("tactics.pin", 1500)
+    target = make_position(
+        "tactics.pin",
+        1550,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        opening="French Defence",
+        board_side="queenside",
+    )
+
+    with pytest.raises(TransferClassificationError, match="move_number"):
         generate_far_transfer_exercise("tactics.pin", source, target)
