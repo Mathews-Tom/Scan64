@@ -74,8 +74,10 @@ def test_players(client: TestClient, session: Session):
     data = response.json()
     assert data["id"] == "player_123"
 
-    # Get profile
-    profile_resp = client.get("/v1/players/player_123/profile")
+    profile_resp = client.get(
+        "/v1/players/player_123/profile",
+        headers={"Authorization": f"Bearer {data['access_token']}"},
+    )
     assert profile_resp.status_code == 200
     profile_data = profile_resp.json()
     assert profile_data["display_name"] == "Test Player"
