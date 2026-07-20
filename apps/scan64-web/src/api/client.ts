@@ -1,7 +1,23 @@
-import type { 
-  GameCreate, GameRead, LessonSpec, PlaySessionRead, PlayMoveCreate, PlayMoveResponse, 
-  PlayerCreate, PlayerRead, PlaySessionCreate, AnalysisJobRead, PositionRead,
-  FamousGameRead, AttemptCreate, AttemptRead 
+import type {
+  AnalysisJobRead,
+  AttemptCreate,
+  AttemptRead,
+  CoachDashboard,
+  EvidenceReport,
+  FamousGameRead,
+  GameCreate,
+  GameRead,
+  LessonSpec,
+  PlayMoveCreate,
+  PlayMoveResponse,
+  PlayerCreate,
+  PlayerRead,
+  PatternsReport,
+  PlayerProfileRead,
+  PlayerProgressReport,
+  PlaySessionCreate,
+  PlaySessionRead,
+  PositionRead,
 } from './types';
 
 const API_BASE = '/v1';
@@ -164,5 +180,45 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as LessonSpec[];
+  }
+
+  private static async getPlayerResource<T>(
+    playerId: string,
+    resource: string,
+  ): Promise<T> {
+    const response = await fetch(`${API_BASE}/players/${playerId}/${resource}`, {
+      headers: getPlayerAuthorizationHeader(playerId),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch player ${resource}: ${response.statusText}`);
+    }
+    return await response.json() as T;
+  }
+
+  static async getPlayerProfile(playerId: string): Promise<PlayerProfileRead> {
+    return this.getPlayerResource<PlayerProfileRead>(playerId, 'profile');
+  }
+
+  static async getPlayerProgress(playerId: string): Promise<PlayerProgressReport> {
+    return this.getPlayerResource<PlayerProgressReport>(playerId, 'progress');
+  }
+
+  static async getPlayerPatterns(playerId: string): Promise<PatternsReport> {
+    return this.getPlayerResource<PatternsReport>(playerId, 'patterns');
+  }
+
+  static async getPlayerEvidence(playerId: string): Promise<EvidenceReport> {
+    return this.getPlayerResource<EvidenceReport>(playerId, 'evidence');
+  }
+
+  static async getCoachDashboard(coachId: string): Promise<CoachDashboard> {
+    const response = await fetch(`${API_BASE}/coaches/${coachId}/dashboard`, {
+      headers: getPlayerAuthorizationHeader(coachId),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch coach dashboard: ${response.statusText}`);
+    }
+    const json = await response.json();
+    return json as unknown as CoachDashboard;
   }
 }

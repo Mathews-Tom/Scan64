@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 import { ApiClient } from './api/client';
@@ -11,8 +11,15 @@ vi.mock('./api/client', async (importOriginal) => {
     ApiClient: {
       ...actual.ApiClient,
       getTrainingSession: vi.fn(),
+      getPlayerProgress: vi.fn(),
+      getPlayerEvidence: vi.fn(),
+      getPlayerPatterns: vi.fn(),
     }
   };
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('App', () => {
@@ -74,31 +81,26 @@ describe('App', () => {
   });
 });
 
-  it('navigates to profile screen', async () => {
-    // Mock global fetch for the ProfileScreen
-    const mockFetch = vi.fn((url: string) => {
-      if (url.includes('/progress')) {
-        return Promise.resolve({ json: () => Promise.resolve({ skills: [] }) });
-      }
-      if (url.includes('/evidence')) {
-        return Promise.resolve({ json: () => Promise.resolve({ evidence_items: [] }) });
-      }
-      if (url.includes('/patterns')) {
-        return Promise.resolve({ json: () => Promise.resolve({ recurring_habits: [] }) });
-      }
-      return Promise.resolve({ json: () => Promise.resolve({}) });
-    }) as any;
-    
-    vi.stubGlobal('fetch', mockFetch);
-
-    render(<App />);
-    fireEvent.click(screen.getByText('Profile'));
-    
-    await waitFor(() => {
-      expect(screen.getByTestId('profile-screen')).toBeInTheDocument();
-    });
-    
-    expect(screen.getByText(/Player Profile/i)).toBeInTheDocument();
-    
-    vi.unstubAllGlobals();
+it('navigates to profile screen', async () => {
+  vi.spyOn(ApiClient, 'getPlayerProgress').mockResolvedValue({
+    player_id: 'player-1',
+    skills: [],
   });
+  vi.spyOn(ApiClient, 'getPlayerEvidence').mockResolvedValue({
+    player_id: 'player-1',
+    evidence_items: [],
+  });
+  vi.spyOn(ApiClient, 'getPlayerPatterns').mockResolvedValue({
+    player_id: 'player-1',
+    recurring_habits: [],
+  });
+
+  render(<App />);
+  fireEvent.click(screen.getByText('Profile'));
+
+  await waitFor(() => {
+    expect(screen.getByTestId('profile-screen')).toBeInTheDocument();
+  });
+
+  expect(screen.getByText(/Player Profile/i)).toBeInTheDocument();
+});

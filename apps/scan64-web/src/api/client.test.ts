@@ -83,6 +83,28 @@ describe('ApiClient', () => {
     });
   });
 
+  it('sends the player bearer token for player reports', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ player_id: 'player-1' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ player_id: 'player-1' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ player_id: 'player-1' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ player_id: 'player-1' }) });
+
+    await Promise.all([
+      ApiClient.getPlayerProfile('player-1'),
+      ApiClient.getPlayerProgress('player-1'),
+      ApiClient.getPlayerPatterns('player-1'),
+      ApiClient.getPlayerEvidence('player-1'),
+    ]);
+
+    for (const resource of ('profile progress patterns evidence').split(' ')) {
+      expect(mockFetch).toHaveBeenCalledWith(`/v1/players/player-1/${resource}`, {
+        headers: { Authorization: 'Bearer token-1' },
+      });
+    }
+  });
+
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
