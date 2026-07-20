@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from hashlib import sha256
+from statistics import fmean
 from uuid import uuid4
 
 
@@ -112,3 +114,150 @@ def gate_public_benchmark_records(
 def _require_identifier(name: str, value: str) -> None:
     if not value.strip():
         raise PublicBenchmarkError(f"{name} must not be empty")
+
+
+# Bucket boundaries (ms) for per-move timing aggregation: exact per-move timings
+# are a fingerprinting signal per source §24.1 and must never leave this module
+# unaggregated. Boundaries follow common chess time-pressure bands: instant/blitz
+# increment reflex, normal deliberation, and long think.
+DEFAULT_TIMING_BUCKET_EDGES_MS: tuple[int, ...] = (1_000, 5_000, 15_000, 30_000, 60_000)
+
+_PSEUDONYM_PREFIX = "opp_"
+_PSEUDONYM_DIGEST_LENGTH = 16
+
+
+@dataclass(frozen=True)
+class TimingSummary:
+    """Aggregated per-game move-timing signal.
+
+    Deliberately holds no raw per-move sequence: only a count, a mean, and a
+    histogram over `DEFAULT_TIMING_BUCKET_EDGES_MS`-style buckets survive
+    aggregation, per source §24.1's fingerprinting-risk mitigation.
+    """
+
+    move_count: int
+    mean_move_ms: float
+    bucketed_distribution_ms: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class BenchmarkGame:
+    """One pseudonymized, publication-safe game in a public benchmark artifact.
+
+    Has no field carrying a raw opponent identifier or raw per-move timing data;
+    `opponent_pseudonym` and `timing_summary` are the only surviving derivatives.
+    """
+
+    game_id: str
+    moves: tuple[str, ...]
+    opponent_pseudonym: str
+    timing_summary: TimingSummary
+    provenance_tag: ProvenanceTag
+    result: str
+
+
+@dataclass(frozen=True)
+class PublicBenchmarkArtifact:
+    """The final, publication-safe output of the public-benchmark export pipeline."""
+
+    export_id: str
+    dry_run: bool
+    built_at: datetime
+    games: tuple[BenchmarkGame, ...]
+    refused: tuple[RefusedBenchmarkRecord, ...]
+
+    @property
+    def game_count(self) -> int:
+        return len(self.games)
+
+
+def build_public_benchmark_artifact(
+    report: BenchmarkGatingReport,
+    *,
+    salt: str,
+    timing_bucket_edges_ms: Sequence[int] = DEFAULT_TIMING_BUCKET_EDGES_MS,
+) -> PublicBenchmarkArtifact:
+    """Pseudonymize and aggregate a gating report's included records for publication.
+
+    `salt` must be an operator-provided secret (never hardcoded) so pseudonyms are
+    not reversible by anyone without it. The same `salt` must be reused across an
+    export run for the same opponent identifier to map to the same pseudonym.
+    """
+    _require_identifier("salt", salt)
+
+    games = tuple(
+        _pseudonymize_record(record, salt=salt, bucket_edges=timing_bucket_edges_ms)
+        for record in report.included
+    )
+
+    return PublicBenchmarkArtifact(
+        export_id=report.export_id,
+        dry_run=report.dry_run,
+        built_at=datetime.now(UTC),
+        games=games,
+        refused=report.refused,
+    )
+
+
+def export_public_benchmark(
+    records: Iterable[BenchmarkSourceRecord],
+    *,
+    salt: str,
+    dry_run: bool = True,
+    timing_bucket_edges_ms: Sequence[int] = DEFAULT_TIMING_BUCKET_EDGES_MS,
+) -> PublicBenchmarkArtifact:
+    """Gate then pseudonymize/aggregate candidate records into a publishable artifact."""
+    report = gate_public_benchmark_records(records, dry_run=dry_run)
+    return build_public_benchmark_artifact(
+        report, salt=salt, timing_bucket_edges_ms=timing_bucket_edges_ms
+    )
+
+
+def _pseudonymize_record(
+    record: BenchmarkSourceRecord,
+    *,
+    salt: str,
+    bucket_edges: Sequence[int],
+) -> BenchmarkGame:
+    if record.provenance_tag is None:
+        raise PublicBenchmarkError(
+            f"record {record.game_id} lacks a provenance_tag and must not reach "
+            "pseudonymization; gate_public_benchmark_records should have refused it"
+        )
+    return BenchmarkGame(
+        game_id=record.game_id,
+        moves=record.moves,
+        opponent_pseudonym=_pseudonymize_opponent(record.opponent_identifier, salt=salt),
+        timing_summary=_summarize_timing(record.move_timings_ms, bucket_edges=bucket_edges),
+        provenance_tag=record.provenance_tag,
+        result=record.result,
+    )
+
+
+def _pseudonymize_opponent(identifier: str, *, salt: str) -> str:
+    _require_identifier("opponent_identifier", identifier)
+    digest = sha256(f"{salt}:{identifier}".encode()).hexdigest()
+    return f"{_PSEUDONYM_PREFIX}{digest[:_PSEUDONYM_DIGEST_LENGTH]}"
+
+
+def _summarize_timing(
+    move_timings_ms: tuple[int, ...],
+    *,
+    bucket_edges: Sequence[int],
+) -> TimingSummary:
+    bucket_counts = [0] * (len(bucket_edges) + 1)
+    for timing_ms in move_timings_ms:
+        bucket_counts[_bucket_index(timing_ms, bucket_edges)] += 1
+
+    return TimingSummary(
+        move_count=len(move_timings_ms),
+        mean_move_ms=fmean(move_timings_ms) if move_timings_ms else 0.0,
+        bucketed_distribution_ms=tuple(bucket_counts),
+    )
+
+
+def _bucket_index(timing_ms: int, bucket_edges: Sequence[int]) -> int:
+    for index, edge in enumerate(bucket_edges):
+        if timing_ms < edge:
+            return index
+    return len(bucket_edges)
