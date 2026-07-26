@@ -27,7 +27,7 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
         return;
       }
 
-      await route.fulfill({ json: { opponent_move: 'e7e5' } });
+      await route.fulfill({ json: { opponent_move: 'e7e5', status: 'active' } });
     });
     await page.goto('/');
 

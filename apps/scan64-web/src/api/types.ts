@@ -139,6 +139,7 @@ export interface PlayMoveCreate {
 
 export interface PlayMoveResponse {
   opponent_move: string | null;
+  status: string;
   interruption_lesson?: LessonSpec | null;
 }
 

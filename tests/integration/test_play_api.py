@@ -157,6 +157,7 @@ def test_play_session_moves_api(client: TestClient):
     move_data = move_resp.json()
     assert "opponent_move" in move_data
     assert move_data["opponent_move"] is not None
+    assert move_data["status"] == "active"
 
     # Retry first move (idempotency)
     retry_resp = client.post(
@@ -172,3 +173,27 @@ def test_play_session_moves_api(client: TestClient):
         headers={"Idempotency-Key": "move2"},
     )
     assert illegal_resp.status_code == 400
+
+
+def test_play_session_move_response_marks_opponent_checkmate_completed(
+    client: TestClient, session: Session
+) -> None:
+    game = Game(pgn="", moves=["f2f3", "e7e5"], white="Player", black="Opponent")
+    session.add(game)
+    session.commit()
+    session.refresh(game)
+
+    play_session = PlaySession(
+        player_id="test_player",
+        game_id=game.id,
+        opponent_config={"strength": "20"},
+        clock_config={"time_remaining_ms": "1000"},
+    )
+    session.add(play_session)
+    session.commit()
+    session.refresh(play_session)
+
+    response = client.post(f"/v1/play-sessions/{play_session.id}/moves", json={"move": "g2g4"})
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"opponent_move": "d8h4", "status": "completed"}

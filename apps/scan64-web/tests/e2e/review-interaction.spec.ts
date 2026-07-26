@@ -34,6 +34,7 @@ test.describe('Review Interaction Sequencing', () => {
       await route.fulfill({
         json: {
           opponent_move: 'e7e5',
+          status: 'active',
           interruption_lesson: mockLesson
         }
       });

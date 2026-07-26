@@ -101,6 +101,12 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
     const board = cgRef.current;
     if (!board) return;
 
+    const currentSession = sessionRef.current;
+    if (currentSession) {
+      const updatedSession = { ...currentSession, status: response.status };
+      sessionRef.current = updatedSession;
+      setSession(updatedSession);
+    }
     if (coachModeRef.current && response.interruption_lesson) {
       chessRef.current.undo();
       setInterruptionLesson(response.interruption_lesson);
@@ -116,8 +122,8 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       fen: chessRef.current.fen(),
       turnColor: chessgroundTurnColor(chessRef.current),
       movable: {
-        color: chessgroundTurnColor(chessRef.current),
-        dests: getDests(chessRef.current),
+        color: response.status === 'active' ? chessgroundTurnColor(chessRef.current) : undefined,
+        dests: response.status === 'active' ? getDests(chessRef.current) : undefined,
       },
     });
     setError(null);

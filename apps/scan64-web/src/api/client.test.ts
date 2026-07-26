@@ -57,7 +57,7 @@ describe('ApiClient', () => {
   it('makePlaySessionMove calls POST /v1/play-sessions/{id}/moves', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ opponent_move: 'e7e5' }),
+      json: async () => ({ opponent_move: 'e7e5', status: 'active' }),
     });
 
     const res = await ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' });
@@ -67,6 +67,7 @@ describe('ApiClient', () => {
       body: JSON.stringify({ move: 'e2e4' }),
     });
     expect(res.opponent_move).toBe('e7e5');
+    expect(res.status).toBe('active');
   });
 
   it('stores a player token outside the public player result', async () => {
