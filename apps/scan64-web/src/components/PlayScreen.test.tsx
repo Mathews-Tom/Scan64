@@ -43,6 +43,7 @@ vi.mock('../api/client', () => ({
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
   },
+  setActivePlayerId: vi.fn(),
 }));
 
 describe('PlayScreen', () => {
