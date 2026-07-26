@@ -83,6 +83,22 @@ describe('ApiClient', () => {
     });
   });
 
+  it('reuses the identity of an already-registered player', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    const player = await ApiClient.createPlayer({ id: 'player-1' });
+
+    expect(player).toEqual({ id: 'player-1', preferences: {} });
+    expect(getPlayerAuthorizationHeader('player-1')).toEqual({
+      Authorization: 'Bearer token-1',
+    });
+  });
+
   it('sends the player bearer token for player reports', async () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch

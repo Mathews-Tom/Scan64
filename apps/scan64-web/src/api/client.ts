@@ -130,6 +130,11 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    if (response.status === 409) {
+      // The player already registered on a previous visit. Registration issues the
+      // access token exactly once, so reuse the identity instead of failing the game.
+      return { id: data.id, preferences: {} };
+    }
     if (!response.ok) {
       throw new Error(`Failed to create player: ${response.statusText}`);
     }
