@@ -8,7 +8,7 @@ import {
 } from '../api/offlineQueue';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiClient } from '../api/client';
+import { ApiClient, setActivePlayerId } from '../api/client';
 import type { PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { LessonSpec } from '../api/types';
@@ -65,6 +65,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         setPlayerId(pid);
       }
       await ApiClient.createPlayer({ id: pid, display_name: playerName || 'Anonymous' });
+      setActivePlayerId(pid);
       
       const newSession = await ApiClient.createPlaySession({ 
         player_id: pid, 
@@ -201,6 +202,14 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
           }`,
         );
       });
+  }, [session?.id]);
+
+  // Starting a session unmounts the setup form, so the board shifts on screen.
+  // Chessground caches its DOM bounds and would otherwise map pointer events to
+  // the pre-shift rectangle, leaving the board unresponsive to clicks and drags.
+  useEffect(() => {
+    if (!session?.id) return;
+    cgRef.current?.redrawAll();
   }, [session?.id]);
 
 

@@ -10,6 +10,7 @@ const chessgroundMock = vi.hoisted(() => ({
   after: undefined as MoveHandler | undefined,
   color: undefined as 'white' | 'black' | undefined,
   set: vi.fn(),
+  redrawAll: vi.fn(),
 }));
 
 function getRegisteredMoveHandler(): MoveHandler {
@@ -31,7 +32,7 @@ vi.mock('chessground', () => ({
   ) => {
     chessgroundMock.after = config.movable.events?.after;
     chessgroundMock.color = config.movable.color;
-    return { set: chessgroundMock.set };
+    return { set: chessgroundMock.set, redrawAll: chessgroundMock.redrawAll };
   },
 }));
 
@@ -42,6 +43,7 @@ vi.mock('../api/client', () => ({
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
   },
+  setActivePlayerId: vi.fn(),
 }));
 
 describe('PlayScreen', () => {
@@ -50,6 +52,7 @@ describe('PlayScreen', () => {
     chessgroundMock.after = undefined;
     chessgroundMock.color = undefined;
     chessgroundMock.set.mockReset();
+    chessgroundMock.redrawAll.mockReset();
   });
 
   it('renders start button and board container', () => {
@@ -83,6 +86,9 @@ describe('PlayScreen', () => {
           movable: expect.objectContaining({ color: 'white' }),
         })
       );
+      // The setup form unmounts when the session starts, moving the board; without
+      // this the cached Chessground bounds leave the board unresponsive to pointers.
+      expect(chessgroundMock.redrawAll).toHaveBeenCalled();
     });
   });
 

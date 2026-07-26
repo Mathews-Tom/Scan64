@@ -23,13 +23,23 @@ import type {
 const API_BASE = '/v1';
 const PLAYER_TOKEN_STORAGE_PREFIX = 'scan64_player_token:';
 
+const PLAYER_ID_STORAGE_KEY = 'scan64_player_id';
+
 export function getOrCreatePlayerId(): string {
-  const existingPlayerId = localStorage.getItem('scan64_player_id');
+  const existingPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
   if (existingPlayerId) return existingPlayerId;
 
   const playerId = crypto.randomUUID();
-  localStorage.setItem('scan64_player_id', playerId);
+  localStorage.setItem(PLAYER_ID_STORAGE_KEY, playerId);
   return playerId;
+}
+
+/**
+ * Record the identity the player is actually playing under so the profile,
+ * training, and coach screens read the same player as the play screen.
+ */
+export function setActivePlayerId(playerId: string): void {
+  localStorage.setItem(PLAYER_ID_STORAGE_KEY, playerId);
 }
 
 
@@ -130,6 +140,11 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    if (response.status === 409) {
+      // The player already registered on a previous visit. Registration issues the
+      // access token exactly once, so reuse the identity instead of failing the game.
+      return { id: data.id, preferences: {} };
+    }
     if (!response.ok) {
       throw new Error(`Failed to create player: ${response.statusText}`);
     }
