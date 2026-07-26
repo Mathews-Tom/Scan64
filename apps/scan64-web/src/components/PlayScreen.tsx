@@ -203,6 +203,14 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       });
   }, [session?.id]);
 
+  // Starting a session unmounts the setup form, so the board shifts on screen.
+  // Chessground caches its DOM bounds and would otherwise map pointer events to
+  // the pre-shift rectangle, leaving the board unresponsive to clicks and drags.
+  useEffect(() => {
+    if (!session?.id) return;
+    cgRef.current?.redrawAll();
+  }, [session?.id]);
+
 
   useEffect(() => {
     if (boardRef.current && !cg) {
