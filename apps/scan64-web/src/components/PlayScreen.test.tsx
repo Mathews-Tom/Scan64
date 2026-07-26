@@ -124,6 +124,87 @@ describe('PlayScreen', () => {
     });
   });
 
+  it('restores Chessground to the player turn after an opponent response', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove)
+      .mockResolvedValueOnce({ opponent_move: 'e7e5' })
+      .mockResolvedValueOnce({ opponent_move: 'b8c6' });
+
+    render(
+      <PlayScreen
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+    const after = getRegisteredMoveHandler();
+
+    await act(async () => {
+      await after('e2', 'e4');
+    });
+
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        turnColor: 'white',
+        movable: expect.objectContaining({ color: 'white' }),
+      }),
+    );
+
+    await act(async () => {
+      await after('g1', 'f3');
+    });
+
+    expect(ApiClient.makePlaySessionMove).toHaveBeenNthCalledWith(2, 'sess-123', {
+      move: 'g1f3',
+    });
+  });
+
+  it('preserves the confirmed board after an invalid local move', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({ opponent_move: 'e7e5' });
+
+    render(
+      <PlayScreen
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+    const after = getRegisteredMoveHandler();
+
+    await act(async () => {
+      await after('e2', 'e4');
+    });
+    chessgroundMock.set.mockClear();
+
+    await act(async () => {
+      await after('e2', 'e5');
+    });
+
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+        turnColor: 'white',
+        movable: expect.objectContaining({ color: 'white' }),
+      }),
+    );
+  });
+
   it('shows an interruption review only when coach mode is enabled', async () => {
     const interruptionLesson: LessonSpec = {
       schema_version: '0.1.0',
