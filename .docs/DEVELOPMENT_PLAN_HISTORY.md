@@ -118,3 +118,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Downstream impact | M34 reviewed — unchanged; it consumes `PersistedLessonOpportunity.player_id`, which already derives from `Game.owner_player_id` and is unaffected by play attribution. M39 reviewed — unchanged; its games list is served by `GET /v1/players/{id}/games` with result, date, and diagnosis count, and must send the player token. M41 reviewed — unchanged; it removes M32's interim in-flight cap, which is deliberately a single module (`chess/analysis/inflight.py`) with one submission call site so removal stays a one-place change and no second quota system is introduced. Transitive M36, M37, M38, M43, M44 reviewed — no interface they depend on changes. |
 | Implementation authorization | `authorized` |
 
+
+## H-008
+
+| Field | Content |
+| --- | --- |
+| ID | `H-008` |
+| Timestamp | 2026-07-27T04:57:04Z |
+| Milestone | `M33` |
+| Decision | `DESIGN GO — PLAN REVISION: H-008` |
+| Trigger | M33 pre-implementation design gate after M31's merged persistence stack and M32's merged play-analysis path. |
+| Evidence | `main` at `db088ccf47cf6f39a003ea4809273203528f5469`; M31 PRs #122, #129, #124, #125, and #126 are merged and each has a successful hosted `Quality` check. `run_analysis_for_game` derives `PlayerContext` from `Game.owner_player_id`, persists only hanging-piece evidence, concretely constructs `HangingPieceDetector`, and never calls `FocusedPassOrchestrator`. The registry has no host lifecycle binding. `benchmarks/fixtures/golden_corpus.json` contains benchmark-only `mock_evidence`, no games, moves, fast candidates, or focused responses, while `diagnosis_report.py` alone constructs all ten detectors. Therefore the prior M33 production-path coverage acceptance could not be validly implemented or measured. M34 remains compatible with M31 attribution; M35 needed the emitted evidence contract clarification; M36, M37, M38, and M43 have no changed interface. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M33 scope, deliverables, acceptance, verification, reevaluation, risks, and M35 evidence contract; `.docs/EXECUTION_PROMPTS.md` M33 objective, PR-3, PR-4, PR-5, constraints, verification, and M35 preconditions, design read set, and PR-1/PR-2 scopes. |
+| Downstream impact | M34 reviewed — unchanged because it consumes player-attributed opportunities. M35 now consumes M33's provenance-bearing, code-specific evidence payload contract and must fail on absent required fields. M36, M37, M38, and M43 reviewed — unchanged; their existing reevaluation gates remain required. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M33 design` reviewed, green hosted `Quality`, and externally merged; reload both authoritative artifacts and rerun the M33 design gate before product code. |
