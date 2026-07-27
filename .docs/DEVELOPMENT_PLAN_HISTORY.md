@@ -286,3 +286,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37, M38, M42, and M43; `.docs/EXECUTION_PROMPTS.md` M37, M38, M42, and M43. |
 | Downstream impact | M37 adds a separate typed `LessonAttempt`: persisted opportunities are server-verified and alone advance M34 schedules/profile state; local Opening Explorer missions are retained as explicitly ungraded attempts. M38 consumes typed attempt volume and only verified accuracy. M42 includes `LessonAttempt` in lifecycle coverage. M43 keeps transfer completion distinct from ungraded opening records. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M37 design` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate after merge before product code. |
+
+## H-020
+
+| Field | Content |
+| --- | --- |
+| ID | `H-020` |
+| Timestamp | 2026-07-27T20:10:39Z |
+| Milestone | `M37` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #165 merged to `main`. |
+| Evidence | `main` at `f25f1f9`; PR #165 externally merged with successful hosted `Quality` run 30300612062. Re-read reconciled M37 and dependent M38/M42/M43 plan and prompt contracts, H-019, enhancement G15/G17–G19/G23, system design §§10, 12.5, 20, and 21, `DailyTrainingScreen.tsx`, `CriticalMomentReview.tsx`, `OpeningExplorerScreen.tsx`, `PlayScreen.tsx` bounds recompute, `api/learning.py`, `ContentAttempt`, `StudySession`, `SkillState`, `ReviewSchedule`, and M34 profile updates. The reconciled contract now has a viable durable identity: separate player-scoped `LessonAttempt` rows link every submission to a returned `StudySession`; only server-verified persisted-opportunity attempts resolve an owned opportunity before loading and advancing its schedule; local opening missions remain explicitly ungraded; `ContentAttempt` and its famous-game route remain outside the M34 schedule key space. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M38 consumes typed verified attempt data, M42 includes `LessonAttempt` in lifecycle coverage, and M43 keeps transfer results separate from opening-mission records. The M37 implementation stack may start from `main`. |
+| Implementation authorization | `authorized` |
