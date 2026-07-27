@@ -3,11 +3,13 @@ from uuid import UUID, uuid4
 
 import chess
 from chess_lesson_spec import Diagnosis
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
@@ -46,6 +48,28 @@ def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
     return None
 
 
+def _persist_position_analysis(
+    game: Game,
+    fen: str,
+    analysis: EngineAnalysis,
+    session: Session,
+    positions_by_fen: dict[str, Position],
+) -> Position:
+    position = positions_by_fen.get(fen)
+    if position is None:
+        position = session.exec(
+            select(Position).where(Position.game_id == game.id, Position.fen == fen)
+        ).first()
+        if position is None:
+            position = ingest_fen(fen, game.id)
+            session.add(position)
+        positions_by_fen[fen] = position
+    if analysis.position_id != position.id:
+        analysis.position_id = position.id
+        session.add(analysis)
+    return position
+
+
 async def run_analysis_for_game(game: Game, session: Session) -> None:
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
@@ -70,7 +94,16 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
         board.push_san(san)
         fens_before.append(board.fen())
 
+    positions_by_fen: dict[str, Position] = {}
     for candidate in candidates:
+        fen_before = fens_before[candidate.move_index]
+        _persist_position_analysis(
+            game, fen_before, candidate.before_analysis, session, positions_by_fen
+        )
+        _persist_position_analysis(
+            game, candidate.fen, candidate.after_analysis, session, positions_by_fen
+        )
+
         evidence_payload = _classify_hanging_piece(candidate.fen)
         if evidence_payload is None:
             continue
@@ -169,9 +202,16 @@ def execute_analysis_job(job_id: UUID) -> None:
             asyncio.run(run_analysis_for_game(game, session))
             job.status = "completed"
             job.completed_at = datetime.now(UTC)
-        except Exception as e:
-            job.status = "failed"
-            job.error = str(e)
+        except Exception as error:
+            session.rollback()
+            failed_job = session.get(AnalysisJob, job_id)
+            if failed_job is None:
+                return
+            failed_job.status = "failed"
+            failed_job.error = str(error)
+            session.add(failed_job)
+            session.commit()
+            return
 
         session.add(job)
         session.commit()
