@@ -135,6 +135,7 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
 
         persisted = PersistedLessonOpportunity(
             game_id=game.id,
+            player_id=game.owner_player_id,
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
