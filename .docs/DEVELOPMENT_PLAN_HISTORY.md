@@ -258,3 +258,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` §2 and M36; `.docs/EXECUTION_PROMPTS.md` M36. |
 | Downstream impact | H-016 is further refined. M36's stack grows to four PRs: API recurrence, openings eligibility, typed weekly snapshots, and accurate shared web presentation. The coach aggregation and authorization boundary remain unchanged; M38 remains excluded from unavailable G13 signals. |
 | Implementation authorization | `blocked pending amended docs(plan): reconcile M36 design` reviewed, green hosted `Quality`, and externally merged; rerun the M36 design gate after merge before product code. |
+
+## H-018
+
+| Field | Content |
+| --- | --- |
+| ID | `H-018` |
+| Timestamp | 2026-07-27T17:22:18Z |
+| Milestone | `M36` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #159 merged to `main`. |
+| Evidence | `main` at `d54edff`; PR #159 is externally merged with successful hosted `Quality` run 30288687851. Re-read M36's reconciled source map and plan/prompt contracts, H-015–H-017, enhancement G10–G13, system design §§9.4–9.5 and 12.4, `api/reports.py`, `Game`, `PersistedLessonOpportunity`, the owner-scoped evidence query, M34 active/retired writes, shared coach/client `PatternsReport` consumers, opening classification, and M38's reconciled input contract. The recurring-diagnosis read has durable owner-scoped writers and evidence references; opening eligibility and weekly mastery snapshots have truthful limits; every shared consumer is planned; uninstrumented G13 work remains deferred; M38 no longer relies on it. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M36's four-PR implementation stack is authorized. M38 retains its reconciled exclusion of unavailable G13 signals. |
+| Implementation authorization | `authorized` |
