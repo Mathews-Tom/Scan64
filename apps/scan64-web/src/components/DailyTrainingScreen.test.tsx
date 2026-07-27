@@ -83,4 +83,17 @@ describe('DailyTrainingScreen', () => {
 
     expect(screen.getByTestId('session-complete')).toBeInTheDocument();
   });
+
+  it('shows an explicit no-eligible-lessons state', async () => {
+    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValueOnce({
+      session_id: 'session-empty',
+      lessons: [],
+    });
+
+    render(<DailyTrainingScreen />);
+
+    expect(await screen.findByTestId('no-eligible-lessons')).toHaveTextContent(
+      'Analyse another game to generate a reviewable lesson.'
+    );
+  });
 });

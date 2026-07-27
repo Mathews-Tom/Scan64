@@ -33,6 +33,7 @@ export const DailyTrainingScreen: React.FC = () => {
 
   if (loading) return <div data-testid="loading-indicator">Loading your daily training...</div>;
   if (error) return <div data-testid="error-message">{error}</div>;
+  if (sessionLessons.length === 0) return <div data-testid="no-eligible-lessons"><h2>No training lessons available</h2><p>Analyse another game to generate a reviewable lesson.</p></div>;
   if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2>Training Complete!</h2></div>;
 
   const lesson = sessionLessons[currentIndex];

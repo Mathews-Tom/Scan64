@@ -85,6 +85,9 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
     assert served.status_code == 200
     served_session_id = served.json()["session_id"]
     assert db_session.get(StudySession, served_session_id) is not None
+    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [
+        str(opportunity.id)
+    ]
 
     response = client.post(
         "/v1/learning/lesson-attempts",
@@ -116,6 +119,117 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
     assert skill is not None
     assert skill.alpha == skill.prior_alpha + 1.0
 
+
+def test_served_session_without_owned_opportunities_is_explicitly_empty(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "no-eligible-lessons-player"
+    db_session.add(Player(id=player_id))
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    response = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert response.status_code == 200
+    assert response.json()["lessons"] == []
+    assert db_session.get(StudySession, response.json()["session_id"]) is not None
+
+def test_training_session_rejects_missing_and_wrong_player_tokens(
+    client: TestClient, db_session: Session
+) -> None:
+    owner_id = "protected-training-owner"
+    other_player_id = "wrong-training-player"
+    db_session.add(Player(id=owner_id))
+    db_session.add(Player(id=other_player_id))
+    db_session.commit()
+
+    authorize(client, db_session, owner_id)
+    client.headers.pop("Authorization")
+    missing_token_response = client.get(f"/v1/learning/session?player_id={owner_id}")
+
+    authorize(client, db_session, other_player_id)
+    wrong_token_response = client.get(f"/v1/learning/session?player_id={owner_id}")
+
+    assert missing_token_response.status_code == 401
+    assert wrong_token_response.status_code == 403
+    assert db_session.exec(
+        select(StudySession).where(StudySession.player_id == owner_id)
+    ).all() == []
+
+
+
+def test_persisted_attempt_rejects_static_or_unowned_lesson_ids(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "attempt-owner"
+    other_player_id = "other-attempt-owner"
+    db_session.add(Player(id=player_id))
+    db_session.add(Player(id=other_player_id))
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    study_session = create_study_session(db_session, player_id)
+    other_opportunity = create_persisted_lesson(db_session, other_player_id)
+
+    static_id_response = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": study_session.id,
+            "lesson_id": "morphy-opera-1858_opera-open-lines",
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e2e4",
+            "elapsed_ms": 1,
+            "hints_used": 0,
+        },
+    )
+    unowned_id_response = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": study_session.id,
+            "lesson_id": str(other_opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e2e4",
+            "elapsed_ms": 1,
+            "hints_used": 0,
+        },
+    )
+
+    assert static_id_response.status_code == 422
+    assert unowned_id_response.status_code == 404
+
+def test_lesson_attempt_rejects_missing_and_wrong_player_tokens(
+    client: TestClient, db_session: Session
+) -> None:
+    owner_id = "protected-attempt-owner"
+    other_player_id = "wrong-attempt-player"
+    db_session.add(Player(id=owner_id))
+    db_session.add(Player(id=other_player_id))
+    db_session.commit()
+    study_session = create_study_session(db_session, owner_id)
+    attempt_payload = {
+        "session_id": study_session.id,
+        "lesson_id": "not-reached-without-an-owner-token",
+        "source_kind": "persisted_opportunity",
+        "submitted_move": "e2e4",
+        "elapsed_ms": 1,
+        "hints_used": 0,
+    }
+
+    authorize(client, db_session, owner_id)
+    client.headers.pop("Authorization")
+    missing_token_response = client.post(
+        "/v1/learning/lesson-attempts", json=attempt_payload
+    )
+
+    authorize(client, db_session, other_player_id)
+    wrong_token_response = client.post(
+        "/v1/learning/lesson-attempts", json=attempt_payload
+    )
+
+    assert missing_token_response.status_code == 401
+    assert wrong_token_response.status_code == 403
+    assert db_session.exec(
+        select(LessonAttempt).where(LessonAttempt.session_id == study_session.id)
+    ).all() == []
 
 def test_wrong_attempt_is_recorded_and_reveals_failure_state(
     client: TestClient, db_session: Session

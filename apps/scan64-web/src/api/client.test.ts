@@ -10,6 +10,7 @@ describe('ApiClient', () => {
   });
   
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.resetAllMocks();
     localStorage.clear();
   });
@@ -119,7 +120,59 @@ describe('ApiClient', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: 'player-1', display_name: 'Anonymous' }),
     });
-    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/learning/session?player_id=player-1');
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/learning/session?player_id=player-1', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
+  });
+
+  it('replaces an identity whose existing player record has no stored token', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-0000-0000-000000000002');
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 409, statusText: 'Conflict' })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: '00000000-0000-0000-0000-000000000002', preferences: {}, access_token: 'token-2' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session_id: 'study-2', lessons: [] }),
+      });
+
+    await ApiClient.getTrainingSession();
+
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000002',
+        display_name: 'Anonymous',
+      }),
+    });
+    expect(localStorage.getItem('scan64_player_id')).toBe(
+      '00000000-0000-0000-0000-000000000002',
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      3,
+      '/v1/learning/session?player_id=00000000-0000-0000-0000-000000000002',
+      { headers: { Authorization: 'Bearer token-2' } },
+    );
+  });
+
+  it('preserves the active identity when registration fails without a token', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Server Error',
+    });
+
+    await expect(ApiClient.getTrainingSession()).rejects.toThrow(
+      'Failed to create player: Server Error',
+    );
+
+    expect(localStorage.getItem('scan64_player_id')).toBe('player-1');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('sends the player bearer token for player reports', async () => {

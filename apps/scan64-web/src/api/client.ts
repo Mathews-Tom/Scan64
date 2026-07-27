@@ -28,7 +28,12 @@ const PLAYER_TOKEN_STORAGE_PREFIX = 'scan64_player_token:';
 
 const PLAYER_ID_STORAGE_KEY = 'scan64_player_id';
 
-const pendingPlayerAuthorizations = new Map<string, Promise<void>>();
+const pendingPlayerAuthorizations = new Map<string, Promise<string>>();
+
+interface PlayerRegistration {
+  player: PlayerRead;
+  issuedToken: boolean;
+}
 
 export function getOrCreatePlayerId(): string {
   const existingPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
@@ -39,17 +44,49 @@ export function getOrCreatePlayerId(): string {
   return playerId;
 }
 
-async function ensurePlayerAuthorization(playerId: string): Promise<void> {
-  if (localStorage.getItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${playerId}`) !== null) return;
-  const existing = pendingPlayerAuthorizations.get(playerId);
-  if (existing !== undefined) {
-    await existing;
-    return;
+async function registerPlayer(data: PlayerCreate): Promise<PlayerRegistration> {
+  const response = await fetch(`${API_BASE}/players`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (response.status === 409) {
+    return { player: { id: data.id, preferences: {} }, issuedToken: false };
   }
-  const request = ApiClient.createPlayer({ id: playerId, display_name: 'Anonymous' }).then(() => undefined);
+  if (!response.ok) {
+    throw new Error(`Failed to create player: ${response.statusText}`);
+  }
+  const json = await response.json() as PlayerRead & { access_token?: unknown };
+  if (typeof json.access_token !== 'string') {
+    throw new Error('Player creation response did not include an access token');
+  }
+  localStorage.setItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${json.id}`, json.access_token);
+  return {
+    player: { id: json.id, preferences: json.preferences },
+    issuedToken: true,
+  };
+}
+
+async function ensurePlayerAuthorization(playerId: string): Promise<string> {
+  if (localStorage.getItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${playerId}`) !== null) return playerId;
+  const existing = pendingPlayerAuthorizations.get(playerId);
+  if (existing !== undefined) return await existing;
+
+  const request = (async (): Promise<string> => {
+    const registration = await registerPlayer({ id: playerId, display_name: 'Anonymous' });
+    if (registration.issuedToken) return playerId;
+
+    const freshPlayerId = crypto.randomUUID();
+    const freshRegistration = await registerPlayer({ id: freshPlayerId, display_name: 'Anonymous' });
+    if (!freshRegistration.issuedToken) {
+      throw new Error(`Could not authorize a new player identity for ${playerId}`);
+    }
+    setActivePlayerId(freshPlayerId);
+    return freshPlayerId;
+  })();
   pendingPlayerAuthorizations.set(playerId, request);
   try {
-    await request;
+    return await request;
   } finally {
     pendingPlayerAuthorizations.delete(playerId);
   }
@@ -156,25 +193,7 @@ export class ApiClient {
   }
 
   static async createPlayer(data: PlayerCreate): Promise<PlayerRead> {
-    const response = await fetch(`${API_BASE}/players`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (response.status === 409) {
-      // The player already registered on a previous visit. Registration issues the
-      // access token exactly once, so reuse the identity instead of failing the game.
-      return { id: data.id, preferences: {} };
-    }
-    if (!response.ok) {
-      throw new Error(`Failed to create player: ${response.statusText}`);
-    }
-    const json = await response.json() as PlayerRead & { access_token?: unknown };
-    if (typeof json.access_token !== 'string') {
-      throw new Error('Player creation response did not include an access token');
-    }
-    localStorage.setItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${json.id}`, json.access_token);
-    return { id: json.id, preferences: json.preferences };
+    return (await registerPlayer(data)).player;
   }
 
   static async getFamousGames(): Promise<FamousGameRead[]> {
@@ -209,9 +228,11 @@ export class ApiClient {
   }
 
   static async getTrainingSession(): Promise<TrainingSessionRead> {
-    const playerId = getOrCreatePlayerId();
-    await ensurePlayerAuthorization(playerId);
-    const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`);
+    let playerId = getOrCreatePlayerId();
+    playerId = await ensurePlayerAuthorization(playerId);
+    const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`, {
+      headers: getPlayerAuthorizationHeader(playerId),
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch training session: ${response.statusText}`);
     }
