@@ -135,6 +135,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     assert game is not None
     assert game.headers == {"FEN": initial_fen}
     assert game.owner_player_id == "player_123"
+    assert (game.white, game.black) == ("Stockfish (strength 10)", "player_123")
 
 
 def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
@@ -170,6 +171,7 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert game is not None
     assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
+    assert (game.white, game.black) == ("player_123", "Stockfish (strength 10)")
 
     # Retry first move (idempotency)
     retry_resp = client.post(
@@ -209,3 +211,36 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
 
     assert response.status_code == 200, response.text
     assert response.json() == {"opponent_move": "d8h4", "status": "completed"}
+
+
+def test_play_session_cannot_attach_to_another_players_game(
+    client: TestClient, session: Session
+) -> None:
+    game = Game(pgn="", moves=[], white="Kasparov", black="Karpov", owner_player_id="bob")
+    session.add(game)
+    session.commit()
+
+    response = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {}},
+    )
+
+    assert response.status_code == 403
+    session.refresh(game)
+    assert (game.white, game.black) == ("Kasparov", "Karpov")
+    assert game.moves == []
+
+
+def test_play_session_cannot_attach_to_an_ownerless_game(
+    client: TestClient, session: Session
+) -> None:
+    game = Game(pgn="", moves=[], white="Unknown", black="Unknown")
+    session.add(game)
+    session.commit()
+
+    response = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {}},
+    )
+
+    assert response.status_code == 403

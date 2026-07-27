@@ -5,6 +5,7 @@ import chess
 from sqlmodel import Session
 
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.participants import participants
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
@@ -74,11 +75,12 @@ class PlaySessionService:
             raise ValueError(f"PlaySession is {play_session.status}")
 
         if not play_session.game_id:
+            white, black = participants(play_session.player_id, play_session.opponent_config)
             game = Game(
                 pgn="",
                 moves=[],
-                white="Player",
-                black="Opponent",
+                white=white,
+                black=black,
                 owner_player_id=play_session.player_id,
             )
             self.db.add(game)

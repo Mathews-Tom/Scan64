@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.participants import name_player_on, participants
 from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import get_session
@@ -86,17 +87,30 @@ def create_play_session(
 ) -> PlaySession:
     game_id = session_in.game_id
     if session_in.initial_fen is not None:
+        white, black = participants(
+            session_in.player_id, session_in.opponent_config, session_in.initial_fen
+        )
         game = Game(
             pgn="",
             headers={"FEN": session_in.initial_fen},
             moves=[],
-            white="Player",
-            black="Opponent",
+            white=white,
+            black=black,
             owner_player_id=session_in.player_id,
         )
         session.add(game)
         session.flush()
         game_id = game.id
+    elif game_id is not None:
+        existing = session.get(Game, game_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Game not found")
+        if existing.owner_player_id != session_in.player_id:
+            # Playing a session on a game rewrites its moves, result and PGN,
+            # so only its own player may attach to it.
+            raise HTTPException(status_code=403, detail="Game belongs to another player")
+        name_player_on(existing, session_in.player_id, session_in.opponent_config)
+        session.add(existing)
 
     play_session = PlaySession(
         player_id=session_in.player_id,
