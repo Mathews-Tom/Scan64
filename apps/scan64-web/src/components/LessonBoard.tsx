@@ -82,7 +82,7 @@ export function LessonBoard({ lesson, disabled = false, onMove }: LessonBoardPro
     setReady(true);
     requestAnimationFrame(() => board.current?.redrawAll());
     return () => {
-      board.current?.destroy();
+      board.current?.destroy?.();
       board.current = null;
     };
   }, [disabled]);

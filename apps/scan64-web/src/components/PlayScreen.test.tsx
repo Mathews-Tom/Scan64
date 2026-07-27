@@ -11,6 +11,7 @@ const chessgroundMock = vi.hoisted(() => ({
   color: undefined as 'white' | 'black' | undefined,
   set: vi.fn(),
   redrawAll: vi.fn(),
+  destroy: vi.fn(),
 }));
 
 function getRegisteredMoveHandler(): MoveHandler {
@@ -32,7 +33,7 @@ vi.mock('chessground', () => ({
   ) => {
     chessgroundMock.after = config.movable.events?.after;
     chessgroundMock.color = config.movable.color;
-    return { set: chessgroundMock.set, redrawAll: chessgroundMock.redrawAll };
+    return { set: chessgroundMock.set, redrawAll: chessgroundMock.redrawAll, destroy: chessgroundMock.destroy };
   },
 }));
 
@@ -42,6 +43,8 @@ vi.mock('../api/client', () => ({
     createPlayer: vi.fn(),
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
+    getTrainingSession: vi.fn().mockResolvedValue({ session_id: 'study-1', lessons: [] }),
+    recordLessonAttempt: vi.fn(),
   },
   setActivePlayerId: vi.fn(),
 }));
@@ -53,6 +56,8 @@ describe('PlayScreen', () => {
     chessgroundMock.color = undefined;
     chessgroundMock.set.mockReset();
     chessgroundMock.redrawAll.mockReset();
+    chessgroundMock.destroy.mockReset();
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
   });
 
   it('renders start button and board container', () => {
@@ -250,7 +255,7 @@ describe('PlayScreen', () => {
     const interruptionLesson: LessonSpec = {
       schema_version: '0.1.0',
       lesson_id: 'lesson-1',
-      source: { kind: 'pgn', fen: 'startpos' },
+      source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
       diagnosis: { primary: 'tactic', secondary: [], confidence: 1, evidence_refs: [] },
       objective: { type: 'move', instruction: 'Find the tactic' },
       interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },

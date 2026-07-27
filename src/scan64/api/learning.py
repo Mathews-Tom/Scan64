@@ -51,7 +51,7 @@ class LessonAttemptCreate(BaseModel):
 
     session_id: str
     lesson_id: str
-    source_kind: Literal["persisted_opportunity", "opening_mission"]
+    source_kind: Literal["persisted_opportunity", "opening_mission", "critical_moment"]
     submitted_move: str | None = None
     elapsed_ms: int = Field(ge=0)
     hints_used: int = Field(ge=0)
@@ -310,7 +310,7 @@ def record_lesson_attempt(
     if study_session is None:
         raise HTTPException(status_code=404, detail="Study session not found")
     require_player_token(request, study_session.player_id, db)
-    if attempt_in.source_kind == "opening_mission":
+    if attempt_in.source_kind in {"opening_mission", "critical_moment"}:
         attempt = LessonAttempt(
             session_id=study_session.id,
             player_id=study_session.player_id,

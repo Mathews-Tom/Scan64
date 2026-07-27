@@ -4,7 +4,7 @@ import { LessonSpec } from '../../src/api/types';
 const mockLesson: LessonSpec = {
   schema_version: '0.1.0',
   lesson_id: 'les_1',
-  source: { kind: 'pgn', fen: 'fen' },
+  source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
   diagnosis: { primary: 'test', secondary: [], confidence: 1, evidence_refs: [] },
   objective: { type: 'test', instruction: 'Find the best move' },
   interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },
@@ -26,6 +26,10 @@ test.describe('Review Interaction Sequencing', () => {
       await route.fulfill({ json: { id: 'player-1', preferences: {}, access_token: 'test-token' } });
     });
 
+
+    await page.route('**/v1/learning/session?*', async route => {
+      await route.fulfill({ json: { session_id: 'study-1', lessons: [] } });
+    });
     await page.route('**/v1/play-sessions', async route => {
       await route.fulfill({ json: { id: 'session-1', player_id: 'player-1', status: 'active' } });
     });
