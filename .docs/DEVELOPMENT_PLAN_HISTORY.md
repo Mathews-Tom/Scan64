@@ -272,3 +272,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M36's four-PR implementation stack is authorized. M38 retains its reconciled exclusion of unavailable G13 signals. |
 | Implementation authorization | `authorized` |
+
+## H-019
+
+| Field | Content |
+| --- | --- |
+| ID | `H-019` |
+| Timestamp | 2026-07-27T19:54:06Z |
+| Milestone | `M37` |
+| Decision | `DESIGN GO — PLAN REVISION: H-019` |
+| Trigger | M37 pre-implementation design gate after M34 and M36 merged to `main`. |
+| Evidence | `.docs/DEVELOPMENT_PLAN.md` §1, §2, §4, §6 M37 and dependent M38/M42/M43 rows; `.docs/EXECUTION_PROMPTS.md` M37, M38, M42, and M43; enhancement G15/G17–G19/G23; system design §§10, 12.5, 20, and 21; `DailyTrainingScreen.tsx:75-90`, `CriticalMomentReview.tsx:75-129`, `OpeningExplorerScreen.tsx:1-185`, `PlayScreen.tsx:228-253`, `api/learning.py:125-257`, `content/models.py:39-69`, `profile_update.py:10-80`, `SkillState`, and `ReviewSchedule`. `ContentAttempt.item_id` has a `ContentItem` foreign key while M34 writes schedules keyed by canonical `PersistedLessonOpportunity.id`; the current plan did not identify a viable durable generic-attempt identity or return the StudySession id required by its endpoint. Opening Explorer's local seeds expose no server-verifiable mission definition, so recording them as successful profile evidence would fabricate correctness. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37, M38, M42, and M43; `.docs/EXECUTION_PROMPTS.md` M37, M38, M42, and M43. |
+| Downstream impact | M37 adds a separate typed `LessonAttempt`: persisted opportunities are server-verified and alone advance M34 schedules/profile state; local Opening Explorer missions are retained as explicitly ungraded attempts. M38 consumes typed attempt volume and only verified accuracy. M42 includes `LessonAttempt` in lifecycle coverage. M43 keeps transfer completion distinct from ungraded opening records. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M37 design` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate after merge before product code. |
