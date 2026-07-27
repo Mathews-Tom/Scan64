@@ -184,7 +184,7 @@ async def run_analysis_for_game(
             best_move_san=best_move_san,
             hints=[],
         )
-        lesson.explanation = await explanation_provider.explain(diagnosis)
+        lesson.explanation = await explanation_provider.explain(diagnosis, evidence)
 
         try:
             verify_lesson(lesson)

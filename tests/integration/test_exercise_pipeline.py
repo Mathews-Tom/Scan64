@@ -30,12 +30,12 @@ async def test_template_explanation_provider() -> None:
     provider = TemplateExplanationProvider()
 
     diagnosis_fork = Diagnosis(primary="tactics.knight_fork", confidence=0.9, evidence_refs=[])
-    explanation = await provider.explain(diagnosis_fork)
+    explanation = await provider.explain(diagnosis_fork, evidence=[])
     assert "knight fork" in explanation.text
     assert "forcing moves" in explanation.text
 
     diagnosis_unknown = Diagnosis(primary="unknown.pattern", confidence=0.5, evidence_refs=[])
-    explanation_unknown = await provider.explain(diagnosis_unknown)
+    explanation_unknown = await provider.explain(diagnosis_unknown, evidence=[])
     assert "scan for forcing moves" in explanation_unknown.text
 
 

@@ -26,7 +26,7 @@ async def test_template_lesson_generation_remains_valid_with_llm_disabled() -> N
         lesson_id="les_template_regression",
         best_move_san="Nc3",
     )
-    lesson.explanation = await TemplateExplanationProvider().explain(diagnosis)
+    lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence=[])
     verify_lesson(lesson)
     assert lesson.explanation is not None
     assert "knight fork" in lesson.explanation.text
