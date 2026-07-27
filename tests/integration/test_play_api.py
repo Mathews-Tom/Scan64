@@ -134,6 +134,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     game = session.get(Game, UUID(game_id))
     assert game is not None
     assert game.headers == {"FEN": initial_fen}
+    assert game.owner_player_id == "player_123"
 
 
 def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
@@ -149,7 +150,7 @@ def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> 
     assert response.status_code == 422
 
 
-def test_play_session_moves_api(client: TestClient):
+def test_play_session_moves_api(client: TestClient, session: Session):
     req_body = {"player_id": "player_123", "opponent_config": {"strength": "10"}}
     create_resp = client.post("/v1/play-sessions", json=req_body)
     session_id = create_resp.json()["id"]
@@ -163,6 +164,11 @@ def test_play_session_moves_api(client: TestClient):
     move_data = move_resp.json()
     assert "opponent_move" in move_data
     assert move_data["opponent_move"] is not None
+    play_session = session.get(PlaySession, UUID(session_id))
+    assert play_session is not None
+    game = session.get(Game, play_session.game_id)
+    assert game is not None
+    assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
 
     # Retry first move (idempotency)
