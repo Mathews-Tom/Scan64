@@ -3,10 +3,13 @@ from __future__ import annotations
 import pytest
 from chess_lesson_spec import Diagnosis, Explanation, LessonSpec
 
+import scan64.api.app as app_module
 from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.positions.models import Position
+from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins import (
     AnalysisProvider,
@@ -20,6 +23,7 @@ from scan64.learning.plugins import (
     PluginRegistry,
     VerificationResult,
 )
+from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import (
     ExplanationEvidence,
     ExplanationPolicy,
@@ -244,3 +248,31 @@ async def test_reference_detector_rejects_insufficient_or_unrelated_evidence() -
 
     assert insufficient == []
     assert unrelated == []
+
+
+def test_seeded_detectors_match_the_seed_taxonomy() -> None:
+    registry = PluginRegistry()
+
+    register_seeded_detectors(registry)
+
+    assert registry.names(kind=PluginKind.PATTERN_DETECTOR) == tuple(SEED_CODES)
+    assert all(
+        isinstance(registry.get(kind=PluginKind.PATTERN_DETECTOR, name=name), PatternDetector)
+        for name in SEED_CODES
+    )
+
+
+@pytest.mark.asyncio
+async def test_lifespan_binds_and_clears_the_seeded_detector_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(app_module, "create_db_and_tables", lambda: None)
+
+    async with app_module.lifespan(app_module.app):
+        assert app_module.app.state.plugin_registry is get_host_registry()
+        assert get_host_registry().names(kind=PluginKind.PATTERN_DETECTOR) == tuple(
+            SEED_CODES
+        )
+
+    with pytest.raises(RuntimeError, match="not initialized"):
+        get_host_registry()
