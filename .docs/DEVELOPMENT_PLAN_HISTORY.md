@@ -216,3 +216,45 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M37 retains its existing `LessonSpec`/`Explanation` consumption contract unchanged. No other milestone affected. |
 | Implementation authorization | `authorized` |
+
+## H-015
+
+| Field | Content |
+| --- | --- |
+| ID | `H-015` |
+| Timestamp | 2026-07-27T16:50:06Z |
+| Milestone | `M36` |
+| Decision | `DESIGN GO — PLAN REVISION: H-015` |
+| Trigger | M36 pre-implementation design gate on `main` at `33fdc3a` after M34's merged active/retired profile work. |
+| Evidence | Re-read the M36 source map, enhancement G10–G13, system design §§9.4–9.5 and 12.4, M34 CI evidence in H-013, `api/reports.py`, `habits.py`, M31's `Game.owner_player_id` evidence boundary, and M34 profile writes. G10–G13 remain open. Material mismatch: M36's existing contract says `recurring_habits` is computed from persisted diagnoses and accepts three repeated diagnoses as a habit, but §9.5 defines a habit as a repeated behavioural sequence, requires directly computable game-annotation predicates, a default support of five, and a binomial significance gate. `HabitDetector` consumes `GameAnnotation`, not diagnoses. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M36; `.docs/EXECUTION_PROMPTS.md` M36. |
+| Downstream impact | M36 now reports typed recurring-diagnosis patterns separately from behavioural habits, preserves G13 by wiring `HabitDetector` only through direct annotations, and makes sparse-corpus state explicit. No later milestone consumes the report contract, so no downstream milestone changes. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M36 design` reviewed, green hosted `Quality`, and externally merged; rerun the M36 design gate after merge before product code. |
+
+## H-016
+
+| Field | Content |
+| --- | --- |
+| ID | `H-016` |
+| Timestamp | 2026-07-27T16:59:40Z |
+| Milestone | `M36` |
+| Decision | `DESIGN GO — PLAN REVISION: H-015, H-016` |
+| Trigger | Review of the H-015 reconciliation found that no production source exists for `GameAnnotation.time_used_seconds`, `HabitRule` configuration, rating-conditioned population base rates, or context observations; it also found M38 consumed the old habit-output semantics. |
+| Evidence | `Game` persists PGN, moves, headers, result, and owner but no per-move elapsed time; `PlaySession.clock_config` is initial configuration only. `HabitDetector` requires direct annotations, a rule set, and population base rates, none of which production code provides. `habits.py` rejects absent rates and a fabricated `0.0` time would make time predicates untruthful. M38 named habit output as a priority input. The M31 owner boundary, M34 active/retired writes, and recurring-diagnosis data through owner-scoped `PersistedLessonOpportunity` rows remain sufficient for G10–G12. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` §2, M36, and M38; `.docs/EXECUTION_PROMPTS.md` M36 and M38. |
+| Downstream impact | H-015 is superseded. M36 closes G10–G12 with a typed recurring-diagnosis report and does not claim to close G13. M38 excludes unavailable behavioural-habit and context-profile signals rather than consuming manufactured or empty data. G13's two evidence-instrumentation prerequisites remain an explicit future-planning gap. |
+| Implementation authorization | `blocked pending amended docs(plan): reconcile M36 design` reviewed, green hosted `Quality`, and externally merged; rerun the M36 design gate after merge before product code. |
+
+## H-017
+
+| Field | Content |
+| --- | --- |
+| ID | `H-017` |
+| Timestamp | 2026-07-27T17:09:09Z |
+| Milestone | `M36` |
+| Decision | `DESIGN GO — PLAN REVISION: H-015, H-016, H-017` |
+| Trigger | Review of H-016 found the shared `PatternsReport` is embedded by the coach dashboard and rendered by profile/coach web clients, the weekly delta has no persisted baseline, and imported games lack a durable owner-side field. |
+| Evidence | `api/coach.py` embeds `PatternsReport` without aggregation logic of its own; current profile and coach screens render the `recurring_habits` name and require an explicit shared-contract update to stop mislabelling recurrence. `SkillState` stores current mutable alpha/beta only and `ProfileObservation` cannot replay a mastery baseline. `Game.owner_player_id` does not establish whether the owner was White or Black for imported PGNs, so owner-perspective result rates are valid only for derivable sides. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` §2 and M36; `.docs/EXECUTION_PROMPTS.md` M36. |
+| Downstream impact | H-016 is further refined. M36's stack grows to four PRs: API recurrence, openings eligibility, typed weekly snapshots, and accurate shared web presentation. The coach aggregation and authorization boundary remain unchanged; M38 remains excluded from unavailable G13 signals. |
+| Implementation authorization | `blocked pending amended docs(plan): reconcile M36 design` reviewed, green hosted `Quality`, and externally merged; rerun the M36 design gate after merge before product code. |
