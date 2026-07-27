@@ -2,10 +2,14 @@ from datetime import UTC, datetime
 
 from scan64.content.models import ContentAttempt, ContentItem
 from scan64.learning.profiling.models import SkillState
+from scan64.learning.profiling.priors import get_prior_for_rating
 
 
 def apply_content_attempt(
-    attempt: ContentAttempt, item: ContentItem, existing_skills: list[SkillState]
+    attempt: ContentAttempt,
+    item: ContentItem,
+    existing_skills: list[SkillState],
+    rating: int,
 ) -> list[SkillState]:
     """Apply one content attempt to the player's mapped skill states."""
     skill_map = {
@@ -22,7 +26,15 @@ def apply_content_attempt(
 
         skill = skill_map.get(concept_code)
         if skill is None:
-            skill = SkillState(player_id=attempt.player_id, concept_code=concept_code)
+            prior_alpha, prior_beta = get_prior_for_rating(rating)
+            skill = SkillState(
+                player_id=attempt.player_id,
+                concept_code=concept_code,
+                alpha=prior_alpha,
+                beta=prior_beta,
+                prior_alpha=prior_alpha,
+                prior_beta=prior_beta,
+            )
         skill.apply_observation(
             success=attempt.success,
             hint_assisted=attempt.hint_assisted,

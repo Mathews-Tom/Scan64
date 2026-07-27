@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session, select
 
+from scan64.api.models import PlayerProfile
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import FamousGamePayload
 from scan64.content.models import ContentAttempt, ContentItem
@@ -126,10 +127,19 @@ def record_famous_game_attempt(
     )
     session.add(attempt)
 
+    profile = session.get(PlayerProfile, attempt.player_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Player profile not found")
+
     existing_skills = session.exec(
         select(SkillState).where(SkillState.player_id == attempt_in.player_id)
     ).all()
-    updated_skills = apply_content_attempt(attempt, item, list(existing_skills))
+    updated_skills = apply_content_attempt(
+        attempt,
+        item,
+        list(existing_skills),
+        rating=profile.rating,
+    )
     for skill in updated_skills:
         session.add(skill)
 
