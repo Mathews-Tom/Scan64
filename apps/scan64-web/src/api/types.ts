@@ -74,6 +74,27 @@ export interface LessonSpec {
   mastery: MasteryImpact;
 }
 
+export interface TrainingSessionRead {
+  session_id: string;
+  lessons: LessonSpec[];
+}
+
+export interface LessonAttemptCreate {
+  session_id: string;
+  lesson_id: string;
+  source_kind: 'persisted_opportunity' | 'opening_mission';
+  submitted_move?: string;
+  elapsed_ms: number;
+  hints_used: number;
+}
+
+export interface LessonAttemptRead {
+  id: string;
+  success: boolean | null;
+  grading_status: string;
+  profile_update_result: string;
+}
+
 export interface GameCreate {
   pgn: string;
   player_id: string;

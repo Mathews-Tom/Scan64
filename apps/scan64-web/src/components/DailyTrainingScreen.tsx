@@ -1,95 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
 import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
+import { LessonBoard } from './LessonBoard';
 
 export const DailyTrainingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionLessons, setSessionLessons] = useState<LessonSpec[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const startedAt = useRef(0);
 
   useEffect(() => {
-    const loadSession = async () => {
+    void (async () => {
       try {
-        setLoading(true);
-        // In a real app we would call a specific endpoint for the training session
-        // For the UI milestone, we fetch a few lessons to simulate the session
         const session = await ApiClient.getTrainingSession();
-        
-        if (session.length === 0) {
-          setSessionLessons([]);
-        } else {
-          setSessionLessons(session);
-        }
-      } catch (err) {
-        console.error('Failed to load training session:', err);
+        setSessionId(session.session_id);
+        setSessionLessons(session.lessons);
+        startedAt.current = performance.now();
+      } catch (caught) {
+        console.error('Failed to load training session:', caught);
         setError('Failed to load training session');
       } finally {
         setLoading(false);
       }
-    };
-
-    loadSession();
+    })();
   }, []);
 
-  if (loading) {
-    return <div data-testid="loading-indicator">Loading your daily training...</div>;
-  }
+  if (loading) return <div data-testid="loading-indicator">Loading your daily training...</div>;
+  if (error) return <div data-testid="error-message">{error}</div>;
+  if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2>Training Complete!</h2></div>;
 
-  if (error) {
-    return <div data-testid="error-message">{error}</div>;
-  }
+  const lesson = sessionLessons[currentIndex];
+  const hint = lesson.hints[hintsUsed];
+  const submitMove = async (move: string) => {
+    if (sessionId === null || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await ApiClient.recordLessonAttempt({
+        session_id: sessionId,
+        lesson_id: lesson.lesson_id,
+        source_kind: 'persisted_opportunity',
+        submitted_move: move,
+        elapsed_ms: Math.round(performance.now() - startedAt.current),
+        hints_used: hintsUsed,
+      });
+      if (result.success) {
+        setFeedback('Correct. Attempt recorded.');
+      } else {
+        setHintsUsed(value => Math.min(value + 1, lesson.hints.length));
+        setFeedback('Not accepted. Attempt recorded; the next hint is available.');
+      }
+    } catch (caught) {
+      console.error('Failed to record lesson attempt:', caught);
+      setFeedback('Could not record this attempt.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  if (sessionLessons.length === 0) {
-    return <div>No training available for today.</div>;
-  }
-  
-  if (currentIndex >= sessionLessons.length) {
-    return (
-      <div data-testid="session-complete">
-        <h2>Training Complete!</h2>
-        <p>You have completed all your scheduled lessons for today.</p>
-        <button onClick={() => window.location.href = '/'}>Return Home</button>
-      </div>
-    );
-  }
+  const nextLesson = () => {
+    setCurrentIndex(index => index + 1);
+    setHintsUsed(0);
+    setFeedback(null);
+    startedAt.current = performance.now();
+  };
 
-  const currentLesson = sessionLessons[currentIndex];
-  const progressPercent = Math.round((currentIndex / sessionLessons.length) * 100);
-
-  return (
-    <div className="daily-training-screen">
-      <div className="training-header">
-        <h2>Daily Training</h2>
-        <div className="progress-bar-container" data-testid="progress-bar-container">
-          <div 
-            className="progress-bar-fill" 
-            style={{ width: `${progressPercent}%`, backgroundColor: '#4caf50', height: '10px' }}
-            data-testid="progress-fill"
-          ></div>
-          <span className="progress-text">{currentIndex} / {sessionLessons.length}</span>
-        </div>
-      </div>
-      
-      <div className="lesson-container">
-        <div className="lesson-board-placeholder" data-testid="lesson-board">
-          {/* We would render a chessboard here using currentLesson.source.fen */}
-          Board: {currentLesson.source.fen}
-        </div>
-        
-        <div className="lesson-instruction" data-testid="lesson-instruction">
-          {currentLesson.objective.instruction}
-        </div>
-        
-        <div className="lesson-controls">
-          <button 
-            data-testid="next-lesson-button"
-            onClick={() => setCurrentIndex(idx => idx + 1)}
-          >
-            {currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><LessonBoard lesson={lesson} disabled={submitting || feedback?.startsWith('Correct') === true} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
 };
