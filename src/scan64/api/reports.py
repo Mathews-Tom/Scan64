@@ -6,7 +6,7 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import Player
-from scan64.chess.games.models import PlaySession
+from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
@@ -73,13 +73,9 @@ def read_player_evidence(player_id: str, session: Session) -> EvidenceReport:
     if session.get(Player, player_id) is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    game_ids = {
-        game_id
-        for game_id in session.exec(
-            select(PlaySession.game_id).where(PlaySession.player_id == player_id)
-        ).all()
-        if game_id is not None
-    }
+    game_ids = set(
+        session.exec(select(Game.id).where(Game.owner_player_id == player_id)).all()
+    )
     if not game_ids:
         return EvidenceReport(player_id=player_id, evidence_items=[])
 
