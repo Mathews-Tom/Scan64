@@ -17,6 +17,7 @@ from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
@@ -141,10 +142,10 @@ async def run_analysis_for_game(
         diagnosis_candidates = []
         for detector in detectors:
             diagnosis_candidates.extend(await detector.detect(opportunity, evidence, ctx))
-        if not diagnosis_candidates:
+        selection = arbitrate_diagnoses(diagnosis_candidates, evidence)
+        if selection is None:
             continue
-
-        best = max(diagnosis_candidates, key=lambda c: c.confidence)
+        best, secondary = selection
 
         fen_before = fens_before[candidate.move_index]
         best_move_uci = None
@@ -161,6 +162,7 @@ async def run_analysis_for_game(
 
         diagnosis = Diagnosis(
             primary=best.skill_id,
+            secondary=[candidate.skill_id for candidate in secondary],
             confidence=best.confidence,
             evidence_refs=best.evidence_ids,
         )
