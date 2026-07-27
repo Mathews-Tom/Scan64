@@ -314,3 +314,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37 reconciliation contract; `.docs/EXECUTION_PROMPTS.md` M37 attempt-context contract. |
 | Downstream impact | M38 remains sole owner of shared-session composition. M43 must retain the verified persisted-opportunity boundary. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M37 critical attempt context` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate before product code. |
+
+## H-022
+
+| Field | Content |
+| --- | --- |
+| ID | `H-022` |
+| Timestamp | 2026-07-28T02:40:00Z |
+| Milestone | `M37` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #172 merged to `main`. |
+| Evidence | PR #172 merged with hosted `Quality` passing. Re-read M37 and its new attempt-context contract: Critical Moment Review must receive durable session and canonical opportunity identity; Opening Explorer receives durable session linkage and records ungraded local-seed attempts; M38 remains session-composition owner. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M37 product work may resume against the reconciled context contract; M38 and M43 retain their stated boundaries. |
+| Implementation authorization | `authorized` |
