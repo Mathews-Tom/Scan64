@@ -89,3 +89,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` H-002/H-003 and M31 scope, deliverables, acceptance, verification, and risks; `.docs/EXECUTION_PROMPTS.md` M31 ownership/migration contract, gate read set, PR-2 scope/verification, and constraints. |
 | Downstream impact | M32, M33, M34, M40, M41, M42, and transitive M35, M36, M37, M38, M39, M43, M44 retain `Game.owner_player_id` as their ongoing ownership boundary; the migration-only provenance clarification does not change their implementation scopes. |
 | Implementation authorization | `blocked pending this docs(plan): reconcile M31 backfill review, green hosted Quality, and external merge; rerun the M31 gate after merge before landing product PRs.` |
+
+## H-006
+
+| Field | Content |
+| --- | --- |
+| ID | `H-006` |
+| Timestamp | 2026-07-27T01:52:41Z |
+| Milestone | `M31` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #127 merged to `main`. |
+| Evidence | `main` at `60cc968c161c935db253b550372b22a01025d340`; PR #127 externally merged 2026-07-27T01:51:56Z with hosted Quality run 30230670357 passed in 2m26s. H-005 reconciles the migration-only `PlaySession` backfill without changing ongoing attribution: `Game.owner_player_id` remains the player-owned read boundary, session-less legacy games remain ownerless, and M31's dependent contracts remain compatible. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M32, M33, M34, M40, M41, M42, and transitive M35, M36, M37, M38, M39, M43, M44 retain H-005's clarified ownership contract and require normal design reevaluation after M31 merges. |
+| Implementation authorization | `authorized` |
