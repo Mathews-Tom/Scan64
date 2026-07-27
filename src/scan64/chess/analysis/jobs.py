@@ -27,6 +27,7 @@ from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 from scan64.learning.profiling.profile_update import apply_analysis_observation
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
@@ -165,7 +166,6 @@ async def run_analysis_for_game(
             confidence=best.confidence,
             evidence_refs=best.evidence_ids,
         )
-
         profile = session.get(PlayerProfile, game.owner_player_id)
         apply_analysis_observation(
             session=session,
@@ -197,6 +197,14 @@ async def run_analysis_for_game(
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
+        session.add(
+            ReviewSchedule(
+                player_id=game.owner_player_id,
+                item_id=str(persisted.id),
+                skill_id=best.skill_id,
+                next_review_at=datetime.now(UTC),
+            )
+        )
 
     session.commit()
 
