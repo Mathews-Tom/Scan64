@@ -14,6 +14,7 @@ class Game(SQLModel, table=True):
     black: str = "Unknown"
     result: str = "*"
     date: str | None = None
+    owner_player_id: str | None = Field(default=None, index=True)
 
 
 class PlaySession(SQLModel, table=True):
