@@ -5,7 +5,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
-import { ApiClient } from '../api/client';
+import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type { PlaySessionRead, PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
@@ -126,11 +126,12 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
     setError(null);
     try {
       const fen = chess.fen();
+      const playerId = getOrCreatePlayerId();
+      await ApiClient.createPlayer({ id: playerId, display_name: 'Anonymous' });
       const game = await ApiClient.createGame({
         pgn: `[FEN "${fen}"]\n[SetUp "1"]\n\n`,
+        player_id: playerId,
       });
-      const playerId = `player-${Date.now()}`;
-      await ApiClient.createPlayer({ id: playerId });
       const playSession = await ApiClient.createPlaySession({
         player_id: playerId,
         game_id: game.id,
