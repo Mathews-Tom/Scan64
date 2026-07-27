@@ -146,3 +146,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M34 reviewed — unchanged; it consumes player-attributed opportunities. M35 reviewed — unchanged from H-008 and consumes the established provenance-bearing evidence contract. M36, M37, M38, and M43 reviewed — unchanged; their normal design reevaluation gates remain required. |
 | Implementation authorization | `authorized` |
+
+## H-010
+
+| Field | Content |
+| --- | --- |
+| ID | `H-010` |
+| Timestamp | 2026-07-27T11:56:54Z |
+| Milestone | `M34` |
+| Decision | `DESIGN GO — PLAN REVISION: H-010` |
+| Trigger | M34 pre-implementation design gate after M32 and M33 merged to `main`. |
+| Evidence | `main` at `f9a0169666801d51d5894900ac74503ec52d117e`; M32 PRs #131–#135 and M33 PRs #138–#142 are externally merged, each with a successful hosted `Quality` check; `main` CI run 30243077545 is successful. Re-read the M34 source map, enhancement G5/G14/G15/G31, system design §§8.10, 9, and 21, H-007–H-009, `content/tracking.py`, `profiling/priors.py`, `api/learning.py`, `analysis/jobs.py`, `SkillState`, `ReviewSchedule`, and taxonomy migration. G5, G14, G15, and G31 remain valid and analysis has the required durable owner-derived player id. Material mismatch: `ReviewSchedule` stores only an arbitrary lesson `item_id`, while `SkillState` has no retirement metadata; the existing migration therefore cannot remap a schedule by taxonomy skill or retain an unmappable live row with a reason. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` §2, M34, M36, M37, M38, M42, and M43; `.docs/EXECUTION_PROMPTS.md` M34, M36, M37, M38, M42, and M43. |
+| Downstream impact | M34 now persists the non-null four-part observation key, stores `ReviewSchedule.skill_id`, retains retirement metadata on both live row types, applies a deterministic target-key collision merge, and ships a schema upgrade. M36 excludes retired rows from current mastery fields; M37 records valid retired-code attempts while explicitly skipping profile mutation; M38 selects active state and non-retired schedules; M42 includes `ProfileObservation` in the lifecycle contract; M43 assigns transfer work only from active concepts. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M34 design` reviewed, green hosted `Quality`, and externally merged; rerun the M34 design gate after merge before product code. |
