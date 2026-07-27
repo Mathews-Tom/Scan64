@@ -6,10 +6,12 @@ import { ApiClient } from '../api/client';
 vi.mock('../api/client', () => ({
   ApiClient: {
     createGame: vi.fn(),
+    createPlayer: vi.fn(),
     getLearningOpportunities: vi.fn(),
     createAnalysisJob: vi.fn(),
     getAnalysisJob: vi.fn(),
   },
+  getOrCreatePlayerId: vi.fn(() => 'player-1'),
 }));
 
 describe('PgnImportScreen', () => {
@@ -54,7 +56,8 @@ describe('PgnImportScreen', () => {
     
     fireEvent.click(screen.getByTestId('import-btn'));
     await waitFor(() => {
-      expect(ApiClient.createGame).toHaveBeenCalledWith({ pgn: '1. e4 e5' });
+      expect(ApiClient.createPlayer).toHaveBeenCalledWith({ id: expect.any(String), display_name: 'Anonymous' });
+      expect(ApiClient.createGame).toHaveBeenCalledWith({ pgn: '1. e4 e5', player_id: expect.any(String) });
       expect(ApiClient.createAnalysisJob).toHaveBeenCalledWith('game-1');
       expect(ApiClient.getAnalysisJob).toHaveBeenCalledWith('job-1');
       expect(ApiClient.getLearningOpportunities).toHaveBeenCalledWith('game-1');

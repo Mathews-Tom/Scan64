@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
     createPlayer: vi.fn(),
     createPlaySession: vi.fn(),
   },
+  getOrCreatePlayerId: vi.fn(() => 'player-1'),
 }));
 
 describe('AnalysisScreen', () => {

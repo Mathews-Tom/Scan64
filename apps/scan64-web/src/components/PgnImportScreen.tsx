@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ApiClient } from '../api/client';
+import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type { LessonSpec } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 
@@ -42,7 +42,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     setLessons([]);
     
     try {
-      const game = await ApiClient.createGame({ pgn });
+      const playerId = getOrCreatePlayerId();
+      await ApiClient.createPlayer({ id: playerId, display_name: 'Anonymous' });
+      const game = await ApiClient.createGame({ pgn, player_id: playerId });
       if (signal.aborted) return;
 
       setStatusText('Starting analysis job...');
