@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
+from uuid import UUID
 
+import chess
 from chess_lesson_spec import (
     AcceptedMove,
     Diagnosis,
@@ -12,17 +14,21 @@ from chess_lesson_spec import (
     Source,
     Verification,
 )
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import Session, col, select
 
+from scan64.api.auth import require_player_token
+from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.content.endgames.curated import ENDGAME_PUZZLES
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import FamousGameDecision, FamousGameDefinition
-from scan64.content.models import ContentItem
+from scan64.content.models import ContentItem, LessonAttempt, StudySession
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
+from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
 from scan64.learning.scheduling.opening_rotation import (
     OpeningRotationPlanner,
@@ -33,6 +39,29 @@ from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"])
+
+
+class TrainingSessionRead(BaseModel):
+    session_id: str
+    lessons: list[LessonSpec]
+
+
+class LessonAttemptCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    lesson_id: str
+    source_kind: Literal["persisted_opportunity", "opening_mission"]
+    submitted_move: str | None = None
+    elapsed_ms: int = Field(ge=0)
+    hints_used: int = Field(ge=0)
+
+
+class LessonAttemptRead(BaseModel):
+    id: str
+    success: bool | None
+    grading_status: str
+    profile_update_result: str
 
 def make_endgame_spec(puzzle: dict[str, Any]) -> LessonSpec:
     import chess
@@ -122,8 +151,8 @@ def _recent_opening_family_ids(
     ]))
 
 
-@router.get("/session", response_model=list[LessonSpec])
-def get_training_session(player_id: str, db: Session = Depends(get_session)) -> list[LessonSpec]:
+@router.get("/session", response_model=TrainingSessionRead)
+def get_training_session(player_id: str, db: Session = Depends(get_session)) -> TrainingSessionRead:
     now = datetime.now(UTC)
 
     # 1. Gather all potential items
@@ -171,18 +200,17 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
 
     # Persisted M9 Opportunities
     opportunities = db.exec(
-        select(PersistedLessonOpportunity)
-        .join(PlaySession, PlaySession.game_id == PersistedLessonOpportunity.game_id)  # type: ignore[arg-type]
-        .where(PlaySession.player_id == player_id)
+        select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == player_id)
     ).all()
-    for opp in opportunities:
-        spec = LessonSpec.model_validate(opp.lesson_spec)
+    for opportunity in opportunities:
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        spec.lesson_id = str(opportunity.id)
         pool.append({
-            "id": str(opp.id),
+            "id": str(opportunity.id),
             "source": "m9_exercise",
             "content_type": "exercise",
             "spec": spec,
-            "base_priority": 0.9 # High priority for actual mistakes
+            "base_priority": 0.9,
         })
 
     rotation_planner = OpeningRotationPlanner()
@@ -254,4 +282,111 @@ def get_training_session(player_id: str, db: Session = Depends(get_session)) -> 
         required_item_ids=required_rotation_item_ids,
     )
 
-    return [item["spec"] for item in composed_session]
+    study_session = StudySession(player_id=player_id, domain="daily_training")
+    db.add(study_session)
+    db.commit()
+    return TrainingSessionRead(
+        session_id=study_session.id,
+        lessons=[item["spec"] for item in composed_session],
+    )
+
+
+def _submitted_move_is_accepted(spec: LessonSpec, submitted_move: str) -> bool:
+    board = chess.Board(spec.source.fen)
+    try:
+        san = board.san(chess.Move.from_uci(submitted_move))
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Submitted move is not legal") from error
+    return any(move.san == san for move in spec.interaction.accepted_moves)
+
+
+@router.post("/lesson-attempts", response_model=LessonAttemptRead)
+def record_lesson_attempt(
+    attempt_in: LessonAttemptCreate,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> LessonAttemptRead:
+    study_session = db.get(StudySession, attempt_in.session_id)
+    if study_session is None:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    require_player_token(request, study_session.player_id, db)
+    if attempt_in.source_kind == "opening_mission":
+        attempt = LessonAttempt(
+            session_id=study_session.id,
+            player_id=study_session.player_id,
+            lesson_id=attempt_in.lesson_id,
+            source_kind=attempt_in.source_kind,
+            submitted_move=attempt_in.submitted_move,
+            elapsed_ms=attempt_in.elapsed_ms,
+            hints_used=attempt_in.hints_used,
+            grading_status="ungraded",
+            profile_update_result="not_applicable",
+        )
+        db.add(attempt)
+        db.commit()
+        db.refresh(attempt)
+        return LessonAttemptRead(
+            id=attempt.id,
+            success=attempt.success,
+            grading_status=attempt.grading_status,
+            profile_update_result=attempt.profile_update_result,
+        )
+
+    try:
+        opportunity_id = UUID(attempt_in.lesson_id)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Persisted lesson id must be a UUID") from error
+    opportunity = db.get(PersistedLessonOpportunity, opportunity_id)
+    if opportunity is None or opportunity.player_id != study_session.player_id:
+        raise HTTPException(status_code=404, detail="Persisted lesson opportunity not found")
+    schedule = db.get(ReviewSchedule, (study_session.player_id, str(opportunity.id)))
+    if schedule is None:
+        raise HTTPException(status_code=409, detail="Persisted lesson has no review schedule")
+    if attempt_in.submitted_move is None:
+        raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
+
+    spec = LessonSpec.model_validate(opportunity.lesson_spec)
+    success = _submitted_move_is_accepted(spec, attempt_in.submitted_move)
+    observed_at = datetime.now(UTC)
+    profile_update_result = (
+        "skipped_retired" if schedule.retired_at is not None else "skipped_no_skill"
+    )
+    if schedule.retired_at is None and schedule.skill_id is not None:
+        profile = db.get(PlayerProfile, study_session.player_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Player profile not found")
+        profile_update_result = apply_lesson_attempt(
+            session=db,
+            player_id=study_session.player_id,
+            skill_id=schedule.skill_id,
+            success=success,
+            hint_assisted=attempt_in.hints_used > 0,
+            rating=profile.rating,
+            observed_at=observed_at,
+        )
+    if schedule.retired_at is None:
+        schedule.update(success=success, current_time=observed_at)
+        db.add(schedule)
+    attempt = LessonAttempt(
+        session_id=study_session.id,
+        player_id=study_session.player_id,
+        lesson_id=str(opportunity.id),
+        source_kind=attempt_in.source_kind,
+        opportunity_id=opportunity.id,
+        submitted_move=attempt_in.submitted_move,
+        elapsed_ms=attempt_in.elapsed_ms,
+        hints_used=attempt_in.hints_used,
+        success=success,
+        grading_status="verified",
+        profile_update_result=profile_update_result,
+        completed_at=observed_at,
+    )
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    return LessonAttemptRead(
+        id=attempt.id,
+        success=attempt.success,
+        grading_status=attempt.grading_status,
+        profile_update_result=attempt.profile_update_result,
+    )

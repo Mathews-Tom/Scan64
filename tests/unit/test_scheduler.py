@@ -100,6 +100,7 @@ def test_scheduler_draws_from_all_content_sources(db_session: Session):
 
     opp = PersistedLessonOpportunity(
         game_id=game.id,
+        player_id="player1",
         lesson_spec={
             "schema_version": "1.0",
             "lesson_id": "opp1",
@@ -124,12 +125,12 @@ def test_scheduler_draws_from_all_content_sources(db_session: Session):
 
     # We want to ensure it's capable of selecting across the sources based on type and priority.
     # And we expect 5 items total in the daily session
-    assert len(session) == 5
+    assert len(session.lessons) == 5
 
     # Because of our exploration floor and priority mechanisms, we should see
     # a mix of content types in the composed session.
     sources = set()
-    for spec in session:
+    for spec in session.lessons:
         if "endgame" in spec.diagnosis.primary:
             sources.add("m15_tablebase")
         elif "opening" in spec.diagnosis.primary:

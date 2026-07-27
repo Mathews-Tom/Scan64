@@ -139,7 +139,7 @@ def test_training_session_includes_contrasting_family_after_homogeneous_history(
     }
     scheduled_openings = [
         opening_payload_by_lesson_id[lesson.lesson_id]
-        for lesson in scheduled_session
+        for lesson in scheduled_session.lessons
         if lesson.lesson_id in opening_payload_by_lesson_id
     ]
 
