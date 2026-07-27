@@ -1,8 +1,11 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.learning.profiling.models import SkillState
 
 
 def create_player_token(client: TestClient, player_id: str) -> str:
@@ -162,3 +165,65 @@ def test_openings_report_uses_owned_game_families(client: TestClient, db_session
             "win_rate": 1.0,
         }
     ]
+
+
+def test_weekly_report_excludes_retired_mastery(client: TestClient, db_session: Session) -> None:
+    player_id = "weekly-player"
+    token = create_player_token(client, player_id)
+    db_session.add(Game(pgn="1. e4 e5", owner_player_id=player_id))
+    db_session.add(
+        SkillState(player_id=player_id, concept_code="tactics.fork.knight", alpha=3, beta=1)
+    )
+    db_session.add(
+        SkillState(
+            player_id=player_id,
+            concept_code="retired.concept",
+            alpha=9,
+            beta=1,
+            retired_at=datetime.now(UTC),
+        )
+    )
+    db_session.commit()
+
+    response = client.get(
+        f"/v1/reports/weekly?player_id={player_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["games_played"] == 1
+    assert report["active_concepts_observed"] == 1
+    assert report["active_mastery"] == [
+        {"concept_code": "tactics.fork.knight", "mastery": 0.75}
+    ]
+    assert report["top_recurring_diagnosis"] is None
+
+
+def test_weekly_report_selects_most_frequent_recurring_diagnosis(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "weekly-recurring-player"
+    token = create_player_token(client, player_id)
+    for diagnosis, count in (("aaa.major", 4), ("zzz.minor", 3)):
+        for _ in range(count):
+            game = Game(pgn="1. e4 e5", owner_player_id=player_id)
+            db_session.add(game)
+            db_session.flush()
+            db_session.add(
+                PersistedLessonOpportunity(
+                    game_id=game.id,
+                    lesson_spec={
+                        "diagnosis": {"primary": diagnosis, "evidence_refs": []}
+                    },
+                )
+            )
+    db_session.commit()
+
+    response = client.get(
+        f"/v1/reports/weekly?player_id={player_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["top_recurring_diagnosis"]["diagnosis"] == "aaa.major"
