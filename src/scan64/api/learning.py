@@ -5,35 +5,17 @@ from typing import Any, Literal
 from uuid import UUID
 
 import chess
-from chess_lesson_spec import (
-    AcceptedMove,
-    Diagnosis,
-    Interaction,
-    LessonSpec,
-    Objective,
-    Source,
-    Verification,
-)
+from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
-from sqlmodel import Session, col, select
+from sqlmodel import Session, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import PersistedLessonOpportunity
-from scan64.chess.games.models import Game, PlaySession
-from scan64.content.endgames.curated import ENDGAME_PUZZLES
-from scan64.content.famous_games.curated import FAMOUS_GAMES
-from scan64.content.famous_games.models import FamousGameDecision, FamousGameDefinition
-from scan64.content.models import ContentItem, LessonAttempt, StudySession
-from scan64.content.openings.curated import OPENING_FAMILIES
-from scan64.content.openings.models import OpeningFamilyPayload
+from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
-from scan64.learning.scheduling.opening_rotation import (
-    OpeningRotationPlanner,
-    classify_opening_family,
-)
 from scan64.learning.scheduling.priority import PriorityFactors
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
@@ -63,225 +45,39 @@ class LessonAttemptRead(BaseModel):
     grading_status: str
     profile_update_result: str
 
-def make_endgame_spec(puzzle: dict[str, Any]) -> LessonSpec:
-    import chess
-    board = chess.Board(puzzle["fen"])
-    san_moves = []
-    for uci in puzzle["solution"]:
-        move = chess.Move.from_uci(uci)
-        san_moves.append(board.san(move))
-        board.push(move)
-    return LessonSpec(
-        schema_version="1.0",
-        lesson_id=puzzle["id"],
-        source=Source(kind="custom", fen=puzzle["fen"]),
-        diagnosis=Diagnosis(primary="endgame", confidence=1.0),
-        objective=Objective(type="find_best_move", instruction="Win the endgame."),
-        interaction=Interaction(
-            input="click",
-            maximum_attempts=3,
-            accepted_moves=[AcceptedMove(san=m) for m in san_moves]
-        ),
-        verification=Verification(status="verified", engine="syzygy")
-    )
-
-def make_opening_spec(family_item: ContentItem) -> LessonSpec:
-    payload = OpeningFamilyPayload.model_validate(family_item.payload)
-    name = payload.name
-    moves = payload.moves
-
-    if not moves:
-        raise ValueError(f"Opening {name} has no moves defined")
-
-    import chess
-    board = chess.Board()
-    for m in moves[:-1]:
-        board.push_san(m)
-    fen = board.fen()
-    last_move = moves[-1]
-
-    return LessonSpec(
-        schema_version="1.0",
-        lesson_id=f"opening_{name.replace(' ', '_').lower()}",
-        source=Source(
-            kind="custom", fen=fen
-        ),
-        diagnosis=Diagnosis(primary="opening", confidence=1.0),
-        objective=Objective(type="find_best_move", instruction=f"Play the {name}."),
-        interaction=Interaction(
-            input="click",
-            maximum_attempts=3,
-            accepted_moves=[AcceptedMove(san=last_move)]
-        ),
-        verification=Verification(status="verified", engine="expert")
-    )
-
-def make_famous_game_spec(game: FamousGameDefinition, decision: FamousGameDecision) -> LessonSpec:
-    return LessonSpec(
-        schema_version="1.0",
-        lesson_id=f"{game.id}_{decision.id}",
-        source=Source(kind="custom", fen=decision.fen),
-        diagnosis=Diagnosis(primary="tactics", confidence=1.0),
-        objective=Objective(type="find_best_move", instruction=decision.prompt),
-        interaction=Interaction(
-            input="click",
-            maximum_attempts=3,
-            accepted_moves=[AcceptedMove(san=m) for m in decision.accepted_moves]
-        ),
-        verification=Verification(status="verified", engine="expert")
-    )
-
-def _recent_opening_family_ids(
-    player_id: str,
-    db: Session,
-    opening_families: list[OpeningFamilyPayload],
-    history_window: int,
-) -> list[str]:
-    recent_games = db.exec(
-        select(Game)
-        .join(PlaySession, PlaySession.game_id == Game.id)  # type: ignore[arg-type]
-        .where(PlaySession.player_id == player_id)
-        .order_by(col(Game.created_at).desc())
-        .limit(history_window)
-    ).all()
-    return list(reversed([
-        family_id
-        for game in recent_games
-        if (family_id := classify_opening_family(game.moves, opening_families)) is not None
-    ]))
 
 
 @router.get("/session", response_model=TrainingSessionRead)
-def get_training_session(player_id: str, db: Session = Depends(get_session)) -> TrainingSessionRead:
+def get_training_session(
+    player_id: str,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> TrainingSessionRead:
     now = datetime.now(UTC)
-
-    # 1. Gather all potential items
+    require_player_token(request, player_id, db)
     pool: list[dict[str, Any]] = []
-
-    # Endgames
-    for eg in ENDGAME_PUZZLES:
-        pool.append({
-            "id": eg["id"],
-            "source": "m15_tablebase",
-            "content_type": "endgame",
-            "spec": make_endgame_spec(eg),
-            "base_priority": 0.5
-        })
-
-    # Openings
-    opening_payloads = [
-        OpeningFamilyPayload.model_validate(family_item.payload)
-        for family_item in OPENING_FAMILIES
-    ]
-    opening_lesson_ids: dict[str, str] = {}
-    for family_item, payload in zip(OPENING_FAMILIES, opening_payloads, strict=True):
-        spec = make_opening_spec(family_item)
-        opening_lesson_ids[payload.family_id] = spec.lesson_id
-        pool.append({
-            "id": spec.lesson_id,
-            "source": "m16_opening",
-            "content_type": "opening",
-            "opening_family_id": payload.family_id,
-            "spec": spec,
-            "base_priority": 0.5,
-        })
-
-    # Famous Games
-    for fg in FAMOUS_GAMES:
-        for dec in fg.payload.decisions:
-            spec = make_famous_game_spec(fg, dec)
-            pool.append({
-                "id": spec.lesson_id,
-                "source": "m17_famous_game",
-                "content_type": "famous_game",
-                "spec": spec,
-                "base_priority": 0.6
-            })
-
-    # Persisted M9 Opportunities
     opportunities = db.exec(
-        select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == player_id)
+        select(PersistedLessonOpportunity).where(
+            PersistedLessonOpportunity.player_id == player_id
+        )
     ).all()
     for opportunity in opportunities:
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
         spec.lesson_id = str(opportunity.id)
+        schedule = db.get(ReviewSchedule, (player_id, str(opportunity.id)))
+        is_due = schedule is not None and schedule.is_due(now)
+        priority = PriorityFactors(
+            review_due=1.0 if is_due else 0.0,
+            weakness_severity=0.8,
+        ).compute_priority(session_fatigue=0.0)
         pool.append({
             "id": str(opportunity.id),
-            "source": "m9_exercise",
-            "content_type": "exercise",
+            "type": "due" if is_due else "mistakes",
+            "priority": priority,
             "spec": spec,
-            "base_priority": 0.9,
         })
 
-    rotation_planner = OpeningRotationPlanner()
-    rotation_plan = rotation_planner.plan(
-        opening_payloads,
-        _recent_opening_family_ids(
-            player_id,
-            db,
-            opening_payloads,
-            rotation_planner.history_window,
-        ),
-    )
-
-    # 2. Attach scheduling metadata (ReviewSchedule)
-    familiar_family_id = rotation_plan.familiar_family_id
-    response_review_family_id = rotation_plan.response_review_family_id
-
-    for item in pool:
-        schedule = db.get(ReviewSchedule, (player_id, item["id"]))
-        if schedule:
-            is_due = schedule.is_due(now)
-            if is_due:
-                item["type"] = "due"
-            else:
-                item["type"] = (
-                    "transfer" if item["content_type"] == "famous_game" else "exploration"
-                )
-            pf = PriorityFactors(
-                review_due=1.0 if is_due else 0.0,
-                weakness_severity=0.8 if item["content_type"] == "exercise" else 0.0,
-                user_interest=0.5 if item["content_type"] == "famous_game" else 0.0
-            )
-            item["priority"] = pf.compute_priority(session_fatigue=0.0)
-        else:
-            item["type"] = (
-                "mistakes" if item["content_type"] == "exercise"
-                else ("transfer" if item["content_type"] == "famous_game" else "exploration")
-            )
-            pf = PriorityFactors(
-                review_due=0.0,
-                weakness_severity=0.8 if item["content_type"] == "exercise" else 0.0,
-                user_interest=0.5 if item["content_type"] == "famous_game" else 0.0,
-                curriculum_relevance=0.8 if item["content_type"] in ("endgame", "opening") else 0.0
-            )
-            item["priority"] = pf.compute_priority(session_fatigue=0.0)
-        if (
-            familiar_family_id is not None
-            and item.get("opening_family_id") == familiar_family_id
-        ):
-            item["priority"] += 0.05
-        if (
-            response_review_family_id is not None
-            and item.get("opening_family_id") == response_review_family_id
-        ):
-            item["priority"] += 0.05
-
-
-    required_rotation_item_ids: tuple[str, ...] = ()
-    if rotation_plan.required_family_id is not None:
-        required_rotation_item_ids = (
-            opening_lesson_ids[rotation_plan.required_family_id],
-        )
-
-    # 3. Compose session
-    composer = SessionComposer()
-    composed_session = composer.compose_session(
-        pool,
-        session_size=5,
-        required_item_ids=required_rotation_item_ids,
-    )
-
+    composed_session = SessionComposer().compose_session(pool, session_size=5)
     study_session = StudySession(player_id=player_id, domain="daily_training")
     db.add(study_session)
     db.commit()

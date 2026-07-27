@@ -7,6 +7,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
+from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -34,9 +35,19 @@ def client(db_session: Session) -> TestClient:
     app.dependency_overrides.clear()
 
 
+def authorize(db_session: Session, player_id: str) -> dict[str, str]:
+    token, token_hash = issue_player_token()
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
+    db_session.commit()
+    return {"Authorization": f"Bearer {token}"}
+
 def test_player_scoped_persisted_opportunities(client: TestClient, db_session: Session) -> None:
     player_1 = f"player_{uuid4()}"
     player_2 = f"player_{uuid4()}"
+
+    player_1_headers = authorize(db_session, player_1)
+    player_2_headers = authorize(db_session, player_2)
 
     # Create games
     g1 = Game(pgn="", white="P1", black="P2", result="*")
@@ -83,79 +94,86 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     db_session.add(opp2)
     db_session.commit()
     # Query for player_1
-    resp1 = client.get(f"/v1/learning/session?player_id={player_1}")
+    resp1 = client.get(
+        f"/v1/learning/session?player_id={player_1}", headers=player_1_headers
+    )
     assert resp1.status_code == 200
     data1 = resp1.json()
-
-    # Check if spec1 is present but not spec2
     lesson_ids_1 = [item["lesson_id"] for item in data1["lessons"]]
     assert str(opp1.id) in lesson_ids_1
     assert str(opp2.id) not in lesson_ids_1
 
     # Query for player_2
-    resp2 = client.get(f"/v1/learning/session?player_id={player_2}")
+    resp2 = client.get(
+        f"/v1/learning/session?player_id={player_2}", headers=player_2_headers
+    )
     assert resp2.status_code == 200
     data2 = resp2.json()
-
     lesson_ids_2 = [item["lesson_id"] for item in data2["lessons"]]
     assert str(opp2.id) in lesson_ids_2
     assert str(opp1.id) not in lesson_ids_2
 
 
-def test_actual_transfer_selection(client: TestClient) -> None:
-    # A new player hasn't seen any famous games, so they are not due.
-    # They should be classified as "transfer" and have high priority.
-    player_id = f"new_player_{uuid4()}"
+def test_static_catalog_items_are_not_served_to_profile_training(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = str(uuid4())
+    headers = authorize(db_session, player_id)
+    response = client.get(
+        f"/v1/learning/session?player_id={player_id}", headers=headers
+    )
 
-    # Let's get the learning session directly
-    # Since composer mix is due: 0.4, mistakes: 0.3, transfer: 0.2, exploration: 0.1
-    # For session_size 5:
-    # due: 2
-    # mistakes: 2
-    # transfer: 1
-    # exploration: 1 -> wait, ceil means total is 6, shrinks to 5
-    # Since this player has no due or mistakes, remaining pool fills it.
-    # Famous games have base_priority=0.6, exploration=0.5
-    # So famous games should be present and take up at least the transfer bucket
-    # (and probably more).
-
-    resp = client.get(f"/v1/learning/session?player_id={player_id}")
-    assert resp.status_code == 200
-    data = resp.json()
-
-    # We should have at least one famous game in the session
-    lesson_ids = [item["lesson_id"] for item in data["lessons"]]
-    famous_game_prefix = "morphy-"  # all current famous games start with morphy-
-    has_famous = any(lid.startswith(famous_game_prefix) for lid in lesson_ids)
-
-    assert has_famous, f"Famous game not selected in session. Lesson IDs: {lesson_ids}"
+    assert response.status_code == 200
+    assert response.json()["lessons"] == []
 
 
 def test_due_schedule_survives_sqlite_datetime_round_trip(
     client: TestClient, db_session: Session
 ) -> None:
     player_id = f"player_{uuid4()}"
-    db_session.add_all(
-        [
+    headers = authorize(db_session, player_id)
+    now = datetime.now(UTC)
+    opportunities: list[PersistedLessonOpportunity] = []
+    for offset in (timedelta(days=1), timedelta(days=-1)):
+        game = Game(pgn="", owner_player_id=player_id)
+        db_session.add(game)
+        db_session.flush()
+        opportunity = PersistedLessonOpportunity(
+            game_id=game.id,
+            player_id=player_id,
+            lesson_spec={
+                "schema_version": "1.0",
+                "lesson_id": f"lesson-{uuid4()}",
+                "source": {"kind": "player_game", "fen": "8/8/8/8/8/8/8/8 w - - 0 1"},
+                "diagnosis": {"primary": "tactics", "confidence": 1.0},
+                "objective": {"type": "find_best_move", "instruction": "Find it"},
+                "interaction": {
+                    "input": "click",
+                    "maximum_attempts": 3,
+                    "accepted_moves": [{"san": "e4"}],
+                },
+                "verification": {"status": "verified", "engine": "syzygy"},
+            },
+        )
+        db_session.add(opportunity)
+        db_session.flush()
+        db_session.add(
             ReviewSchedule(
                 player_id=player_id,
-                item_id="morphy-opera-1858_opera-open-lines",
-                next_review_at=datetime.now(UTC) - timedelta(days=1),
-            ),
-            ReviewSchedule(
-                player_id=player_id,
-                item_id="morphy-paulsen-1857_paulsen-outpost",
-                next_review_at=datetime.now(UTC) + timedelta(days=1),
-            ),
-        ]
-    )
+                item_id=str(opportunity.id),
+                next_review_at=now + offset,
+            )
+        )
+        opportunities.append(opportunity)
     db_session.commit()
     db_session.expire_all()
 
-    response = client.get(f"/v1/learning/session?player_id={player_id}")
-    assert response.status_code == 200
+    response = client.get(
+        f"/v1/learning/session?player_id={player_id}", headers=headers
+    )
 
+    assert response.status_code == 200
     lesson_ids = [item["lesson_id"] for item in response.json()["lessons"]]
-    assert lesson_ids.index("morphy-opera-1858_opera-open-lines") < lesson_ids.index(
-        "morphy-paulsen-1857_paulsen-outpost"
+    assert lesson_ids.index(str(opportunities[1].id)) < lesson_ids.index(
+        str(opportunities[0].id)
     )

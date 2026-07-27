@@ -8,7 +8,8 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
   test('Complete journey and offline move queuing', async ({ page, context }) => {
     let isOffline = false;
     await page.route('/v1/players', async route => {
-      await route.fulfill({ json: { id: 'player-1', preferences: {}, access_token: 'token-1' } });
+      const { id } = route.request().postDataJSON() as { id: string };
+      await route.fulfill({ json: { id, preferences: {}, access_token: 'token-1' } });
     });
     await page.route('/v1/play-sessions', async route => {
       await route.fulfill({ json: { id: 'session-1', player_id: 'player-1', status: 'active', current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', pgn: '' } });
