@@ -342,3 +342,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37, M38, and M43; `.docs/EXECUTION_PROMPTS.md` M37, M38, and M43. |
 | Downstream impact | M37 must establish Daily Training source eligibility: profile-recording lessons are exclusively player-owned persisted opportunities, while no eligible opportunity produces an explicit empty state. This is an identity boundary, not M38's adaptive weighting/composition work. M38 begins from the owned source set; M43 retains its verified persisted-attempt and ungraded-opening boundary. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M37 daily lesson identity` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate before the corrective product PR. |
+
+## H-024
+
+| Field | Content |
+| --- | --- |
+| ID | `H-024` |
+| Timestamp | 2026-07-28T03:30:00Z |
+| Milestone | `M37` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation design-gate re-run after PR #178 merged to `main` with hosted `Quality` passing. |
+| Evidence | Re-read reconciled M37 and dependent M38/M43 plan and prompt contracts, H-023, `api/learning.py:154-290`, `PersistedLessonOpportunity`, `DailyTrainingScreen.tsx`, `CriticalMomentReview.tsx`, `OpeningExplorerScreen.tsx`, `PlayScreen.tsx` bounds recompute, `ContentAttempt`, `StudySession`, `SkillState`, `ReviewSchedule`, and M34 profile updates. The reconciled Daily Training source boundary supplies only player-owned persisted opportunities to the profile-recording board; static lessons cannot enter the generic M34 path. This establishes durable identity without absorbing M38's adaptive-priority responsibility. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M38 begins adaptive composition from M37's owned persisted source set. M43 continues to distinguish verified persisted attempts from ungraded opening-mission records. |
+| Implementation authorization | `authorized` |
