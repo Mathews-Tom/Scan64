@@ -11,7 +11,11 @@ from sqlmodel import Session, select
 import scan64.chess.analysis.jobs as jobs
 import scan64.learning.evidence.composer as evidence_composer
 from scan64.api.models import Player, PlayerCredential, issue_player_token
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -181,6 +185,25 @@ async def test_candidate_evidence_references_persisted_focused_multipv(
 
     assert evidence.engine_analysis_id == str(focused_analysis.id)
     assert evidence.payload["focused_multipv"] == focused_analysis.raw_result
+
+
+
+@pytest.mark.asyncio
+async def test_production_job_persists_arbitrated_secondary_diagnoses(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+
+    persisted = db_session.exec(select(PersistedLessonOpportunity)).one()
+    diagnosis = persisted.lesson_spec["diagnosis"]
+    assert diagnosis["primary"] == "board_awareness.hanging_piece"
+    assert diagnosis["secondary"] == ["threat_processing.missed_direct_threat"]
 
 @pytest.mark.asyncio
 async def test_consecutive_candidates_share_one_persisted_position(
