@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
 import chess
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
+import scan64.learning.evidence.composer as evidence_composer
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition
@@ -52,6 +54,26 @@ class _CandidateOrchestrator:
                 ),
                 swing_cp=200,
             )
+        ]
+
+
+class _FocusedOrchestrator:
+    def __init__(self, *_: object) -> None:
+        pass
+
+    async def run_focused_pass(
+        self, candidates: list[CandidatePosition]
+    ) -> list[EngineAnalysis]:
+        return [
+            EngineAnalysis(
+                position_id=uuid4(),
+                config={"nodes": 1_000_000, "multipv": 4},
+                raw_result=[
+                    {"pv": ["e8e2"], "score_cp": -250},
+                    {"pv": ["g8h7"], "score_cp": -220},
+                ],
+            )
+            for _ in candidates
         ]
 
 
@@ -104,6 +126,7 @@ async def test_candidate_positions_and_analyses_are_persisted(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
     game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
@@ -120,21 +143,51 @@ async def test_candidate_positions_and_analyses_are_persisted(
     assert analysis_position_ids == persisted_position_ids
 
     evidence = db_session.exec(select(Evidence)).all()
+    position_ids = {str(position.id) for position in positions}
+    analysis_ids = {str(analysis.id) for analysis in analyses}
 
-    assert len(evidence) == 1
-    assert evidence[0].position_id in {str(position.id) for position in positions}
-    assert evidence[0].engine_analysis_id in {str(analysis.id) for analysis in analyses}
+    assert evidence
+    assert all(item.position_id in position_ids for item in evidence)
+    assert all(item.engine_analysis_id in analysis_ids for item in evidence)
     evidence_position = next(
         position for position in positions if str(position.id) == evidence[0].position_id
     )
     assert evidence_position.fen == HANGING_PIECE_FEN
 
 
+
+@pytest.mark.asyncio
+async def test_candidate_evidence_references_persisted_focused_multipv(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+
+    focused_analysis = next(
+        analysis
+        for analysis in db_session.exec(select(EngineAnalysis)).all()
+        if analysis.config.get("multipv") == 4
+    )
+    evidence = next(
+        item
+        for item in db_session.exec(select(Evidence)).all()
+        if item.kind == "engine_analysis"
+    )
+
+    assert evidence.engine_analysis_id == str(focused_analysis.id)
+    assert evidence.payload["focused_multipv"] == focused_analysis.raw_result
+
 @pytest.mark.asyncio
 async def test_consecutive_candidates_share_one_persisted_position(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _ConsecutiveCandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
     game = Game(pgn="", moves=["e2e4", "e7e5"], owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
@@ -197,6 +250,7 @@ async def test_completed_analysis_populates_positions_and_evidence_endpoints(
     db_session.add(game)
     db_session.commit()
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
 
     await jobs.run_analysis_for_game(game, db_session)
 
@@ -219,13 +273,28 @@ async def test_every_constructed_evidence_is_persisted(
 ) -> None:
     constructed_evidence_ids: list[str] = []
 
-    def construct_evidence(**kwargs: object) -> Evidence:
-        evidence = Evidence(**kwargs)
+    def construct_evidence(
+        *,
+        kind: str,
+        position_id: str,
+        engine_analysis_id: str,
+        claim: str,
+        payload: dict[str, Any],
+    ) -> Evidence:
+        evidence = Evidence(
+            evidence_id=f"ev_{uuid4()}",
+            kind=kind,
+            position_id=position_id,
+            engine_analysis_id=engine_analysis_id,
+            claim=claim,
+            payload=payload,
+        )
         constructed_evidence_ids.append(evidence.evidence_id)
         return evidence
 
-    monkeypatch.setattr(jobs, "Evidence", construct_evidence)
+    monkeypatch.setattr(evidence_composer, "_evidence", construct_evidence)
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
     game = Game(pgn="", moves=["e2e4"], owner_player_id="guard-player")
     db_session.add(game)
     db_session.commit()
