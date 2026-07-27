@@ -13,6 +13,7 @@ from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
 from scan64.api.reports import router as reports_router
+from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
 from scan64.persistence.database import create_db_and_tables, get_session
 
 
@@ -32,7 +33,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from scan64.learning.exercises.transfer import TransferPosition  # noqa: F401
 
     create_db_and_tables()
-    yield
+    app.state.plugin_registry = initialize_host_registry()
+    try:
+        yield
+    finally:
+        clear_host_registry()
+        del app.state.plugin_registry
 
 
 app = FastAPI(
