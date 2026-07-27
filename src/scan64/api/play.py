@@ -3,11 +3,12 @@ from pathlib import Path
 from uuid import UUID
 
 import chess
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from scan64.api.auth import require_player_token
+from scan64.chess.analysis.inflight import analysis_limiter
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants
 from scan64.chess.games.pgn import build_pgn
@@ -139,11 +140,20 @@ def get_play_session(session_id: UUID, session: Session = Depends(get_session)) 
     return play_session
 
 
+def schedule_pending_analysis(
+    service: PlaySessionService, background_tasks: BackgroundTasks
+) -> None:
+    for player_id, job_id in service.pending_analysis:
+        background_tasks.add_task(analysis_limiter.submit, player_id, job_id)
+    service.pending_analysis.clear()
+
+
 @router.post("/v1/play-sessions/{session_id}/moves", response_model=PlayMoveResponse)
 async def create_move(
     request: Request,
     session_id: UUID,
     move_in: PlayMoveCreate,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlayMoveResponse:
@@ -152,6 +162,7 @@ async def create_move(
         play_session = session.get(PlaySession, session_id)
         if play_session is None:
             raise HTTPException(status_code=404, detail="PlaySession not found")
+        schedule_pending_analysis(service, background_tasks)
         return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
@@ -167,6 +178,7 @@ async def create_move(
 def resign_play_session(
     session_id: UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlaySession:
@@ -175,8 +187,10 @@ def resign_play_session(
         raise HTTPException(status_code=404, detail="PlaySession not found")
     require_player_token(request, play_session.player_id, session)
     try:
-        return service.resign(session_id)
+        play_session = service.resign(session_id)
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except PlaySessionNotActive as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+    schedule_pending_analysis(service, background_tasks)
+    return play_session
