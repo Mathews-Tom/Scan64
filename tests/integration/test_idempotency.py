@@ -56,11 +56,15 @@ def client_fixture(session: Session):
 
 
 def test_idempotency(client: TestClient, session: Session):
+    player = Player(id="idempotency-player")
+    session.add(player)
+    session.commit()
     pgn = '[Event "Casual Game"]\n\n1. e4 e5'
+    payload = {"pgn": pgn, "player_id": player.id}
     idem_key = str(uuid.uuid4())
 
     # First request
-    response1 = client.post("/v1/games", json={"pgn": pgn}, headers={"Idempotency-Key": idem_key})
+    response1 = client.post("/v1/games", json=payload, headers={"Idempotency-Key": idem_key})
     assert response1.status_code == 200
     data1 = response1.json()
 
@@ -69,7 +73,7 @@ def test_idempotency(client: TestClient, session: Session):
     assert len(games) == 1
 
     # Second request with same key
-    response2 = client.post("/v1/games", json={"pgn": pgn}, headers={"Idempotency-Key": idem_key})
+    response2 = client.post("/v1/games", json=payload, headers={"Idempotency-Key": idem_key})
     assert response2.status_code == 200
     data2 = response2.json()
 
@@ -82,7 +86,7 @@ def test_idempotency(client: TestClient, session: Session):
 
     # Check with different key
     idem_key2 = str(uuid.uuid4())
-    response3 = client.post("/v1/games", json={"pgn": pgn}, headers={"client_move_id": idem_key2})
+    response3 = client.post("/v1/games", json=payload, headers={"client_move_id": idem_key2})
     assert response3.status_code == 200
     assert response3.json()["id"] != data1["id"]
 

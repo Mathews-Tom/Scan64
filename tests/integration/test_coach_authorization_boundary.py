@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.learning.evidence.models import Evidence
@@ -53,10 +53,14 @@ def test_linkage_rejects_a_different_students_token(
 
 
 def add_player_evidence(db_session: Session, player_id: str, evidence_id: str) -> None:
-    game = Game(pgn="1. e4 e5", white=player_id, black="Opponent")
+    game = Game(
+        pgn="1. e4 e5",
+        white=player_id,
+        black="Opponent",
+        owner_player_id=player_id,
+    )
     db_session.add(game)
     db_session.flush()
-    db_session.add(PlaySession(player_id=player_id, game_id=game.id, status="completed"))
     position = Position(
         game_id=game.id,
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
