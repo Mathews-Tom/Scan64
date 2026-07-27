@@ -9,6 +9,7 @@ from sqlmodel import Session
 
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants
+from scan64.chess.games.pgn import build_pgn
 from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import get_session
@@ -98,6 +99,7 @@ def create_play_session(
             black=black,
             owner_player_id=session_in.player_id,
         )
+        game.pgn = build_pgn(game)
         session.add(game)
         session.flush()
         game_id = game.id
@@ -109,8 +111,8 @@ def create_play_session(
             # Playing a session on a game rewrites its moves, result and PGN,
             # so only its own player may attach to it.
             raise HTTPException(status_code=403, detail="Game belongs to another player")
-        name_player_on(existing, session_in.player_id, session_in.opponent_config)
-        session.add(existing)
+        if name_player_on(existing, session_in.player_id, session_in.opponent_config):
+            session.add(existing)
 
     play_session = PlaySession(
         player_id=session_in.player_id,

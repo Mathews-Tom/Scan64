@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import participants
+from scan64.chess.games.pgn import build_pgn
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
@@ -83,6 +84,7 @@ class PlaySessionService:
                 black=black,
                 owner_player_id=play_session.player_id,
             )
+            game.pgn = build_pgn(game)
             self.db.add(game)
             self.db.commit()
             self.db.refresh(game)
@@ -112,6 +114,7 @@ class PlaySessionService:
         if board.is_game_over():
             play_session.status = "completed"
             fetched.result = board.result()
+            fetched.pgn = build_pgn(fetched)
             self.db.add(fetched)
             self.db.add(play_session)
             self.db.commit()
@@ -149,6 +152,7 @@ class PlaySessionService:
             play_session.status = "completed"
             fetched.result = board.result()
 
+        fetched.pgn = build_pgn(fetched)
         self.db.add(fetched)
         self.db.add(play_session)
         self.db.commit()
