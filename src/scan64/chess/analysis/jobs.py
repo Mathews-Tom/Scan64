@@ -18,7 +18,7 @@ from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
-from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.composer import compose_candidate_evidence
@@ -82,7 +82,6 @@ async def run_analysis_for_game(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
     detectors = _resolve_pattern_detectors(registry)
-    explanation_provider = TemplateExplanationProvider()
     ctx = PlayerContext(player_id=game.owner_player_id)
 
     initial_fen = game.headers.get("FEN")
@@ -184,7 +183,7 @@ async def run_analysis_for_game(
             best_move_san=best_move_san,
             hints=[],
         )
-        lesson.explanation = await explanation_provider.explain(diagnosis, evidence)
+        lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
 
         try:
             verify_lesson(lesson)
