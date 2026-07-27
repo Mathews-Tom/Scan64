@@ -9,8 +9,8 @@ from sqlmodel import Session, select
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import FamousGamePayload
 from scan64.content.models import ContentAttempt, ContentItem
-from scan64.content.tracking import apply_content_attempt_to_profile
 from scan64.learning.profiling.models import SkillState
+from scan64.learning.profiling.profile_update import apply_content_attempt
 from scan64.persistence.database import get_session
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
@@ -129,7 +129,7 @@ def record_famous_game_attempt(
     existing_skills = session.exec(
         select(SkillState).where(SkillState.player_id == attempt_in.player_id)
     ).all()
-    updated_skills = apply_content_attempt_to_profile(attempt, item, list(existing_skills))
+    updated_skills = apply_content_attempt(attempt, item, list(existing_skills))
     for skill in updated_skills:
         session.add(skill)
 
