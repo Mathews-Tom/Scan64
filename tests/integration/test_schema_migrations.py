@@ -19,7 +19,7 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         ).scalar_one()
 
     assert {"game", "persistedlessonopportunity", "transfermeasurement"} <= tables
-    assert revision == "20260727_01"
+    assert revision == "20260727_02"
 
 
 def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path: Path) -> None:
