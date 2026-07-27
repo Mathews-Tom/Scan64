@@ -188,3 +188,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M34 and M37; `.docs/EXECUTION_PROMPTS.md` M34 and M37. |
 | Downstream impact | M34 writes schedules only for persisted analysis lessons, remaps active `ProfileObservation` identities with the live taxonomy rows, and retains unmappable or collision-superseded observations with a reason. M37 owns advancing those schedules after resolving an owned persisted lesson through its generic endpoint; G15's historical `api/content.py` pointer is closed because content items cannot identify an M34 schedule. M36, M38, M42, and M43 retain their active/retired and lifecycle contracts; their design gates must verify canonicalized observation identity and owned lesson resolution. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M34 design` reviewed, green hosted `Quality`, and externally merged; rerun the M34 design gate after merge before product-code remediation. |
+
+## H-013
+
+| Field | Content |
+| --- | --- |
+| ID | `H-013` |
+| Timestamp | 2026-07-27T19:05:00Z |
+| Milestone | `M34` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #151 merged to `main`. |
+| Evidence | `main` at `a7ab0e6150a100c9e56a01734f198c6bfed51cda`; PR #151 is externally merged with successful hosted `Quality` run 30271056160. Re-read the reconciled M34/M37 contracts, H-012, source G5/G14/G15/G31, system design §§8.10, 9, and 21, final M34 stack review findings, `content/tracking.py`, `profiling/priors.py`, `api/learning.py`, `analysis/jobs.py`, `SkillState`, `ReviewSchedule`, `ProfileObservation`, the Alembic chain, and taxonomy migration. The canonical persisted-lesson schedule identity, M37-only advancement boundary, observation retention/collision rule, owner-derived identity, and downstream active/retired contracts are mutually compatible. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M36, M37, M38, M42, and M43 retain the reconciled contracts. The M34 remediation stack may now rebase onto `main`, add its missing acceptance coverage and migration rules, then be re-reviewed before merge. |
+| Implementation authorization | `authorized` |
