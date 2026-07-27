@@ -4,9 +4,11 @@ from uuid import uuid4
 
 import chess
 import pytest
+from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
+from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
@@ -169,3 +171,56 @@ def test_failed_analysis_job_rolls_back_partial_artifacts(
     assert stored_job.status == "failed"
     assert stored_job.error == "analysis failed"
     assert db_session.exec(select(Position).where(Position.game_id == game.id)).all() == []
+
+
+@pytest.mark.asyncio
+async def test_completed_analysis_populates_positions_and_evidence_endpoints(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token, token_hash = issue_player_token()
+    player = Player(id="endpoint-player")
+    db_session.add(player)
+    db_session.add(PlayerCredential(player_id=player.id, token_hash=token_hash))
+    game = Game(pgn="", moves=["e2e4"], owner_player_id=player.id)
+    db_session.add(game)
+    db_session.commit()
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+
+    await jobs.run_analysis_for_game(game, db_session)
+
+    positions_response = client.get(f"/v1/games/{game.id}/positions")
+    evidence_response = client.get(
+        f"/v1/players/{player.id}/evidence",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert positions_response.status_code == 200
+    assert positions_response.json()
+    assert all(position["analysis"] is not None for position in positions_response.json())
+    assert evidence_response.status_code == 200
+    assert evidence_response.json()["evidence_items"]
+
+
+@pytest.mark.asyncio
+async def test_every_constructed_evidence_is_persisted(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    constructed_evidence_ids: list[str] = []
+
+    def construct_evidence(**kwargs: object) -> Evidence:
+        evidence = Evidence(**kwargs)
+        constructed_evidence_ids.append(evidence.evidence_id)
+        return evidence
+
+    monkeypatch.setattr(jobs, "Evidence", construct_evidence)
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    game = Game(pgn="", moves=["e2e4"], owner_player_id="guard-player")
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session)
+
+    persisted_ids = {item.evidence_id for item in db_session.exec(select(Evidence)).all()}
+
+    assert persisted_ids
+    assert set(constructed_evidence_ids) == persisted_ids
