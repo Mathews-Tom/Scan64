@@ -174,3 +174,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M36, M37, M38, M42, and M43 retain the reconciled active/retired and observation-lifecycle contracts. The implementation stack may now start from `main`. |
 | Implementation authorization | `authorized` |
+
+## H-012
+
+| Field | Content |
+| --- | --- |
+| ID | `H-012` |
+| Timestamp | 2026-07-27T18:45:00Z |
+| Milestone | `M34` |
+| Decision | `DESIGN GO — PLAN REVISION: H-012` |
+| Trigger | M34 implementation-stack review found that review schedules were keyed by persisted analysis-lesson ids while the only M34 attempt path used famous-game content-item ids, and that a taxonomy rename could bypass the four-part observation idempotency key. |
+| Evidence | Review of final M34 heads #145–#150 confirmed the schedule writer stores canonical `str(PersistedLessonOpportunity.id)`, `api/content.py` can only submit a `ContentItem.id`, and M37 is the first planned generic lesson-attempt endpoint. The review also established that remapping only `SkillState` and `ReviewSchedule` lets a renamed diagnosis miss its old `ProfileObservation` idempotency row on re-analysis, and that `ProfileObservation` needs retirement metadata to retain unmappable and collided records without deleting a key. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M34 and M37; `.docs/EXECUTION_PROMPTS.md` M34 and M37. |
+| Downstream impact | M34 writes schedules only for persisted analysis lessons, remaps active `ProfileObservation` identities with the live taxonomy rows, and retains unmappable or collision-superseded observations with a reason. M37 owns advancing those schedules after resolving an owned persisted lesson through its generic endpoint; G15's historical `api/content.py` pointer is closed because content items cannot identify an M34 schedule. M36, M38, M42, and M43 retain their active/retired and lifecycle contracts; their design gates must verify canonicalized observation identity and owned lesson resolution. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M34 design` reviewed, green hosted `Quality`, and externally merged; rerun the M34 design gate after merge before product-code remediation. |
