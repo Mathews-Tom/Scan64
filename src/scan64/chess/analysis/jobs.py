@@ -100,7 +100,7 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
         _persist_position_analysis(
             game, fen_before, candidate.before_analysis, session, positions_by_fen
         )
-        _persist_position_analysis(
+        after_position = _persist_position_analysis(
             game, candidate.fen, candidate.after_analysis, session, positions_by_fen
         )
 
@@ -111,15 +111,16 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
         evidence = Evidence(
             evidence_id=f"ev_{uuid4()}",
             kind="blunder_analysis",
-            position_id=candidate.fen,
-            engine_analysis_id=str(uuid4()),
+            position_id=str(after_position.id),
+            engine_analysis_id=str(candidate.after_analysis.id),
             claim="a piece was left undefended and attacked after the move",
             payload=evidence_payload,
         )
+        session.add(evidence)
 
         opportunity = LearningOpportunity(
             opportunity_id=f"opp_{uuid4()}",
-            position_id=candidate.fen,
+            position_id=str(after_position.id),
             player_id=game.owner_player_id,
             game_id=str(game.id),
             played_move=san_moves[candidate.move_index],
