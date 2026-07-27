@@ -202,9 +202,16 @@ def execute_analysis_job(job_id: UUID) -> None:
             asyncio.run(run_analysis_for_game(game, session))
             job.status = "completed"
             job.completed_at = datetime.now(UTC)
-        except Exception as e:
-            job.status = "failed"
-            job.error = str(e)
+        except Exception as error:
+            session.rollback()
+            failed_job = session.get(AnalysisJob, job_id)
+            if failed_job is None:
+                return
+            failed_job.status = "failed"
+            failed_job.error = str(error)
+            session.add(failed_job)
+            session.commit()
+            return
 
         session.add(job)
         session.commit()

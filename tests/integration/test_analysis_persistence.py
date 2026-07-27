@@ -7,7 +7,7 @@ import pytest
 from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
-from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -122,3 +122,37 @@ async def test_consecutive_candidates_share_one_persisted_position(
 
     assert len(positions) == 3
     assert analysis_position_ids == persisted_position_ids
+
+
+def test_failed_analysis_job_rolls_back_partial_artifacts(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game = Game(pgn="", owner_player_id="player-1")
+    db_session.add(game)
+    db_session.flush()
+    job = AnalysisJob(game_id=game.id)
+    db_session.add(job)
+    db_session.commit()
+
+    async def partially_persist(_game: Game, session: Session) -> None:
+        session.add(
+            Position(
+                game_id=game.id,
+                fen="8/8/8/8/8/8/8/K6k w - - 0 1",
+                canonical_id="partial-artifact",
+                side_to_move="w",
+            )
+        )
+        raise RuntimeError("analysis failed")
+
+    monkeypatch.setattr(jobs, "run_analysis_for_game", partially_persist)
+
+    jobs.execute_analysis_job(job.id)
+
+    db_session.expire_all()
+    stored_job = db_session.get(AnalysisJob, job.id)
+
+    assert stored_job is not None
+    assert stored_job.status == "failed"
+    assert stored_job.error == "analysis failed"
+    assert db_session.exec(select(Position).where(Position.game_id == game.id)).all() == []
