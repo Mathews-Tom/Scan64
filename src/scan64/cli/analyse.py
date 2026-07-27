@@ -152,7 +152,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 best_move_san=best_move_san,
                 hints=[],
             )
-            lesson.explanation = await explanation_provider.explain(diagnosis)
+            lesson.explanation = await explanation_provider.explain(diagnosis, [evidence])
 
             try:
                 verify_lesson(lesson)
