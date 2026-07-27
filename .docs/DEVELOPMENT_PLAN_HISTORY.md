@@ -160,3 +160,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` §2, M34, M36, M37, M38, M42, and M43; `.docs/EXECUTION_PROMPTS.md` M34, M36, M37, M38, M42, and M43. |
 | Downstream impact | M34 now persists the non-null four-part observation key, stores `ReviewSchedule.skill_id`, retains retirement metadata on both live row types, applies a deterministic target-key collision merge, and ships a schema upgrade. M36 excludes retired rows from current mastery fields; M37 records valid retired-code attempts while explicitly skipping profile mutation; M38 selects active state and non-retired schedules; M42 includes `ProfileObservation` in the lifecycle contract; M43 assigns transfer work only from active concepts. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M34 design` reviewed, green hosted `Quality`, and externally merged; rerun the M34 design gate after merge before product code. |
+
+## H-011
+
+| Field | Content |
+| --- | --- |
+| ID | `H-011` |
+| Timestamp | 2026-07-27T12:22:19Z |
+| Milestone | `M34` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #143 merged to `main`. |
+| Evidence | `main` at `0270d857c72b60a4bc42628463ebb14f942a835c`; PR #143 is externally merged with successful hosted `Quality` run 30265396073. Re-read the reconciled M34 and downstream M36/M37/M38/M42/M43 plan and prompt contracts, H-010, source G5/G14/G15/G31, system design §§8.10, 9, and 21, M32/M33 PR and CI evidence, `content/tracking.py`, `profiling/priors.py`, `api/learning.py`, `analysis/jobs.py`, `SkillState`, `ReviewSchedule`, the Alembic chain, and taxonomy migration. The four-part non-null observation contract, schema upgrade, target-key collision merge, retained retirement contract, lifecycle edge, and downstream readers are mutually compatible. M31's owner-derived player attribution remains intact. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M36, M37, M38, M42, and M43 retain the reconciled active/retired and observation-lifecycle contracts. The implementation stack may now start from `main`. |
+| Implementation authorization | `authorized` |
