@@ -132,3 +132,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M33 scope, deliverables, acceptance, verification, reevaluation, risks, and M35 evidence contract; `.docs/EXECUTION_PROMPTS.md` M33 objective, PR-3, PR-4, PR-5, constraints, verification, and M35 preconditions, design read set, and PR-1/PR-2 scopes. |
 | Downstream impact | M34 reviewed — unchanged because it consumes player-attributed opportunities. M35 now consumes M33's provenance-bearing, code-specific evidence payload contract and must fail on absent required fields. M36, M37, M38, and M43 reviewed — unchanged; their existing reevaluation gates remain required. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M33 design` reviewed, green hosted `Quality`, and externally merged; reload both authoritative artifacts and rerun the M33 design gate before product code. |
+
+## H-009
+
+| Field | Content |
+| --- | --- |
+| ID | `H-009` |
+| Timestamp | 2026-07-27T05:13:01Z |
+| Milestone | `M33` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #136 merged to `main`. |
+| Evidence | `main` at `51347daf77e78c0c59486c34d02f83202e6cfddb`; PR #136 is externally merged with successful hosted `Quality` run 30238950712. Re-read the reconciled M33 and M35 plan/prompt contracts, H-008, source G6/G7, system design §§7.2–7.4 and §8.10, M31 PR evidence, `jobs.py`, `orchestration.py`, `registry.py`, `diagnosis_report.py`, and the `Diagnosis` contract. The reconciled production fixture, evidence-provenance, primary/secondary, precision, ownership, focused-pass, and M35 payload interfaces are mutually compatible. M31's ongoing `Game.owner_player_id` attribution remains intact. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M34 reviewed — unchanged; it consumes player-attributed opportunities. M35 reviewed — unchanged from H-008 and consumes the established provenance-bearing evidence contract. M36, M37, M38, and M43 reviewed — unchanged; their normal design reevaluation gates remain required. |
+| Implementation authorization | `authorized` |
