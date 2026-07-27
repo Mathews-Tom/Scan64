@@ -16,16 +16,18 @@ def test_get_daily_training_session(client: TestClient) -> None:
     assert response.status_code == 200
 
     data = response.json()
-    assert len(data) == 5 # Session size is 5 in our API
+    assert isinstance(data["session_id"], str)
+    lessons = data["lessons"]
+    assert len(lessons) == 5
 
-    lesson_ids = [item["lesson_id"] for item in data]
+    lesson_ids = [item["lesson_id"] for item in lessons]
 
     # Check that we have a mix of content types
     assert any("opening" in lid for lid in lesson_ids)
     assert any("endgame" in lid for lid in lesson_ids)
 
     # Verify actual sources behavior
-    for spec in data:
+    for spec in lessons:
         if "opening" in spec["lesson_id"]:
             # Penultimate move means fen is NOT starting fen
             assert spec["source"]["fen"] != (

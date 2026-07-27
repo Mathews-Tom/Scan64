@@ -73,9 +73,12 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
         "verification": {"status": "verified", "engine": "syzygy"},
     }
-
-    opp1 = PersistedLessonOpportunity(game_id=g1.id, lesson_spec=spec1)
-    opp2 = PersistedLessonOpportunity(game_id=g2.id, lesson_spec=spec2)
+    opp1 = PersistedLessonOpportunity(
+        game_id=g1.id, player_id=player_1, lesson_spec=spec1
+    )
+    opp2 = PersistedLessonOpportunity(
+        game_id=g2.id, player_id=player_2, lesson_spec=spec2
+    )
     db_session.add(opp1)
     db_session.add(opp2)
     db_session.commit()
@@ -85,18 +88,18 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     data1 = resp1.json()
 
     # Check if spec1 is present but not spec2
-    lesson_ids_1 = [item["lesson_id"] for item in data1]
-    assert spec1["lesson_id"] in lesson_ids_1
-    assert spec2["lesson_id"] not in lesson_ids_1
+    lesson_ids_1 = [item["lesson_id"] for item in data1["lessons"]]
+    assert str(opp1.id) in lesson_ids_1
+    assert str(opp2.id) not in lesson_ids_1
 
     # Query for player_2
     resp2 = client.get(f"/v1/learning/session?player_id={player_2}")
     assert resp2.status_code == 200
     data2 = resp2.json()
 
-    lesson_ids_2 = [item["lesson_id"] for item in data2]
-    assert spec2["lesson_id"] in lesson_ids_2
-    assert spec1["lesson_id"] not in lesson_ids_2
+    lesson_ids_2 = [item["lesson_id"] for item in data2["lessons"]]
+    assert str(opp2.id) in lesson_ids_2
+    assert str(opp1.id) not in lesson_ids_2
 
 
 def test_actual_transfer_selection(client: TestClient) -> None:
@@ -121,7 +124,7 @@ def test_actual_transfer_selection(client: TestClient) -> None:
     data = resp.json()
 
     # We should have at least one famous game in the session
-    lesson_ids = [item["lesson_id"] for item in data]
+    lesson_ids = [item["lesson_id"] for item in data["lessons"]]
     famous_game_prefix = "morphy-"  # all current famous games start with morphy-
     has_famous = any(lid.startswith(famous_game_prefix) for lid in lesson_ids)
 
@@ -152,7 +155,7 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
     response = client.get(f"/v1/learning/session?player_id={player_id}")
     assert response.status_code == 200
 
-    lesson_ids = [item["lesson_id"] for item in response.json()]
+    lesson_ids = [item["lesson_id"] for item in response.json()["lessons"]]
     assert lesson_ids.index("morphy-opera-1858_opera-open-lines") < lesson_ids.index(
         "morphy-paulsen-1857_paulsen-outpost"
     )

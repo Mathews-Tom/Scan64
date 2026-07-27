@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
@@ -67,3 +68,23 @@ class ContentAttempt(SQLModel, table=True):
 
     # Specifics of what the learner answered, hints used, etc.
     response_payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class LessonAttempt(SQLModel, table=True):
+    """A player submission against a generated lesson or local opening mission."""
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    session_id: str = Field(foreign_key="studysession.id", index=True)
+    player_id: str = Field(index=True)
+    lesson_id: str = Field(index=True)
+    source_kind: str = Field(index=True)
+    opportunity_id: UUID | None = Field(
+        default=None, foreign_key="persistedlessonopportunity.id", index=True
+    )
+    submitted_move: str | None = Field(default=None)
+    elapsed_ms: int = Field(ge=0)
+    hints_used: int = Field(ge=0)
+    success: bool | None = Field(default=None)
+    grading_status: str
+    profile_update_result: str
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

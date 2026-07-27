@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from sqlmodel import Session
@@ -78,3 +80,35 @@ def apply_analysis_observation(
         )
     )
     return True
+
+
+def apply_lesson_attempt(
+    session: Session,
+    player_id: str,
+    skill_id: str,
+    success: bool,
+    hint_assisted: bool,
+    rating: int,
+    observed_at: datetime,
+) -> str:
+    """Apply a verified lesson result unless its taxonomy state is retired."""
+    skill = session.get(SkillState, (player_id, skill_id))
+    if skill is not None and skill.retired_at is not None:
+        return "skipped_retired"
+    if skill is None:
+        prior_alpha, prior_beta = get_prior_for_rating(rating)
+        skill = SkillState(
+            player_id=player_id,
+            concept_code=skill_id,
+            alpha=prior_alpha,
+            beta=prior_beta,
+            prior_alpha=prior_alpha,
+            prior_beta=prior_beta,
+        )
+    skill.apply_observation(
+        success=success,
+        hint_assisted=hint_assisted,
+        timestamp=observed_at,
+    )
+    session.add(skill)
+    return "applied"
