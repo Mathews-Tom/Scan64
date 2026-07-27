@@ -4,6 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
+from scan64.api.models import Player
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -36,10 +37,14 @@ def client_fixture(session: Session):
     app.dependency_overrides.clear()
 
 def test_play_from_here_api_flow(client: TestClient, session: Session):
+    player = Player(id="test_user")
+    session.add(player)
+    session.commit()
+
     # 1. Create a game with a specific FEN
     fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
     pgn = f'[FEN "{fen}"]\n[SetUp "1"]\n\n'
-    response = client.post("/v1/games", json={"pgn": pgn})
+    response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
     assert response.status_code == 200
     game_id = response.json()["id"]
 

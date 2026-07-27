@@ -57,12 +57,15 @@ def test_create_play_session(session: Session):
     assert play_session.status == "active"
 
 
-def test_create_get_game(client: TestClient):
+def test_create_get_game(client: TestClient, session: Session):
+    player = Player(id="game-player")
+    session.add(player)
+    session.commit()
     pgn = (
         '[Event "Casual Game"]\n[White "Alice"]\n[Black "Bob"]\n'
         '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
     )
-    response = client.post("/v1/games", json={"pgn": pgn})
+    response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
     assert response.status_code == 200
     data = response.json()
     assert data["white"] == "Alice"
@@ -75,9 +78,12 @@ def test_create_get_game(client: TestClient):
     assert response2.json()["id"] == game_id
 
 
-def test_create_get_analysis_job(client: TestClient):
+def test_create_get_analysis_job(client: TestClient, session: Session):
+    player = Player(id="analysis-player")
+    session.add(player)
+    session.commit()
     pgn = '[Event "Casual Game"]\n\n1. e4 e5 2. Nf3 Nc6'
-    game_response = client.post("/v1/games", json={"pgn": pgn})
+    game_response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
     game_id = game_response.json()["id"]
 
     job_response = client.post(f"/v1/games/{game_id}/analysis-jobs")
