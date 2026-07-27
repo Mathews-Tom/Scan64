@@ -9,7 +9,7 @@ from chess_lesson_spec import Diagnosis, LessonSpec
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
 from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import InvalidGameError, ingest_pgn
-from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
@@ -68,7 +68,6 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
     detector = HangingPieceDetector()
-    explanation_provider = TemplateExplanationProvider()
     ctx = PlayerContext(player_id="cli_player")
 
     lessons: list[LessonSpec] = []
@@ -152,7 +151,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 best_move_san=best_move_san,
                 hints=[],
             )
-            lesson.explanation = await explanation_provider.explain(diagnosis, [evidence])
+            lesson.explanation = await resolve_explanation(diagnosis, [evidence], fen_before)
 
             try:
                 verify_lesson(lesson)
