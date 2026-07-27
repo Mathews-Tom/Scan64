@@ -214,14 +214,23 @@ export interface PlayerProfileRead {
   display_name: string | null;
 }
 
-export interface PatternRead {
-  description?: string;
-  rule_id?: string;
+export interface DiagnosisPatternRead {
+  diagnosis: string;
+  occurrence_count: number;
+  game_ids: string[];
+  evidence_references: string[];
 }
+
+export type PatternReportStatus =
+  | 'insufficient_data'
+  | 'no_recurring_diagnosis'
+  | 'recurring_diagnosis';
 
 export interface PatternsReport {
   player_id: string;
-  recurring_habits: PatternRead[];
+  minimum_occurrences: number;
+  status: PatternReportStatus;
+  recurring_diagnoses: DiagnosisPatternRead[];
 }
 
 export interface EvidenceItemRead {

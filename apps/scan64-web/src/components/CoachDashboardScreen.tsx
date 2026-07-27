@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ApiClient, getOrCreatePlayerId } from '../api/client';
-import type { CoachDashboard, PatternRead } from '../api/types';
+import type { CoachDashboard, DiagnosisPatternRead } from '../api/types';
 import './CoachDashboardScreen.css';
 
-function patternLabel(pattern: PatternRead, index: number): string {
-  if (pattern.description) return pattern.description;
-  if (pattern.rule_id) return pattern.rule_id;
-  return `Observed pattern ${index + 1}`;
+function patternLabel(pattern: DiagnosisPatternRead): string {
+  return `${pattern.diagnosis}: ${pattern.occurrence_count} games`;
 }
 
 function evidenceSourceLabel(producer: Record<string, unknown>): string | null {
@@ -82,18 +80,20 @@ export function CoachDashboardScreen() {
               </header>
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-patterns`}>
-                <h4 id={`${student.student_id}-patterns`}>Observed patterns</h4>
-                {student.patterns.recurring_habits.length === 0 ? (
-                  <p className="coach-student__muted">No recurring habits have met the evidence threshold.</p>
-                ) : (
+                <h4 id={`${student.student_id}-patterns`}>Recurring diagnoses</h4>
+                {student.patterns.status === 'insufficient_data' ? (
+                  <p className="coach-student__muted">More analysed games are needed before recurrence can be assessed.</p>
+                ) : null}
+                {student.patterns.status === 'no_recurring_diagnosis' ? (
+                  <p className="coach-student__muted">No diagnosis has recurred across {student.patterns.minimum_occurrences} games.</p>
+                ) : null}
+                {student.patterns.recurring_diagnoses.length > 0 ? (
                   <ul className="coach-student__patterns">
-                    {student.patterns.recurring_habits.map((pattern, index) => (
-                      <li key={pattern.rule_id ?? `${student.student_id}-${index}`}>
-                        {patternLabel(pattern, index)}
-                      </li>
+                    {student.patterns.recurring_diagnoses.map((pattern) => (
+                      <li key={pattern.diagnosis}>{patternLabel(pattern)}</li>
                     ))}
                   </ul>
-                )}
+                ) : null}
               </section>
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-evidence`}>

@@ -71,12 +71,17 @@ export function ProfileScreen() {
       </section>
 
       <section>
-        <h3>Recurring Habits</h3>
+        <h3>Recurring Diagnoses</h3>
         <ul>
-          {patterns.recurring_habits.length === 0 ? <li>No habits identified yet.</li> : null}
-          {patterns.recurring_habits.map((habit, index) => (
-            <li key={`${habit.rule_id ?? 'pattern'}-${index}`}>
-              {habit.description ?? habit.rule_id ?? 'Observed pattern'}
+          {patterns.status === 'insufficient_data' ? (
+            <li>More analysed games are needed before recurrence can be assessed.</li>
+          ) : null}
+          {patterns.status === 'no_recurring_diagnosis' ? (
+            <li>No diagnosis has recurred across {patterns.minimum_occurrences} games.</li>
+          ) : null}
+          {patterns.recurring_diagnoses.map((diagnosis) => (
+            <li key={diagnosis.diagnosis}>
+              {diagnosis.diagnosis}: {diagnosis.occurrence_count} games
             </li>
           ))}
         </ul>
