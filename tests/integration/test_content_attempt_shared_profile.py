@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 
-from scan64.content import ContentAttempt, ContentItem, apply_content_attempt_to_profile
+from scan64.content import ContentAttempt, ContentItem
 from scan64.learning.profiling.models import SkillState
+from scan64.learning.profiling.profile_update import apply_content_attempt
 
 
 def test_content_attempt_updates_skill_state():
@@ -29,7 +30,7 @@ def test_content_attempt_updates_skill_state():
     )
 
     # 4. Apply attempt to profile
-    updated_skills = apply_content_attempt_to_profile(attempt, item, [existing_skill])
+    updated_skills = apply_content_attempt(attempt, item, [existing_skill])
 
     # 5. Verify the skill was updated (success=True increases alpha by 1.0)
     assert len(updated_skills) == 2

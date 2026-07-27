@@ -1,11 +1,11 @@
 from datetime import UTC, datetime
 
 from scan64.content.models import ContentAttempt, ContentItem
-from scan64.content.tracking import apply_content_attempt_to_profile
 from scan64.learning.profiling.models import SkillState
+from scan64.learning.profiling.profile_update import apply_content_attempt
 
 
-def test_tracking_success_updates_existing_skill_with_attempt_timestamp() -> None:
+def test_profile_update_success_updates_existing_skill_with_attempt_timestamp() -> None:
     player_id = "player-1"
     completed_at = datetime(2026, 7, 27, 12, 0, tzinfo=UTC)
     attempt = ContentAttempt(
@@ -29,7 +29,7 @@ def test_tracking_success_updates_existing_skill_with_attempt_timestamp() -> Non
         beta=3.0,
     )
 
-    updated = apply_content_attempt_to_profile(attempt, item, [skill])
+    updated = apply_content_attempt(attempt, item, [skill])
 
     assert updated == [skill]
     assert skill.alpha == 3.0
@@ -37,7 +37,7 @@ def test_tracking_success_updates_existing_skill_with_attempt_timestamp() -> Non
     assert skill.last_updated == completed_at
 
 
-def test_tracking_failure_creates_only_positive_weight_skill() -> None:
+def test_profile_update_failure_creates_only_positive_weight_skill() -> None:
     player_id = "player-1"
     attempt = ContentAttempt(
         item_id="famous-game",
@@ -60,7 +60,7 @@ def test_tracking_failure_creates_only_positive_weight_skill() -> None:
         beta=2.0,
     )
 
-    updated = apply_content_attempt_to_profile(attempt, item, [unrelated])
+    updated = apply_content_attempt(attempt, item, [unrelated])
 
     assert [(skill.player_id, skill.concept_code) for skill in updated] == [
         (player_id, "tactics.sacrifice")

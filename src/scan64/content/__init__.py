@@ -1,4 +1,5 @@
-from .models import ContentAttempt, ContentItem, StudySession
-from .tracking import apply_content_attempt_to_profile
+from .models import ContentAttempt as ContentAttempt
+from .models import ContentItem as ContentItem
+from .models import StudySession as StudySession
 
-__all__ = ["ContentItem", "StudySession", "ContentAttempt", "apply_content_attempt_to_profile"]
+__all__ = ["ContentAttempt", "ContentItem", "StudySession"]
