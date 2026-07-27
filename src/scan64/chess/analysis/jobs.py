@@ -5,8 +5,9 @@ import chess
 from chess_lesson_spec import Diagnosis
 from sqlmodel import Session
 
-from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
@@ -46,6 +47,15 @@ def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
     return None
 
 
+def _persist_position_analysis(
+    game: Game, fen: str, analysis: EngineAnalysis, session: Session
+) -> None:
+    position = ingest_fen(fen, game.id)
+    analysis.position_id = position.id
+    session.add(position)
+    session.add(analysis)
+
+
 async def run_analysis_for_game(game: Game, session: Session) -> None:
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
@@ -71,6 +81,10 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
         fens_before.append(board.fen())
 
     for candidate in candidates:
+        fen_before = fens_before[candidate.move_index]
+        _persist_position_analysis(game, fen_before, candidate.before_analysis, session)
+        _persist_position_analysis(game, candidate.fen, candidate.after_analysis, session)
+
         evidence_payload = _classify_hanging_piece(candidate.fen)
         if evidence_payload is None:
             continue
