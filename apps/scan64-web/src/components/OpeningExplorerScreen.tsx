@@ -6,6 +6,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
+import { ApiClient } from '../api/client';
 
 interface OpeningMission {
   id: string;
@@ -88,6 +89,8 @@ export function OpeningExplorerScreen() {
   const [cg, setCg] = useState<Api | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<OpeningFamily | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [recordedMissionId, setRecordedMissionId] = useState<string | null>(null);
   const chessRef = useRef(new Chess());
 
   useEffect(() => {
@@ -104,6 +107,12 @@ export function OpeningExplorerScreen() {
       setCg(api);
     }
   }, [cg]);
+
+  useEffect(() => {
+    void ApiClient.getTrainingSession()
+      .then(session => setSessionId(session.session_id))
+      .catch(() => setError('Could not create an opening study session.'));
+  }, []);
 
   useEffect(() => {
     if (!cg) return;
@@ -147,6 +156,26 @@ export function OpeningExplorerScreen() {
     if (cg) syncBoard(chessRef.current, cg);
   };
 
+  const recordMission = async (mission: OpeningMission) => {
+    if (sessionId === null) {
+      setError('Opening study session is still loading.');
+      return;
+    }
+    try {
+      await ApiClient.recordLessonAttempt({
+        session_id: sessionId,
+        lesson_id: `opening-mission:${mission.id}`,
+        source_kind: 'opening_mission',
+        elapsed_ms: 0,
+        hints_used: 0,
+      });
+      setRecordedMissionId(mission.id);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not record opening mission.');
+    }
+  };
+
   return (
     <div className="opening-explorer" data-testid="opening-explorer">
       <h2>Opening Explorer</h2>
@@ -174,6 +203,9 @@ export function OpeningExplorerScreen() {
               {selectedFamily.missions.map(mission => (
                 <li key={mission.id}>
                   <strong>{mission.invariant_type}:</strong> {mission.description}
+                  <button onClick={() => void recordMission(mission)} disabled={sessionId === null}>
+                    {recordedMissionId === mission.id ? 'Recorded' : 'Record mission'}
+                  </button>
                 </li>
               ))}
             </ul>
