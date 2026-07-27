@@ -10,8 +10,11 @@ from scan64.api.models import Player
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.content.openings.curated import OPENING_FAMILIES
+from scan64.content.openings.models import OpeningFamilyPayload
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
+from scan64.learning.scheduling.opening_rotation import classify_opening_family
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["reports"])
@@ -193,11 +196,79 @@ def get_player_patterns(
     return read_player_patterns(player_id, session)
 
 
+class OpeningFamilyReport(BaseModel):
+    family_id: str
+    name: str
+    game_count: int
+    error_rate: float
+    eligible_result_count: int
+    excluded_result_count: int
+    win_rate: float | None
+
+
+class OpeningsReport(BaseModel):
+    player_id: str
+    openings: list[OpeningFamilyReport]
+
+
+def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
+    if session.get(Player, player_id) is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    families = [
+        OpeningFamilyPayload.model_validate(item.payload) for item in OPENING_FAMILIES
+    ]
+    games = session.exec(select(Game).where(Game.owner_player_id == player_id)).all()
+    opportunity_game_ids = {
+        opportunity.game_id
+        for opportunity in session.exec(
+            select(PersistedLessonOpportunity)
+            .join(Game, col(PersistedLessonOpportunity.game_id) == Game.id)
+            .where(Game.owner_player_id == player_id)
+        ).all()
+    }
+    grouped: dict[str, list[Game]] = defaultdict(list)
+    for game in games:
+        family_id = classify_opening_family(game.moves, families)
+        if family_id is not None:
+            grouped[family_id].append(game)
+
+    reports: list[OpeningFamilyReport] = []
+    family_by_id = {family.family_id: family for family in families}
+    for family_id, family_games in sorted(grouped.items()):
+        eligible_games = [
+            game for game in family_games if player_id in {game.white, game.black}
+        ]
+        wins = sum(
+            (game.result == "1-0" and game.white == player_id)
+            or (game.result == "0-1" and game.black == player_id)
+            for game in eligible_games
+        )
+        reports.append(
+            OpeningFamilyReport(
+                family_id=family_id,
+                name=family_by_id[family_id].name,
+                game_count=len(family_games),
+                error_rate=sum(game.id in opportunity_game_ids for game in family_games)
+                / len(family_games),
+                eligible_result_count=len(eligible_games),
+                excluded_result_count=len(family_games) - len(eligible_games),
+                win_rate=wins / len(eligible_games) if eligible_games else None,
+            )
+        )
+    return OpeningsReport(player_id=player_id, openings=reports)
+
+
 @router.get("/v1/reports/weekly")
 def get_weekly_report(player_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
     return {"player_id": player_id, "summary": "Weekly summary"}
 
 
-@router.get("/v1/reports/openings")
-def get_openings_report(player_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
-    return {"player_id": player_id, "openings": []}
+@router.get("/v1/reports/openings", response_model=OpeningsReport)
+def get_openings_report(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> OpeningsReport:
+    require_player_token(request, player_id, session)
+    return read_openings_report(player_id, session)

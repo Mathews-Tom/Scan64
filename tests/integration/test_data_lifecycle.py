@@ -391,5 +391,11 @@ def test_reports_endpoints(client: TestClient, db_session: Session):
     resp = client.get(f"/v1/reports/weekly?player_id={player_id}")
     assert resp.status_code == 200
 
-    resp = client.get(f"/v1/reports/openings?player_id={player_id}")
-    assert resp.status_code == 200
+    response = client.get(
+        f"/v1/reports/openings?player_id={player_id}",
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/v1/reports/openings?player_id={player_id}")
+    assert response.status_code == 401

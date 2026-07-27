@@ -121,3 +121,44 @@ def test_patterns_distinguishes_insufficient_data_from_no_recurrence(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert no_recurrence.json()["status"] == "no_recurring_diagnosis"
+
+
+def test_openings_report_uses_owned_game_families(client: TestClient, db_session: Session) -> None:
+    player_id = "opening-player"
+    token = create_player_token(client, player_id)
+    game = Game(
+        pgn="1. e4 e5 2. Nf3 Nc6 3. Bc4",
+        moves=["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"],
+        owner_player_id=player_id,
+        white=player_id,
+        black="Opponent",
+        result="1-0",
+    )
+    imported = Game(
+        pgn="1. e4 e5 2. Nf3 Nc6 3. Bc4",
+        moves=["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"],
+        owner_player_id=player_id,
+        white="Imported White",
+        black="Imported Black",
+        result="0-1",
+    )
+    db_session.add_all([game, imported])
+    db_session.commit()
+
+    response = client.get(
+        f"/v1/reports/openings?player_id={player_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["openings"] == [
+        {
+            "family_id": "italian",
+            "name": "Italian Game",
+            "game_count": 2,
+            "error_rate": 0.0,
+            "eligible_result_count": 1,
+            "excluded_result_count": 1,
+            "win_rate": 1.0,
+        }
+    ]
