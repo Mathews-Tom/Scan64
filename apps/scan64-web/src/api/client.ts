@@ -28,6 +28,8 @@ const PLAYER_TOKEN_STORAGE_PREFIX = 'scan64_player_token:';
 
 const PLAYER_ID_STORAGE_KEY = 'scan64_player_id';
 
+const pendingPlayerAuthorizations = new Map<string, Promise<void>>();
+
 export function getOrCreatePlayerId(): string {
   const existingPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
   if (existingPlayerId) return existingPlayerId;
@@ -35,6 +37,22 @@ export function getOrCreatePlayerId(): string {
   const playerId = crypto.randomUUID();
   localStorage.setItem(PLAYER_ID_STORAGE_KEY, playerId);
   return playerId;
+}
+
+async function ensurePlayerAuthorization(playerId: string): Promise<void> {
+  if (localStorage.getItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${playerId}`) !== null) return;
+  const existing = pendingPlayerAuthorizations.get(playerId);
+  if (existing !== undefined) {
+    await existing;
+    return;
+  }
+  const request = ApiClient.createPlayer({ id: playerId, display_name: 'Anonymous' }).then(() => undefined);
+  pendingPlayerAuthorizations.set(playerId, request);
+  try {
+    await request;
+  } finally {
+    pendingPlayerAuthorizations.delete(playerId);
+  }
 }
 
 /**
@@ -192,6 +210,7 @@ export class ApiClient {
 
   static async getTrainingSession(): Promise<TrainingSessionRead> {
     const playerId = getOrCreatePlayerId();
+    await ensurePlayerAuthorization(playerId);
     const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch training session: ${response.statusText}`);

@@ -100,6 +100,28 @@ describe('ApiClient', () => {
     });
   });
 
+  it('creates a player before requesting a training session without a stored token', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'player-1', preferences: {}, access_token: 'token-1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session_id: 'study-1', lessons: [] }),
+      });
+
+    await ApiClient.getTrainingSession();
+
+    expect(mockFetch).toHaveBeenNthCalledWith(1, '/v1/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'player-1', display_name: 'Anonymous' }),
+    });
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/learning/session?player_id=player-1');
+  });
+
   it('sends the player bearer token for player reports', async () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch
