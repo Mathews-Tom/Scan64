@@ -13,9 +13,17 @@ from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.plugins.registry import PluginRegistry
 
 HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
+
+
+def _seeded_detector_registry() -> PluginRegistry:
+    registry = PluginRegistry()
+    register_seeded_detectors(registry)
+    return registry
 
 
 class _CandidateOrchestrator:
@@ -100,7 +108,7 @@ async def test_candidate_positions_and_analyses_are_persisted(
     db_session.add(game)
     db_session.commit()
 
-    await jobs.run_analysis_for_game(game, db_session)
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
 
     positions = db_session.exec(select(Position).where(Position.game_id == game.id)).all()
     analyses = db_session.exec(select(EngineAnalysis)).all()
@@ -131,7 +139,7 @@ async def test_consecutive_candidates_share_one_persisted_position(
     db_session.add(game)
     db_session.commit()
 
-    await jobs.run_analysis_for_game(game, db_session)
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
 
     positions = db_session.exec(select(Position).where(Position.game_id == game.id)).all()
     analyses = db_session.exec(select(EngineAnalysis)).all()
@@ -222,7 +230,7 @@ async def test_every_constructed_evidence_is_persisted(
     db_session.add(game)
     db_session.commit()
 
-    await jobs.run_analysis_for_game(game, db_session)
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
 
     persisted_ids = {item.evidence_id for item in db_session.exec(select(Evidence)).all()}
 

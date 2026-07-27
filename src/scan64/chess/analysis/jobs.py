@@ -12,12 +12,29 @@ from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.templates.provider import TemplateExplanationProvider
-from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.plugins.host_registry import get_host_registry
+from scan64.learning.plugins.interfaces import PatternDetector
+from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+
+
+def _resolve_pattern_detectors(
+    registry: PluginRegistry | None = None,
+) -> tuple[PatternDetector, ...]:
+    active_registry = registry if registry is not None else get_host_registry()
+    detectors: list[PatternDetector] = []
+    for name in active_registry.names(kind=PluginKind.PATTERN_DETECTOR):
+        detector = active_registry.get(kind=PluginKind.PATTERN_DETECTOR, name=name)
+        if not isinstance(detector, PatternDetector):
+            raise RuntimeError(f"Registered detector {name!r} violates the plugin contract")
+        detectors.append(detector)
+    if not detectors:
+        raise RuntimeError("The host plugin registry has no pattern detectors")
+    return tuple(detectors)
 
 
 def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
@@ -61,7 +78,11 @@ def _persist_position_analysis(
     return position
 
 
-async def run_analysis_for_game(game: Game, session: Session) -> None:
+async def run_analysis_for_game(
+    game: Game,
+    session: Session,
+    registry: PluginRegistry | None = None,
+) -> None:
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
 
@@ -69,7 +90,7 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
     orchestrator = FastPassOrchestrator(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
-    detector = HangingPieceDetector()
+    detectors = _resolve_pattern_detectors(registry)
     explanation_provider = TemplateExplanationProvider()
     ctx = PlayerContext(player_id=game.owner_player_id)
 
@@ -120,7 +141,9 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
             engine_eval_after=-(candidate.swing_cp / 100.0),
         )
 
-        diagnosis_candidates = await detector.detect(opportunity, [evidence], ctx)
+        diagnosis_candidates = []
+        for detector in detectors:
+            diagnosis_candidates.extend(await detector.detect(opportunity, [evidence], ctx))
         if not diagnosis_candidates:
             continue
 
