@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -17,16 +18,6 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
-
-
-def _uci_moves_to_san(uci_moves: list[str]) -> list[str]:
-    board = chess.Board()
-    san_moves = []
-    for uci in uci_moves:
-        move = chess.Move.from_uci(uci)
-        san_moves.append(board.san(move))
-        board.push(move)
-    return san_moves
 
 
 def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
@@ -82,13 +73,14 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
     explanation_provider = TemplateExplanationProvider()
     ctx = PlayerContext(player_id=game.owner_player_id)
 
-    san_moves = _uci_moves_to_san(game.moves)
+    initial_fen = game.headers.get("FEN")
+    san_moves = uci_moves_to_san(game.moves, initial_fen)
     if not san_moves:
         return
 
-    candidates = await orchestrator.run_fast_pass(san_moves)
+    candidates = await orchestrator.run_fast_pass(san_moves, initial_fen)
 
-    board = chess.Board()
+    board = board_from(initial_fen)
     fens_before = [board.fen()]
     for san in san_moves:
         board.push_san(san)

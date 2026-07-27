@@ -8,7 +8,7 @@ from sqlalchemy import case
 from sqlmodel import Session, col, select
 
 from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
-from scan64.chess.analysis.jobs import execute_analysis_job
+from scan64.chess.analysis.inflight import analysis_limiter
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -174,7 +174,7 @@ def create_analysis_job(
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(execute_analysis_job, job.id)
+    background_tasks.add_task(analysis_limiter.submit, game.owner_player_id, job.id)
     return job
 
 

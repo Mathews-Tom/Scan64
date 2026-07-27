@@ -5,6 +5,7 @@ import chess
 from sqlalchemy import update
 from sqlmodel import Session, col
 
+from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import participants, player_color
 from scan64.chess.games.pgn import CorruptGameError, build_pgn
@@ -34,6 +35,7 @@ class PlaySessionService:
         self.stockfish_provider = stockfish_provider
         self.maia_config = maia_config
         self.maia_config_path = maia_config_path
+        self.pending_analysis: list[tuple[str, UUID]] = []
 
     def opponent_provider_for(self, opponent_config: dict[str, str]) -> OpponentPolicy:
         provider_name = opponent_config.get("provider", "stockfish")
@@ -100,6 +102,14 @@ class PlaySessionService:
             game.date = game.date or game.created_at.strftime("%Y.%m.%d")
             game.pgn = build_pgn(game)
             self.db.add(game)
+
+            if game.owner_player_id is not None and game.moves:
+                job = AnalysisJob(game_id=game.id)
+                self.db.add(job)
+                self.db.commit()
+                self.db.refresh(job)
+                self.pending_analysis.append((game.owner_player_id, job.id))
+                return
 
         self.db.commit()
 

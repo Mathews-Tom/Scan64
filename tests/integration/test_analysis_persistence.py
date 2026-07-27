@@ -22,7 +22,9 @@ class _CandidateOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_fast_pass(self, _: list[str]) -> list[CandidatePosition]:
+    async def run_fast_pass(
+        self, _: list[str], initial_fen: str | None = None
+    ) -> list[CandidatePosition]:
         board = chess.Board()
         board.push_san("e4")
         analysis = EngineAnalysis(
@@ -50,7 +52,9 @@ class _ConsecutiveCandidateOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_fast_pass(self, _: list[str]) -> list[CandidatePosition]:
+    async def run_fast_pass(
+        self, _: list[str], initial_fen: str | None = None
+    ) -> list[CandidatePosition]:
         board = chess.Board()
         before_analysis = EngineAnalysis(
             position_id=uuid4(),

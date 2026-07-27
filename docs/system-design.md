@@ -278,6 +278,8 @@ sequenceDiagram
 
 **Planning number:** ≈1–2 CPU-minutes of engine time per fully analysed game. A 1,000-game historical import is a background batch job (≈15–30 CPU-hours), never an interactive request — this is why interactive and batch engine pools are kept separate with independent concurrency limits and admission control (a per-player daily quota on bulk-import focused analysis).
 
+Until pooled admission control lands, a finished play session enqueues its analysis behind an interim per-player in-flight cap. `SCAN64_ANALYSIS_IN_FLIGHT_CAP` sets it (default `2`, minimum `1`); work beyond the cap is queued in-process, never dropped.
+
 ---
 
 ## 7. Exercise-generation workflow
