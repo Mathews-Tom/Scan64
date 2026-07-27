@@ -22,6 +22,7 @@ from scan64.chess.positions.models import Position
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
 HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
 
@@ -204,6 +205,10 @@ async def test_production_job_persists_arbitrated_secondary_diagnoses(
     diagnosis = persisted.lesson_spec["diagnosis"]
     assert diagnosis["primary"] == "board_awareness.hanging_piece"
     assert diagnosis["secondary"] == ["threat_processing.missed_direct_threat"]
+    schedule = db_session.get(ReviewSchedule, ("player-1", str(persisted.id)))
+    assert schedule is not None
+    assert schedule.skill_id == diagnosis["primary"]
+    assert schedule.next_review_at is not None
 
 @pytest.mark.asyncio
 async def test_consecutive_candidates_share_one_persisted_position(
