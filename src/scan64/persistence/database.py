@@ -9,6 +9,10 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Connection, Engine
 from sqlmodel import Session, create_engine
 
+from scan64.learning.diagnosis.taxonomy.migration import (
+    DEFAULT_MIGRATION_TABLE,
+    migrate_live_rows,
+)
 from scan64.persistence.models import load_models
 
 sqlite_file_name = "database.db"
@@ -48,6 +52,8 @@ def migrate_database(database_engine: Engine) -> None:
 
 def create_db_and_tables() -> None:
     migrate_database(engine)
+    with Session(engine) as session:
+        migrate_live_rows(session, DEFAULT_MIGRATION_TABLE)
 
 
 def get_session() -> Generator[Session, None, None]:
