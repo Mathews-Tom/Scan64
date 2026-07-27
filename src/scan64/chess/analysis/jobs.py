@@ -1,10 +1,12 @@
 import asyncio
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import chess
 from chess_lesson_spec import Diagnosis
 from sqlmodel import Session, select
 
+from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import (
     FastPassConfig,
@@ -24,6 +26,7 @@ from scan64.learning.exercises.exact_replay import generate_exact_replay_exercis
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
+from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
@@ -41,8 +44,6 @@ def _resolve_pattern_detectors(
     if not detectors:
         raise RuntimeError("The host plugin registry has no pattern detectors")
     return tuple(detectors)
-
-
 
 
 def _persist_position_analysis(
@@ -112,9 +113,7 @@ async def run_analysis_for_game(
             game, candidate.fen, candidate.after_analysis, session, positions_by_fen
         )
 
-        _persist_position_analysis(
-            game, candidate.fen, focused_analysis, session, positions_by_fen
-        )
+        _persist_position_analysis(game, candidate.fen, focused_analysis, session, positions_by_fen)
         evidence = compose_candidate_evidence(
             before_board=board_from(fen_before),
             after_board=board_from(candidate.fen),
@@ -165,6 +164,17 @@ async def run_analysis_for_game(
             secondary=[candidate.skill_id for candidate in secondary],
             confidence=best.confidence,
             evidence_refs=best.evidence_ids,
+        )
+
+        profile = session.get(PlayerProfile, game.owner_player_id)
+        apply_analysis_observation(
+            session=session,
+            player_id=game.owner_player_id,
+            game_id=str(game.id),
+            position_id=str(after_position.id),
+            skill_id=best.skill_id,
+            rating=profile.rating if profile is not None else 1500,
+            observed_at=datetime.now(UTC),
         )
 
         lesson = await generate_exact_replay_exercise(

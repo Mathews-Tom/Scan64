@@ -1,7 +1,23 @@
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Field, SQLModel
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+class ProfileObservation(SQLModel, table=True):
+    """A deduplicated diagnosis observation applied to a player profile."""
+
+    player_id: str = Field(primary_key=True)
+    game_id: str = Field(primary_key=True)
+    position_id: str = Field(primary_key=True)
+    skill_id: str = Field(primary_key=True)
+    observed_at: datetime
 
 
 class SkillState(SQLModel, table=True):
@@ -22,12 +38,14 @@ class SkillState(SQLModel, table=True):
     prior_beta: float = Field(default=1.0)
 
     last_updated: datetime | None = Field(default=None)
+    retired_at: datetime | None = Field(default=None)
+    retirement_reason: str | None = Field(default=None)
 
     def _decay(self, current_time: datetime, tau_days: float = 90.0) -> None:
         if self.last_updated is None:
             return
 
-        dt = (current_time - self.last_updated).total_seconds() / (24 * 3600)
+        dt = (_as_utc(current_time) - _as_utc(self.last_updated)).total_seconds() / (24 * 3600)
         if dt <= 0:
             return
 

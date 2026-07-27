@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from scan64.coach.models import CoachStudentLink  # noqa: F401
     from scan64.learning.evidence.models import Evidence  # noqa: F401
     from scan64.learning.exercises.transfer import TransferPosition  # noqa: F401
+    from scan64.learning.profiling.models import ProfileObservation, SkillState  # noqa: F401
 
     create_db_and_tables()
     app.state.plugin_registry = initialize_host_registry()
