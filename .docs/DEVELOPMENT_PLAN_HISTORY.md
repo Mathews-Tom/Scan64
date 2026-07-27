@@ -328,3 +328,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M37 product work may resume against the reconciled context contract; M38 and M43 retain their stated boundaries. |
 | Implementation authorization | `authorized` |
+
+## H-023
+
+| Field | Content |
+| --- | --- |
+| ID | `H-023` |
+| Timestamp | 2026-07-28T03:20:00Z |
+| Milestone | `M37` |
+| Decision | `DESIGN NO-GO — PLAN REVISION: H-023` |
+| Trigger | Post-merge manual Daily Training walkthrough on `main` returned `422` when a static lesson was submitted to the M37 attempt endpoint. |
+| Evidence | `api/learning.py:161-199` adds static endgame, opening, and famous-game specs to the Daily Training pool; `api/learning.py:201-214` alone maps an owned `PersistedLessonOpportunity` to its canonical UUID. The live served lesson id `morphy-opera-1858_opera-open-lines` cannot resolve to an owned opportunity. The generic endpoint correctly rejects it, because only a persisted opportunity can identify M34's schedule and skill. `PersistedLessonOpportunity.game_id` remains required, so creating synthetic rows for static catalog entries would violate M31/M34 ownership provenance. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37, M38, and M43; `.docs/EXECUTION_PROMPTS.md` M37, M38, and M43. |
+| Downstream impact | M37 must establish Daily Training source eligibility: profile-recording lessons are exclusively player-owned persisted opportunities, while no eligible opportunity produces an explicit empty state. This is an identity boundary, not M38's adaptive weighting/composition work. M38 begins from the owned source set; M43 retains its verified persisted-attempt and ungraded-opening boundary. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M37 daily lesson identity` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate before the corrective product PR. |
