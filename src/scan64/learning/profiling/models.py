@@ -18,6 +18,8 @@ class ProfileObservation(SQLModel, table=True):
     position_id: str = Field(primary_key=True)
     skill_id: str = Field(primary_key=True)
     observed_at: datetime
+    retired_at: datetime | None = Field(default=None)
+    retirement_reason: str | None = Field(default=None)
 
 
 class SkillState(SQLModel, table=True):

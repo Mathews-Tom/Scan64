@@ -22,8 +22,10 @@ def upgrade() -> None:
             sa.Column("position_id", sa.String(), primary_key=True),
             sa.Column("skill_id", sa.String(), primary_key=True),
             sa.Column("observed_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("retired_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("retirement_reason", sa.String(), nullable=True),
         )
-    for table_name in ("skillstate", "reviewschedule"):
+    for table_name in ("profileobservation", "skillstate", "reviewschedule"):
         if not inspector.has_table(table_name):
             continue
         columns = {column["name"] for column in inspector.get_columns(table_name)}
@@ -38,7 +40,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     inspector = sa.inspect(op.get_bind())
-    for table_name in ("skillstate", "reviewschedule"):
+    for table_name in ("profileobservation", "skillstate", "reviewschedule"):
         if not inspector.has_table(table_name):
             continue
         columns = {column["name"] for column in inspector.get_columns(table_name)}
