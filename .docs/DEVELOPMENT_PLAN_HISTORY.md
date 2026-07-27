@@ -356,3 +356,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M38 begins adaptive composition from M37's owned persisted source set. M43 continues to distinguish verified persisted attempts from ungraded opening-mission records. |
 | Implementation authorization | `authorized` |
+
+## H-025
+
+| Field | Content |
+| --- | --- |
+| ID | `H-025` |
+| Timestamp | 2026-07-27T23:13:00Z |
+| Milestone | `M37` |
+| Decision | `DESIGN NO-GO — PLAN REVISION: H-025` |
+| Trigger | Completion audit found that the current Critical Moment Review fabricates a Daily Training session and posts an ungraded `critical_moment` attempt, despite the reconciled contract requiring serving-path context and a canonical owned opportunity. |
+| Evidence | `api/play.py` and `PlaySessionService.make_move` never produce `interruption_lesson`; `PlayScreen` supplies only a mock fixture. `PgnImportScreen` receives persisted opportunities but drops their UUID and creates no study session. `CriticalMomentReview` calls `getTrainingSession()` and submits `critical-moment:<lesson_id>`, so no `ReviewSchedule` or profile update can be resolved. |
+| Plan/prompt sections changed | `DEVELOPMENT_PLAN.md` source map, graph, release train, M37, M45, and critical path; `EXECUTION_PROMPTS.md` M37, M38–M44 release-train references, and M45. |
+| Downstream impact | M38 and M43 continue to consume only verified persisted attempts. M45 now owns the missing capacity-bounded, real-time coach-mode producer after M41; M37 repairs only game-analysis review context. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M37 critical interruption contract` reviewed, green hosted `Quality`, and externally merged; then rerun M37's design gate. |
