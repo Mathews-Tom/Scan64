@@ -6,7 +6,7 @@ import type { LessonSpec } from '../api/types';
 const mockLesson: LessonSpec = {
   schema_version: '0.1.0',
   lesson_id: 'les_1',
-  source: { kind: 'pgn', fen: 'fen' },
+  source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
   diagnosis: { primary: 'test', secondary: [], confidence: 1, evidence_refs: [] },
   objective: { type: 'test', instruction: 'Find the best move' },
   interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },

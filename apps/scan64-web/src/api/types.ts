@@ -82,7 +82,7 @@ export interface TrainingSessionRead {
 export interface LessonAttemptCreate {
   session_id: string;
   lesson_id: string;
-  source_kind: 'persisted_opportunity' | 'opening_mission';
+  source_kind: 'persisted_opportunity' | 'opening_mission' | 'critical_moment';
   submitted_move?: string;
   elapsed_ms: number;
   hints_used: number;

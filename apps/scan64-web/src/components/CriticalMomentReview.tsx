@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ApiClient } from '../api/client';
+import { LessonBoard } from './LessonBoard';
 import type { LessonSpec } from '../api/types';
 
 interface Props {
@@ -11,6 +13,36 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
   const [step, setStep] = useState<number>(1);
   const [intent, setIntent] = useState('');
   const [hintIndex, setHintIndex] = useState(-1);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [submittedMove, setSubmittedMove] = useState<string | null>(null);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void ApiClient.getTrainingSession()
+      .then(session => setSessionId(session.session_id))
+      .catch(() => setRecordingError('Could not create a critical-moment study session.'));
+  }, []);
+
+  const recordAttempt = async (move: string) => {
+    if (sessionId === null) {
+      setRecordingError('Critical-moment study session is still loading.');
+      return;
+    }
+    try {
+      await ApiClient.recordLessonAttempt({
+        session_id: sessionId,
+        lesson_id: `critical-moment:${lesson.lesson_id}`,
+        source_kind: 'critical_moment',
+        submitted_move: move,
+        elapsed_ms: 0,
+        hints_used: Math.max(hintIndex + 1, 0),
+      });
+      setSubmittedMove(move);
+      setRecordingError(null);
+    } catch (caught) {
+      setRecordingError(caught instanceof Error ? caught.message : 'Could not record critical-moment attempt.');
+    }
+  };
 
   const handleNextStep = () => {
     if (step === 1) {
@@ -46,6 +78,10 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
       <div className="objective">
         <strong>Objective:</strong> {lesson.objective.instruction}
       </div>
+
+      {recordingError && <p role="alert">{recordingError}</p>}
+      <LessonBoard lesson={lesson} disabled={submittedMove !== null} onMove={move => void recordAttempt(move)} />
+      {submittedMove && <p data-testid="critical-attempt-recorded">Attempt recorded.</p>}
 
       <div className="step-content">
         {step >= 1 && <div data-testid="step-1-restore">Critical position restored.</div>}
