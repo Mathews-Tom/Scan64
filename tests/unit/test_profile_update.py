@@ -29,7 +29,7 @@ def test_profile_update_success_updates_existing_skill_with_attempt_timestamp() 
         beta=3.0,
     )
 
-    updated = apply_content_attempt(attempt, item, [skill])
+    updated = apply_content_attempt(attempt, item, [skill], rating=1500)
 
     assert updated == [skill]
     assert skill.alpha == 3.0
@@ -60,10 +60,10 @@ def test_profile_update_failure_creates_only_positive_weight_skill() -> None:
         beta=2.0,
     )
 
-    updated = apply_content_attempt(attempt, item, [unrelated])
+    updated = apply_content_attempt(attempt, item, [unrelated], rating=1500)
 
     assert [(skill.player_id, skill.concept_code) for skill in updated] == [
         (player_id, "tactics.sacrifice")
     ]
-    assert updated[0].alpha == 1.0
-    assert updated[0].beta == 2.0
+    assert updated[0].alpha == 3.0
+    assert updated[0].beta == 3.0

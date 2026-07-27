@@ -30,7 +30,7 @@ def test_content_attempt_updates_skill_state():
     )
 
     # 4. Apply attempt to profile
-    updated_skills = apply_content_attempt(attempt, item, [existing_skill])
+    updated_skills = apply_content_attempt(attempt, item, [existing_skill], rating=1500)
 
     # 5. Verify the skill was updated (success=True increases alpha by 1.0)
     assert len(updated_skills) == 2
@@ -42,6 +42,5 @@ def test_content_attempt_updates_skill_state():
     assert fork_skill.alpha == 3.0  # 2.0 (initial) + 1.0 (success)
     assert fork_skill.beta == 1.0
 
-    assert pin_skill.player_id == player_id
-    assert pin_skill.alpha == 2.0  # 1.0 (default) + 1.0 (success)
-    assert pin_skill.beta == 1.0
+    assert pin_skill.alpha == 4.0  # 3.0 (rating prior) + 1.0 (success)
+    assert pin_skill.beta == 2.0

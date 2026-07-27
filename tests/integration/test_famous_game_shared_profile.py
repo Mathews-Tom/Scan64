@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from scan64.api.app import app
+from scan64.api.models import Player, PlayerProfile
 from scan64.content.models import ContentAttempt, ContentItem
 from scan64.learning.profiling.models import SkillState
 from scan64.persistence.database import create_db_and_tables, get_session
@@ -17,16 +18,22 @@ def setup_db():
     create_db_and_tables()
 
 
+def _create_player_profile(player_id: str, rating: int = 1500) -> None:
+    with next(get_session()) as session:
+        session.add(Player(id=player_id))
+        session.add(PlayerProfile(player_id=player_id, rating=rating))
+        session.commit()
+
 def test_famous_game_attempt_updates_shared_profile() -> None:
     player_id = str(uuid.uuid4())
     game_id = "morphy-opera-1858"
+    _create_player_profile(player_id)
     attempt_data = {
         "player_id": player_id,
         "decision_id": "opera-open-lines",
         "hint_assisted": False,
         "response_payload": {"move": "Nxb5"},
     }
-
     response = client.post(f"/v1/content/famous-games/{game_id}/attempts", json=attempt_data)
 
     assert response.status_code == 200, response.text
@@ -51,10 +58,12 @@ def test_famous_game_attempt_updates_shared_profile() -> None:
 
 
 def test_famous_game_attempt_grades_the_submitted_move() -> None:
+    player_id = str(uuid.uuid4())
+    _create_player_profile(player_id)
     response = client.post(
         "/v1/content/famous-games/morphy-opera-1858/attempts",
         json={
-            "player_id": str(uuid.uuid4()),
+            "player_id": player_id,
             "decision_id": "opera-open-lines",
             "hint_assisted": False,
             "response_payload": {"move": "Bxf6"},
@@ -66,10 +75,12 @@ def test_famous_game_attempt_grades_the_submitted_move() -> None:
 
 
 def test_famous_game_attempt_rejects_unknown_decision() -> None:
+    player_id = str(uuid.uuid4())
+    _create_player_profile(player_id)
     response = client.post(
         "/v1/content/famous-games/morphy-opera-1858/attempts",
         json={
-            "player_id": str(uuid.uuid4()),
+            "player_id": player_id,
             "decision_id": "unknown",
             "hint_assisted": False,
             "response_payload": {"move": "e4"},
