@@ -10,6 +10,7 @@ from scan64.providers.llm.config import (
     LLMConfigurationError,
     LLMProviderConfig,
     create_llm_provider,
+    load_configured_llm_provider,
 )
 from scan64.providers.llm.contracts import (
     ExplanationRequest,
@@ -29,4 +30,5 @@ __all__ = [
     "LLMProviderError",
     "OllamaExplanationAdapter",
     "create_llm_provider",
+    "load_configured_llm_provider",
 ]

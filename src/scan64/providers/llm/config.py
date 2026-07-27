@@ -109,6 +109,31 @@ def create_llm_provider(
     raise LLMConfigurationError("Unsupported LLM provider")
 
 
+def load_configured_llm_provider(
+    *,
+    client: httpx.AsyncClient | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> LLMExplanationProvider | None:
+    """Select the operator-configured LLM explanation provider from ``SCAN64_LLM_CONFIG``.
+
+    Off by default: with ``SCAN64_LLM_CONFIG`` unset, or an explicit
+    ``provider = "template"`` configuration, this returns ``None`` -- no
+    configuration file is read for the client and no model dependency is
+    touched. Callers must fall back to the template-only explanation path.
+
+    A non-template configuration requires ``client``, matching
+    ``create_llm_provider``'s existing contract, so the caller keeps ownership
+    of the ``httpx.AsyncClient`` lifecycle rather than this function leaking
+    an unclosed one.
+    """
+    environment_values = os.environ if environment is None else environment
+    raw_path = environment_values.get("SCAN64_LLM_CONFIG")
+    if raw_path is None:
+        return None
+    config = LLMProviderConfig.from_toml(Path(raw_path))
+    return create_llm_provider(config, client=client, environment=environment)
+
+
 def _required_value(value: str | None, field: str) -> str:
     if value is None:
         raise LLMConfigurationError(f"{field} is required")
