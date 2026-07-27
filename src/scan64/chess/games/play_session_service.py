@@ -2,15 +2,24 @@ from pathlib import Path
 from uuid import UUID
 
 import chess
-from sqlmodel import Session
+from sqlalchemy import update
+from sqlmodel import Session, col
 
 from scan64.chess.games.models import Game, PlaySession
-from scan64.chess.games.participants import participants
-from scan64.chess.games.pgn import build_pgn
+from scan64.chess.games.participants import participants, player_color
+from scan64.chess.games.pgn import CorruptGameError, build_pgn
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
 from scan64.providers.maia import MaiaConfig, MaiaConfigurationError, MaiaOpponentProvider
+
+
+class PlaySessionNotFound(ValueError):
+    """No play session exists for the requested id."""
+
+
+class PlaySessionNotActive(ValueError):
+    """The play session has already reached a terminal state."""
 
 
 class PlaySessionService:
@@ -64,16 +73,66 @@ class PlaySessionService:
             opponent_config["maia_coverage_disclosure"] = selection.disclosure
         play_session.opponent_config = opponent_config
 
+    def complete_session(
+        self, play_session: PlaySession, game: Game | None, result: str | None
+    ) -> None:
+        """The single terminal-state transition for a play session.
+
+        The status move is a conditional write, so two concurrent terminal
+        requests cannot both complete one session and enqueue duplicate work.
+        """
+        if (game is None) != (result is None):
+            raise ValueError("game and result must be given together")
+
+        completed = self.db.exec(
+            update(PlaySession)
+            .where(col(PlaySession.id) == play_session.id)
+            .where(col(PlaySession.status) == "active")
+            .values(status="completed")
+        )
+        if completed.rowcount == 0:
+            self.db.rollback()
+            raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
+        play_session.status = "completed"
+
+        if game is not None and result is not None:
+            game.result = result
+            game.date = game.date or game.created_at.strftime("%Y.%m.%d")
+            game.pgn = build_pgn(game)
+            self.db.add(game)
+
+        self.db.commit()
+
+    def resign(self, session_id: UUID) -> PlaySession:
+        """Concede the game, ending the session as a loss for the player."""
+        play_session = self.db.get(PlaySession, session_id)
+        if not play_session:
+            raise PlaySessionNotFound("PlaySession not found")
+        if play_session.status != "active":
+            raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
+
+        if play_session.game_id is None:
+            self.complete_session(play_session, None, None)
+            return play_session
+
+        game = self.db.get(Game, play_session.game_id)
+        if game is None:
+            raise CorruptGameError(f"Game {play_session.game_id} is missing")
+
+        conceded = player_color(game.headers.get("FEN"), game.moves)
+        self.complete_session(play_session, game, "0-1" if conceded == chess.WHITE else "1-0")
+        return play_session
+
     async def make_move(self, session_id: UUID, player_move: str) -> str | None:
         """
         Process a player move and return the opponent's response move (UCI), or None if game over.
         """
         play_session = self.db.get(PlaySession, session_id)
         if not play_session:
-            raise ValueError("PlaySession not found")
+            raise PlaySessionNotFound("PlaySession not found")
 
         if play_session.status != "active":
-            raise ValueError(f"PlaySession is {play_session.status}")
+            raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
 
         if not play_session.game_id:
             white, black = participants(play_session.player_id, play_session.opponent_config)
@@ -110,14 +169,8 @@ class PlaySessionService:
         board.push(move)
         fetched.moves = fetched.moves + [player_move]
 
-        # Check if game over
         if board.is_game_over():
-            play_session.status = "completed"
-            fetched.result = board.result()
-            fetched.pgn = build_pgn(fetched)
-            self.db.add(fetched)
-            self.db.add(play_session)
-            self.db.commit()
+            self.complete_session(play_session, fetched, board.result())
             return None
 
         # Determine opponent context
@@ -149,8 +202,8 @@ class PlaySessionService:
         fetched.moves = fetched.moves + [decision.uci_move]
 
         if board.is_game_over():
-            play_session.status = "completed"
-            fetched.result = board.result()
+            self.complete_session(play_session, fetched, board.result())
+            return decision.uci_move
 
         fetched.pgn = build_pgn(fetched)
         self.db.add(fetched)

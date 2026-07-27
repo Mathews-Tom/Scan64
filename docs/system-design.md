@@ -420,6 +420,7 @@ Games            POST /v1/games · GET /v1/games/{id} · POST /v1/games/{id}/ana
 Players          POST /v1/players · GET /v1/players/{id}/profile · /patterns · /progress · /evidence
 Training         POST /v1/training-sessions · GET .../next · POST /v1/lessons/{id}/attempts
 Play             POST /v1/play-sessions · POST /v1/play-sessions/{id}/moves
+                 POST /v1/play-sessions/{id}/resign
 Content          GET /v1/content/{openings,tactics,endgames,famous-games}
                  POST /v1/opening-sessions · POST /v1/study-sessions · POST /v1/study-attempts
 Reports/export   GET /v1/reports/weekly · POST /v1/exports · POST /v1/imports

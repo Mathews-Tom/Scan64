@@ -7,10 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
+from scan64.api.auth import require_player_token
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants
 from scan64.chess.games.pgn import build_pgn
-from scan64.chess.games.play_session_service import PlaySessionService
+from scan64.chess.games.play_session_service import (
+    PlaySessionNotActive,
+    PlaySessionNotFound,
+    PlaySessionService,
+)
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.adapter import StockfishConfig
@@ -148,7 +153,30 @@ async def create_move(
         if play_session is None:
             raise HTTPException(status_code=404, detail="PlaySession not found")
         return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
+    except PlaySessionNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except PlaySessionNotActive as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/v1/play-sessions/{session_id}/resign", response_model=PlaySessionRead)
+def resign_play_session(
+    session_id: UUID,
+    request: Request,
+    session: Session = Depends(get_session),
+    service: PlaySessionService = Depends(get_play_session_service),
+) -> PlaySession:
+    play_session = session.get(PlaySession, session_id)
+    if play_session is None:
+        raise HTTPException(status_code=404, detail="PlaySession not found")
+    require_player_token(request, play_session.player_id, session)
+    try:
+        return service.resign(session_id)
+    except PlaySessionNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except PlaySessionNotActive as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
