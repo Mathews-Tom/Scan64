@@ -6,14 +6,19 @@ from chess_lesson_spec import Diagnosis
 from sqlmodel import Session, select
 
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
-from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.analysis.orchestration import (
+    FastPassConfig,
+    FastPassOrchestrator,
+    FocusedPassConfig,
+    FocusedPassOrchestrator,
+)
 from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
-from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
@@ -37,23 +42,6 @@ def _resolve_pattern_detectors(
     return tuple(detectors)
 
 
-def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
-    board = chess.Board(fen_after_move)
-    mover_color = not board.turn
-    opponent_color = board.turn
-    for square in chess.SQUARES:
-        piece = board.piece_at(square)
-        if piece is None or piece.color != mover_color or piece.piece_type == chess.KING:
-            continue
-        if board.is_attacked_by(opponent_color, square) and not board.is_attacked_by(
-            mover_color, square
-        ):
-            return {
-                "is_hanging_piece_blunder": True,
-                "hanging_square": chess.square_name(square),
-                "hanging_piece": piece.symbol(),
-            }
-    return None
 
 
 def _persist_position_analysis(
@@ -100,6 +88,12 @@ async def run_analysis_for_game(
         return
 
     candidates = await orchestrator.run_fast_pass(san_moves, initial_fen)
+    focused_orchestrator = FocusedPassOrchestrator(
+        adapter, FocusedPassConfig(nodes=1_000_000, multipv=4)
+    )
+    focused_analyses = await focused_orchestrator.run_focused_pass(candidates)
+    if len(focused_analyses) != len(candidates):
+        raise RuntimeError("Focused pass did not return one analysis for every candidate")
 
     board = board_from(initial_fen)
     fens_before = [board.fen()]
@@ -108,7 +102,7 @@ async def run_analysis_for_game(
         fens_before.append(board.fen())
 
     positions_by_fen: dict[str, Position] = {}
-    for candidate in candidates:
+    for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
         _persist_position_analysis(
             game, fen_before, candidate.before_analysis, session, positions_by_fen
@@ -117,19 +111,22 @@ async def run_analysis_for_game(
             game, candidate.fen, candidate.after_analysis, session, positions_by_fen
         )
 
-        evidence_payload = _classify_hanging_piece(candidate.fen)
-        if evidence_payload is None:
-            continue
-
-        evidence = Evidence(
-            evidence_id=f"ev_{uuid4()}",
-            kind="blunder_analysis",
-            position_id=str(after_position.id),
-            engine_analysis_id=str(candidate.after_analysis.id),
-            claim="a piece was left undefended and attacked after the move",
-            payload=evidence_payload,
+        _persist_position_analysis(
+            game, candidate.fen, focused_analysis, session, positions_by_fen
         )
-        session.add(evidence)
+        evidence = compose_candidate_evidence(
+            before_board=board_from(fen_before),
+            after_board=board_from(candidate.fen),
+            history_san=san_moves[: candidate.move_index + 1],
+            initial_fen=initial_fen,
+            position_id=str(after_position.id),
+            fast_analysis=candidate.before_analysis,
+            focused_analysis=focused_analysis,
+            played_move=san_moves[candidate.move_index],
+            swing_cp=candidate.swing_cp,
+        )
+        for item in evidence:
+            session.add(item)
 
         opportunity = LearningOpportunity(
             opportunity_id=f"opp_{uuid4()}",
@@ -143,7 +140,7 @@ async def run_analysis_for_game(
 
         diagnosis_candidates = []
         for detector in detectors:
-            diagnosis_candidates.extend(await detector.detect(opportunity, [evidence], ctx))
+            diagnosis_candidates.extend(await detector.detect(opportunity, evidence, ctx))
         if not diagnosis_candidates:
             continue
 
