@@ -103,3 +103,18 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M32, M33, M34, M40, M41, M42, and transitive M35, M36, M37, M38, M39, M43, M44 retain H-005's clarified ownership contract and require normal design reevaluation after M31 merges. |
 | Implementation authorization | `authorized` |
+
+## H-007
+
+| Field | Content |
+| --- | --- |
+| ID | `H-007` |
+| Timestamp | 2026-07-27T02:28:40Z |
+| Milestone | `M32` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | M32 pre-implementation design gate after every M31 PR merged to `main`. |
+| Evidence | `main` at `671c323c40068f5fccab73a8978622ae710387db`. M31 stack merged externally: PRs #122, #129, #124, #125, #126, each with a green hosted `CI`/`Quality` run (latest runs 30231425896, 30231564249, 30231692446, all `success`). Read: `.docs/DEVELOPMENT_PLAN.md` §1, §2, §4, §6 M32 and dependent M34/M39/M41 rows; `.docs/EXECUTION_PROMPTS.md` M32, M34, M39, M41; enhancement plan §2.1 G4/G9; system design §7. Inspected `src/scan64/chess/games/play_session_service.py:65-154`, `src/scan64/api/play.py:1-139`, `src/scan64/api/games.py:39-178`, `src/scan64/api/players.py`, `src/scan64/api/reports.py:112-119`, `src/scan64/chess/analysis/jobs.py:73-218`, `src/scan64/chess/analysis/models.py`, `src/scan64/chess/analysis/admission.py`, `src/scan64/chess/games/models.py`, and `src/scan64/persistence/migrations/versions/`. G4 and G9 still hold: a played game is never analysed, `Game.pgn` stays `""` and `white`/`black` stay the `"Player"`/`"Opponent"` literals, no resign transition exists, and no player-scoped games endpoint exists. M31's ownership contract is live and satisfied ahead of schedule for play: `play_session_service.py:78-84` and `api/play.py:86-95` already write `Game.owner_player_id` from the session player, so M32 PR-1 narrows to the `white`/`black` literals; this satisfies the planned contract rather than contradicting it. Terminal state currently has two call sites (`play_session_service.py:110-116` and `:142-144`), which the planned single transition point consolidates. No new schema column is required, so no Alembic revision is added. Player-scoped reads consistently require `require_player_token` (`players.py:73-80`, `reports.py:62-135`, `data_lifecycle.py:249-256`), so `GET /v1/players/{id}/games` adopts the same guard, and it returns per-game `diagnosis_count` and `date` because M39's plan row requires result, date, and diagnosis count from this endpoint — a response-field detail inside M32's stated scope, not a contract change. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M34 reviewed — unchanged; it consumes `PersistedLessonOpportunity.player_id`, which already derives from `Game.owner_player_id` and is unaffected by play attribution. M39 reviewed — unchanged; its games list is served by `GET /v1/players/{id}/games` with result, date, and diagnosis count, and must send the player token. M41 reviewed — unchanged; it removes M32's interim in-flight cap, which is deliberately a single module (`chess/analysis/inflight.py`) with one submission call site so removal stays a one-place change and no second quota system is introduced. Transitive M36, M37, M38, M43, M44 reviewed — no interface they depend on changes. |
+| Implementation authorization | `authorized` |
+
