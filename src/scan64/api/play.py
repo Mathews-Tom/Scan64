@@ -92,6 +92,7 @@ def create_play_session(
             moves=[],
             white="Player",
             black="Opponent",
+            owner_player_id=session_in.player_id,
         )
         session.add(game)
         session.flush()

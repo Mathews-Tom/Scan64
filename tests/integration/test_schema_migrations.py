@@ -36,16 +36,6 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
             )
         )
         connection.execute(
-            text(
-                "CREATE TABLE persistedlessonopportunity ("
-                "id TEXT PRIMARY KEY, "
-                "game_id TEXT NOT NULL, "
-                "created_at DATETIME NOT NULL, "
-                "lesson_spec JSON NOT NULL"
-                ")"
-            )
-        )
-        connection.execute(
             text("INSERT INTO game (id, pgn) VALUES (:id, :pgn)"),
             {"id": "legacy-game", "pgn": "1. e4 e5"},
         )
@@ -62,15 +52,12 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
             text("SELECT owner_player_id FROM game WHERE id = :id"),
             {"id": "legacy-game"},
         ).scalar_one()
-        opportunity_columns = {
-            row[1]
-            for row in connection.execute(text("PRAGMA table_info(persistedlessonopportunity)"))
-        }
+        tables = set(inspect(connection).get_table_names())
         revision = connection.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
     assert stored_pgn == "1. e4 e5"
     assert owner_column is None
-    assert "player_id" in opportunity_columns
+    assert "persistedlessonopportunity" not in tables
     assert revision == "20260727_02"
