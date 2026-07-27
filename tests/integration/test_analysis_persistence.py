@@ -11,6 +11,9 @@ from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.learning.evidence.models import Evidence
+
+HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
 
 
 class _CandidateOrchestrator:
@@ -27,7 +30,7 @@ class _CandidateOrchestrator:
         )
         return [
             CandidatePosition(
-                fen=board.fen(),
+                fen=HANGING_PIECE_FEN,
                 move_index=0,
                 before_analysis=analysis,
                 after_analysis=EngineAnalysis(
@@ -101,6 +104,16 @@ async def test_candidate_positions_and_analyses_are_persisted(
 
     assert len(positions) == 2
     assert analysis_position_ids == persisted_position_ids
+
+    evidence = db_session.exec(select(Evidence)).all()
+
+    assert len(evidence) == 1
+    assert evidence[0].position_id in {str(position.id) for position in positions}
+    assert evidence[0].engine_analysis_id in {str(analysis.id) for analysis in analyses}
+    evidence_position = next(
+        position for position in positions if str(position.id) == evidence[0].position_id
+    )
+    assert evidence_position.fen == HANGING_PIECE_FEN
 
 
 @pytest.mark.asyncio
