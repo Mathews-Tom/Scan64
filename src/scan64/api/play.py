@@ -57,6 +57,7 @@ class PlayMoveCreate(BaseModel):
 
 class PlayMoveResponse(BaseModel):
     opponent_move: str | None
+    status: str
 
 
 def get_opponent_provider() -> StockfishOpponentProvider:
@@ -121,11 +122,15 @@ async def create_move(
     request: Request,
     session_id: UUID,
     move_in: PlayMoveCreate,
+    session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlayMoveResponse:
     try:
         opponent_move = await service.make_move(session_id, move_in.move)
-        return PlayMoveResponse(opponent_move=opponent_move)
+        play_session = session.get(PlaySession, session_id)
+        if play_session is None:
+            raise HTTPException(status_code=404, detail="PlaySession not found")
+        return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:

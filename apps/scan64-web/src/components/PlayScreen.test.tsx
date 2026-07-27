@@ -93,7 +93,10 @@ describe('PlayScreen', () => {
   });
 
   it('submits a board move from an initial play session', async () => {
-    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({ opponent_move: null });
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({
+      opponent_move: null,
+      status: 'active',
+    });
 
     render(
       <PlayScreen
@@ -122,6 +125,125 @@ describe('PlayScreen', () => {
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('sess-123', {
       move: 'e2e4',
     });
+  });
+
+  it('marks the session completed after an opponent checkmate', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({
+      opponent_move: 'd8h4',
+      status: 'completed',
+    });
+
+    render(
+      <PlayScreen
+        initialFen="rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2"
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+
+    await act(async () => {
+      await getRegisteredMoveHandler()('g2', 'g4');
+    });
+
+    expect(screen.getByTestId('session-info')).toHaveTextContent('Status: completed');
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        movable: expect.objectContaining({ color: undefined }),
+      }),
+    );
+  });
+
+  it('restores Chessground to the player turn after an opponent response', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove)
+      .mockResolvedValueOnce({ opponent_move: 'e7e5', status: 'active' })
+      .mockResolvedValueOnce({ opponent_move: 'b8c6', status: 'active' });
+
+    render(
+      <PlayScreen
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+    const after = getRegisteredMoveHandler();
+
+    await act(async () => {
+      await after('e2', 'e4');
+    });
+
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        turnColor: 'white',
+        movable: expect.objectContaining({ color: 'white' }),
+      }),
+    );
+
+    await act(async () => {
+      await after('g1', 'f3');
+    });
+
+    expect(ApiClient.makePlaySessionMove).toHaveBeenNthCalledWith(2, 'sess-123', {
+      move: 'g1f3',
+    });
+  });
+
+  it('preserves the confirmed board after an invalid local move', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({
+      opponent_move: 'e7e5',
+      status: 'active',
+    });
+
+    render(
+      <PlayScreen
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+    const after = getRegisteredMoveHandler();
+
+    await act(async () => {
+      await after('e2', 'e4');
+    });
+    chessgroundMock.set.mockClear();
+
+    await act(async () => {
+      await after('e2', 'e5');
+    });
+
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+        turnColor: 'white',
+        movable: expect.objectContaining({ color: 'white' }),
+      }),
+    );
   });
 
   it('shows an interruption review only when coach mode is enabled', async () => {
@@ -156,6 +278,7 @@ describe('PlayScreen', () => {
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
       opponent_move: null,
+      status: 'active',
       interruption_lesson: interruptionLesson,
     });
 

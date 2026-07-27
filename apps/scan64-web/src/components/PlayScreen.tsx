@@ -32,6 +32,11 @@ function getDests(chess: Chess): Map<Key, Key[]> {
   return dests;
 }
 
+function chessgroundTurnColor(chess: Chess): 'white' | 'black' {
+  return chess.turn() === 'w' ? 'white' : 'black';
+}
+
+
 
 export interface PlayScreenProps {
   initialSession?: PlaySessionRead;
@@ -77,9 +82,9 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       if (cg) {
         cg.set({
           fen: chessRef.current.fen(),
+          turnColor: chessgroundTurnColor(chessRef.current),
           movable: {
-            color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-            dests: getDests(chessRef.current),
+            color: chessgroundTurnColor(chessRef.current),
             events: {
               after: handleMove,
             },
@@ -96,6 +101,12 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
     const board = cgRef.current;
     if (!board) return;
 
+    const currentSession = sessionRef.current;
+    if (currentSession) {
+      const updatedSession = { ...currentSession, status: response.status };
+      sessionRef.current = updatedSession;
+      setSession(updatedSession);
+    }
     if (coachModeRef.current && response.interruption_lesson) {
       chessRef.current.undo();
       setInterruptionLesson(response.interruption_lesson);
@@ -109,9 +120,10 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
 
     board.set({
       fen: chessRef.current.fen(),
+      turnColor: chessgroundTurnColor(chessRef.current),
       movable: {
-        color: chessRef.current.turn() === 'w' ? 'white' : 'black',
-        dests: getDests(chessRef.current),
+        color: response.status === 'active' ? chessgroundTurnColor(chessRef.current) : undefined,
+        dests: response.status === 'active' ? getDests(chessRef.current) : undefined,
       },
     });
     setError(null);
@@ -121,11 +133,17 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
     const activeSession = sessionRef.current;
     const board = cgRef.current;
     if (!activeSession || !board) return;
+    let moveApplied = false;
 
     try {
       const lan = `${orig}${dest}`;
       chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
-      board.set({ fen: chessRef.current.fen(), movable: { color: undefined } });
+      moveApplied = true;
+      board.set({
+        fen: chessRef.current.fen(),
+        turnColor: chessgroundTurnColor(chessRef.current),
+        movable: { color: undefined },
+      });
 
       try {
         const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
@@ -140,11 +158,14 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Unknown error');
-      chessRef.current.undo();
+      if (moveApplied) {
+        chessRef.current.undo();
+      }
       board.set({
         fen: chessRef.current.fen(),
+        turnColor: chessgroundTurnColor(chessRef.current),
         movable: {
-          color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+          color: chessgroundTurnColor(chessRef.current),
           dests: getDests(chessRef.current),
         },
       });
@@ -217,13 +238,9 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
     if (boardRef.current && !cg) {
       const api = Chessground(boardRef.current, {
         fen: chessRef.current.fen(),
+        turnColor: chessgroundTurnColor(chessRef.current),
         movable: {
-          color: sessionRef.current
-            ? chessRef.current.turn() === 'w'
-              ? 'white'
-              : 'black'
-            : undefined,
-          free: false,
+          color: sessionRef.current ? chessgroundTurnColor(chessRef.current) : undefined,
           dests: sessionRef.current ? getDests(chessRef.current) : undefined,
           events: {
             after: handleMove,
@@ -290,6 +307,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
               if (cgRef.current) {
                 cgRef.current.set({
                   fen: chessRef.current.fen(),
+                  turnColor: chessgroundTurnColor(chessRef.current),
                   movable: {
                     color: chessRef.current.turn() === 'w' ? 'white' : 'black',
                     dests: getDests(chessRef.current),
