@@ -1,4 +1,5 @@
-from typing import Any
+from collections import defaultdict
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -6,6 +7,7 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import Player
+from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.evidence.models import Evidence
@@ -34,9 +36,18 @@ class EvidenceReport(BaseModel):
     evidence_items: list[EvidenceItemRead]
 
 
+class DiagnosisPatternRead(BaseModel):
+    diagnosis: str
+    occurrence_count: int
+    game_ids: list[str]
+    evidence_references: list[str]
+
+
 class PatternsReport(BaseModel):
     player_id: str
-    recurring_habits: list[dict[str, Any]]
+    minimum_occurrences: int
+    status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
+    recurring_diagnoses: list[DiagnosisPatternRead]
 
 
 def read_player_progress(player_id: str, session: Session) -> ProgressReport:
@@ -122,7 +133,54 @@ def get_player_evidence(
 def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
     if session.get(Player, player_id) is None:
         raise HTTPException(status_code=404, detail="Player not found")
-    return PatternsReport(player_id=player_id, recurring_habits=[])
+
+    rows = session.exec(
+        select(PersistedLessonOpportunity)
+        .join(Game, col(PersistedLessonOpportunity.game_id) == Game.id)
+        .where(Game.owner_player_id == player_id)
+    ).all()
+    occurrences: dict[str, dict[str, set[str]]] = defaultdict(
+        lambda: {"games": set(), "evidence": set()}
+    )
+    for row in rows:
+        diagnosis = row.lesson_spec.get("diagnosis")
+        if not isinstance(diagnosis, dict):
+            continue
+        primary = diagnosis.get("primary")
+        evidence_refs = diagnosis.get("evidence_refs")
+        if not isinstance(primary, str) or not primary:
+            continue
+        occurrences[primary]["games"].add(str(row.game_id))
+        if isinstance(evidence_refs, list):
+            occurrences[primary]["evidence"].update(
+                ref for ref in evidence_refs if isinstance(ref, str) and ref
+            )
+
+    minimum_occurrences = 3
+    game_count = len({str(row.game_id) for row in rows})
+    recurring_diagnoses = [
+        DiagnosisPatternRead(
+            diagnosis=diagnosis,
+            occurrence_count=len(values["games"]),
+            game_ids=sorted(values["games"]),
+            evidence_references=sorted(values["evidence"]),
+        )
+        for diagnosis, values in sorted(occurrences.items())
+        if len(values["games"]) >= minimum_occurrences
+    ]
+    status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
+    if game_count < minimum_occurrences:
+        status = "insufficient_data"
+    elif recurring_diagnoses:
+        status = "recurring_diagnosis"
+    else:
+        status = "no_recurring_diagnosis"
+    return PatternsReport(
+        player_id=player_id,
+        minimum_occurrences=minimum_occurrences,
+        status=status,
+        recurring_diagnoses=recurring_diagnoses,
+    )
 
 
 @router.get("/v1/players/{player_id}/patterns", response_model=PatternsReport)
