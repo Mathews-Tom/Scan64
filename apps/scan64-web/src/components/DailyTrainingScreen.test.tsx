@@ -44,7 +44,10 @@ describe('DailyTrainingScreen', () => {
         objective: { type: 'find_best_move', instruction: 'Find the next move.' }
       }
     ];
-    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue(mockSession);
+    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
+      session_id: 'session-1',
+      lessons: mockSession,
+    });
   });
 
   afterEach(() => {

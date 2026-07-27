@@ -8,6 +8,8 @@ import type {
   GameCreate,
   GameRead,
   LessonSpec,
+  LessonAttemptCreate,
+  LessonAttemptRead,
   PlayMoveCreate,
   PlayMoveResponse,
   PlayerCreate,
@@ -18,6 +20,7 @@ import type {
   PlaySessionCreate,
   PlaySessionRead,
   PositionRead,
+  TrainingSessionRead,
 } from './types';
 
 const API_BASE = '/v1';
@@ -187,14 +190,27 @@ export class ApiClient {
     return json as unknown as AttemptRead;
   }
 
-  static async getTrainingSession(): Promise<LessonSpec[]> {
+  static async getTrainingSession(): Promise<TrainingSessionRead> {
     const playerId = getOrCreatePlayerId();
     const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch training session: ${response.statusText}`);
     }
-    const json = await response.json();
-    return json as unknown as LessonSpec[];
+    return await response.json() as TrainingSessionRead;
+  }
+
+  static async recordLessonAttempt(attempt: LessonAttemptCreate): Promise<LessonAttemptRead> {
+    const response = await fetch(`${API_BASE}/learning/lesson-attempts`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(getOrCreatePlayerId()),
+      },
+      body: JSON.stringify(attempt),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to record lesson attempt: ${response.statusText}`);
+    }
+    return await response.json() as LessonAttemptRead;
   }
 
   private static async getPlayerResource<T>(

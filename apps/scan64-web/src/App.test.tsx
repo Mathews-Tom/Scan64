@@ -65,7 +65,10 @@ describe('App', () => {
       mastery: {} as unknown as LessonSpec['mastery']
     };
 
-    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue([mockLesson]);
+    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
+      session_id: 'session-1',
+      lessons: [mockLesson],
+    });
 
     render(<App />);
     fireEvent.click(screen.getByText('Daily Training'));
