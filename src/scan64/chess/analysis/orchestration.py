@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import chess
 
 from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.boards import board_from
 from scan64.providers.stockfish.adapter import StockfishAdapter
 
 
@@ -26,11 +27,13 @@ class FastPassOrchestrator:
         self.adapter = adapter
         self.config = config
 
-    async def run_fast_pass(self, pgn_moves: list[str]) -> list[CandidatePosition]:
+    async def run_fast_pass(
+        self, pgn_moves: list[str], initial_fen: str | None = None
+    ) -> list[CandidatePosition]:
         """
         Runs a fast pass over a sequence of moves to flag candidate critical positions.
         """
-        board = chess.Board()
+        board = board_from(initial_fen)
 
         # We need the FEN before the move, and the FEN after the move.
         # But to be efficient, we can just evaluate every position reached.
@@ -47,7 +50,7 @@ class FastPassOrchestrator:
             evaluations.append(eval_pos)
 
         candidates = []
-        board = chess.Board()
+        board = board_from(initial_fen)
 
         for i, move_str in enumerate(pgn_moves):
             before_eval = evaluations[i]

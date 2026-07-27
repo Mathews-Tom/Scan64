@@ -7,6 +7,7 @@ import chess
 from chess_lesson_spec import Diagnosis, LessonSpec
 
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import InvalidGameError, ingest_pgn
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
@@ -15,17 +16,6 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
-
-
-def _uci_moves_to_san(uci_moves: list[str]) -> list[str]:
-    """Replay a UCI move sequence from the standard start position, returning SAN."""
-    board = chess.Board()
-    san_moves = []
-    for uci in uci_moves:
-        move = chess.Move.from_uci(uci)
-        san_moves.append(board.san(move))
-        board.push(move)
-    return san_moves
 
 
 def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
@@ -92,14 +82,15 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             print(f"Skipping {file_path.name}: {exc}")
             continue
 
-        san_moves = _uci_moves_to_san(game.moves)
+        initial_fen = game.headers.get("FEN")
+        san_moves = uci_moves_to_san(game.moves, initial_fen)
         if not san_moves:
             continue
 
-        candidates = await orchestrator.run_fast_pass(san_moves)
+        candidates = await orchestrator.run_fast_pass(san_moves, initial_fen)
 
         # FEN before each move index, needed for the exact-replay decision point.
-        board = chess.Board()
+        board = board_from(initial_fen)
         fens_before = [board.fen()]
         for san in san_moves:
             board.push_san(san)
