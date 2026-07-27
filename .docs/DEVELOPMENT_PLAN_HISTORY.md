@@ -300,3 +300,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `none` |
 | Downstream impact | M38 consumes typed verified attempt data, M42 includes `LessonAttempt` in lifecycle coverage, and M43 keeps transfer results separate from opening-mission records. The M37 implementation stack may start from `main`. |
 | Implementation authorization | `authorized` |
+
+## H-021
+
+| Field | Content |
+| --- | --- |
+| ID | `H-021` |
+| Timestamp | 2026-07-28T02:30:00Z |
+| Milestone | `M37` |
+| Decision | `DESIGN NO-GO — PLAN REVISION: H-021` |
+| Trigger | Product implementation exposed that Critical Moment Review callers do not provide the durable attempt context required by the M37 endpoint. |
+| Evidence | `CriticalMomentReview` receives only `LessonSpec`, intent, and completion callback. Its `PlayScreen` and `PgnImportScreen` callers provide neither a `StudySession.id` nor a canonical owned `PersistedLessonOpportunity.id`; `POST /v1/learning/lesson-attempts` requires both before M34 schedule/profile mutation. |
+| Plan/prompt sections changed | `.docs/DEVELOPMENT_PLAN.md` M37 reconciliation contract; `.docs/EXECUTION_PROMPTS.md` M37 attempt-context contract. |
+| Downstream impact | M38 remains sole owner of shared-session composition. M43 must retain the verified persisted-opportunity boundary. |
+| Implementation authorization | `blocked pending docs(plan): reconcile M37 critical attempt context` reviewed, green hosted `Quality`, and externally merged; rerun the M37 design gate before product code. |
