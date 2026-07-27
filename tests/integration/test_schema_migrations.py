@@ -18,8 +18,13 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert {"game", "persistedlessonopportunity", "transfermeasurement"} <= tables
-    assert revision == "20260727_02"
+    assert {
+        "game",
+        "persistedlessonopportunity",
+        "profileobservation",
+        "transfermeasurement",
+    } <= tables
+    assert revision == "20260727_03"
 
 
 def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path: Path) -> None:
@@ -80,4 +85,4 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
     assert stored_pgn == "1. e4 e5"
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
-    assert revision == "20260727_02"
+    assert revision == "20260727_03"

@@ -22,6 +22,9 @@ class ReviewSchedule(SQLModel, table=True):
 
     interval_days: float = 1.0
     ease_factor: float = 2.5
+    skill_id: str | None = None
+    retired_at: datetime | None = None
+    retirement_reason: str | None = None
 
     def is_due(self, current_time: datetime) -> bool:
         """
