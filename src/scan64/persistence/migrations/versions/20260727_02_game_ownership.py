@@ -22,6 +22,15 @@ def upgrade() -> None:
             if "ix_game_owner_player_id" not in game_indexes:
                 batch.create_index("ix_game_owner_player_id", ["owner_player_id"])
 
+        if inspector.has_table("playsession"):
+            op.execute(
+                "UPDATE game SET owner_player_id = ("
+                "SELECT player_id FROM playsession "
+                "WHERE playsession.game_id = game.id "
+                "ORDER BY playsession.id LIMIT 1"
+                ") WHERE owner_player_id IS NULL"
+            )
+
     if inspector.has_table("persistedlessonopportunity"):
         opportunity_columns = {
             column["name"] for column in inspector.get_columns("persistedlessonopportunity")
@@ -37,10 +46,26 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("persistedlessonopportunity") as batch:
-        batch.drop_index("ix_persistedlessonopportunity_player_id")
-        batch.drop_column("player_id")
+    inspector = sa.inspect(op.get_bind())
 
-    with op.batch_alter_table("game") as batch:
-        batch.drop_index("ix_game_owner_player_id")
-        batch.drop_column("owner_player_id")
+    if inspector.has_table("persistedlessonopportunity"):
+        opportunity_columns = {
+            column["name"] for column in inspector.get_columns("persistedlessonopportunity")
+        }
+        opportunity_indexes = {
+            index["name"] for index in inspector.get_indexes("persistedlessonopportunity")
+        }
+        with op.batch_alter_table("persistedlessonopportunity") as batch:
+            if "ix_persistedlessonopportunity_player_id" in opportunity_indexes:
+                batch.drop_index("ix_persistedlessonopportunity_player_id")
+            if "player_id" in opportunity_columns:
+                batch.drop_column("player_id")
+
+    if inspector.has_table("game"):
+        game_columns = {column["name"] for column in inspector.get_columns("game")}
+        game_indexes = {index["name"] for index in inspector.get_indexes("game")}
+        with op.batch_alter_table("game") as batch:
+            if "ix_game_owner_player_id" in game_indexes:
+                batch.drop_index("ix_game_owner_player_id")
+            if "owner_player_id" in game_columns:
+                batch.drop_column("owner_player_id")
