@@ -4,7 +4,11 @@ import pytest
 from chess_lesson_spec import Diagnosis
 
 from benchmarks.diagnosis.bundle import export_reproducibility_bundle
-from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.templates.provider import (
+    ExplanationTemplateError,
+    TemplateExplanationProvider,
+)
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 
 
@@ -29,14 +33,31 @@ async def test_exact_replay_exercise_generation() -> None:
 async def test_template_explanation_provider() -> None:
     provider = TemplateExplanationProvider()
 
-    diagnosis_fork = Diagnosis(primary="tactics.knight_fork", confidence=0.9, evidence_refs=[])
-    explanation = await provider.explain(diagnosis_fork, evidence=[])
-    assert "knight fork" in explanation.text
-    assert "forcing moves" in explanation.text
+    fixture = Evidence(
+        evidence_id="ev_1",
+        kind="missed_tactic",
+        position_id="pos_1",
+        engine_analysis_id="ea_1",
+        claim="the fast-pass principal variation exposes a tactical opportunity",
+        payload={
+            "tactic_type": "knight_fork",
+            "fork_square": "e7",
+            "targets": [{"square": "d5", "piece": "q"}],
+            "results_in_material_gain": True,
+            "played_move": "Bc4",
+            "best_move": "g5e7",
+        },
+    )
+    diagnosis_fork = Diagnosis(
+        primary="tactics.fork.knight", confidence=0.9, evidence_refs=["ev_1"]
+    )
+    explanation = await provider.explain(diagnosis_fork, evidence=[fixture])
+    assert "e7" in explanation.text
+    assert "d5" in explanation.text
 
     diagnosis_unknown = Diagnosis(primary="unknown.pattern", confidence=0.5, evidence_refs=[])
-    explanation_unknown = await provider.explain(diagnosis_unknown, evidence=[])
-    assert "scan for forcing moves" in explanation_unknown.text
+    with pytest.raises(ExplanationTemplateError, match="unknown.pattern"):
+        await provider.explain(diagnosis_unknown, evidence=[])
 
 
 def test_export_reproducibility_bundle(tmp_path: Path) -> None:

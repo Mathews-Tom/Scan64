@@ -7,12 +7,9 @@ requires that ``TemplateExplanationProvider`` render an explanation naming the
 concrete square, piece, move, or line drawn from that payload for every one of
 those ten codes, with no code falling back to a generic sentence.
 
-This test is intentionally written against the acceptance contract, not the
-current implementation: at this point in the M35 stack the provider still
-falls back to a two-entry, incorrectly-keyed template dict for every real
-taxonomy code, so every case below is expected to fail. The ``xfail(strict=True)``
-markers make that gap visible in CI without blocking this PR; PR-2 removes them
-once ``TemplateExplanationProvider`` grows a real template per seeded code.
+A missing template or a required evidence field a code's template needs must
+fail this test, not silently render a fallback -- see
+``test_missing_template_and_missing_field_fail_loudly`` below.
 """
 
 from __future__ import annotations
@@ -22,7 +19,10 @@ from typing import Any
 import pytest
 from chess_lesson_spec import Diagnosis
 
-from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.templates.provider import (
+    ExplanationTemplateError,
+    TemplateExplanationProvider,
+)
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.models import Evidence
 
@@ -188,14 +188,6 @@ def test_fixture_payloads_cover_every_seeded_code() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("code", sorted(SEED_CODES))
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "explanations/templates/provider.py has no grounded template for real "
-        "taxonomy codes yet; M35 PR-2 adds one per seeded code and removes "
-        "this marker."
-    ),
-)
 async def test_every_taxonomy_code_names_its_grounded_evidence(code: str) -> None:
     fixture = Evidence(
         evidence_id=f"ev_{code}",
@@ -214,3 +206,29 @@ async def test_every_taxonomy_code_names_its_grounded_evidence(code: str) -> Non
         f"{code} explanation must name {required!r} from its evidence payload, "
         f"got: {explanation.text!r}"
     )
+
+
+@pytest.mark.asyncio
+async def test_a_code_without_a_registered_template_fails_loudly() -> None:
+    diagnosis = Diagnosis(primary="unknown.pattern", confidence=0.5, evidence_refs=[])
+    with pytest.raises(ExplanationTemplateError, match="unknown.pattern"):
+        await TemplateExplanationProvider().explain(diagnosis, evidence=[])
+
+
+@pytest.mark.asyncio
+async def test_evidence_missing_a_required_field_fails_loudly() -> None:
+    incomplete_payload = dict(_FIXTURE_PAYLOADS["board_awareness.hanging_piece"])
+    del incomplete_payload["hanging_square"]
+    fixture = Evidence(
+        evidence_id="ev_incomplete",
+        kind="fixture",
+        position_id="pos_fixture",
+        engine_analysis_id="ea_fixture",
+        claim="fixture evidence missing a required field",
+        payload=incomplete_payload,
+    )
+    diagnosis = Diagnosis(
+        primary="board_awareness.hanging_piece", confidence=1.0, evidence_refs=["ev_incomplete"]
+    )
+    with pytest.raises(ExplanationTemplateError, match="hanging_square"):
+        await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
