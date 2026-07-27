@@ -1,0 +1,119 @@
+[
+  {
+    "id": "hanging-and-direct-threat",
+    "initial_fen": "4r1k1/8/8/8/8/8/8/K3Q3 w - - 0 1",
+    "moves": ["e1e2"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["e1d1"],
+      "fast_after_pv": ["e8e2"],
+      "focused_multipv": [["e8e2"], ["g8h7"]]
+    },
+    "expected_labels": ["board_awareness.hanging_piece", "threat_processing.missed_direct_threat"]
+  },
+  {
+    "id": "missed-check",
+    "initial_fen": "k7/8/8/7Q/8/8/8/7K w - - 0 1",
+    "moves": ["h5h4"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["h5a5"],
+      "fast_after_pv": ["a8b8"],
+      "focused_multipv": [["a8b8"], ["a8a7"]]
+    },
+    "expected_labels": ["threat_processing.missed_check"]
+  },
+  {
+    "id": "missed-capture",
+    "initial_fen": "k7/8/8/4n3/8/8/8/4Q2K w - - 0 1",
+    "moves": ["e1d1"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["e1e5"],
+      "fast_after_pv": ["a8b8"],
+      "focused_multipv": [["a8b8"], ["a8a7"]]
+    },
+    "expected_labels": ["threat_processing.missed_capture"]
+  },
+  {
+    "id": "knight-fork",
+    "initial_fen": "k5r1/8/8/7r/4N3/8/8/1K6 w - - 0 1",
+    "moves": ["e4d2"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["e4f6"],
+      "fast_after_pv": ["a8b8"],
+      "focused_multipv": [["a8b8"], ["a8a7"]]
+    },
+    "expected_labels": ["tactics.fork.knight"]
+  },
+  {
+    "id": "pin",
+    "initial_fen": "4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+    "moves": ["h2h3"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["a2a3"],
+      "fast_after_pv": ["e8d8"],
+      "focused_multipv": [["e8d8"], ["e8f8"]]
+    },
+    "expected_labels": ["tactics.pin"]
+  },
+  {
+    "id": "overloaded-defender",
+    "initial_fen": "k2q1r2/4b3/8/8/8/8/PP6/1K1Q1R2 w - - 0 1",
+    "moves": ["a2a3"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["b2b3"],
+      "fast_after_pv": ["a8b8"],
+      "focused_multipv": [["a8b8"], ["a8a7"]]
+    },
+    "expected_labels": ["tactics.overloaded_defender"]
+  },
+  {
+    "id": "stopped-calculation-early",
+    "initial_fen": "4k3/8/8/8/8/8/P7/4K3 w - - 0 1",
+    "moves": ["a2a3"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["e1d1"],
+      "fast_after_pv": ["e8d8"],
+      "focused_multipv": [["e8d8", "e1d2", "d8c8"], ["e8f7"]]
+    },
+    "expected_labels": ["calculation.stopped_too_early"]
+  },
+  {
+    "id": "delayed-development",
+    "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "moves": ["a2a3", "a7a6", "a3a4", "a6a5", "h2h3"],
+    "candidate": {
+      "move_index": 4,
+      "swing_cp": 300,
+      "fast_before_pv": ["g1f3"],
+      "fast_after_pv": ["b8c6"],
+      "focused_multipv": [["b8c6"], ["g8f6"]]
+    },
+    "expected_labels": ["opening.delayed_development"]
+  },
+  {
+    "id": "king-safety-neglect",
+    "initial_fen": "4k3/8/8/7q/8/8/P7/6K1 w - - 0 1",
+    "moves": ["a2a3"],
+    "candidate": {
+      "move_index": 0,
+      "swing_cp": 300,
+      "fast_before_pv": ["g1f1"],
+      "fast_after_pv": ["h5h2"],
+      "focused_multipv": [["h5h2"], ["h5g5"]]
+    },
+    "expected_labels": ["positional.king_safety_neglect"]
+  }
+]
