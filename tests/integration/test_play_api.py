@@ -57,12 +57,15 @@ def test_create_play_session(session: Session):
     assert play_session.status == "active"
 
 
-def test_create_get_game(client: TestClient):
+def test_create_get_game(client: TestClient, session: Session):
+    player = Player(id="game-player")
+    session.add(player)
+    session.commit()
     pgn = (
         '[Event "Casual Game"]\n[White "Alice"]\n[Black "Bob"]\n'
         '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
     )
-    response = client.post("/v1/games", json={"pgn": pgn})
+    response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
     assert response.status_code == 200
     data = response.json()
     assert data["white"] == "Alice"
@@ -75,9 +78,12 @@ def test_create_get_game(client: TestClient):
     assert response2.json()["id"] == game_id
 
 
-def test_create_get_analysis_job(client: TestClient):
+def test_create_get_analysis_job(client: TestClient, session: Session):
+    player = Player(id="analysis-player")
+    session.add(player)
+    session.commit()
     pgn = '[Event "Casual Game"]\n\n1. e4 e5 2. Nf3 Nc6'
-    game_response = client.post("/v1/games", json={"pgn": pgn})
+    game_response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
     game_id = game_response.json()["id"]
 
     job_response = client.post(f"/v1/games/{game_id}/analysis-jobs")
@@ -128,6 +134,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     game = session.get(Game, UUID(game_id))
     assert game is not None
     assert game.headers == {"FEN": initial_fen}
+    assert game.owner_player_id == "player_123"
 
 
 def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
@@ -143,7 +150,7 @@ def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> 
     assert response.status_code == 422
 
 
-def test_play_session_moves_api(client: TestClient):
+def test_play_session_moves_api(client: TestClient, session: Session):
     req_body = {"player_id": "player_123", "opponent_config": {"strength": "10"}}
     create_resp = client.post("/v1/play-sessions", json=req_body)
     session_id = create_resp.json()["id"]
@@ -157,6 +164,11 @@ def test_play_session_moves_api(client: TestClient):
     move_data = move_resp.json()
     assert "opponent_move" in move_data
     assert move_data["opponent_move"] is not None
+    play_session = session.get(PlaySession, UUID(session_id))
+    assert play_session is not None
+    game = session.get(Game, play_session.game_id)
+    assert game is not None
+    assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
 
     # Retry first move (idempotency)

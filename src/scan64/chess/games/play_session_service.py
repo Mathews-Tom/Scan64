@@ -74,8 +74,13 @@ class PlaySessionService:
             raise ValueError(f"PlaySession is {play_session.status}")
 
         if not play_session.game_id:
-            # Initialize a new game
-            game = Game(pgn="", moves=[], white="Player", black="Opponent")
+            game = Game(
+                pgn="",
+                moves=[],
+                white="Player",
+                black="Opponent",
+                owner_player_id=play_session.player_id,
+            )
             self.db.add(game)
             self.db.commit()
             self.db.refresh(game)

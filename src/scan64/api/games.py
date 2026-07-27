@@ -19,6 +19,7 @@ router = APIRouter(tags=["games"])
 
 class GameCreate(BaseModel):
     pgn: str
+    player_id: str
 
 
 class GameRead(BaseModel):
@@ -41,6 +42,11 @@ def create_game(game_in: GameCreate, session: Session = Depends(get_session)) ->
 
     import chess.pgn
 
+    from scan64.api.models import Player
+
+    if session.get(Player, game_in.player_id) is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
     pgn_io = io.StringIO(game_in.pgn)
     chess_game = chess.pgn.read_game(pgn_io)
 
@@ -55,6 +61,7 @@ def create_game(game_in: GameCreate, session: Session = Depends(get_session)) ->
         date=chess_game.headers.get("Date"),
         headers=dict(chess_game.headers),
         moves=[move.uci() for move in chess_game.mainline_moves()],
+        owner_player_id=game_in.player_id,
     )
 
     session.add(game)
@@ -159,6 +166,8 @@ def create_analysis_job(
     game = session.get(Game, game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    if game.owner_player_id is None:
+        raise HTTPException(status_code=409, detail="Game has no owner and cannot be analysed")
 
     job = AnalysisJob(game_id=game_id)
     session.add(job)

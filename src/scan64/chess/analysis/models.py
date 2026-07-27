@@ -39,5 +39,6 @@ class AnalysisJob(SQLModel, table=True):
 class PersistedLessonOpportunity(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     game_id: UUID = Field(foreign_key="game.id", index=True)
+    player_id: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     lesson_spec: dict[str, Any] = Field(sa_type=JSON)

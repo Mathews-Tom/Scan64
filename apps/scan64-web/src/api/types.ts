@@ -76,6 +76,7 @@ export interface LessonSpec {
 
 export interface GameCreate {
   pgn: string;
+  player_id: string;
 }
 
 export interface GameRead {

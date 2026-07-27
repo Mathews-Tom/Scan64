@@ -47,13 +47,16 @@ def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
 
 
 async def run_analysis_for_game(game: Game, session: Session) -> None:
+    if game.owner_player_id is None:
+        raise ValueError("Cannot analyse a game without an owner")
+
     adapter = StockfishAdapter(StockfishConfig())
     orchestrator = FastPassOrchestrator(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
     detector = HangingPieceDetector()
     explanation_provider = TemplateExplanationProvider()
-    ctx = PlayerContext(player_id="system")
+    ctx = PlayerContext(player_id=game.owner_player_id)
 
     san_moves = _uci_moves_to_san(game.moves)
     if not san_moves:
@@ -84,7 +87,7 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
         opportunity = LearningOpportunity(
             opportunity_id=f"opp_{uuid4()}",
             position_id=candidate.fen,
-            player_id="system",
+            player_id=game.owner_player_id,
             game_id=str(game.id),
             played_move=san_moves[candidate.move_index],
             engine_eval_before=0.0,
@@ -131,7 +134,9 @@ async def run_analysis_for_game(game: Game, session: Session) -> None:
             continue
 
         persisted = PersistedLessonOpportunity(
-            game_id=game.id, lesson_spec=lesson.model_dump(mode="json")
+            game_id=game.id,
+            player_id=game.owner_player_id,
+            lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
 

@@ -29,8 +29,13 @@ Be6 9. Bb5+ Bd7 10. Bxd7+ Qxd7 1-0"""
 
 
 def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> None:
+    player_response = client.post("/v1/players", json={"id": "learning-player"})
+    assert player_response.status_code == 200
+
     # 1. Create a game
-    response = client.post("/v1/games", json={"pgn": sample_pgn})
+    response = client.post(
+        "/v1/games", json={"pgn": sample_pgn, "player_id": "learning-player"}
+    )
     assert response.status_code == 200
     game_id = response.json()["id"]
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.evidence.models import Evidence
 
@@ -35,10 +35,14 @@ def link_student_to_coach(
 
 
 def add_student_evidence(db_session: Session, player_id: str) -> None:
-    game = Game(pgn="1. e4 e5", white="Student", black="Opponent")
+    game = Game(
+        pgn="1. e4 e5",
+        white="Student",
+        black="Opponent",
+        owner_player_id=player_id,
+    )
     db_session.add(game)
     db_session.flush()
-    db_session.add(PlaySession(player_id=player_id, game_id=game.id, status="completed"))
 
     position = Position(
         game_id=game.id,
