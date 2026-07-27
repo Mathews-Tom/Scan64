@@ -420,6 +420,7 @@ Resource-oriented, versioned (`/v1`), idempotent on every mutating call (`Idempo
 Games            POST /v1/games · GET /v1/games/{id} · POST /v1/games/{id}/analysis-jobs
                  GET /v1/games/{id}/learning-opportunities
 Players          POST /v1/players · GET /v1/players/{id}/profile · /patterns · /progress · /evidence
+                 GET /v1/players/{id}/games
 Training         POST /v1/training-sessions · GET .../next · POST /v1/lessons/{id}/attempts
 Play             POST /v1/play-sessions · POST /v1/play-sessions/{id}/moves
                  POST /v1/play-sessions/{id}/resign
