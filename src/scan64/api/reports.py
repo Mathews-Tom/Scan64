@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -259,9 +260,70 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
     return OpeningsReport(player_id=player_id, openings=reports)
 
 
-@router.get("/v1/reports/weekly")
-def get_weekly_report(player_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
-    return {"player_id": player_id, "summary": "Weekly summary"}
+class MasterySnapshot(BaseModel):
+    concept_code: str
+    mastery: float
+
+
+class WeeklyReport(BaseModel):
+    player_id: str
+    games_played: int
+    active_concepts_observed: int
+    active_mastery: list[MasterySnapshot]
+    top_recurring_diagnosis: DiagnosisPatternRead | None
+
+
+def read_weekly_report(player_id: str, session: Session) -> WeeklyReport:
+    if session.get(Player, player_id) is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    week_start = datetime.now(UTC) - timedelta(days=7)
+    games_played = len(
+        session.exec(
+            select(Game).where(
+                Game.owner_player_id == player_id,
+                col(Game.created_at) >= week_start,
+            )
+        ).all()
+    )
+    active_skills = session.exec(
+        select(SkillState).where(
+            SkillState.player_id == player_id, col(SkillState.retired_at).is_(None)
+        )
+    ).all()
+    patterns = read_player_patterns(player_id, session)
+    return WeeklyReport(
+        player_id=player_id,
+        games_played=games_played,
+        active_concepts_observed=len(active_skills),
+        active_mastery=[
+            MasterySnapshot(
+                concept_code=skill.concept_code, mastery=skill.expected_mastery
+            )
+            for skill in sorted(active_skills, key=lambda skill: skill.concept_code)
+        ],
+        top_recurring_diagnosis=(
+            max(
+                patterns.recurring_diagnoses,
+                key=lambda diagnosis: (
+                    diagnosis.occurrence_count,
+                    diagnosis.diagnosis,
+                ),
+            )
+            if patterns.recurring_diagnoses
+            else None
+        ),
+    )
+
+
+@router.get("/v1/reports/weekly", response_model=WeeklyReport)
+def get_weekly_report(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> WeeklyReport:
+    require_player_token(request, player_id, session)
+    return read_weekly_report(player_id, session)
 
 
 @router.get("/v1/reports/openings", response_model=OpeningsReport)

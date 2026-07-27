@@ -388,14 +388,12 @@ def test_reports_endpoints(client: TestClient, db_session: Session):
     response = client.get(f"/v1/players/{player_id}/evidence")
     assert response.status_code == 401
 
-    resp = client.get(f"/v1/reports/weekly?player_id={player_id}")
-    assert resp.status_code == 200
+    for endpoint in ("weekly", "openings"):
+        response = client.get(
+            f"/v1/reports/{endpoint}?player_id={player_id}",
+            headers=headers,
+        )
+        assert response.status_code == 200
 
-    response = client.get(
-        f"/v1/reports/openings?player_id={player_id}",
-        headers=headers,
-    )
-    assert response.status_code == 200
-
-    response = client.get(f"/v1/reports/openings?player_id={player_id}")
-    assert response.status_code == 401
+        response = client.get(f"/v1/reports/{endpoint}?player_id={player_id}")
+        assert response.status_code == 401
