@@ -201,6 +201,7 @@ export class ApiClient {
 
   static async recordLessonAttempt(attempt: LessonAttemptCreate): Promise<LessonAttemptRead> {
     const response = await fetch(`${API_BASE}/learning/lesson-attempts`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...getPlayerAuthorizationHeader(getOrCreatePlayerId()),
