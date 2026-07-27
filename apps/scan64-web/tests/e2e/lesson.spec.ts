@@ -14,6 +14,13 @@ test.describe('Lesson Review Flow', () => {
     );
     const lessonSpec = JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as LessonSpec;
 
+    await page.route('/v1/players', async route => {
+      const player = route.request().postDataJSON() as { id: string };
+      await route.fulfill({
+        json: { id: player.id, preferences: {}, access_token: 'test-access-token' },
+      });
+    });
+
     // Intercept API calls
     await page.route('/v1/games', async route => {
       await route.fulfill({ json: { id: 'test-game-id', pgn: '1. e4', white: 'w', black: 'b', result: '*' } });
