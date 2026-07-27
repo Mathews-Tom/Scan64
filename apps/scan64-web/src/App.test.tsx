@@ -92,7 +92,9 @@ it('navigates to profile screen', async () => {
   });
   vi.spyOn(ApiClient, 'getPlayerPatterns').mockResolvedValue({
     player_id: 'player-1',
-    recurring_habits: [],
+    minimum_occurrences: 3,
+    status: 'insufficient_data',
+    recurring_diagnoses: [],
   });
 
   render(<App />);
