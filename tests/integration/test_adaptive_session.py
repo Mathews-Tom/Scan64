@@ -242,9 +242,12 @@ def test_session_fatigue_shifts_composition_after_high_error_history(
 ) -> None:
     player_id = "fatigue-player"
     authorize_new_player(client, db_session, player_id)
-    set_skill_mastery(db_session, player_id, "tactics.rarely-missed", alpha=9.0, beta=1.0)
-    set_skill_mastery(db_session, player_id, "tactics.mixed", alpha=5.0, beta=5.0)
-    set_skill_mastery(db_session, player_id, "tactics.often-missed", alpha=1.0, beta=9.0)
+    # All three stay above NEUTRAL_WEAKNESS_SEVERITY (weakness > 0.5) so they
+    # remain in the single "mistakes" bucket after PR-4's classification;
+    # the flooring mechanism below relies on sharing one bucket.
+    set_skill_mastery(db_session, player_id, "tactics.rarely-missed", alpha=4.0, beta=6.0)
+    set_skill_mastery(db_session, player_id, "tactics.mixed", alpha=2.0, beta=8.0)
+    set_skill_mastery(db_session, player_id, "tactics.often-missed", alpha=1.0, beta=19.0)
 
     non_due = datetime.now(UTC) + timedelta(days=3)
     low_weakness = create_persisted_lesson(
@@ -289,3 +292,26 @@ def test_session_fatigue_shifts_composition_after_high_error_history(
     fatigued_order = [lesson["lesson_id"] for lesson in fatigued.json()["lessons"]]
     assert fatigued_order[0] == str(low_weakness.id)
     assert fatigued_order[-1] == str(high_weakness.id)
+
+
+def test_session_exploration_floor_guarantees_a_non_weakness_item(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "exploration-floor-player"
+    authorize_new_player(client, db_session, player_id)
+    non_due = datetime.now(UTC) + timedelta(days=3)
+
+    for concept in ("weak-a", "weak-b", "weak-c", "weak-d", "weak-e"):
+        set_skill_mastery(db_session, player_id, f"tactics.{concept}", alpha=1.0, beta=9.0)
+        create_persisted_lesson(
+            db_session, player_id, skill_id=f"tactics.{concept}", next_review_at=non_due
+        )
+    set_skill_mastery(db_session, player_id, "tactics.mastered", alpha=9.0, beta=1.0)
+    exploration_opportunity = create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.mastered", next_review_at=non_due
+    )
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    lesson_ids = {lesson["lesson_id"] for lesson in served.json()["lessons"]}
+
+    assert str(exploration_opportunity.id) in lesson_ids

@@ -19,6 +19,7 @@ from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
 from scan64.learning.scheduling.priority import (
     PriorityFactors,
+    classify_priority_bucket,
     compute_recent_session_fatigue,
     compute_weakness_severity,
 )
@@ -84,7 +85,7 @@ def get_training_session(
         ).compute_priority(session_fatigue=session_fatigue)
         pool.append({
             "id": str(opportunity.id),
-            "type": "due" if is_due else "mistakes",
+            "type": classify_priority_bucket(is_due, weakness_severity),
             "priority": priority,
             "spec": spec,
         })
