@@ -16,7 +16,7 @@ describe('GamesListScreen', () => {
 
   it('lists every returned game and opens the selected game', async () => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-      items: [{ id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
+      items: [{ id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
       next_cursor: null,
     });
     const onOpenGame = vi.fn();

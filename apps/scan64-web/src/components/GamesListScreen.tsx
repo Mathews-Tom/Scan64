@@ -8,21 +8,27 @@ interface GamesListScreenProps {
 
 export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
   const [games, setGames] = useState<PlayerGameRead[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadGames = async (cursor?: string): Promise<void> => {
+    const page = cursor === undefined
+      ? await ApiClient.getPlayerGames(getOrCreatePlayerId())
+      : await ApiClient.getPlayerGames(getOrCreatePlayerId(), cursor);
+    setGames((currentGames) => cursor ? [...currentGames, ...page.items] : page.items);
+    setNextCursor(page.next_cursor);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const page = await ApiClient.getPlayerGames(getOrCreatePlayerId());
-        if (!cancelled) setGames(page.items);
-      } catch (caught: unknown) {
+    void loadGames()
+      .catch((caught: unknown) => {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unable to load games');
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    })();
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -36,11 +42,24 @@ export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
         {games.map((game) => (
           <li key={game.id}>
             <button onClick={() => onOpenGame(game.id)}>
-              {game.white} vs {game.black} — {game.result} — {new Date(game.created_at).toLocaleDateString()} — {game.diagnosis_count} diagnoses
+              {game.white} vs {game.black} — {game.result} — {game.date} — {game.diagnosis_count} diagnoses
             </button>
           </li>
         ))}
       </ul>
+      {nextCursor && (
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            void loadGames(nextCursor)
+              .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Unable to load games'))
+              .finally(() => setLoading(false));
+          }}
+        >
+          Load more games
+        </button>
+      )}
     </section>
   );
 }
