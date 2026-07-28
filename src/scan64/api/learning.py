@@ -18,6 +18,7 @@ from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
 from scan64.learning.scheduling.priority import PriorityFactors
+from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
@@ -56,6 +57,7 @@ def get_training_session(
 ) -> TrainingSessionRead:
     now = datetime.now(UTC)
     require_player_token(request, player_id, db)
+    state = load_player_session_state(db, player_id, now)
     pool: list[dict[str, Any]] = []
     opportunities = db.exec(
         select(PersistedLessonOpportunity).where(
@@ -63,7 +65,7 @@ def get_training_session(
         )
     ).all()
     for opportunity in opportunities:
-        schedule = db.get(ReviewSchedule, (player_id, str(opportunity.id)))
+        schedule = state.active_reviews.get(str(opportunity.id))
         if schedule is None:
             continue
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
