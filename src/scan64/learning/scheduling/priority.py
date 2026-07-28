@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from scan64.learning.profiling.models import SkillState
 
@@ -83,6 +84,32 @@ def compute_weakness_severity(skill: SkillState | None) -> float:
     """
     mastery = skill.expected_mastery if skill is not None else SkillState().expected_mastery
     return max(0.0, min(1.0, 1.0 - mastery))
+
+
+# A concept scoring at or above the neutral Beta(1, 1) prior mean isn't a
+# demonstrated weakness (see compute_weakness_severity's fallback).
+NEUTRAL_WEAKNESS_SEVERITY = 1.0 - SkillState().expected_mastery
+
+
+def classify_priority_bucket(
+    is_due: bool, weakness_severity: float
+) -> Literal["due", "mistakes", "exploration"]:
+    """
+    Bucket a session candidate for SessionComposer's mix quotas (M38 / G16):
+
+    - "due": an overdue non-retired review, regardless of mastery — overdue
+      reviews outrank exploration items via the composer's due:0.4 vs
+      exploration:0.1 mix and its due-preferring overflow tie-break.
+    - "mistakes": not due, and weakness is above the neutral prior — a
+      demonstrated weakness.
+    - "exploration": not due, and weakness is at or below the neutral prior
+      — the non-weakness content the exploration floor guarantees.
+    """
+    if is_due:
+        return "due"
+    if weakness_severity > NEUTRAL_WEAKNESS_SEVERITY:
+        return "mistakes"
+    return "exploration"
 
 
 # Matches compute_session_fatigue's existing lesson-count convention above
