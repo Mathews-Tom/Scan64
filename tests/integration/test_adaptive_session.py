@@ -235,3 +235,57 @@ def test_session_priority_ranks_overdue_review_above_non_due_review(
     lesson_ids = [lesson["lesson_id"] for lesson in served.json()["lessons"]]
 
     assert lesson_ids[0] == str(due_opportunity.id)
+
+
+def test_session_fatigue_shifts_composition_after_high_error_history(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "fatigue-player"
+    authorize_new_player(client, db_session, player_id)
+    set_skill_mastery(db_session, player_id, "tactics.rarely-missed", alpha=9.0, beta=1.0)
+    set_skill_mastery(db_session, player_id, "tactics.mixed", alpha=5.0, beta=5.0)
+    set_skill_mastery(db_session, player_id, "tactics.often-missed", alpha=1.0, beta=9.0)
+
+    non_due = datetime.now(UTC) + timedelta(days=3)
+    low_weakness = create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.rarely-missed", next_review_at=non_due
+    )
+    create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.mixed", next_review_at=non_due
+    )
+    high_weakness = create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.often-missed", next_review_at=non_due
+    )
+
+    rested = client.get(f"/v1/learning/session?player_id={player_id}")
+    rested_order = [lesson["lesson_id"] for lesson in rested.json()["lessons"]]
+    assert rested_order[0] == str(high_weakness.id)
+    assert rested_order[-1] == str(low_weakness.id)
+
+    # Simulate a long, high-error session: 20 recent server-verified failures
+    # hits both the volume cap and a 100% error rate, driving fatigue to 1.0.
+    filler_session = StudySession(player_id=player_id, domain="daily_training")
+    db_session.add(filler_session)
+    db_session.commit()
+    now = datetime.now(UTC)
+    for index in range(20):
+        db_session.add(
+            LessonAttempt(
+                session_id=filler_session.id,
+                player_id=player_id,
+                lesson_id=f"fatigue-filler-{index}",
+                source_kind="persisted_opportunity",
+                elapsed_ms=1000,
+                hints_used=0,
+                success=False,
+                grading_status="verified",
+                profile_update_result="applied",
+                completed_at=now - timedelta(minutes=index),
+            )
+        )
+    db_session.commit()
+
+    fatigued = client.get(f"/v1/learning/session?player_id={player_id}")
+    fatigued_order = [lesson["lesson_id"] for lesson in fatigued.json()["lessons"]]
+    assert fatigued_order[0] == str(low_weakness.id)
+    assert fatigued_order[-1] == str(high_weakness.id)
