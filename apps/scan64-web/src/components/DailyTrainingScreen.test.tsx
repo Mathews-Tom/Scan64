@@ -115,6 +115,53 @@ describe('DailyTrainingScreen', () => {
       'Analyse another game to generate a reviewable lesson.'
     );
   });
+  it('reveals hints only after a rejected attempt and records their use', async () => {
+    const hintedLesson: LessonSpec = {
+      ...mockLesson,
+      interaction: {
+        input: 'click',
+        maximum_attempts: 3,
+        accepted_moves: [],
+      },
+      hints: [{ level: 1, kind: 'prompt', text: 'Control the centre.' }],
+    };
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'session-hinted',
+      lessons: [hintedLesson],
+    });
+    vi.mocked(ApiClient.recordLessonAttempt)
+      .mockResolvedValueOnce({
+        id: 'attempt-1',
+        success: false,
+        grading_status: 'verified',
+        profile_update_result: 'applied',
+      })
+      .mockResolvedValueOnce({
+        id: 'attempt-2',
+        success: false,
+        grading_status: 'verified',
+        profile_update_result: 'applied',
+      });
+
+    render(<DailyTrainingScreen />);
+
+    expect(await screen.findByTestId('lesson-instruction')).toBeInTheDocument();
+    expect(screen.queryByTestId('lesson-hint')).not.toBeInTheDocument();
+    const submitMove = screen.getByTestId('submit-daily-move');
+    fireEvent.click(submitMove);
+    await waitFor(() => expect(screen.getByTestId('lesson-hint')).toHaveTextContent('Control the centre.'));
+    expect(ApiClient.recordLessonAttempt).toHaveBeenLastCalledWith(
+      expect.objectContaining({ hints_used: 0 }),
+    );
+
+    fireEvent.click(submitMove);
+    await waitFor(() => expect(ApiClient.recordLessonAttempt).toHaveBeenCalledTimes(2));
+    expect(ApiClient.recordLessonAttempt).toHaveBeenLastCalledWith(
+      expect.objectContaining({ hints_used: 1 }),
+    );
+    expect(screen.getByTestId('lesson-feedback')).toHaveTextContent('Not accepted. Attempt recorded.');
+  });
+
   it('disables a lesson after its maximum recorded attempts', async () => {
     const limitedLesson: LessonSpec = {
       ...mockLesson,

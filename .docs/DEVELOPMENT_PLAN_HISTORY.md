@@ -370,3 +370,17 @@ Append one entry per pre-implementation design gate. Never rewrite an existing e
 | Plan/prompt sections changed | `DEVELOPMENT_PLAN.md` source map, graph, release train, M37, M45, and critical path; `EXECUTION_PROMPTS.md` M37, M38–M44 release-train references, and M45. |
 | Downstream impact | M38 and M43 continue to consume only verified persisted attempts. M45 now owns the missing capacity-bounded, real-time coach-mode producer after M41; M37 repairs only game-analysis review context. |
 | Implementation authorization | `blocked pending docs(plan): reconcile M37 critical interruption contract` reviewed, green hosted `Quality`, and externally merged; then rerun M37's design gate. |
+
+## H-026
+
+| Field | Content |
+| --- | --- |
+| ID | `H-026` |
+| Timestamp | 2026-07-28T00:20:06Z |
+| Milestone | `M37` |
+| Decision | `DESIGN GO — PLAN REVISION: none` |
+| Trigger | Required post-reconciliation re-run after PR #181 merged to `main`. |
+| Evidence | PR #181 merged with hosted `Quality` passing. Re-read reconciled M37 and M38/M43/M45 contracts, H-025, the current Daily Training, game-analysis, and Opening Explorer serving paths, `StudySession`, `PersistedLessonOpportunity`, and M34 schedule/profile-update contracts. The serving paths carry canonical owned-opportunity identity and a durable session; static lessons are outside the verified path; the unsupported active-play interruption fixture is absent; M45 remains the real-time producer. |
+| Plan/prompt sections changed | `none` |
+| Downstream impact | M38 consumes verified persisted-attempt history from M37. M43 keeps transfer data distinct from ungraded opening-mission attempts. M45 owns real-time coach-mode interruption production. |
+| Implementation authorization | `authorized` |

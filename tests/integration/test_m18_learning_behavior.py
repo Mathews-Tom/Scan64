@@ -93,6 +93,17 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     db_session.add(opp1)
     db_session.add(opp2)
     db_session.commit()
+    db_session.add(
+        ReviewSchedule(
+            player_id=player_1, item_id=str(opp1.id), next_review_at=datetime.now(UTC)
+        )
+    )
+    db_session.add(
+        ReviewSchedule(
+            player_id=player_2, item_id=str(opp2.id), next_review_at=datetime.now(UTC)
+        )
+    )
+    db_session.commit()
     # Query for player_1
     resp1 = client.get(
         f"/v1/learning/session?player_id={player_1}", headers=player_1_headers
