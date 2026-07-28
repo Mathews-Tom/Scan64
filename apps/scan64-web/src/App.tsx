@@ -11,6 +11,14 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { CoachDashboardScreen } from './components/CoachDashboardScreen';
 import { GamesListScreen } from './components/GamesListScreen';
 
+function decodeRouteSegment(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
 
 function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -29,11 +37,12 @@ function App() {
     setPathname(window.location.pathname);
   }, []);
   const gameAnalysisMatch = /^\/games\/([^/]+)\/analysis$/.exec(pathname);
+  const gameAnalysisId = gameAnalysisMatch ? decodeRouteSegment(gameAnalysisMatch[1]) : null;
   let screen = <div data-testid="not-found">Page not found</div>;
-  if (gameAnalysisMatch) {
+  if (gameAnalysisId !== null) {
     screen = (
       <AnalysisScreen
-        gameId={decodeURIComponent(gameAnalysisMatch[1])}
+        gameId={gameAnalysisId}
         onPlayFromHere={(session, fen) => {
           setActivePlaySession({ session, fen });
           navigate('/play');

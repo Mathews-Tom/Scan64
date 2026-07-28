@@ -58,6 +58,14 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
   });
 
+
+  it('renders not found for a malformed encoded game-analysis URL', () => {
+    window.history.replaceState({}, '', '/games/%/analysis');
+
+    render(<App />);
+
+    expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
+  });
   it('follows browser Back navigation', async () => {
     render(<App />);
     fireEvent.click(screen.getByText('Play Game'));
