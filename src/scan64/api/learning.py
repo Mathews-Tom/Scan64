@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from scan64.api.auth import require_player_token
+from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.content.models import LessonAttempt, StudySession
@@ -63,10 +63,12 @@ def get_training_session(
         )
     ).all()
     for opportunity in opportunities:
+        schedule = db.get(ReviewSchedule, (player_id, str(opportunity.id)))
+        if schedule is None:
+            continue
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
         spec.lesson_id = str(opportunity.id)
-        schedule = db.get(ReviewSchedule, (player_id, str(opportunity.id)))
-        is_due = schedule is not None and schedule.is_due(now)
+        is_due = schedule.is_due(now)
         priority = PriorityFactors(
             review_due=1.0 if is_due else 0.0,
             weakness_severity=0.8,
@@ -91,10 +93,13 @@ def get_training_session(
 def _submitted_move_is_accepted(spec: LessonSpec, submitted_move: str) -> bool:
     board = chess.Board(spec.source.fen)
     try:
-        san = board.san(chess.Move.from_uci(submitted_move))
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail="Submitted move is not legal") from error
-    return any(move.san == san for move in spec.interaction.accepted_moves)
+        move = chess.Move.from_uci(submitted_move)
+    except ValueError:
+        return False
+    if move not in board.legal_moves:
+        return False
+    san = board.san(move)
+    return any(accepted_move.san == san for accepted_move in spec.interaction.accepted_moves)
 
 
 @router.post("/lesson-attempts", response_model=LessonAttemptRead)
@@ -103,10 +108,10 @@ def record_lesson_attempt(
     request: Request,
     db: Session = Depends(get_session),
 ) -> LessonAttemptRead:
+    authenticated_player_id = require_authenticated_player(request, db)
     study_session = db.get(StudySession, attempt_in.session_id)
-    if study_session is None:
+    if study_session is None or study_session.player_id != authenticated_player_id:
         raise HTTPException(status_code=404, detail="Study session not found")
-    require_player_token(request, study_session.player_id, db)
     if attempt_in.source_kind == "opening_mission":
         attempt = LessonAttempt(
             session_id=study_session.id,

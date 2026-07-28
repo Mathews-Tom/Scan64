@@ -269,6 +269,70 @@ def test_training_session_rejects_missing_and_wrong_player_tokens(
 
 
 
+def test_scheduleless_opportunities_are_not_served(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "scheduleless-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    game = Game(pgn="", owner_player_id=player_id)
+    db_session.add(game)
+    db_session.flush()
+    db_session.add(
+        PersistedLessonOpportunity(
+            game_id=game.id,
+            player_id=player_id,
+            lesson_spec=lesson_spec(),
+        )
+    )
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    daily_response = client.get(f"/v1/learning/session?player_id={player_id}")
+    game_response = client.get(
+        f"/v1/games/{game.id}/learning-opportunities?player_id={player_id}"
+    )
+
+    assert daily_response.status_code == 200
+    assert daily_response.json()["lessons"] == []
+    assert db_session.get(StudySession, daily_response.json()["session_id"]) is not None
+    assert game_response.status_code == 200
+    assert game_response.json()["lessons"] == []
+    assert game_response.json()["session_id"] is None
+
+
+def test_persisted_attempt_records_a_legal_format_illegal_move(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "illegal-move-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    study_session = create_study_session(db_session, player_id)
+    authorize(client, db_session, player_id)
+
+    response = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": study_session.id,
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "a3a4",
+            "elapsed_ms": 1,
+            "hints_used": 0,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is False
+    attempts = db_session.exec(
+        select(LessonAttempt).where(LessonAttempt.session_id == study_session.id)
+    ).all()
+    assert len(attempts) == 1
+    assert attempts[0].success is False
+
+
 def test_persisted_attempt_rejects_static_or_unowned_lesson_ids(
     client: TestClient, db_session: Session
 ) -> None:
@@ -342,6 +406,12 @@ def test_lesson_attempt_rejects_missing_and_wrong_player_tokens(
     missing_token_response = client.post(
         "/v1/learning/lesson-attempts", json=attempt_payload
     )
+    unknown_session_response = client.post(
+        "/v1/learning/lesson-attempts",
+        json={**attempt_payload, "session_id": "unknown-study-session"},
+        headers={"Authorization": "Bearer unregistered-token"},
+    )
+
 
     authorize(client, db_session, other_player_id)
     wrong_token_response = client.post(
@@ -349,7 +419,8 @@ def test_lesson_attempt_rejects_missing_and_wrong_player_tokens(
     )
 
     assert missing_token_response.status_code == 401
-    assert wrong_token_response.status_code == 403
+    assert unknown_session_response.status_code == 401
+    assert wrong_token_response.status_code == 404
     assert db_session.exec(
         select(LessonAttempt).where(LessonAttempt.session_id == study_session.id)
     ).all() == []

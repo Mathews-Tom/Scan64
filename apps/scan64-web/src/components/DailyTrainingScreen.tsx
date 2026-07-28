@@ -10,7 +10,7 @@ export const DailyTrainingScreen: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionLessons, setSessionLessons] = useState<LessonSpec[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintIndex, setHintIndex] = useState(-1);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -38,7 +38,7 @@ export const DailyTrainingScreen: React.FC = () => {
   if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2>Training Complete!</h2></div>;
 
   const lesson = sessionLessons[currentIndex];
-  const hint = lesson.hints[hintsUsed];
+  const hint = hintIndex >= 0 ? lesson.hints[hintIndex] : undefined;
   const submitMove = async (move: string) => {
     if (
       sessionId === null
@@ -53,14 +53,14 @@ export const DailyTrainingScreen: React.FC = () => {
         source_kind: 'persisted_opportunity',
         submitted_move: move,
         elapsed_ms: Math.round(performance.now() - startedAt.current),
-        hints_used: hintsUsed,
+        hints_used: Math.max(hintIndex + 1, 0),
       });
       setAttemptCount(count => count + 1);
       if (result.success) {
         setFeedback('Correct. Attempt recorded.');
       } else {
-        const nextHintExists = hintsUsed < lesson.hints.length;
-        setHintsUsed(value => Math.min(value + 1, lesson.hints.length));
+        const nextHintExists = hintIndex < lesson.hints.length - 1;
+        setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
         setFeedback(
           nextHintExists
             ? 'Not accepted. Attempt recorded; the next hint is revealed.'
@@ -77,7 +77,7 @@ export const DailyTrainingScreen: React.FC = () => {
 
   const nextLesson = () => {
     setCurrentIndex(index => index + 1);
-    setHintsUsed(0);
+    setHintIndex(-1);
     setAttemptCount(0);
     setFeedback(null);
     startedAt.current = performance.now();

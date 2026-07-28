@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import Request
@@ -117,6 +117,14 @@ def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> N
         },
     )
     db_session.add(opportunity)
+    db_session.commit()
+    db_session.add(
+        ReviewSchedule(
+            player_id="player1",
+            item_id=str(opportunity.id),
+            next_review_at=datetime.now(UTC),
+        )
+    )
     db_session.commit()
 
     session = get_training_session(

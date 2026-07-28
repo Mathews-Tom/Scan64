@@ -4,7 +4,7 @@ from uuid import UUID
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import case
+from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_player_token
@@ -14,6 +14,7 @@ from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedL
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["games"])
@@ -141,6 +142,16 @@ def list_learning_opportunities(
     limit = min(limit, 100)
     query = (
         select(PersistedLessonOpportunity)
+        .join(
+            ReviewSchedule,
+            (col(ReviewSchedule.player_id) == player_id)
+            & (
+                func.replace(col(ReviewSchedule.item_id), "-", "")
+                == func.replace(
+                    cast(col(PersistedLessonOpportunity.id), String), "-", ""
+                )
+            ),
+        )
         .where(PersistedLessonOpportunity.game_id == game_id)
         .where(PersistedLessonOpportunity.player_id == player_id)
         .order_by(col(PersistedLessonOpportunity.created_at).desc())
