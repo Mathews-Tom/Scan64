@@ -189,3 +189,49 @@ def test_session_loads_state_recent_verified_attempts_excludes_ungraded_and_stal
     assert [attempt.lesson_id for attempt in state.recent_verified_attempts] == [
         "verified-recent"
     ]
+
+
+def test_session_priority_ranks_low_mastery_above_high_mastery(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "mastery-ranking-player"
+    authorize_new_player(client, db_session, player_id)
+    set_skill_mastery(db_session, player_id, "tactics.low-mastery", alpha=1.0, beta=9.0)
+    set_skill_mastery(db_session, player_id, "tactics.high-mastery", alpha=9.0, beta=1.0)
+    non_due = datetime.now(UTC) + timedelta(days=3)
+    low_mastery_opportunity = create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.low-mastery", next_review_at=non_due
+    )
+    create_persisted_lesson(
+        db_session, player_id, skill_id="tactics.high-mastery", next_review_at=non_due
+    )
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    lesson_ids = [lesson["lesson_id"] for lesson in served.json()["lessons"]]
+
+    assert lesson_ids[0] == str(low_mastery_opportunity.id)
+
+
+def test_session_priority_ranks_overdue_review_above_non_due_review(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "due-ranking-player"
+    authorize_new_player(client, db_session, player_id)
+    set_skill_mastery(db_session, player_id, "tactics.fork", alpha=5.0, beta=5.0)
+    due_opportunity = create_persisted_lesson(
+        db_session,
+        player_id,
+        skill_id="tactics.fork",
+        next_review_at=datetime.now(UTC) - timedelta(days=1),
+    )
+    create_persisted_lesson(
+        db_session,
+        player_id,
+        skill_id="tactics.fork",
+        next_review_at=datetime.now(UTC) + timedelta(days=3),
+    )
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    lesson_ids = [lesson["lesson_id"] for lesson in served.json()["lessons"]]
+
+    assert lesson_ids[0] == str(due_opportunity.id)

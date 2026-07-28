@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from scan64.learning.profiling.models import SkillState
+
 
 @dataclass
 class PriorityFactors:
@@ -66,3 +68,18 @@ def compute_session_fatigue(
     fatigue = (lesson_factor + rt_degradation) / 2.0
 
     return min(1.0, max(0.0, fatigue))
+
+
+def compute_weakness_severity(skill: SkillState | None) -> float:
+    """
+    Weakness severity is the complement of measured mastery: 1 - expected_mastery.
+
+    An unobserved concept has no `SkillState` row; its severity falls back to
+    the neutral prior mastery, the mean of the uninformed Beta(1, 1)
+    distribution every new concept starts from (`SkillState.expected_mastery`
+    with the model's default alpha=beta=1 -> 0.5), so an unmeasured concept
+    reads as neither a demonstrated strength nor a demonstrated weakness.
+    Source: `SkillState.expected_mastery` (learning/profiling/models.py).
+    """
+    mastery = skill.expected_mastery if skill is not None else SkillState().expected_mastery
+    return max(0.0, min(1.0, 1.0 - mastery))
