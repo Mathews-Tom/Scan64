@@ -1,46 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import { LessonBoard } from './LessonBoard';
 import type { LessonSpec } from '../api/types';
 
 interface Props {
   lesson: LessonSpec;
-  requireIntent?: boolean;
+  sessionId: string;
   onComplete?: () => void;
 }
 
-export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Props) {
+export function CriticalMomentReview({ lesson, sessionId, onComplete }: Props) {
   const [step, setStep] = useState<number>(1);
   const [intent, setIntent] = useState('');
   const [hintIndex, setHintIndex] = useState(-1);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [submittedMove, setSubmittedMove] = useState<string | null>(null);
-  const [recordingError, setRecordingError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void ApiClient.getTrainingSession()
-      .then(session => setSessionId(session.session_id))
-      .catch(() => setRecordingError('Could not create a critical-moment study session.'));
-  }, []);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const startedAt = useRef(performance.now());
 
   const recordAttempt = async (move: string) => {
-    if (sessionId === null) {
-      setRecordingError('Critical-moment study session is still loading.');
-      return;
-    }
+    if (
+      submitting
+      || submittedMove !== null
+      || attemptCount >= lesson.interaction.maximum_attempts
+    ) return;
+    setSubmitting(true);
     try {
-      await ApiClient.recordLessonAttempt({
+      const result = await ApiClient.recordLessonAttempt({
         session_id: sessionId,
-        lesson_id: `critical-moment:${lesson.lesson_id}`,
-        source_kind: 'critical_moment',
+        lesson_id: lesson.lesson_id,
+        source_kind: 'persisted_opportunity',
         submitted_move: move,
-        elapsed_ms: 0,
+        elapsed_ms: Math.round(performance.now() - startedAt.current),
         hints_used: Math.max(hintIndex + 1, 0),
       });
-      setSubmittedMove(move);
-      setRecordingError(null);
+      setAttemptCount(count => count + 1);
+      if (result.success) {
+        setSubmittedMove(move);
+        setFeedback('Correct. Attempt recorded.');
+      } else {
+        const nextHintExists = hintIndex < lesson.hints.length - 1;
+        setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
+        setStep(value => Math.max(value, 4));
+        setFeedback(
+          nextHintExists
+            ? 'Not accepted. Attempt recorded; the next hint is revealed.'
+            : 'Not accepted. Attempt recorded.',
+        );
+      }
     } catch (caught) {
-      setRecordingError(caught instanceof Error ? caught.message : 'Could not record critical-moment attempt.');
+      setFeedback(caught instanceof Error ? caught.message : 'Could not record critical-moment attempt.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -48,7 +60,6 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
-      if (requireIntent && !intent.trim()) return;
       setStep(3);
     } else if (step === 3) {
       if (lesson.hints.length > 0) {
@@ -79,8 +90,16 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
         <strong>Objective:</strong> {lesson.objective.instruction}
       </div>
 
-      {recordingError && <p role="alert">{recordingError}</p>}
-      <LessonBoard lesson={lesson} disabled={submittedMove !== null} onMove={move => void recordAttempt(move)} />
+      {feedback && <p role="alert">{feedback}</p>}
+      <LessonBoard
+        lesson={lesson}
+        disabled={
+          submitting
+          || submittedMove !== null
+          || attemptCount >= lesson.interaction.maximum_attempts
+        }
+        onMove={move => void recordAttempt(move)}
+      />
       {submittedMove && <p data-testid="critical-attempt-recorded">Attempt recorded.</p>}
 
       <div className="step-content">
@@ -92,7 +111,7 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
             {step === 2 && (
               <textarea 
                 data-testid="intent-input"
-                placeholder={requireIntent ? "Required: What were you thinking?" : "Optional: What were you thinking?"}
+                placeholder="What were you thinking?"
                 value={intent}
                 onChange={(e) => setIntent(e.target.value)}
               />
@@ -142,11 +161,7 @@ export function CriticalMomentReview({ lesson, requireIntent, onComplete }: Prop
 
       <div className="actions">
         {step < 3 && (
-          <button 
-            onClick={handleNextStep} 
-            data-testid="next-step-btn"
-            disabled={step === 2 && requireIntent && !intent.trim()}
-          >
+          <button onClick={handleNextStep} data-testid="next-step-btn">
             Continue
           </button>
         )}

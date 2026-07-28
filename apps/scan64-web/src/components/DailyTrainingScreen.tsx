@@ -13,6 +13,7 @@ export const DailyTrainingScreen: React.FC = () => {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
   const startedAt = useRef(0);
 
   useEffect(() => {
@@ -39,7 +40,11 @@ export const DailyTrainingScreen: React.FC = () => {
   const lesson = sessionLessons[currentIndex];
   const hint = lesson.hints[hintsUsed];
   const submitMove = async (move: string) => {
-    if (sessionId === null || submitting) return;
+    if (
+      sessionId === null
+      || submitting
+      || attemptCount >= lesson.interaction.maximum_attempts
+    ) return;
     setSubmitting(true);
     try {
       const result = await ApiClient.recordLessonAttempt({
@@ -50,11 +55,17 @@ export const DailyTrainingScreen: React.FC = () => {
         elapsed_ms: Math.round(performance.now() - startedAt.current),
         hints_used: hintsUsed,
       });
+      setAttemptCount(count => count + 1);
       if (result.success) {
         setFeedback('Correct. Attempt recorded.');
       } else {
+        const nextHintExists = hintsUsed < lesson.hints.length;
         setHintsUsed(value => Math.min(value + 1, lesson.hints.length));
-        setFeedback('Not accepted. Attempt recorded; the next hint is available.');
+        setFeedback(
+          nextHintExists
+            ? 'Not accepted. Attempt recorded; the next hint is revealed.'
+            : 'Not accepted. Attempt recorded.',
+        );
       }
     } catch (caught) {
       console.error('Failed to record lesson attempt:', caught);
@@ -67,9 +78,10 @@ export const DailyTrainingScreen: React.FC = () => {
   const nextLesson = () => {
     setCurrentIndex(index => index + 1);
     setHintsUsed(0);
+    setAttemptCount(0);
     setFeedback(null);
     startedAt.current = performance.now();
   };
 
-  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><LessonBoard lesson={lesson} disabled={submitting || feedback?.startsWith('Correct') === true} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
+  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><LessonBoard lesson={lesson} disabled={submitting || feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
 };

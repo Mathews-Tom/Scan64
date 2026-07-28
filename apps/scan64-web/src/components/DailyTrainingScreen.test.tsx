@@ -7,7 +7,26 @@ import type { LessonSpec } from '../api/types';
 vi.mock('../api/client', () => ({
   ApiClient: {
     getTrainingSession: vi.fn(),
+    recordLessonAttempt: vi.fn(),
   }
+}));
+
+vi.mock('./LessonBoard', () => ({
+  LessonBoard: ({
+    disabled,
+    onMove,
+  }: {
+    disabled: boolean;
+    onMove: (move: string) => void;
+  }) => (
+    <button
+      data-testid="submit-daily-move"
+      disabled={disabled}
+      onClick={() => onMove('e2e4')}
+    >
+      Submit move
+    </button>
+  ),
 }));
 
 const mockLesson: LessonSpec = {
@@ -95,5 +114,39 @@ describe('DailyTrainingScreen', () => {
     expect(await screen.findByTestId('no-eligible-lessons')).toHaveTextContent(
       'Analyse another game to generate a reviewable lesson.'
     );
+  });
+  it('disables a lesson after its maximum recorded attempts', async () => {
+    const limitedLesson: LessonSpec = {
+      ...mockLesson,
+      interaction: {
+        input: 'click',
+        maximum_attempts: 1,
+        accepted_moves: [],
+      },
+    };
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'session-limited',
+      lessons: [limitedLesson],
+    });
+    vi.mocked(ApiClient.recordLessonAttempt).mockResolvedValueOnce({
+      id: 'attempt-1',
+      success: false,
+      grading_status: 'verified',
+      profile_update_result: 'applied',
+    });
+    render(<DailyTrainingScreen />);
+
+    const submitMove = await screen.findByTestId('submit-daily-move');
+    fireEvent.click(submitMove);
+
+    await waitFor(() => {
+      expect(ApiClient.recordLessonAttempt).toHaveBeenCalledTimes(1);
+    });
+    expect(submitMove).toBeDisabled();
+    expect(screen.getByTestId('lesson-feedback')).toHaveTextContent(
+      'Not accepted. Attempt recorded.',
+    );
+    fireEvent.click(submitMove);
+    expect(ApiClient.recordLessonAttempt).toHaveBeenCalledTimes(1);
   });
 });

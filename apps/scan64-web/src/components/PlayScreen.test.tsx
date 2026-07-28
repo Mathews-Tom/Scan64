@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
 import { ApiClient } from '../api/client';
-import type { LessonSpec } from '../api/types';
 
 type MoveHandler = (orig: string, dest: string) => void | Promise<void>;
 
@@ -251,26 +250,7 @@ describe('PlayScreen', () => {
     );
   });
 
-  it('shows an interruption review only when coach mode is enabled', async () => {
-    const interruptionLesson: LessonSpec = {
-      schema_version: '0.1.0',
-      lesson_id: 'lesson-1',
-      source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
-      diagnosis: { primary: 'tactic', secondary: [], confidence: 1, evidence_refs: [] },
-      objective: { type: 'move', instruction: 'Find the tactic' },
-      interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },
-      hints: [{ level: 1, kind: 'cue', text: 'Look again' }],
-      explanation: { text: 'The tactic wins material' },
-      verification: {
-        status: 'verified',
-        engine: 'test',
-        engine_binary_digest: 'digest',
-        nodes: 1,
-        multipv: 1,
-        verified_at: 'now',
-      },
-      mastery: { skill_key: 'tactics.fork', delta: 0.1 },
-    };
+  it('does not render a client-created interruption in coach mode', async () => {
     vi.mocked(ApiClient.createPlayer).mockResolvedValue({
       id: 'test-player',
       preferences: {},
@@ -284,29 +264,18 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
       opponent_move: null,
       status: 'active',
-      interruption_lesson: interruptionLesson,
     });
 
-    const firstScreen = render(<PlayScreen />);
-    fireEvent.click(screen.getByTestId('start-btn'));
-    await waitFor(() => expect(chessgroundMock.after).toBeDefined());
-    const disabledCoachMove = getRegisteredMoveHandler();
-    await act(async () => {
-      await disabledCoachMove('e2', 'e4');
-    });
-    expect(screen.queryByTestId('critical-moment-review')).toBeNull();
-
-    firstScreen.unmount();
-    chessgroundMock.after = undefined;
     render(<PlayScreen />);
     fireEvent.click(screen.getByTestId('coach-mode-toggle'));
     fireEvent.click(screen.getByTestId('start-btn'));
     await waitFor(() => expect(chessgroundMock.after).toBeDefined());
-    const enabledCoachMove = getRegisteredMoveHandler();
+    const move = getRegisteredMoveHandler();
     await act(async () => {
-      await enabledCoachMove('e2', 'e4');
+      await move('e2', 'e4');
     });
-    expect(screen.getByTestId('critical-moment-review')).toBeInTheDocument();
+
+    expect(screen.queryByTestId('critical-moment-review')).toBeNull();
   });
 
   it('allows a black-to-move initial position', async () => {

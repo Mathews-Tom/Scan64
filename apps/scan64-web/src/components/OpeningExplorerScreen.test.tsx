@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpeningExplorerScreen } from './OpeningExplorerScreen';
+import { ApiClient } from '../api/client';
 
 type MoveHandler = (orig: string, dest: string) => void;
 
@@ -72,6 +73,35 @@ describe('OpeningExplorerScreen', () => {
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       }),
     );
+  });
+
+  it('records an opening mission through the server-side attempt endpoint', async () => {
+    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
+      session_id: 'opening-study-1',
+      lessons: [],
+    });
+    const recordAttempt = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({
+      id: 'opening-attempt-1',
+      success: true,
+      grading_status: 'verified',
+      profile_update_result: 'not_applicable',
+    });
+    render(<OpeningExplorerScreen />);
+
+    fireEvent.click(screen.getByText('Italian Game'));
+    const recordButton = await screen.findByRole('button', { name: 'Record mission' });
+    fireEvent.click(recordButton);
+
+    await waitFor(() => {
+      expect(recordAttempt).toHaveBeenCalledWith({
+        session_id: 'opening-study-1',
+        lesson_id: 'opening-mission:italian_dev_minor',
+        source_kind: 'opening_mission',
+        elapsed_ms: 0,
+        hints_used: 0,
+      });
+    });
+    expect(screen.getByRole('button', { name: 'Recorded' })).toBeInTheDocument();
   });
 });
 
