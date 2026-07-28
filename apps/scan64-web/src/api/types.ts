@@ -119,6 +119,7 @@ export interface PlayerGameRead {
   white: string;
   black: string;
   result: string;
+  date: string;
   created_at: string;
   diagnosis_count: number;
 }

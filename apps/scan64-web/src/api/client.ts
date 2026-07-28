@@ -142,11 +142,11 @@ export class ApiClient {
     return await response.json() as GameRead;
   }
 
-  static async getPlayerGames(playerId: string): Promise<PlayerGamesPage> {
-    const authorizedPlayerId = await ensurePlayerAuthorization(playerId);
+  static async getPlayerGames(playerId: string, cursor?: string): Promise<PlayerGamesPage> {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
     const response = await fetch(
-      `${API_BASE}/players/${encodeURIComponent(authorizedPlayerId)}/games`,
-      { headers: getPlayerAuthorizationHeader(authorizedPlayerId) },
+      `${API_BASE}/players/${encodeURIComponent(playerId)}/games${query}`,
+      { headers: getPlayerAuthorizationHeader(playerId) },
     );
     if (!response.ok) {
       throw new ApiRequestError(`Failed to get player games: ${response.statusText}`, response.status);
