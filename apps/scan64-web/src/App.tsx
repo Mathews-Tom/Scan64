@@ -9,6 +9,7 @@ import type { PlaySessionRead } from './api/types';
 import { DailyTrainingScreen } from './components/DailyTrainingScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CoachDashboardScreen } from './components/CoachDashboardScreen';
+import { GamesListScreen } from './components/GamesListScreen';
 
 
 function App() {
@@ -73,6 +74,16 @@ function App() {
         />
       );
       break;
+    case '/games':
+      screen = (
+        <GamesListScreen
+          onOpenGame={(gameId) => {
+            setActiveAnalysisGameId(gameId);
+            navigate('/analysis');
+          }}
+        />
+      );
+      break;
     case '/explorer':
       screen = <OpeningExplorerScreen />;
       break;
@@ -94,6 +105,7 @@ function App() {
         <button onClick={() => { setActivePlaySession(null); navigate('/play'); }}>Play Game</button>
         <button onClick={() => navigate('/import')}>Import PGN</button>
         <button onClick={() => navigate('/famous')}>Famous Games</button>
+        <button onClick={() => navigate('/games')}>Your Games</button>
         <button onClick={() => navigate('/analysis')}>Analysis Board</button>
         <button onClick={() => navigate('/explorer')}>Opening Explorer</button>
         <button onClick={() => navigate('/training')}>Daily Training</button>
