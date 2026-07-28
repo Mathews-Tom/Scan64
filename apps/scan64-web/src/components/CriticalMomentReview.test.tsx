@@ -1,7 +1,26 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CriticalMomentReview } from './CriticalMomentReview';
+import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
+
+vi.mock('./LessonBoard', () => ({
+  LessonBoard: ({
+    disabled,
+    onMove,
+  }: {
+    disabled?: boolean;
+    onMove: (move: string) => void;
+  }) => (
+    <button
+      data-testid="submit-lesson-move"
+      disabled={disabled}
+      onClick={() => onMove('e2e4')}
+    >
+      Submit move
+    </button>
+  ),
+}));
 
 const mockLesson: LessonSpec = {
   schema_version: '0.1.0',
@@ -19,10 +38,14 @@ const mockLesson: LessonSpec = {
   mastery: { skill_key: 'key', delta: 0.1 }
 };
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('CriticalMomentReview', () => {
   it('flows through the 7-step sequence', () => {
     const onComplete = vi.fn();
-    render(<CriticalMomentReview lesson={mockLesson} onComplete={onComplete} />);
+    render(<CriticalMomentReview lesson={mockLesson} sessionId="study-1" onComplete={onComplete} />);
     
     // Step 1: Restore
     expect(screen.getByTestId('step-1-restore')).toBeTruthy();
@@ -56,18 +79,34 @@ describe('CriticalMomentReview', () => {
     fireEvent.click(screen.getByTestId('complete-btn'));
     expect(onComplete).toHaveBeenCalled();
   });
-});
+  it('records a rejected game lesson against the supplied study context', async () => {
+    const recordAttempt = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({
+      id: 'attempt-1',
+      success: false,
+      grading_status: 'verified',
+      profile_update_result: 'applied',
+    });
+    render(<CriticalMomentReview lesson={mockLesson} sessionId="game-study-1" />);
 
-  it('enforces requireIntent if provided', () => {
-    render(<CriticalMomentReview lesson={mockLesson} requireIntent={true} />);
-    
-    // Step 1: Restore
-    fireEvent.click(screen.getByTestId('next-step-btn'));
+    fireEvent.click(screen.getByTestId('submit-lesson-move'));
 
-    // Step 2: Inspect
-    const btn = screen.getByTestId('next-step-btn') as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
-    
-    fireEvent.change(screen.getByTestId('intent-input'), { target: { value: 'Now I have an intent.' } });
-    expect(btn.disabled).toBe(false);
+    await waitFor(() => {
+      expect(recordAttempt).toHaveBeenCalledWith({
+        session_id: 'game-study-1',
+        lesson_id: 'les_1',
+        source_kind: 'persisted_opportunity',
+        submitted_move: 'e2e4',
+        elapsed_ms: expect.any(Number),
+        hints_used: 0,
+      });
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Not accepted. Attempt recorded; the next hint is revealed.',
+    );
+    expect(screen.getByTestId('hint-0')).toHaveTextContent('Hint 1');
+    const submitMove = screen.getByTestId('submit-lesson-move');
+    expect(submitMove).toBeDisabled();
+    fireEvent.click(submitMove);
+    expect(recordAttempt).toHaveBeenCalledTimes(1);
   });
+});

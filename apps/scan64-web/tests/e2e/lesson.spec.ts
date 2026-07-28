@@ -40,10 +40,11 @@ test.describe('Lesson Review Flow', () => {
       await route.fulfill({ json: { id: 'test-job-id', game_id: 'test-game-id', status } });
     });
 
-    await page.route('/v1/games/test-game-id/learning-opportunities', async route => {
-      // Add verification status to ensure it's displayed
+    await page.route('**/v1/games/test-game-id/learning-opportunities?*', async route => {
       const verifiedSpec = { ...lessonSpec, verification: { status: 'verified' } };
-      await route.fulfill({ json: { items: [verifiedSpec], next_cursor: null } });
+      await route.fulfill({
+        json: { session_id: 'study-1', lessons: [verifiedSpec], next_cursor: null },
+      });
     });
 
     // Go to home and navigate to import screen

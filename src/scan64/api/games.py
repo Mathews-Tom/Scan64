@@ -2,16 +2,18 @@ from typing import Any
 from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import case
 from sqlmodel import Session, col, select
 
+from scan64.api.auth import require_player_token
 from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
 from scan64.chess.analysis.inflight import analysis_limiter
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.content.models import StudySession
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["games"])
@@ -34,6 +36,12 @@ class AnalysisJobRead(BaseModel):
     id: UUID
     game_id: UUID
     status: str
+
+
+class GameLearningSessionRead(BaseModel):
+    session_id: str | None
+    lessons: list[LessonSpec]
+    next_cursor: str | None
 
 
 @router.post("/v1/games", response_model=GameRead)
@@ -115,18 +123,26 @@ def get_game(game_id: UUID, session: Session = Depends(get_session)) -> Game:
 
 
 @router.get(
-    "/v1/games/{game_id}/learning-opportunities", response_model=PaginatedResponse[LessonSpec]
+    "/v1/games/{game_id}/learning-opportunities", response_model=GameLearningSessionRead
 )
 def list_learning_opportunities(
     game_id: UUID,
+    player_id: str,
+    request: Request,
     cursor: str | None = None,
     limit: int = 50,
     session: Session = Depends(get_session),
-) -> PaginatedResponse[LessonSpec]:
+) -> GameLearningSessionRead:
+    require_player_token(request, player_id, session)
+    game = session.get(Game, game_id)
+    if game is None or game.owner_player_id != player_id:
+        raise HTTPException(status_code=404, detail="Owned game not found")
+
     limit = min(limit, 100)
     query = (
         select(PersistedLessonOpportunity)
         .where(PersistedLessonOpportunity.game_id == game_id)
+        .where(PersistedLessonOpportunity.player_id == player_id)
         .order_by(col(PersistedLessonOpportunity.created_at).desc())
     )
 
@@ -155,8 +171,35 @@ def list_learning_opportunities(
         )
         opportunities = opportunities[:limit]
 
-    specs = [LessonSpec(**opp.lesson_spec) for opp in opportunities]
-    return PaginatedResponse(items=specs, next_cursor=next_cursor)
+    specs = []
+    for opportunity in opportunities:
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        # The opportunity UUID is the client-submittable handle for its persisted lesson.
+        spec.lesson_id = str(opportunity.id)
+        specs.append(spec)
+    session_domain = f"game_analysis:{game_id}"
+    study_session = session.exec(
+        select(StudySession)
+        .where(StudySession.player_id == player_id)
+        .where(StudySession.domain == session_domain)
+        .order_by(col(StudySession.started_at).desc())
+    ).first()
+    if not specs:
+        return GameLearningSessionRead(
+            session_id=study_session.id if study_session is not None else None,
+            lessons=[],
+            next_cursor=next_cursor,
+        )
+    if study_session is None:
+        study_session = StudySession(player_id=player_id, domain=session_domain)
+        session.add(study_session)
+        session.commit()
+        session.refresh(study_session)
+    return GameLearningSessionRead(
+        session_id=study_session.id,
+        lessons=specs,
+        next_cursor=next_cursor,
+    )
 
 
 @router.post("/v1/games/{game_id}/analysis-jobs", response_model=AnalysisJobRead)

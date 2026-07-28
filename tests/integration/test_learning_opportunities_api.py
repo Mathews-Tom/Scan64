@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,12 +29,14 @@ Be6 9. Bb5+ Bd7 10. Bxd7+ Qxd7 1-0"""
 
 
 def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> None:
-    player_response = client.post("/v1/players", json={"id": "learning-player"})
+    player_id = f"learning-player-{uuid4()}"
+    player_response = client.post("/v1/players", json={"id": player_id})
     assert player_response.status_code == 200
+    client.headers["Authorization"] = f"Bearer {player_response.json()['access_token']}"
 
     # 1. Create a game
     response = client.post(
-        "/v1/games", json={"pgn": sample_pgn, "player_id": "learning-player"}
+        "/v1/games", json={"pgn": sample_pgn, "player_id": player_id}
     )
     assert response.status_code == 200
     game_id = response.json()["id"]
@@ -52,9 +54,11 @@ def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> Non
     assert response.status_code == 200
     assert response.json()["status"] == "completed"
 
-    # 5. Fetch learning opportunities
-    response = client.get(f"/v1/games/{game_id}/learning-opportunities")
+    # 5. Fetch player-owned learning opportunities with their study-session context.
+    response = client.get(
+        f"/v1/games/{game_id}/learning-opportunities?player_id={player_id}"
+    )
     assert response.status_code == 200
     data = response.json()
-    assert "items" in data
-    assert isinstance(data["items"], list)
+    assert "session_id" in data
+    assert isinstance(data["lessons"], list)

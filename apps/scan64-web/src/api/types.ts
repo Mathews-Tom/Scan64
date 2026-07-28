@@ -79,10 +79,16 @@ export interface TrainingSessionRead {
   lessons: LessonSpec[];
 }
 
+export interface GameLearningSessionRead {
+  session_id: string | null;
+  lessons: LessonSpec[];
+  next_cursor: string | null;
+}
+
 export interface LessonAttemptCreate {
   session_id: string;
   lesson_id: string;
-  source_kind: 'persisted_opportunity' | 'opening_mission' | 'critical_moment';
+  source_kind: 'persisted_opportunity' | 'opening_mission';
   submitted_move?: string;
   elapsed_ms: number;
   hints_used: number;
@@ -162,7 +168,6 @@ export interface PlayMoveCreate {
 export interface PlayMoveResponse {
   opponent_move: string | null;
   status: string;
-  interruption_lesson?: LessonSpec | null;
 }
 
 export interface EngineAnalysisRead {

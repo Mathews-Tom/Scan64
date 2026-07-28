@@ -8,6 +8,7 @@ import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from scan64.api.auth import require_player_token
@@ -33,7 +34,7 @@ class LessonAttemptCreate(BaseModel):
 
     session_id: str
     lesson_id: str
-    source_kind: Literal["persisted_opportunity", "opening_mission", "critical_moment"]
+    source_kind: Literal["persisted_opportunity", "opening_mission"]
     submitted_move: str | None = None
     elapsed_ms: int = Field(ge=0)
     hints_used: int = Field(ge=0)
@@ -106,7 +107,7 @@ def record_lesson_attempt(
     if study_session is None:
         raise HTTPException(status_code=404, detail="Study session not found")
     require_player_token(request, study_session.player_id, db)
-    if attempt_in.source_kind in {"opening_mission", "critical_moment"}:
+    if attempt_in.source_kind == "opening_mission":
         attempt = LessonAttempt(
             session_id=study_session.id,
             player_id=study_session.player_id,
@@ -142,6 +143,13 @@ def record_lesson_attempt(
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
 
     spec = LessonSpec.model_validate(opportunity.lesson_spec)
+    attempt_count = db.exec(
+        select(func.count())
+        .where(LessonAttempt.player_id == study_session.player_id)
+        .where(LessonAttempt.opportunity_id == opportunity.id)
+    ).one()
+    if attempt_count >= spec.interaction.maximum_attempts:
+        raise HTTPException(status_code=409, detail="Maximum attempts reached for persisted lesson")
     success = _submitted_move_is_accepted(spec, attempt_in.submitted_move)
     observed_at = datetime.now(UTC)
     profile_update_result = (

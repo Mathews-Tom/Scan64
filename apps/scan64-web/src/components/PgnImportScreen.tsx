@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { LessonSpec } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 
@@ -25,6 +25,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
 
   const [lessons, setLessons] = useState<LessonSpec[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<LessonSpec | null>(null);
+  const [lessonSessionId, setLessonSessionId] = useState<string | null>(null);
   const [analyzedGameId, setAnalyzedGameId] = useState<string | null>(null);
   const handleImport = async () => {
     if (!pgn.trim()) return;
@@ -42,8 +43,8 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     setLessons([]);
     
     try {
-      const playerId = getOrCreatePlayerId();
-      await ApiClient.createPlayer({ id: playerId, display_name: 'Anonymous' });
+      let playerId = getOrCreatePlayerId();
+      playerId = await ensurePlayerAuthorization(playerId);
       const game = await ApiClient.createGame({ pgn, player_id: playerId });
       if (signal.aborted) return;
 
@@ -77,10 +78,13 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
       }
 
       setStatusText('Fetching learning opportunities...');
-      const opportunities = await ApiClient.getLearningOpportunities(game.id);
+      const learningSession = await ApiClient.getLearningOpportunities(game.id);
       if (signal.aborted) return;
 
-      const verifiedLessons = opportunities.filter(op => op.verification?.status === 'verified' || !op.verification);
+      const verifiedLessons = learningSession.lessons.filter(
+        opportunity => opportunity.verification?.status === 'verified' || !opportunity.verification,
+      );
+      setLessonSessionId(learningSession.session_id);
       setAnalyzedGameId(game.id);
       setLessons(verifiedLessons);
       setStatusText(null);
@@ -94,11 +98,11 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     }
   };
 
-  if (selectedLesson) {
+  if (selectedLesson !== null && lessonSessionId !== null) {
     return (
       <div>
         <button onClick={() => setSelectedLesson(null)}>Back to Import</button>
-        <CriticalMomentReview lesson={selectedLesson} />
+        <CriticalMomentReview lesson={selectedLesson} sessionId={lessonSessionId} />
       </div>
     );
   }

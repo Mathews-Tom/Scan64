@@ -29,15 +29,47 @@ describe('ApiClient', () => {
     });
     expect(res.id).toBe('123');
   });
-  it('getLearningOpportunities calls GET /v1/games/{id}/learning-opportunities', async () => {
+  it('serves owned game lessons with player authorization', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ items: [{ lesson_id: 'abc' }] }),
+      json: async () => ({ session_id: 'study-1', lessons: [{ lesson_id: 'abc' }], next_cursor: null }),
     });
 
     const res = await ApiClient.getLearningOpportunities('123');
-    expect(mockFetch).toHaveBeenCalledWith('/v1/games/123/learning-opportunities');
-    expect(res[0].lesson_id).toBe('abc');
+    expect(mockFetch).toHaveBeenCalledWith('/v1/games/123/learning-opportunities?player_id=player-1', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
+    expect(res.session_id).toBe('study-1');
+    expect(res.lessons[0].lesson_id).toBe('abc');
+  });
+
+  it('recovers a player identity before requesting game learning opportunities', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-0000-0000-000000000002');
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 409, statusText: 'Conflict' })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: '00000000-0000-0000-0000-000000000002',
+          preferences: {},
+          access_token: 'token-2',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session_id: 'study-2', lessons: [], next_cursor: null }),
+      });
+
+    await ApiClient.getLearningOpportunities('123');
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      3,
+      '/v1/games/123/learning-opportunities?player_id=00000000-0000-0000-0000-000000000002',
+      { headers: { Authorization: 'Bearer token-2' } },
+    );
   });
 
   it('createPlaySession calls POST /v1/play-sessions', async () => {

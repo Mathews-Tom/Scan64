@@ -7,7 +7,7 @@ import type {
   FamousGameRead,
   GameCreate,
   GameRead,
-  LessonSpec,
+  GameLearningSessionRead,
   LessonAttemptCreate,
   LessonAttemptRead,
   PlayMoveCreate,
@@ -67,7 +67,7 @@ async function registerPlayer(data: PlayerCreate): Promise<PlayerRegistration> {
   };
 }
 
-async function ensurePlayerAuthorization(playerId: string): Promise<string> {
+export async function ensurePlayerAuthorization(playerId: string): Promise<string> {
   if (localStorage.getItem(`${PLAYER_TOKEN_STORAGE_PREFIX}${playerId}`) !== null) return playerId;
   const existing = pendingPlayerAuthorizations.get(playerId);
   if (existing !== undefined) return await existing;
@@ -134,16 +134,17 @@ export class ApiClient {
     return json as unknown as PositionRead[];
   }
 
-  static async getLearningOpportunities(gameId: string): Promise<LessonSpec[]> {
-    const response = await fetch(`${API_BASE}/games/${gameId}/learning-opportunities`);
+  static async getLearningOpportunities(gameId: string): Promise<GameLearningSessionRead> {
+    let playerId = getOrCreatePlayerId();
+    playerId = await ensurePlayerAuthorization(playerId);
+    const response = await fetch(
+      `${API_BASE}/games/${gameId}/learning-opportunities?player_id=${encodeURIComponent(playerId)}`,
+      { headers: getPlayerAuthorizationHeader(playerId) },
+    );
     if (!response.ok) {
-      throw new Error(`Failed to get learning opportunities: ${response.statusText}`);
+      throw new Error(`Failed to fetch learning opportunities: ${response.statusText}`);
     }
-    const json = await response.json();
-    if (json && typeof json === 'object' && 'items' in json && Array.isArray(json.items)) {
-      return json.items as LessonSpec[];
-    }
-    return [];
+    return await response.json() as GameLearningSessionRead;
   }
 
   static async createAnalysisJob(gameId: string): Promise<AnalysisJobRead> {
