@@ -24,6 +24,7 @@ export interface QueuedMoveSyncFailure {
   message: string;
 }
 
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown synchronization error';
 }
@@ -63,7 +64,9 @@ export async function removeQueuedMove(
   await set(QUEUED_MOVES_KEY, filtered);
 }
 
-export async function syncQueuedMoves(): Promise<void> {
+let activeMoveSync: Promise<void> | null = null;
+
+async function drainQueuedMoves(): Promise<void> {
   let queuedMoves: QueuedMove[];
 
   try {
@@ -94,6 +97,15 @@ export async function syncQueuedMoves(): Promise<void> {
       return;
     }
   }
+}
+
+export function syncQueuedMoves(): Promise<void> {
+  if (activeMoveSync) return activeMoveSync;
+
+  activeMoveSync = drainQueuedMoves().finally(() => {
+    activeMoveSync = null;
+  });
+  return activeMoveSync;
 }
 
 if (typeof window !== 'undefined') {

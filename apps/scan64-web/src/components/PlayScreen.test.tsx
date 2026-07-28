@@ -1,7 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
-import { ApiClient } from '../api/client';
+import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
+import type { PlaySessionRead } from '../api/types';
+import {
+  getQueuedMoves,
+  syncQueuedMoves,
+} from '../api/offlineQueue';
 
 type MoveHandler = (orig: string, dest: string) => void | Promise<void>;
 
@@ -36,12 +41,30 @@ vi.mock('chessground', () => ({
   },
 }));
 
+vi.mock('../api/offlineQueue', () => ({
+  getQueuedMoves: vi.fn(),
+  syncQueuedMoves: vi.fn(),
+  queueMove: vi.fn(),
+  QUEUED_MOVE_SYNC_FAILED: 'scan64-queued-move-sync-failed',
+  QUEUED_MOVE_SYNC_SUCCEEDED: 'scan64-queued-move-sync-succeeded',
+}));
+
 // Mock the API client
 vi.mock('../api/client', () => ({
+  ApiRequestError: class ApiRequestError extends Error {
+    readonly status: number;
+
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
   ApiClient: {
     createPlayer: vi.fn(),
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
+    getGame: vi.fn(),
+    getPlaySession: vi.fn(),
     getTrainingSession: vi.fn().mockResolvedValue({ session_id: 'study-1', lessons: [] }),
     recordLessonAttempt: vi.fn(),
   },
@@ -51,12 +74,14 @@ vi.mock('../api/client', () => ({
 describe('PlayScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     chessgroundMock.after = undefined;
     chessgroundMock.color = undefined;
     chessgroundMock.set.mockReset();
     chessgroundMock.redrawAll.mockReset();
     chessgroundMock.destroy.mockReset();
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
+    vi.mocked(getQueuedMoves).mockResolvedValue([]);
   });
 
   it('renders start button and board container', () => {
@@ -90,10 +115,285 @@ describe('PlayScreen', () => {
           movable: expect.objectContaining({ color: 'white' }),
         })
       );
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBe('sess-123');
       // The setup form unmounts when the session starts, moving the board; without
       // this the cached Chessground bounds leave the board unresponsive to pointers.
       expect(chessgroundMock.redrawAll).toHaveBeenCalled();
     });
+  });
+
+  it('hides setup while restoring a saved session', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    const sessionRequest = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(sessionRequest.promise);
+
+    render(<PlayScreen />);
+
+    expect(screen.getByTestId('resuming-game')).toBeInTheDocument();
+    expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+
+    await act(async () => {
+      sessionRequest.resolve({
+        id: 'sess-123',
+        player_id: 'test-player',
+        opponent_config: {},
+        status: 'active',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active');
+    });
+  });
+
+  it('restores an active session at its persisted game position', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'sess-123',
+      player_id: 'test-player',
+      game_id: 'game-123',
+      opponent_config: {},
+      status: 'active',
+    });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123',
+      pgn: '1. e4 e5 *',
+      white: 'test-player',
+      black: 'Stockfish',
+      result: '*',
+    });
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith('sess-123');
+      expect(ApiClient.getGame).toHaveBeenCalledWith('game-123');
+      expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active');
+    });
+    expect(chessgroundMock.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+      }),
+    );
+    expect(chessgroundMock.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        movable: expect.objectContaining({
+          color: 'white',
+          dests: expect.any(Map),
+        }),
+      }),
+    );
+    expect(setActivePlayerId).toHaveBeenCalledWith('test-player');
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
+    expect(ApiClient.getGame).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/queued move|synchronizing game/i)).not.toBeInTheDocument();
+  });
+
+  it('refreshes canonical state after synchronizing a queued resumed move', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(getQueuedMoves)
+      .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
+      .mockResolvedValueOnce([]);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'sess-123',
+      player_id: 'test-player',
+      game_id: 'game-123',
+      opponent_config: {},
+      status: 'active',
+    });
+    vi.mocked(ApiClient.getGame)
+      .mockResolvedValueOnce({
+        id: 'game-123',
+        pgn: '1. e4 e5 *',
+        white: 'test-player',
+        black: 'Stockfish',
+        result: '*',
+      })
+      .mockResolvedValueOnce({
+        id: 'game-123',
+        pgn: '1. e4 e5 2. Nf3 Nc6 *',
+        white: 'test-player',
+        black: 'Stockfish',
+        result: '*',
+      });
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(syncQueuedMoves).toHaveBeenCalled();
+    });
+    expect(chessgroundMock.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        movable: expect.objectContaining({ color: undefined, dests: undefined }),
+      }),
+    );
+
+
+    await waitFor(() => {
+      expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+      expect(ApiClient.getGame).toHaveBeenCalledTimes(2);
+      expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+          movable: expect.objectContaining({ color: 'white', dests: expect.any(Map) }),
+        }),
+      );
+    });
+  });
+
+
+  it('keeps a resumed board locked while a queued move remains', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(getQueuedMoves).mockResolvedValue([
+      { sessionId: 'sess-123', move: 'e2e4', timestamp: 1 },
+    ]);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'sess-123',
+      player_id: 'test-player',
+      game_id: 'game-123',
+      opponent_config: {},
+      status: 'active',
+    });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123',
+      pgn: '1. e4 e5 *',
+      white: 'test-player',
+      black: 'Stockfish',
+      result: '*',
+    });
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retry-move-sync')).toBeInTheDocument();
+    });
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        movable: expect.objectContaining({ color: undefined, dests: undefined }),
+      }),
+    );
+  });
+  it('retries a failed canonical refresh after queued-move synchronization', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(getQueuedMoves)
+      .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
+      .mockResolvedValueOnce([]);
+    const resumedSession = {
+      id: 'sess-123',
+      player_id: 'test-player',
+      game_id: 'game-123',
+      opponent_config: {},
+      status: 'active' as const,
+    };
+    vi.mocked(ApiClient.getPlaySession)
+      .mockResolvedValueOnce(resumedSession)
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce(resumedSession);
+    vi.mocked(ApiClient.getGame)
+      .mockResolvedValueOnce({
+        id: 'game-123',
+        pgn: '1. e4 e5 *',
+        white: 'test-player',
+        black: 'Stockfish',
+        result: '*',
+      })
+      .mockResolvedValueOnce({
+        id: 'game-123',
+        pgn: '1. e4 e5 2. Nf3 Nc6 *',
+        white: 'test-player',
+        black: 'Stockfish',
+        result: '*',
+      });
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('retry-game-refresh'));
+
+    await waitFor(() => {
+      expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+      expect(screen.queryByTestId('retry-game-refresh')).not.toBeInTheDocument();
+      expect(chessgroundMock.set).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+          movable: expect.objectContaining({ color: 'white', dests: expect.any(Map) }),
+        }),
+      );
+    });
+  });
+
+  it('clears a terminal saved session without loading a game', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'sess-123',
+      player_id: 'test-player',
+      opponent_config: {},
+      status: 'completed',
+    });
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith('sess-123');
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+    });
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('session-info')).not.toBeInTheDocument();
+  });
+
+  it('removes an unresolvable saved session and reports its absence', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(ApiClient.getPlaySession).mockRejectedValue(
+      new ApiRequestError('Not Found', 404),
+    );
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+      expect(screen.getByText('Previous game is no longer available.')).toBeInTheDocument();
+    });
+  });
+
+  it('removes an invalid saved session identifier', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'not-a-session-id');
+    vi.mocked(ApiClient.getPlaySession).mockRejectedValue(
+      new ApiRequestError('Unprocessable Content', 422),
+    );
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+      expect(screen.getByText('Previous game is no longer available.')).toBeInTheDocument();
+    });
+  });
+
+  it('retains a saved session when its game lookup fails', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'sess-123',
+      player_id: 'test-player',
+      game_id: 'game-123',
+      opponent_config: {},
+      status: 'active',
+    });
+    vi.mocked(ApiClient.getGame).mockRejectedValue(
+      new ApiRequestError('Not Found', 404),
+    );
+
+    render(<PlayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to resume game: Not Found')).toBeInTheDocument();
+    });
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe('sess-123');
   });
 
   it('submits a board move from an initial play session', async () => {
@@ -131,11 +431,40 @@ describe('PlayScreen', () => {
     });
   });
 
+  it('offers canonical refresh when an opponent response cannot be applied', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({
+      opponent_move: 'e2e4',
+      status: 'active',
+    });
+
+    render(
+      <PlayScreen
+        initialSession={{
+          id: 'sess-123',
+          player_id: 'test-player',
+          game_id: 'game-123',
+          opponent_config: {},
+          status: 'active',
+        }}
+      />,
+    );
+    await waitFor(() => {
+      expect(chessgroundMock.after).toBeDefined();
+    });
+
+    await act(async () => {
+      await getRegisteredMoveHandler()('e2', 'e4');
+    });
+
+    expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+  });
+
   it('marks the session completed after an opponent checkmate', async () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({
       opponent_move: 'd8h4',
       status: 'completed',
     });
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
 
     render(
       <PlayScreen
@@ -164,6 +493,9 @@ describe('PlayScreen', () => {
         movable: expect.objectContaining({ color: undefined }),
       }),
     );
+    await waitFor(() => {
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+    });
   });
 
   it('restores Chessground to the player turn after an opponent response', async () => {

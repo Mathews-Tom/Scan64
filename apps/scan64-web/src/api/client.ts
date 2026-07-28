@@ -30,6 +30,15 @@ const PLAYER_ID_STORAGE_KEY = 'scan64_player_id';
 
 const pendingPlayerAuthorizations = new Map<string, Promise<string>>();
 
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 interface PlayerRegistration {
   player: PlayerRead;
   issuedToken: boolean;
@@ -124,6 +133,14 @@ export class ApiClient {
     return json as unknown as GameRead;
   }
 
+  static async getGame(gameId: string): Promise<GameRead> {
+    const response = await fetch(`${API_BASE}/games/${gameId}`);
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to get game: ${response.statusText}`, response.status);
+    }
+    return await response.json() as GameRead;
+  }
+
   static async getPositions(gameId: string): Promise<PositionRead[]> {
     const response = await fetch(`${API_BASE}/games/${gameId}/positions`);
     if (!response.ok) {
@@ -178,6 +195,14 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as PlaySessionRead;
+  }
+
+  static async getPlaySession(sessionId: string): Promise<PlaySessionRead> {
+    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}`);
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to get play session: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlaySessionRead;
   }
 
   static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
