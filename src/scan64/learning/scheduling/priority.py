@@ -83,3 +83,30 @@ def compute_weakness_severity(skill: SkillState | None) -> float:
     """
     mastery = skill.expected_mastery if skill is not None else SkillState().expected_mastery
     return max(0.0, min(1.0, 1.0 - mastery))
+
+
+# Matches compute_session_fatigue's existing lesson-count convention above
+# (lesson_factor maxes out at 20 consecutive lessons).
+RECENT_ATTEMPT_VOLUME_CAP = 20
+
+
+def compute_recent_session_fatigue(
+    recent_attempt_count: int, recent_error_rate: float
+) -> float:
+    """
+    Session fatigue from recent attempt VOLUME and server-verified ACCURACY
+    only (M38 / G16): response-time degradation (`compute_session_fatigue`
+    above) and behavioural signals are out of scope — H-016 defers
+    uninstrumented behavioural-habit signals, and this endpoint has no
+    session-boundary response-time baseline to degrade against.
+
+    `volume_factor` bounds `recent_attempt_count` against
+    `RECENT_ATTEMPT_VOLUME_CAP` recent attempts; `recent_error_rate` is the
+    share of those attempts that were unsuccessful, already bounded to
+    [0, 1] by construction. Fatigue is their average, so sustained volume
+    alone or errors alone produce partial fatigue, while a long, high-error
+    session reaches the [0, 1] ceiling.
+    """
+    volume_factor = min(1.0, max(0.0, recent_attempt_count) / RECENT_ATTEMPT_VOLUME_CAP)
+    error_rate = min(1.0, max(0.0, recent_error_rate))
+    return min(1.0, max(0.0, (volume_factor + error_rate) / 2.0))

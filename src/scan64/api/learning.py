@@ -17,7 +17,11 @@ from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
-from scan64.learning.scheduling.priority import PriorityFactors, compute_weakness_severity
+from scan64.learning.scheduling.priority import (
+    PriorityFactors,
+    compute_recent_session_fatigue,
+    compute_weakness_severity,
+)
 from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
@@ -58,6 +62,8 @@ def get_training_session(
     now = datetime.now(UTC)
     require_player_token(request, player_id, db)
     state = load_player_session_state(db, player_id, now)
+    attempt_count, error_rate = state.recent_attempt_stats()
+    session_fatigue = compute_recent_session_fatigue(attempt_count, error_rate)
     pool: list[dict[str, Any]] = []
     opportunities = db.exec(
         select(PersistedLessonOpportunity).where(
@@ -75,7 +81,7 @@ def get_training_session(
         priority = PriorityFactors(
             review_due=1.0 if is_due else 0.0,
             weakness_severity=weakness_severity,
-        ).compute_priority(session_fatigue=0.0)
+        ).compute_priority(session_fatigue=session_fatigue)
         pool.append({
             "id": str(opportunity.id),
             "type": "due" if is_due else "mistakes",
