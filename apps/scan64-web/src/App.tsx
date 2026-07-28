@@ -10,6 +10,7 @@ import { DailyTrainingScreen } from './components/DailyTrainingScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CoachDashboardScreen } from './components/CoachDashboardScreen';
 
+
 function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
