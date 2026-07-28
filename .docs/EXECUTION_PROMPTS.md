@@ -15,8 +15,8 @@ Prompts for the milestones in `.docs/DEVELOPMENT_PLAN.md`. M1–M30 behavior is 
 - `main` carries a branch ruleset (`pull_request`, `non_fast_forward`, `deletion`). Never push to `main` directly.
 - The workflow's `pull_request` trigger has no `types:` list, so editing a PR's base does not retrigger CI. When merging a stack root to leaf, force a fresh run on each retargeted child rather than trusting a displayed check.
 - Never trigger an external or bot reviewer. The repository's configured reviewer runs on its own.
-- `GO` only makes the milestone stack merge-eligible. Release preparation stays deferred until every milestone in its train is externally merged.
-- No milestone updates a version or changelog artifact. See `DEVELOPMENT_PLAN.md` §2 `> GAP:` on release policy.
+- `GO` only makes the milestone stack merge-eligible. Release preparation begins only after every milestone in its train is externally merged.
+- Milestone implementation does not update a version or changelog artifact. The dedicated release-preparation workflow owns those artifacts under `DEVELOPMENT_PLAN.md` §2 DECISION (R-001) and §4; publication requires explicit maintainer authorization.
 
 ---
 
@@ -28,7 +28,7 @@ Prompts for the milestones in `.docs/DEVELOPMENT_PLAN.md`. M1–M30 behavior is 
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M31 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.1 (G1-G3) and .docs/scan64-system-design.md §7 (learning pipeline), §17 (data model). Preconditions: none - M31 is the root of this plan. Repo: Python 3.12+/uv, FastAPI + SQLModel + SQLite, pytest/ruff/mypy --strict, single gate scripts/check.sh, hosted CI job "Quality".
 OBJECTIVE: A completed analysis job leaves durable, player-attributed Position, EngineAnalysis, and Evidence rows so the read endpoints that already ship return real data. Acceptance: after a job on an imported game owned by player P, GET /v1/games/{id}/positions returns one row per persisted position with its engine analysis attached; GET /v1/players/P/evidence returns the evidence backing every persisted lesson; a search for the literal player_id="system" in src/ returns no match; no code path constructs an Evidence object it does not persist.
 RECONCILED OWNERSHIP (H-002) AND MIGRATION (H-003) CONTRACT: Alembic upgrades legacy SQLite data before M31 columns are queried. `POST /v1/games` requires an existing `player_id` and writes nullable-migrated `Game.owner_player_id`; the PGN import client supplies the active player identity. During migration only, a legacy game with a linked `PlaySession` is backfilled from that session's player; unlinked legacy games remain ownerless. M31 derives ongoing analysis, persisted-lesson, and evidence attribution from `Game.owner_player_id`; do not use `PlaySession` as an imported-game ownership surrogate.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M31, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md.
@@ -64,7 +64,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance. `NO-GO` applies to pending or failed checks, incomplete review, scope drift, ambiguous readiness, manual gates, or unresolved release target.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -79,7 +79,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M32 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.1 (G4, G9) and .docs/scan64-system-design.md §7. Preconditions: M31 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel + SQLite, pytest/ruff/mypy --strict, scripts/check.sh, hosted CI job "Quality".
 M31 OWNERSHIP CONTRACT (H-002): played games must set the same durable `Game.owner_player_id` used by imported games; M32's player-games endpoint must query this owner without duplicate session joins.
 OBJECTIVE: Reaching a terminal state in a play session produces the same diagnostic output as importing that game as a PGN, attributed to the player who played it. Acceptance: playing to mate or resignation produces a completed AnalysisJob with no further client call; Game.pgn for a played game is a valid PGN that re-imports cleanly and names the player; GET /v1/players/{id}/games lists both played and imported games; a player exceeding the in-flight cap has work queued, never dropped.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M32, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -114,7 +114,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -129,7 +129,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M33 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.1 (G6, G7) and .docs/scan64-system-design.md §7 (pipeline), §8 (taxonomy). Preconditions: M31 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel, pinned Stockfish 18 in CI, pytest/ruff/mypy --strict, scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): production detector assembly receives player context from `Game.owner_player_id`; do not reintroduce synthetic identities or infer ownership from `PlaySession`.
 OBJECTIVE: All ten seeded taxonomy codes can be diagnosed through the production job path and flagged positions retain deep MultiPV evidence. Acceptance: a legal production-path fixture corpus runs through `run_analysis_for_game`, yields at least one diagnosis for every seeded code, and never supplies benchmark `mock_evidence`; a position where two detectors fire produces exactly one primary diagnosis with the loser retained in `Diagnosis.secondary`; `FocusedPassOrchestrator` is reached from that path; the coverage report emits per-code TP, FP, FN, and precision across primary and secondary outputs for registry and isolated-detector runs over the same emitted evidence, with no regression.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M33, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -164,7 +164,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -179,7 +179,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M34 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.1 (G5), §2.2 (G14, G15) and §2.4 (G31), .docs/scan64-system-design.md §9 (player model), §21 (scheduler), §8.10 (taxonomy governance). Preconditions: M32 and M33 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel, Hypothesis for property tests, pytest/ruff/mypy --strict, scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): profile observation consumes the persisted opportunity's player id, which derives from `Game.owner_player_id`, and its non-null game id; reject missing owner or game rather than silently assigning one.
 OBJECTIVE: A diagnosed weakness changes the player's Bayesian skill state and writes a review schedule for the persisted lesson, and a taxonomy rename can safely remap every live identity this creates. Acceptance: two games containing the same diagnosis lower that concept's expected mastery monotonically and narrow its uncertainty; a player rated 1200 and a player rated 1900 start a new concept at different priors, neither at (1.0, 1.0); every generated lesson has a ReviewSchedule row with a due date, its diagnosed skill_id, and canonical str(PersistedLessonOpportunity.id); re-analysing the same owned game does not change mastery a second time, including after a taxonomy rename, because ProfileObservation persists the non-null key (player, game, position, skill); a skill_id rename remaps live SkillState.concept_code, ReviewSchedule.skill_id, and active ProfileObservation.skill_id rows, merging a SkillState target-key collision deterministically and retaining a redundant observation as retired with its reason; an unmappable code is retired with a recorded reason, never silently dropped. M37 advances a schedule only after resolving an owned persisted lesson through its generic lesson-attempt endpoint; M34 must not update a schedule through the famous-game content attempt endpoint.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M34, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -215,7 +215,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -229,7 +229,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M35 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.1 (G8) and .docs/scan64-system-design.md §14 (LLM integration), §11.2 (LessonSpec explanation). Preconditions: M33 merged with its production evidence composer and code-specific evidence payload contract. Repo: Python 3.12+/uv, pytest/ruff/mypy --strict, scripts/check_licenses.py, scripts/check.sh.
 OBJECTIVE: Every diagnosis the system can produce has an evidence-grounded explanation and no user-visible lesson falls back to a generic sentence. Acceptance: for each of the ten seeded codes the explanation names the specific square, piece, move, or line supplied by M33's provenance-bearing evidence payload; a taxonomy code or required payload field without a template fails the conformance test rather than rendering a fallback; with the LLM path enabled an ungrounded generation is rejected and the template output is used; the default install acquires no model dependency.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M35, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -263,7 +263,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -278,7 +278,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section G M36 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.2 (G10-G13) and .docs/scan64-system-design.md §9.4-9.5 (habits), §12.4 (opening families). Preconditions: M34 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel, pytest/ruff/mypy --strict, scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): reports must treat `Game.owner_player_id` as the imported- and played-game corpus boundary, not infer import ownership from `PlaySession`.
 OBJECTIVE: The patterns, openings, and weekly report endpoints compute from persisted evidence and games instead of returning literals. M36 closes G10–G12. A repeated diagnosis is a recurring-diagnosis pattern, not a behavioural habit: `/patterns` must return it from `PersistedLessonOpportunity` rows joined through the player's `Game.owner_player_id` corpus, with an explicit diagnosis-recurrence threshold and sparse-corpus state. Update every shared-model consumer so profile and coach screens name the pattern accurately; preserve coach aggregation logic and authorization. G13's behavioural-habit and context-profile halves remain blocked by H-016's absent per-move annotation and calibrated population-rate sources; do not manufacture annotations, rates, or a habit result. H-017 requires weekly active-mastery snapshots, not unpersisted deltas, and opening result rates must exclude imported games whose owner side is unknown. Acceptance: a player with three games sharing one diagnosis has that typed pattern in /patterns with an occurrence count and evidence references; /patterns distinguishes insufficient diagnosis data from no detected recurrence; /openings reflects that player's actual opening families with explicit rate eligibility; /reports/weekly returns a typed object whose active mastery snapshots exclude retired skills; no handler in src/scan64/api/reports.py returns a hardcoded literal collection or string.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M37's manual loop walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M36, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -312,7 +312,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -326,7 +326,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 
 CONTEXT: DEVELOPMENT_PLAN.md §6 M37 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.2 (G15), §2.3 (G17-G19, G23) and .docs/scan64-system-design.md §10 (exercises), §20 (application screens), §21 (scheduler). Preconditions: M34 merged. Repo: Python 3.12+/uv backend; React 19 + TypeScript + Vite + pnpm frontend with chessground and chess.js; Vitest, Playwright; scripts/check.sh.
 OBJECTIVE: A learner can answer an owned persisted lesson through Daily Training or game-analysis Critical Moment Review on a real board, with the attempt recorded against their profile. Opening Explorer local-seed missions record ungraded attempts. Acceptance: every profile-recording board gets a durable StudySession and canonical owned PersistedLessonOpportunity id from its serving endpoint; accepted and wrong moves are server verified and recorded; only the exact M34 schedule and active skill update; retired codes stay retired; static lessons and context-free Critical Moment Reviews never enter the verified path. Real-time in-game coach interruptions are M45.
-RELEASE TRAIN: target=unversioned - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus this milestone's Daily Training, game-analysis review, and Opening Explorer walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.1.0 - "learning loop closed"; included milestones=M31-M37; preparation trigger=all included milestones externally merged; required artifacts=CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus this milestone's Daily Training, game-analysis review, and Opening Explorer walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M37, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -359,7 +359,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - learning loop closed - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.1.0 - learning loop closed - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.1.0 - learning loop closed - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance. On `GO`, note that this milestone completes the train and release preparation is now due.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -373,7 +373,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section H M38 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.2 (G16) and .docs/scan64-system-design.md §21 (scheduler), §9 (player model). Preconditions: M37 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel, pytest/ruff/mypy --strict, scripts/check.sh.
 OBJECTIVE: The training session a learner receives is composed from measured active mastery, due non-retired reviews, and recent fatigue rather than fixed constants. H-016 defers uninstrumented behavioural-habit and context-conditioned-profile signals; this milestone must not consume an empty or manufactured substitute. Acceptance: a low-mastery active concept's lessons outrank a high-mastery concept's; overdue non-retired reviews outrank exploration items; after a long high-error session fatigue measurably shifts composition; no constant priority factor remains in the request path; the exploration floor guarantees at least one non-weakness item per session.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M38, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -407,7 +407,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -422,7 +422,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section H M39 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.3 (G20, G21) and .docs/scan64-system-design.md §20 (application screens). Preconditions: M32 merged. Repo: React 19 + TypeScript + Vite + pnpm, Vitest, Playwright, oxlint; scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): M32's games API must list by `Game.owner_player_id`, so imported games remain visible even though they have no `PlaySession`.
 OBJECTIVE: A learner can find their past games, open one, and see its diagnoses, without losing an in-progress game to a stray navigation click. Acceptance: navigating away from an active game and back resumes the same position; the games list shows every game the player played or imported; a game's analysis view is reachable by URL and renders its persisted diagnoses; a browser reload during a game resumes rather than restarting.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M39, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -456,7 +456,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -471,7 +471,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section H M40 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.3 (G22) and .docs/scan64-system-design.md §20 (application screens). Preconditions: M31 merged. Repo: React 19 + TypeScript + Vite + pnpm, Vitest, Playwright; scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): ownerless legacy games are neither analysable nor safely attributable. Render this as a distinct honest state, not an "analyse" action that fails.
 OBJECTIVE: The analysis board renders persisted engine evaluations and diagnoses instead of reporting that no analysis is available. Acceptance: an analysed game shows an evaluation for every persisted position and a marker at each diagnosed position; an unanalysed owned game offers an analyse action rather than a dead message; a game analysed with no findings says so explicitly; an ownerless legacy game explains why analysis is unavailable.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M40, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -503,7 +503,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -518,7 +518,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section I M41 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.4 (G26, G27) and .docs/scan64-system-design.md §18.6 (compute budgets). Preconditions: M31 merged; M32's interim in-flight cap is superseded here. Repo: Python 3.12+/uv, FastAPI, pinned Stockfish 18 in CI, pytest/ruff/mypy --strict, scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): admission control resolves the player from `Game.owner_player_id` at job submission; an ownerless legacy game is rejected loudly.
 OBJECTIVE: Interactive play is never queued behind batch analysis and no player can monopolise analysis capacity. Acceptance: a move request issued during a running batch analysis completes within the interactive budget; a player exceeding the daily quota has jobs queued fair-share, never rejected or dropped; process count stays bounded under concurrent play plus analysis; a pooled engine carries no state between analyses.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M41, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -552,7 +552,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -567,7 +567,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section I M42 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.4 (G28) and .docs/scan64-system-design.md §24.1 (privacy, export, deletion). Preconditions: M31 and M34 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel + SQLite, pytest/ruff/mypy --strict, scripts/check.sh.
 M31 OWNERSHIP CONTRACT (H-002): the export/import/deletion completeness set includes `Game.owner_player_id` as player-derived ownership data in addition to the M31 analysis rows, M34's player-scoped `ProfileObservation`, and M37's player-scoped `LessonAttempt`.
 OBJECTIVE: Export, import, and deletion cover every table holding player-derived data, including the evidence M31 begins writing, M34's profile observations, and M37's lesson attempts. Acceptance: export-delete-import round-trips a player with analysed games, profile observations, and lesson attempts and leaves no orphan rows; after deletion every player-scoped table has zero residual rows for that player, asserted per table rather than inferred from a success status; adding a new player-scoped table without registering it fails the completeness test.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 HUMAN REVIEW GATE: Do not merge or run destructive paths unattended until a human reviews dry-run output, rollback notes, and audit/tombstone logging.
 
@@ -602,7 +602,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, full milestone acceptance, and a satisfied human review gate.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -616,7 +616,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section I M43 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.4 (G29, G30) and .docs/scan64-system-design.md §10.6 (transfer exercises), §23.4-23.5 (learning metrics). Preconditions: M38 merged. Repo: Python 3.12+/uv, FastAPI + SQLModel, pinned Stockfish 18 in CI, pytest/ruff/mypy --strict, scripts/check.sh.
 OBJECTIVE: The transfer-measurement lifecycle is usable through the API instead of only through tests, and lesson verification confirms the accepted move actually answers the objective. Acceptance: reaching the mastery threshold on an active concept assigns a transfer position; it appears in a later session as a due item; completing it records a measurement and moves the transfer report; a lesson whose accepted move is not engine-best fails verification; previously persisted lessons are re-verified on read and marked, never deleted.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M43, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -650,7 +650,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -665,7 +665,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 CONTEXT: DEVELOPMENT_PLAN.md §6 Section I M44 + source .docs/2026-07-26-learning-loop-enhancement-plan.md §2.3 (G24) and §2.4 (G32, G33), .docs/scan64-system-design.md §22 (testing). Preconditions: M39 merged. Repo: Python 3.12+/uv backend; React 19 + TypeScript + Vite + pnpm frontend; Playwright; scripts/check.sh; hosted CI job "Quality".
 M31 OWNERSHIP CONTRACT (H-002): the clean-clone walkthrough and e2e coverage must exercise PGN import with the active player identity, because an unowned import is rejected by design.
 OBJECTIVE: The defect class that shipped a dead chessboard cannot ship again, and a new user can start the application from the README. Acceptance: an e2e spec fails when the board stops accepting pointer input, demonstrated by reverting the bounds recompute in a scratch worktree and observing the failure, then restoring; a clean clone reaches a playable board following only the README; setting SCAN64_DATABASE_URL relocates the database and the default preserves current behaviour; the window.__e2e_move hook remains only where pointer input is not the subject under test.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none (DEVELOPMENT_PLAN.md §2 GAP on release policy); release verification=scripts/check.sh exits 0 on main after the final merge plus this milestone's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus this milestone's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M44, its §1 source-map rows, this prompt, and .docs/DEVELOPMENT_PLAN_HISTORY.md when present.
@@ -699,7 +699,7 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance. On `GO`, note that this milestone completes the train and release preparation is now due.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
 ```
@@ -713,7 +713,7 @@ DONE: design verdict with evidence; when authorized, a reviewed stack with a rel
 
 CONTEXT: DEVELOPMENT_PLAN.md §6 M45 + system design §20.2-20.3. Preconditions: M37 and M41 merged. Repo: Python 3.12+/uv backend; React 19 + TypeScript + Vite + pnpm frontend; Stockfish; Playwright; scripts/check.sh.
 OBJECTIVE: An explicitly opted-in coach-mode interruption is generated server-side, persists its owned opportunity, review schedule, and StudySession before rendering, and records a verified answer on the shared lesson board. Ordinary and independent play never run that producer.
-RELEASE TRAIN: target=unversioned - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=none; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=not requested. This is the final milestone of the train - report release preparation as due once it merges.
+RELEASE TRAIN: target=v0.2.0 - "adaptive and operable"; included milestones=M38-M45; preparation trigger=all included milestones externally merged; required artifacts=pyproject.toml version bump, CHANGELOG.md release notes, uv build artifacts, clean-install scan64-cli smoke test; release verification=scripts/check.sh exits 0 on main after the final merge plus M44's clean-clone quickstart and M45's coach-mode interruption walkthrough; publication=explicit maintainer authorization required. This is the final milestone of the train - report release preparation as due once it merges.
 
 PRE-IMPLEMENTATION DESIGN GATE:
 1. Read DEVELOPMENT_PLAN.md §6 M45, its §1 source-map rows, this prompt, and `.docs/DEVELOPMENT_PLAN_HISTORY.md` when present.
@@ -747,7 +747,32 @@ Whole stack:
 - Report PR URLs, bases, verification, risks, manual gates, and review completion.
 FINAL VERDICTS:
 - Report the design verdict before the merge verdict.
-- Then report exactly one merge verdict: `GO - RELEASE: unversioned - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: unversioned - adaptive and operable - REASON: <blocking gate>`.
+- Then report exactly one merge verdict: `GO - RELEASE: v0.2.0 - adaptive and operable - RELEASE PREP: pending` or `NO-GO - RELEASE: v0.2.0 - adaptive and operable - REASON: <blocking gate>`.
 - `GO` requires `DESIGN GO`, every PR correctly based/reviewed/green, local verification, and full milestone acceptance.
 DONE: design verdict with evidence; when authorized, a reviewed stack with a release-aware merge verdict and evidence.
+```
+
+---
+
+### R — Release preparation and publication
+
+```text
+/goal Prepare the authorized Scan64 release train from DEVELOPMENT_PLAN.md §4.
+
+CONTEXT: Scan64 uses the SemVer policy in DEVELOPMENT_PLAN.md §2 DECISION (R-001). `pyproject.toml` is the package-version source of truth; tags are annotated `vX.Y.Z`; CHANGELOG.md contains Unreleased notes until publication. Publication is a separate explicit authorization and is not implied by release preparation.
+
+PREPARATION GATE:
+1. Read DEVELOPMENT_PLAN.md §2 DECISION (R-001), §4, CHANGELOG.md, pyproject.toml, the current git tag list, GitHub Releases, and the package index.
+2. Confirm every milestone assigned to the target release is externally merged and every required manual walkthrough is recorded.
+3. Confirm the manifest version is the target release, CHANGELOG.md has complete release notes under Unreleased, and no tag, GitHub Release, or package publication already occupies that version.
+4. Run scripts/check.sh, uv build, and a clean-install smoke test of scan64-cli from the built wheel using only public-registry runtime dependencies; do not satisfy a workspace dependency with a local wheel.
+5. Report `RELEASE PREPARED - vX.Y.Z - TAG/PUBLISH: not authorized` only when every gate passes.
+
+PUBLICATION GATE:
+1. Require an explicit maintainer instruction naming the prepared version.
+2. Confirm every runtime dependency is published and registry-resolvable; then move the prepared CHANGELOG.md notes from Unreleased to the versioned section, create the annotated tag from main, create the GitHub Release, and publish the already-verified distributions.
+3. Confirm the tag, GitHub Release, and package-index version resolve to the exact built release from a clean registry-only installation.
+4. Report `RELEASED - vX.Y.Z - GITHUB: verified - PYPI: verified`.
+
+CONSTRAINTS: no product-code changes, no unapproved version bump, no tag, GitHub Release, or package publication during preparation. Do not publish an artifact rebuilt after the verified build without rerunning the build and clean-install gate.
 ```
