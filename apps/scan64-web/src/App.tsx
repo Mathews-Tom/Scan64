@@ -28,9 +28,19 @@ function App() {
     window.history.pushState({}, '', nextPathname);
     setPathname(window.location.pathname);
   }, []);
-
+  const gameAnalysisMatch = /^\/games\/([^/]+)\/analysis$/.exec(pathname);
   let screen = <div data-testid="not-found">Page not found</div>;
-  switch (pathname) {
+  if (gameAnalysisMatch) {
+    screen = (
+      <AnalysisScreen
+        gameId={decodeURIComponent(gameAnalysisMatch[1])}
+        onPlayFromHere={(session, fen) => {
+          setActivePlaySession({ session, fen });
+          navigate('/play');
+        }}
+      />
+    );
+  } else switch (pathname) {
     case '/':
       screen = <div>Welcome to Scan64</div>;
       break;
@@ -75,14 +85,7 @@ function App() {
       );
       break;
     case '/games':
-      screen = (
-        <GamesListScreen
-          onOpenGame={(gameId) => {
-            setActiveAnalysisGameId(gameId);
-            navigate('/analysis');
-          }}
-        />
-      );
+      screen = <GamesListScreen onOpenGame={(gameId) => navigate(`/games/${encodeURIComponent(gameId)}/analysis`)} />;
       break;
     case '/explorer':
       screen = <OpeningExplorerScreen />;

@@ -14,7 +14,8 @@ vi.mock('./api/client', async (importOriginal) => {
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
-    }
+      getPositions: vi.fn().mockResolvedValue([]),
+    },
   };
 });
 
@@ -46,6 +47,15 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+  });
+
+  it('renders a game analysis screen from its deep-link URL', async () => {
+    window.history.replaceState({}, '', '/games/game-1/analysis');
+
+    render(<App />);
+
+    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith('game-1'));
+    expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
   });
 
   it('follows browser Back navigation', async () => {
