@@ -4,7 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
@@ -147,23 +147,36 @@ def import_player_data(
     if existing:
         raise HTTPException(status_code=409, detail="Player already exists")
 
-    player = Player.model_validate(archive.player)
-    profile = PlayerProfile.model_validate(archive.profile) if archive.profile else None
-    play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
-    games = [Game.model_validate(data) for data in archive.games]
-    positions = [Position.model_validate(data) for data in archive.positions]
-    engine_analyses = [EngineAnalysis.model_validate(data) for data in archive.engine_analyses]
-    analysis_jobs = [AnalysisJob.model_validate(data) for data in archive.analysis_jobs]
-    lesson_opportunities = [
-        PersistedLessonOpportunity.model_validate(data) for data in archive.lesson_opportunities
-    ]
-    skill_states = [SkillState.model_validate(data) for data in archive.skill_states]
-    review_schedules = [ReviewSchedule.model_validate(data) for data in archive.review_schedules]
-    study_sessions = [StudySession.model_validate(data) for data in archive.study_sessions]
-    content_attempts = [ContentAttempt.model_validate(data) for data in archive.content_attempts]
+    try:
+        player = Player.model_validate(archive.player)
+        profile = PlayerProfile.model_validate(archive.profile) if archive.profile else None
+        play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
+        games = [Game.model_validate(data) for data in archive.games]
+        positions = [Position.model_validate(data) for data in archive.positions]
+        engine_analyses = [
+            EngineAnalysis.model_validate(data) for data in archive.engine_analyses
+        ]
+        analysis_jobs = [AnalysisJob.model_validate(data) for data in archive.analysis_jobs]
+        lesson_opportunities = [
+            PersistedLessonOpportunity.model_validate(data)
+            for data in archive.lesson_opportunities
+        ]
+        skill_states = [SkillState.model_validate(data) for data in archive.skill_states]
+        review_schedules = [
+            ReviewSchedule.model_validate(data) for data in archive.review_schedules
+        ]
+        study_sessions = [StudySession.model_validate(data) for data in archive.study_sessions]
+        content_attempts = [
+            ContentAttempt.model_validate(data) for data in archive.content_attempts
+        ]
+    except ValidationError as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed records"
+        ) from error
 
     game_ids = {play_session.game_id for play_session in play_sessions if play_session.game_id}
     position_ids = {position.id for position in positions}
+    positions_by_id = {position.id: position for position in positions}
     study_session_ids = {study_session.id for study_session in study_sessions}
     has_foreign_owner = (
         player.id != player_id
@@ -183,7 +196,12 @@ def import_player_data(
         or any(position.game_id not in game_ids for position in positions)
         or any(analysis.position_id not in position_ids for analysis in engine_analyses)
         or any(analysis_job.game_id not in game_ids for analysis_job in analysis_jobs)
-        or any(opportunity.game_id not in game_ids for opportunity in lesson_opportunities)
+        or any(
+            opportunity.source_position_id not in positions_by_id
+            or positions_by_id[opportunity.source_position_id].game_id
+            != opportunity.game_id
+            for opportunity in lesson_opportunities
+        )
     )
     if has_foreign_owner:
         raise HTTPException(

@@ -262,6 +262,21 @@ class EngineAnalysisRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class DiagnosisRead(BaseModel):
+    primary: str
+    secondary: list[str]
+    confidence: float
+
+
+class GameAnalysisStatusRead(BaseModel):
+    status: str
+
+
+def _read_diagnosis(opportunity: PersistedLessonOpportunity) -> DiagnosisRead:
+    return DiagnosisRead.model_validate(opportunity.lesson_spec.get("diagnosis"))
+
+
+
 
 class PositionRead(BaseModel):
     id: UUID
@@ -271,15 +286,33 @@ class PositionRead(BaseModel):
     side_to_move: str
     canonical_id: str
     analysis: EngineAnalysisRead | None = None
+    diagnoses: list[DiagnosisRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+
+@router.get("/v1/games/{game_id}/analysis-status", response_model=GameAnalysisStatusRead)
+def get_game_analysis_status(
+    game_id: UUID, request: Request, session: Session = Depends(get_session)
+) -> GameAnalysisStatusRead:
+    _get_owned_game(game_id, request, session)
+    analysis_job = session.exec(
+        select(AnalysisJob)
+        .where(AnalysisJob.game_id == game_id)
+        .order_by(col(AnalysisJob.created_at).desc())
+    ).first()
+    return GameAnalysisStatusRead(
+        status=analysis_job.status if analysis_job is not None else "not_analysed"
+    )
+
 
 
 @router.get("/v1/games/{game_id}/positions", response_model=list[PositionRead])
 def get_game_positions(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> list[PositionRead]:
-    _get_owned_game(game_id, request, session)
+    game = _get_owned_game(game_id, request, session)
     positions = session.exec(
         select(Position)
         .where(Position.game_id == game_id)
@@ -288,6 +321,25 @@ def get_game_positions(
             case((col(Position.side_to_move) == "w", 0), else_=1),
         )
     ).all()
+    diagnoses_by_position: dict[UUID, list[DiagnosisRead]] = {
+        position.id: [] for position in positions
+    }
+    opportunities = session.exec(
+        select(PersistedLessonOpportunity).where(
+            PersistedLessonOpportunity.game_id == game.id
+        )
+    ).all()
+    for opportunity in opportunities:
+        if opportunity.source_position_id is None:
+            raise RuntimeError("Persisted lesson opportunity has no source position")
+        try:
+            diagnoses_by_position[opportunity.source_position_id].append(
+                _read_diagnosis(opportunity)
+            )
+        except KeyError as error:
+            raise RuntimeError(
+                "Persisted lesson opportunity source position does not belong to its game"
+            ) from error
     result: list[PositionRead] = []
     for position in positions:
         analysis = session.exec(
@@ -297,5 +349,6 @@ def get_game_positions(
         ).first()
         position_data = position.model_dump()
         position_data["analysis"] = analysis
+        position_data["diagnoses"] = diagnoses_by_position[position.id]
         result.append(PositionRead.model_validate(position_data))
     return result

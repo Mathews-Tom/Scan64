@@ -7,7 +7,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from scan64.api.learning import get_training_session
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
-from scan64.chess.positions.models import Position  # noqa: F401
+from scan64.chess.positions.models import Position
 from scan64.learning.scheduling.priority import PriorityFactors, compute_session_fatigue
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
@@ -95,9 +95,18 @@ def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> N
     db_session.flush()
     db_session.add(PlaySession(player_id="player1", game_id=game.id))
     db_session.commit()
+    source_position = Position(
+        game_id=game.id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(source_position)
+    db_session.commit()
 
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
+        source_position_id=source_position.id,
         player_id="player1",
         lesson_spec={
             "schema_version": "1.0",

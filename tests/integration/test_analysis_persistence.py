@@ -199,6 +199,10 @@ async def test_production_job_persists_arbitrated_secondary_diagnoses(
     diagnosis = persisted.lesson_spec["diagnosis"]
     assert diagnosis["primary"] == "board_awareness.hanging_piece"
     assert diagnosis["secondary"] == ["threat_processing.missed_direct_threat"]
+    assert persisted.source_position_id is not None
+    source_position = db_session.get(Position, persisted.source_position_id)
+    assert source_position is not None
+    assert source_position.fen == chess.Board().fen()
     schedule = db_session.get(ReviewSchedule, ("player-1", str(persisted.id)))
     assert schedule is not None
     assert schedule.skill_id == diagnosis["primary"]
