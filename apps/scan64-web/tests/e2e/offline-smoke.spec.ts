@@ -12,7 +12,13 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
       await route.fulfill({ json: { id, preferences: {}, access_token: 'token-1' } });
     });
     await page.route('/v1/play-sessions', async route => {
-      await route.fulfill({ json: { id: 'session-1', player_id: 'player-1', status: 'active', current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', pgn: '' } });
+      await route.fulfill({ json: { id: 'session-1', player_id: 'player-1', game_id: 'game-1', status: 'active', current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', pgn: '' } });
+    });
+    await page.route('/v1/play-sessions/session-1', async route => {
+      await route.fulfill({ json: { id: 'session-1', player_id: 'player-1', game_id: 'game-1', status: 'active' } });
+    });
+    await page.route('/v1/games/game-1', async route => {
+      await route.fulfill({ json: { id: 'game-1', pgn: '1. e4 e5 *', white: 'player-1', black: 'Stockfish', result: '*' } });
     });
     let syncShouldFail = true;
     let onlineMoveRequests = 0;

@@ -7,7 +7,12 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
-from scan64.api.models import Player, PlayerProfile  # noqa: F401
+from scan64.api.models import (  # noqa: F401
+    Player,
+    PlayerCredential,
+    PlayerProfile,
+    issue_player_token,
+)
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
 from scan64.chess.games.models import (
     Game,  # noqa: F401
@@ -39,6 +44,14 @@ def client_fixture(session: Session):
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()
+
+
+def _register(session: Session, player_id: str) -> dict[str, str]:
+    token, token_hash = issue_player_token()
+    session.add(Player(id=player_id))
+    session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
+    session.commit()
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health(client: TestClient):
@@ -98,25 +111,51 @@ def test_create_get_analysis_job(client: TestClient, session: Session):
     assert get_job_response.json()["status"] == "completed"
 
 
-def test_create_and_get_play_session_api(client: TestClient):
+def test_create_and_get_play_session_api(client: TestClient, session: Session):
+    headers = _register(session, "player_123")
     req_body = {
         "player_id": "player_123",
         "opponent_config": {"strength": "10"},
         "clock_config": {"time_remaining_ms": "60000"},
     }
-    create_resp = client.post("/v1/play-sessions", json=req_body)
+    create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
     assert create_resp.status_code == 200, create_resp.text
     session_data = create_resp.json()
     assert session_data["player_id"] == "player_123"
     assert session_data["status"] == "active"
 
     session_id = session_data["id"]
-    get_resp = client.get(f"/v1/play-sessions/{session_id}")
+    get_resp = client.get(f"/v1/play-sessions/{session_id}", headers=headers)
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == session_id
 
 
+def test_play_session_hides_non_owned_reads_and_writes(
+    client: TestClient, session: Session
+) -> None:
+    alice_headers = _register(session, "alice")
+    bob_headers = _register(session, "bob")
+    created = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "alice", "opponent_config": {"strength": "10"}},
+        headers=alice_headers,
+    )
+    session_id = created.json()["id"]
+
+    assert client.get(f"/v1/play-sessions/{session_id}").status_code == 401
+    assert client.get(f"/v1/play-sessions/{session_id}", headers=bob_headers).status_code == 404
+    assert (
+        client.post(
+            f"/v1/play-sessions/{session_id}/moves",
+            json={"move": "e2e4"},
+            headers=bob_headers,
+        ).status_code
+        == 404
+    )
+
+
 def test_create_play_session_persists_initial_fen(client: TestClient, session: Session) -> None:
+    headers = _register(session, "player_123")
     initial_fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
     response = client.post(
@@ -126,6 +165,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
             "opponent_config": {"strength": "10"},
             "initial_fen": initial_fen,
         },
+        headers=headers,
     )
 
     assert response.status_code == 200, response.text
@@ -152,14 +192,15 @@ def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> 
 
 
 def test_play_session_moves_api(client: TestClient, session: Session):
+    headers = _register(session, "player_123")
     req_body = {"player_id": "player_123", "opponent_config": {"strength": "10"}}
-    create_resp = client.post("/v1/play-sessions", json=req_body)
+    create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
     session_id = create_resp.json()["id"]
 
-    # First move
     move_req = {"move": "e2e4"}
+    move_headers = {**headers, "Idempotency-Key": "move1"}
     move_resp = client.post(
-        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers={"Idempotency-Key": "move1"}
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers
     )
     assert move_resp.status_code == 200, move_resp.text
     move_data = move_resp.json()
@@ -173,18 +214,16 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert move_data["status"] == "active"
     assert (game.white, game.black) == ("player_123", "Stockfish (strength 10)")
 
-    # Retry first move (idempotency)
     retry_resp = client.post(
-        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers={"Idempotency-Key": "move1"}
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers
     )
     assert retry_resp.status_code == 200
     assert retry_resp.json() == move_data
 
-    # Illegal move
     illegal_resp = client.post(
         f"/v1/play-sessions/{session_id}/moves",
         json={"move": "e2e5"},
-        headers={"Idempotency-Key": "move2"},
+        headers={**headers, "Idempotency-Key": "move2"},
     )
     assert illegal_resp.status_code == 400
 
@@ -192,6 +231,7 @@ def test_play_session_moves_api(client: TestClient, session: Session):
 def test_play_session_move_response_marks_opponent_checkmate_completed(
     client: TestClient, session: Session
 ) -> None:
+    headers = _register(session, "test_player")
     game = Game(pgn="", moves=["f2f3", "e7e5"], white="Player", black="Opponent")
     session.add(game)
     session.commit()
@@ -207,7 +247,11 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
     session.commit()
     session.refresh(play_session)
 
-    response = client.post(f"/v1/play-sessions/{play_session.id}/moves", json={"move": "g2g4"})
+    response = client.post(
+        f"/v1/play-sessions/{play_session.id}/moves",
+        json={"move": "g2g4"},
+        headers=headers,
+    )
 
     assert response.status_code == 200, response.text
     assert response.json() == {"opponent_move": "d8h4", "status": "completed"}
@@ -216,6 +260,7 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
 def test_play_session_cannot_attach_to_another_players_game(
     client: TestClient, session: Session
 ) -> None:
+    headers = _register(session, "alice")
     game = Game(pgn="", moves=[], white="Kasparov", black="Karpov", owner_player_id="bob")
     session.add(game)
     session.commit()
@@ -223,9 +268,10 @@ def test_play_session_cannot_attach_to_another_players_game(
     response = client.post(
         "/v1/play-sessions",
         json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {}},
+        headers=headers,
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
     session.refresh(game)
     assert (game.white, game.black) == ("Kasparov", "Karpov")
     assert game.moves == []
@@ -234,6 +280,7 @@ def test_play_session_cannot_attach_to_another_players_game(
 def test_play_session_cannot_attach_to_an_ownerless_game(
     client: TestClient, session: Session
 ) -> None:
+    headers = _register(session, "alice")
     game = Game(pgn="", moves=[], white="Unknown", black="Unknown")
     session.add(game)
     session.commit()
@@ -241,6 +288,7 @@ def test_play_session_cannot_attach_to_an_ownerless_game(
     response = client.post(
         "/v1/play-sessions",
         json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {}},
+        headers=headers,
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404

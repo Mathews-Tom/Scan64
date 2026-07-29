@@ -3,11 +3,20 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.games.models import PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.providers.maia import MaiaCheckpoint, MaiaConfig
 from scan64.providers.stockfish.adapter import StockfishConfig
+
+
+def _register(client: TestClient, db_session: Session, player_id: str) -> None:
+    token, token_hash = issue_player_token()
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
+    db_session.commit()
+    client.headers["Authorization"] = f"Bearer {token}"
 
 
 def test_play_session_rejects_unknown_opponent_provider(client: TestClient) -> None:
@@ -24,8 +33,9 @@ def test_play_session_rejects_unknown_opponent_provider(client: TestClient) -> N
 
 
 def test_maia_selection_fails_closed_without_operator_configuration(
-    client: TestClient, monkeypatch
+    client: TestClient, db_session: Session, monkeypatch
 ) -> None:
+    _register(client, db_session, "maia-player")
     monkeypatch.delenv("SCAN64_MAIA_CONFIG", raising=False)
     create_response = client.post(
         "/v1/play-sessions",
@@ -47,9 +57,11 @@ def test_maia_selection_fails_closed_without_operator_configuration(
         "Maia is not configured. Set SCAN64_MAIA_CONFIG to an operator-provided config file."
     )
 
+
 def test_malformed_maia_config_does_not_disable_stockfish_play(
-    client: TestClient, monkeypatch
+    client: TestClient, db_session: Session, monkeypatch
 ) -> None:
+    _register(client, db_session, "stockfish-player")
     monkeypatch.setenv("SCAN64_MAIA_CONFIG", "/operator/malformed-maia.toml")
     create_response = client.post(
         "/v1/play-sessions",
@@ -70,8 +82,9 @@ def test_malformed_maia_config_does_not_disable_stockfish_play(
 
 
 def test_malformed_maia_config_reports_actionable_error_for_maia_session(
-    client: TestClient, monkeypatch
+    client: TestClient, db_session: Session, monkeypatch
 ) -> None:
+    _register(client, db_session, "maia-player")
     monkeypatch.setenv("SCAN64_MAIA_CONFIG", "/operator/malformed-maia.toml")
     create_response = client.post(
         "/v1/play-sessions",
@@ -91,6 +104,7 @@ def test_malformed_maia_config_reports_actionable_error_for_maia_session(
     assert move_response.json()["detail"] == (
         "Maia configuration is invalid. Review SCAN64_MAIA_CONFIG."
     )
+
 
 def test_low_rating_maia_selection_persists_coverage_disclosure(db_session: Session) -> None:
     service = PlaySessionService(
@@ -149,4 +163,3 @@ def test_in_range_maia_selection_persists_granularity_disclosure(db_session: Ses
         "Maia checkpoints use approximately 100-Elo granularity; requested rating "
         "1400 uses the nearest 1500 checkpoint."
     )
-

@@ -55,13 +55,14 @@ def _mate_session(db_session: Session) -> PlaySession:
 def test_playing_to_mate_completes_an_analysis_job_without_a_further_call(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    auth = _register(db_session)
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _NoCandidateOrchestrator)
     play_session = _mate_session(db_session)
 
     response = client.post(
         f"/v1/play-sessions/{play_session.id}/moves",
         json={"move": "d8h4"},
-        headers={"Idempotency-Key": "mate"},
+        headers={**auth, "Idempotency-Key": "mate"},
     )
 
     assert response.status_code == 200, response.text
@@ -80,12 +81,13 @@ def test_resigning_completes_an_analysis_job_without_a_further_call(
     created = client.post(
         "/v1/play-sessions",
         json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        headers=auth,
     )
     session_id = created.json()["id"]
     client.post(
         f"/v1/play-sessions/{session_id}/moves",
         json={"move": "e2e4"},
-        headers={"Idempotency-Key": "one"},
+        headers={**auth, "Idempotency-Key": "one"},
     )
 
     resigned = client.post(f"/v1/play-sessions/{session_id}/resign", headers=auth)
@@ -108,6 +110,7 @@ def test_resigning_before_a_move_enqueues_nothing(client: TestClient, db_session
             "opponent_config": {"strength": "1"},
             "initial_fen": FOOLS_MATE_FEN,
         },
+        headers=auth,
     )
     assert created.status_code == 200, created.text
 
@@ -124,6 +127,7 @@ def test_resigning_a_session_without_a_game_enqueues_nothing(
     created = client.post(
         "/v1/play-sessions",
         json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        headers=auth,
     )
     assert created.status_code == 200, created.text
 

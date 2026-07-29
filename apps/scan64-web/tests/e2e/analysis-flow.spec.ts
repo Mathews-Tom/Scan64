@@ -18,7 +18,8 @@ test('analysis board play from here flow', async ({ page }) => {
     await route.fulfill({ json: { id: 'test-game' } });
   });
   await page.route('**/v1/players', async route => {
-    await route.fulfill({ json: { id: 'test-player', preferences: {}, access_token: 'test-token' } });
+    const { id } = route.request().postDataJSON() as { id: string };
+    await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/play-sessions', async route => {
     await route.fulfill({ json: { id: 'test-session', status: 'active' } });
