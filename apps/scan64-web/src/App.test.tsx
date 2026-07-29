@@ -21,6 +21,7 @@ vi.mock('./api/client', async (importOriginal) => {
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
@@ -50,11 +51,11 @@ describe('App', () => {
   });
 
   it('renders a game analysis screen from its deep-link URL', async () => {
-    window.history.replaceState({}, '', '/games/game-1/analysis');
+    window.history.replaceState({}, '', '/games/00000000-0000-0000-0000-000000000001/analysis');
 
     render(<App />);
 
-    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith('game-1'));
+    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001'));
     expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
   });
 
@@ -65,6 +66,15 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
+  });
+
+  it('renders not found for a non-UUID game-analysis URL', () => {
+    window.history.replaceState({}, '', '/games/not-a-uuid/analysis');
+
+    render(<App />);
+
+    expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
+    expect(ApiClient.getPositions).not.toHaveBeenCalled();
   });
   it('follows browser Back navigation', async () => {
     render(<App />);

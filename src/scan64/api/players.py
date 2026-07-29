@@ -16,7 +16,7 @@ from scan64.api.models import (
     PlayerProfile,
     issue_player_token,
 )
-from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
+from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.persistence.database import get_session
@@ -108,10 +108,9 @@ def _diagnosis_counts(game_ids: list[UUID], session: Session) -> dict[UUID, int]
 
 
 def _decode_game_cursor(cursor: str) -> tuple[datetime, UUID]:
-    cursor_data = decode_cursor(cursor)
     try:
-        return datetime.fromisoformat(cursor_data["created_at"]), UUID(cursor_data["id"])
-    except (KeyError, TypeError, ValueError) as error:
+        return decode_timestamp_uuid_cursor(cursor)
+    except ValueError as error:
         raise HTTPException(status_code=400, detail="Invalid cursor") from error
 
 

@@ -13,7 +13,10 @@ import { GamesListScreen } from './components/GamesListScreen';
 
 function decodeRouteSegment(value: string): string | null {
   try {
-    return decodeURIComponent(value);
+    const decoded = decodeURIComponent(value);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)
+      ? decoded
+      : null;
   } catch {
     return null;
   }
@@ -40,6 +43,7 @@ function App() {
   if (gameAnalysisId !== null) {
     screen = (
       <AnalysisScreen
+        key={gameAnalysisId}
         gameId={gameAnalysisId}
         onPlayFromHere={(session, fen) => {
           setActivePlaySession({ session, fen });
@@ -83,6 +87,7 @@ function App() {
     case '/analysis':
       screen = (
         <AnalysisScreen
+          key={activeAnalysisGameId ?? 'analysis'}
           gameId={activeAnalysisGameId}
           onPlayFromHere={(session, fen) => {
             setActivePlaySession({ session, fen });

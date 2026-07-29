@@ -1,3 +1,4 @@
+import hashlib
 import json
 from collections.abc import Awaitable, Callable, Generator
 from typing import cast
@@ -37,11 +38,18 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         if not idempotency_key:
             return await call_next(request)
 
+        authorization = request.headers.get("Authorization")
+        if authorization is None:
+            return await call_next(request)
+
+        principal = hashlib.sha256(authorization.encode("utf-8")).hexdigest()
+        record_key = f"{request.method}:{request.url.path}:{principal}:{idempotency_key}"
+
         session_generator = self.get_session()
         session = next(session_generator)
 
         try:
-            record = session.get(IdempotencyRecord, idempotency_key)
+            record = session.get(IdempotencyRecord, record_key)
             if record:
                 headers = json.loads(record.headers)
                 return Response(
@@ -68,11 +76,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type=response.media_type,
             )
 
-            # Only save successful mutations
             if 200 <= response.status_code < 300:
-                # Save to DB
                 new_record = IdempotencyRecord(
-                    idempotency_key=idempotency_key,
+                    idempotency_key=record_key,
                     status_code=response.status_code,
                     response_body=body.decode("utf-8"),
                     headers=json.dumps(dict(response.headers)),

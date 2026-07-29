@@ -74,7 +74,39 @@ def test_pagination(client: TestClient, session: Session):
     assert response2.status_code == 200
     data2 = response2.json()
     assert len(data2["items"]) == 5
+    assert client.get("/v1/games?limit=0").status_code == 422
+    assert client.get("/v1/games?limit=101").status_code == 422
     assert data2["next_cursor"] is None
+
+
+def test_invalid_game_cursors_and_learning_limits_are_rejected(
+    client: TestClient, session: Session
+):
+    token, token_hash = issue_player_token()
+    game = Game(pgn="", moves=[], owner_player_id="page-player")
+    session.add(Player(id="page-player"))
+    session.add(PlayerCredential(player_id="page-player", token_hash=token_hash))
+    session.add(game)
+    session.commit()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/v1/games?cursor=MQ==", headers=headers).status_code == 400
+    malformed_cursor = "eyJjcmVhdGVkX2F0IjogIjIwMjQtMDEtMDFUMDA6MDA6MDAiLCAiaWQiOiAxfQ=="
+    assert client.get(f"/v1/games?cursor={malformed_cursor}", headers=headers).status_code == 400
+    assert (
+        client.get(
+            f"/v1/games/{game.id}/learning-opportunities?player_id=page-player&limit=0",
+            headers=headers,
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get(
+            f"/v1/games/{game.id}/learning-opportunities?player_id=page-player&limit=101",
+            headers=headers,
+        ).status_code
+        == 422
+    )
 
 
 def test_players(client: TestClient, session: Session):

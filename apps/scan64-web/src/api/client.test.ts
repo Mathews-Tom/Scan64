@@ -57,6 +57,11 @@ describe('ApiClient', () => {
     await expect(request).rejects.toBeInstanceOf(ApiRequestError);
     await expect(request).rejects.toMatchObject({ status: 404 });
   });
+
+  it('rejects a game read without stored player authorization before fetching', async () => {
+    await expect(ApiClient.getGame('game-1')).rejects.toMatchObject({ status: 401 });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
   it('serves owned game lessons with player authorization', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');

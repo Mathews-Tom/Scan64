@@ -40,3 +40,23 @@ def test_analysis_job_hides_ownerless_legacy_game(client: TestClient, db_session
 
     response = client.post(f"/v1/games/{game.id}/analysis-jobs", headers=headers)
     assert response.status_code == 404
+
+
+def test_game_history_and_positions_exclude_another_player(
+    client: TestClient, db_session: Session
+) -> None:
+    owner_headers = _register(db_session, "owner")
+    other_headers = _register(db_session, "other")
+    owner_game = Game(pgn=PGN, owner_player_id="owner")
+    other_game = Game(pgn=PGN, owner_player_id="other")
+    db_session.add_all([owner_game, other_game])
+    db_session.commit()
+
+    owner_history = client.get("/v1/games", headers=owner_headers)
+    other_history = client.get("/v1/games", headers=other_headers)
+
+    assert owner_history.status_code == other_history.status_code == 200
+    assert [game["id"] for game in owner_history.json()["items"]] == [str(owner_game.id)]
+    assert [game["id"] for game in other_history.json()["items"]] == [str(other_game.id)]
+    response = client.get(f"/v1/games/{owner_game.id}/positions", headers=other_headers)
+    assert response.status_code == 404

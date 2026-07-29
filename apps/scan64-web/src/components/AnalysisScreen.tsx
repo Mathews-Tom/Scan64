@@ -5,7 +5,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
-import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { PlaySessionRead, PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
@@ -27,22 +27,42 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
   const updateFenInput = useCallback(() => setFenInput(chess.fen()), [chess]);
 
   useEffect(() => {
-    if (gameId) {
-      setLoading(true);
-      ApiClient.getPositions(gameId)
-        .then((data) => {
-          setPositions(data);
-          if (data.length > 0) {
-            chess.load(data[0].fen);
-            setCurrentIndex(0);
-            updateFenInput();
-          }
-        })
-        .catch((error: unknown) =>
-          setError(error instanceof Error ? error.message : 'Failed to load analysis')
-        )
-        .finally(() => setLoading(false));
+    let ignore = false;
+    setError(null);
+    setPositions([]);
+    setCurrentIndex(0);
+    chess.reset();
+    updateFenInput();
+    if (!gameId) {
+      setLoading(false);
+      return () => {
+        ignore = true;
+      };
     }
+    setLoading(true);
+    ApiClient.getPositions(gameId)
+      .then((data) => {
+        if (ignore) return;
+        setPositions(data);
+        if (data.length > 0) {
+          chess.load(data[0].fen);
+          updateFenInput();
+        }
+      })
+      .catch((error: unknown) => {
+        if (ignore) return;
+        setError(
+          error instanceof ApiRequestError && error.status === 404
+            ? 'Game analysis was not found.'
+            : error instanceof Error ? error.message : 'Failed to load analysis',
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [gameId, chess, updateFenInput]);
 
   useEffect(() => {
@@ -81,14 +101,17 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
   }, [cg, chess, updateFenInput]);
 
   useEffect(() => {
+    if (!cg) return;
     const currentPosition = positions[currentIndex];
-    if (cg && currentPosition) {
+    if (currentPosition) {
       chess.load(currentPosition.fen);
-      cg.set({
-        fen: chess.fen(),
-        movable: { dests: getDests(chess) },
-      });
+    } else {
+      chess.reset();
     }
+    cg.set({
+      fen: chess.fen(),
+      movable: { dests: getDests(chess) },
+    });
   }, [cg, chess, currentIndex, positions]);
 
   const goNext = () => {

@@ -1,14 +1,15 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
-from scan64.api.pagination import PaginatedResponse, decode_cursor, encode_cursor
+from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.inflight import analysis_limiter
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
@@ -53,6 +54,13 @@ def _get_owned_game(game_id: UUID, request: Request, session: Session) -> Game:
     return game
 
 
+def _decode_game_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        return decode_timestamp_uuid_cursor(cursor)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="Invalid cursor") from error
+
+
 @router.post("/v1/games", response_model=GameRead)
 def create_game(
     game_in: GameCreate, request: Request, session: Session = Depends(get_session)
@@ -61,11 +69,7 @@ def create_game(
 
     import chess.pgn
 
-    from scan64.api.models import Player
-
     require_player_token(request, game_in.player_id, session)
-    if session.get(Player, game_in.player_id) is None:
-        raise HTTPException(status_code=404, detail="Player not found")
 
     pgn_io = io.StringIO(game_in.pgn)
     chess_game = chess.pgn.read_game(pgn_io)
@@ -94,25 +98,21 @@ def create_game(
 def list_games(
     request: Request,
     cursor: str | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     session: Session = Depends(get_session),
 ) -> PaginatedResponse[GameRead]:
     player_id = require_authenticated_player(request, session)
     query = (
-        select(Game).where(Game.owner_player_id == player_id).order_by(col(Game.created_at).desc())
+        select(Game)
+        .where(Game.owner_player_id == player_id)
+        .order_by(col(Game.created_at).desc(), col(Game.id).desc())
     )
 
     if cursor:
-        cursor_data = decode_cursor(cursor)
-        if "created_at" in cursor_data and "id" in cursor_data:
-            from datetime import datetime
-            from uuid import UUID
-
-            created_at = datetime.fromisoformat(cursor_data["created_at"])
-            query = query.where(
-                (Game.created_at < created_at)
-                | ((Game.created_at == created_at) & (Game.id < UUID(cursor_data["id"])))
-            )
+        created_at, last_id = _decode_game_cursor(cursor)
+        query = query.where(
+            (Game.created_at < created_at) | ((Game.created_at == created_at) & (Game.id < last_id))
+        )
 
     query = query.limit(limit + 1)
     games = session.exec(query).all()
@@ -142,7 +142,7 @@ def list_learning_opportunities(
     player_id: str,
     request: Request,
     cursor: str | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     session: Session = Depends(get_session),
 ) -> GameLearningSessionRead:
     require_player_token(request, player_id, session)
@@ -150,7 +150,6 @@ def list_learning_opportunities(
     if game is None or game.owner_player_id != player_id:
         raise HTTPException(status_code=404, detail="Owned game not found")
 
-    limit = min(limit, 100)
     query = (
         select(PersistedLessonOpportunity)
         .join(
@@ -163,22 +162,21 @@ def list_learning_opportunities(
         )
         .where(PersistedLessonOpportunity.game_id == game_id)
         .where(PersistedLessonOpportunity.player_id == player_id)
-        .order_by(col(PersistedLessonOpportunity.created_at).desc())
+        .order_by(
+            col(PersistedLessonOpportunity.created_at).desc(),
+            col(PersistedLessonOpportunity.id).desc(),
+        )
     )
 
     if cursor:
-        cursor_data = decode_cursor(cursor)
-        if "created_at" in cursor_data and "id" in cursor_data:
-            from datetime import datetime
-
-            created_at = datetime.fromisoformat(cursor_data["created_at"])
-            query = query.where(
-                (PersistedLessonOpportunity.created_at < created_at)
-                | (
-                    (PersistedLessonOpportunity.created_at == created_at)
-                    & (PersistedLessonOpportunity.id < UUID(cursor_data["id"]))
-                )
+        created_at, last_id = _decode_game_cursor(cursor)
+        query = query.where(
+            (PersistedLessonOpportunity.created_at < created_at)
+            | (
+                (PersistedLessonOpportunity.created_at == created_at)
+                & (PersistedLessonOpportunity.id < last_id)
             )
+        )
 
     query = query.limit(limit + 1)
     opportunities = session.exec(query).all()
@@ -230,14 +228,16 @@ def create_analysis_job(
     session: Session = Depends(get_session),
 ) -> AnalysisJob:
     game = _get_owned_game(game_id, request, session)
-    assert game.owner_player_id is not None
+    owner_player_id = game.owner_player_id
+    if owner_player_id is None:
+        raise HTTPException(status_code=404, detail="Game not found")
 
     job = AnalysisJob(game_id=game_id)
     session.add(job)
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(analysis_limiter.submit, game.owner_player_id, job.id)
+    background_tasks.add_task(analysis_limiter.submit, owner_player_id, job.id)
     return job
 
 
@@ -245,10 +245,13 @@ def create_analysis_job(
 def get_analysis_job(
     job_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> AnalysisJob:
+    player_id = require_authenticated_player(request, session)
     job = session.get(AnalysisJob, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Analysis job not found")
-    _get_owned_game(job.game_id, request, session)
+    game = session.get(Game, job.game_id)
+    if game is None or game.owner_player_id != player_id:
+        raise HTTPException(status_code=404, detail="Analysis job not found")
     return job
 
 

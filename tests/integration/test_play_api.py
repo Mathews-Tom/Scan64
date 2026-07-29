@@ -114,7 +114,17 @@ def test_create_get_analysis_job(client: TestClient, session: Session):
     assert (
         client.post(f"/v1/games/{game_id}/analysis-jobs", headers=other_headers).status_code == 404
     )
-    assert client.get(f"/v1/analysis-jobs/{job_id}", headers=other_headers).status_code == 404
+    inaccessible_job = client.get(f"/v1/analysis-jobs/{job_id}", headers=other_headers)
+    missing_job = client.get(f"/v1/analysis-jobs/{UUID(int=1)}", headers=other_headers)
+    assert inaccessible_job.status_code == missing_job.status_code == 404
+    assert inaccessible_job.json() == missing_job.json()
+
+    unauthenticated_job = client.get(f"/v1/analysis-jobs/{job_id}")
+    assert unauthenticated_job.status_code == 401
+    assert unauthenticated_job.headers["www-authenticate"] == "Bearer"
+    unauthenticated_missing_job = client.get(f"/v1/analysis-jobs/{UUID(int=1)}")
+    assert unauthenticated_missing_job.status_code == 401
+    assert unauthenticated_missing_job.headers["www-authenticate"] == "Bearer"
 
 
 def test_create_and_get_play_session_api(client: TestClient, session: Session):
