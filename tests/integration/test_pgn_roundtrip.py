@@ -8,11 +8,20 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from scan64.api.models import Player
+from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.pgn import CorruptGameError, build_pgn
 
 FOOLS_MATE_FEN = "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2"
+
+
+@pytest.fixture(autouse=True)
+def authorize_alice(client: TestClient, db_session: Session) -> None:
+    token, token_hash = issue_player_token()
+    db_session.add(Player(id="alice"))
+    db_session.add(PlayerCredential(player_id="alice", token_hash=token_hash))
+    db_session.commit()
+    client.headers["Authorization"] = f"Bearer {token}"
 
 
 def _play(client: TestClient, session_id: str, move: str, key: str) -> None:
@@ -27,8 +36,6 @@ def _play(client: TestClient, session_id: str, move: str, key: str) -> None:
 def test_played_game_pgn_reimports_and_names_the_player(
     client: TestClient, db_session: Session
 ) -> None:
-    db_session.add(Player(id="alice"))
-    db_session.commit()
 
     game = Game(
         pgn="",
@@ -120,8 +127,7 @@ def test_rendering_a_game_whose_moves_do_not_fit_it_is_loud() -> None:
 def test_an_imported_games_tags_survive_being_played_on(
     client: TestClient, db_session: Session
 ) -> None:
-    db_session.add(Player(id="alice"))
-    db_session.commit()
+
     imported = client.post(
         "/v1/games",
         json={
@@ -173,7 +179,7 @@ def test_another_players_game_cannot_be_attached_or_touched(
         "/v1/play-sessions",
         json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"strength": "1"}},
     )
-    assert created.status_code == 403, created.text
+    assert created.status_code == 404, created.text
 
     db_session.refresh(game)
     assert game.pgn == '[Event "Theirs"]\n\n1. e4 1-0\n'
