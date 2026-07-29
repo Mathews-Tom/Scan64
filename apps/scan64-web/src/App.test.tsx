@@ -1,5 +1,5 @@
-import { afterEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { ApiClient } from './api/client';
 import type { LessonSpec } from './api/types';
@@ -18,6 +18,10 @@ vi.mock('./api/client', async (importOriginal) => {
   };
 });
 
+beforeEach(() => {
+  window.history.replaceState(null, '', '/');
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -28,10 +32,49 @@ describe('App', () => {
     expect(screen.getByText('Welcome to Scan64')).toBeInTheDocument();
   });
 
-  it('navigates to play screen', () => {
+  it('navigates to play screen and updates the URL', () => {
     render(<App />);
     fireEvent.click(screen.getByText('Play Game'));
+
+    expect(window.location.pathname).toBe('/play');
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+  });
+
+  it('renders a directly addressed screen from its URL', () => {
+    window.history.replaceState({}, '', '/play');
+
+    render(<App />);
+
+    expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+  });
+
+  it('follows browser Back navigation', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Play Game'));
+
+    window.history.back();
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Scan64')).toBeInTheDocument();
+    });
+  });
+
+  it('does not add a history entry for same-path navigation', () => {
+    render(<App />);
+    const pushState = vi.spyOn(window.history, 'pushState');
+
+    fireEvent.click(within(screen.getByRole('navigation')).getByText('Import PGN'));
+    fireEvent.click(within(screen.getByRole('navigation')).getByText('Import PGN'));
+
+    expect(pushState).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders an explicit missing-route state', () => {
+    window.history.replaceState(null, '', '/missing');
+
+    render(<App />);
+
+    expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
   });
 
   it('navigates to import screen', () => {
