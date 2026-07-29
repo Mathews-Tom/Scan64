@@ -15,6 +15,8 @@ from scan64.api.players import router as players_router
 from scan64.api.reports import router as reports_router
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
 from scan64.persistence.database import create_db_and_tables, get_session
+from scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.providers.stockfish.pool import EnginePoolManager, engine_pool_enabled
 
 
 @asynccontextmanager
@@ -35,12 +37,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     create_db_and_tables()
     app.state.plugin_registry = initialize_host_registry()
+    app.state.engine_pool_manager = (
+        EnginePoolManager.from_env(StockfishConfig()) if engine_pool_enabled() else None
+    )
     try:
         yield
     finally:
+        if app.state.engine_pool_manager is not None:
+            await app.state.engine_pool_manager.close()
         clear_host_registry()
         del app.state.plugin_registry
-
+        del app.state.engine_pool_manager
 
 app = FastAPI(
     title="Scan64 API",
