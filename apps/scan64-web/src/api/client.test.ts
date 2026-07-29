@@ -47,6 +47,22 @@ describe('ApiClient', () => {
     expect(game.pgn).toBe('1. e4 e5');
   });
 
+  it('gets an owned game analysis status', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'completed' }),
+    });
+
+    const status = await ApiClient.getGameAnalysisStatus('game-1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/v1/games/game-1/analysis-status', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
+    expect(status.status).toBe('completed');
+  });
+
   it('preserves a failed game request status', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');

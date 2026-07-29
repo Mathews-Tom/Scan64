@@ -35,6 +35,11 @@ class AnalysisJob(SQLModel, table=True):
     completed_at: datetime | None = None
     error: str | None = None
 
+class PersistedDiagnosis(BaseModel):
+    primary: str
+    secondary: list[str]
+    confidence: float
+
 
 class PersistedLessonOpportunity(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)

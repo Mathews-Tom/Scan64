@@ -185,6 +185,16 @@ export interface PlayMoveResponse {
   status: string;
 }
 
+export interface DiagnosisRead {
+  primary: string;
+  secondary: string[];
+  confidence: number;
+}
+
+export interface GameAnalysisStatusRead {
+  status: string;
+}
+
 export interface EngineAnalysisRead {
   id: string;
   config: Record<string, unknown>;
@@ -203,6 +213,7 @@ export interface PositionRead {
   side_to_move: string;
   canonical_id: string;
   analysis?: EngineAnalysisRead;
+  diagnoses: DiagnosisRead[];
 }
 
 export interface VerifiedAlternative {

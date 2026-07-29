@@ -15,6 +15,7 @@ vi.mock('./api/client', async (importOriginal) => {
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
       getPositions: vi.fn().mockResolvedValue([]),
+      getGameAnalysisStatus: vi.fn().mockResolvedValue({ status: 'not_analysed' }),
     },
   };
 });

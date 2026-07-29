@@ -11,7 +11,12 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.inflight import analysis_limiter
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    PersistedDiagnosis,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
@@ -262,18 +267,12 @@ class EngineAnalysisRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class DiagnosisRead(BaseModel):
-    primary: str
-    secondary: list[str]
-    confidence: float
-
-
 class GameAnalysisStatusRead(BaseModel):
     status: str
 
 
-def _read_diagnosis(opportunity: PersistedLessonOpportunity) -> DiagnosisRead:
-    return DiagnosisRead.model_validate(opportunity.lesson_spec.get("diagnosis"))
+def _read_diagnosis(opportunity: PersistedLessonOpportunity) -> PersistedDiagnosis:
+    return PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
 
 
 
@@ -286,7 +285,7 @@ class PositionRead(BaseModel):
     side_to_move: str
     canonical_id: str
     analysis: EngineAnalysisRead | None = None
-    diagnoses: list[DiagnosisRead] = []
+    diagnoses: list[PersistedDiagnosis] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -321,7 +320,7 @@ def get_game_positions(
             case((col(Position.side_to_move) == "w", 0), else_=1),
         )
     ).all()
-    diagnoses_by_position: dict[UUID, list[DiagnosisRead]] = {
+    diagnoses_by_position: dict[UUID, list[PersistedDiagnosis]] = {
         position.id: [] for position in positions
     }
     opportunities = session.exec(

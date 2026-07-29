@@ -33,7 +33,13 @@ def create_game_records(session: Session, player_id: str) -> dict[str, object]:
     lesson_opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=position.id,
-        lesson_spec={"id": "lesson-opportunity"},
+        lesson_spec={
+            "diagnosis": {
+                "primary": "tactics.hanging_piece",
+                "secondary": [],
+                "confidence": 0.9,
+            }
+        },
     )
     session.add(engine_analysis)
     session.add(analysis_job)
@@ -155,6 +161,21 @@ def test_import_rejects_missing_diagnosis_source_position(
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid archive: malformed records"
 
+
+
+def test_import_rejects_malformed_diagnosis_payload(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "malformed-diagnosis"
+    archive, access_token = export_then_delete_player_data(client, db_session, player_id)
+    archive["lesson_opportunities"][0]["lesson_spec"]["diagnosis"].pop("confidence")
+
+    response = client.post(
+        "/v1/imports", json=archive, headers=authorization_header(access_token)
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid archive: malformed records"
 
 def test_import_rejects_foreign_diagnosis_source_position(
     client: TestClient, db_session: Session
