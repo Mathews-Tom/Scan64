@@ -1,6 +1,8 @@
 import asyncio
 
 import pytest
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
 
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -123,5 +125,61 @@ async def test_opponent_provider_reuses_the_pooled_engine_across_moves() -> None
         # under concurrent play plus analysis").
         assert first_engine is not None
         assert second_engine is first_engine
+    finally:
+        await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive_play(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import scan64.chess.analysis.jobs as jobs
+    from scan64.chess.games.models import Game
+    from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
+    from scan64.learning.plugins.registry import PluginRegistry
+    from scan64.providers.stockfish.pool import PoolBoundAdapter
+
+    captured_adapters: list[object] = []
+
+    class _CapturingOrchestrator:
+        def __init__(self, adapter: object, *_: object) -> None:
+            captured_adapters.append(adapter)
+
+        async def run_fast_pass(
+            self, _: list[str], initial_fen: str | None = None
+        ) -> list[object]:
+            return []
+
+        async def run_focused_pass(self, candidates: list[object]) -> list[object]:
+            return []
+
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CapturingOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _CapturingOrchestrator)
+
+    game = Game(pgn="", moves=["e2e4"], owner_player_id="pool-analysis-player")
+
+    manager = EnginePoolManager(StockfishConfig(), interactive_concurrency=1, batch_concurrency=1)
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SQLModel.metadata.create_all(engine)
+    try:
+        with Session(engine) as session:
+            registry = PluginRegistry()
+            register_seeded_detectors(registry)
+            await jobs.run_analysis_for_game(
+                game, session, registry=registry, pool_manager=manager
+            )
+
+        # Both orchestrator passes were built from the batch pool, not from a
+        # per-call adapter or the interactive pool.
+        assert len(captured_adapters) == 2
+        assert all(isinstance(adapter, PoolBoundAdapter) for adapter in captured_adapters)
+        assert all(adapter._pool is manager.batch_pool for adapter in captured_adapters)
+
+        # Isolation: routing analysis through the batch pool never touches
+        # the interactive pool, matching this milestone's acceptance that a
+        # move request completes independent of any running batch analysis.
+        assert manager.interactive_pool._initialized is False
     finally:
         await manager.close()

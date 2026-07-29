@@ -30,6 +30,7 @@ from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 
 def _resolve_pattern_detectors(
@@ -73,11 +74,14 @@ async def run_analysis_for_game(
     game: Game,
     session: Session,
     registry: PluginRegistry | None = None,
+    pool_manager: EnginePoolManager | None = None,
 ) -> None:
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
 
-    adapter = StockfishAdapter(StockfishConfig())
+    adapter = pool_manager.batch_adapter if pool_manager is not None else StockfishAdapter(
+        StockfishConfig()
+    )
     orchestrator = FastPassOrchestrator(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
@@ -209,7 +213,22 @@ async def run_analysis_for_game(
     session.commit()
 
 
-def execute_analysis_job(job_id: UUID) -> None:
+async def execute_analysis_job_async(
+    job_id: UUID, pool_manager: EnginePoolManager | None = None
+) -> None:
+    """Run one analysis job to completion.
+
+    This is the entrypoint the production path must schedule directly onto
+    the FastAPI app's event loop (e.g. via `BackgroundTasks.add_task`, which
+    awaits async callables on that loop rather than a worker thread) when a
+    `pool_manager` is supplied: `EnginePool`'s queue and the pooled UCI
+    subprocess transports are bound to whichever loop first uses them, so
+    running this inside a fresh `asyncio.run()` loop per call — as
+    `execute_analysis_job` below does — would hang on the pooled path after
+    the first invocation. Direct/offline callers (the CLI, tests) that never
+    pass a `pool_manager` are unaffected and should keep using the sync
+    `execute_analysis_job` wrapper.
+    """
     from datetime import UTC, datetime
 
     from scan64.persistence.database import engine
@@ -232,7 +251,7 @@ def execute_analysis_job(job_id: UUID) -> None:
         session.commit()
 
         try:
-            asyncio.run(run_analysis_for_game(game, session))
+            await run_analysis_for_game(game, session, pool_manager=pool_manager)
             job.status = "completed"
             job.completed_at = datetime.now(UTC)
         except Exception as error:
@@ -248,3 +267,10 @@ def execute_analysis_job(job_id: UUID) -> None:
 
         session.add(job)
         session.commit()
+
+
+def execute_analysis_job(job_id: UUID, pool_manager: EnginePoolManager | None = None) -> None:
+    """Sync entrypoint for offline/direct callers (the CLI, tests) that run
+    outside any existing event loop. Never call this with a `pool_manager`
+    from inside a running loop — use `execute_analysis_job_async` there."""
+    asyncio.run(execute_analysis_job_async(job_id, pool_manager=pool_manager))

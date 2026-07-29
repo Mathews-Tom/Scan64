@@ -4,7 +4,7 @@ import chess
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.boards import board_from
-from scan64.providers.stockfish.adapter import StockfishAdapter
+from scan64.providers.stockfish.adapter import EngineAdapter
 
 
 @dataclass
@@ -23,7 +23,7 @@ class CandidatePosition:
 
 
 class FastPassOrchestrator:
-    def __init__(self, adapter: StockfishAdapter, config: FastPassConfig = FastPassConfig()):
+    def __init__(self, adapter: EngineAdapter, config: FastPassConfig = FastPassConfig()):
         self.adapter = adapter
         self.config = config
 
@@ -108,7 +108,7 @@ class FocusedPassConfig:
 
 
 class FocusedPassOrchestrator:
-    def __init__(self, adapter: StockfishAdapter, config: FocusedPassConfig = FocusedPassConfig()):
+    def __init__(self, adapter: EngineAdapter, config: FocusedPassConfig = FocusedPassConfig()):
         self.adapter = adapter
         self.config = config
 
