@@ -1,4 +1,5 @@
 # Scan64 — System Design
+> This is Scan64's architecture companion. Active M31–M45 requirements and planning citations resolve to `docs/planning/system-design.md`.
 
 **Companion documents:** [`system-overview.md`](./system-overview.md) (what/why/market/risks/moat), [`pitch.md`](./pitch.md) (shareable one-pager)
 **Scope of this document:** architecture, component responsibilities, data model, public contracts, and end-to-end workflows (user-facing and internal), with Mermaid diagrams for each major flow.
@@ -514,4 +515,4 @@ Local-first is a hardware claim, not only a principle: the reference configurati
 | 007 | Evidence and provenance are first-class | Enables validation, debugging, reproducibility, and user trust |
 | 008 | AGPL-3.0-or-later | Combines with GPLv3 chess components; keeps hosted-service improvements available to their users |
 
-Full rationale for each decision is in the source design proposal (`.docs/scan64-system-design.md`, §31).
+Full rationale for each decision is in the requirements proposal (`docs/planning/system-design.md`, §31).
