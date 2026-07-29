@@ -94,6 +94,7 @@ describe('ApiClient', () => {
   });
 
   it('createPlaySession calls POST /v1/play-sessions', async () => {
+    localStorage.setItem('scan64_player_token:test', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: 'sess-1' }),
@@ -102,25 +103,30 @@ describe('ApiClient', () => {
     const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { strength: '1500' } });
     expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
       body: JSON.stringify({ player_id: 'test', opponent_config: { strength: '1500' } }),
     });
     expect(res.id).toBe('sess-1');
   });
 
   it('getPlaySession calls GET /v1/play-sessions/{id}', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: 'sess-1', player_id: 'player-1', opponent_config: {}, status: 'active' }),
     });
 
     const session = await ApiClient.getPlaySession('sess-1');
-
-    expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions/sess-1');
+    expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions/sess-1', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
     expect(session.status).toBe('active');
   });
 
   it('preserves a failed play-session request status', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404, statusText: 'Not Found' });
 
     const request = ApiClient.getPlaySession('sess-1');
@@ -130,6 +136,8 @@ describe('ApiClient', () => {
   });
 
   it('makePlaySessionMove calls POST /v1/play-sessions/{id}/moves', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ opponent_move: 'e7e5', status: 'active' }),
@@ -138,7 +146,7 @@ describe('ApiClient', () => {
     const res = await ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions/sess-1/moves', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
       body: JSON.stringify({ move: 'e2e4' }),
     });
     expect(res.opponent_move).toBe('e7e5');

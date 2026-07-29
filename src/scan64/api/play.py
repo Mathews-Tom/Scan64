@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
-from scan64.api.auth import require_player_token
+from scan64.api.auth import require_authenticated_player
 from scan64.chess.analysis.inflight import analysis_limiter
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants
@@ -88,10 +88,24 @@ def get_play_session_service(
     )
 
 
+def _get_owned_play_session(
+    session_id: UUID, request: Request, session: Session
+) -> PlaySession:
+    player_id = require_authenticated_player(request, session)
+    play_session = session.get(PlaySession, session_id)
+    if play_session is None or play_session.player_id != player_id:
+        raise HTTPException(status_code=404, detail="PlaySession not found")
+    return play_session
+
+
+
 @router.post("/v1/play-sessions", response_model=PlaySessionRead)
 def create_play_session(
-    session_in: PlaySessionCreate, session: Session = Depends(get_session)
+    request: Request, session_in: PlaySessionCreate, session: Session = Depends(get_session)
 ) -> PlaySession:
+    authenticated_player_id = require_authenticated_player(request, session)
+    if authenticated_player_id != session_in.player_id:
+        raise HTTPException(status_code=403, detail="Player bearer token does not match")
     game_id = session_in.game_id
     if session_in.initial_fen is not None:
         white, black = participants(
@@ -111,12 +125,8 @@ def create_play_session(
         game_id = game.id
     elif game_id is not None:
         existing = session.get(Game, game_id)
-        if existing is None:
+        if existing is None or existing.owner_player_id != authenticated_player_id:
             raise HTTPException(status_code=404, detail="Game not found")
-        if existing.owner_player_id != session_in.player_id:
-            # Playing a session on a game rewrites its moves, result and PGN,
-            # so only its own player may attach to it.
-            raise HTTPException(status_code=403, detail="Game belongs to another player")
         if name_player_on(existing, session_in.player_id, session_in.opponent_config):
             session.add(existing)
 
@@ -133,11 +143,10 @@ def create_play_session(
 
 
 @router.get("/v1/play-sessions/{session_id}", response_model=PlaySessionRead)
-def get_play_session(session_id: UUID, session: Session = Depends(get_session)) -> PlaySession:
-    play_session = session.get(PlaySession, session_id)
-    if not play_session:
-        raise HTTPException(status_code=404, detail="PlaySession not found")
-    return play_session
+def get_play_session(
+    session_id: UUID, request: Request, session: Session = Depends(get_session)
+) -> PlaySession:
+    return _get_owned_play_session(session_id, request, session)
 
 
 def schedule_pending_analysis(
@@ -157,11 +166,9 @@ async def create_move(
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlayMoveResponse:
+    play_session = _get_owned_play_session(session_id, request, session)
     try:
         opponent_move = await service.make_move(session_id, move_in.move)
-        play_session = session.get(PlaySession, session_id)
-        if play_session is None:
-            raise HTTPException(status_code=404, detail="PlaySession not found")
         schedule_pending_analysis(service, background_tasks)
         return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
     except PlaySessionNotFound as error:
@@ -182,10 +189,7 @@ def resign_play_session(
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlaySession:
-    play_session = session.get(PlaySession, session_id)
-    if play_session is None:
-        raise HTTPException(status_code=404, detail="PlaySession not found")
-    require_player_token(request, play_session.player_id, session)
+    play_session = _get_owned_play_session(session_id, request, session)
     try:
         play_session = service.resign(session_id)
     except PlaySessionNotFound as error:
