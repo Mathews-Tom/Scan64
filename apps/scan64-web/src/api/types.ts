@@ -114,6 +114,21 @@ export interface GameRead {
   result: string;
 }
 
+export interface PlayerGameRead {
+  id: string;
+  white: string;
+  black: string;
+  result: string;
+  date: string;
+  created_at: string;
+  diagnosis_count: number;
+}
+
+export interface PlayerGamesPage {
+  items: PlayerGameRead[];
+  next_cursor: string | null;
+}
+
 export interface PlaySessionMove {
   lan: string;
 }

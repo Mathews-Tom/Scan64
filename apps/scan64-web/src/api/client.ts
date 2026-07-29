@@ -14,6 +14,7 @@ import type {
   PlayMoveResponse,
   PlayerCreate,
   PlayerRead,
+  PlayerGamesPage,
   PatternsReport,
   PlayerProfileRead,
   PlayerProgressReport,
@@ -145,6 +146,18 @@ export class ApiClient {
       throw new ApiRequestError(`Failed to get game: ${response.statusText}`, response.status);
     }
     return await response.json() as GameRead;
+  }
+
+  static async getPlayerGames(playerId: string, cursor?: string): Promise<PlayerGamesPage> {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    const response = await fetch(
+      `${API_BASE}/players/${encodeURIComponent(playerId)}/games${query}`,
+      { headers: getPlayerAuthorizationHeader(playerId) },
+    );
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to get player games: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayerGamesPage;
   }
 
   static async getPositions(gameId: string): Promise<PositionRead[]> {
