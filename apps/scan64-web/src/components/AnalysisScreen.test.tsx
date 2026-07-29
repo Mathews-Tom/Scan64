@@ -7,9 +7,9 @@ vi.mock('../api/client', () => ({
   ApiClient: {
     getPositions: vi.fn(),
     createGame: vi.fn(),
-    createPlayer: vi.fn(),
     createPlaySession: vi.fn(),
   },
+  ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
 }));
 
@@ -104,10 +104,6 @@ describe('AnalysisScreen', () => {
       white: 'White',
       black: 'Black',
       result: '*',
-    });
-    vi.mocked(ApiClient.createPlayer).mockResolvedValue({
-      id: 'player-1',
-      preferences: {},
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
 

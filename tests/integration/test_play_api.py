@@ -71,14 +71,14 @@ def test_create_play_session(session: Session):
 
 
 def test_create_get_game(client: TestClient, session: Session):
-    player = Player(id="game-player")
-    session.add(player)
-    session.commit()
+    headers = _register(session, "game-player")
     pgn = (
         '[Event "Casual Game"]\n[White "Alice"]\n[Black "Bob"]\n'
         '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
     )
-    response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
+    response = client.post(
+        "/v1/games", json={"pgn": pgn, "player_id": "game-player"}, headers=headers
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["white"] == "Alice"
@@ -86,29 +86,35 @@ def test_create_get_game(client: TestClient, session: Session):
     assert data["result"] == "1-0"
 
     game_id = data["id"]
-    response2 = client.get(f"/v1/games/{game_id}")
+    response2 = client.get(f"/v1/games/{game_id}", headers=headers)
     assert response2.status_code == 200
     assert response2.json()["id"] == game_id
 
 
 def test_create_get_analysis_job(client: TestClient, session: Session):
-    player = Player(id="analysis-player")
-    session.add(player)
-    session.commit()
+    headers = _register(session, "analysis-player")
     pgn = '[Event "Casual Game"]\n\n1. e4 e5 2. Nf3 Nc6'
-    game_response = client.post("/v1/games", json={"pgn": pgn, "player_id": player.id})
+    game_response = client.post(
+        "/v1/games", json={"pgn": pgn, "player_id": "analysis-player"}, headers=headers
+    )
     game_id = game_response.json()["id"]
 
-    job_response = client.post(f"/v1/games/{game_id}/analysis-jobs")
+    job_response = client.post(f"/v1/games/{game_id}/analysis-jobs", headers=headers)
     assert job_response.status_code == 200
     job_data = job_response.json()
     assert job_data["game_id"] == game_id
     assert job_data["status"] == "pending"
 
     job_id = job_data["id"]
-    get_job_response = client.get(f"/v1/analysis-jobs/{job_id}")
+    get_job_response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)
     assert get_job_response.status_code == 200
     assert get_job_response.json()["status"] == "completed"
+    other_headers = _register(session, "another-player")
+    assert client.get(f"/v1/games/{game_id}", headers=other_headers).status_code == 404
+    assert (
+        client.post(f"/v1/games/{game_id}/analysis-jobs", headers=other_headers).status_code == 404
+    )
+    assert client.get(f"/v1/analysis-jobs/{job_id}", headers=other_headers).status_code == 404
 
 
 def test_create_and_get_play_session_api(client: TestClient, session: Session):

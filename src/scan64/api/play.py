@@ -88,15 +88,12 @@ def get_play_session_service(
     )
 
 
-def _get_owned_play_session(
-    session_id: UUID, request: Request, session: Session
-) -> PlaySession:
+def _get_owned_play_session(session_id: UUID, request: Request, session: Session) -> PlaySession:
     player_id = require_authenticated_player(request, session)
     play_session = session.get(PlaySession, session_id)
     if play_session is None or play_session.player_id != player_id:
         raise HTTPException(status_code=404, detail="PlaySession not found")
     return play_session
-
 
 
 @router.post("/v1/play-sessions", response_model=PlaySessionRead)

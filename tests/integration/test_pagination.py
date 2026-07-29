@@ -5,7 +5,12 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
-from scan64.api.models import Player, PlayerProfile  # noqa: F401
+from scan64.api.models import (  # noqa: F401
+    Player,
+    PlayerCredential,
+    PlayerProfile,
+    issue_player_token,
+)
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
 from scan64.chess.games.models import Game, PlaySession  # noqa: F401
 from scan64.chess.positions.models import Position  # noqa: F401
@@ -46,12 +51,16 @@ def client_fixture(session: Session):
 
 
 def test_pagination(client: TestClient, session: Session):
+    token, token_hash = issue_player_token()
+    session.add(Player(id="page-player"))
+    session.add(PlayerCredential(player_id="page-player", token_hash=token_hash))
     # Create 15 games
     for i in range(15):
         pgn = f'[Event "Game {i}"]\n\n1. e4 e5'
-        game = Game(pgn=pgn, moves=["e4", "e5"])
+        game = Game(pgn=pgn, moves=["e4", "e5"], owner_player_id="page-player")
         session.add(game)
     session.commit()
+    client.headers["Authorization"] = f"Bearer {token}"
 
     # Get page 1 (limit 10)
     response1 = client.get("/v1/games?limit=10")

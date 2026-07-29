@@ -7,7 +7,12 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
-from scan64.api.models import Player, PlayerProfile  # noqa: F401
+from scan64.api.models import (  # noqa: F401
+    Player,
+    PlayerCredential,
+    PlayerProfile,
+    issue_player_token,
+)
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
 from scan64.chess.games.models import (
     Game,
@@ -56,15 +61,21 @@ def client_fixture(session: Session):
 
 
 def test_idempotency(client: TestClient, session: Session):
+    token, token_hash = issue_player_token()
     player = Player(id="idempotency-player")
     session.add(player)
+    session.add(PlayerCredential(player_id=player.id, token_hash=token_hash))
     session.commit()
     pgn = '[Event "Casual Game"]\n\n1. e4 e5'
     payload = {"pgn": pgn, "player_id": player.id}
     idem_key = str(uuid.uuid4())
 
     # First request
-    response1 = client.post("/v1/games", json=payload, headers={"Idempotency-Key": idem_key})
+    response1 = client.post(
+        "/v1/games",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}", "Idempotency-Key": idem_key},
+    )
     assert response1.status_code == 200
     data1 = response1.json()
 
@@ -73,7 +84,11 @@ def test_idempotency(client: TestClient, session: Session):
     assert len(games) == 1
 
     # Second request with same key
-    response2 = client.post("/v1/games", json=payload, headers={"Idempotency-Key": idem_key})
+    response2 = client.post(
+        "/v1/games",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}", "Idempotency-Key": idem_key},
+    )
     assert response2.status_code == 200
     data2 = response2.json()
 
@@ -86,7 +101,11 @@ def test_idempotency(client: TestClient, session: Session):
 
     # Check with different key
     idem_key2 = str(uuid.uuid4())
-    response3 = client.post("/v1/games", json=payload, headers={"client_move_id": idem_key2})
+    response3 = client.post(
+        "/v1/games",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}", "client_move_id": idem_key2},
+    )
     assert response3.status_code == 200
     assert response3.json()["id"] != data1["id"]
 
