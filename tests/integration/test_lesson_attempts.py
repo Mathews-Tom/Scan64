@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -39,8 +40,17 @@ def create_persisted_lesson(db_session: Session, player_id: str) -> PersistedLes
     game = Game(pgn="", owner_player_id=player_id)
     db_session.add(game)
     db_session.flush()
+    source_position = Position(
+        game_id=game.id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(source_position)
+    db_session.flush()
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
+        source_position_id=source_position.id,
         player_id=player_id,
         lesson_spec=lesson_spec(),
     )
@@ -278,9 +288,18 @@ def test_scheduleless_opportunities_are_not_served(
     game = Game(pgn="", owner_player_id=player_id)
     db_session.add(game)
     db_session.flush()
+    source_position = Position(
+        game_id=game.id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(source_position)
+    db_session.flush()
     db_session.add(
         PersistedLessonOpportunity(
             game_id=game.id,
+            source_position_id=source_position.id,
             player_id=player_id,
             lesson_spec=lesson_spec(),
         )

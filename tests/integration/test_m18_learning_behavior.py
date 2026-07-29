@@ -10,6 +10,7 @@ from scan64.api.app import app
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.positions.models import Position
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence import database
 
@@ -57,6 +58,21 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     db_session.commit()
     db_session.refresh(g1)
     db_session.refresh(g2)
+    source_position_1 = Position(
+        game_id=g1.id,
+        fen="8/8/8/8/8/8/8/8 w - - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    source_position_2 = Position(
+        game_id=g2.id,
+        fen="8/8/8/8/8/8/8/8 w - - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(source_position_1)
+    db_session.add(source_position_2)
+    db_session.commit()
 
     # Create sessions
     ps1 = PlaySession(player_id=player_1, game_id=g1.id)
@@ -85,10 +101,16 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
         "verification": {"status": "verified", "engine": "syzygy"},
     }
     opp1 = PersistedLessonOpportunity(
-        game_id=g1.id, player_id=player_1, lesson_spec=spec1
+        game_id=g1.id,
+        source_position_id=source_position_1.id,
+        player_id=player_1,
+        lesson_spec=spec1,
     )
     opp2 = PersistedLessonOpportunity(
-        game_id=g2.id, player_id=player_2, lesson_spec=spec2
+        game_id=g2.id,
+        source_position_id=source_position_2.id,
+        player_id=player_2,
+        lesson_spec=spec2,
     )
     db_session.add(opp1)
     db_session.add(opp2)
@@ -149,8 +171,17 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
         game = Game(pgn="", owner_player_id=player_id)
         db_session.add(game)
         db_session.flush()
+        source_position = Position(
+            game_id=game.id,
+            fen="8/8/8/8/8/8/8/8 w - - 0 1",
+            side_to_move="w",
+            canonical_id="initial",
+        )
+        db_session.add(source_position)
+        db_session.flush()
         opportunity = PersistedLessonOpportunity(
             game_id=game.id,
+            source_position_id=source_position.id,
             player_id=player_id,
             lesson_spec={
                 "schema_version": "1.0",

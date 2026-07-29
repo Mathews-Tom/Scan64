@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -30,6 +32,7 @@ def create_game_records(session: Session, player_id: str) -> dict[str, object]:
     analysis_job = AnalysisJob(game_id=game.id)
     lesson_opportunity = PersistedLessonOpportunity(
         game_id=game.id,
+        source_position_id=position.id,
         lesson_spec={"id": "lesson-opportunity"},
     )
     session.add(engine_analysis)
@@ -58,6 +61,28 @@ def create_player_token(client: TestClient, player_id: str, display_name: str) -
 
 def authorization_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+def export_then_delete_player_data(
+    client: TestClient, db_session: Session, player_id: str
+) -> tuple[dict[str, object], str]:
+    access_token = create_player_token(client, player_id, player_id)
+    create_game_records(db_session, player_id)
+    archive_response = client.post(
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=authorization_header(access_token),
+    )
+    assert archive_response.status_code == 200
+    archive = archive_response.json()
+    deletion_response = client.request(
+        "DELETE",
+        f"/v1/players/{player_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{player_id}"},
+        headers=authorization_header(access_token),
+    )
+    assert deletion_response.status_code == 200
+    return archive, access_token
 
 
 def test_export_import_roundtrip(client: TestClient, db_session: Session):
@@ -115,6 +140,37 @@ def test_export_import_roundtrip(client: TestClient, db_session: Session):
     assert db_session.get(PlayerCredential, player_id) is not None
 
 
+
+def test_import_rejects_missing_diagnosis_source_position(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "missing-diagnosis-source"
+    archive, access_token = export_then_delete_player_data(client, db_session, player_id)
+    archive["lesson_opportunities"][0].pop("source_position_id")
+
+    response = client.post(
+        "/v1/imports", json=archive, headers=authorization_header(access_token)
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid archive: malformed records"
+
+
+def test_import_rejects_foreign_diagnosis_source_position(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "foreign-diagnosis-source"
+    archive, access_token = export_then_delete_player_data(client, db_session, player_id)
+    archive["lesson_opportunities"][0]["source_position_id"] = str(uuid4())
+
+    response = client.post(
+        "/v1/imports", json=archive, headers=authorization_header(access_token)
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Invalid archive: records do not belong to the authorized player"
+    )
 def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_session: Session):
     player_id = "test-delete-user"
     access_token = create_player_token(client, player_id, "Delete User")

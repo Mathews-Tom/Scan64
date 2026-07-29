@@ -1,12 +1,25 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.learning.profiling.models import SkillState
 
+
+def create_source_position(db_session: Session, game_id: UUID) -> Position:
+    position = Position(
+        game_id=game_id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(position)
+    db_session.flush()
+    return position
 
 def create_player_token(client: TestClient, player_id: str) -> str:
     response = client.post(
@@ -38,6 +51,7 @@ def test_patterns_reports_recurring_diagnosis_from_owned_games(
         db_session.add(
             PersistedLessonOpportunity(
                 game_id=game.id,
+                source_position_id=create_source_position(db_session, game.id).id,
                 lesson_spec={
                     "diagnosis": {
                         "primary": "tactics.fork.knight",
@@ -52,6 +66,7 @@ def test_patterns_reports_recurring_diagnosis_from_owned_games(
     db_session.add(
         PersistedLessonOpportunity(
             game_id=other_game.id,
+            source_position_id=create_source_position(db_session, other_game.id).id,
             lesson_spec={
                 "diagnosis": {
                     "primary": "tactics.fork.knight",
@@ -95,6 +110,7 @@ def test_patterns_distinguishes_insufficient_data_from_no_recurrence(
         db_session.add(
             PersistedLessonOpportunity(
                 game_id=game.id,
+                source_position_id=create_source_position(db_session, game.id).id,
                 lesson_spec={"diagnosis": {"primary": diagnosis, "evidence_refs": []}},
             )
         )
@@ -112,6 +128,7 @@ def test_patterns_distinguishes_insufficient_data_from_no_recurrence(
     db_session.add(
         PersistedLessonOpportunity(
             game_id=game.id,
+            source_position_id=create_source_position(db_session, game.id).id,
             lesson_spec={
                 "diagnosis": {"primary": "opening.delayed_development", "evidence_refs": []}
             },
@@ -213,6 +230,7 @@ def test_weekly_report_selects_most_frequent_recurring_diagnosis(
             db_session.add(
                 PersistedLessonOpportunity(
                     game_id=game.id,
+                    source_position_id=create_source_position(db_session, game.id).id,
                     lesson_spec={
                         "diagnosis": {"primary": diagnosis, "evidence_refs": []}
                     },

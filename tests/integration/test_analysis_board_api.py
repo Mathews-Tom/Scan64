@@ -5,7 +5,11 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.models import Player, PlayerCredential, issue_player_token
-from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.persistence.database import get_session
@@ -128,6 +132,20 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
             raw_result=[{"pv": ["e2e4"], "score_cp": 20}],
         )
     )
+    session.add(
+        PersistedLessonOpportunity(
+            game_id=game.id,
+            source_position_id=initial_position.id,
+            player_id="test_user",
+            lesson_spec={
+                "diagnosis": {
+                    "primary": "board_awareness.hanging_piece",
+                    "secondary": ["threat_processing.missed_direct_threat"],
+                    "confidence": 0.9,
+                }
+            },
+        )
+    )
     session.commit()
 
     response = client.get(f"/v1/games/{game.id}/positions", headers=headers)
@@ -137,3 +155,39 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
         (position["full_move_number"], position["side_to_move"]) for position in response.json()
     ] == [(1, "w"), (1, "b"), (2, "b")]
     assert response.json()[0]["analysis"]["raw_result"] == [{"pv": ["e2e4"], "score_cp": 20}]
+    assert response.json()[0]["diagnoses"] == [
+        {
+            "primary": "board_awareness.hanging_piece",
+            "secondary": ["threat_processing.missed_direct_threat"],
+            "confidence": 0.9,
+        }
+    ]
+    assert response.json()[1]["diagnoses"] == []
+
+
+def test_game_analysis_status_is_owner_authorized(
+    client: TestClient, session: Session
+) -> None:
+    owner_headers = _register(session, "owner")
+    other_headers = _register(session, "other")
+    game = Game(pgn="", owner_player_id="owner")
+    session.add(game)
+    session.commit()
+
+    assert (
+        client.get(f"/v1/games/{game.id}/analysis-status", headers=owner_headers).json()
+        == {"status": "not_analysed"}
+    )
+
+    session.add(AnalysisJob(game_id=game.id, status="completed"))
+    session.commit()
+
+    response = client.get(
+        f"/v1/games/{game.id}/analysis-status", headers=owner_headers
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "completed"}
+    assert (
+        client.get(f"/v1/games/{game.id}/analysis-status", headers=other_headers).status_code
+        == 404
+    )

@@ -106,7 +106,7 @@ async def run_analysis_for_game(
     positions_by_fen: dict[str, Position] = {}
     for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
-        _persist_position_analysis(
+        source_position = _persist_position_analysis(
             game, fen_before, candidate.before_analysis, session, positions_by_fen
         )
         after_position = _persist_position_analysis(
@@ -192,6 +192,7 @@ async def run_analysis_for_game(
 
         persisted = PersistedLessonOpportunity(
             game_id=game.id,
+            source_position_id=source_position.id,
             player_id=game.owner_player_id,
             lesson_spec=lesson.model_dump(mode="json"),
         )

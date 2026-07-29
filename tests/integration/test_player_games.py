@@ -8,6 +8,7 @@ from sqlmodel import Session
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 
 PGN = (
     '[Event "Import"]\n[Site "Reykjavik"]\n[Date "1972.07.11"]\n'
@@ -42,7 +43,22 @@ def test_played_and_imported_games_are_both_listed_once(
     )
     db_session.add(played)
     db_session.commit()
-    db_session.add(PersistedLessonOpportunity(game_id=played.id, player_id="alice", lesson_spec={}))
+    source_position = Position(
+        game_id=played.id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="initial",
+    )
+    db_session.add(source_position)
+    db_session.commit()
+    db_session.add(
+        PersistedLessonOpportunity(
+            game_id=played.id,
+            source_position_id=source_position.id,
+            player_id="alice",
+            lesson_spec={},
+        )
+    )
     db_session.commit()
 
     imported = client.post(
