@@ -3,14 +3,16 @@ import { expect, test } from '@playwright/test';
 test('resumes an active game after reload and browser navigation', async ({ page }) => {
   let resumedSessionReads = 0;
   let moveRequests = 0;
+  let playerId = 'player-1';
 
   await page.route('**/v1/players', async route => {
     const { id } = route.request().postDataJSON() as { id: string };
     await route.fulfill({ json: { id, preferences: {}, access_token: 'token-1' } });
   });
   await page.route('**/v1/play-sessions', async route => {
+    ({ player_id: playerId } = route.request().postDataJSON() as { player_id: string });
     await route.fulfill({
-      json: { id: 'session-1', player_id: 'player-1', opponent_config: {}, status: 'active' },
+      json: { id: 'session-1', player_id: playerId, opponent_config: {}, status: 'active' },
     });
   });
   await page.route('**/v1/play-sessions/session-1', async route => {
@@ -18,8 +20,8 @@ test('resumes an active game after reload and browser navigation', async ({ page
     await route.fulfill({
       json: {
         id: 'session-1',
-        player_id: 'player-1',
         game_id: 'game-1',
+        player_id: playerId,
         opponent_config: {},
         status: 'active',
       },
@@ -30,7 +32,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
       json: {
         id: 'game-1',
         pgn: moveRequests >= 2 ? '1. e4 e5 2. Nf3 Nc6 *' : '1. e4 e5 *',
-        white: 'player-1',
+        white: playerId,
         black: 'Stockfish',
         result: '*',
       },

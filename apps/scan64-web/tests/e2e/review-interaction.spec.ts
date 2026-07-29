@@ -6,7 +6,8 @@ test.describe('Review Interaction Sequencing', () => {
     
     // Intercept API calls
     await page.route('**/v1/players', async route => {
-      await route.fulfill({ json: { id: 'player-1', preferences: {}, access_token: 'test-token' } });
+      const { id } = route.request().postDataJSON() as { id: string };
+      await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
     });
 
 
