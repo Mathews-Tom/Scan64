@@ -6,6 +6,7 @@ import type {
   EvidenceReport,
   FamousGameRead,
   GameCreate,
+  GameAnalysisStatusRead,
   GameRead,
   GameLearningSessionRead,
   LessonAttemptCreate,
@@ -182,6 +183,19 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as PositionRead[];
+  }
+
+  static async getGameAnalysisStatus(gameId: string): Promise<GameAnalysisStatusRead> {
+    const response = await fetch(`${API_BASE}/games/${gameId}/analysis-status`, {
+      headers: getActivePlayerAuthorizationHeader(),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Failed to get game analysis status: ${response.statusText}`,
+        response.status,
+      );
+    }
+    return await response.json() as GameAnalysisStatusRead;
   }
 
   static async getLearningOpportunities(gameId: string): Promise<GameLearningSessionRead> {

@@ -6,7 +6,7 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
-import type { PlaySessionRead, PositionRead } from '../api/types';
+import type { GameAnalysisStatusRead, PlaySessionRead, PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
 interface AnalysisScreenProps {
@@ -22,6 +22,7 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<GameAnalysisStatusRead | null>(null);
   const [fenInput, setFenInput] = useState(chess.fen());
 
   const updateFenInput = useCallback(() => setFenInput(chess.fen()), [chess]);
@@ -30,6 +31,7 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
     let ignore = false;
     setError(null);
     setPositions([]);
+    setAnalysisStatus(null);
     setCurrentIndex(0);
     chess.reset();
     updateFenInput();
@@ -40,10 +42,14 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
       };
     }
     setLoading(true);
-    ApiClient.getPositions(gameId)
-      .then((data) => {
+    Promise.all([
+      ApiClient.getPositions(gameId),
+      ApiClient.getGameAnalysisStatus(gameId),
+    ])
+      .then(([data, status]) => {
         if (ignore) return;
         setPositions(data);
+        setAnalysisStatus(status);
         if (data.length > 0) {
           chess.load(data[0].fen);
           updateFenInput();
@@ -69,25 +75,29 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
     if (boardRef.current && !cg) {
       const api = Chessground(boardRef.current, {
         fen: chess.fen(),
-        movable: {
-          color: 'both',
-          free: false,
-          dests: getDests(chess),
-        },
-        events: {
-          move: (orig, dest) => {
-            try {
-              chess.move({ from: orig, to: dest, promotion: 'q' });
-              api.set({
-                fen: chess.fen(),
-                movable: { dests: getDests(chess) },
-              });
-              updateFenInput();
-            } catch {
-              api.set({ fen: chess.fen() });
-            }
-          },
-        },
+        movable: gameId
+          ? { color: undefined, dests: new Map<Key, Key[]>() }
+          : {
+              color: 'both',
+              free: false,
+              dests: getDests(chess),
+            },
+        events: gameId
+          ? {}
+          : {
+              move: (orig, dest) => {
+                try {
+                  chess.move({ from: orig, to: dest, promotion: 'q' });
+                  api.set({
+                    fen: chess.fen(),
+                    movable: { dests: getDests(chess) },
+                  });
+                  updateFenInput();
+                } catch {
+                  api.set({ fen: chess.fen() });
+                }
+              },
+            },
       });
       setCg(api);
     }
@@ -98,7 +108,7 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
         setCg(null);
       }
     };
-  }, [cg, chess, updateFenInput]);
+  }, [cg, chess, gameId, updateFenInput]);
 
   useEffect(() => {
     if (!cg) return;
@@ -110,9 +120,11 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
     }
     cg.set({
       fen: chess.fen(),
-      movable: { dests: getDests(chess) },
+      movable: gameId
+        ? { color: undefined, dests: new Map<Key, Key[]>() }
+        : { dests: getDests(chess) },
     });
-  }, [cg, chess, currentIndex, positions]);
+  }, [cg, chess, currentIndex, gameId, positions]);
 
   const goNext = () => {
     if (currentIndex < positions.length - 1) {
@@ -167,40 +179,84 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
     }
   };
 
+  const startAnalysis = useCallback(async () => {
+    if (!gameId) return;
+
+    setError(null);
+    setLoading(true);
+    try {
+      const job = await ApiClient.createAnalysisJob(gameId);
+      setAnalysisStatus({ status: job.status });
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to start analysis');
+    } finally {
+      setLoading(false);
+    }
+  }, [gameId]);
+
 
 
   const currentPos = positions[currentIndex];
   const multiPv = currentPos?.analysis?.raw_result || [];
+  const diagnoses = currentPos?.diagnoses ?? [];
+  const hasDiagnoses = positions.some((position) => position.diagnoses.length > 0);
+  const hasNotBeenAnalysed = gameId !== undefined && analysisStatus?.status === 'not_analysed';
+  const analysisFoundNothing =
+    gameId !== undefined && analysisStatus?.status === 'completed' && !hasDiagnoses;
+  const analysisInProgress =
+    gameId !== undefined &&
+    (analysisStatus?.status === 'pending' || analysisStatus?.status === 'running');
+  const analysisFailed = gameId !== undefined && analysisStatus?.status === 'failed';
 
   return (
     <div className="analysis-screen">
       <h2>Analysis Board</h2>
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {loading && <div>Loading...</div>}
+      {hasNotBeenAnalysed && (
+        <p data-testid="analysis-not-analysed">This game has not been analysed yet.</p>
+      )}
+      {hasNotBeenAnalysed && (
+        <button onClick={startAnalysis} data-testid="start-analysis" disabled={loading}>
+          Analyse game
+        </button>
+      )}
+      {analysisInProgress && <p data-testid="analysis-in-progress">Analysis is in progress.</p>}
+      {analysisFailed && (
+        <>
+          <p data-testid="analysis-failed">Analysis failed.</p>
+          <button onClick={startAnalysis} data-testid="retry-analysis" disabled={loading}>
+            Retry analysis
+          </button>
+        </>
+      )}
+      {analysisFoundNothing && (
+        <p data-testid="analysis-found-nothing">Analysis found no diagnoses.</p>
+      )}
 
       <div style={{ display: 'flex', gap: '2rem' }}>
         <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
 
         <div className="analysis-sidebar" style={{ width: '300px' }}>
-
           <div className="play-from-here" style={{ marginBottom: '1rem' }}>
             <button onClick={playFromHere} disabled={loading} data-testid="play-from-here">
               {loading ? 'Starting...' : 'Play from here'}
             </button>
           </div>
-          
 
-          <div className="fen-setup" style={{ marginBottom: '1rem' }}>
-            <h3>FEN Setup</h3>
-            <input
-              type="text"
-              value={fenInput}
-              onChange={(e) => setFenInput(e.target.value)}
-              placeholder="Paste FEN here"
-              style={{ width: '100%', marginBottom: '0.5rem' }}
-            />
-            <button onClick={handleLoadFen}>Load FEN</button>
-          </div>
+          {!gameId && (
+            <div className="fen-setup" style={{ marginBottom: '1rem' }}>
+              <h3>FEN Setup</h3>
+              <input
+                type="text"
+                value={fenInput}
+                onChange={(e) => setFenInput(e.target.value)}
+                placeholder="Paste FEN here"
+                style={{ width: '100%', marginBottom: '0.5rem' }}
+              />
+              <button onClick={handleLoadFen}>Load FEN</button>
+            </div>
+          )}
 
           <div className="pgn-export" style={{ marginBottom: '1rem' }}>
             <h3>Export</h3>
@@ -241,6 +297,30 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
             </button>
           </div>
 
+          {gameId && (
+            <section aria-label="Game positions" data-testid="position-list">
+              <h3>Positions</h3>
+              <ol>
+                {positions.map((position, index) => (
+                  <li key={position.id}>
+                    <button
+                      aria-current={index === currentIndex ? 'step' : undefined}
+                      onClick={() => setCurrentIndex(index)}
+                    >
+                      Move {position.full_move_number}
+                      {position.side_to_move === 'w' ? '. White' : '... Black'}
+                    </button>
+                    {position.diagnoses.map((diagnosis) => (
+                      <span data-testid="diagnosis-marker" key={diagnosis.primary}>
+                        {diagnosis.primary}
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <div className="multipv-container" data-testid="multipv-lines">
             <h3>Engine Evaluation</h3>
             {multiPv.length === 0 ? (
@@ -256,6 +336,23 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
               </ul>
             )}
           </div>
+
+          {gameId && currentPos && (
+            <section aria-label="Position diagnoses" data-testid="position-diagnoses">
+              <h3>Diagnoses</h3>
+              {diagnoses.length === 0 ? (
+                <p>No diagnoses were recorded for this position.</p>
+              ) : (
+                <ul>
+                  {diagnoses.map((diagnosis) => (
+                    <li key={diagnosis.primary}>
+                      {diagnosis.primary} ({Math.round(diagnosis.confidence * 100)}%)
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </div>

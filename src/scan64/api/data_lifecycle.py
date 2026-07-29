@@ -9,7 +9,12 @@ from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    PersistedDiagnosis,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
@@ -169,6 +174,8 @@ def import_player_data(
         content_attempts = [
             ContentAttempt.model_validate(data) for data in archive.content_attempts
         ]
+        for opportunity in lesson_opportunities:
+            PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
     except ValidationError as error:
         raise HTTPException(
             status_code=400, detail="Invalid archive: malformed records"
