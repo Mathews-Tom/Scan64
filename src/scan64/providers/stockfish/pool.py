@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -9,11 +10,54 @@ import chess.engine
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.providers.stockfish.adapter import StockfishConfig
 
+DEFAULT_INTERACTIVE_CONCURRENCY = 2
+DEFAULT_BATCH_CONCURRENCY = 2
+
+
+def _positive_int_from_env(env_var: str, default: int) -> int:
+    raw_value = os.environ.get(env_var)
+    if raw_value is None:
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError as error:
+        raise ValueError(f"{env_var} must be an integer, got {raw_value!r}") from error
+    if value < 1:
+        raise ValueError(f"{env_var} must be at least 1")
+    return value
+
+
+def interactive_concurrency() -> int:
+    """Interactive-pool engine count. ``SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY``
+    overrides the default of ``2``; live opponent moves and on-demand review draw
+    from this pool and must never wait behind batch work."""
+    return _positive_int_from_env(
+        "SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", DEFAULT_INTERACTIVE_CONCURRENCY
+    )
+
+
+def batch_concurrency() -> int:
+    """Batch-pool engine count. ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` overrides
+    the default of ``2``; bulk imports and analysis jobs draw from this pool."""
+    return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", DEFAULT_BATCH_CONCURRENCY)
+
+
+def engine_pool_enabled() -> bool:
+    """Whether the production path should route engine work through pooled,
+    lifespan-bound processes. ``SCAN64_ENGINE_POOL_ENABLED=0`` (or ``false``)
+    reverts to constructing a fresh engine process per call, the pre-M41
+    behaviour, retained for one release as a rollback valve."""
+    raw_value = os.environ.get("SCAN64_ENGINE_POOL_ENABLED")
+    if raw_value is None:
+        return True
+    return raw_value.strip().lower() not in {"0", "false", "no", "off"}
+
 
 class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
         self._engine: chess.engine.UciProtocol | None = None
+        self.game_token: object | None = None
 
     async def ensure_started(self) -> None:
         if self._engine is None:
@@ -21,6 +65,18 @@ class PooledStockfishAdapter:
             await self._engine.configure(
                 {"Threads": self.config.threads, "Hash": self.config.hash_size}
             )
+
+    async def reset(self) -> None:
+        """Force the next UCI call to present a fresh game identity.
+
+        ``chess.engine`` only sends ``ucinewgame`` when the ``game`` object
+        passed to ``analyse``/``play`` differs from the one recorded on the
+        prior call. A pooled adapter is reused across unrelated analyses and
+        play sessions, so without this every checkout after the first would
+        silently skip ``ucinewgame`` and could leak transposition-table and
+        search-history state between them.
+        """
+        self.game_token = object()
 
     async def quit(self) -> None:
         if self._engine is not None:
@@ -43,7 +99,7 @@ class PooledStockfishAdapter:
             nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
         )
 
-        info_result = await engine.analyse(board, limit, multipv=multipv)
+        info_result = await engine.analyse(board, limit, multipv=multipv, game=self.game_token)
 
         if not isinstance(info_result, list):
             info_result = [info_result]
@@ -81,6 +137,7 @@ class EnginePool:
         self.concurrency = concurrency
         self._queue: asyncio.Queue[PooledStockfishAdapter] = asyncio.Queue()
         self._initialized = False
+        self.closed = False
 
     async def initialize(self) -> None:
         if self._initialized:
@@ -95,11 +152,13 @@ class EnginePool:
         while not self._queue.empty():
             adapter = self._queue.get_nowait()
             await adapter.quit()
+        self.closed = True
 
     @asynccontextmanager
     async def acquire(self) -> AsyncGenerator[PooledStockfishAdapter, None]:
         await self.initialize()
         adapter = await self._queue.get()
+        await adapter.reset()
         try:
             yield adapter
         finally:
@@ -113,6 +172,22 @@ class EnginePoolManager:
         self.config = config
         self.interactive_pool = EnginePool(config, interactive_concurrency)
         self.batch_pool = EnginePool(config, batch_concurrency)
+
+    @classmethod
+    def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
+        """Build a manager sized from ``SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY``
+        and ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` (both default ``2``). This is
+        the constructor the FastAPI lifespan uses; direct callers (tests, the
+        CLI) that want explicit concurrency keep using ``__init__``."""
+        return cls(
+            config,
+            interactive_concurrency=interactive_concurrency(),
+            batch_concurrency=batch_concurrency(),
+        )
+
+    @property
+    def closed(self) -> bool:
+        return self.interactive_pool.closed and self.batch_pool.closed
 
     async def close(self) -> None:
         await self.interactive_pool.close()
