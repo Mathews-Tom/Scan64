@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { PlayerGameRead } from '../api/types';
 
 interface GamesListScreenProps {
@@ -13,9 +13,10 @@ export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
   const [loading, setLoading] = useState(true);
 
   const loadGames = async (cursor?: string): Promise<void> => {
+    const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
     const page = cursor === undefined
-      ? await ApiClient.getPlayerGames(getOrCreatePlayerId())
-      : await ApiClient.getPlayerGames(getOrCreatePlayerId(), cursor);
+      ? await ApiClient.getPlayerGames(playerId)
+      : await ApiClient.getPlayerGames(playerId, cursor);
     setGames((currentGames) => cursor ? [...currentGames, ...page.items] : page.items);
     setNextCursor(page.next_cursor);
   };

@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { GamesListScreen } from './GamesListScreen';
 
 vi.mock('../api/client', () => ({
   ApiClient: { getPlayerGames: vi.fn() },
+  ensurePlayerAuthorization: vi.fn(),
   getOrCreatePlayerId: vi.fn(),
 }));
 
@@ -12,6 +13,7 @@ describe('GamesListScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(getOrCreatePlayerId).mockReturnValue('player-1');
+    vi.mocked(ensurePlayerAuthorization).mockResolvedValue('player-1');
   });
 
   it('lists every returned game and opens the selected game', async () => {
