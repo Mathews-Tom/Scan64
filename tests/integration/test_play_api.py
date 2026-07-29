@@ -7,7 +7,12 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
-from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token  # noqa: F401
+from scan64.api.models import (  # noqa: F401
+    Player,
+    PlayerCredential,
+    PlayerProfile,
+    issue_player_token,
+)
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
 from scan64.chess.games.models import (
     Game,  # noqa: F401
@@ -47,6 +52,7 @@ def _register(session: Session, player_id: str) -> dict[str, str]:
     session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     session.commit()
     return {"Authorization": f"Bearer {token}"}
+
 
 def test_health(client: TestClient):
     response = client.get("/health")
@@ -193,7 +199,9 @@ def test_play_session_moves_api(client: TestClient, session: Session):
 
     move_req = {"move": "e2e4"}
     move_headers = {**headers, "Idempotency-Key": "move1"}
-    move_resp = client.post(f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers)
+    move_resp = client.post(
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers
+    )
     assert move_resp.status_code == 200, move_resp.text
     move_data = move_resp.json()
     assert "opponent_move" in move_data
@@ -206,7 +214,9 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert move_data["status"] == "active"
     assert (game.white, game.black) == ("player_123", "Stockfish (strength 10)")
 
-    retry_resp = client.post(f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers)
+    retry_resp = client.post(
+        f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers
+    )
     assert retry_resp.status_code == 200
     assert retry_resp.json() == move_data
 
