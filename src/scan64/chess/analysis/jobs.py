@@ -7,6 +7,7 @@ from chess_lesson_spec import Diagnosis
 from sqlmodel import Session, select
 
 from scan64.api.models import PlayerProfile
+from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import (
     FastPassConfig,
@@ -274,3 +275,19 @@ def execute_analysis_job(job_id: UUID, pool_manager: EnginePoolManager | None = 
     outside any existing event loop. Never call this with a `pool_manager`
     from inside a running loop — use `execute_analysis_job_async` there."""
     asyncio.run(execute_analysis_job_async(job_id, pool_manager=pool_manager))
+
+
+async def submit_analysis_job(
+    player_id: str, job_id: UUID, pool_manager: EnginePoolManager | None = None
+) -> None:
+    """Admit an analysis job at submission time under the per-player daily
+    quota, fair-share queueing work beyond it rather than rejecting or
+    dropping it (M41). Must be scheduled directly onto the app's event loop
+    (e.g. `BackgroundTasks.add_task`) so `AdmissionController.submit`'s
+    `asyncio.create_task` calls see a running loop, and so a queued job's
+    eventual pooled execution shares that loop with the pools it acquires
+    engines from.
+    """
+    admission_controller.submit(
+        player_id, lambda: execute_analysis_job_async(job_id, pool_manager=pool_manager)
+    )

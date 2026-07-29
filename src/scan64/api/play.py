@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
-from scan64.chess.analysis.inflight import analysis_limiter
+from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants
 from scan64.chess.games.pgn import build_pgn
@@ -20,6 +20,7 @@ from scan64.chess.games.play_session_service import (
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["play-sessions"])
 
@@ -148,10 +149,12 @@ def get_play_session(
 
 
 def schedule_pending_analysis(
-    service: PlaySessionService, background_tasks: BackgroundTasks
+    service: PlaySessionService,
+    background_tasks: BackgroundTasks,
+    pool_manager: EnginePoolManager | None,
 ) -> None:
     for player_id, job_id in service.pending_analysis:
-        background_tasks.add_task(analysis_limiter.submit, player_id, job_id)
+        background_tasks.add_task(submit_analysis_job, player_id, job_id, pool_manager)
     service.pending_analysis.clear()
 
 
@@ -167,7 +170,8 @@ async def create_move(
     play_session = _get_owned_play_session(session_id, request, session)
     try:
         opponent_move = await service.make_move(session_id, move_in.move)
-        schedule_pending_analysis(service, background_tasks)
+        pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+        schedule_pending_analysis(service, background_tasks, pool_manager)
         return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
@@ -194,5 +198,6 @@ def resign_play_session(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except PlaySessionNotActive as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
-    schedule_pending_analysis(service, background_tasks)
+    pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+    schedule_pending_analysis(service, background_tasks, pool_manager)
     return play_session

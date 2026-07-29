@@ -10,7 +10,7 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
-from scan64.chess.analysis.inflight import analysis_limiter
+from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -242,7 +242,8 @@ def create_analysis_job(
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(analysis_limiter.submit, owner_player_id, job.id)
+    pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+    background_tasks.add_task(submit_analysis_job, owner_player_id, job.id, pool_manager)
     return job
 
 

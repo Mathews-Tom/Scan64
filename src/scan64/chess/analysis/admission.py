@@ -1,14 +1,36 @@
 import asyncio
+import os
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+DEFAULT_DAILY_QUOTA_GAMES = 50
+
+
+def daily_quota_from_env() -> int:
+    """Per-player daily quota of immediately-admitted analysis games.
+    ``SCAN64_ANALYSIS_DAILY_QUOTA`` overrides the default of ``50``; ``0`` is
+    valid and means every job is fair-share queued. Work beyond the quota is
+    never rejected or dropped, only queued round-robin across players."""
+    raw_value = os.environ.get("SCAN64_ANALYSIS_DAILY_QUOTA")
+    if raw_value is None:
+        return DEFAULT_DAILY_QUOTA_GAMES
+    try:
+        quota = int(raw_value)
+    except ValueError as error:
+        raise ValueError(
+            f"SCAN64_ANALYSIS_DAILY_QUOTA must be an integer, got {raw_value!r}"
+        ) from error
+    if quota < 0:
+        raise ValueError("SCAN64_ANALYSIS_DAILY_QUOTA must be at least 0")
+    return quota
+
 
 @dataclass
 class AdmissionConfig:
-    daily_quota_games: int = 50
+    daily_quota_games: int = DEFAULT_DAILY_QUOTA_GAMES
 
 
 class AdmissionController:
@@ -114,3 +136,8 @@ class AdmissionController:
         self._stop_event.set()
         if self._worker_task:
             self._worker_task.cancel()
+
+
+admission_controller = AdmissionController(
+    AdmissionConfig(daily_quota_games=daily_quota_from_env())
+)
