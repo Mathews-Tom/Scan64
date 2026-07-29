@@ -1,11 +1,27 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
 
+
+@runtime_checkable
+class EngineAdapter(Protocol):
+    """Duck-typed engine-analysis interface shared by the per-call
+    ``StockfishAdapter`` and the pool-backed adapter used once M41's batch
+    pool is enabled. ``FastPassOrchestrator``/``FocusedPassOrchestrator``
+    depend on this, not on a concrete adapter class."""
+
+    async def analyze_position(
+        self,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis: ...
 
 @dataclass
 class StockfishConfig:

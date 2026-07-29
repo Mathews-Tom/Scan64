@@ -241,7 +241,7 @@ def test_failed_analysis_job_rolls_back_partial_artifacts(
     db_session.add(job)
     db_session.commit()
 
-    async def partially_persist(_game: Game, session: Session) -> None:
+    async def partially_persist(_game: Game, session: Session, **_: object) -> None:
         session.add(
             Position(
                 game_id=game.id,

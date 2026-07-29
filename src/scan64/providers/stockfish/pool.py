@@ -176,6 +176,29 @@ class EnginePool:
             self._queue.put_nowait(adapter)
 
 
+class PoolBoundAdapter:
+    """``EngineAdapter``-shaped facade that checks an engine out of an
+    ``EnginePool`` for the duration of a single ``analyze_position`` call.
+    Lets `FastPassOrchestrator`/`FocusedPassOrchestrator` route through a
+    pool without knowing pools exist."""
+
+    def __init__(self, pool: EnginePool):
+        self._pool = pool
+
+    async def analyze_position(
+        self,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis:
+        async with self._pool.acquire() as adapter:
+            return await adapter.analyze_position(
+                fen, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
+            )
+
+
 class EnginePoolManager:
     def __init__(
         self, config: StockfishConfig, interactive_concurrency: int = 2, batch_concurrency: int = 2
@@ -199,6 +222,12 @@ class EnginePoolManager:
     @property
     def closed(self) -> bool:
         return self.interactive_pool.closed and self.batch_pool.closed
+
+    @property
+    def batch_adapter(self) -> PoolBoundAdapter:
+        """`EngineAdapter`-shaped view of the batch pool, for
+        `FastPassOrchestrator`/`FocusedPassOrchestrator`."""
+        return PoolBoundAdapter(self.batch_pool)
 
     async def close(self) -> None:
         await self.interactive_pool.close()
