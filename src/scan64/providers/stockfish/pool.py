@@ -83,6 +83,17 @@ class PooledStockfishAdapter:
             await self._engine.quit()
             self._engine = None
 
+    async def play_move(
+        self, fen: str, skill_level: int, limit: chess.engine.Limit
+    ) -> chess.engine.PlayResult:
+        await self.ensure_started()
+        assert self._engine is not None
+        await self._engine.configure({"Skill Level": skill_level})
+        board = chess.Board(fen)
+        return await self._engine.play(
+            board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
+        )
+
     async def analyze_position(
         self,
         fen: str,
@@ -205,6 +216,12 @@ class EnginePoolManager:
             return await adapter.analyze_position(
                 fen, nodes=nodes, depth=depth, multipv=multipv, time_ms=time_ms
             )
+
+    async def play_interactive(
+        self, fen: str, skill_level: int, limit: chess.engine.Limit
+    ) -> chess.engine.PlayResult:
+        async with self.interactive_pool.acquire() as adapter:
+            return await adapter.play_move(fen, skill_level, limit)
 
     async def analyze_batch(
         self,

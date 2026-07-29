@@ -68,8 +68,9 @@ class PlayMoveResponse(BaseModel):
     status: str
 
 
-def get_opponent_provider() -> StockfishOpponentProvider:
-    return StockfishOpponentProvider(StockfishConfig())
+def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
+    pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+    return StockfishOpponentProvider(StockfishConfig(), pool_manager=pool_manager)
 
 
 def get_maia_config_path() -> Path | None:

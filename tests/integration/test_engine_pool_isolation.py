@@ -88,3 +88,40 @@ async def test_engine_pool_checkout_resets_engine_state_during_its_lifecycle() -
     assert first_token is not None
     assert second_token is not None
     assert first_token is not second_token
+
+
+@pytest.mark.asyncio
+async def test_opponent_provider_reuses_the_pooled_engine_across_moves() -> None:
+    from scan64.chess.opponents.protocols import OpponentContext
+    from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
+    from scan64.chess.positions.models import Position
+
+    manager = EnginePoolManager(StockfishConfig(), interactive_concurrency=1, batch_concurrency=1)
+    provider = StockfishOpponentProvider(StockfishConfig(), pool_manager=manager)
+    position = Position(
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+    )
+    context = OpponentContext(strength_setting=1, time_remaining_ms=None)
+
+    try:
+        decision = await provider.choose_move(position, context)
+        assert decision.uci_move != "0000"
+        async with manager.interactive_pool.acquire() as adapter:
+            first_engine = adapter._engine
+
+        decision_again = await provider.choose_move(position, context)
+        assert decision_again.uci_move != "0000"
+        async with manager.interactive_pool.acquire() as adapter:
+            second_engine = adapter._engine
+
+        # interactive_concurrency=1 means both moves could only have been
+        # served by spawning a second process if the provider bypassed the
+        # pool; the same process serving both moves is the bound this
+        # milestone's acceptance requires ("process count stays bounded
+        # under concurrent play plus analysis").
+        assert first_engine is not None
+        assert second_engine is first_engine
+    finally:
+        await manager.close()
