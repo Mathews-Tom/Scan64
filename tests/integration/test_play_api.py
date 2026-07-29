@@ -1,3 +1,4 @@
+import time
 from uuid import UUID
 
 import pytest
@@ -106,9 +107,15 @@ def test_create_get_analysis_job(client: TestClient, session: Session):
     assert job_data["status"] == "pending"
 
     job_id = job_data["id"]
-    get_job_response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)
-    assert get_job_response.status_code == 200
-    assert get_job_response.json()["status"] == "completed"
+    deadline = time.monotonic() + 5.0
+    status = "pending"
+    while status not in {"completed", "failed"} and time.monotonic() < deadline:
+        get_job_response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)
+        assert get_job_response.status_code == 200
+        status = get_job_response.json()["status"]
+        if status not in {"completed", "failed"}:
+            time.sleep(0.01)
+    assert status == "completed", get_job_response.json()
     other_headers = _register(session, "another-player")
     assert client.get(f"/v1/games/{game_id}", headers=other_headers).status_code == 404
     assert (
