@@ -45,7 +45,9 @@ def test_played_and_imported_games_are_both_listed_once(
     db_session.add(PersistedLessonOpportunity(game_id=played.id, player_id="alice", lesson_spec={}))
     db_session.commit()
 
-    imported = client.post("/v1/games", json={"pgn": PGN, "player_id": "alice"})
+    imported = client.post(
+        "/v1/games", json={"pgn": PGN, "player_id": "alice"}, headers=_auth(token)
+    )
     assert imported.status_code == 200, imported.text
 
     response = client.get("/v1/players/alice/games", headers=_auth(token))

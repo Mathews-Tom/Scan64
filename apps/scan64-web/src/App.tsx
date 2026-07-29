@@ -11,6 +11,16 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { CoachDashboardScreen } from './components/CoachDashboardScreen';
 import { GamesListScreen } from './components/GamesListScreen';
 
+function decodeRouteSegment(value: string): string | null {
+  try {
+    const decoded = decodeURIComponent(value);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)
+      ? decoded
+      : null;
+  } catch {
+    return null;
+  }
+}
 function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
@@ -27,9 +37,21 @@ function App() {
     window.history.pushState({}, '', nextPathname);
     setPathname(window.location.pathname);
   }, []);
-
+  const gameAnalysisMatch = /^\/games\/([^/]+)\/analysis$/.exec(pathname);
+  const gameAnalysisId = gameAnalysisMatch ? decodeRouteSegment(gameAnalysisMatch[1]) : null;
   let screen = <div data-testid="not-found">Page not found</div>;
-  switch (pathname) {
+  if (gameAnalysisId !== null) {
+    screen = (
+      <AnalysisScreen
+        key={gameAnalysisId}
+        gameId={gameAnalysisId}
+        onPlayFromHere={(session, fen) => {
+          setActivePlaySession({ session, fen });
+          navigate('/play');
+        }}
+      />
+    );
+  } else switch (pathname) {
     case '/':
       screen = <div>Welcome to Scan64</div>;
       break;
@@ -65,6 +87,7 @@ function App() {
     case '/analysis':
       screen = (
         <AnalysisScreen
+          key={activeAnalysisGameId ?? 'analysis'}
           gameId={activeAnalysisGameId}
           onPlayFromHere={(session, fen) => {
             setActivePlaySession({ session, fen });
@@ -74,14 +97,7 @@ function App() {
       );
       break;
     case '/games':
-      screen = (
-        <GamesListScreen
-          onOpenGame={(gameId) => {
-            setActiveAnalysisGameId(gameId);
-            navigate('/analysis');
-          }}
-        />
-      );
+      screen = <GamesListScreen onOpenGame={(gameId) => navigate(`/games/${encodeURIComponent(gameId)}/analysis`)} />;
       break;
     case '/explorer':
       screen = <OpeningExplorerScreen />;

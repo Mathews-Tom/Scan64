@@ -66,9 +66,7 @@ class _FocusedOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_focused_pass(
-        self, candidates: list[CandidatePosition]
-    ) -> list[EngineAnalysis]:
+    async def run_focused_pass(self, candidates: list[CandidatePosition]) -> list[EngineAnalysis]:
         return [
             EngineAnalysis(
                 position_id=uuid4(),
@@ -80,7 +78,6 @@ class _FocusedOrchestrator:
             )
             for _ in candidates
         ]
-
 
 
 class _ConsecutiveCandidateOrchestrator:
@@ -126,6 +123,7 @@ class _ConsecutiveCandidateOrchestrator:
             ),
         ]
 
+
 @pytest.mark.asyncio
 async def test_candidate_positions_and_analyses_are_persisted(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
@@ -160,7 +158,6 @@ async def test_candidate_positions_and_analyses_are_persisted(
     assert evidence_position.fen == HANGING_PIECE_FEN
 
 
-
 @pytest.mark.asyncio
 async def test_candidate_evidence_references_persisted_focused_multipv(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
@@ -179,14 +176,11 @@ async def test_candidate_evidence_references_persisted_focused_multipv(
         if analysis.config.get("multipv") == 4
     )
     evidence = next(
-        item
-        for item in db_session.exec(select(Evidence)).all()
-        if item.kind == "engine_analysis"
+        item for item in db_session.exec(select(Evidence)).all() if item.kind == "engine_analysis"
     )
 
     assert evidence.engine_analysis_id == str(focused_analysis.id)
     assert evidence.payload["focused_multipv"] == focused_analysis.raw_result
-
 
 
 @pytest.mark.asyncio
@@ -209,6 +203,7 @@ async def test_production_job_persists_arbitrated_secondary_diagnoses(
     assert schedule is not None
     assert schedule.skill_id == diagnosis["primary"]
     assert schedule.next_review_at is not None
+
 
 @pytest.mark.asyncio
 async def test_consecutive_candidates_share_one_persisted_position(
@@ -282,7 +277,9 @@ async def test_completed_analysis_populates_positions_and_evidence_endpoints(
 
     await jobs.run_analysis_for_game(game, db_session)
 
-    positions_response = client.get(f"/v1/games/{game.id}/positions")
+    positions_response = client.get(
+        f"/v1/games/{game.id}/positions", headers={"Authorization": f"Bearer {token}"}
+    )
     evidence_response = client.get(
         f"/v1/players/{player.id}/evidence",
         headers={"Authorization": f"Bearer {token}"},

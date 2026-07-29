@@ -1,16 +1,24 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalysisScreen } from './AnalysisScreen';
-import { ApiClient } from '../api/client';
+import { ApiClient, ApiRequestError } from '../api/client';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
     getPositions: vi.fn(),
     createGame: vi.fn(),
-    createPlayer: vi.fn(),
     createPlaySession: vi.fn(),
   },
+  ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
+  ApiRequestError: class ApiRequestError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
 }));
 
 describe('AnalysisScreen', () => {
@@ -53,6 +61,35 @@ describe('AnalysisScreen', () => {
     const multiPvContainer = screen.getByTestId('multipv-lines');
     expect(multiPvContainer).toHaveTextContent('0.35 - e2e4 e7e5');
     expect(multiPvContainer).toHaveTextContent('0.25 - d2d4 d7d5');
+  });
+
+  it('reports a missing or unowned game analysis', async () => {
+    vi.mocked(ApiClient.getPositions).mockRejectedValue(
+      new ApiRequestError('Failed to get positions: Not Found', 404),
+    );
+
+    render(<AnalysisScreen gameId="missing-game" />);
+
+    expect(await screen.findByText('Game analysis was not found.')).toBeInTheDocument();
+  });
+
+  it('ignores a stale missing-game response after the addressed game changes', async () => {
+    let rejectFirst!: (reason?: unknown) => void;
+    const firstRequest = new Promise<never>((_, reject) => {
+      rejectFirst = reject;
+    });
+    vi.mocked(ApiClient.getPositions).mockReturnValueOnce(firstRequest).mockResolvedValueOnce([]);
+
+    const { rerender } = render(<AnalysisScreen gameId="missing-game" />);
+    rerender(<AnalysisScreen gameId="empty-game" />);
+
+    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenLastCalledWith('empty-game'));
+    await act(async () => {
+      rejectFirst(new ApiRequestError('Failed to get positions: Not Found', 404));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText('Game analysis was not found.')).not.toBeInTheDocument();
   });
 
   it('renders gracefully without a gameId', () => {
@@ -104,10 +141,6 @@ describe('AnalysisScreen', () => {
       white: 'White',
       black: 'Black',
       result: '*',
-    });
-    vi.mocked(ApiClient.createPlayer).mockResolvedValue({
-      id: 'player-1',
-      preferences: {},
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
 

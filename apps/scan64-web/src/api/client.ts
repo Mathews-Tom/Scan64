@@ -126,11 +126,22 @@ export function getPlayerAuthorizationHeader(playerId: string): Record<string, s
   return { Authorization: `Bearer ${token}` };
 }
 
+function getActivePlayerAuthorizationHeader(): Record<string, string> {
+  try {
+    return getPlayerAuthorizationHeader(getActivePlayerId());
+  } catch {
+    throw new ApiRequestError('Player authorization is required', 401);
+  }
+}
+
 export class ApiClient {
   static async createGame(data: GameCreate): Promise<GameRead> {
     const response = await fetch(`${API_BASE}/games`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(data.player_id),
+      },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -141,7 +152,9 @@ export class ApiClient {
   }
 
   static async getGame(gameId: string): Promise<GameRead> {
-    const response = await fetch(`${API_BASE}/games/${gameId}`);
+    const response = await fetch(`${API_BASE}/games/${gameId}`, {
+      headers: getActivePlayerAuthorizationHeader(),
+    });
     if (!response.ok) {
       throw new ApiRequestError(`Failed to get game: ${response.statusText}`, response.status);
     }
@@ -161,10 +174,11 @@ export class ApiClient {
   }
 
   static async getPositions(gameId: string): Promise<PositionRead[]> {
-    const response = await fetch(`${API_BASE}/games/${gameId}/positions`);
+    const response = await fetch(`${API_BASE}/games/${gameId}/positions`, {
+      headers: getActivePlayerAuthorizationHeader(),
+    });
     if (!response.ok) {
-      if (response.status === 404) return [];
-      throw new Error(`Failed to get positions: ${response.statusText}`);
+      throw new ApiRequestError(`Failed to get positions: ${response.statusText}`, response.status);
     }
     const json = await response.json();
     return json as unknown as PositionRead[];
@@ -186,18 +200,21 @@ export class ApiClient {
   static async createAnalysisJob(gameId: string): Promise<AnalysisJobRead> {
     const response = await fetch(`${API_BASE}/games/${gameId}/analysis-jobs`, {
       method: 'POST',
+      headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
-      throw new Error(`Failed to create analysis job: ${response.statusText}`);
+      throw new ApiRequestError(`Failed to create analysis job: ${response.statusText}`, response.status);
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;
   }
 
   static async getAnalysisJob(jobId: string): Promise<AnalysisJobRead> {
-    const response = await fetch(`${API_BASE}/analysis-jobs/${jobId}`);
+    const response = await fetch(`${API_BASE}/analysis-jobs/${jobId}`, {
+      headers: getActivePlayerAuthorizationHeader(),
+    });
     if (!response.ok) {
-      throw new Error(`Failed to get analysis job: ${response.statusText}`);
+      throw new ApiRequestError(`Failed to get analysis job: ${response.statusText}`, response.status);
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;

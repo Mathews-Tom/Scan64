@@ -16,6 +16,7 @@ describe('ApiClient', () => {
   });
 
   it('createGame calls POST /v1/games', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: '123', pgn: '...', white: 'W', black: 'B', result: '*' }),
@@ -24,13 +25,15 @@ describe('ApiClient', () => {
     const res = await ApiClient.createGame({ pgn: '...', player_id: 'player-1' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/games', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
       body: JSON.stringify({ pgn: '...', player_id: 'player-1' }),
     });
     expect(res.id).toBe('123');
   });
 
   it('getGame calls GET /v1/games/{id}', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: 'game-1', pgn: '1. e4 e5', white: 'White', black: 'Black', result: '*' }),
@@ -38,17 +41,26 @@ describe('ApiClient', () => {
 
     const game = await ApiClient.getGame('game-1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/v1/games/game-1');
+    expect(mockFetch).toHaveBeenCalledWith('/v1/games/game-1', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
     expect(game.pgn).toBe('1. e4 e5');
   });
 
   it('preserves a failed game request status', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404, statusText: 'Not Found' });
 
     const request = ApiClient.getGame('game-1');
 
     await expect(request).rejects.toBeInstanceOf(ApiRequestError);
     await expect(request).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('rejects a game read without stored player authorization before fetching', async () => {
+    await expect(ApiClient.getGame('game-1')).rejects.toMatchObject({ status: 401 });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
   it('serves owned game lessons with player authorization', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
@@ -280,6 +292,7 @@ describe('ApiClient', () => {
   });
 
   it('throws on non-ok response', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: false,
       statusText: 'Bad Request',

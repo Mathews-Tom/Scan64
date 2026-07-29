@@ -14,12 +14,14 @@ vi.mock('./api/client', async (importOriginal) => {
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
-    }
+      getPositions: vi.fn().mockResolvedValue([]),
+    },
   };
 });
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
@@ -48,6 +50,32 @@ describe('App', () => {
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
   });
 
+  it('renders a game analysis screen from its deep-link URL', async () => {
+    window.history.replaceState({}, '', '/games/00000000-0000-0000-0000-000000000001/analysis');
+
+    render(<App />);
+
+    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001'));
+    expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
+  });
+
+
+  it('renders not found for a malformed encoded game-analysis URL', () => {
+    window.history.replaceState({}, '', '/games/%/analysis');
+
+    render(<App />);
+
+    expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
+  });
+
+  it('renders not found for a non-UUID game-analysis URL', () => {
+    window.history.replaceState({}, '', '/games/not-a-uuid/analysis');
+
+    render(<App />);
+
+    expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
+    expect(ApiClient.getPositions).not.toHaveBeenCalled();
+  });
   it('follows browser Back navigation', async () => {
     render(<App />);
     fireEvent.click(screen.getByText('Play Game'));
