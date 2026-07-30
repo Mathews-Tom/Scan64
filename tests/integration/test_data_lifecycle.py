@@ -11,7 +11,7 @@ from scan64.coach.models import CoachStudentLink
 
 
 def create_game_records(session: Session, player_id: str) -> dict[str, object]:
-    game = Game(pgn="1. e4 e5")
+    game = Game(pgn="1. e4 e5", owner_player_id=player_id)
     session.add(game)
     session.commit()
     session.refresh(game)
@@ -208,6 +208,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
     assert data["dry_run"] is True
     assert data["affected_rows"] == {
         "player": 1,
+        "player_credentials": 1,
         "profile": 1,
         "play_sessions": 1,
         "games": 1,

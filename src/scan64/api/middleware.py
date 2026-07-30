@@ -68,7 +68,13 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 else:
                     body += bytes(chunk)
 
-            # Reconstruct response to return it
+            skip_idempotency_cache = (
+                response.headers.get("X-Scan64-Idempotency-Cache") == "skip"
+            )
+            if skip_idempotency_cache:
+                del response.headers["X-Scan64-Idempotency-Cache"]
+
+            # Reconstruct response to return it.
             reconstructed_response = Response(
                 content=body,
                 status_code=response.status_code,
@@ -76,14 +82,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type=response.media_type,
             )
 
-            if (
-                200 <= response.status_code < 300
-                and not (
-                    request.method == "DELETE"
-                    and request.url.path.startswith("/v1/players/")
-                    and request.url.path.endswith("/data")
-                )
-            ):
+            if 200 <= response.status_code < 300 and not skip_idempotency_cache:
                 new_record = IdempotencyRecord(
                     idempotency_key=record_key,
                     status_code=response.status_code,

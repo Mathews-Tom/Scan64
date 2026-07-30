@@ -4,8 +4,9 @@ import hashlib
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import update
 from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
@@ -73,13 +74,8 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    session_game_ids = {
-        play_session.game_id for play_session in play_sessions if play_session.game_id is not None
-    }
     games = session.exec(
-        select(Game).where(
-            (col(Game.owner_player_id) == player_id) | (col(Game.id).in_(session_game_ids))
-        )
+        select(Game).where(col(Game.owner_player_id) == player_id)
     ).all()
     game_ids = [game.id for game in games]
     positions = (
@@ -120,9 +116,19 @@ def export_player_data(
         if game_ids
         else []
     )
-    profile_observations = session.exec(
-        select(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
-    ).all()
+    profile_observations = (
+        session.exec(
+            select(ProfileObservation).where(
+                col(ProfileObservation.player_id) == player_id,
+                col(ProfileObservation.game_id).in_([str(game_id) for game_id in game_ids]),
+                col(ProfileObservation.position_id).in_(
+                    [str(position_id) for position_id in position_ids]
+                ),
+            )
+        ).all()
+        if game_ids and position_ids
+        else []
+    )
     skill_states = session.exec(
         select(SkillState).where(col(SkillState.player_id) == player_id)
     ).all()
@@ -132,12 +138,20 @@ def export_player_data(
     study_sessions = session.exec(
         select(StudySession).where(col(StudySession.player_id) == player_id)
     ).all()
+    study_session_ids = [study_session.id for study_session in study_sessions]
     content_attempts = session.exec(
         select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
     ).all()
-    lesson_attempts = session.exec(
-        select(LessonAttempt).where(col(LessonAttempt.player_id) == player_id)
-    ).all()
+    lesson_attempts = (
+        session.exec(
+            select(LessonAttempt).where(
+                col(LessonAttempt.player_id) == player_id,
+                col(LessonAttempt.session_id).in_(study_session_ids),
+            )
+        ).all()
+        if study_session_ids
+        else []
+    )
     transfer_measurements = session.exec(
         select(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
     ).all()
@@ -148,7 +162,11 @@ def export_player_data(
         if position_id is not None
     }
     transfer_positions = (
-        session.exec(select(TransferPosition).where(col(TransferPosition.id).in_(transfer_position_ids))).all()
+        session.exec(
+            select(TransferPosition).where(
+                col(TransferPosition.id).in_(transfer_position_ids)
+            )
+        ).all()
         if transfer_position_ids
         else []
     )
@@ -310,6 +328,10 @@ def import_player_data(
             for attempt in lesson_attempts
         )
         or any(
+            session.get(TransferPosition, position_id) is None
+            for position_id in transfer_position_ids
+        )
+        or any(
             measurement.source_position_id not in transfer_position_ids
             or measurement.target_position_id is not None
             and measurement.target_position_id not in transfer_position_ids
@@ -367,9 +389,8 @@ def import_player_data(
     for observation in profile_observations:
         session.add(observation)
 
-    for transfer_position in transfer_positions:
-        if session.get(TransferPosition, transfer_position.id) is None:
-            session.add(transfer_position)
+    # TransferPosition rows are global curated references. Archives may describe
+    # them for referential closure but never mutate the shared catalog.
 
     for measurement in transfer_measurements:
         if session.get(TransferMeasurement, measurement.id) is None:
@@ -417,6 +438,7 @@ class DeletionResponse(BaseModel):
 def delete_player_data(
     player_id: str,
     request: Request,
+    response: Response,
     req: DeletionRequest,
     session: Session = Depends(get_session),
 ) -> DeletionResponse:
@@ -434,8 +456,12 @@ def delete_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    game_ids = list(
-        {play_session.game_id for play_session in play_sessions if play_session.game_id}
+    game_ids = {
+        play_session.game_id for play_session in play_sessions if play_session.game_id
+    } | set(
+        session.exec(
+            select(Game.id).where(col(Game.owner_player_id) == player_id)
+        ).all()
     )
     shared_game_ids = (
         set(
@@ -449,16 +475,7 @@ def delete_player_data(
         if game_ids
         else set()
     )
-    owned_game_ids = list(
-        {
-            *(
-                session.exec(
-                    select(Game.id).where(col(Game.owner_player_id) == player_id)
-                ).all()
-            ),
-            *(game_id for game_id in game_ids if game_id not in shared_game_ids),
-        }
-    )
+    owned_game_ids = list(game_ids - shared_game_ids)
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(owned_game_ids))).all()
         if owned_game_ids
@@ -514,6 +531,9 @@ def delete_player_data(
 
     affected_rows = {
         "player": 1,
+        "player_credentials": 1
+        if session.get(PlayerCredential, player_id) is not None
+        else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
@@ -584,6 +604,15 @@ def delete_player_data(
     session.exec(delete(PlaySession).where(col(PlaySession.player_id) == player_id))
     if owned_game_ids:
         session.exec(delete(Game).where(col(Game.id).in_(owned_game_ids)))
+    if shared_game_ids:
+        session.exec(
+            update(Game)
+            .where(
+                col(Game.id).in_(shared_game_ids),
+                col(Game.owner_player_id) == player_id,
+            )
+            .values(owner_player_id=None)
+        )
 
     profile = session.get(PlayerProfile, player_id)
     if profile:
@@ -600,5 +629,6 @@ def delete_player_data(
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
+    response.headers["X-Scan64-Idempotency-Cache"] = "skip"
 
     return DeletionResponse(dry_run=False, affected_rows=affected_rows, audit_id=audit_id)
