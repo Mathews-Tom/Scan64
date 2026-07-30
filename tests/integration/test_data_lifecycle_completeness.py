@@ -313,6 +313,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "profile": 1,
         "play_sessions": 1,
         "games": 1,
+        "games_disowned": 0,
         "positions": 1,
         "engine_analyses": 1,
         "analysis_jobs": 1,
@@ -435,14 +436,39 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
     owner_id = "m42-shared-owner"
     participant_id = "m42-shared-participant"
     owner_token = _create_player_token(client, owner_id)
-    _create_player_token(client, participant_id)
-    game = Game(pgn="1. d4 d5", owner_player_id=owner_id)
+    participant_token = _create_player_token(client, participant_id)
+    game = Game(
+        pgn=f"1. {owner_id} e5",
+        owner_player_id=owner_id,
+        white=owner_id,
+        black=participant_id,
+    )
     db_session.add(game)
+    db_session.flush()
+    position = Position(
+        game_id=game.id,
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        side_to_move="w",
+        canonical_id="m42-shared-position",
+    )
+    db_session.add(position)
     db_session.flush()
     db_session.add_all(
         [
             PlaySession(player_id=owner_id, game_id=game.id),
             PlaySession(player_id=participant_id, game_id=game.id),
+            PersistedLessonOpportunity(
+                game_id=game.id,
+                source_position_id=position.id,
+                player_id=owner_id,
+                lesson_spec={
+                    "diagnosis": {
+                        "primary": "tactics.hanging_piece",
+                        "secondary": [],
+                        "confidence": 0.9,
+                    }
+                },
+            ),
         ]
     )
     db_session.commit()
@@ -455,10 +481,18 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
     )
 
     assert deletion.status_code == 200
+    assert deletion.json()["affected_rows"]["games_disowned"] == 1
+    assert deletion.headers["Cache-Control"] == "no-store"
     db_session.expire_all()
     preserved_game = db_session.get(Game, game.id)
     assert preserved_game is not None
     assert preserved_game.owner_player_id is None
+    assert owner_id not in (preserved_game.white, preserved_game.black, preserved_game.pgn)
+    assert not db_session.exec(
+        select(PersistedLessonOpportunity).where(
+            PersistedLessonOpportunity.player_id == owner_id
+        )
+    ).all()
     assert (
         db_session.exec(
             select(PlaySession).where(
@@ -468,3 +502,26 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
         ).one()
         is not None
     )
+
+    participant_export = client.post(
+        "/v1/exports",
+        json={"player_id": participant_id},
+        headers=_authorization(participant_token),
+    )
+    assert participant_export.status_code == 200
+    participant_archive = participant_export.json()
+    assert participant_archive["games"] == []
+    assert participant_archive["play_sessions"][0]["game_id"] is None
+    participant_deletion = client.request(
+        "DELETE",
+        f"/v1/players/{participant_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{participant_id}"},
+        headers=_authorization(participant_token),
+    )
+    assert participant_deletion.status_code == 200
+    participant_restore = client.post(
+        "/v1/imports",
+        json=participant_archive,
+        headers=_authorization(participant_token),
+    )
+    assert participant_restore.status_code == 200

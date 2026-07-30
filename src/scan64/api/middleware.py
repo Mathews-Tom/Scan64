@@ -69,10 +69,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     body += bytes(chunk)
 
             skip_idempotency_cache = (
-                response.headers.get("X-Scan64-Idempotency-Cache") == "skip"
+                response.headers.get("Cache-Control") == "no-store"
             )
-            if skip_idempotency_cache:
-                del response.headers["X-Scan64-Idempotency-Cache"]
 
             # Reconstruct response to return it.
             reconstructed_response = Response(

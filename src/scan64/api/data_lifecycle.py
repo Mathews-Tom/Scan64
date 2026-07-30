@@ -78,6 +78,7 @@ def export_player_data(
         select(Game).where(col(Game.owner_player_id) == player_id)
     ).all()
     game_ids = [game.id for game in games]
+    archived_game_ids = set(game_ids)
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(game_ids))).all()
         if game_ids
@@ -180,7 +181,12 @@ def export_player_data(
     return ExportArchive(
         player=player.model_dump(mode="json"),
         profile=profile.model_dump(mode="json") if profile else None,
-        play_sessions=[play_session.model_dump(mode="json") for play_session in play_sessions],
+        play_sessions=[
+            play_session.model_copy(update={"game_id": None}).model_dump(mode="json")
+            if play_session.game_id not in archived_game_ids
+            else play_session.model_dump(mode="json")
+            for play_session in play_sessions
+        ],
         games=[game.model_dump(mode="json") for game in games],
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
@@ -494,15 +500,12 @@ def delete_player_data(
         if owned_game_ids
         else []
     )
-    lesson_opportunities = (
-        session.exec(
-            select(PersistedLessonOpportunity).where(
-                col(PersistedLessonOpportunity.game_id).in_(owned_game_ids)
-            )
-        ).all()
-        if owned_game_ids
-        else []
-    )
+    lesson_opportunities = session.exec(
+        select(PersistedLessonOpportunity).where(
+            (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))
+            | (col(PersistedLessonOpportunity.player_id) == player_id)
+        )
+    ).all()
     evidence = (
         session.exec(
             select(Evidence).where(
@@ -537,6 +540,7 @@ def delete_player_data(
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
+        "games_disowned": len(shared_game_ids),
         "positions": len(positions),
         "engine_analyses": len(engine_analyses),
         "analysis_jobs": len(analysis_jobs),
@@ -583,12 +587,13 @@ def delete_player_data(
     session.exec(
         delete(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
     )
-    if owned_game_ids:
-        session.exec(
-            delete(PersistedLessonOpportunity).where(
-                col(PersistedLessonOpportunity.game_id).in_(owned_game_ids)
-            )
+    session.exec(
+        delete(PersistedLessonOpportunity).where(
+            (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))
+            | (col(PersistedLessonOpportunity.player_id) == player_id)
         )
+    )
+    if owned_game_ids:
         session.exec(delete(AnalysisJob).where(col(AnalysisJob.game_id).in_(owned_game_ids)))
         session.exec(delete(Position).where(col(Position.game_id).in_(owned_game_ids)))
     session.exec(delete(ContentAttempt).where(col(ContentAttempt.player_id) == player_id))
@@ -611,7 +616,12 @@ def delete_player_data(
                 col(Game.id).in_(shared_game_ids),
                 col(Game.owner_player_id) == player_id,
             )
-            .values(owner_player_id=None)
+            .values(
+                owner_player_id=None,
+                pgn="",
+                white="Anonymous",
+                black="Anonymous",
+            )
         )
 
     profile = session.get(PlayerProfile, player_id)
@@ -629,6 +639,6 @@ def delete_player_data(
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
-    response.headers["X-Scan64-Idempotency-Cache"] = "skip"
+    response.headers["Cache-Control"] = "no-store"
 
     return DeletionResponse(dry_run=False, affected_rows=affected_rows, audit_id=audit_id)
