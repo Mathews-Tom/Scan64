@@ -154,10 +154,17 @@ def record_lesson_attempt(
     schedule = db.get(ReviewSchedule, (study_session.player_id, str(opportunity.id)))
     if schedule is None:
         raise HTTPException(status_code=409, detail="Persisted lesson has no review schedule")
+    if opportunity.verification_status == "invalid":
+        raise HTTPException(status_code=409, detail="Persisted lesson is not verified")
+    if opportunity.verification_status == "verified":
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+    else:
+        reverified_spec, _ = _reverify_persisted_lesson(opportunity, db, allow_fallback=True)
+        if reverified_spec is None:
+            raise HTTPException(status_code=409, detail="Persisted lesson is not verified")
+        spec = reverified_spec
     if attempt_in.submitted_move is None:
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
-
-    spec = LessonSpec.model_validate(opportunity.lesson_spec)
     attempt_count = db.exec(
         select(func.count())
         .where(LessonAttempt.player_id == study_session.player_id)

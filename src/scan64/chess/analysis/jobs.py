@@ -80,8 +80,10 @@ async def run_analysis_for_game(
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
 
-    adapter = pool_manager.batch_adapter if pool_manager is not None else StockfishAdapter(
-        StockfishConfig()
+    adapter = (
+        pool_manager.batch_adapter
+        if pool_manager is not None
+        else StockfishAdapter(StockfishConfig())
     )
     orchestrator = FastPassOrchestrator(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
@@ -191,7 +193,7 @@ async def run_analysis_for_game(
         lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
 
         try:
-            verify_lesson(lesson)
+            verify_lesson(lesson, candidate.before_analysis)
         except LessonVerificationError:
             continue
 
