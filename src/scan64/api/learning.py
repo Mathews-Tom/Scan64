@@ -19,9 +19,15 @@ from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportun
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.evaluation.transfer_measurement import (
+    PRODUCTION_TRANSFER_LIFECYCLE_PREFIX,
     TransferMeasurement,
+    TransferMeasurementError,
+    TransferMeasurementReport,
     assign_production_transfer_measurements,
+    build_transfer_measurement_report,
     due_transfer_measurements,
+    record_training_completion,
+    record_transfer_measurement,
 )
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
@@ -51,7 +57,7 @@ class LessonAttemptCreate(BaseModel):
 
     session_id: str
     lesson_id: str
-    source_kind: Literal["persisted_opportunity", "opening_mission"]
+    source_kind: Literal["persisted_opportunity", "opening_mission", "transfer_measurement"]
     submitted_move: str | None = None
     elapsed_ms: int = Field(ge=0)
     hints_used: int = Field(ge=0)
@@ -92,7 +98,7 @@ def _objective_analysis_for_lesson(
 
     if opportunity.verification_analysis_id is not None:
         analysis = db.get(EngineAnalysis, opportunity.verification_analysis_id)
-        if analysis is not None:
+        if analysis is not None and analysis.raw_result:
             return analysis, False
 
     existing_analyses = db.exec(
@@ -123,6 +129,7 @@ def _objective_analysis_for_lesson(
 def _reverify_persisted_lesson(
     opportunity: PersistedLessonOpportunity, db: Session, *, allow_fallback: bool
 ) -> tuple[LessonSpec | None, bool]:
+    used_fallback = False
     try:
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
         analysis, used_fallback = _objective_analysis_for_lesson(
@@ -132,11 +139,11 @@ def _reverify_persisted_lesson(
     except ObjectiveAnalysisUnavailable as error:
         opportunity.verification_status = "unavailable"
         opportunity.verification_error = str(error)
-        return None, False
+        return None, used_fallback
     except (KeyError, LessonVerificationError, TypeError, ValidationError, ValueError) as error:
         opportunity.verification_status = "invalid"
         opportunity.verification_error = str(error)
-        return None, False
+        return None, used_fallback
 
     opportunity.verification_status = "verified"
     opportunity.verification_error = None
@@ -146,21 +153,18 @@ def _reverify_persisted_lesson(
     return spec, used_fallback
 
 
-def _transfer_measurement_lesson(measurement: TransferMeasurement) -> LessonSpec:
+def _transfer_measurement_lesson(
+    measurement: TransferMeasurement,
+) -> LessonSpec | None:
     if measurement.target_move_uci is None:
-        raise HTTPException(
-            status_code=500, detail="Transfer measurement is missing its target move"
-        )
-    board = chess.Board(measurement.target_fen)
-    if not board.is_valid():
-        raise HTTPException(
-            status_code=500, detail="Transfer measurement has an invalid target FEN"
-        )
-    move = chess.Move.from_uci(measurement.target_move_uci)
-    if move not in board.legal_moves:
-        raise HTTPException(
-            status_code=500, detail="Transfer measurement has an invalid target move"
-        )
+        return None
+    try:
+        board = chess.Board(measurement.target_fen)
+        move = chess.Move.from_uci(measurement.target_move_uci)
+    except ValueError:
+        return None
+    if not board.is_valid() or move not in board.legal_moves:
+        return None
     return LessonSpec.model_validate(
         {
             "schema_version": "1.0",
@@ -229,18 +233,32 @@ def get_training_session(
                 "spec": spec,
             }
         )
-    transfer_lessons = [
-        _transfer_measurement_lesson(measurement)
-        for measurement in due_transfer_measurements(db, player_id=player_id, now=now)
-    ]
+    required_transfer_ids: list[str] = []
+    for measurement in due_transfer_measurements(db, player_id=player_id, now=now):
+        transfer_spec = _transfer_measurement_lesson(measurement)
+        if transfer_spec is None:
+            continue
+        if len(required_transfer_ids) == 5:
+            break
+        required_transfer_ids.append(measurement.id)
+        pool.append(
+            {
+                "id": measurement.id,
+                "type": "transfer",
+                "priority": 1.0,
+                "spec": transfer_spec,
+            }
+        )
 
-    composed_session = SessionComposer().compose_session(pool, session_size=5)
+    composed_session = SessionComposer().compose_session(
+        pool, session_size=5, required_item_ids=required_transfer_ids
+    )
     study_session = StudySession(player_id=player_id, domain="daily_training")
     db.add(study_session)
     db.commit()
     return TrainingSessionRead(
         session_id=study_session.id,
-        lessons=transfer_lessons + [item["spec"] for item in composed_session],
+        lessons=[item["spec"] for item in composed_session],
     )
 
 
@@ -288,6 +306,71 @@ def record_lesson_attempt(
             profile_update_result=attempt.profile_update_result,
         )
 
+    if attempt_in.source_kind == "transfer_measurement":
+        if attempt_in.submitted_move is None:
+            raise HTTPException(status_code=422, detail="Transfer attempts require a move")
+        try:
+            measurement_id = str(UUID(attempt_in.lesson_id))
+        except ValueError as error:
+            raise HTTPException(
+                status_code=422, detail="Transfer measurement id must be a UUID"
+            ) from error
+        measurement = db.get(TransferMeasurement, measurement_id)
+        if measurement is None or measurement.player_id != study_session.player_id:
+            raise HTTPException(status_code=404, detail="Transfer measurement not found")
+        transfer_spec = _transfer_measurement_lesson(measurement)
+        if transfer_spec is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Transfer measurement cannot produce a lesson",
+            )
+        success = _submitted_move_is_accepted(
+            transfer_spec, attempt_in.submitted_move
+        )
+        completed_at = datetime.now(UTC)
+        try:
+            completed_measurement = record_transfer_measurement(
+                db,
+                measurement_id=measurement.id,
+                player_id=study_session.player_id,
+                succeeded=success,
+                now=completed_at,
+                commit=False,
+            )
+            if completed_measurement.measurement_point.value == "pre_test":
+                record_training_completion(
+                    db,
+                    cohort_id=completed_measurement.cohort_id,
+                    player_id=study_session.player_id,
+                    skill_id=completed_measurement.skill_id,
+                    completed_at=completed_at,
+                    commit=False,
+                )
+        except TransferMeasurementError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        attempt = LessonAttempt(
+            session_id=study_session.id,
+            player_id=study_session.player_id,
+            lesson_id=str(measurement.id),
+            source_kind=attempt_in.source_kind,
+            submitted_move=attempt_in.submitted_move,
+            elapsed_ms=attempt_in.elapsed_ms,
+            hints_used=attempt_in.hints_used,
+            success=completed_measurement.succeeded,
+            grading_status="verified",
+            profile_update_result="not_applicable",
+            completed_at=completed_measurement.completed_at,
+        )
+        db.add(attempt)
+        db.commit()
+        db.refresh(attempt)
+        return LessonAttemptRead(
+            id=attempt.id,
+            success=attempt.success,
+            grading_status=attempt.grading_status,
+            profile_update_result=attempt.profile_update_result,
+        )
+
     try:
         opportunity_id = UUID(attempt_in.lesson_id)
     except ValueError as error:
@@ -303,9 +386,15 @@ def record_lesson_attempt(
     if opportunity.verification_status == "verified":
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
     else:
-        reverified_spec, _ = _reverify_persisted_lesson(opportunity, db, allow_fallback=True)
+        reverified_spec, _ = _reverify_persisted_lesson(
+            opportunity, db, allow_fallback=True
+        )
         if reverified_spec is None:
-            raise HTTPException(status_code=409, detail="Persisted lesson is not verified")
+            db.add(opportunity)
+            db.commit()
+            raise HTTPException(
+                status_code=409, detail="Persisted lesson is not verified"
+            )
         spec = reverified_spec
     if attempt_in.submitted_move is None:
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
@@ -377,3 +466,21 @@ def record_lesson_attempt(
         grading_status=attempt.grading_status,
         profile_update_result=attempt.profile_update_result,
     )
+
+
+@router.get("/transfer-report", response_model=TransferMeasurementReport)
+def get_transfer_report(
+    player_id: str,
+    skill_id: str,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> TransferMeasurementReport:
+    require_player_token(request, player_id, db)
+    try:
+        return build_transfer_measurement_report(
+            db,
+            cohort_id=f"{PRODUCTION_TRANSFER_LIFECYCLE_PREFIX}:{player_id}:{skill_id}",
+            skill_id=skill_id,
+        )
+    except TransferMeasurementError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error

@@ -386,3 +386,29 @@ def test_session_reuses_persisted_engine_analysis(
 
     assert served.status_code == 200
     assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(opportunity.id)]
+
+
+
+def test_session_marks_empty_pinned_analysis_as_unavailable(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    player_id = "empty-analysis-player"
+    authorize_new_player(client, db_session, player_id)
+    opportunity = create_persisted_lesson(db_session, player_id)
+    analysis = db_session.get(EngineAnalysis, opportunity.verification_analysis_id)
+    assert analysis is not None
+    analysis.raw_result = []
+    db_session.add(analysis)
+    db_session.commit()
+
+    def unavailable_stockfish_adapter(*_args: object, **_kwargs: object) -> NoReturn:
+        raise OSError("Stockfish is unavailable")
+
+    monkeypatch.setattr("scan64.api.learning.StockfishAdapter", unavailable_stockfish_adapter)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200
+    assert served.json()["lessons"] == []
+    db_session.refresh(opportunity)
+    assert opportunity.verification_status == "unavailable"

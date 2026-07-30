@@ -259,6 +259,7 @@ def record_transfer_measurement(
     player_id: str,
     succeeded: bool,
     now: datetime,
+    commit: bool = True,
 ) -> TransferMeasurement:
     """Record one completed transfer test and remove it from the review queue."""
     _require_identifier("measurement_id", measurement_id)
@@ -284,9 +285,11 @@ def record_transfer_measurement(
     if schedule is None:
         raise TransferMeasurementError("Transfer measurement is missing its review schedule")
     session.delete(schedule)
-    session.add(measurement)
-    session.commit()
-    session.refresh(measurement)
+    if commit:
+        session.commit()
+        session.refresh(measurement)
+    else:
+        session.flush()
     return measurement
 
 
@@ -298,6 +301,7 @@ def record_training_completion(
     skill_id: str,
     completed_at: datetime,
     delayed_test_interval: timedelta = DEFAULT_DELAYED_TEST_INTERVAL,
+    commit: bool = True,
 ) -> tuple[TransferMeasurement, TransferMeasurement]:
     """Schedule immediate and delayed post-tests after a completed intervention."""
     _require_identifier("cohort_id", cohort_id)
@@ -336,9 +340,12 @@ def record_training_completion(
             ),
         )
     )
-    session.commit()
-    session.refresh(immediate_post_test)
-    session.refresh(delayed_test)
+    if commit:
+        session.commit()
+        session.refresh(immediate_post_test)
+        session.refresh(delayed_test)
+    else:
+        session.flush()
     return immediate_post_test, delayed_test
 
 
@@ -370,9 +377,7 @@ def assign_production_transfer_measurements(
         limit=len(MEASUREMENT_POINTS),
     )
     if len(positions) != len(MEASUREMENT_POINTS):
-        raise TransferMeasurementError(
-            "Three seeded transfer positions are required for production assignment"
-        )
+        return ()
 
     assigned: list[TransferMeasurement] = []
     for measurement_point, position in zip(MEASUREMENT_POINTS, positions, strict=True):
