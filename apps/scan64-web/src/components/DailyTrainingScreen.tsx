@@ -47,10 +47,13 @@ export const DailyTrainingScreen: React.FC = () => {
     ) return;
     setSubmitting(true);
     try {
+      const sourceKind = lesson.verification.engine === 'transfer_catalog'
+        ? 'transfer_measurement'
+        : 'persisted_opportunity';
       const result = await ApiClient.recordLessonAttempt({
         session_id: sessionId,
         lesson_id: lesson.lesson_id,
-        source_kind: 'persisted_opportunity',
+        source_kind: sourceKind,
         submitted_move: move,
         elapsed_ms: Math.round(performance.now() - startedAt.current),
         hints_used: Math.max(hintIndex + 1, 0),

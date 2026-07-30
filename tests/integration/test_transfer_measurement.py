@@ -75,6 +75,45 @@ def add_transfer_positions(session: Session, skill_id: str) -> None:
     session.commit()
 
 
+def test_uncommitted_transfer_completion_rolls_back_measurement_and_schedule(
+    session: Session,
+) -> None:
+    player_id = "rollback-player"
+    skill_id = "tactics.pin"
+    cohort_id = "rollback-cohort"
+    now = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
+    add_transfer_positions(session, skill_id)
+    instrumentation = instrument_transfer_measurements(
+        session,
+        cohort_id=cohort_id,
+        player_ids=(player_id,),
+        skill_id=skill_id,
+        target_difficulty=1550,
+        difficulty_tolerance=100,
+        now=now,
+    )
+    pre_test = next(
+        measurement
+        for measurement in instrumentation.measurements
+        if measurement.measurement_point is MeasurementPoint.PRE_TEST
+    )
+
+    record_transfer_measurement(
+        session,
+        measurement_id=pre_test.id,
+        player_id=player_id,
+        succeeded=True,
+        now=now,
+        commit=False,
+    )
+    session.rollback()
+
+    restored = session.get(TransferMeasurement, pre_test.id)
+    assert restored is not None
+    assert restored.completed_at is None
+    assert session.get(ReviewSchedule, (player_id, pre_test.id)) is not None
+
+
 def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session) -> None:
     skill_id = "tactics.pin"
     cohort_id = "cohort-july"
@@ -427,6 +466,9 @@ def test_production_transfer_catalog_seeding_is_idempotent(session: Session) -> 
         board = chess.Board(definition.fen)
         assert board.is_valid()
         assert chess.Move.from_uci(definition.solution_uci) in board.legal_moves
+        piece = board.piece_at(chess.Move.from_uci(definition.solution_uci).from_square)
+        assert piece is not None
+        assert chess.piece_name(piece.piece_type) == definition.attacking_piece
     for skill_id in {definition.skill_id for definition in TRANSFER_POSITION_CATALOG}:
         assert sum(position.skill_id == skill_id for position in positions) == 3
 
@@ -464,6 +506,20 @@ def test_production_assignment_is_idempotent_and_due_in_later_session(
     ] == [MeasurementPoint.PRE_TEST]
 
 
+def test_production_assignment_skips_unseeded_skills(session: Session) -> None:
+    seed_transfer_positions(session)
+
+    assigned = assign_production_transfer_measurements(
+        session,
+        player_id="player-a",
+        skill_id="tactics.overloaded_defender",
+        target_difficulty=1300,
+        now=datetime(2026, 7, 31, 12, 0, tzinfo=UTC),
+    )
+
+    assert assigned == ()
+
+
 def test_due_production_transfer_measurement_builds_a_lesson(session: Session) -> None:
     now = datetime(2026, 7, 31, 12, 0, tzinfo=UTC)
     seed_transfer_positions(session)
@@ -478,6 +534,7 @@ def test_due_production_transfer_measurement_builds_a_lesson(session: Session) -
     lesson = _transfer_measurement_lesson(
         due_transfer_measurements(session, player_id="player-a", now=now)[0]
     )
+    assert lesson is not None
 
     assert lesson.source.kind == "custom"
     assert lesson.interaction.accepted_moves

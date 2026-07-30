@@ -13,9 +13,12 @@ from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.evaluation.transfer_measurement import (
+    MeasurementPoint,
+    TransferMeasurement,
     assign_production_transfer_measurements,
     due_transfer_measurements,
 )
+from scan64.learning.exercises.transfer import TransferKind
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
@@ -609,6 +612,31 @@ def test_transfer_measurement_is_served_completed_and_reported(
 
     assert completed.status_code == 200
     assert completed.json()["success"] is True
+    post_tests = list(
+        db_session.exec(
+            select(TransferMeasurement)
+            .where(TransferMeasurement.player_id == player_id)
+            .where(TransferMeasurement.skill_id == skill_id)
+            .where(TransferMeasurement.measurement_point != MeasurementPoint.PRE_TEST)
+        )
+    )
+    assert len(post_tests) == 2
+    assert all(post_test.scheduled_for is not None for post_test in post_tests)
+    assert len(
+        due_transfer_measurements(db_session, player_id=player_id, now=datetime.now(UTC))
+    ) == 1
+    repeated = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": served.json()["session_id"],
+            "lesson_id": str(measurement.id),
+            "source_kind": "transfer_measurement",
+            "submitted_move": measurement.target_move_uci,
+            "elapsed_ms": 1000,
+            "hints_used": 0,
+        },
+    )
+    assert repeated.status_code == 409
     report = client.get(
         f"/v1/learning/transfer-report?player_id={player_id}&skill_id={skill_id}"
     )
@@ -625,3 +653,153 @@ def test_transfer_measurement_is_served_completed_and_reported(
         "successful_count": 1,
         "success_rate": 1.0,
     }
+
+
+def test_mastered_lesson_without_catalog_positions_still_records_attempt(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "mastery-player"
+    skill_id = "tactics.overloaded_defender"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1300))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    schedule = db_session.get(ReviewSchedule, (player_id, str(opportunity.id)))
+    assert schedule is not None
+    schedule.skill_id = skill_id
+    opportunity.verification_status = "verified"
+    db_session.add(
+        SkillState(
+            player_id=player_id,
+            concept_code=skill_id,
+            alpha=8.0,
+            beta=1.0,
+        )
+    )
+    db_session.add_all((schedule, opportunity))
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    study_session = create_study_session(db_session, player_id)
+
+    recorded = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": study_session.id,
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e2e4",
+            "elapsed_ms": 1000,
+            "hints_used": 0,
+        },
+    )
+
+    assert recorded.status_code == 200
+    assert db_session.get(LessonAttempt, recorded.json()["id"]) is not None
+
+
+
+def test_session_limits_due_transfer_measurements_to_session_capacity(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "transfer-capacity-player"
+    now = datetime.now(UTC)
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1300))
+    db_session.commit()
+    seed_transfer_positions(db_session)
+    assigned = (
+        *assign_production_transfer_measurements(
+            db_session,
+            player_id=player_id,
+            skill_id="tactics.fork.knight",
+            target_difficulty=1300,
+            now=now,
+        ),
+        *assign_production_transfer_measurements(
+            db_session,
+            player_id=player_id,
+            skill_id="tactics.pin",
+            target_difficulty=1300,
+            now=now,
+        ),
+    )
+    for measurement in assigned:
+        measurement.scheduled_for = now
+        if db_session.get(ReviewSchedule, (player_id, measurement.id)) is None:
+            db_session.add(
+                ReviewSchedule(
+                    player_id=player_id,
+                    item_id=measurement.id,
+                    next_review_at=now,
+                )
+            )
+    legacy_measurement = TransferMeasurement(
+        id="legacy-transfer-slot",
+        cohort_id="legacy-cohort",
+        player_id=player_id,
+        skill_id="tactics.pin",
+        measurement_point=MeasurementPoint.PRE_TEST,
+        source_position_id="legacy-source",
+        source_fen="4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+        target_fen="4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+        transfer_kind=TransferKind.NEAR,
+        scheduled_for=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    db_session.add(legacy_measurement)
+    db_session.add(
+        ReviewSchedule(
+            player_id=player_id,
+            item_id=legacy_measurement.id,
+            next_review_at=legacy_measurement.scheduled_for,
+        )
+    )
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200
+    assert len(served.json()["lessons"]) == 5
+
+
+
+def test_session_skips_unplayable_legacy_transfer_measurements(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "legacy-transfer-player"
+    measurement_id = "legacy-transfer-measurement"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1300))
+    db_session.add(
+        TransferMeasurement(
+            id=measurement_id,
+            cohort_id="legacy-cohort",
+            player_id=player_id,
+            skill_id="tactics.pin",
+            measurement_point=MeasurementPoint.PRE_TEST,
+            source_position_id="legacy-source",
+            source_fen="4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+            target_fen="4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+            transfer_kind=TransferKind.NEAR,
+            scheduled_for=datetime.now(UTC),
+        )
+    )
+    db_session.add(
+        ReviewSchedule(
+            player_id=player_id,
+            item_id=measurement_id,
+            next_review_at=datetime.now(UTC),
+        )
+    )
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    missing_report = client.get(
+        f"/v1/learning/transfer-report?player_id={player_id}&skill_id=tactics.fork"
+    )
+
+    assert served.status_code == 200
+    assert served.json()["lessons"] == []
+    assert db_session.get(TransferMeasurement, measurement_id) is not None
+    assert missing_report.status_code == 404

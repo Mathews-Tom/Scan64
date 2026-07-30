@@ -115,6 +115,36 @@ describe('DailyTrainingScreen', () => {
       'Analyse another game to generate a reviewable lesson.'
     );
   });
+
+  it('records a catalog transfer lesson as a transfer measurement', async () => {
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'transfer-session',
+      lessons: [{
+        ...mockLesson,
+        lesson_id: 'aab0f1be-b070-4c0c-bfe2-49d8cdb68bef',
+        verification: {
+          ...mockLesson.verification,
+          engine: 'transfer_catalog',
+        },
+      }],
+    });
+    vi.mocked(ApiClient.recordLessonAttempt).mockResolvedValueOnce({
+      id: 'transfer-attempt',
+      success: true,
+      grading_status: 'verified',
+      profile_update_result: 'not_applicable',
+    });
+
+    render(<DailyTrainingScreen />);
+
+    fireEvent.click(await screen.findByTestId('submit-daily-move'));
+
+    await waitFor(() => {
+      expect(ApiClient.recordLessonAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ source_kind: 'transfer_measurement' }),
+      );
+    });
+  });
   it('reveals hints only after a rejected attempt and records their use', async () => {
     const hintedLesson: LessonSpec = {
       ...mockLesson,
