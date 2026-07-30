@@ -18,6 +18,12 @@ from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.learning.evaluation.transfer_measurement import (
+    TransferMeasurement,
+    assign_production_transfer_measurements,
+    due_transfer_measurements,
+)
+from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
 from scan64.learning.scheduling.priority import (
@@ -140,6 +146,38 @@ def _reverify_persisted_lesson(
     return spec, used_fallback
 
 
+def _transfer_measurement_lesson(measurement: TransferMeasurement) -> LessonSpec:
+    if measurement.target_move_uci is None:
+        raise HTTPException(
+            status_code=500, detail="Transfer measurement is missing its target move"
+        )
+    board = chess.Board(measurement.target_fen)
+    if not board.is_valid():
+        raise HTTPException(
+            status_code=500, detail="Transfer measurement has an invalid target FEN"
+        )
+    move = chess.Move.from_uci(measurement.target_move_uci)
+    if move not in board.legal_moves:
+        raise HTTPException(
+            status_code=500, detail="Transfer measurement has an invalid target move"
+        )
+    return LessonSpec.model_validate(
+        {
+            "schema_version": "1.0",
+            "lesson_id": measurement.id,
+            "source": {"kind": "custom", "fen": measurement.target_fen},
+            "diagnosis": {"primary": measurement.skill_id, "confidence": 1.0},
+            "objective": {"type": "find_best_move", "instruction": "Find the best move."},
+            "interaction": {
+                "input": "move",
+                "maximum_attempts": 1,
+                "accepted_moves": [{"san": board.san(move)}],
+            },
+            "verification": {"status": "verified", "engine": "transfer_catalog"},
+        }
+    )
+
+
 @router.get("/session", response_model=TrainingSessionRead)
 def get_training_session(
     player_id: str,
@@ -191,6 +229,10 @@ def get_training_session(
                 "spec": spec,
             }
         )
+    transfer_lessons = [
+        _transfer_measurement_lesson(measurement)
+        for measurement in due_transfer_measurements(db, player_id=player_id, now=now)
+    ]
 
     composed_session = SessionComposer().compose_session(pool, session_size=5)
     study_session = StudySession(player_id=player_id, domain="daily_training")
@@ -198,7 +240,7 @@ def get_training_session(
     db.commit()
     return TrainingSessionRead(
         session_id=study_session.id,
-        lessons=[item["spec"] for item in composed_session],
+        lessons=transfer_lessons + [item["spec"] for item in composed_session],
     )
 
 
@@ -292,6 +334,23 @@ def record_lesson_attempt(
             rating=profile.rating,
             observed_at=observed_at,
         )
+        skill_state = db.get(
+            SkillState,
+            (study_session.player_id, schedule.skill_id),
+        )
+        if (
+            success
+            and skill_state is not None
+            and skill_state.retired_at is None
+            and skill_state.expected_mastery >= 0.8
+        ):
+            assign_production_transfer_measurements(
+                db,
+                player_id=study_session.player_id,
+                skill_id=schedule.skill_id,
+                target_difficulty=profile.rating,
+                now=observed_at,
+            )
     if schedule.retired_at is None:
         schedule.update(success=success, current_time=observed_at)
         db.add(schedule)
