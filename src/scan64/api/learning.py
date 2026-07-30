@@ -1,19 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
 import chess
+import chess.engine
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.models import PlayerProfile
-from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
@@ -25,7 +27,9 @@ from scan64.learning.scheduling.priority import (
 )
 from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
+from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"])
 
@@ -53,6 +57,46 @@ class LessonAttemptRead(BaseModel):
     profile_update_result: str
 
 
+def _objective_analysis_for_lesson(
+    opportunity: PersistedLessonOpportunity, db: Session
+) -> EngineAnalysis:
+    analysis = db.exec(
+        select(EngineAnalysis)
+        .where(EngineAnalysis.position_id == opportunity.source_position_id)
+        .order_by(col(EngineAnalysis.created_at).desc(), col(EngineAnalysis.id).desc())
+    ).first()
+    if analysis is not None:
+        return analysis
+
+    try:
+        analysis = asyncio.run(
+            StockfishAdapter(StockfishConfig()).analyze_position(
+                opportunity.lesson_spec["source"]["fen"], nodes=100_000
+            )
+        )
+    except (OSError, chess.engine.EngineError) as error:
+        raise LessonVerificationError("Objective engine analysis is unavailable") from error
+    analysis.position_id = opportunity.source_position_id
+    db.add(analysis)
+    return analysis
+
+
+def _reverify_persisted_lesson(
+    opportunity: PersistedLessonOpportunity, db: Session
+) -> LessonSpec | None:
+    try:
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        verify_lesson(spec, _objective_analysis_for_lesson(opportunity, db))
+    except (KeyError, LessonVerificationError, TypeError, ValidationError) as error:
+        opportunity.verification_status = "invalid"
+        opportunity.verification_error = str(error)
+        return None
+
+    opportunity.verification_status = "verified"
+    opportunity.verification_error = None
+    opportunity.lesson_spec = spec.model_dump(mode="json")
+    return spec
+
 
 @router.get("/session", response_model=TrainingSessionRead)
 def get_training_session(
@@ -67,15 +111,17 @@ def get_training_session(
     session_fatigue = compute_recent_session_fatigue(attempt_count, error_rate)
     pool: list[dict[str, Any]] = []
     opportunities = db.exec(
-        select(PersistedLessonOpportunity).where(
-            PersistedLessonOpportunity.player_id == player_id
-        )
+        select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == player_id)
     ).all()
     for opportunity in opportunities:
         schedule = state.active_reviews.get(str(opportunity.id))
         if schedule is None:
             continue
-        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        if opportunity.verification_status == "invalid":
+            continue
+        spec = _reverify_persisted_lesson(opportunity, db)
+        if spec is None:
+            continue
         spec.lesson_id = str(opportunity.id)
         is_due = schedule.is_due(now)
         weakness_severity = compute_weakness_severity(state.skill_for(schedule.skill_id))
@@ -83,12 +129,14 @@ def get_training_session(
             review_due=1.0 if is_due else 0.0,
             weakness_severity=weakness_severity,
         ).compute_priority(session_fatigue=session_fatigue)
-        pool.append({
-            "id": str(opportunity.id),
-            "type": classify_priority_bucket(is_due, weakness_severity),
-            "priority": priority,
-            "spec": spec,
-        })
+        pool.append(
+            {
+                "id": str(opportunity.id),
+                "type": classify_priority_bucket(is_due, weakness_severity),
+                "priority": priority,
+                "spec": spec,
+            }
+        )
 
     composed_session = SessionComposer().compose_session(pool, session_size=5)
     study_session = StudySession(player_id=player_id, domain="daily_training")

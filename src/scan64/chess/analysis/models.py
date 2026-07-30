@@ -35,6 +35,7 @@ class AnalysisJob(SQLModel, table=True):
     completed_at: datetime | None = None
     error: str | None = None
 
+
 class PersistedDiagnosis(BaseModel):
     primary: str
     secondary: list[str]
@@ -48,3 +49,5 @@ class PersistedLessonOpportunity(SQLModel, table=True):
     player_id: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     lesson_spec: dict[str, Any] = Field(sa_type=JSON)
+    verification_status: str = Field(default="unverified", index=True)
+    verification_error: str | None = None

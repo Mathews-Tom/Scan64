@@ -8,7 +8,7 @@ from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
 from scan64.api.models import Player, PlayerCredential, issue_player_token
-from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -43,6 +43,7 @@ def authorize(db_session: Session, player_id: str) -> dict[str, str]:
     db_session.commit()
     return {"Authorization": f"Bearer {token}"}
 
+
 def test_player_scoped_persisted_opportunities(client: TestClient, db_session: Session) -> None:
     player_1 = f"player_{uuid4()}"
     player_2 = f"player_{uuid4()}"
@@ -60,18 +61,31 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     db_session.refresh(g2)
     source_position_1 = Position(
         game_id=g1.id,
-        fen="8/8/8/8/8/8/8/8 w - - 0 1",
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         side_to_move="w",
         canonical_id="initial",
     )
     source_position_2 = Position(
         game_id=g2.id,
-        fen="8/8/8/8/8/8/8/8 w - - 0 1",
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         side_to_move="w",
         canonical_id="initial",
     )
     db_session.add(source_position_1)
     db_session.add(source_position_2)
+    db_session.commit()
+    db_session.add_all(
+        [
+            EngineAnalysis(
+                position_id=source_position_1.id,
+                raw_result=[{"pv": ["e2e4", "e7e5"]}],
+            ),
+            EngineAnalysis(
+                position_id=source_position_2.id,
+                raw_result=[{"pv": ["e2e4", "e7e5"]}],
+            ),
+        ]
+    )
     db_session.commit()
 
     # Create sessions
@@ -85,7 +99,10 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     spec1 = {
         "schema_version": "1.0",
         "lesson_id": f"lesson_{uuid4()}",
-        "source": {"kind": "player_game", "fen": "8/8/8/8/8/8/8/8 w - - 0 1"},
+        "source": {
+            "kind": "player_game",
+            "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        },
         "diagnosis": {"primary": "tactics", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
@@ -94,7 +111,10 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     spec2 = {
         "schema_version": "1.0",
         "lesson_id": f"lesson_{uuid4()}",
-        "source": {"kind": "player_game", "fen": "8/8/8/8/8/8/8/8 w - - 0 1"},
+        "source": {
+            "kind": "player_game",
+            "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        },
         "diagnosis": {"primary": "tactics", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
@@ -116,20 +136,14 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     db_session.add(opp2)
     db_session.commit()
     db_session.add(
-        ReviewSchedule(
-            player_id=player_1, item_id=str(opp1.id), next_review_at=datetime.now(UTC)
-        )
+        ReviewSchedule(player_id=player_1, item_id=str(opp1.id), next_review_at=datetime.now(UTC))
     )
     db_session.add(
-        ReviewSchedule(
-            player_id=player_2, item_id=str(opp2.id), next_review_at=datetime.now(UTC)
-        )
+        ReviewSchedule(player_id=player_2, item_id=str(opp2.id), next_review_at=datetime.now(UTC))
     )
     db_session.commit()
     # Query for player_1
-    resp1 = client.get(
-        f"/v1/learning/session?player_id={player_1}", headers=player_1_headers
-    )
+    resp1 = client.get(f"/v1/learning/session?player_id={player_1}", headers=player_1_headers)
     assert resp1.status_code == 200
     data1 = resp1.json()
     lesson_ids_1 = [item["lesson_id"] for item in data1["lessons"]]
@@ -137,9 +151,7 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
     assert str(opp2.id) not in lesson_ids_1
 
     # Query for player_2
-    resp2 = client.get(
-        f"/v1/learning/session?player_id={player_2}", headers=player_2_headers
-    )
+    resp2 = client.get(f"/v1/learning/session?player_id={player_2}", headers=player_2_headers)
     assert resp2.status_code == 200
     data2 = resp2.json()
     lesson_ids_2 = [item["lesson_id"] for item in data2["lessons"]]
@@ -152,9 +164,7 @@ def test_static_catalog_items_are_not_served_to_profile_training(
 ) -> None:
     player_id = str(uuid4())
     headers = authorize(db_session, player_id)
-    response = client.get(
-        f"/v1/learning/session?player_id={player_id}", headers=headers
-    )
+    response = client.get(f"/v1/learning/session?player_id={player_id}", headers=headers)
 
     assert response.status_code == 200
     assert response.json()["lessons"] == []
@@ -173,12 +183,18 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
         db_session.flush()
         source_position = Position(
             game_id=game.id,
-            fen="8/8/8/8/8/8/8/8 w - - 0 1",
+            fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             side_to_move="w",
             canonical_id="initial",
         )
         db_session.add(source_position)
         db_session.flush()
+        db_session.add(
+            EngineAnalysis(
+                position_id=source_position.id,
+                raw_result=[{"pv": ["e2e4", "e7e5"]}],
+            )
+        )
         opportunity = PersistedLessonOpportunity(
             game_id=game.id,
             source_position_id=source_position.id,
@@ -186,7 +202,10 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
             lesson_spec={
                 "schema_version": "1.0",
                 "lesson_id": f"lesson-{uuid4()}",
-                "source": {"kind": "player_game", "fen": "8/8/8/8/8/8/8/8 w - - 0 1"},
+                "source": {
+                    "kind": "player_game",
+                    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                },
                 "diagnosis": {"primary": "tactics", "confidence": 1.0},
                 "objective": {"type": "find_best_move", "instruction": "Find it"},
                 "interaction": {
@@ -210,12 +229,8 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
     db_session.commit()
     db_session.expire_all()
 
-    response = client.get(
-        f"/v1/learning/session?player_id={player_id}", headers=headers
-    )
+    response = client.get(f"/v1/learning/session?player_id={player_id}", headers=headers)
 
     assert response.status_code == 200
     lesson_ids = [item["lesson_id"] for item in response.json()["lessons"]]
-    assert lesson_ids.index(str(opportunities[1].id)) < lesson_ids.index(
-        str(opportunities[0].id)
-    )
+    assert lesson_ids.index(str(opportunities[1].id)) < lesson_ids.index(str(opportunities[0].id))

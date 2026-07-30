@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import NoReturn
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token
-from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
@@ -55,6 +57,12 @@ def create_persisted_lesson(
     )
     db_session.add(source_position)
     db_session.flush()
+    db_session.add(
+        EngineAnalysis(
+            position_id=source_position.id,
+            raw_result=[{"pv": ["e2e4", "e7e5"]}],
+        )
+    )
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=source_position.id,
@@ -198,9 +206,7 @@ def test_session_loads_state_recent_verified_attempts_excludes_ungraded_and_stal
 
     state = load_player_session_state(db_session, player_id, now)
 
-    assert [attempt.lesson_id for attempt in state.recent_verified_attempts] == [
-        "verified-recent"
-    ]
+    assert [attempt.lesson_id for attempt in state.recent_verified_attempts] == ["verified-recent"]
 
 
 def test_session_priority_ranks_low_mastery_above_high_mastery(
@@ -265,9 +271,7 @@ def test_session_fatigue_shifts_composition_after_high_error_history(
     low_weakness = create_persisted_lesson(
         db_session, player_id, skill_id="tactics.rarely-missed", next_review_at=non_due
     )
-    create_persisted_lesson(
-        db_session, player_id, skill_id="tactics.mixed", next_review_at=non_due
-    )
+    create_persisted_lesson(db_session, player_id, skill_id="tactics.mixed", next_review_at=non_due)
     high_weakness = create_persisted_lesson(
         db_session, player_id, skill_id="tactics.often-missed", next_review_at=non_due
     )
@@ -327,3 +331,45 @@ def test_session_exploration_floor_guarantees_a_non_weakness_item(
     lesson_ids = {lesson["lesson_id"] for lesson in served.json()["lessons"]}
 
     assert str(exploration_opportunity.id) in lesson_ids
+
+
+def test_session_marks_and_excludes_reverified_invalid_lesson(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "invalid-lesson-player"
+    authorize_new_player(client, db_session, player_id)
+    opportunity = create_persisted_lesson(db_session, player_id)
+    opportunity.lesson_spec = {
+        **opportunity.lesson_spec,
+        "interaction": {
+            **opportunity.lesson_spec["interaction"],
+            "accepted_moves": [{"san": "d4"}],
+        },
+    }
+    db_session.add(opportunity)
+    db_session.commit()
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200
+    assert served.json()["lessons"] == []
+    db_session.refresh(opportunity)
+    assert opportunity.verification_status == "invalid"
+    assert opportunity.verification_error is not None
+
+
+def test_session_reuses_persisted_engine_analysis(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    player_id = "persisted-proof-player"
+    authorize_new_player(client, db_session, player_id)
+    opportunity = create_persisted_lesson(db_session, player_id)
+
+    def unexpected_stockfish_adapter(*_args: object, **_kwargs: object) -> NoReturn:
+        raise AssertionError("re-verification invoked Stockfish despite persisted analysis")
+
+    monkeypatch.setattr("scan64.api.learning.StockfishAdapter", unexpected_stockfish_adapter)
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200
+    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(opportunity.id)]
