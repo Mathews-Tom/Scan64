@@ -3,10 +3,12 @@ from __future__ import annotations
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
+import chess
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from scan64.content.transfer_catalog import TRANSFER_POSITION_CATALOG, seed_transfer_positions
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
@@ -408,3 +410,20 @@ def test_synthetic_cohort_transfer_measurement_pipeline(session: Session) -> Non
         (3, 3, 2, 2 / 3),
         (3, 3, 1, 1 / 3),
     ]
+
+
+def test_production_transfer_catalog_seeding_is_idempotent(session: Session) -> None:
+    seed_transfer_positions(session)
+    seed_transfer_positions(session)
+
+    positions = list(session.exec(select(TransferPosition)))
+
+    assert {position.id for position in positions} == {
+        definition.id for definition in TRANSFER_POSITION_CATALOG
+    }
+    for definition in TRANSFER_POSITION_CATALOG:
+        board = chess.Board(definition.fen)
+        assert board.is_valid()
+        assert chess.Move.from_uci(definition.solution_uci) in board.legal_moves
+    for skill_id in {definition.skill_id for definition in TRANSFER_POSITION_CATALOG}:
+        assert sum(position.skill_id == skill_id for position in positions) == 3

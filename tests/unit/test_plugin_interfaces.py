@@ -267,6 +267,7 @@ async def test_lifespan_binds_and_clears_the_seeded_detector_registry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(app_module, "create_db_and_tables", lambda: None)
+    monkeypatch.setattr(app_module, "seed_transfer_positions", lambda session: None)
 
     async with app_module.lifespan(app_module.app):
         assert app_module.app.state.plugin_registry is get_host_registry()

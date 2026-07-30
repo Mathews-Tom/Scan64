@@ -24,6 +24,7 @@ class TransferPosition(SQLModel, table=True):
     attacking_piece: str
     material_count: int
     move_number: int
+    solution_uci: str | None = None
 
 
 class TransferRetrievalError(ValueError):
@@ -202,13 +203,9 @@ def _validate_far_position(position: TransferPosition, role: str) -> None:
         raise TransferClassificationError(f"{role} position FEN must be legal") from error
 
     if position.material_count != len(board.piece_map()):
-        raise TransferClassificationError(
-            f"{role} material_count must match the FEN piece count"
-        )
+        raise TransferClassificationError(f"{role} material_count must match the FEN piece count")
     if position.move_number != board.fullmove_number:
-        raise TransferClassificationError(
-            f"{role} move_number must match the FEN full-move number"
-        )
+        raise TransferClassificationError(f"{role} move_number must match the FEN full-move number")
 
 
 def _transfer_variations(
