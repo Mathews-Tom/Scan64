@@ -19,9 +19,13 @@ from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportun
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.evaluation.transfer_measurement import (
+    PRODUCTION_TRANSFER_LIFECYCLE_PREFIX,
     TransferMeasurement,
+    TransferMeasurementReport,
     assign_production_transfer_measurements,
+    build_transfer_measurement_report,
     due_transfer_measurements,
+    record_transfer_measurement,
 )
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
@@ -51,7 +55,7 @@ class LessonAttemptCreate(BaseModel):
 
     session_id: str
     lesson_id: str
-    source_kind: Literal["persisted_opportunity", "opening_mission"]
+    source_kind: Literal["persisted_opportunity", "opening_mission", "transfer_measurement"]
     submitted_move: str | None = None
     elapsed_ms: int = Field(ge=0)
     hints_used: int = Field(ge=0)
@@ -288,6 +292,55 @@ def record_lesson_attempt(
             profile_update_result=attempt.profile_update_result,
         )
 
+    if attempt_in.source_kind == "transfer_measurement":
+        if attempt_in.submitted_move is None:
+            raise HTTPException(status_code=422, detail="Transfer attempts require a move")
+        try:
+            measurement_id = UUID(attempt_in.lesson_id)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=422, detail="Transfer measurement id must be a UUID"
+            ) from error
+        measurement = db.get(TransferMeasurement, measurement_id)
+        if measurement is None or measurement.player_id != study_session.player_id:
+            raise HTTPException(status_code=404, detail="Transfer measurement not found")
+        if measurement.target_move_uci is None:
+            raise HTTPException(
+                status_code=500, detail="Transfer measurement is missing its target move"
+            )
+        success = _submitted_move_is_accepted(
+            _transfer_measurement_lesson(measurement), attempt_in.submitted_move
+        )
+        completed_measurement = record_transfer_measurement(
+            db,
+            measurement_id=measurement.id,
+            player_id=study_session.player_id,
+            succeeded=success,
+            now=datetime.now(UTC),
+        )
+        attempt = LessonAttempt(
+            session_id=study_session.id,
+            player_id=study_session.player_id,
+            lesson_id=str(measurement.id),
+            source_kind=attempt_in.source_kind,
+            submitted_move=attempt_in.submitted_move,
+            elapsed_ms=attempt_in.elapsed_ms,
+            hints_used=attempt_in.hints_used,
+            success=completed_measurement.succeeded,
+            grading_status="verified",
+            profile_update_result="not_applicable",
+            completed_at=completed_measurement.completed_at,
+        )
+        db.add(attempt)
+        db.commit()
+        db.refresh(attempt)
+        return LessonAttemptRead(
+            id=attempt.id,
+            success=attempt.success,
+            grading_status=attempt.grading_status,
+            profile_update_result=attempt.profile_update_result,
+        )
+
     try:
         opportunity_id = UUID(attempt_in.lesson_id)
     except ValueError as error:
@@ -376,4 +429,19 @@ def record_lesson_attempt(
         success=attempt.success,
         grading_status=attempt.grading_status,
         profile_update_result=attempt.profile_update_result,
+    )
+
+
+@router.get("/transfer-report", response_model=TransferMeasurementReport)
+def get_transfer_report(
+    player_id: str,
+    skill_id: str,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> TransferMeasurementReport:
+    require_player_token(request, player_id, db)
+    return build_transfer_measurement_report(
+        db,
+        cohort_id=f"{PRODUCTION_TRANSFER_LIFECYCLE_PREFIX}:{player_id}:{skill_id}",
+        skill_id=skill_id,
     )

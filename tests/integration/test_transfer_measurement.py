@@ -481,3 +481,46 @@ def test_due_production_transfer_measurement_builds_a_lesson(session: Session) -
 
     assert lesson.source.kind == "custom"
     assert lesson.interaction.accepted_moves
+
+
+def test_completed_production_transfer_measurement_moves_its_report(
+    session: Session,
+) -> None:
+    now = datetime(2026, 7, 31, 12, 0, tzinfo=UTC)
+    player_id = "player-a"
+    skill_id = "tactics.pin"
+    seed_transfer_positions(session)
+    assigned = assign_production_transfer_measurements(
+        session,
+        player_id=player_id,
+        skill_id=skill_id,
+        target_difficulty=1300,
+        now=now,
+    )
+    pre_test = next(
+        measurement
+        for measurement in assigned
+        if measurement.measurement_point is MeasurementPoint.PRE_TEST
+    )
+
+    record_transfer_measurement(
+        session,
+        measurement_id=pre_test.id,
+        player_id=player_id,
+        succeeded=True,
+        now=now,
+    )
+    report = build_transfer_measurement_report(
+        session,
+        cohort_id=f"production-transfer:{player_id}:{skill_id}",
+        skill_id=skill_id,
+    )
+    pre_summary = next(
+        summary
+        for summary in report.measurements
+        if summary.measurement_point is MeasurementPoint.PRE_TEST
+    )
+
+    assert pre_summary.assigned_count == 1
+    assert pre_summary.completed_count == 1
+    assert pre_summary.successful_count == 1
