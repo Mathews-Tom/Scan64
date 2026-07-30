@@ -68,8 +68,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 else:
                     body += bytes(chunk)
 
-            skip_idempotency_cache = (
-                response.headers.get("Cache-Control") == "no-store"
+            skip_idempotency_cache = bool(
+                getattr(request.state, "skip_idempotency_cache", False)
             )
 
             # Reconstruct response to return it.

@@ -442,6 +442,7 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
         owner_player_id=owner_id,
         white=owner_id,
         black=participant_id,
+        headers={"White": owner_id, "Black": participant_id, "Event": "M42"},
     )
     db_session.add(game)
     db_session.flush()
@@ -482,12 +483,15 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
 
     assert deletion.status_code == 200
     assert deletion.json()["affected_rows"]["games_disowned"] == 1
-    assert deletion.headers["Cache-Control"] == "no-store"
+    assert "Cache-Control" not in deletion.headers
     db_session.expire_all()
     preserved_game = db_session.get(Game, game.id)
     assert preserved_game is not None
     assert preserved_game.owner_player_id is None
-    assert owner_id not in (preserved_game.white, preserved_game.black, preserved_game.pgn)
+    assert preserved_game.white == "Anonymous"
+    assert preserved_game.black == "Anonymous"
+    assert owner_id not in preserved_game.pgn
+    assert owner_id not in str(preserved_game.headers)
     assert not db_session.exec(
         select(PersistedLessonOpportunity).where(
             PersistedLessonOpportunity.player_id == owner_id

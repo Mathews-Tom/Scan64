@@ -4,7 +4,7 @@ import hashlib
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import update
 from sqlmodel import Session, col, delete, select
@@ -92,15 +92,13 @@ def export_player_data(
         if position_ids
         else []
     )
-    analysis_ids = [str(analysis.id) for analysis in engine_analyses]
     evidence = (
         session.exec(
             select(Evidence).where(
-                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids]),
-                col(Evidence.engine_analysis_id).in_(analysis_ids),
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
             )
         ).all()
-        if position_ids and analysis_ids
+        if position_ids
         else []
     )
     analysis_jobs = (
@@ -283,6 +281,7 @@ def import_player_data(
         ) from error
 
     game_ids = {game.id for game in games}
+    existing_games = {game.id: session.get(Game, game.id) for game in games}
     position_ids = {position.id for position in positions}
     position_ids_as_strings = {str(position_id) for position_id in position_ids}
     analysis_ids = {str(analysis.id) for analysis in engine_analyses}
@@ -300,7 +299,11 @@ def import_player_data(
             and play_session.game_id not in game_ids
             for play_session in play_sessions
         )
-        or any(game.owner_player_id not in (None, player_id) for game in games)
+        or any(game.owner_player_id != player_id for game in games)
+        or any(
+            existing_game is not None and existing_game.owner_player_id != player_id
+            for existing_game in existing_games.values()
+        )
         or any(skill_state.player_id != player_id for skill_state in skill_states)
         or any(schedule.player_id != player_id for schedule in review_schedules)
         or any(observation.player_id != player_id for observation in profile_observations)
@@ -444,7 +447,6 @@ class DeletionResponse(BaseModel):
 def delete_player_data(
     player_id: str,
     request: Request,
-    response: Response,
     req: DeletionRequest,
     session: Session = Depends(get_session),
 ) -> DeletionResponse:
@@ -480,6 +482,14 @@ def delete_player_data(
         )
         if game_ids
         else set()
+    )
+    disowned_game_ids = set(
+        session.exec(
+            select(Game.id).where(
+                col(Game.id).in_(shared_game_ids),
+                col(Game.owner_player_id) == player_id,
+            )
+        ).all()
     )
     owned_game_ids = list(game_ids - shared_game_ids)
     positions = (
@@ -540,7 +550,7 @@ def delete_player_data(
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
-        "games_disowned": len(shared_game_ids),
+        "games_disowned": len(disowned_game_ids),
         "positions": len(positions),
         "engine_analyses": len(engine_analyses),
         "analysis_jobs": len(analysis_jobs),
@@ -609,18 +619,16 @@ def delete_player_data(
     session.exec(delete(PlaySession).where(col(PlaySession.player_id) == player_id))
     if owned_game_ids:
         session.exec(delete(Game).where(col(Game.id).in_(owned_game_ids)))
-    if shared_game_ids:
+    if disowned_game_ids:
         session.exec(
             update(Game)
-            .where(
-                col(Game.id).in_(shared_game_ids),
-                col(Game.owner_player_id) == player_id,
-            )
+            .where(col(Game.id).in_(disowned_game_ids))
             .values(
                 owner_player_id=None,
                 pgn="",
                 white="Anonymous",
                 black="Anonymous",
+                headers={},
             )
         )
 
@@ -639,6 +647,6 @@ def delete_player_data(
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
-    response.headers["Cache-Control"] = "no-store"
+    request.state.skip_idempotency_cache = True
 
     return DeletionResponse(dry_run=False, affected_rows=affected_rows, audit_id=audit_id)
