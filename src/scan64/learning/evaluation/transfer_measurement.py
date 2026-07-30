@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
+import chess
 from sqlalchemy import Index, UniqueConstraint
 from sqlmodel import Field, Session, SQLModel, col, select
 
@@ -13,6 +14,7 @@ from scan64.learning.exercises.transfer import (
     TransferExercise,
     TransferKind,
     generate_near_transfer_exercise,
+    mirror_move,
     retrieve_positions_by_motif_and_difficulty,
 )
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -36,6 +38,7 @@ MEASUREMENT_POINTS: tuple[MeasurementPoint, ...] = (
     MeasurementPoint.DELAYED_TEST,
 )
 DEFAULT_DELAYED_TEST_INTERVAL = timedelta(days=7)
+PRODUCTION_TRANSFER_LIFECYCLE_PREFIX = "production-transfer"
 
 
 class TransferMeasurement(SQLModel, table=True):
@@ -70,6 +73,7 @@ class TransferMeasurement(SQLModel, table=True):
     transfer_kind: TransferKind
     scheduled_for: datetime | None = None
     completed_at: datetime | None = None
+    target_move_uci: str | None = None
     succeeded: bool | None = None
 
 
@@ -143,9 +147,7 @@ def instrument_transfer_measurements(
                 measurement_point=measurement_point,
                 exercise=exercise,
                 scheduled_for=(
-                    measurement_time
-                    if measurement_point is MeasurementPoint.PRE_TEST
-                    else None
+                    measurement_time if measurement_point is MeasurementPoint.PRE_TEST else None
                 ),
             )
             measurements.append(measurement)
@@ -338,6 +340,67 @@ def record_training_completion(
     session.refresh(immediate_post_test)
     session.refresh(delayed_test)
     return immediate_post_test, delayed_test
+
+
+def assign_production_transfer_measurements(
+    session: Session,
+    *,
+    player_id: str,
+    skill_id: str,
+    target_difficulty: float,
+    now: datetime,
+) -> tuple[TransferMeasurement, ...]:
+    cohort_id = f"{PRODUCTION_TRANSFER_LIFECYCLE_PREFIX}:{player_id}:{skill_id}"
+    existing = list(
+        session.exec(
+            select(TransferMeasurement)
+            .where(TransferMeasurement.cohort_id == cohort_id)
+            .where(TransferMeasurement.player_id == player_id)
+            .where(TransferMeasurement.skill_id == skill_id)
+        )
+    )
+    if existing:
+        return tuple(existing)
+
+    positions = retrieve_positions_by_motif_and_difficulty(
+        session,
+        skill_id=skill_id,
+        target_difficulty=target_difficulty,
+        difficulty_tolerance=500.0,
+        limit=len(MEASUREMENT_POINTS),
+    )
+    if len(positions) != len(MEASUREMENT_POINTS):
+        raise TransferMeasurementError(
+            "Three seeded transfer positions are required for production assignment"
+        )
+
+    assigned: list[TransferMeasurement] = []
+    for measurement_point, position in zip(MEASUREMENT_POINTS, positions, strict=True):
+        if position.solution_uci is None:
+            raise TransferMeasurementError("Transfer position is missing its solution UCI")
+        exercise = generate_near_transfer_exercise(position)
+        measurement = _measurement_from_exercise(
+            cohort_id=cohort_id,
+            player_id=player_id,
+            measurement_point=measurement_point,
+            exercise=exercise,
+            scheduled_for=(
+                _as_utc(now) if measurement_point is MeasurementPoint.PRE_TEST else None
+            ),
+        )
+        measurement.target_move_uci = mirror_move(chess.Move.from_uci(position.solution_uci)).uci()
+        assigned.append(measurement)
+        session.add(measurement)
+        if measurement_point is MeasurementPoint.PRE_TEST:
+            session.add(
+                ReviewSchedule(
+                    player_id=player_id,
+                    item_id=measurement.id,
+                    next_review_at=_as_utc(now),
+                )
+            )
+    session.flush()
+    return tuple(assigned)
 
 
 def _validate_instrumentation_request(

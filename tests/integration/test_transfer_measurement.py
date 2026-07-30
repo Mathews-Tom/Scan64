@@ -8,11 +8,13 @@ import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from scan64.api.learning import _transfer_measurement_lesson
 from scan64.content.transfer_catalog import TRANSFER_POSITION_CATALOG, seed_transfer_positions
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
     TransferMeasurementError,
+    assign_production_transfer_measurements,
     build_transfer_measurement_report,
     due_transfer_measurements,
     instrument_transfer_measurements,
@@ -427,3 +429,55 @@ def test_production_transfer_catalog_seeding_is_idempotent(session: Session) -> 
         assert chess.Move.from_uci(definition.solution_uci) in board.legal_moves
     for skill_id in {definition.skill_id for definition in TRANSFER_POSITION_CATALOG}:
         assert sum(position.skill_id == skill_id for position in positions) == 3
+
+
+def test_production_assignment_is_idempotent_and_due_in_later_session(
+    session: Session,
+) -> None:
+    now = datetime(2026, 7, 31, 12, 0, tzinfo=UTC)
+    seed_transfer_positions(session)
+
+    assigned = assign_production_transfer_measurements(
+        session,
+        player_id="player-a",
+        skill_id="tactics.pin",
+        target_difficulty=1300,
+        now=now,
+    )
+    repeated = assign_production_transfer_measurements(
+        session,
+        player_id="player-a",
+        skill_id="tactics.pin",
+        target_difficulty=1300,
+        now=now,
+    )
+
+    assert len(assigned) == 3
+    assert {measurement.measurement_point for measurement in assigned} == set(MeasurementPoint)
+    assert all(measurement.target_move_uci is not None for measurement in assigned)
+    assert {measurement.id for measurement in repeated} == {
+        measurement.id for measurement in assigned
+    }
+    assert [
+        measurement.measurement_point
+        for measurement in due_transfer_measurements(session, player_id="player-a", now=now)
+    ] == [MeasurementPoint.PRE_TEST]
+
+
+def test_due_production_transfer_measurement_builds_a_lesson(session: Session) -> None:
+    now = datetime(2026, 7, 31, 12, 0, tzinfo=UTC)
+    seed_transfer_positions(session)
+    assign_production_transfer_measurements(
+        session,
+        player_id="player-a",
+        skill_id="tactics.pin",
+        target_difficulty=1300,
+        now=now,
+    )
+
+    lesson = _transfer_measurement_lesson(
+        due_transfer_measurements(session, player_id="player-a", now=now)[0]
+    )
+
+    assert lesson.source.kind == "custom"
+    assert lesson.interaction.accepted_moves
