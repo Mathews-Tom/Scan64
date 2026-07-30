@@ -36,6 +36,7 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
     assert opportunity_columns["source_position_id"]["nullable"] is False
     assert opportunity_columns["verification_status"]["nullable"] is False
     assert opportunity_columns["verification_error"]["nullable"] is True
+    assert "verification_analysis_id" in opportunity_columns
 
 
 def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path: Path) -> None:

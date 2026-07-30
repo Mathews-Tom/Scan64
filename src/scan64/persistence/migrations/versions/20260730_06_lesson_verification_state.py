@@ -33,6 +33,12 @@ def upgrade() -> None:
             )
         if "verification_error" not in columns:
             batch.add_column(sa.Column("verification_error", sa.Text(), nullable=True))
+        if "verification_analysis_id" not in columns:
+            batch.add_column(sa.Column("verification_analysis_id", sa.Uuid(), nullable=True))
+            batch.create_index(
+                "ix_persistedlessonopportunity_verification_analysis_id",
+                ["verification_analysis_id"],
+            )
 
 
 def downgrade() -> None:
@@ -45,6 +51,10 @@ def downgrade() -> None:
     with op.batch_alter_table("persistedlessonopportunity") as batch:
         if "ix_persistedlessonopportunity_verification_status" in index_names:
             batch.drop_index("ix_persistedlessonopportunity_verification_status")
+        if "ix_persistedlessonopportunity_verification_analysis_id" in index_names:
+            batch.drop_index("ix_persistedlessonopportunity_verification_analysis_id")
+        if "verification_analysis_id" in columns:
+            batch.drop_column("verification_analysis_id")
         if "verification_error" in columns:
             batch.drop_column("verification_error")
         if "verification_status" in columns:

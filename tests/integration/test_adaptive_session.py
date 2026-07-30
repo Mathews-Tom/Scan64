@@ -57,16 +57,17 @@ def create_persisted_lesson(
     )
     db_session.add(source_position)
     db_session.flush()
-    db_session.add(
-        EngineAnalysis(
-            position_id=source_position.id,
-            raw_result=[{"pv": ["e2e4", "e7e5"]}],
-        )
+    analysis = EngineAnalysis(
+        position_id=source_position.id,
+        raw_result=[{"pv": ["e2e4", "e7e5"]}],
     )
+    db_session.add(analysis)
+    db_session.flush()
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=source_position.id,
         player_id=player_id,
+        verification_analysis_id=analysis.id,
         lesson_spec=lesson_spec(),
     )
     db_session.add(opportunity)
@@ -356,6 +357,18 @@ def test_session_marks_and_excludes_reverified_invalid_lesson(
     db_session.refresh(opportunity)
     assert opportunity.verification_status == "invalid"
     assert opportunity.verification_error is not None
+    rejected_attempt = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": served.json()["session_id"],
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e2e4",
+            "elapsed_ms": 1,
+            "hints_used": 0,
+        },
+    )
+    assert rejected_attempt.status_code == 409
 
 
 def test_session_reuses_persisted_engine_analysis(

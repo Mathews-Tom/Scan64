@@ -33,6 +33,8 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis) -> None:
         raise LessonVerificationError(f"Invalid FEN: {e}")
 
     # 2. Every accepted move must equal the engine- or tablebase-proved move.
+    if not spec.interaction.accepted_moves:
+        raise LessonVerificationError("Lesson must define at least one accepted move")
     objective_move = _objective_move(board, objective_analysis)
     for accepted_move in spec.interaction.accepted_moves:
         try:
@@ -46,8 +48,6 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis) -> None:
                 f"Accepted move {accepted_move.san} does not match the "
                 f"engine-confirmed objective move {board.san(objective_move)}"
             )
-
-    spec.verification.status = "verified"
 
     # 4. Provenance retention
     if not spec.source.fen or not spec.diagnosis.primary:
@@ -65,6 +65,8 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis) -> None:
     if spec.explanation:
         for vis in spec.explanation.visualizations:
             _verify_visualization(vis)
+
+    spec.verification.status = "verified"
 
 
 def _objective_move(board: chess.Board, analysis: EngineAnalysis) -> chess.Move:

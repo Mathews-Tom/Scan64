@@ -201,6 +201,7 @@ async def run_analysis_for_game(
             game_id=game.id,
             source_position_id=source_position.id,
             player_id=game.owner_player_id,
+            verification_analysis_id=candidate.before_analysis.id,
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)

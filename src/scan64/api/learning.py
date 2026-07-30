@@ -16,6 +16,7 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
@@ -57,45 +58,86 @@ class LessonAttemptRead(BaseModel):
     profile_update_result: str
 
 
+class ObjectiveAnalysisUnavailable(Exception):
+    pass
+
+
+def _lesson_board(spec: LessonSpec) -> chess.Board:
+    try:
+        board = chess.Board(spec.source.fen)
+    except ValueError as error:
+        raise LessonVerificationError(f"Invalid FEN: {error}") from None
+    if not board.is_valid():
+        raise LessonVerificationError("FEN does not represent a legal chess position")
+    return board
+
+
 def _objective_analysis_for_lesson(
-    opportunity: PersistedLessonOpportunity, db: Session
-) -> EngineAnalysis:
-    analysis = db.exec(
+    opportunity: PersistedLessonOpportunity,
+    spec: LessonSpec,
+    db: Session,
+    *,
+    allow_fallback: bool,
+) -> tuple[EngineAnalysis, bool]:
+    _lesson_board(spec)
+    source_position = db.get(Position, opportunity.source_position_id)
+    if source_position is None or source_position.fen != spec.source.fen:
+        raise LessonVerificationError("Lesson source does not match its persisted position")
+
+    if opportunity.verification_analysis_id is not None:
+        analysis = db.get(EngineAnalysis, opportunity.verification_analysis_id)
+        if analysis is not None:
+            return analysis, False
+
+    existing_analyses = db.exec(
         select(EngineAnalysis)
         .where(EngineAnalysis.position_id == opportunity.source_position_id)
         .order_by(col(EngineAnalysis.created_at).desc(), col(EngineAnalysis.id).desc())
-    ).first()
-    if analysis is not None:
-        return analysis
+    ).all()
+    for analysis in existing_analyses:
+        if analysis.raw_result:
+            opportunity.verification_analysis_id = analysis.id
+            return analysis, False
 
+    if not allow_fallback:
+        raise ObjectiveAnalysisUnavailable("Objective engine analysis is deferred")
     try:
         analysis = asyncio.run(
-            StockfishAdapter(StockfishConfig()).analyze_position(
-                opportunity.lesson_spec["source"]["fen"], nodes=100_000
-            )
+            StockfishAdapter(StockfishConfig()).analyze_position(spec.source.fen, nodes=100_000)
         )
     except (OSError, chess.engine.EngineError) as error:
-        raise LessonVerificationError("Objective engine analysis is unavailable") from error
+        raise ObjectiveAnalysisUnavailable("Objective engine analysis is unavailable") from error
     analysis.position_id = opportunity.source_position_id
     db.add(analysis)
-    return analysis
+    db.flush()
+    opportunity.verification_analysis_id = analysis.id
+    return analysis, True
 
 
 def _reverify_persisted_lesson(
-    opportunity: PersistedLessonOpportunity, db: Session
-) -> LessonSpec | None:
+    opportunity: PersistedLessonOpportunity, db: Session, *, allow_fallback: bool
+) -> tuple[LessonSpec | None, bool]:
     try:
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
-        verify_lesson(spec, _objective_analysis_for_lesson(opportunity, db))
-    except (KeyError, LessonVerificationError, TypeError, ValidationError) as error:
+        analysis, used_fallback = _objective_analysis_for_lesson(
+            opportunity, spec, db, allow_fallback=allow_fallback
+        )
+        verify_lesson(spec, analysis)
+    except ObjectiveAnalysisUnavailable as error:
+        opportunity.verification_status = "unavailable"
+        opportunity.verification_error = str(error)
+        return None, False
+    except (KeyError, LessonVerificationError, TypeError, ValidationError, ValueError) as error:
         opportunity.verification_status = "invalid"
         opportunity.verification_error = str(error)
-        return None
+        return None, False
 
     opportunity.verification_status = "verified"
     opportunity.verification_error = None
-    opportunity.lesson_spec = spec.model_dump(mode="json")
-    return spec
+    verified_spec = spec.model_dump(mode="json")
+    if verified_spec != opportunity.lesson_spec:
+        opportunity.lesson_spec = verified_spec
+    return spec, used_fallback
 
 
 @router.get("/session", response_model=TrainingSessionRead)
@@ -113,15 +155,27 @@ def get_training_session(
     opportunities = db.exec(
         select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == player_id)
     ).all()
+    fallbacks_remaining = 1
     for opportunity in opportunities:
         schedule = state.active_reviews.get(str(opportunity.id))
         if schedule is None:
             continue
+        spec: LessonSpec
         if opportunity.verification_status == "invalid":
             continue
-        spec = _reverify_persisted_lesson(opportunity, db)
-        if spec is None:
-            continue
+        if opportunity.verification_status == "verified":
+            spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        else:
+            reverified_spec, used_fallback = _reverify_persisted_lesson(
+                opportunity,
+                db,
+                allow_fallback=fallbacks_remaining > 0,
+            )
+            if used_fallback:
+                fallbacks_remaining -= 1
+            if reverified_spec is None:
+                continue
+            spec = reverified_spec
         spec.lesson_id = str(opportunity.id)
         is_due = schedule.is_due(now)
         weakness_severity = compute_weakness_severity(state.skill_for(schedule.skill_id))

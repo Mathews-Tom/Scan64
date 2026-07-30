@@ -45,3 +45,11 @@ def test_verification_marks_an_engine_confirmed_lesson_verified() -> None:
     verify_lesson(lesson, _analysis())
 
     assert lesson.verification.status == "verified"
+
+
+def test_verification_rejects_a_lesson_without_accepted_moves() -> None:
+    lesson = _lesson("e4")
+    lesson.interaction.accepted_moves = []
+
+    with pytest.raises(LessonVerificationError, match="at least one accepted move"):
+        verify_lesson(lesson, _analysis())

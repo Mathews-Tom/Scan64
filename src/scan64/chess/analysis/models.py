@@ -50,4 +50,5 @@ class PersistedLessonOpportunity(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     lesson_spec: dict[str, Any] = Field(sa_type=JSON)
     verification_status: str = Field(default="unverified", index=True)
+    verification_analysis_id: UUID | None = Field(default=None, index=True)
     verification_error: str | None = None
