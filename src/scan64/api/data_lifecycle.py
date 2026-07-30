@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
+from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -447,7 +449,16 @@ def delete_player_data(
         if game_ids
         else set()
     )
-    owned_game_ids = [game_id for game_id in game_ids if game_id not in shared_game_ids]
+    owned_game_ids = list(
+        {
+            *(
+                session.exec(
+                    select(Game.id).where(col(Game.owner_player_id) == player_id)
+                ).all()
+            ),
+            *(game_id for game_id in game_ids if game_id not in shared_game_ids),
+        }
+    )
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(owned_game_ids))).all()
         if owned_game_ids
@@ -475,6 +486,24 @@ def delete_player_data(
         if owned_game_ids
         else []
     )
+    evidence = (
+        session.exec(
+            select(Evidence).where(
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
+            )
+        ).all()
+        if position_ids
+        else []
+    )
+    profile_observations = session.exec(
+        select(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
+    ).all()
+    lesson_attempts = session.exec(
+        select(LessonAttempt).where(col(LessonAttempt.player_id) == player_id)
+    ).all()
+    transfer_measurements = session.exec(
+        select(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
+    ).all()
 
     coach_student_links = session.exec(
         select(CoachStudentLink).where(
@@ -492,6 +521,10 @@ def delete_player_data(
         "engine_analyses": len(engine_analyses),
         "analysis_jobs": len(analysis_jobs),
         "lesson_opportunities": len(lesson_opportunities),
+        "evidence": len(evidence),
+        "profile_observations": len(profile_observations),
+        "lesson_attempts": len(lesson_attempts),
+        "transfer_measurements": len(transfer_measurements),
         "skill_states": len(
             session.exec(select(SkillState).where(col(SkillState.player_id) == player_id)).all()
         ),
@@ -516,8 +549,20 @@ def delete_player_data(
 
     if position_ids:
         session.exec(
+            delete(Evidence).where(
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
+            )
+        )
+        session.exec(
             delete(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
         )
+    session.exec(
+        delete(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
+    )
+    session.exec(delete(LessonAttempt).where(col(LessonAttempt.player_id) == player_id))
+    session.exec(
+        delete(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
+    )
     if owned_game_ids:
         session.exec(
             delete(PersistedLessonOpportunity).where(
@@ -545,6 +590,12 @@ def delete_player_data(
         session.delete(profile)
     session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)
+    principal = hashlib.sha256(request.headers["Authorization"].encode("utf-8")).hexdigest()
+    session.exec(
+        delete(IdempotencyRecord).where(
+            col(IdempotencyRecord.idempotency_key).contains(f":{principal}:")
+        )
+    )
 
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))

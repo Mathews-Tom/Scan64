@@ -76,7 +76,14 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type=response.media_type,
             )
 
-            if 200 <= response.status_code < 300:
+            if (
+                200 <= response.status_code < 300
+                and not (
+                    request.method == "DELETE"
+                    and request.url.path.startswith("/v1/players/")
+                    and request.url.path.endswith("/data")
+                )
+            ):
                 new_record = IdempotencyRecord(
                     idempotency_key=record_key,
                     status_code=response.status_code,
