@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-import pytest
 from sqlalchemy import Column, MetaData, String, Table
 from sqlmodel import SQLModel
 
@@ -117,10 +116,6 @@ def test_new_player_scoped_table_requires_lifecycle_registration() -> None:
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="M42 export, import, and deletion coverage lands in the follow-on stack slices",
-)
 def test_export_archive_has_a_field_for_every_lifecycle_record() -> None:
     missing_fields = set(ARCHIVE_FIELDS.values()) - set(ExportArchive.model_fields)
 

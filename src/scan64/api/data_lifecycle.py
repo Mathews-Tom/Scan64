@@ -18,8 +18,11 @@ from scan64.chess.analysis.models import (
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
-from scan64.content.models import ContentAttempt, StudySession
-from scan64.learning.profiling.models import SkillState
+from scan64.content.models import ContentAttempt, LessonAttempt, StudySession
+from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
+from scan64.learning.evidence.models import Evidence
+from scan64.learning.exercises.transfer import TransferPosition
+from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
@@ -41,6 +44,12 @@ class ExportArchive(BaseModel):
     engine_analyses: list[dict[str, Any]] = Field(default_factory=list)
     analysis_jobs: list[dict[str, Any]] = Field(default_factory=list)
     lesson_opportunities: list[dict[str, Any]] = Field(default_factory=list)
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    profile_observations: list[dict[str, Any]] = Field(default_factory=list)
+    lesson_attempts: list[dict[str, Any]] = Field(default_factory=list)
+    transfer_positions: list[dict[str, Any]] = Field(default_factory=list)
+    transfer_measurements: list[dict[str, Any]] = Field(default_factory=list)
+    coach_student_links: list[dict[str, Any]] = Field(default_factory=list)
     skill_states: list[dict[str, Any]] = Field(default_factory=list)
     review_schedules: list[dict[str, Any]] = Field(default_factory=list)
     study_sessions: list[dict[str, Any]] = Field(default_factory=list)
@@ -62,10 +71,15 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    game_ids = list(
-        {play_session.game_id for play_session in play_sessions if play_session.game_id}
-    )
-    games = session.exec(select(Game).where(col(Game.id).in_(game_ids))).all() if game_ids else []
+    session_game_ids = {
+        play_session.game_id for play_session in play_sessions if play_session.game_id is not None
+    }
+    games = session.exec(
+        select(Game).where(
+            (col(Game.owner_player_id) == player_id) | (col(Game.id).in_(session_game_ids))
+        )
+    ).all()
+    game_ids = [game.id for game in games]
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(game_ids))).all()
         if game_ids
@@ -77,6 +91,17 @@ def export_player_data(
             select(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
         ).all()
         if position_ids
+        else []
+    )
+    analysis_ids = [str(analysis.id) for analysis in engine_analyses]
+    evidence = (
+        session.exec(
+            select(Evidence).where(
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids]),
+                col(Evidence.engine_analysis_id).in_(analysis_ids),
+            )
+        ).all()
+        if position_ids and analysis_ids
         else []
     )
     analysis_jobs = (
@@ -93,6 +118,9 @@ def export_player_data(
         if game_ids
         else []
     )
+    profile_observations = session.exec(
+        select(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
+    ).all()
     skill_states = session.exec(
         select(SkillState).where(col(SkillState.player_id) == player_id)
     ).all()
@@ -104,6 +132,29 @@ def export_player_data(
     ).all()
     content_attempts = session.exec(
         select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
+    ).all()
+    lesson_attempts = session.exec(
+        select(LessonAttempt).where(col(LessonAttempt.player_id) == player_id)
+    ).all()
+    transfer_measurements = session.exec(
+        select(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
+    ).all()
+    transfer_position_ids = {
+        position_id
+        for measurement in transfer_measurements
+        for position_id in (measurement.source_position_id, measurement.target_position_id)
+        if position_id is not None
+    }
+    transfer_positions = (
+        session.exec(select(TransferPosition).where(col(TransferPosition.id).in_(transfer_position_ids))).all()
+        if transfer_position_ids
+        else []
+    )
+    coach_student_links = session.exec(
+        select(CoachStudentLink).where(
+            (col(CoachStudentLink.coach_id) == player_id)
+            | (col(CoachStudentLink.student_id) == player_id)
+        )
     ).all()
 
     return ExportArchive(
@@ -117,6 +168,16 @@ def export_player_data(
         lesson_opportunities=[
             opportunity.model_dump(mode="json") for opportunity in lesson_opportunities
         ],
+        evidence=[item.model_dump(mode="json") for item in evidence],
+        profile_observations=[
+            observation.model_dump(mode="json") for observation in profile_observations
+        ],
+        lesson_attempts=[attempt.model_dump(mode="json") for attempt in lesson_attempts],
+        transfer_positions=[position.model_dump(mode="json") for position in transfer_positions],
+        transfer_measurements=[
+            measurement.model_dump(mode="json") for measurement in transfer_measurements
+        ],
+        coach_student_links=[link.model_dump(mode="json") for link in coach_student_links],
         skill_states=[skill_state.model_dump(mode="json") for skill_state in skill_states],
         review_schedules=[
             review_schedule.model_dump(mode="json") for review_schedule in review_schedules
@@ -166,6 +227,20 @@ def import_player_data(
             PersistedLessonOpportunity.model_validate(data)
             for data in archive.lesson_opportunities
         ]
+        evidence = [Evidence.model_validate(data) for data in archive.evidence]
+        profile_observations = [
+            ProfileObservation.model_validate(data) for data in archive.profile_observations
+        ]
+        lesson_attempts = [LessonAttempt.model_validate(data) for data in archive.lesson_attempts]
+        transfer_positions = [
+            TransferPosition.model_validate(data) for data in archive.transfer_positions
+        ]
+        transfer_measurements = [
+            TransferMeasurement.model_validate(data) for data in archive.transfer_measurements
+        ]
+        coach_student_links = [
+            CoachStudentLink.model_validate(data) for data in archive.coach_student_links
+        ]
         skill_states = [SkillState.model_validate(data) for data in archive.skill_states]
         review_schedules = [
             ReviewSchedule.model_validate(data) for data in archive.review_schedules
@@ -181,33 +256,76 @@ def import_player_data(
             status_code=400, detail="Invalid archive: malformed records"
         ) from error
 
-    game_ids = {play_session.game_id for play_session in play_sessions if play_session.game_id}
+    game_ids = {game.id for game in games}
     position_ids = {position.id for position in positions}
+    position_ids_as_strings = {str(position_id) for position_id in position_ids}
+    analysis_ids = {str(analysis.id) for analysis in engine_analyses}
     positions_by_id = {position.id: position for position in positions}
     study_session_ids = {study_session.id for study_session in study_sessions}
+    lesson_opportunity_ids = {opportunity.id for opportunity in lesson_opportunities}
+    transfer_position_ids = {position.id for position in transfer_positions}
     has_foreign_owner = (
         player.id != player_id
         or profile is not None
         and profile.player_id != player_id
-        or any(play_session.player_id != player_id for play_session in play_sessions)
+        or any(
+            play_session.player_id != player_id
+            or play_session.game_id is not None
+            and play_session.game_id not in game_ids
+            for play_session in play_sessions
+        )
+        or any(game.owner_player_id not in (None, player_id) for game in games)
         or any(skill_state.player_id != player_id for skill_state in skill_states)
         or any(schedule.player_id != player_id for schedule in review_schedules)
+        or any(observation.player_id != player_id for observation in profile_observations)
         or any(study_session.player_id != player_id for study_session in study_sessions)
         or any(content_attempt.player_id != player_id for content_attempt in content_attempts)
-        or any(
-            content_attempt.session_id is not None
-            and content_attempt.session_id not in study_session_ids
-            for content_attempt in content_attempts
-        )
-        or {game.id for game in games} != game_ids
+        or any(attempt.player_id != player_id for attempt in lesson_attempts)
+        or any(measurement.player_id != player_id for measurement in transfer_measurements)
         or any(position.game_id not in game_ids for position in positions)
         or any(analysis.position_id not in position_ids for analysis in engine_analyses)
         or any(analysis_job.game_id not in game_ids for analysis_job in analysis_jobs)
+        or any(
+            item.position_id not in position_ids_as_strings
+            or item.engine_analysis_id not in analysis_ids
+            for item in evidence
+        )
         or any(
             opportunity.source_position_id not in positions_by_id
             or positions_by_id[opportunity.source_position_id].game_id
             != opportunity.game_id
             for opportunity in lesson_opportunities
+        )
+        or any(
+            observation.game_id not in {str(game_id) for game_id in game_ids}
+            or observation.position_id not in position_ids_as_strings
+            for observation in profile_observations
+        )
+        or any(
+            attempt.session_id not in study_session_ids
+            or attempt.opportunity_id is not None
+            and attempt.opportunity_id not in lesson_opportunity_ids
+            for attempt in lesson_attempts
+        )
+        or any(
+            measurement.source_position_id not in transfer_position_ids
+            or measurement.target_position_id is not None
+            and measurement.target_position_id not in transfer_position_ids
+            for measurement in transfer_measurements
+        )
+        or any(
+            player_id not in (link.coach_id, link.student_id)
+            or session.get(
+                Player,
+                link.student_id if link.coach_id == player_id else link.coach_id,
+            )
+            is None
+            for link in coach_student_links
+        )
+        or any(
+            content_attempt.session_id is not None
+            and content_attempt.session_id not in study_session_ids
+            for content_attempt in content_attempts
         )
     )
     if has_foreign_owner:
@@ -240,6 +358,25 @@ def import_player_data(
     for opportunity in lesson_opportunities:
         if session.get(PersistedLessonOpportunity, opportunity.id) is None:
             session.add(opportunity)
+    for item in evidence:
+        if session.get(Evidence, item.evidence_id) is None:
+            session.add(item)
+
+    for observation in profile_observations:
+        session.add(observation)
+
+    for transfer_position in transfer_positions:
+        if session.get(TransferPosition, transfer_position.id) is None:
+            session.add(transfer_position)
+
+    for measurement in transfer_measurements:
+        if session.get(TransferMeasurement, measurement.id) is None:
+            session.add(measurement)
+
+    for link in coach_student_links:
+        if session.get(CoachStudentLink, (link.coach_id, link.student_id)) is None:
+            session.add(link)
+
 
     for play_session in play_sessions:
         session.add(play_session)
@@ -255,6 +392,9 @@ def import_player_data(
 
     for content_attempt in content_attempts:
         session.add(content_attempt)
+
+    for lesson_attempt in lesson_attempts:
+        session.add(lesson_attempt)
 
     session.commit()
     return {"status": "imported"}
