@@ -11,7 +11,7 @@ from scan64.coach.models import CoachStudentLink
 
 
 def create_game_records(session: Session, player_id: str) -> dict[str, object]:
-    game = Game(pgn="1. e4 e5")
+    game = Game(pgn="1. e4 e5", owner_player_id=player_id)
     session.add(game)
     session.commit()
     session.refresh(game)
@@ -192,6 +192,47 @@ def test_import_rejects_foreign_diagnosis_source_position(
     assert response.json()["detail"] == (
         "Invalid archive: records do not belong to the authorized player"
     )
+
+
+def test_import_rejects_archive_claiming_foreign_game(
+    client: TestClient, db_session: Session
+) -> None:
+    victim_id = "foreign-game-owner"
+    attacker_id = "foreign-game-attacker"
+    _victim_token = create_player_token(client, victim_id, "Victim")
+    attacker_token = create_player_token(client, attacker_id, "Attacker")
+    victim_game = Game(pgn="1. e4 e5", owner_player_id=victim_id)
+    db_session.add(victim_game)
+    db_session.commit()
+    db_session.refresh(victim_game)
+
+    exported = client.post(
+        "/v1/exports",
+        json={"player_id": attacker_id},
+        headers=authorization_header(attacker_token),
+    )
+    assert exported.status_code == 200
+    archive = exported.json()
+    deleted = client.request(
+        "DELETE",
+        f"/v1/players/{attacker_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{attacker_id}"},
+        headers=authorization_header(attacker_token),
+    )
+    assert deleted.status_code == 200
+    forged_game = victim_game.model_dump(mode="json")
+    forged_game["owner_player_id"] = None
+    archive["games"] = [forged_game]
+    archive["play_sessions"] = [
+        PlaySession(player_id=attacker_id, game_id=victim_game.id).model_dump(mode="json")
+    ]
+
+    response = client.post(
+        "/v1/imports", json=archive, headers=authorization_header(attacker_token)
+    )
+
+    assert response.status_code == 400
+    assert db_session.get(Game, victim_game.id) is not None
 def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_session: Session):
     player_id = "test-delete-user"
     access_token = create_player_token(client, player_id, "Delete User")
@@ -208,13 +249,19 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
     assert data["dry_run"] is True
     assert data["affected_rows"] == {
         "player": 1,
+        "player_credentials": 1,
         "profile": 1,
         "play_sessions": 1,
         "games": 1,
+        "games_disowned": 0,
         "positions": 1,
         "engine_analyses": 1,
         "analysis_jobs": 1,
         "lesson_opportunities": 1,
+        "evidence": 0,
+        "profile_observations": 0,
+        "lesson_attempts": 0,
+        "transfer_measurements": 0,
         "skill_states": 0,
         "review_schedules": 0,
         "study_sessions": 0,

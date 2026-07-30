@@ -68,7 +68,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 else:
                     body += bytes(chunk)
 
-            # Reconstruct response to return it
+            skip_idempotency_cache = bool(
+                getattr(request.state, "skip_idempotency_cache", False)
+            )
+
+            # Reconstruct response to return it.
             reconstructed_response = Response(
                 content=body,
                 status_code=response.status_code,
@@ -76,7 +80,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type=response.media_type,
             )
 
-            if 200 <= response.status_code < 300:
+            if 200 <= response.status_code < 300 and not skip_idempotency_cache:
                 new_record = IdempotencyRecord(
                     idempotency_key=record_key,
                     status_code=response.status_code,

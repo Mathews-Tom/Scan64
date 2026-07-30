@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import update
 from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
+from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -71,15 +74,11 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    session_game_ids = {
-        play_session.game_id for play_session in play_sessions if play_session.game_id is not None
-    }
     games = session.exec(
-        select(Game).where(
-            (col(Game.owner_player_id) == player_id) | (col(Game.id).in_(session_game_ids))
-        )
+        select(Game).where(col(Game.owner_player_id) == player_id)
     ).all()
     game_ids = [game.id for game in games]
+    archived_game_ids = set(game_ids)
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(game_ids))).all()
         if game_ids
@@ -93,15 +92,13 @@ def export_player_data(
         if position_ids
         else []
     )
-    analysis_ids = [str(analysis.id) for analysis in engine_analyses]
     evidence = (
         session.exec(
             select(Evidence).where(
-                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids]),
-                col(Evidence.engine_analysis_id).in_(analysis_ids),
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
             )
         ).all()
-        if position_ids and analysis_ids
+        if position_ids
         else []
     )
     analysis_jobs = (
@@ -118,9 +115,19 @@ def export_player_data(
         if game_ids
         else []
     )
-    profile_observations = session.exec(
-        select(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
-    ).all()
+    profile_observations = (
+        session.exec(
+            select(ProfileObservation).where(
+                col(ProfileObservation.player_id) == player_id,
+                col(ProfileObservation.game_id).in_([str(game_id) for game_id in game_ids]),
+                col(ProfileObservation.position_id).in_(
+                    [str(position_id) for position_id in position_ids]
+                ),
+            )
+        ).all()
+        if game_ids and position_ids
+        else []
+    )
     skill_states = session.exec(
         select(SkillState).where(col(SkillState.player_id) == player_id)
     ).all()
@@ -130,12 +137,20 @@ def export_player_data(
     study_sessions = session.exec(
         select(StudySession).where(col(StudySession.player_id) == player_id)
     ).all()
+    study_session_ids = [study_session.id for study_session in study_sessions]
     content_attempts = session.exec(
         select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
     ).all()
-    lesson_attempts = session.exec(
-        select(LessonAttempt).where(col(LessonAttempt.player_id) == player_id)
-    ).all()
+    lesson_attempts = (
+        session.exec(
+            select(LessonAttempt).where(
+                col(LessonAttempt.player_id) == player_id,
+                col(LessonAttempt.session_id).in_(study_session_ids),
+            )
+        ).all()
+        if study_session_ids
+        else []
+    )
     transfer_measurements = session.exec(
         select(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
     ).all()
@@ -146,7 +161,11 @@ def export_player_data(
         if position_id is not None
     }
     transfer_positions = (
-        session.exec(select(TransferPosition).where(col(TransferPosition.id).in_(transfer_position_ids))).all()
+        session.exec(
+            select(TransferPosition).where(
+                col(TransferPosition.id).in_(transfer_position_ids)
+            )
+        ).all()
         if transfer_position_ids
         else []
     )
@@ -160,7 +179,12 @@ def export_player_data(
     return ExportArchive(
         player=player.model_dump(mode="json"),
         profile=profile.model_dump(mode="json") if profile else None,
-        play_sessions=[play_session.model_dump(mode="json") for play_session in play_sessions],
+        play_sessions=[
+            play_session.model_copy(update={"game_id": None}).model_dump(mode="json")
+            if play_session.game_id not in archived_game_ids
+            else play_session.model_dump(mode="json")
+            for play_session in play_sessions
+        ],
         games=[game.model_dump(mode="json") for game in games],
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
@@ -257,6 +281,7 @@ def import_player_data(
         ) from error
 
     game_ids = {game.id for game in games}
+    existing_games = {game.id: session.get(Game, game.id) for game in games}
     position_ids = {position.id for position in positions}
     position_ids_as_strings = {str(position_id) for position_id in position_ids}
     analysis_ids = {str(analysis.id) for analysis in engine_analyses}
@@ -274,7 +299,11 @@ def import_player_data(
             and play_session.game_id not in game_ids
             for play_session in play_sessions
         )
-        or any(game.owner_player_id not in (None, player_id) for game in games)
+        or any(game.owner_player_id != player_id for game in games)
+        or any(
+            existing_game is not None and existing_game.owner_player_id != player_id
+            for existing_game in existing_games.values()
+        )
         or any(skill_state.player_id != player_id for skill_state in skill_states)
         or any(schedule.player_id != player_id for schedule in review_schedules)
         or any(observation.player_id != player_id for observation in profile_observations)
@@ -306,6 +335,10 @@ def import_player_data(
             or attempt.opportunity_id is not None
             and attempt.opportunity_id not in lesson_opportunity_ids
             for attempt in lesson_attempts
+        )
+        or any(
+            session.get(TransferPosition, position_id) is None
+            for position_id in transfer_position_ids
         )
         or any(
             measurement.source_position_id not in transfer_position_ids
@@ -365,9 +398,8 @@ def import_player_data(
     for observation in profile_observations:
         session.add(observation)
 
-    for transfer_position in transfer_positions:
-        if session.get(TransferPosition, transfer_position.id) is None:
-            session.add(transfer_position)
+    # TransferPosition rows are global curated references. Archives may describe
+    # them for referential closure but never mutate the shared catalog.
 
     for measurement in transfer_measurements:
         if session.get(TransferMeasurement, measurement.id) is None:
@@ -432,8 +464,12 @@ def delete_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    game_ids = list(
-        {play_session.game_id for play_session in play_sessions if play_session.game_id}
+    game_ids = {
+        play_session.game_id for play_session in play_sessions if play_session.game_id
+    } | set(
+        session.exec(
+            select(Game.id).where(col(Game.owner_player_id) == player_id)
+        ).all()
     )
     shared_game_ids = (
         set(
@@ -447,7 +483,15 @@ def delete_player_data(
         if game_ids
         else set()
     )
-    owned_game_ids = [game_id for game_id in game_ids if game_id not in shared_game_ids]
+    disowned_game_ids = set(
+        session.exec(
+            select(Game.id).where(
+                col(Game.id).in_(shared_game_ids),
+                col(Game.owner_player_id) == player_id,
+            )
+        ).all()
+    )
+    owned_game_ids = list(game_ids - shared_game_ids)
     positions = (
         session.exec(select(Position).where(col(Position.game_id).in_(owned_game_ids))).all()
         if owned_game_ids
@@ -466,15 +510,30 @@ def delete_player_data(
         if owned_game_ids
         else []
     )
-    lesson_opportunities = (
+    lesson_opportunities = session.exec(
+        select(PersistedLessonOpportunity).where(
+            (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))
+            | (col(PersistedLessonOpportunity.player_id) == player_id)
+        )
+    ).all()
+    evidence = (
         session.exec(
-            select(PersistedLessonOpportunity).where(
-                col(PersistedLessonOpportunity.game_id).in_(owned_game_ids)
+            select(Evidence).where(
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
             )
         ).all()
-        if owned_game_ids
+        if position_ids
         else []
     )
+    profile_observations = session.exec(
+        select(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
+    ).all()
+    lesson_attempts = session.exec(
+        select(LessonAttempt).where(col(LessonAttempt.player_id) == player_id)
+    ).all()
+    transfer_measurements = session.exec(
+        select(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
+    ).all()
 
     coach_student_links = session.exec(
         select(CoachStudentLink).where(
@@ -485,13 +544,21 @@ def delete_player_data(
 
     affected_rows = {
         "player": 1,
+        "player_credentials": 1
+        if session.get(PlayerCredential, player_id) is not None
+        else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
+        "games_disowned": len(disowned_game_ids),
         "positions": len(positions),
         "engine_analyses": len(engine_analyses),
         "analysis_jobs": len(analysis_jobs),
         "lesson_opportunities": len(lesson_opportunities),
+        "evidence": len(evidence),
+        "profile_observations": len(profile_observations),
+        "lesson_attempts": len(lesson_attempts),
+        "transfer_measurements": len(transfer_measurements),
         "skill_states": len(
             session.exec(select(SkillState).where(col(SkillState.player_id) == player_id)).all()
         ),
@@ -516,14 +583,27 @@ def delete_player_data(
 
     if position_ids:
         session.exec(
-            delete(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
-        )
-    if owned_game_ids:
-        session.exec(
-            delete(PersistedLessonOpportunity).where(
-                col(PersistedLessonOpportunity.game_id).in_(owned_game_ids)
+            delete(Evidence).where(
+                col(Evidence.position_id).in_([str(position_id) for position_id in position_ids])
             )
         )
+        session.exec(
+            delete(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
+        )
+    session.exec(
+        delete(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
+    )
+    session.exec(delete(LessonAttempt).where(col(LessonAttempt.player_id) == player_id))
+    session.exec(
+        delete(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
+    )
+    session.exec(
+        delete(PersistedLessonOpportunity).where(
+            (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))
+            | (col(PersistedLessonOpportunity.player_id) == player_id)
+        )
+    )
+    if owned_game_ids:
         session.exec(delete(AnalysisJob).where(col(AnalysisJob.game_id).in_(owned_game_ids)))
         session.exec(delete(Position).where(col(Position.game_id).in_(owned_game_ids)))
     session.exec(delete(ContentAttempt).where(col(ContentAttempt.player_id) == player_id))
@@ -539,15 +619,34 @@ def delete_player_data(
     session.exec(delete(PlaySession).where(col(PlaySession.player_id) == player_id))
     if owned_game_ids:
         session.exec(delete(Game).where(col(Game.id).in_(owned_game_ids)))
+    if disowned_game_ids:
+        session.exec(
+            update(Game)
+            .where(col(Game.id).in_(disowned_game_ids))
+            .values(
+                owner_player_id=None,
+                pgn="",
+                white="Anonymous",
+                black="Anonymous",
+                headers={},
+            )
+        )
 
     profile = session.get(PlayerProfile, player_id)
     if profile:
         session.delete(profile)
     session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)
+    principal = hashlib.sha256(request.headers["Authorization"].encode("utf-8")).hexdigest()
+    session.exec(
+        delete(IdempotencyRecord).where(
+            col(IdempotencyRecord.idempotency_key).contains(f":{principal}:")
+        )
+    )
 
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
+    request.state.skip_idempotency_cache = True
 
     return DeletionResponse(dry_run=False, affected_rows=affected_rows, audit_id=audit_id)
