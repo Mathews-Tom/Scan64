@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import chess
 from chess_lesson_spec import (
     DrawArrowCommand,
@@ -11,12 +15,14 @@ from chess_lesson_spec import (
     VisualizationCommand,
 )
 
+from scan64.chess.analysis.models import EngineAnalysis
+
 
 class LessonVerificationError(Exception):
     pass
 
 
-def verify_lesson(spec: LessonSpec) -> None:
+def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis) -> None:
     """
     Verify that a LessonSpec adheres to §7.7 rules.
     """
@@ -26,16 +32,21 @@ def verify_lesson(spec: LessonSpec) -> None:
     except ValueError as e:
         raise LessonVerificationError(f"Invalid FEN: {e}")
 
-    # 2. Side to move (ensure the objective/answers align; for now just parsing)
-    _ = board.turn
-
-    # 3. All accepted moves are legal
+    # 2. Every accepted move must equal the engine- or tablebase-proved move.
+    if not spec.interaction.accepted_moves:
+        raise LessonVerificationError("Lesson must define at least one accepted move")
+    objective_move = _objective_move(board, objective_analysis)
     for accepted_move in spec.interaction.accepted_moves:
         try:
-            _ = board.parse_san(accepted_move.san)
+            submitted_move = board.parse_san(accepted_move.san)
         except ValueError:
             raise LessonVerificationError(
                 f"Accepted move {accepted_move.san} is illegal in the given position"
+            ) from None
+        if submitted_move != objective_move:
+            raise LessonVerificationError(
+                f"Accepted move {accepted_move.san} does not match the "
+                f"engine-confirmed objective move {board.san(objective_move)}"
             )
 
     # 4. Provenance retention
@@ -54,6 +65,31 @@ def verify_lesson(spec: LessonSpec) -> None:
     if spec.explanation:
         for vis in spec.explanation.visualizations:
             _verify_visualization(vis)
+
+    spec.verification.status = "verified"
+
+
+def _objective_move(board: chess.Board, analysis: EngineAnalysis) -> chess.Move:
+    if not analysis.raw_result:
+        raise LessonVerificationError("Engine analysis has no principal variation")
+    first_result: dict[str, Any] = analysis.raw_result[0]
+    principal_variation = first_result.get("pv")
+    if not isinstance(principal_variation, list) or not principal_variation:
+        raise LessonVerificationError("Engine analysis has no principal variation")
+    first_move = principal_variation[0]
+    if not isinstance(first_move, str):
+        raise LessonVerificationError("Engine analysis has an invalid principal variation")
+    try:
+        objective_move = chess.Move.from_uci(first_move)
+    except ValueError:
+        raise LessonVerificationError(
+            "Engine analysis has an invalid principal variation"
+        ) from None
+    if objective_move not in board.legal_moves:
+        raise LessonVerificationError(
+            "Engine analysis objective move is illegal in the lesson position"
+        )
+    return objective_move
 
 
 def _verify_visualization(vis: VisualizationCommand) -> None:

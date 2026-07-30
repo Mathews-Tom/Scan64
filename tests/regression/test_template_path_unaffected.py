@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from chess_lesson_spec import Diagnosis
 
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
@@ -42,9 +45,10 @@ async def test_template_lesson_generation_remains_valid_with_llm_disabled() -> N
         lesson_id="les_template_regression",
         best_move_san="Nc3",
     )
-    lesson.explanation = await TemplateExplanationProvider().explain(
-        diagnosis, evidence=[fixture]
+    lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
+    verify_lesson(
+        lesson,
+        EngineAnalysis(position_id=uuid4(), raw_result=[{"pv": ["b1c3", "g8f6"]}]),
     )
-    verify_lesson(lesson)
     assert lesson.explanation is not None
     assert "c3" in lesson.explanation.text

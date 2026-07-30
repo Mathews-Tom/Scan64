@@ -154,7 +154,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             lesson.explanation = await resolve_explanation(diagnosis, [evidence], fen_before)
 
             try:
-                verify_lesson(lesson)
+                verify_lesson(lesson, candidate.before_analysis)
             except LessonVerificationError as exc:
                 print(f"Rejected lesson from {file_path.name}: {exc}")
                 continue

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from uuid import uuid4
+
 import pytest
 from chess_lesson_spec import (
     AcceptedMove,
@@ -11,6 +15,7 @@ from chess_lesson_spec import (
     Verification,
 )
 
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 
 
@@ -33,23 +38,30 @@ def _create_valid_spec() -> LessonSpec:
     )
 
 
+def _objective_analysis() -> EngineAnalysis:
+    return EngineAnalysis(
+        position_id=uuid4(),
+        raw_result=[{"pv": ["b1c3", "g8f6"]}],
+    )
+
+
 def test_valid_lesson() -> None:
     spec = _create_valid_spec()
-    verify_lesson(spec)
+    verify_lesson(spec, _objective_analysis())
 
 
 def test_invalid_fen() -> None:
     spec = _create_valid_spec()
     spec.source.fen = "invalid_fen"
     with pytest.raises(LessonVerificationError, match="Invalid FEN"):
-        verify_lesson(spec)
+        verify_lesson(spec, _objective_analysis())
 
 
 def test_illegal_move() -> None:
     spec = _create_valid_spec()
     spec.interaction.accepted_moves[0].san = "Kxe8"  # Illegal for white king here
     with pytest.raises(LessonVerificationError, match="is illegal"):
-        verify_lesson(spec)
+        verify_lesson(spec, _objective_analysis())
 
 
 def test_invalid_visualization_square() -> None:
@@ -63,4 +75,4 @@ def test_invalid_visualization_square() -> None:
         )
     ]
     with pytest.raises(LessonVerificationError, match="Invalid square"):
-        verify_lesson(spec)
+        verify_lesson(spec, _objective_analysis())

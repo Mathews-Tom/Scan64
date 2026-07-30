@@ -19,9 +19,7 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
 
     with database_engine.connect() as connection:
         tables = set(inspect(connection).get_table_names())
-        revision = connection.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
+        revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
     assert {
         "game",
@@ -30,13 +28,15 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         "lessonattempt",
         "transfermeasurement",
     } <= tables
-    assert revision == "20260729_05"
-    source_position_column = next(
-        column
+    assert revision == "20260730_06"
+    opportunity_columns = {
+        column["name"]: column
         for column in inspect(database_engine).get_columns("persistedlessonopportunity")
-        if column["name"] == "source_position_id"
-    )
-    assert source_position_column["nullable"] is False
+    }
+    assert opportunity_columns["source_position_id"]["nullable"] is False
+    assert opportunity_columns["verification_status"]["nullable"] is False
+    assert opportunity_columns["verification_error"]["nullable"] is True
+    assert "verification_analysis_id" in opportunity_columns
 
 
 def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path: Path) -> None:
@@ -44,14 +44,7 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
     database_engine = create_engine(f"sqlite:///{database_path}")
 
     with database_engine.begin() as connection:
-        connection.execute(
-            text(
-                "CREATE TABLE game ("
-                "id TEXT PRIMARY KEY, "
-                "pgn TEXT NOT NULL"
-                ")"
-            )
-        )
+        connection.execute(text("CREATE TABLE game (id TEXT PRIMARY KEY, pgn TEXT NOT NULL)"))
         connection.execute(
             text(
                 "CREATE TABLE playsession ("
@@ -90,14 +83,12 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
             {"id": "legacy-game"},
         ).scalar_one()
         tables = set(inspect(connection).get_table_names())
-        revision = connection.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
+        revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
     assert stored_pgn == "1. e4 e5"
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
-    assert revision == "20260729_05"
+    assert revision == "20260730_06"
 
 
 def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:
@@ -105,12 +96,8 @@ def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:
     position_id = uuid4().hex
     opportunity_id = uuid4().hex
     with database_engine.begin() as connection:
-        connection.execute(
-            text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
-        )
-        connection.execute(
-            text("INSERT INTO alembic_version (version_num) VALUES ('20260728_04')")
-        )
+        connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        connection.execute(text("INSERT INTO alembic_version (version_num) VALUES ('20260728_04')"))
         connection.execute(
             text(
                 "CREATE TABLE game (id CHAR(32) PRIMARY KEY, pgn TEXT NOT NULL, "
@@ -189,10 +176,7 @@ def test_m40_migration_backfills_exact_source_position(tmp_path: Path) -> None:
 
     with database_engine.connect() as connection:
         source_position_id = connection.execute(
-            text(
-                "SELECT source_position_id FROM persistedlessonopportunity "
-                "WHERE id = :id"
-            ),
+            text("SELECT source_position_id FROM persistedlessonopportunity WHERE id = :id"),
             {"id": opportunity_id},
         ).scalar_one()
     assert source_position_id == position_id
@@ -203,19 +187,13 @@ def test_m40_migration_backfills_exact_source_position(tmp_path: Path) -> None:
 
     with database_engine.connect() as connection:
         inspector = inspect(connection)
-        columns = {
-            column["name"]
-            for column in inspector.get_columns("persistedlessonopportunity")
-        }
+        columns = {column["name"] for column in inspector.get_columns("persistedlessonopportunity")}
         index_names = {
             index["name"] for index in inspector.get_indexes("persistedlessonopportunity")
         }
         lesson_attempt_foreign_keys = inspector.get_foreign_keys("lessonattempt")
         stored_lesson_spec = connection.execute(
-            text(
-                "SELECT lesson_spec FROM persistedlessonopportunity "
-                "WHERE id = :id"
-            ),
+            text("SELECT lesson_spec FROM persistedlessonopportunity WHERE id = :id"),
             {"id": opportunity_id},
         ).scalar_one()
     assert "source_position_id" not in columns
