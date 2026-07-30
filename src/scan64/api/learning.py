@@ -296,7 +296,7 @@ def record_lesson_attempt(
         if attempt_in.submitted_move is None:
             raise HTTPException(status_code=422, detail="Transfer attempts require a move")
         try:
-            measurement_id = UUID(attempt_in.lesson_id)
+            measurement_id = str(UUID(attempt_in.lesson_id))
         except ValueError as error:
             raise HTTPException(
                 status_code=422, detail="Transfer measurement id must be a UUID"

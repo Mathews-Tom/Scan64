@@ -11,6 +11,11 @@ from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.content.transfer_catalog import seed_transfer_positions
+from scan64.learning.evaluation.transfer_measurement import (
+    assign_production_transfer_measurements,
+    due_transfer_measurements,
+)
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
@@ -559,3 +564,64 @@ def test_opening_mission_is_recorded_as_ungraded_attempt(
     assert attempt is not None
     assert attempt.profile_update_result == "not_applicable"
     assert db_session.exec(select(SkillState).where(SkillState.player_id == player_id)).all() == []
+
+
+def test_transfer_measurement_is_served_completed_and_reported(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "transfer-player"
+    skill_id = "tactics.pin"
+    now = datetime.now(UTC)
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1300))
+    db_session.commit()
+    seed_transfer_positions(db_session)
+    assign_production_transfer_measurements(
+        db_session,
+        player_id=player_id,
+        skill_id=skill_id,
+        target_difficulty=1300,
+        now=now,
+    )
+    measurement = due_transfer_measurements(
+        db_session, player_id=player_id, now=now
+    )[0]
+    assert measurement.target_move_uci is not None
+    authorize(client, db_session, player_id)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200
+    assert str(measurement.id) in {
+        lesson["lesson_id"] for lesson in served.json()["lessons"]
+    }
+    completed = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": served.json()["session_id"],
+            "lesson_id": str(measurement.id),
+            "source_kind": "transfer_measurement",
+            "submitted_move": measurement.target_move_uci,
+            "elapsed_ms": 1000,
+            "hints_used": 0,
+        },
+    )
+
+    assert completed.status_code == 200
+    assert completed.json()["success"] is True
+    report = client.get(
+        f"/v1/learning/transfer-report?player_id={player_id}&skill_id={skill_id}"
+    )
+    assert report.status_code == 200
+    pre_test = next(
+        item
+        for item in report.json()["measurements"]
+        if item["measurement_point"] == "pre_test"
+    )
+    assert pre_test == {
+        "measurement_point": "pre_test",
+        "assigned_count": 1,
+        "completed_count": 1,
+        "successful_count": 1,
+        "success_rate": 1.0,
+    }
