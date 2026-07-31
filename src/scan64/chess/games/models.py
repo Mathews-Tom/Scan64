@@ -23,4 +23,5 @@ class PlaySession(SQLModel, table=True):
     game_id: UUID | None = Field(default=None, foreign_key="game.id")
     opponent_config: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
     clock_config: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
+    coach_mode: bool = False
     status: str = "active"

@@ -101,7 +101,7 @@ describe('OpeningExplorerScreen', () => {
         hints_used: 0,
       });
     });
-    expect(screen.getByRole('button', { name: 'Recorded' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Recorded' })).toBeInTheDocument();
   });
 });
 

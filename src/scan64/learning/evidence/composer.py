@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from chess import (
@@ -123,8 +123,10 @@ def _pin_payload(board: Board, move: Move) -> dict[str, Any] | None:
     board.push(move)
     pinned_color = board.turn
     for square, piece in board.piece_map().items():
-        if piece.color == pinned_color and piece.piece_type != KING and board.is_pinned(
-            pinned_color, square
+        if (
+            piece.color == pinned_color
+            and piece.piece_type != KING
+            and board.is_pinned(pinned_color, square)
         ):
             return {
                 "tactic_type": "pin",
@@ -216,8 +218,10 @@ def compose_candidate_evidence(
     focused_analysis: EngineAnalysis,
     played_move: str,
     swing_cp: int,
+    analysis_depth: Literal["deep", "interactive"] = "deep",
 ) -> list[Evidence]:
     """Derive detector inputs exclusively from legal board and engine state."""
+    analysis_label = "deep MultiPV" if analysis_depth == "deep" else "bounded interactive"
     focused_line = _pv_line(focused_analysis)
     provenance: dict[str, Any] = {
         "played_move": played_move,
@@ -226,6 +230,7 @@ def compose_candidate_evidence(
         "focused_multipv": focused_analysis.raw_result,
         "focused_line": focused_line,
         "swing_cp": swing_cp,
+        "analysis_depth": analysis_depth,
     }
     engine_analysis_id = str(focused_analysis.id)
     evidence = [
@@ -233,7 +238,7 @@ def compose_candidate_evidence(
             kind="engine_analysis",
             position_id=position_id,
             engine_analysis_id=engine_analysis_id,
-            claim="deep MultiPV analysis for the flagged position",
+            claim=f"{analysis_label} analysis for the flagged position",
             payload=provenance,
         )
     ]
@@ -264,7 +269,9 @@ def compose_candidate_evidence(
                         **provenance,
                         "missed_type": "check",
                         "best_move": best_move_uci,
-                        "was_unique_best": len(fast_analysis.raw_result) == 1,
+                        "was_unique_best": (
+                            analysis_depth == "deep" and len(fast_analysis.raw_result) == 1
+                        ),
                     },
                 )
             )
@@ -282,7 +289,9 @@ def compose_candidate_evidence(
                         "best_move": best_move_uci,
                         "captured_square": square_name(best_move.to_square),
                         "captured_piece": captured.symbol() if captured is not None else None,
-                        "was_only_winning_line": len(fast_analysis.raw_result) == 1,
+                        "was_only_winning_line": (
+                            analysis_depth == "deep" and len(fast_analysis.raw_result) == 1
+                        ),
                     },
                 )
             )
@@ -316,7 +325,7 @@ def compose_candidate_evidence(
                     kind="blunder_analysis",
                     position_id=position_id,
                     engine_analysis_id=engine_analysis_id,
-                    claim="the deep principal variation immediately captures material",
+                    claim=f"the {analysis_label} principal variation immediately captures material",
                     payload={
                         **provenance,
                         "blunder_type": "missed_direct_threat",
@@ -335,7 +344,7 @@ def compose_candidate_evidence(
                     kind="positional_analysis",
                     position_id=position_id,
                     engine_analysis_id=engine_analysis_id,
-                    claim="the deep principal variation begins with an incoming check",
+                    claim=f"the {analysis_label} principal variation begins with an incoming check",
                     payload={
                         **provenance,
                         "issue": "king_safety_neglect",
@@ -349,7 +358,7 @@ def compose_candidate_evidence(
                 kind="calculation_error",
                 position_id=position_id,
                 engine_analysis_id=engine_analysis_id,
-                claim="the deep principal variation requires a forcing continuation",
+                claim=f"the {analysis_label} principal variation requires a forcing continuation",
                 payload={
                     **provenance,
                     "error_type": "stopped_early",

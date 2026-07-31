@@ -16,7 +16,7 @@ from scan64.chess.analysis.orchestration import (
     FocusedPassOrchestrator,
 )
 from scan64.chess.boards import board_from, uci_moves_to_san
-from scan64.chess.games.ingestion import ingest_fen
+from scan64.chess.games.ingestion import resolve_position
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.assembly import resolve_explanation
@@ -58,13 +58,9 @@ def _persist_position_analysis(
 ) -> Position:
     position = positions_by_fen.get(fen)
     if position is None:
-        position = session.exec(
-            select(Position).where(Position.game_id == game.id, Position.fen == fen)
-        ).first()
-        if position is None:
-            position = ingest_fen(fen, game.id)
-            session.add(position)
+        position = resolve_position(session, fen, game.id)
         positions_by_fen[fen] = position
+    session.add(position)
     if analysis.position_id != position.id:
         analysis.position_id = position.id
         session.add(analysis)
@@ -113,6 +109,16 @@ async def run_analysis_for_game(
     positions_by_fen: dict[str, Position] = {}
     for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
+        source_position = resolve_position(session, fen_before, game.id)
+        existing_opportunity = session.exec(
+            select(PersistedLessonOpportunity.id).where(
+                PersistedLessonOpportunity.game_id == game.id,
+                PersistedLessonOpportunity.player_id == game.owner_player_id,
+                PersistedLessonOpportunity.source_position_id == source_position.id,
+            )
+        ).first()
+        if existing_opportunity is not None:
+            continue
         source_position = _persist_position_analysis(
             game, fen_before, candidate.before_analysis, session, positions_by_fen
         )
