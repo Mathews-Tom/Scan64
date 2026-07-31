@@ -277,7 +277,11 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
     )
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"opponent_move": "d8h4", "status": "completed"}
+    assert response.json() == {
+        "opponent_move": "d8h4",
+        "status": "completed",
+        "critical_interruption": None,
+    }
 
 
 def test_play_session_cannot_attach_to_another_players_game(

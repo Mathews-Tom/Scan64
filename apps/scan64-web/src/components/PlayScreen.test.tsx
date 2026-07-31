@@ -99,6 +99,7 @@ describe('PlayScreen', () => {
       id: 'sess-123',
       player_id: 'test-player',
       status: 'active',
+      coach_mode: false,
       opponent_config: {},
     });
 
@@ -133,12 +134,7 @@ describe('PlayScreen', () => {
     expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
 
     await act(async () => {
-      sessionRequest.resolve({
-        id: 'sess-123',
-        player_id: 'test-player',
-        opponent_config: {},
-        status: 'active',
-      });
+      sessionRequest.resolve({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false });
     });
 
     await waitFor(() => {
@@ -148,13 +144,8 @@ describe('PlayScreen', () => {
 
   it('restores an active session at its persisted game position', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
-      id: 'sess-123',
-      player_id: 'test-player',
-      game_id: 'game-123',
-      opponent_config: {},
-      status: 'active',
-    });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+    opponent_config: {}, status: 'active', coach_mode: false });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123',
       pgn: '1. e4 e5 *',
@@ -194,13 +185,8 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves)
       .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
       .mockResolvedValueOnce([]);
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
-      id: 'sess-123',
-      player_id: 'test-player',
-      game_id: 'game-123',
-      opponent_config: {},
-      status: 'active',
-    });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+    opponent_config: {}, status: 'active', coach_mode: false });
     vi.mocked(ApiClient.getGame)
       .mockResolvedValueOnce({
         id: 'game-123',
@@ -247,13 +233,8 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves).mockResolvedValue([
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1 },
     ]);
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
-      id: 'sess-123',
-      player_id: 'test-player',
-      game_id: 'game-123',
-      opponent_config: {},
-      status: 'active',
-    });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+    opponent_config: {}, status: 'active', coach_mode: false });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123',
       pgn: '1. e4 e5 *',
@@ -278,13 +259,8 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves)
       .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
       .mockResolvedValueOnce([]);
-    const resumedSession = {
-      id: 'sess-123',
-      player_id: 'test-player',
-      game_id: 'game-123',
-      opponent_config: {},
-      status: 'active' as const,
-    };
+    const resumedSession = { id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+    opponent_config: {}, status: 'active' as const, coach_mode: false };
     vi.mocked(ApiClient.getPlaySession)
       .mockResolvedValueOnce(resumedSession)
       .mockRejectedValueOnce(new Error('temporary failure'))
@@ -330,12 +306,7 @@ describe('PlayScreen', () => {
 
   it('clears a terminal saved session without loading a game', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
-      id: 'sess-123',
-      player_id: 'test-player',
-      opponent_config: {},
-      status: 'completed',
-    });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'completed', coach_mode: false });
 
     render(<PlayScreen />);
 
@@ -377,13 +348,8 @@ describe('PlayScreen', () => {
 
   it('retains a saved session when its game lookup fails', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
-      id: 'sess-123',
-      player_id: 'test-player',
-      game_id: 'game-123',
-      opponent_config: {},
-      status: 'active',
-    });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+    opponent_config: {}, status: 'active', coach_mode: false });
     vi.mocked(ApiClient.getGame).mockRejectedValue(
       new ApiRequestError('Not Found', 404),
     );
@@ -404,13 +370,8 @@ describe('PlayScreen', () => {
 
     render(
       <PlayScreen
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />
     );
 
@@ -439,13 +400,8 @@ describe('PlayScreen', () => {
 
     render(
       <PlayScreen
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />,
     );
     await waitFor(() => {
@@ -469,13 +425,8 @@ describe('PlayScreen', () => {
     render(
       <PlayScreen
         initialFen="rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2"
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />,
     );
 
@@ -505,13 +456,8 @@ describe('PlayScreen', () => {
 
     render(
       <PlayScreen
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />,
     );
 
@@ -548,13 +494,8 @@ describe('PlayScreen', () => {
 
     render(
       <PlayScreen
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />,
     );
 
@@ -591,6 +532,7 @@ describe('PlayScreen', () => {
       id: 'sess-123',
       player_id: 'test-player',
       status: 'active',
+      coach_mode: false,
       opponent_config: {},
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
@@ -614,13 +556,8 @@ describe('PlayScreen', () => {
     render(
       <PlayScreen
         initialFen="rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
-        initialSession={{
-          id: 'sess-123',
-          player_id: 'test-player',
-          game_id: 'game-123',
-          opponent_config: {},
-          status: 'active',
-        }}
+        initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
+        opponent_config: {}, status: 'active', coach_mode: false }}
       />
     );
 
