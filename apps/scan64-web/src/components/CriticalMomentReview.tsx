@@ -5,11 +5,12 @@ import type { LessonSpec } from '../api/types';
 
 interface Props {
   lesson: LessonSpec;
+  opportunityId: string;
   sessionId: string;
   onComplete?: () => void;
 }
 
-export function CriticalMomentReview({ lesson, sessionId, onComplete }: Props) {
+export function CriticalMomentReview({ lesson, opportunityId, sessionId, onComplete }: Props) {
   const [step, setStep] = useState<number>(1);
   const [intent, setIntent] = useState('');
   const [hintIndex, setHintIndex] = useState(-1);
@@ -29,7 +30,7 @@ export function CriticalMomentReview({ lesson, sessionId, onComplete }: Props) {
     try {
       const result = await ApiClient.recordLessonAttempt({
         session_id: sessionId,
-        lesson_id: lesson.lesson_id,
+        lesson_id: opportunityId,
         source_kind: 'persisted_opportunity',
         submitted_move: move,
         elapsed_ms: Math.round(performance.now() - startedAt.current),

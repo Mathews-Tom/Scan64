@@ -102,7 +102,11 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     return (
       <div>
         <button onClick={() => setSelectedLesson(null)}>Back to Import</button>
-        <CriticalMomentReview lesson={selectedLesson} sessionId={lessonSessionId} />
+        <CriticalMomentReview
+          lesson={selectedLesson}
+          opportunityId={selectedLesson.lesson_id}
+          sessionId={lessonSessionId}
+        />
       </div>
     );
   }
