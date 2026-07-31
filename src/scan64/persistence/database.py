@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from os import environ
 from pathlib import Path
+from typing import Final
 
 from alembic import command
 from alembic.config import Config
@@ -15,8 +17,20 @@ from scan64.learning.diagnosis.taxonomy.migration import (
 )
 from scan64.persistence.models import load_models
 
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+DEFAULT_DATABASE_URL: Final = "sqlite:///database.db"
+
+
+def database_url_from_environment() -> str:
+    database_url = environ.get("SCAN64_DATABASE_URL")
+    if database_url is None:
+        return DEFAULT_DATABASE_URL
+
+    database_url = database_url.strip()
+    if not database_url:
+        raise ValueError("SCAN64_DATABASE_URL must not be blank")
+    return database_url
+
+sqlite_url: str = database_url_from_environment()
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(sqlite_url, echo=False, connect_args=connect_args)
