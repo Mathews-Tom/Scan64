@@ -45,7 +45,14 @@ afterEach(() => {
 describe('CriticalMomentReview', () => {
   it('flows through the 7-step sequence', () => {
     const onComplete = vi.fn();
-    render(<CriticalMomentReview lesson={mockLesson} sessionId="study-1" onComplete={onComplete} />);
+    render(
+      <CriticalMomentReview
+        lesson={mockLesson}
+        opportunityId="opportunity-1"
+        sessionId="study-1"
+        onComplete={onComplete}
+      />,
+    );
     
     // Step 1: Restore
     expect(screen.getByTestId('step-1-restore')).toBeTruthy();
@@ -86,14 +93,20 @@ describe('CriticalMomentReview', () => {
       grading_status: 'verified',
       profile_update_result: 'applied',
     });
-    render(<CriticalMomentReview lesson={mockLesson} sessionId="game-study-1" />);
+    render(
+      <CriticalMomentReview
+        lesson={mockLesson}
+        opportunityId="opportunity-1"
+        sessionId="game-study-1"
+      />,
+    );
 
     fireEvent.click(screen.getByTestId('submit-lesson-move'));
 
     await waitFor(() => {
       expect(recordAttempt).toHaveBeenCalledWith({
         session_id: 'game-study-1',
-        lesson_id: 'les_1',
+        lesson_id: 'opportunity-1',
         source_kind: 'persisted_opportunity',
         submitted_move: 'e2e4',
         elapsed_ms: expect.any(Number),

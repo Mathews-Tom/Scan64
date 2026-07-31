@@ -10,7 +10,8 @@ import {
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
-import type { PlaySessionRead, PlayMoveResponse } from '../api/types';
+import { CriticalMomentReview } from './CriticalMomentReview';
+import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
@@ -55,6 +56,9 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const [playerId, setPlayerId] = useState('');
   const [coachMode, setCoachMode] = useState(false);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
+  const [criticalInterruption, setCriticalInterruption] =
+    useState<CriticalInterruptionRead | null>(null);
+  const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [refreshSessionId, setRefreshSessionId] = useState<string | null>(null);
@@ -78,11 +82,14 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       await ApiClient.createPlayer({ id: pid, display_name: playerName || 'Anonymous' });
       setActivePlayerId(pid);
       
-      const newSession = await ApiClient.createPlaySession({ 
-        player_id: pid, 
-        opponent_config: { strength: '1500' } 
+      const newSession = await ApiClient.createPlaySession({
+        player_id: pid,
+        opponent_config: { strength: '1500' },
+        coach_mode: coachMode,
       });
       sessionRef.current = newSession;
+      criticalInterruptionRef.current = null;
+      setCriticalInterruption(null);
       setSession(newSession);
       chessRef.current.reset();
       if (cg) {
@@ -103,11 +110,19 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   };
 
 
-  const applyMoveResponse = useCallback((response: PlayMoveResponse) => {
+  const applyMoveResponse = useCallback((response: PlayMoveResponse): boolean => {
     const board = cgRef.current;
-    if (!board) return;
+    if (!board) return false;
 
     const currentSession = sessionRef.current;
+    const interruption =
+      currentSession?.coach_mode === true ? response.critical_interruption ?? null : null;
+    const reviewActive =
+      interruption !== null || criticalInterruptionRef.current !== null;
+    if (interruption !== null) {
+      criticalInterruptionRef.current = interruption;
+      setCriticalInterruption(interruption);
+    }
     if (response.opponent_move) {
       const from = response.opponent_move.slice(0, 2);
       const to = response.opponent_move.slice(2, 4);
@@ -117,6 +132,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         chessRef.current.move({ from, to, promotion });
       } catch (error: unknown) {
         if (currentSession) {
+          queuedMoveNeedsRefreshRef.current.add(currentSession.id);
           setRefreshSessionId(currentSession.id);
         }
         setError(
@@ -124,7 +140,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
             error instanceof Error ? error.message : 'Unknown error'
           }`,
         );
-        return;
+        return false;
       }
     }
 
@@ -137,11 +153,38 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       fen: chessRef.current.fen(),
       turnColor: chessgroundTurnColor(chessRef.current),
       movable: {
-        color: response.status === 'active' ? chessgroundTurnColor(chessRef.current) : undefined,
-        dests: response.status === 'active' ? getDests(chessRef.current) : undefined,
+        color:
+          response.status === 'active' && !reviewActive
+            ? chessgroundTurnColor(chessRef.current)
+            : undefined,
+        dests:
+          response.status === 'active' && !reviewActive
+            ? getDests(chessRef.current)
+            : undefined,
       },
     });
     setError(null);
+    return true;
+  }, []);
+
+  const resumeAfterCriticalReview = useCallback(() => {
+    criticalInterruptionRef.current = null;
+    setCriticalInterruption(null);
+    const board = cgRef.current;
+    const activeSession = sessionRef.current;
+    if (
+      !board ||
+      activeSession?.status !== 'active' ||
+      queuedMoveNeedsRefreshRef.current.has(activeSession.id)
+    ) return;
+    board.set({
+      fen: chessRef.current.fen(),
+      turnColor: chessgroundTurnColor(chessRef.current),
+      movable: {
+        color: chessgroundTurnColor(chessRef.current),
+        dests: getDests(chessRef.current),
+      },
+    });
   }, []);
 
   const refreshQueuedSession = useCallback((sessionId: string) => {
@@ -175,16 +218,19 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         queuedMoveNeedsRefreshRef.current.delete(sessionId);
         setSession(refreshedSession);
         setActivePlayerId(refreshedSession.player_id);
+        const reviewActive = criticalInterruptionRef.current !== null;
         cgRef.current?.set({
           fen: refreshedChess.fen(),
           turnColor: chessgroundTurnColor(refreshedChess),
           movable: {
             color:
-              refreshedSession.status === 'active'
+              refreshedSession.status === 'active' && !reviewActive
                 ? chessgroundTurnColor(refreshedChess)
                 : undefined,
             dests:
-              refreshedSession.status === 'active' ? getDests(refreshedChess) : undefined,
+              refreshedSession.status === 'active' && !reviewActive
+                ? getDests(refreshedChess)
+                : undefined,
           },
         });
         setSyncRetrySessionId(null);
@@ -268,8 +314,12 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         fen: chessRef.current.fen(),
         turnColor: chessgroundTurnColor(chessRef.current),
         movable: {
-          color: chessgroundTurnColor(chessRef.current),
-          dests: getDests(chessRef.current),
+          color:
+            criticalInterruptionRef.current === null
+              ? chessgroundTurnColor(chessRef.current)
+              : undefined,
+          dests:
+            criticalInterruptionRef.current === null ? getDests(chessRef.current) : undefined,
         },
       });
     }
@@ -395,9 +445,8 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         (event as CustomEvent<QueuedMoveSyncSuccess>).detail;
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
-
-      if (!queuedMoveNeedsRefreshRef.current.has(queuedMove.sessionId)) {
-        applyMoveResponse(response);
+      if (applyMoveResponse(response)) {
+        queuedMoveNeedsRefreshRef.current.delete(queuedMove.sessionId);
       }
     };
     const handleSyncFailure = (event: Event) => {
@@ -517,6 +566,14 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
           data-testid="chessground-board" 
         />
       </div>
+      {criticalInterruption ? (
+        <CriticalMomentReview
+          lesson={criticalInterruption.lesson}
+          opportunityId={criticalInterruption.opportunity_id}
+          sessionId={criticalInterruption.study_session_id}
+          onComplete={resumeAfterCriticalReview}
+        />
+      ) : null}
       {session && (
         <div data-testid="session-info">
           Status: {session.status}
