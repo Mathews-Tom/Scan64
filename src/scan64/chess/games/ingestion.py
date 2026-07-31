@@ -1,8 +1,8 @@
 import io
 from uuid import UUID, uuid4
 
-import chess
 import chess.pgn
+from sqlmodel import Session, select
 
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -40,6 +40,14 @@ def ingest_fen(fen: str, game_id: UUID | None = None) -> Position:
         side_to_move="w" if board.turn == chess.WHITE else "b",
         canonical_id=_get_canonical_id(board),
     )
+
+
+def resolve_position(session: Session, fen: str, game_id: UUID) -> Position:
+    """Return the persisted position for a game/FEN, or a new unattached position."""
+    position = session.exec(
+        select(Position).where(Position.game_id == game_id, Position.fen == fen)
+    ).first()
+    return position if position is not None else ingest_fen(fen, game_id)
 
 
 def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:

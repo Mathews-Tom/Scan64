@@ -97,14 +97,15 @@ async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
     db_session.commit()
     db_session.refresh(play_session)
 
-    opponent_move = await service.make_move(play_session.id, "g2g4")
+    move_result = await service.make_move(play_session.id, "g2g4")
 
-    assert opponent_move == "d8h4"
+    assert move_result.opponent_move is not None
+    assert move_result.opponent_move == "d8h4"
 
     board = chess.Board()
     for move in [*prelude_moves, "g2g4"]:
         board.push_uci(move)
-    response = chess.Move.from_uci(opponent_move)
+    response = chess.Move.from_uci(move_result.opponent_move)
     assert response in board.legal_moves
     board.push(response)
     assert board.is_checkmate()
@@ -114,4 +115,4 @@ async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
 
     db_session.refresh(game)
     assert game.result == "0-1"
-    assert game.moves == [*prelude_moves, "g2g4", opponent_move]
+    assert game.moves == [*prelude_moves, "g2g4", move_result.opponent_move]

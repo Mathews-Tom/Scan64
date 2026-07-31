@@ -28,7 +28,7 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         "lessonattempt",
         "transfermeasurement",
     } <= tables
-    assert revision == "20260730_08"
+    assert revision == "20260731_09"
     opportunity_columns = {
         column["name"]: column
         for column in inspect(database_engine).get_columns("persistedlessonopportunity")
@@ -45,6 +45,10 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         column["name"] for column in inspect(database_engine).get_columns("transfermeasurement")
     }
     assert "target_move_uci" in transfer_measurement_columns
+    play_session_columns = {
+        column["name"]: column for column in inspect(database_engine).get_columns("playsession")
+    }
+    assert play_session_columns["coach_mode"]["nullable"] is False
 
 
 def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path: Path) -> None:
@@ -90,13 +94,18 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
             text("SELECT owner_player_id FROM game WHERE id = :id"),
             {"id": "legacy-game"},
         ).scalar_one()
+        coach_mode = connection.execute(
+            text("SELECT coach_mode FROM playsession WHERE id = :id"),
+            {"id": "legacy-session"},
+        ).scalar_one()
         tables = set(inspect(connection).get_table_names())
         revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
     assert stored_pgn == "1. e4 e5"
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
-    assert revision == "20260730_08"
+    assert not coach_mode
+    assert revision == "20260731_09"
 
 
 def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:
