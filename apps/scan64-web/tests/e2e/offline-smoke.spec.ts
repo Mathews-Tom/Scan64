@@ -6,6 +6,9 @@ interface E2EWindow extends Window {
 
 test.describe('Offline and Phase 2 Exit Criterion', () => {
   test('Complete journey and offline move queuing', async ({ page, context }) => {
+    await page.addInitScript(() => {
+      (window as unknown as Record<string, unknown>).__e2e_offline_move = true;
+    });
     let isOffline = false;
     await page.route('/v1/players', async route => {
       const { id } = route.request().postDataJSON() as { id: string };

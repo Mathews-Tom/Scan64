@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { movePiece } from './board';
 
 test.describe('Review Interaction Sequencing', () => {
   test('does not render a client-generated interruption before M45', async ({ page }) => {
@@ -33,15 +34,7 @@ test.describe('Review Interaction Sequencing', () => {
     await page.getByTestId('start-btn').click();
     await expect(page.getByTestId('session-info')).toBeVisible();
 
-    await page.evaluate(async () => {
-      const candidate: unknown = window;
-      if (candidate === null || typeof candidate !== 'object' || !('__e2e_move' in candidate)) {
-        throw new Error('Expected development move hook');
-      }
-      const move = candidate.__e2e_move;
-      if (typeof move !== 'function') throw new Error('Expected callable development move hook');
-      await move();
-    });
+    await movePiece(page, page.getByTestId('chessground-board'), 'e2', 'e4');
 
     await expect(page.locator('.error')).not.toBeVisible();
     await expect(page.getByTestId('critical-moment-review')).not.toBeVisible();

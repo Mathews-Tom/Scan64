@@ -379,15 +379,13 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   }, [currentSessionId, currentSessionStatus]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    (window as unknown as Record<string, unknown>).__e2e_move = async (
-      from = 'e2',
-      to = 'e4',
-    ) => {
+    const testWindow = window as unknown as Record<string, unknown>;
+    if (!import.meta.env.DEV || testWindow.__e2e_offline_move !== true) return;
+    testWindow.__e2e_move = async (from = 'e2', to = 'e4') => {
       await handleMove(from, to);
     };
     return () => {
-      delete (window as unknown as Record<string, unknown>).__e2e_move;
+      delete testWindow.__e2e_move;
     };
   }, [handleMove]);
 
