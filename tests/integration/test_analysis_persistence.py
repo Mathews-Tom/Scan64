@@ -159,6 +159,33 @@ async def test_candidate_positions_and_analyses_are_persisted(
 
 
 @pytest.mark.asyncio
+async def test_reanalysis_does_not_duplicate_an_existing_source_opportunity(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+    first_counts = (
+        len(db_session.exec(select(PersistedLessonOpportunity)).all()),
+        len(db_session.exec(select(ReviewSchedule)).all()),
+        len(db_session.exec(select(EngineAnalysis)).all()),
+        len(db_session.exec(select(Position)).all()),
+    )
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+
+    assert first_counts == (
+        len(db_session.exec(select(PersistedLessonOpportunity)).all()),
+        len(db_session.exec(select(ReviewSchedule)).all()),
+        len(db_session.exec(select(EngineAnalysis)).all()),
+        len(db_session.exec(select(Position)).all()),
+    )
+
+
+@pytest.mark.asyncio
 async def test_candidate_evidence_references_persisted_focused_multipv(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

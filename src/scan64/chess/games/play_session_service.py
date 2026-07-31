@@ -1,3 +1,5 @@
+import logging
+from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
@@ -5,7 +7,9 @@ import chess
 from sqlalchemy import update
 from sqlmodel import Session, col
 
+from scan64.chess.analysis.coach_interruption import CoachInterruption, prepare_coach_interruption
 from scan64.chess.analysis.models import AnalysisJob
+from scan64.chess.boards import uci_moves_to_san
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import participants, player_color
 from scan64.chess.games.pgn import CorruptGameError, build_pgn
@@ -13,6 +17,9 @@ from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
 from scan64.providers.maia import MaiaConfig, MaiaConfigurationError, MaiaOpponentProvider
+from scan64.providers.stockfish.pool import EnginePoolManager
+
+logger = logging.getLogger(__name__)
 
 
 class PlaySessionNotFound(ValueError):
@@ -23,6 +30,12 @@ class PlaySessionNotActive(ValueError):
     """The play session has already reached a terminal state."""
 
 
+@dataclass(frozen=True)
+class PlayMoveResult:
+    opponent_move: str | None
+    interruption: CoachInterruption | None
+
+
 class PlaySessionService:
     def __init__(
         self,
@@ -30,11 +43,13 @@ class PlaySessionService:
         stockfish_provider: StockfishOpponentProvider,
         maia_config: MaiaConfig | None = None,
         maia_config_path: Path | None = None,
+        engine_pool_manager: EnginePoolManager | None = None,
     ) -> None:
         self.db = db_session
         self.stockfish_provider = stockfish_provider
         self.maia_config = maia_config
         self.maia_config_path = maia_config_path
+        self.engine_pool_manager = engine_pool_manager
         self.pending_analysis: list[tuple[str, UUID]] = []
 
     def opponent_provider_for(self, opponent_config: dict[str, str]) -> OpponentPolicy:
@@ -133,10 +148,8 @@ class PlaySessionService:
         self.complete_session(play_session, game, "0-1" if conceded == chess.WHITE else "1-0")
         return play_session
 
-    async def make_move(self, session_id: UUID, player_move: str) -> str | None:
-        """
-        Process a player move and return the opponent's response move (UCI), or None if game over.
-        """
+    async def make_move(self, session_id: UUID, player_move: str) -> PlayMoveResult:
+        """Process a player move and return its durable play outcome."""
         play_session = self.db.get(PlaySession, session_id)
         if not play_session:
             raise PlaySessionNotFound("PlaySession not found")
@@ -168,56 +181,99 @@ class PlaySessionService:
 
         initial_fen = fetched.headers.get("FEN") if fetched.headers else None
         board = chess.Board(initial_fen) if initial_fen else chess.Board()
-        for m in fetched.moves:
-            board.push_uci(m)
+        for recorded_move in fetched.moves:
+            board.push_uci(recorded_move)
+        before_board = board.copy()
+        moves_before = list(fetched.moves)
 
-        # Apply player move
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
             raise ValueError(f"Illegal move: {player_move}")
 
         board.push(move)
-        fetched.moves = fetched.moves + [player_move]
+        player_position = board.copy()
+        fetched.moves = [*moves_before, player_move]
+
+        prepared_interruption = None
+        if play_session.coach_mode and not player_position.is_game_over():
+            try:
+                prepared_interruption = await prepare_coach_interruption(
+                    session=self.db,
+                    game=fetched,
+                    player_id=play_session.player_id,
+                    before_board=before_board,
+                    after_board=player_position,
+                    played_move=before_board.san(move),
+                    history_san=uci_moves_to_san([*moves_before, player_move], initial_fen),
+                    pool_manager=self.engine_pool_manager,
+                )
+            except Exception:
+                logger.exception(
+                    "Coach diagnostic failed for play_session_id=%s move=%s; "
+                    "committing the legal player move without an interruption",
+                    play_session.id,
+                    player_move,
+                )
 
         if board.is_game_over():
+            if prepared_interruption is not None:
+                prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
-            return None
+            return PlayMoveResult(
+                opponent_move=None,
+                interruption=(
+                    prepared_interruption.interruption
+                    if prepared_interruption is not None
+                    else None
+                ),
+            )
 
-        # Determine opponent context
         strength = int(play_session.opponent_config.get("strength", 10))
         clock = play_session.clock_config
         time_limit = clock.get("time_remaining_ms") if clock else None
-
         context = OpponentContext(
             strength_setting=strength, time_remaining_ms=int(time_limit) if time_limit else None
         )
-
         position = Position(
             fen=board.fen(),
             side_to_move="w" if board.turn == chess.WHITE else "b",
             canonical_id=board.fen().split(" ")[0],
         )
-
-        # Get opponent move
         decision = await self.opponent_provider_for(play_session.opponent_config).choose_move(
             position, context
         )
         self.persist_maia_selection(play_session, strength)
 
-        opp_move = chess.Move.from_uci(decision.uci_move)
-        if opp_move not in board.legal_moves:
+        opponent_move = chess.Move.from_uci(decision.uci_move)
+        if opponent_move not in board.legal_moves:
             raise RuntimeError(f"Opponent produced illegal move: {decision.uci_move}")
 
-        board.push(opp_move)
-        fetched.moves = fetched.moves + [decision.uci_move]
+        board.push(opponent_move)
+        fetched.moves = [*fetched.moves, decision.uci_move]
 
         if board.is_game_over():
+            if prepared_interruption is not None:
+                prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
-            return decision.uci_move
+            return PlayMoveResult(
+                opponent_move=decision.uci_move,
+                interruption=(
+                    prepared_interruption.interruption
+                    if prepared_interruption is not None
+                    else None
+                ),
+            )
 
         fetched.pgn = build_pgn(fetched)
         self.db.add(fetched)
         self.db.add(play_session)
+        if prepared_interruption is not None:
+            prepared_interruption.add_to(self.db)
         self.db.commit()
 
-        return decision.uci_move
+        return PlayMoveResult(
+            opponent_move=decision.uci_move,
+            interruption=(
+                prepared_interruption.interruption if prepared_interruption is not None else None
+            ),
+        )

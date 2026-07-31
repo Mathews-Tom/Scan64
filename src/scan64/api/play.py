@@ -80,6 +80,7 @@ def get_maia_config_path() -> Path | None:
 
 
 def get_play_session_service(
+    request: Request,
     session: Session = Depends(get_session),
     stockfish_provider: StockfishOpponentProvider = Depends(get_opponent_provider),
 ) -> PlaySessionService:
@@ -87,6 +88,7 @@ def get_play_session_service(
         db_session=session,
         stockfish_provider=stockfish_provider,
         maia_config_path=get_maia_config_path(),
+        engine_pool_manager=getattr(request.app.state, "engine_pool_manager", None),
     )
 
 
@@ -169,10 +171,10 @@ async def create_move(
 ) -> PlayMoveResponse:
     play_session = _get_owned_play_session(session_id, request, session)
     try:
-        opponent_move = await service.make_move(session_id, move_in.move)
+        move_result = await service.make_move(session_id, move_in.move)
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
         schedule_pending_analysis(service, background_tasks, pool_manager)
-        return PlayMoveResponse(opponent_move=opponent_move, status=play_session.status)
+        return PlayMoveResponse(opponent_move=move_result.opponent_move, status=play_session.status)
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except PlaySessionNotActive as error:
