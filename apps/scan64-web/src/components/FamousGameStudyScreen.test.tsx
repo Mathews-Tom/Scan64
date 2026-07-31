@@ -88,13 +88,8 @@ describe('FamousGameStudyScreen', () => {
       success: true,
       hint_assisted: false,
     });
-    vi.mocked(ApiClient.createPlaySession).mockResolvedValue({
-      id: 'session-1',
-      player_id: 'player-1',
-      game_id: 'game-1',
-      opponent_config: { strength: '1' },
-      status: 'active',
-    });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'session-1', player_id: 'player-1', game_id: 'game-1',
+    opponent_config: { strength: '1' }, status: 'active', coach_mode: false });
   });
 
   it('records a prediction against the selected decision and reveals its comparison', async () => {

@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import UUID
 
 import chess
+from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
@@ -31,6 +32,7 @@ class PlaySessionCreate(BaseModel):
     opponent_config: dict[str, str] = Field(default_factory=dict)
     clock_config: dict[str, str] | None = None
     initial_fen: str | None = None
+    coach_mode: bool = False
 
     @field_validator("opponent_config")
     @classmethod
@@ -58,16 +60,23 @@ class PlaySessionRead(BaseModel):
     opponent_config: dict[str, str]
     clock_config: dict[str, str] | None
     status: str
+    coach_mode: bool
 
 
 class PlayMoveCreate(BaseModel):
     move: str
 
 
+class CriticalInterruptionRead(BaseModel):
+    lesson: LessonSpec
+    opportunity_id: UUID
+    study_session_id: str
+
+
 class PlayMoveResponse(BaseModel):
     opponent_move: str | None
     status: str
-
+    critical_interruption: CriticalInterruptionRead | None = None
 
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
@@ -136,6 +145,7 @@ def create_play_session(
         game_id=game_id,
         opponent_config=session_in.opponent_config,
         clock_config=session_in.clock_config,
+        coach_mode=session_in.coach_mode,
     )
     session.add(play_session)
     session.commit()
@@ -174,7 +184,20 @@ async def create_move(
         move_result = await service.make_move(session_id, move_in.move)
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
         schedule_pending_analysis(service, background_tasks, pool_manager)
-        return PlayMoveResponse(opponent_move=move_result.opponent_move, status=play_session.status)
+        interruption = move_result.interruption
+        return PlayMoveResponse(
+            opponent_move=move_result.opponent_move,
+            status=play_session.status,
+            critical_interruption=(
+                CriticalInterruptionRead(
+                    lesson=interruption.lesson,
+                    opportunity_id=interruption.opportunity_id,
+                    study_session_id=interruption.study_session_id,
+                )
+                if interruption is not None
+                else None
+            ),
+        )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except PlaySessionNotActive as error:

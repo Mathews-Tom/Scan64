@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from chess_lesson_spec import Explanation
@@ -115,6 +115,9 @@ def test_coach_diagnostic_persists_attempt_context_before_move_response(
     )
 
     assert response.status_code == 200, response.text
+    interruption = response.json()["critical_interruption"]
+    assert interruption is not None
+    db_session.rollback()
     opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
     schedule = db_session.get(ReviewSchedule, ("alice", str(opportunity.id)))
     study_session = db_session.exec(select(StudySession)).one()
@@ -122,6 +125,9 @@ def test_coach_diagnostic_persists_attempt_context_before_move_response(
     assert opportunity.game_id == play_session.game_id
     assert opportunity.verification_status == "verified"
     assert schedule is not None
+    assert interruption["opportunity_id"] == str(opportunity.id)
+    assert interruption["study_session_id"] == study_session.id
+    assert interruption["lesson"]["lesson_id"] == str(opportunity.id)
     assert schedule.skill_id == "board_awareness.hanging_piece"
     assert study_session.player_id == "alice"
     assert study_session.domain == f"coach_interruption:{play_session.game_id}"
@@ -227,6 +233,63 @@ def test_coach_diagnostic_persists_the_resolved_explanation(
     db_session.rollback()
     opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
     assert opportunity.lesson_spec["explanation"]["text"] == "Resolved explanation"
+
+
+def test_play_session_create_persists_explicit_coach_opt_in(
+    client: TestClient, db_session: Session
+) -> None:
+    auth = _register(db_session)
+
+    response = client.post(
+        "/v1/play-sessions",
+        json={
+            "player_id": "alice",
+            "opponent_config": {"strength": "1"},
+            "coach_mode": True,
+        },
+        headers=auth,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["coach_mode"] is True
+    stored = db_session.get(PlaySession, UUID(response.json()["id"]))
+    assert stored is not None
+    assert stored.coach_mode is True
+
+
+def test_play_session_create_defaults_coach_mode_to_false(
+    client: TestClient, db_session: Session
+) -> None:
+    auth = _register(db_session)
+
+    response = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        headers=auth,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["coach_mode"] is False
+    stored = db_session.get(PlaySession, UUID(response.json()["id"]))
+    assert stored is not None
+    assert stored.coach_mode is False
+
+
+def test_non_owned_move_returns_not_found_without_interruption_context(
+    client: TestClient, db_session: Session
+) -> None:
+    _register(db_session, "alice")
+    owner_session = _coach_session(db_session, coach_mode=True)
+    attacker_auth = _register(db_session, "bob")
+
+    response = client.post(
+        f"/v1/play-sessions/{owner_session.id}/moves",
+        json={"move": "e2e3"},
+        headers=attacker_auth,
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "PlaySession not found"}
 
 
 def test_ordinary_play_does_not_run_the_coach_diagnostic(

@@ -165,6 +165,7 @@ export interface PlaySessionCreate {
   opponent_config?: Record<string, string>;
   clock_config?: Record<string, string>;
   initial_fen?: string;
+  coach_mode?: boolean;
 }
 
 export interface PlaySessionRead {
@@ -174,15 +175,24 @@ export interface PlaySessionRead {
   opponent_config: Record<string, string>;
   clock_config?: Record<string, string>;
   status: string;
+  coach_mode: boolean;
 }
 
 export interface PlayMoveCreate {
   move: string;
 }
 
+
+export interface CriticalInterruptionRead {
+  lesson: LessonSpec;
+  opportunity_id: string;
+  study_session_id: string;
+}
+
 export interface PlayMoveResponse {
   opponent_move: string | null;
   status: string;
+  critical_interruption?: CriticalInterruptionRead | null;
 }
 
 export interface DiagnosisRead {
