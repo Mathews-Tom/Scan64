@@ -1,26 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function movePiece(page: Page, from: string, to: string): Promise<void> {
-  const board = page.getByTestId('chessground-board');
-  await expect(board).toBeVisible();
-  await expect.poll(async () => (await board.boundingBox())?.width ?? 0).toBeGreaterThan(0);
-
-  const bounds = await board.boundingBox();
-  if (bounds === null || bounds.width !== bounds.height) {
-    throw new Error('Chessground board is not ready for pointer input');
-  }
-
-  const squareCenter = (square: string) => ({
-    x: bounds.x + ((square.charCodeAt(0) - 'a'.charCodeAt(0)) + 0.5) * (bounds.width / 8),
-    y: bounds.y + (8 - Number(square[1]) + 0.5) * (bounds.height / 8),
-  });
-  const source = squareCenter(from);
-  const destination = squareCenter(to);
-  await page.mouse.move(source.x, source.y);
-  await page.mouse.down();
-  await page.mouse.move(destination.x, destination.y);
-  await page.mouse.up();
-}
+import { expect, test } from '@playwright/test';
+import { movePiece } from './board';
 
 test('resumes an active game after reload and browser navigation', async ({ page }) => {
   let resumedSessionReads = 0;
@@ -75,7 +54,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
   await page.getByTestId('start-btn').click();
   await expect(page.getByTestId('session-info')).toContainText('Status: active');
 
-  await movePiece(page, 'e2', 'e4');
+  await movePiece(page, page.getByTestId('chessground-board'), 'e2', 'e4');
 
   const board = page.getByTestId('chessground-board');
   const hasResumedPosition = async () =>
@@ -90,7 +69,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
   await expect(page.getByTestId('session-info')).toContainText('Status: active');
   await expect.poll(hasResumedPosition).toBe(true);
 
-  await movePiece(page, 'g1', 'f3');
+  await movePiece(page, page.getByTestId('chessground-board'), 'g1', 'f3');
   await expect.poll(async () =>
     await board.locator('piece').evaluateAll((pieces) => {
       const keys = pieces.map((piece) => (piece as HTMLElement & { cgKey?: string }).cgKey);

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { movePiece } from './board';
 
 const lesson = {
   schema_version: '1.0',
@@ -32,12 +33,7 @@ test('records an accepted daily-training move from real board pointer input', as
   await page.goto('/');
   await page.getByText('Daily Training').click();
   const board = page.getByTestId('lesson-board');
-  await expect(board).toBeVisible();
-  const bounds = await board.boundingBox();
-  if (bounds === null) throw new Error('Lesson board has no bounds');
-  const square = bounds.width / 8;
-  await page.mouse.click(bounds.x + square * 4.5, bounds.y + square * 6.5);
-  await page.mouse.click(bounds.x + square * 4.5, bounds.y + square * 4.5);
+  await movePiece(page, board, 'e2', 'e4');
 
   await expect(page.getByTestId('lesson-feedback')).toHaveText('Correct. Attempt recorded.');
   expect(attempt).toMatchObject({
