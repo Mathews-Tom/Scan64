@@ -67,10 +67,10 @@ Prepare the Scan64 environment from the repository root:
 uv sync
 ```
 
-Start the API with the configuration:
+Start the complete local application with the configuration:
 
 ```text
-SCAN64_MAIA_CONFIG="$HOME/.config/scan64/maia.toml" uv run uvicorn scan64.api.app:app --host 127.0.0.1 --port 8000
+SCAN64_MAIA_CONFIG="$HOME/.config/scan64/maia.toml" scripts/run.sh
 ```
 
 Create a play session with `opponent_config.provider = "maia"` and a numeric `opponent_config.strength`. Scan64 selects the nearest configured checkpoint. A request that differs from the selected checkpoint persists an approximate-100-Elo granularity disclosure; requests below or above configured coverage also persist the coverage-gap disclosure. Use `provider = "stockfish"` explicitly for conventional engine play.
