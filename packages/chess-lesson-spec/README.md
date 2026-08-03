@@ -2,6 +2,8 @@
 
 Portable Pydantic models for the versioned Scan64 `LessonSpec` protocol.
 
+
+The package is consumed by Scan64's web application and can also support independent renderers. See the repository [system design](../../docs/system-design.md) for the delivered learning-loop boundary and the [user guide](../../docs/user-guide.md) for application workflows.
 The package is distributed under `GPL-3.0-or-later`, matching the repository's shipped license. It defines the data contract only; it does not render lessons or embed Scan64 application code.
 
 ## Conformance runner
