@@ -2,11 +2,13 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| Main    | :white_check_mark: |
+| Version | Supported |
+| ------- | --------- |
+| 0.2.x | :white_check_mark: |
+| Main | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
-Please do not open a public issue for security vulnerabilities. Instead, send an email privately. 
-We will review your report and respond as soon as possible.
+Do not disclose vulnerabilities, exploit details, or credentials in a public issue. Submit a private report through [GitHub Security Advisories](https://github.com/Mathews-Tom/Scan64/security/advisories/new).
+
+Include the affected version, a minimal reproduction, impact, and any proposed mitigation. Maintainers will acknowledge the report and coordinate disclosure through the advisory.

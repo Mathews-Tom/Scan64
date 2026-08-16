@@ -1,6 +1,6 @@
 # Scan64 — System Design
 
-This document describes the implementation delivered in Scan64 `0.2.0`, not a future architecture proposal. Product behavior and operating instructions are in the [user guide](user-guide.md).
+This document describes the implementation delivered in Scan64 `0.2.1`, not a future architecture proposal. Product behavior and operating instructions are in the [user guide](user-guide.md).
 
 ## Runtime
 

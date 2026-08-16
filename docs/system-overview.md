@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The application is currently released as `0.2.0`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
+The application is currently released as `0.2.1`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
 
 ## What works today
 

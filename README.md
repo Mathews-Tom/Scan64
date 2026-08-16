@@ -25,6 +25,11 @@ Daily Training composes eligible lessons from active mastery, due review, verifi
 
 Scan64 does **not** yet establish that it improves over-the-board chess performance. It also does not currently provide calibrated behavioural-habit detection, context-conditioned profiling, keyboard board interaction, hosted deployment, or PostgreSQL production verification.
 
+## Distribution and support
+
+Scan64 currently ships as a source-install local application. The repository and its release tags are the supported distribution; no signed desktop application, hosted service, or end-user installer is provided. Run Scan64 only on a machine you operate, using the prerequisites and startup steps below.
+
+
 ## Run locally
 
 ### Prerequisites
@@ -72,6 +77,7 @@ SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" scripts/run.sh
 
 - [Web client guide](apps/scan64-web/README.md): frontend commands and browser-test workflow.
 - [Changelog](CHANGELOG.md): released functionality.
+- [Security policy](SECURITY.md): submit vulnerabilities through a private GitHub Security Advisory.
 
 ## Maia model weights
 

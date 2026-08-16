@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-10
+
+### Changed
+
+- Clarified the source-only local distribution model and current product boundaries in the release documentation.
+
+### Security
+
+- Added a private GitHub Security Advisories reporting route for vulnerability disclosures.
+
 ## [0.2.0] - 2026-07-31
 
 ### Added
