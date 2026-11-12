@@ -22,11 +22,11 @@ describe('ApiClient', () => {
       json: async () => ({ id: '123', pgn: '...', white: 'W', black: 'B', result: '*' }),
     });
 
-    const res = await ApiClient.createGame({ pgn: '...', player_id: 'player-1' });
+    const res = await ApiClient.createGame({ owner_color: 'white',  pgn: '...', player_id: 'player-1' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
-      body: JSON.stringify({ pgn: '...', player_id: 'player-1' }),
+      body: JSON.stringify({ owner_color: 'white',  pgn: '...', player_id: 'player-1' }),
     });
     expect(res.id).toBe('123');
   });
@@ -314,6 +314,6 @@ describe('ApiClient', () => {
       statusText: 'Bad Request',
     });
 
-    await expect(ApiClient.createGame({ pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
+    await expect(ApiClient.createGame({ owner_color: 'white',  pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
   });
 });

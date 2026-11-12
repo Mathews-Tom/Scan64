@@ -78,7 +78,9 @@ def test_create_get_game(client: TestClient, session: Session):
         '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
     )
     response = client.post(
-        "/v1/games", json={"pgn": pgn, "player_id": "game-player"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": pgn, "player_id": "game-player"},
+        headers=headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -96,7 +98,9 @@ def test_create_get_analysis_job(client: TestClient, session: Session):
     headers = _register(session, "analysis-player")
     pgn = '[Event "Casual Game"]\n\n1. e4 e5 2. Nf3 Nc6'
     game_response = client.post(
-        "/v1/games", json={"pgn": pgn, "player_id": "analysis-player"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": pgn, "player_id": "analysis-player"},
+        headers=headers,
     )
     game_id = game_response.json()["id"]
 
@@ -196,6 +200,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     assert game_id is not None
     game = session.get(Game, UUID(game_id))
     assert game is not None
+    assert game.owner_color == "black"
     assert game.headers == {"FEN": initial_fen}
     assert game.owner_player_id == "player_123"
     assert (game.white, game.black) == ("Stockfish (strength 10)", "player_123")
@@ -235,6 +240,7 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert game is not None
     assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
+    assert game.owner_color == "white"
     assert (game.white, game.black) == ("player_123", "Stockfish (strength 10)")
 
     retry_resp = client.post(

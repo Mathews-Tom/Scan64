@@ -10,6 +10,22 @@ interface PgnImportScreenProps {
 
 export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const [pgn, setPgn] = useState('');
+  const [ownerColor, setOwnerColor] = useState<'white' | 'black'>('white');
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const playerId = getOrCreatePlayerId();
+    void ApiClient.getPlayerProfile(playerId).then(profile => setDisplayName(profile.display_name)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const names = [getOrCreatePlayerId(), displayName].filter(Boolean);
+    for (const color of ['white', 'black'] as const) {
+      const header = color === 'white' ? 'White' : 'Black';
+      const name = pgn.match(new RegExp(`\\[${header}\\s+"([^"]*)"\\]`))?.[1];
+      if (name && names.includes(name)) setOwnerColor(color);
+    }
+  }, [pgn, displayName]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
@@ -45,7 +61,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     try {
       let playerId = getOrCreatePlayerId();
       playerId = await ensurePlayerAuthorization(playerId);
-      const game = await ApiClient.createGame({ pgn, player_id: playerId });
+      const game = await ApiClient.createGame({ pgn, player_id: playerId, owner_color: ownerColor });
       if (signal.aborted) return;
 
       setStatusText('Starting analysis job...');
@@ -114,6 +130,12 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   return (
     <div className="pgn-import" data-testid="pgn-import">
       <h2>Import Game</h2>
+      <label>Your side
+        <select aria-label="Your side" value={ownerColor} onChange={e => setOwnerColor(e.target.value as 'white' | 'black')}>
+          <option value="white">White</option>
+          <option value="black">Black</option>
+        </select>
+      </label>
       <textarea
         value={pgn}
         onChange={(e) => setPgn(e.target.value)}

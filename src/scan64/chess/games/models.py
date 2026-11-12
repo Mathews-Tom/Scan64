@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
-from sqlmodel import JSON, Column, Field, SQLModel
+from sqlmodel import JSON, Column, Field, SQLModel, String
 
 
 class Game(SQLModel, table=True):
@@ -14,6 +15,9 @@ class Game(SQLModel, table=True):
     black: str = "Unknown"
     result: str = "*"
     date: str | None = None
+    owner_color: Literal["white", "black"] | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
     owner_player_id: str | None = Field(default=None, index=True)
 
 

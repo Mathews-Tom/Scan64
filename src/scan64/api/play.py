@@ -11,7 +11,7 @@ from sqlmodel import Session
 from scan64.api.auth import require_authenticated_player
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.models import Game, PlaySession
-from scan64.chess.games.participants import name_player_on, participants
+from scan64.chess.games.participants import name_player_on, participants, player_color
 from scan64.chess.games.pgn import build_pgn
 from scan64.chess.games.play_session_service import (
     PlaySessionNotActive,
@@ -78,6 +78,7 @@ class PlayMoveResponse(BaseModel):
     status: str
     critical_interruption: CriticalInterruptionRead | None = None
 
+
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
     return StockfishOpponentProvider(StockfishConfig(), pool_manager=pool_manager)
@@ -128,6 +129,7 @@ def create_play_session(
             white=white,
             black=black,
             owner_player_id=session_in.player_id,
+            owner_color="white" if player_color(session_in.initial_fen) else "black",
         )
         game.pgn = build_pgn(game)
         session.add(game)
@@ -137,6 +139,10 @@ def create_play_session(
         existing = session.get(Game, game_id)
         if existing is None or existing.owner_player_id != authenticated_player_id:
             raise HTTPException(status_code=404, detail="Game not found")
+        existing.owner_color = (
+            "white" if player_color(existing.headers.get("FEN"), existing.moves) else "black"
+        )
+        session.add(existing)
         if name_player_on(existing, session_in.player_id, session_in.opponent_config):
             session.add(existing)
 

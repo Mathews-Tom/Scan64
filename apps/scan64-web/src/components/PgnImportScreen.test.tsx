@@ -6,6 +6,7 @@ import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../ap
 vi.mock('../api/client', () => ({
   ApiClient: {
     createGame: vi.fn(),
+    getPlayerProfile: vi.fn(),
     createPlayer: vi.fn(),
     getLearningOpportunities: vi.fn(),
     createAnalysisJob: vi.fn(),
@@ -18,8 +19,24 @@ vi.mock('../api/client', () => ({
 describe('PgnImportScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(ApiClient.getPlayerProfile).mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null });
     vi.mocked(getOrCreatePlayerId).mockReturnValue('player-1');
     vi.mocked(ensurePlayerAuthorization).mockResolvedValue('recovered-player-2');
+  });
+
+  it.each(['White', 'Black'] as const)('pre-selects %s from the player id', async header => {
+    render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: `[${header} "player-1"]\n\n1. e4 *` } });
+    await waitFor(() => expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe(header.toLowerCase()));
+  });
+
+  it('pre-selects the display name and allows an explicit override', async () => {
+    vi.mocked(ApiClient.getPlayerProfile).mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: 'Alice' });
+    render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '[Black "Alice"]\n\n1. e4 *' } });
+    await waitFor(() => expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('black'));
+    fireEvent.change(screen.getByLabelText('Your side'), { target: { value: 'white' } });
+    expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('white');
   });
 
   it('renders textarea and button', () => {
@@ -63,7 +80,7 @@ describe('PgnImportScreen', () => {
     fireEvent.click(screen.getByTestId('import-btn'));
     await waitFor(() => {
       expect(ensurePlayerAuthorization).toHaveBeenCalledWith('player-1');
-      expect(ApiClient.createGame).toHaveBeenCalledWith({ pgn: '1. e4 e5', player_id: 'recovered-player-2' });
+      expect(ApiClient.createGame).toHaveBeenCalledWith({ owner_color: 'white',  pgn: '1. e4 e5', player_id: 'recovered-player-2' });
       expect(ApiClient.createAnalysisJob).toHaveBeenCalledWith('game-1');
       expect(ApiClient.getAnalysisJob).toHaveBeenCalledWith('job-1');
       expect(ApiClient.getLearningOpportunities).toHaveBeenCalledWith('game-1');

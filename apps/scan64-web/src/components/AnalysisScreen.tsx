@@ -165,6 +165,7 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
       const game = await ApiClient.createGame({
         pgn: `[FEN "${fen}"]\n[SetUp "1"]\n\n`,
         player_id: playerId,
+        owner_color: fen.split(' ')[1] === 'b' ? 'black' : 'white',
       });
       const playSession = await ApiClient.createPlaySession({
         player_id: playerId,

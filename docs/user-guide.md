@@ -22,7 +22,7 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 ## Import and analyse a PGN
 
 1. Open **Import PGN**.
-2. Paste a game and import it as the active player.
+2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Your Games**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
 5. Review move-by-move engine evaluations and diagnosis markers on the analysis board.

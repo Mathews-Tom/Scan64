@@ -7,6 +7,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
     await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/games', async route => {
+    expect(route.request().postDataJSON().owner_color).toBe('black');
     await route.fulfill({ json: { id: 'test-game' } });
   });
   await page.route('**/v1/play-sessions', async route => {

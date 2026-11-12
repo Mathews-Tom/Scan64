@@ -136,7 +136,9 @@ def test_analysis_job_submitted_through_the_api_is_admitted_and_completes(
 ) -> None:
     headers = _register(db_session, "admission-player")
     game_response = client.post(
-        "/v1/games", json={"pgn": PGN, "player_id": "admission-player"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": PGN, "player_id": "admission-player"},
+        headers=headers,
     )
     assert game_response.status_code == 200
     game_id = game_response.json()["id"]
@@ -162,7 +164,9 @@ def test_a_player_exceeding_the_daily_quota_is_queued_not_rejected(
 
     headers = _register(db_session, "quota-player")
     game_response = client.post(
-        "/v1/games", json={"pgn": PGN, "player_id": "quota-player"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": PGN, "player_id": "quota-player"},
+        headers=headers,
     )
     game_id = game_response.json()["id"]
 

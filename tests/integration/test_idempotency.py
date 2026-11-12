@@ -73,7 +73,7 @@ def test_idempotency(client: TestClient, session: Session):
     session.add(PlayerCredential(player_id=second_player.id, token_hash=second_token_hash))
     session.commit()
     pgn = '[Event "Casual Game"]\n\n1. e4 e5'
-    payload = {"pgn": pgn, "player_id": player.id}
+    payload = {"owner_color": "white", "pgn": pgn, "player_id": player.id}
     idem_key = str(uuid.uuid4())
 
     # First request

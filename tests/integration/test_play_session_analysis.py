@@ -65,6 +65,7 @@ def _mate_session(db_session: Session) -> PlaySession:
         moves=[],
         white="Stockfish (strength 1)",
         black="alice",
+        owner_color="white",
         owner_player_id="alice",
     )
     db_session.add(game)
@@ -156,4 +157,3 @@ def test_resigning_a_session_without_a_game_enqueues_nothing(
 
     assert resigned.status_code == 200, resigned.text
     assert db_session.exec(select(AnalysisJob)).all() == []
-
