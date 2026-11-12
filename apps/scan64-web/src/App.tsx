@@ -12,6 +12,7 @@ import { CoachDashboardScreen } from './components/CoachDashboardScreen';
 import { GamesListScreen } from './components/GamesListScreen';
 import { createActivePlayer, getStoredPlayerId } from './api/client';
 import { TodayScreen } from './components/TodayScreen';
+import { PuzzlesScreen } from './components/PuzzlesScreen';
 
 function decodeRouteSegment(value: string): string | null {
   try {
@@ -59,7 +60,7 @@ function App() {
   let screen = <div data-testid="not-found">Page not found</div>;
   const isKnownPath = gameAnalysisId !== null || [
     '/', '/play', '/import', '/famous', '/analysis', '/games',
-    '/explorer', '/training', '/profile', '/coach', '/library',
+    '/explorer', '/training', '/puzzles', '/profile', '/coach', '/library',
   ].includes(pathname);
   if (gameAnalysisId !== null) {
     screen = (
@@ -127,6 +128,9 @@ function App() {
     case '/training':
       screen = <DailyTrainingScreen />;
       break;
+    case '/puzzles':
+      screen = <PuzzlesScreen />;
+      break;
     case '/profile':
       screen = <ProfileScreen />;
       break;
@@ -158,7 +162,7 @@ function App() {
       <nav className="app-nav" aria-label="Main navigation">
         {[
           ['Today', '/'], ['Play', '/play'], ['Review', '/games'],
-          ['Train', '/training'], ['Profile', '/profile'],
+          ['Train', '/training'], ['Puzzles', '/puzzles'], ['Profile', '/profile'],
           ['Library', '/library'], ['Coach', '/coach'],
         ].map(([label, path]) => {
           const selected = pathname === path

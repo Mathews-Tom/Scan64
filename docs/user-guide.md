@@ -134,6 +134,39 @@ without replacing the immutable lesson, original provenance, import order or pla
 The first UCI move is applied as setup; the remaining legal continuation becomes a
 source-verified external lesson, not an engine diagnosis or a theme-mastery update.
 
+## Practise imported puzzles
+
+Open **Puzzles** after the operator imports a catalog into the running application's
+database using the commands above. First-time players use the same display-name
+onboarding as other screens. An empty or exhausted catalog shows the server's message
+and an explicit local import command; the screen never downloads a catalog.
+
+The board starts after the opponent's setup move, with your solving side facing you.
+Play the complete source continuation, including choosing the exact promotion piece.
+After each accepted move the server plays the next opponent move automatically. A
+wrong move leaves the position unchanged. There are **three wrong submissions total
+per run**, not three per turn; only the server changes this count.
+
+**Show hint** reveals the next of three levels without spending a wrong attempt.
+Previously requested hints remain visible for that turn, including after reload.
+The third hint may disclose the source move and remaining line. Hints reset on the
+next solving turn. These hints come from the imported puzzle, not the live game's
+engine-hint endpoint.
+
+Reloading or returning to Puzzles resumes the active server-owned run; no solution
+line or progress is saved in browser storage. Solved and failed states disable the
+board; choose **Next puzzle** to continue. **Abandon puzzle** ends the run without
+recording a success or failure and also offers Next puzzle.
+
+If another tab changes the run, the screen loads the conflict response's current
+state without replaying your action. Other request failures do not spend attempts
+locally: choose **Retry** to reload canonical state before acting again. Puzzle
+mutations require a connection; they are not queued for offline submission.
+
+Imported Lichess CC0 puzzles are **source verified**: their continuation is legal.
+This is not engine recognition of move quality, an Elo estimate, or evidence of
+learning improvement. Puzzle practice does not award theme mastery or rating gains.
+
 ## Review games and content
 
 - **Review** (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.

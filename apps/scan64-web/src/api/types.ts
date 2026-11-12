@@ -42,6 +42,30 @@ export type PositionInsight = MoveInsight | {
   visualizations: Visualization[];
 };
 
+/** The server's three-step hint union, shared with position hints. */
+export type InsightStep = PositionInsight;
+
+export interface PuzzleRunRead {
+  run_id: string;
+  puzzle_id: string;
+  fen: string;
+  setup: string;
+  played_moves: string[];
+  cursor: number;
+  revision: number;
+  wrong_attempts: number;
+  maximum_wrong_attempts: number;
+  state: 'active' | 'solved' | 'failed' | 'abandoned';
+  hint_step: number;
+  hints: InsightStep[];
+}
+
+export interface PuzzleStartRead {
+  status: 'ready' | 'empty' | 'exhausted';
+  run: PuzzleRunRead | null;
+  message: string;
+}
+
 export interface Hint {
   level: number;
   kind: string;
