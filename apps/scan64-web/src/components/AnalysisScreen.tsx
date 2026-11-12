@@ -1,373 +1,127 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
+import type { Key } from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
-import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
-import type { GameAnalysisStatusRead, PlaySessionRead, PositionRead } from '../api/types';
-import type { Key } from 'chessground/types';
+import type { PlaySessionRead } from '../api/types';
+import { OwnedGameReview } from './OwnedGameReview';
 
 interface AnalysisScreenProps {
   gameId?: string;
   onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
 }
 
+async function startPlayFromPosition(fen: string): Promise<PlaySessionRead> {
+  const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
+  const game = await ApiClient.createGame({
+    pgn: `[FEN "${fen}"]\n[SetUp "1"]\n\n`,
+    player_id: playerId,
+    owner_color: fen.split(' ')[1] === 'b' ? 'black' : 'white',
+  });
+  return ApiClient.createPlaySession({
+    player_id: playerId,
+    game_id: game.id,
+    opponent_config: { provider: 'stockfish', bot_level: DEFAULT_BOT_LEVEL },
+  });
+}
+
 export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) {
+  return gameId
+    ? <OwnedGameReview key={gameId} gameId={gameId} onPlayFromHere={onPlayFromHere} startPlayFromPosition={startPlayFromPosition} />
+    : <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} />;
+}
+
+function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
   const boardRef = useRef<HTMLDivElement>(null);
-  const [cg, setCg] = useState<Api | null>(null);
+  const cg = useRef<Api | null>(null);
   const [chess] = useState(() => new Chess());
-  const [positions, setPositions] = useState<PositionRead[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysisStatus, setAnalysisStatus] = useState<GameAnalysisStatusRead | null>(null);
   const [fenInput, setFenInput] = useState(chess.fen());
 
-  const updateFenInput = useCallback(() => setFenInput(chess.fen()), [chess]);
-
   useEffect(() => {
-    let ignore = false;
-    setError(null);
-    setPositions([]);
-    setAnalysisStatus(null);
-    setCurrentIndex(0);
-    chess.reset();
-    updateFenInput();
-    if (!gameId) {
-      setLoading(false);
-      return () => {
-        ignore = true;
-      };
-    }
-    setLoading(true);
-    Promise.all([
-      ApiClient.getPositions(gameId),
-      ApiClient.getGameAnalysisStatus(gameId),
-    ])
-      .then(([data, status]) => {
-        if (ignore) return;
-        setPositions(data);
-        setAnalysisStatus(status);
-        if (data.length > 0) {
-          chess.load(data[0].fen);
-          updateFenInput();
-        }
-      })
-      .catch((error: unknown) => {
-        if (ignore) return;
-        setError(
-          error instanceof ApiRequestError && error.status === 404
-            ? 'Game analysis was not found.'
-            : error instanceof Error ? error.message : 'Failed to load analysis',
-        );
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [gameId, chess, updateFenInput]);
-
-  useEffect(() => {
-    if (boardRef.current && !cg) {
-      const api = Chessground(boardRef.current, {
-        fen: chess.fen(),
-        movable: gameId
-          ? { color: undefined, dests: new Map<Key, Key[]>() }
-          : {
-              color: 'both',
-              free: false,
-              dests: getDests(chess),
-            },
-        events: gameId
-          ? {}
-          : {
-              move: (orig, dest) => {
-                try {
-                  chess.move({ from: orig, to: dest, promotion: 'q' });
-                  api.set({
-                    fen: chess.fen(),
-                    movable: { dests: getDests(chess) },
-                  });
-                  updateFenInput();
-                } catch {
-                  api.set({ fen: chess.fen() });
-                }
-              },
-            },
-      });
-      setCg(api);
-    }
-
-    return () => {
-      if (cg) {
-        cg.destroy();
-        setCg(null);
-      }
-    };
-  }, [cg, chess, gameId, updateFenInput]);
-
-  useEffect(() => {
-    if (!cg) return;
-    const currentPosition = positions[currentIndex];
-    if (currentPosition) {
-      chess.load(currentPosition.fen);
-    } else {
-      chess.reset();
-    }
-    cg.set({
+    if (!boardRef.current) return;
+    const api = Chessground(boardRef.current, {
       fen: chess.fen(),
-      movable: gameId
-        ? { color: undefined, dests: new Map<Key, Key[]>() }
-        : { dests: getDests(chess) },
+      movable: { color: 'both', free: false, dests: getDests(chess) },
+      events: { move: (orig, dest) => {
+        try {
+          chess.move({ from: orig, to: dest, promotion: 'q' });
+          api.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+          setFenInput(chess.fen());
+        } catch { api.set({ fen: chess.fen() }); }
+      } },
     });
-  }, [cg, chess, currentIndex, gameId, positions]);
-
-  const goNext = () => {
-    if (currentIndex < positions.length - 1) {
-      const nextIdx = currentIndex + 1;
-      chess.load(positions[nextIdx].fen);
-      setCurrentIndex(nextIdx);
-      updateFenInput();
-    }
-  };
-
-  const goPrev = () => {
-    if (currentIndex > 0) {
-      const prevIdx = currentIndex - 1;
-      chess.load(positions[prevIdx].fen);
-      setCurrentIndex(prevIdx);
-      updateFenInput();
-    }
-  };
+    cg.current = api;
+    return () => { api.destroy(); cg.current = null; };
+  }, [chess]);
 
   const handleLoadFen = () => {
     try {
       chess.load(fenInput);
-      if (cg) cg.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+      cg.current?.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
       setError(null);
-    } catch {
-      setError('Invalid FEN');
-    }
+    } catch { setError('Invalid FEN'); }
   };
 
   const playFromHere = async () => {
     if (!onPlayFromHere) return;
-
     setLoading(true);
     setError(null);
     try {
       const fen = chess.fen();
-      const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
-      const game = await ApiClient.createGame({
-        pgn: `[FEN "${fen}"]\n[SetUp "1"]\n\n`,
-        player_id: playerId,
-        owner_color: fen.split(' ')[1] === 'b' ? 'black' : 'white',
-      });
-      const playSession = await ApiClient.createPlaySession({
-        player_id: playerId,
-        game_id: game.id,
-        opponent_config: { provider: 'stockfish', bot_level: DEFAULT_BOT_LEVEL },
-      });
-      onPlayFromHere(playSession, fen);
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Failed to start game');
-    } finally {
-      setLoading(false);
-    }
+      onPlayFromHere(await startPlayFromPosition(fen), fen);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to start game');
+    } finally { setLoading(false); }
   };
 
-  const startAnalysis = useCallback(async () => {
-    if (!gameId) return;
-
-    setError(null);
-    setLoading(true);
-    try {
-      const job = await ApiClient.createAnalysisJob(gameId);
-      setAnalysisStatus({ status: job.status });
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Failed to start analysis');
-    } finally {
-      setLoading(false);
-    }
-  }, [gameId]);
-
-
-
-  const currentPos = positions[currentIndex];
-  const multiPv = currentPos?.analysis?.raw_result || [];
-  const diagnoses = currentPos?.diagnoses ?? [];
-  const hasDiagnoses = positions.some((position) => position.diagnoses.length > 0);
-  const hasNotBeenAnalysed = gameId !== undefined && analysisStatus?.status === 'not_analysed';
-  const analysisFoundNothing =
-    gameId !== undefined && analysisStatus?.status === 'completed' && !hasDiagnoses;
-  const analysisInProgress =
-    gameId !== undefined &&
-    (analysisStatus?.status === 'pending' || analysisStatus?.status === 'running');
-  const analysisFailed = gameId !== undefined && analysisStatus?.status === 'failed';
-
-  return (
-    <div className="analysis-screen">
-      <h2>Analysis Board</h2>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {loading && <div>Loading...</div>}
-      {hasNotBeenAnalysed && (
-        <p data-testid="analysis-not-analysed">This game has not been analysed yet.</p>
-      )}
-      {hasNotBeenAnalysed && (
-        <button onClick={startAnalysis} data-testid="start-analysis" disabled={loading}>
-          Analyse game
-        </button>
-      )}
-      {analysisInProgress && <p data-testid="analysis-in-progress">Analysis is in progress.</p>}
-      {analysisFailed && (
-        <>
-          <p data-testid="analysis-failed">Analysis failed.</p>
-          <button onClick={startAnalysis} data-testid="retry-analysis" disabled={loading}>
-            Retry analysis
-          </button>
-        </>
-      )}
-      {analysisFoundNothing && (
-        <p data-testid="analysis-found-nothing">Analysis found no diagnoses.</p>
-      )}
-
-      <div style={{ display: 'flex', gap: '2rem' }}>
-        <div ref={boardRef} style={{ width: '400px', height: '400px' }} />
-
-        <div className="analysis-sidebar" style={{ width: '300px' }}>
-          <div className="play-from-here" style={{ marginBottom: '1rem' }}>
-            <button onClick={playFromHere} disabled={loading} data-testid="play-from-here">
-              {loading ? 'Starting...' : 'Play from here'}
-            </button>
-          </div>
-
-          {!gameId && (
-            <div className="fen-setup" style={{ marginBottom: '1rem' }}>
-              <h3>FEN Setup</h3>
-              <input
-                type="text"
-                value={fenInput}
-                onChange={(e) => setFenInput(e.target.value)}
-                placeholder="Paste FEN here"
-                style={{ width: '100%', marginBottom: '0.5rem' }}
-              />
-              <button onClick={handleLoadFen}>Load FEN</button>
-            </div>
-          )}
-
-          <div className="pgn-export" style={{ marginBottom: '1rem' }}>
-            <h3>Export</h3>
-            <button
-              onClick={() => {
-                const pgn = chess.pgn();
-                const blob = new Blob([pgn], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'analysis.pgn';
-                link.click();
-                URL.revokeObjectURL(url);
-              }}
-            >
-              Download PGN
-            </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(chess.fen());
-              }}
-              style={{ marginLeft: '0.5rem' }}
-            >
-              Copy FEN
-            </button>
-          </div>
-
-
-          <div className="controls" style={{ marginBottom: '1rem' }}>
-            <button onClick={goPrev} disabled={currentIndex === 0}>
-              Previous
-            </button>
-            <span style={{ margin: '0 1rem' }}>
-              Position {currentIndex + 1} of {Math.max(1, positions.length)}
-            </span>
-            <button onClick={goNext} disabled={currentIndex >= positions.length - 1}>
-              Next
-            </button>
-          </div>
-
-          {gameId && (
-            <section aria-label="Game positions" data-testid="position-list">
-              <h3>Positions</h3>
-              <ol>
-                {positions.map((position, index) => (
-                  <li key={position.id}>
-                    <button
-                      aria-current={index === currentIndex ? 'step' : undefined}
-                      onClick={() => setCurrentIndex(index)}
-                    >
-                      Move {position.full_move_number}
-                      {position.side_to_move === 'w' ? '. White' : '... Black'}
-                    </button>
-                    {position.diagnoses.map((diagnosis) => (
-                      <span data-testid="diagnosis-marker" key={diagnosis.primary}>
-                        {diagnosis.primary}
-                      </span>
-                    ))}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-
-          <div className="multipv-container" data-testid="multipv-lines">
-            <h3>Engine Evaluation</h3>
-            {multiPv.length === 0 ? (
-              <p>No engine analysis available for this position.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {multiPv.map((line, i) => (
-                  <li key={i} style={{ marginBottom: '0.5rem' }}>
-                    <strong>{line.score_mate ? `M${line.score_mate}` : (line.score_cp !== undefined ? (line.score_cp / 100).toFixed(2) : '?')}</strong>
-                    {' '}- {line.pv.slice(0, 4).join(' ')}{line.pv.length > 4 ? '...' : ''}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {gameId && currentPos && (
-            <section aria-label="Position diagnoses" data-testid="position-diagnoses">
-              <h3>Diagnoses</h3>
-              {diagnoses.length === 0 ? (
-                <p>No diagnoses were recorded for this position.</p>
-              ) : (
-                <ul>
-                  {diagnoses.map((diagnosis) => (
-                    <li key={diagnosis.primary}>
-                      {diagnosis.primary} ({Math.round(diagnosis.confidence * 100)}%)
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
+  return <div className="analysis-screen">
+    <h2>Analysis Board</h2>
+    {error && <p role="alert">{error}</p>}
+    {loading && <p>Loading...</p>}
+    <div className="review-replay-layout">
+      <div ref={boardRef} data-testid="free-analysis-board" style={{ width: 'min(400px, 100%)', aspectRatio: '1' }} />
+      <div className="analysis-sidebar">
+        <button type="button" onClick={playFromHere} disabled={loading || !onPlayFromHere} data-testid="play-from-here">{loading ? 'Starting...' : 'Play from here'}</button>
+        <div className="fen-setup">
+          <h3>FEN Setup</h3>
+          <input type="text" aria-label="FEN" value={fenInput} onChange={event => setFenInput(event.target.value)} placeholder="Paste FEN here" style={{ width: '100%' }} />
+          <button type="button" onClick={handleLoadFen}>Load FEN</button>
+        </div>
+        <div className="pgn-export">
+          <h3>Export</h3>
+          <button type="button" onClick={() => {
+            const url = URL.createObjectURL(new Blob([chess.pgn()], { type: 'text/plain' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'analysis.pgn';
+            link.click();
+            URL.revokeObjectURL(url);
+          }}>Download PGN</button>
+          <button type="button" onClick={() => navigator.clipboard.writeText(chess.fen())}>Copy FEN</button>
+        </div>
+        <div className="multipv-container" data-testid="multipv-lines">
+          <h3>Engine Evaluation</h3>
+          <p>No engine analysis available for this position.</p>
         </div>
       </div>
     </div>
-  );
+  </div>;
 }
 
 function getDests(chess: Chess): Map<Key, Key[]> {
   const dests = new Map<Key, Key[]>();
-  chess.moves({ verbose: true }).forEach((m) => {
-    const from = m.from as Key;
-    const to = m.to as Key;
-    if (!dests.has(from)) dests.set(from, []);
-    dests.get(from)!.push(to);
-  });
+  for (const move of chess.moves({ verbose: true })) {
+    const from = move.from as Key;
+    const destinations = dests.get(from) ?? [];
+    destinations.push(move.to as Key);
+    dests.set(from, destinations);
+  }
   return dests;
 }

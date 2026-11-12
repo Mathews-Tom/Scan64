@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import App from './App';
 import { ApiClient } from './api/client';
 import type { LessonSpec } from './api/types';
+import { makeGameReview } from './components/review.test-fixtures';
 
 vi.mock('./api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/client')>();
@@ -16,7 +17,7 @@ vi.mock('./api/client', async (importOriginal) => {
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
-      getPositions: vi.fn().mockResolvedValue([]),
+      getGameReview: vi.fn(),
       getGameAnalysisStatus: vi.fn().mockResolvedValue({ status: 'not_analysed' }),
       getPlayerGames: vi.fn(),
       getWeeklyReport: vi.fn(),
@@ -35,6 +36,9 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('scan64_player_id', 'player-1');
   vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
+  vi.mocked(ApiClient.getGameReview).mockImplementation(async gameId => makeGameReview({
+    game_id: gameId, key_moments: [], session_id: null,
+  }));
   vi.mocked(ApiClient.getPlayerProgress).mockResolvedValue({ player_id: 'player-1', skills: [] });
   vi.mocked(ApiClient.getPlayerEvidence).mockResolvedValue({ player_id: 'player-1', evidence_items: [] });
   localStorage.setItem('scan64_player_token:player-1', 'test-token');
@@ -79,7 +83,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001'));
+    await waitFor(() => expect(ApiClient.getGameReview).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001'));
     expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
   });
 
@@ -98,7 +102,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
-    expect(ApiClient.getPositions).not.toHaveBeenCalled();
+    expect(ApiClient.getGameReview).not.toHaveBeenCalled();
   });
   it('follows browser Back navigation', async () => {
     render(<App />);
@@ -345,7 +349,7 @@ it('links the latest analysed game and orders weakest skills by name without cod
   expect(screen.queryByText('Newer player vs Bot')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Review this game' }));
   expect(window.location.pathname).toBe(`/games/${gameId}/analysis`);
-  await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith(gameId));
+  await waitFor(() => expect(ApiClient.getGameReview).toHaveBeenCalledWith(gameId));
 });
 
 it('reaches every existing screen through the grouped navigation', async () => {

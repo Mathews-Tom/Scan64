@@ -8,14 +8,20 @@ interface Props {
   opportunityId: string;
   sessionId: string;
   onComplete?: () => void;
+  initialAttemptsUsed?: number;
+  initialAttemptsRemaining?: number;
+  onAttemptRecorded?: (attemptsUsed: number) => void;
 }
 
-export function CriticalMomentReview({ lesson, opportunityId, sessionId, onComplete }: Props) {
-  const [step, setStep] = useState<number>(1);
+export function CriticalMomentReview({ lesson, opportunityId, sessionId, onComplete,
+  initialAttemptsUsed = 0, initialAttemptsRemaining = lesson.interaction.maximum_attempts - initialAttemptsUsed,
+  onAttemptRecorded }: Props) {
+  const attemptLimit = Math.min(lesson.interaction.maximum_attempts, initialAttemptsUsed + initialAttemptsRemaining);
+  const [step, setStep] = useState<number>(initialAttemptsRemaining === 0 ? 6 : initialAttemptsUsed > 0 ? 4 : 1);
   const [intent, setIntent] = useState('');
-  const [hintIndex, setHintIndex] = useState(-1);
+  const [hintIndex, setHintIndex] = useState(Math.min(initialAttemptsUsed - 1, lesson.hints.length - 1));
   const [submittedMove, setSubmittedMove] = useState<string | null>(null);
-  const [attemptCount, setAttemptCount] = useState(0);
+  const [attemptCount, setAttemptCount] = useState(initialAttemptsUsed);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const startedAt = useRef(performance.now());
@@ -24,7 +30,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
     if (
       submitting
       || submittedMove !== null
-      || attemptCount >= lesson.interaction.maximum_attempts
+      || attemptCount >= attemptLimit
     ) return;
     setSubmitting(true);
     try {
@@ -36,14 +42,15 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         elapsed_ms: Math.round(performance.now() - startedAt.current),
         hints_used: Math.max(hintIndex + 1, 0),
       });
-      setAttemptCount(count => count + 1);
+      setAttemptCount(attemptCount + 1);
+      onAttemptRecorded?.(attemptCount + 1);
       if (result.success) {
         setSubmittedMove(move);
         setFeedback('Correct. Attempt recorded.');
       } else {
         const nextHintExists = hintIndex < lesson.hints.length - 1;
         setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
-        setStep(value => attemptCount + 1 >= lesson.interaction.maximum_attempts ? 6 : Math.max(value, 4));
+        setStep(value => attemptCount + 1 >= attemptLimit ? 6 : Math.max(value, 4));
         setFeedback(
           nextHintExists
             ? 'Not accepted. Attempt recorded; the next hint is revealed.'
@@ -65,7 +72,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
     } else if (step === 3) {
       if (lesson.hints.length > 0) {
         setStep(4);
-        setHintIndex(0);
+        setHintIndex(value => Math.max(value, 0));
       } else {
         setStep(6);
       }
@@ -83,7 +90,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
   };
 
   const currentHints = hintIndex >= 0 ? lesson.hints.slice(0, hintIndex + 1) : [];
-  const finished = submittedMove !== null || attemptCount >= lesson.interaction.maximum_attempts;
+  const finished = submittedMove !== null || attemptCount >= attemptLimit;
   const currentHint = lesson.hints[hintIndex];
   const requestHint = () => {
     setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
@@ -96,6 +103,9 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
       <div className="objective">
         <strong>Objective:</strong> {lesson.objective.instruction}
       </div>
+      {(initialAttemptsUsed > 0 || initialAttemptsRemaining < lesson.interaction.maximum_attempts) && (
+        <p>{attemptCount} lifetime attempts used; {Math.max(0, attemptLimit - attemptCount)} remaining.</p>
+      )}
 
       {feedback && <p role="alert">{feedback}</p>}
       <CoachBoard
@@ -107,7 +117,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         disabled={
           submitting
           || submittedMove !== null
-          || attemptCount >= lesson.interaction.maximum_attempts
+          || attemptCount >= attemptLimit
         }
         onMove={recordAttempt}
       />
@@ -156,10 +166,11 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
           </div>
         )}
 
-        {step >= 6 && (
+        {(finished || step >= 6) && (
           <div className="explanation" data-testid="explanation">
             <h3>Explanation</h3>
             <p>{lesson.explanation.text}</p>
+            {finished && <p>Accepted moves: {lesson.interaction.accepted_moves.map(move => move.san).join(', ') || 'None available'}</p>}
           </div>
         )}
 

@@ -122,6 +122,47 @@ export interface GameLearningSessionRead {
   next_cursor: string | null;
 }
 
+export type ReviewBand = 'sound' | 'inaccuracy' | 'mistake' | 'blunder' | 'unscored';
+
+export interface GameMoveReviewRead {
+  ply: number;
+  source_fen: string;
+  fen: string;
+  move_uci: string;
+  san: string;
+  mover: 'white' | 'black';
+  before_probability: number | null;
+  after_probability: number | null;
+  white_probability: number | null;
+  loss: number | null;
+  band: ReviewBand | null;
+  is_owner_move: boolean;
+}
+
+export interface GameReviewKeyMoment {
+  ply: number;
+  lesson_id: string;
+  lesson: LessonSpec;
+  attempts_used: number;
+  attempts_remaining: number;
+}
+
+export interface GameReviewRead {
+  game_id: string;
+  owner_color: 'white' | 'black' | null;
+  initial_fen: string;
+  initial_white_probability: number | null;
+  moves: GameMoveReviewRead[];
+  accuracy: number | null;
+  scored_moves: number;
+  total_owner_moves: number;
+  band_counts: Record<ReviewBand, number>;
+  key_moments: GameReviewKeyMoment[];
+  session_id: string | null;
+  backfill_required: boolean;
+  nodes: 10000;
+}
+
 export interface LessonAttemptCreate {
   session_id: string;
   lesson_id: string;

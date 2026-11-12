@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { movePiece } from './board';
 import { prepareToday } from './today';
+import { makeGameReview } from '../../src/components/review.test-fixtures';
 
 test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
@@ -42,9 +43,9 @@ test('opens an owned analysis deep link with active-player authorization', async
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'test-token');
   });
-  await page.route(`**/v1/games/${gameId}/positions`, async route => {
+  await page.route(`**/v1/games/${gameId}/review`, async route => {
     authorization = route.request().headers().authorization ?? '';
-    await route.fulfill({ json: [] });
+    await route.fulfill({ json: makeGameReview({ game_id: gameId }) });
   });
   await page.route(`**/v1/games/${gameId}/analysis-status`, async route => {
     await route.fulfill({ json: { status: 'completed' } });
@@ -62,7 +63,7 @@ test('renders a non-disclosing not-found state for a non-owned analysis deep lin
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'test-token');
   });
-  await page.route(`**/v1/games/${gameId}/positions`, async route => {
+  await page.route(`**/v1/games/${gameId}/review`, async route => {
     await route.fulfill({ status: 404 });
   });
   await page.route(`**/v1/games/${gameId}/analysis-status`, async route => {
@@ -72,5 +73,5 @@ test('renders a non-disclosing not-found state for a non-owned analysis deep lin
   await page.goto(`/games/${gameId}/analysis`);
 
   await expect(page.getByText('Game analysis was not found.')).toBeVisible();
-  await expect(page.getByTestId('position-list').locator('li')).toHaveCount(0);
+  await expect(page.getByTestId('review-move-list').locator('li')).toHaveCount(0);
 });
