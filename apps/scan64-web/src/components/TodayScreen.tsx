@@ -63,7 +63,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
                   onNavigate(`/games/${encodeURIComponent(latestGame.id)}/analysis`);
                 }}>Review this game</a>
               </>
-            ) : <p>Analyse a game from Review, or play or import your first game to get started.</p>}
+            ) : <p>No reviewed mistakes to show yet. Analyse a game from Review, or play or import a game.</p>}
           </section>
           <section className="study-panel">
             <h2>Skills to practise</h2>

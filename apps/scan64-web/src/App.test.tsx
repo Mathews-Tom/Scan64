@@ -319,3 +319,27 @@ it('adopts an identity stored by another tab before name submission', async () =
   expect(localStorage.getItem('scan64_player_id')).toBe('other-tab-player');
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+it('adopts another tab’s stored identity on a storage event and removes its listener on unmount', async () => {
+  localStorage.clear();
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+  const addListener = vi.spyOn(window, 'addEventListener');
+  const removeListener = vi.spyOn(window, 'removeEventListener');
+  const view = render(<App />);
+  expect(screen.getByLabelText('Display name')).toBeInTheDocument();
+  const storageListener = addListener.mock.calls.find(([type]) => type === 'storage')?.[1];
+  expect(storageListener).toBeTypeOf('function');
+  localStorage.setItem('scan64_player_token:other-tab-player', 'other-tab-token');
+  localStorage.setItem('scan64_player_id', 'other-tab-player');
+  fireEvent(window, new StorageEvent('storage', {
+    key: 'scan64_player_id', newValue: 'other-tab-player', storageArea: localStorage,
+  }));
+  await screen.findByRole('heading', { name: 'Today' });
+  expect(screen.queryByLabelText('Display name')).not.toBeInTheDocument();
+  await waitFor(() => expect(ApiClient.getPlayerGames).toHaveBeenCalledWith('other-tab-player'));
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await screen.findByText('No reviewed mistakes to show yet. Analyse a game from Review, or play or import a game.')).toBeInTheDocument();
+  view.unmount();
+  expect(removeListener).toHaveBeenCalledWith('storage', storageListener);
+});

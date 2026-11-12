@@ -34,8 +34,15 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => setPathname(window.location.pathname);
+    const handleStorage = () => {
+      if (getStoredPlayerId() !== null) setHasIdentity(true);
+    };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const navigate = useCallback((nextPathname: string) => {
