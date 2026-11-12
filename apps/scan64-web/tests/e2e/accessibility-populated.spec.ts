@@ -34,6 +34,10 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
     test.use({ viewport, hasTouch: true, reducedMotion: 'reduce' });
     test('populated reports, library studies, lessons, live play and import reflow', async ({ page }, info) => {
       await prepareToday(page);
+      await page.route('**/v1/players', async route => {
+        const { id } = route.request().postDataJSON() as { id: string };
+        await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
+      });
       await page.route('**/v1/players/*/progress', route => route.fulfill({ json: { player_id: 'player-1', skills: [{ concept: 'tactics.fork', name: long, mastery: 0.7, uncertainty: 0.1 }] } }));
       await page.route('**/v1/players/*/evidence', route => route.fulfill({ json: evidence }));
       await page.route('**/v1/players/*/patterns', route => route.fulfill({ json: patterns }));

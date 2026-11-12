@@ -156,6 +156,10 @@ test(`Black puzzle local validation, hint and solve at ${size.width}x${size.heig
 
 test('keyboard starts a game, receives opponent reply and opens/closes a hint', async ({ page }, testInfo) => {
   await prepareToday(page);
+  await page.route('**/v1/players', async route => {
+    const { id } = route.request().postDataJSON() as { id: string };
+    await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
+  });
   await page.route('**/v1/play-sessions', route => route.fulfill({ json: {
     id: 'keyboard-play', player_id: 'player-1', opponent_config: {}, status: 'active',
   } }));
@@ -170,6 +174,7 @@ test('keyboard starts a game, receives opponent reply and opens/closes a hint', 
   await page.goto('/play');
   await tabTo(page, page.getByTestId('start-btn'));
   await page.keyboard.press('Enter');
+  await expect(page.getByTestId('session-info')).toContainText('Status: active');
   const input = page.getByRole('textbox', { name: 'Move (UCI or SAN)' });
   await enter(page, input, 'e4');
   await expect(page.getByTestId('chessground-board-san-move-list')).toContainText('e5');
