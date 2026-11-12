@@ -53,6 +53,15 @@ For a deterministic manual diagnosis walkthrough, import this game:
 
 The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Lesson answers depend on the engine analysis, not a hard-coded move.
 
+### Measure diagnosis precision offline
+
+Run `uv run python -m scan64.learning.evaluation.real_games` from the repository root. It prints precision, prediction support (TP + FP), true/false positives and missed reference labels for every skill code, without launching Stockfish. `--check`, also run by `scripts/check.sh`, rejects regressions of the frozen trusted-code allowlist: precision must be at least 0.80 with support of at least 10.
+
+The committed `tests/fixtures/m48/real_games.pgn` contains the first 40 qualifying games from the January 2013 Lichess CC0 archive: both ratings 600–1600 and at least 20 plies. `recorded.json` records the source URL, published source checksum, selection rule, engine identity and fixed node limits. Reference labels use only the first principal variation from separate **1,000,000-node, MultiPV-4** source and reply searches. The hardened detectors use **10,000-node** signals instead. The oracle module does not import evidence composition or detector predicates. For a capture, only consecutive captures on its target square establish the named piece's exchange-local gain; profit elsewhere later in the line cannot justify calling an evenly traded piece hanging. Whole-line material gain is only a secondary check. Each detector is arbitrated separately for measurement, so competitors cannot conceal false positives. This remains an engine-derived operational reference, not independent coach review or proof of rating gains. Calculation is operationalised as material lost only later in a line; development as an engine move developing a home minor while at least three remain home in the first ten moves. These labels do not reveal where a person stopped thinking or prove that an opening choice caused a loss.
+
+To reproduce recordings, download the compressed source named in provenance and run `uv run python scripts/record_diagnosis_reference.py SOURCE.pgn.zst` with Stockfish and `zstd` on PATH. The recorder verifies the published archive SHA256 before streaming decompression. `--augment-before` preserves existing output and records only missing deep source positions.
+
+
 ## Train from diagnosed positions
 
 Open **Train** (Daily Training) after one or more owned games have generated eligible lessons.

@@ -15,6 +15,9 @@ uv run ruff check src tests scripts benchmarks
 echo "== python: mypy --strict =="
 uv run mypy --strict src/
 
+echo "== python: recorded real-game diagnosis precision =="
+uv run python -m scan64.learning.evaluation.real_games --check
+
 echo "== python: dependency license check =="
 uv run python scripts/check_licenses.py
 
