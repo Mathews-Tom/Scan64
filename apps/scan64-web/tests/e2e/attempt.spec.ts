@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { movePiece } from './board';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 const lesson = {
   schema_version: '1.0',
@@ -31,7 +34,7 @@ test('records an accepted daily-training move from real board pointer input', as
   });
 
   await page.goto('/');
-  await page.getByText('Daily Training').click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Train', exact: true }).click();
   const board = page.getByTestId('lesson-board');
   await movePiece(page, board, 'e2', 'e4');
 

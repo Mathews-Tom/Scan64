@@ -23,6 +23,7 @@ import type {
   PlaySessionRead,
   PositionRead,
   TrainingSessionRead,
+  WeeklyReport,
 } from './types';
 
 const API_BASE = '/v1';
@@ -82,6 +83,17 @@ async function registerPlayer(data: PlayerCreate): Promise<PlayerRegistration> {
     player: { id: json.id, preferences: json.preferences },
     issuedToken: true,
   };
+}
+
+/** Create a named identity before mounting any player-scoped screen. */
+export async function createActivePlayer(displayName: string): Promise<string> {
+  const name = displayName.trim();
+  if (!name) throw new Error('Enter a display name');
+  const id = crypto.randomUUID();
+  const registration = await registerPlayer({ id, display_name: name });
+  if (!registration.issuedToken) throw new Error('Could not create a new player identity');
+  setActivePlayerId(id);
+  return id;
 }
 
 export async function ensurePlayerAuthorization(playerId: string): Promise<string> {
@@ -357,6 +369,17 @@ export class ApiClient {
 
   static async getPlayerProgress(playerId: string): Promise<PlayerProgressReport> {
     return this.getPlayerResource<PlayerProgressReport>(playerId, 'progress');
+  }
+
+  static async getWeeklyReport(playerId: string): Promise<WeeklyReport> {
+    const response = await fetch(
+      `${API_BASE}/reports/weekly?player_id=${encodeURIComponent(playerId)}`,
+      { headers: getPlayerAuthorizationHeader(playerId) },
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch weekly report: ${response.statusText}`);
+    }
+    return await response.json() as WeeklyReport;
   }
 
   static async getPlayerPatterns(playerId: string): Promise<PatternsReport> {

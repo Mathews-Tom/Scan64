@@ -278,6 +278,7 @@ export interface PlayerProfileRead {
 
 export interface DiagnosisPatternRead {
   diagnosis: string;
+  name: string;
   occurrence_count: number;
   game_ids: string[];
   evidence_references: string[];
@@ -323,6 +324,7 @@ export interface CoachDashboard {
 
 export interface ProgressSkillRead {
   concept: string;
+  name: string;
   mastery: number;
   uncertainty: number;
 }
@@ -330,4 +332,12 @@ export interface ProgressSkillRead {
 export interface PlayerProgressReport {
   player_id: string;
   skills: ProgressSkillRead[];
+}
+
+export interface WeeklyReport {
+  player_id: string;
+  games_played: number;
+  active_concepts_observed: number;
+  active_mastery: Array<{ concept_code: string; name: string; mastery: number }>;
+  top_recurring_diagnosis: DiagnosisPatternRead | null;
 }

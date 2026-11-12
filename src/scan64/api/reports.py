@@ -13,6 +13,7 @@ from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
+from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.opening_rotation import classify_opening_family
@@ -42,6 +43,7 @@ class EvidenceReport(BaseModel):
 
 class DiagnosisPatternRead(BaseModel):
     diagnosis: str
+    name: str
     occurrence_count: int
     game_ids: list[str]
     evidence_references: list[str]
@@ -54,18 +56,23 @@ class PatternsReport(BaseModel):
     recurring_diagnoses: list[DiagnosisPatternRead]
 
 
+def _skill_name(code: str) -> str:
+    definition = SEED_CODES.get(code)
+    return definition.name if definition is not None else "Unclassified skill"
+
+
 def read_player_progress(player_id: str, session: Session) -> ProgressReport:
     player = session.get(Player, player_id)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
     skills = session.exec(select(SkillState).where(SkillState.player_id == player_id)).all()
-    # Mock data for demonstration, normally calculated from SkillState
     return ProgressReport(
         player_id=player_id,
         skills=[
             {
                 "concept": skill.concept_code,
+                "name": _skill_name(skill.concept_code),
                 "mastery": skill.expected_mastery,
                 "uncertainty": skill.uncertainty,
             }
@@ -88,9 +95,7 @@ def read_player_evidence(player_id: str, session: Session) -> EvidenceReport:
     if session.get(Player, player_id) is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    game_ids = set(
-        session.exec(select(Game.id).where(Game.owner_player_id == player_id)).all()
-    )
+    game_ids = set(session.exec(select(Game.id).where(Game.owner_player_id == player_id)).all())
     if not game_ids:
         return EvidenceReport(player_id=player_id, evidence_items=[])
 
@@ -165,6 +170,7 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
     recurring_diagnoses = [
         DiagnosisPatternRead(
             diagnosis=diagnosis,
+            name=_skill_name(diagnosis),
             occurrence_count=len(values["games"]),
             game_ids=sorted(values["games"]),
             evidence_references=sorted(values["evidence"]),
@@ -216,9 +222,7 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
     if session.get(Player, player_id) is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    families = [
-        OpeningFamilyPayload.model_validate(item.payload) for item in OPENING_FAMILIES
-    ]
+    families = [OpeningFamilyPayload.model_validate(item.payload) for item in OPENING_FAMILIES]
     games = session.exec(select(Game).where(Game.owner_player_id == player_id)).all()
     opportunity_game_ids = {
         opportunity.game_id
@@ -237,9 +241,7 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
     reports: list[OpeningFamilyReport] = []
     family_by_id = {family.family_id: family for family in families}
     for family_id, family_games in sorted(grouped.items()):
-        eligible_games = [
-            game for game in family_games if player_id in {game.white, game.black}
-        ]
+        eligible_games = [game for game in family_games if player_id in {game.white, game.black}]
         wins = sum(
             (game.result == "1-0" and game.white == player_id)
             or (game.result == "0-1" and game.black == player_id)
@@ -262,6 +264,7 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
 
 class MasterySnapshot(BaseModel):
     concept_code: str
+    name: str
     mastery: float
 
 
@@ -298,7 +301,9 @@ def read_weekly_report(player_id: str, session: Session) -> WeeklyReport:
         active_concepts_observed=len(active_skills),
         active_mastery=[
             MasterySnapshot(
-                concept_code=skill.concept_code, mastery=skill.expected_mastery
+                concept_code=skill.concept_code,
+                name=_skill_name(skill.concept_code),
+                mastery=skill.expected_mastery,
             )
             for skill in sorted(active_skills, key=lambda skill: skill.concept_code)
         ],

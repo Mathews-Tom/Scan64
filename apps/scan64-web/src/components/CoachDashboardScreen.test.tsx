@@ -28,6 +28,7 @@ const dashboard: CoachDashboard = {
         recurring_diagnoses: [
           {
             diagnosis: 'tactics.fork.knight',
+            name: 'Knight fork',
             occurrence_count: 3,
             game_ids: ['game-1', 'game-2', 'game-3'],
             evidence_references: ['evidence-1'],

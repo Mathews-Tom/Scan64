@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiRequestError, getPlayerAuthorizationHeader } from './client';
+import { ApiClient, ApiRequestError, createActivePlayer, getPlayerAuthorizationHeader } from './client';
 
 describe('ApiClient', () => {
   const mockFetch = vi.fn();
@@ -13,6 +13,46 @@ describe('ApiClient', () => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
     localStorage.clear();
+  });
+
+  it('creates a named active identity and stores its authorization only after success', async () => {
+    const id = '00000000-0000-0000-0000-000000000001';
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(id);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id, preferences: {}, access_token: 'named-token' }),
+    });
+    await expect(createActivePlayer('  Ada  ')).resolves.toBe(id);
+    expect(mockFetch).toHaveBeenCalledWith('/v1/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, display_name: 'Ada' }),
+    });
+    expect(localStorage.getItem('scan64_player_id')).toBe(id);
+    expect(getPlayerAuthorizationHeader(id)).toEqual({ Authorization: 'Bearer named-token' });
+  });
+
+  it('does not store an active identity for failed or conflicting registration', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 409 });
+    await expect(createActivePlayer('Ada')).rejects.toThrow('Could not create a new player identity');
+    expect(localStorage.getItem('scan64_player_id')).toBeNull();
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 503, statusText: 'Unavailable' });
+    await expect(createActivePlayer('Ada')).rejects.toThrow('Failed to create player');
+    expect(localStorage.getItem('scan64_player_id')).toBeNull();
+  });
+
+  it('does not register a blank display name', async () => {
+    await expect(createActivePlayer('   ')).rejects.toThrow('Enter a display name');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('requests the weekly report with player authorization and encoded identity', async () => {
+    localStorage.setItem('scan64_player_token:player /1', 'token-1');
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ active_mastery: [] }) });
+    await ApiClient.getWeeklyReport('player /1');
+    expect(mockFetch).toHaveBeenCalledWith('/v1/reports/weekly?player_id=player%20%2F1', {
+      headers: { Authorization: 'Bearer token-1' },
+    });
   });
 
   it('createGame calls POST /v1/games', async () => {

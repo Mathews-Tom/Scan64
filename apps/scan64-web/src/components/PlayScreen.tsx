@@ -53,7 +53,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const cgRef = useRef<Api | null>(null);
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
   const refreshGenerationRef = useRef(0);
-  const [playerId, setPlayerId] = useState('');
+  const [playerId, setPlayerId] = useState(() => localStorage.getItem('scan64_player_id') ?? '');
   const [coachMode, setCoachMode] = useState(false);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
   const [criticalInterruption, setCriticalInterruption] =

@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { movePiece } from './board';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 test('resumes an active game after reload and browser navigation', async ({ page }) => {
   let resumedSessionReads = 0;
@@ -50,7 +53,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
   });
 
   await page.goto('/');
-  await page.getByRole('button', { name: 'Play Game' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true }).click();
   await page.getByTestId('start-btn').click();
   await expect(page.getByTestId('session-info')).toContainText('Status: active');
 
@@ -78,7 +81,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
   ).toBe(true);
 
   resumedSessionReads = 0;
-  await page.getByRole('button', { name: 'Home' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Today', exact: true }).click();
   await page.goBack();
   await expect.poll(() => resumedSessionReads).toBeGreaterThanOrEqual(1);
   await expect.poll(async () =>
