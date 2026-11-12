@@ -36,7 +36,7 @@ def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> Non
 
     # 1. Create a game
     response = client.post(
-        "/v1/games", json={"pgn": sample_pgn, "player_id": player_id}
+        "/v1/games", json={"owner_color": "white", "pgn": sample_pgn, "player_id": player_id}
     )
     assert response.status_code == 200
     game_id = response.json()["id"]
@@ -55,9 +55,7 @@ def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> Non
     assert response.json()["status"] == "completed"
 
     # 5. Fetch player-owned learning opportunities with their study-session context.
-    response = client.get(
-        f"/v1/games/{game_id}/learning-opportunities?player_id={player_id}"
-    )
+    response = client.get(f"/v1/games/{game_id}/learning-opportunities?player_id={player_id}")
     assert response.status_code == 200
     data = response.json()
     assert "session_id" in data

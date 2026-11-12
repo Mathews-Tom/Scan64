@@ -15,6 +15,17 @@ describe('ApiClient', () => {
     localStorage.clear();
   });
 
+  it('surfaces the server detail when analysis rejects a legacy game', async () => {
+    localStorage.setItem('scan64_active_player_id', 'player-1');
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 409, statusText: 'Conflict',
+      json: async () => ({ detail: 'Cannot analyse a legacy game without owner_color' }),
+    });
+    await expect(ApiClient.createAnalysisJob('legacy-game')).rejects.toThrow('Cannot analyse a legacy game without owner_color');
+  });
+
   it('createGame calls POST /v1/games', async () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
@@ -22,11 +33,11 @@ describe('ApiClient', () => {
       json: async () => ({ id: '123', pgn: '...', white: 'W', black: 'B', result: '*' }),
     });
 
-    const res = await ApiClient.createGame({ pgn: '...', player_id: 'player-1' });
+    const res = await ApiClient.createGame({ owner_color: 'white',  pgn: '...', player_id: 'player-1' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
-      body: JSON.stringify({ pgn: '...', player_id: 'player-1' }),
+      body: JSON.stringify({ owner_color: 'white',  pgn: '...', player_id: 'player-1' }),
     });
     expect(res.id).toBe('123');
   });
@@ -314,6 +325,6 @@ describe('ApiClient', () => {
       statusText: 'Bad Request',
     });
 
-    await expect(ApiClient.createGame({ pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
+    await expect(ApiClient.createGame({ owner_color: 'white',  pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
   });
 });

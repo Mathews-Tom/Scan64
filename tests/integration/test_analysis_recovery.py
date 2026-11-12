@@ -43,6 +43,7 @@ def test_startup_recovers_analysis_once(
         headers={"FEN": fixture["initial_fen"]},
         moves=fixture["moves"],
         owner_player_id="recovery-player",
+        owner_color="white",
     )
     db_session.add(game)
     db_session.commit()

@@ -10,6 +10,26 @@ interface PgnImportScreenProps {
 
 export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const [pgn, setPgn] = useState('');
+  const [ownerColor, setOwnerColor] = useState<'white' | 'black'>('white');
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const sideChosenManually = useRef(false);
+
+  useEffect(() => {
+    const playerId = getOrCreatePlayerId();
+    void ApiClient.getPlayerProfile(playerId).then(profile => setDisplayName(profile.display_name)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (sideChosenManually.current) return;
+    const names = [getOrCreatePlayerId()];
+    if (displayName && displayName !== 'Anonymous') names.push(displayName);
+    const matches = (['white', 'black'] as const).filter(color => {
+      const header = color === 'white' ? 'White' : 'Black';
+      const name = pgn.match(new RegExp(`\\[${header}\\s+"([^"]*)"\\]`))?.[1];
+      return name !== undefined && names.includes(name);
+    });
+    setOwnerColor(matches.length === 1 ? matches[0] : 'white');
+  }, [pgn, displayName]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
@@ -45,7 +65,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     try {
       let playerId = getOrCreatePlayerId();
       playerId = await ensurePlayerAuthorization(playerId);
-      const game = await ApiClient.createGame({ pgn, player_id: playerId });
+      const game = await ApiClient.createGame({ pgn, player_id: playerId, owner_color: ownerColor });
       if (signal.aborted) return;
 
       setStatusText('Starting analysis job...');
@@ -114,6 +134,12 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   return (
     <div className="pgn-import" data-testid="pgn-import">
       <h2>Import Game</h2>
+      <label>Your side
+        <select aria-label="Your side" value={ownerColor} onChange={e => { sideChosenManually.current = true; setOwnerColor(e.target.value as 'white' | 'black'); }}>
+          <option value="white">White</option>
+          <option value="black">Black</option>
+        </select>
+      </label>
       <textarea
         value={pgn}
         onChange={(e) => setPgn(e.target.value)}

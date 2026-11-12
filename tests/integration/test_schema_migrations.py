@@ -28,7 +28,7 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         "lessonattempt",
         "transfermeasurement",
     } <= tables
-    assert revision == "20260731_09"
+    assert revision == "20261112_10"
     opportunity_columns = {
         column["name"]: column
         for column in inspect(database_engine).get_columns("persistedlessonopportunity")
@@ -105,7 +105,7 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
     assert not coach_mode
-    assert revision == "20260731_09"
+    assert revision == "20261112_10"
 
 
 def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:
@@ -283,3 +283,32 @@ def test_m40_migration_rejects_unresolved_or_malformed_source_position(
 
     with pytest.raises(RuntimeError, match=error):
         migrate_database(database_engine)
+
+
+def test_owner_color_upgrade_and_downgrade_preserve_legacy_game(tmp_path: Path) -> None:
+    database_engine = create_engine(f"sqlite:///{tmp_path / 'owner-color.db'}")
+    config = _migration_config(database_engine)
+    command.upgrade(config, "20260731_09")
+    game_id = uuid4().hex
+    with database_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO game (id, created_at, pgn, headers, moves, white, black, "
+                "result, owner_player_id) "
+                "VALUES (:id, CURRENT_TIMESTAMP, '', '{}', '[]', 'White', 'Black', '*', 'owner')"
+            ),
+            {"id": game_id},
+        )
+    command.upgrade(config, "head")
+    with database_engine.begin() as connection:
+        assert connection.execute(text("SELECT owner_color FROM game")).scalar_one() is None
+        connection.execute(text("UPDATE game SET owner_color = 'black'"))
+    command.downgrade(config, "-1")
+    assert "owner_color" not in {
+        column["name"] for column in inspect(database_engine).get_columns("game")
+    }
+    with database_engine.connect() as connection:
+        assert connection.execute(text("SELECT owner_player_id FROM game")).scalar_one() == "owner"
+    command.upgrade(config, "head")
+    with database_engine.connect() as connection:
+        assert connection.execute(text("SELECT owner_color FROM game")).scalar_one() is None

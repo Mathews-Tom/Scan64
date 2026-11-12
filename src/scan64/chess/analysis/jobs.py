@@ -77,6 +77,9 @@ async def run_analysis_for_game(
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
 
+    if game.owner_color is None:
+        raise ValueError("Cannot analyse a legacy game without owner_color")
+
     adapter = (
         pool_manager.batch_adapter
         if pool_manager is not None
@@ -141,6 +144,9 @@ async def run_analysis_for_game(
         )
         for item in evidence:
             session.add(item)
+
+        if board_from(fen_before).turn != (game.owner_color == "white"):
+            continue
 
         opportunity = LearningOpportunity(
             opportunity_id=f"opp_{uuid4()}",

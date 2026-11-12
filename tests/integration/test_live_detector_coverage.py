@@ -68,9 +68,7 @@ def _assert_legal_pv(board: chess.Board, pv: list[str], fixture_id: str) -> None
 
 _FIXTURES = _load_fixtures()
 _FIXTURES_BY_INITIAL_FEN = {fixture["initial_fen"]: fixture for fixture in _FIXTURES}
-_FIXTURES_BY_CANDIDATE_FEN = {
-    _replay_fixture(fixture)[2]: fixture for fixture in _FIXTURES
-}
+_FIXTURES_BY_CANDIDATE_FEN = {_replay_fixture(fixture)[2]: fixture for fixture in _FIXTURES}
 
 
 class _FixtureFastPassOrchestrator:
@@ -110,9 +108,7 @@ class _FixtureFocusedPassOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_focused_pass(
-        self, candidates: list[CandidatePosition]
-    ) -> list[EngineAnalysis]:
+    async def run_focused_pass(self, candidates: list[CandidatePosition]) -> list[EngineAnalysis]:
         analyses = []
         for candidate in candidates:
             fixture = _FIXTURES_BY_CANDIDATE_FEN[candidate.fen]
@@ -157,6 +153,7 @@ async def test_live_detector_coverage_and_precision(
             pgn="",
             headers={"FEN": fixture["initial_fen"]},
             moves=fixture["moves"],
+            owner_color="white",
             owner_player_id="fixture-player",
         )
         db_session.add(game)
@@ -169,9 +166,7 @@ async def test_live_detector_coverage_and_precision(
         ).one()
         registry_codes = _diagnosis_codes(persisted.lesson_spec)
         expected_codes = set(fixture["expected_labels"])
-        positions = db_session.exec(
-            select(Position).where(Position.game_id == game.id)
-        ).all()
+        positions = db_session.exec(select(Position).where(Position.game_id == game.id)).all()
         position_ids = {str(position.id) for position in positions}
         game_evidence = [
             item

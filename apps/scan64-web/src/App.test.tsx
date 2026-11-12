@@ -11,6 +11,7 @@ vi.mock('./api/client', async (importOriginal) => {
     ApiClient: {
       ...actual.ApiClient,
       getTrainingSession: vi.fn(),
+      getPlayerProfile: vi.fn().mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null }),
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),

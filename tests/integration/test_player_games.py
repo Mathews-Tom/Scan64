@@ -62,7 +62,9 @@ def test_played_and_imported_games_are_both_listed_once(
     db_session.commit()
 
     imported = client.post(
-        "/v1/games", json={"pgn": PGN, "player_id": "alice"}, headers=_auth(token)
+        "/v1/games",
+        json={"owner_color": "white", "pgn": PGN, "player_id": "alice"},
+        headers=_auth(token),
     )
     assert imported.status_code == 200, imported.text
 

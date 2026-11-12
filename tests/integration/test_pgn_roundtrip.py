@@ -66,7 +66,9 @@ def test_played_game_pgn_reimports_and_names_the_player(
     assert parsed.headers["Result"] == "0-1"
     assert [move.uci() for move in parsed.mainline_moves()] == game.moves
 
-    imported = client.post("/v1/games", json={"pgn": game.pgn, "player_id": "alice"})
+    imported = client.post(
+        "/v1/games", json={"owner_color": "white", "pgn": game.pgn, "player_id": "alice"}
+    )
     assert imported.status_code == 200, imported.text
     reimported = db_session.get(Game, UUID(imported.json()["id"]))
     assert reimported is not None
@@ -131,6 +133,7 @@ def test_an_imported_games_tags_survive_being_played_on(
     imported = client.post(
         "/v1/games",
         json={
+            "owner_color": "white",
             "pgn": (
                 '[Event "Reykjavik"]\n[Site "Reykjavik ISL"]\n[Date "1972.07.11"]\n'
                 '[White "Spassky"]\n[Black "Fischer"]\n[Result "1-0"]\n[ECO "E56"]\n'

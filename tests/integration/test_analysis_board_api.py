@@ -60,7 +60,9 @@ def test_play_from_here_api_flow(client: TestClient, session: Session):
     fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
     pgn = f'[FEN "{fen}"]\n[SetUp "1"]\n\n'
     response = client.post(
-        "/v1/games", json={"pgn": pgn, "player_id": "test_user"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": pgn, "player_id": "test_user"},
+        headers=headers,
     )
     assert response.status_code == 200
     game_id = response.json()["id"]
@@ -165,29 +167,23 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
     assert response.json()[1]["diagnoses"] == []
 
 
-def test_game_analysis_status_is_owner_authorized(
-    client: TestClient, session: Session
-) -> None:
+def test_game_analysis_status_is_owner_authorized(client: TestClient, session: Session) -> None:
     owner_headers = _register(session, "owner")
     other_headers = _register(session, "other")
     game = Game(pgn="", owner_player_id="owner")
     session.add(game)
     session.commit()
 
-    assert (
-        client.get(f"/v1/games/{game.id}/analysis-status", headers=owner_headers).json()
-        == {"status": "not_analysed"}
-    )
+    assert client.get(f"/v1/games/{game.id}/analysis-status", headers=owner_headers).json() == {
+        "status": "not_analysed"
+    }
 
     session.add(AnalysisJob(game_id=game.id, status="completed"))
     session.commit()
 
-    response = client.get(
-        f"/v1/games/{game.id}/analysis-status", headers=owner_headers
-    )
+    response = client.get(f"/v1/games/{game.id}/analysis-status", headers=owner_headers)
     assert response.status_code == 200
     assert response.json() == {"status": "completed"}
     assert (
-        client.get(f"/v1/games/{game.id}/analysis-status", headers=other_headers).status_code
-        == 404
+        client.get(f"/v1/games/{game.id}/analysis-status", headers=other_headers).status_code == 404
     )

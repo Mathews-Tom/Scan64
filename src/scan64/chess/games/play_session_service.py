@@ -165,6 +165,7 @@ class PlaySessionService:
                 white=white,
                 black=black,
                 owner_player_id=play_session.player_id,
+                owner_color="white",  # Fresh game: the human moves first.
             )
             game.pgn = build_pgn(game)
             self.db.add(game)
