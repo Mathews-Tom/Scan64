@@ -15,6 +15,7 @@ from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
 from scan64.api.reports import router as reports_router
+from scan64.chess.analysis.recovery import recover_analysis_jobs
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
 from scan64.persistence.database import create_db_and_tables, get_session
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         EnginePoolManager.from_env(StockfishConfig()) if engine_pool_enabled() else None
     )
     try:
+        await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
         if app.state.engine_pool_manager is not None:
