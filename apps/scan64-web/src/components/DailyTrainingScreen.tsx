@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
-import { LessonBoard } from './LessonBoard';
+import { CoachBoard } from './CoachBoard';
 
 export const DailyTrainingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -86,5 +86,5 @@ export const DailyTrainingScreen: React.FC = () => {
     startedAt.current = performance.now();
   };
 
-  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><LessonBoard lesson={lesson} disabled={submitting || feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
+  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><CoachBoard key={lesson.lesson_id} fen={lesson.source.fen} resetAfterAttempt testId="lesson-board" disabled={submitting || feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
 };
