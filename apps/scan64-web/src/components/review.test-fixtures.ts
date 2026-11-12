@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 import type { GameReviewRead, LessonSpec, ReviewBand } from '../api/types';
 
-export const reviewLesson: LessonSpec = {
+export const reviewLesson = {
   schema_version: '0.1.0', lesson_id: 'opportunity-1',
   source: { kind: 'player_game', fen: new Chess().fen() },
   diagnosis: { primary: 'board_awareness.hanging_piece', secondary: [], confidence: 0.9, evidence_refs: [] },
@@ -15,7 +15,7 @@ export const reviewLesson: LessonSpec = {
   explanation: { text: 'A loose piece can be captured without sufficient compensation.', visualizations: [] },
   verification: { status: 'verified', engine: 'stockfish', engine_binary_digest: 'digest', nodes: 10000, multipv: 8, verified_at: '2026-11-12' },
   mastery: { skill_key: 'board_awareness.hanging_piece', delta: 0.1 },
-};
+} satisfies LessonSpec;
 
 export function makeGameReview(overrides: Partial<GameReviewRead> = {}): GameReviewRead {
   const chess = new Chess();

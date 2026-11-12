@@ -108,7 +108,11 @@ def _key_moments(
                 continue
             spec, _ = _reverify_persisted_lesson(opportunity, session, allow_fallback=False)
             session.add(opportunity)
-            if spec is None or opportunity.verification_analysis_id != analysis_id:
+            if (
+                spec is None
+                or spec.diagnosis is None
+                or opportunity.verification_analysis_id != analysis_id
+            ):
                 continue
             spec.diagnosis.secondary = []
             spec.lesson_id = str(opportunity.id)

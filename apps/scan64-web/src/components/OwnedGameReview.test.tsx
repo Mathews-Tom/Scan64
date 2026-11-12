@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import type { Key } from 'chessground/types';
 import { AnalysisScreen } from './AnalysisScreen';
 import { ApiClient, ApiRequestError } from '../api/client';
-import { makeGameReview } from './review.test-fixtures';
+import { makeGameReview, reviewLesson } from './review.test-fixtures';
 import type { GameReviewRead } from '../api/types';
 
 const boards = vi.hoisted(() => new Map<string, { set: Mock; after?: (from: Key, to: Key) => void }>());
@@ -188,7 +188,7 @@ describe('owned move-by-move review', () => {
     vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
     render(<AnalysisScreen gameId="game-1" />);
     const moment = await screen.findByTestId('review-key-moment-3');
-    expect(moment).toHaveTextContent(review.key_moments[0].lesson.explanation.text);
+    expect(moment).toHaveTextContent(reviewLesson.explanation.text);
     expect(moment).toHaveTextContent('Accepted moves: Nf3');
     expect(screen.queryByTestId('lesson-board')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry this moment' })).not.toBeInTheDocument();
