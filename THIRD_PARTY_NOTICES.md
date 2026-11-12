@@ -36,3 +36,15 @@ This project uses the following third-party software:
 - **Published checksum**: `aa40b3671fa3cf1072eb182892cd90b0e1e003a4a5943492f64b77e7f3fd1635`, from https://database.lichess.org/standard/sha256sums.txt; the downloaded archive was verified against it.
 - **Usage**: `tests/fixtures/m48/real_games.pgn`: first 40 error-free games in source order with both player ratings 600–1600 inclusive and at least 20 plies. No selection by detection or reference label.
 - **Recorded analysis**: `tests/fixtures/m48/recorded.json` contains engine identity, fixed node limits, legal principal variations and the selected-PGN checksum. The additional Scan64 reference amateur game is not included in real-game precision/support.
+
+## Lichess puzzle database
+- **License**: CC0-1.0 (public-domain dedication).
+- **Source**: https://database.lichess.org/#puzzles and https://database.lichess.org/lichess_db_puzzle.csv.zst.
+- **Usage**: Optional operator-imported puzzle catalog; no dataset is bundled or downloaded at startup. The explicit download saves the entire compressed database (roughly 310 MB, growing over time) before streaming local import.
+- **Provenance**: Each imported item and import summary records the compressed file's operator-computed SHA256 and byte size, local path and download URL/HTTP ETag/Last-Modified when available. Local imports explicitly record unavailable HTTP fields as null. This checksum records reproducibility, not independently authenticated upstream integrity or engine certification.
+
+## python-zstandard and Zstandard
+- **Version**: Python package `zstandard==0.25.0`, pinned in `pyproject.toml` and `uv.lock`.
+- **License**: python-zstandard is BSD-3-Clause; the bundled Zstandard library is dual-licensed BSD-3-Clause OR GPL-2.0-only.
+- **Source**: https://github.com/indygreg/python-zstandard and https://github.com/facebook/zstd.
+- **Usage**: Streaming decompression of explicitly imported puzzle CSV.zst files. Installed distribution licence files accompany the dependency.

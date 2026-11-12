@@ -5,6 +5,7 @@ import sys
 from scan64.chess.opponents.bot_policy import DEFAULT_BOT_NODES
 from scan64.cli.analyse import analyse_command
 from scan64.cli.bots import calibrate_command
+from scan64.cli.puzzles import add_puzzle_parser, puzzles_command
 from scan64.cli.serve import serve_command
 
 
@@ -31,6 +32,8 @@ def main() -> None:
         help="Nodes per move; defaults to the production bot budget.",
     )
 
+    add_puzzle_parser(subparsers.add_parser("puzzles", help="Import the CC0 Lichess puzzle catalog."))
+
     serve_parser = subparsers.add_parser(
         "serve", help="Serve the built web client and API together."
     )
@@ -48,6 +51,8 @@ def main() -> None:
         if args.nodes < 1:
             parser.error("--nodes must be positive")
         sys.exit(asyncio.run(calibrate_command(args.stockfish, nodes=args.nodes)))
+    elif args.command == "puzzles":
+        sys.exit(puzzles_command(args))
     elif args.command == "serve":
         if not 1 <= args.port <= 65535:
             parser.error("--port must be between 1 and 65535")
