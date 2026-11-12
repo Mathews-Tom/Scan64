@@ -159,7 +159,7 @@ describe('PlayScreen', () => {
       expect(ApiClient.createPlayer).toHaveBeenCalledWith({ id: 'test-player', display_name: 'Anonymous' });
       expect(ApiClient.createPlaySession).toHaveBeenCalledWith({
         player_id: 'test-player',
-        opponent_config: { strength: '1500' },
+        opponent_config: { strength: '0' },
         coach_mode: false,
       });
       expect(screen.getByTestId('session-info').textContent).toContain('Status: active');
@@ -759,7 +759,7 @@ describe('PlayScreen', () => {
 
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith(
       expect.objectContaining({
-        opponent_config: { strength: '1500' },
+        opponent_config: { strength: '0' },
         coach_mode: true,
       }),
     );
