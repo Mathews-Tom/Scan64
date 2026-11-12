@@ -137,6 +137,45 @@ describe('App', () => {
     expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
   });
 
+  it.each([
+    ['Review', '/games'],
+    ['Library', '/library'],
+    ['browser Back', '/games/00000000-0000-4000-8000-000000000052/analysis'],
+  ])('drops a completed play-from-here cache when leaving through %s', async (destination, path) => {
+    const gameId = '00000000-0000-4000-8000-000000000052';
+    const playSession = { id: 'session-52', player_id: 'player-1', game_id: gameId,
+      status: 'active', coach_mode: false, opponent_config: {} };
+    vi.mocked(ApiClient.createGame).mockResolvedValue({
+      id: gameId, pgn: '', white: 'player-1', black: 'Stockfish', result: '*',
+    });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
+    vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...playSession, status: 'completed' });
+    window.history.replaceState({}, '', `/games/${gameId}/analysis`);
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('play-from-here')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('play-from-here'));
+    await screen.findByRole('button', { name: 'Resign' });
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    await screen.findByTestId('game-result');
+
+    if (destination === 'browser Back') {
+      window.history.back();
+      await waitFor(() => expect(window.location.pathname).toBe(path));
+    } else {
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' }))
+        .getByRole('button', { name: destination }));
+      expect(window.location.pathname).toBe(path);
+    }
+    expect(screen.queryByTestId('play-screen')).not.toBeInTheDocument();
+    if (destination === 'browser Back') window.history.forward();
+    else window.history.back();
+    await screen.findByTestId('start-btn');
+    expect(window.location.pathname).toBe('/play');
+    expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('session-info')).not.toBeInTheDocument();
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+  });
+
   it('does not add a history entry for same-path navigation', () => {
     render(<App />);
     const pushState = vi.spyOn(window.history, 'pushState');
