@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, SerializeAsAny
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.learning.exercises.sound_moves import sound_moves
+from scan64.learning.principles import PrincipleKind, principle_facts
 
 Motif = Literal[
     "forced_mate",
@@ -21,9 +22,8 @@ Motif = Literal[
     "fork",
     "rescue",
     "defence",
-    "development",
-    "castling",
 ]
+ReasonKind = Motif | PrincipleKind
 VALUES = {
     chess.PAWN: 1,
     chess.KNIGHT: 3,
@@ -35,7 +35,8 @@ VALUES = {
 
 
 class HintReason(BaseModel):
-    kind: Motif
+    kind: ReasonKind
+    tier: Literal["tactical", "principle"]
     description: str
     line: list[str] = Field(min_length=1)
     squares: list[str]
@@ -224,6 +225,7 @@ def extract_reasons(
         reasons.append(
             HintReason(
                 kind=kind,
+                tier="tactical",
                 description=description,
                 line=line[:length],
                 squares=[chess.square_name(s) for s in squares],
@@ -333,18 +335,16 @@ def extract_reasons(
                     [square],
                 )
                 break
-    if board.is_castling(move):
-        add("castling", "Castles the king and rook.", [move.to_square])
-    elif (
-        piece.piece_type in (chess.KNIGHT, chess.BISHOP)
-        and chess.square_rank(move.from_square) == (0 if color else 7)
-        and chess.square_rank(move.to_square) != chess.square_rank(move.from_square)
-    ):
-        add(
-            "development",
-            f"Develops a {chess.piece_name(piece.piece_type)} from the back rank.",
-            [move.from_square, move.to_square],
+    reasons.extend(
+        HintReason(
+            kind=kind,
+            tier="principle",
+            description=description,
+            line=line[:1],
+            squares=[chess.square_name(square) for square in squares],
         )
+        for kind, description, squares in principle_facts(board, move, after)
+    )
     return reasons
 
 

@@ -64,7 +64,16 @@ def test_every_recorded_reason_has_a_legal_candidate_prefix(name):
                 replay.push_uci(uci)
             assert reason in extract_reasons(board, candidate.line)
     if name == "D":
-        assert all(not candidate.reasons and candidate.fallback for candidate in result.candidates)
+        assert any(
+            reason.tier == "principle"
+            for candidate in result.candidates
+            for reason in candidate.reasons
+        )
+        assert all(
+            "gain" not in reason.description and "wins" not in reason.description
+            for candidate in result.candidates
+            for reason in candidate.reasons
+        )
 
 
 @pytest.mark.parametrize(

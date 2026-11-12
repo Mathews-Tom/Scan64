@@ -30,7 +30,11 @@ def fill_lesson_hints(spec: LessonSpec, analysis: EngineAnalysis) -> None:
             else "\n".join(
                 f"{candidate.number}. {candidate.san}: "
                 + (
-                    " ".join(reason.description for reason in candidate.reasons)
+                    " ".join(
+                        f"{'Principle' if reason.tier == 'principle' else 'Tactical'}: "
+                        f"{reason.description}"
+                        for reason in candidate.reasons
+                    )
                     or "engine preference"
                 )
                 for candidate in insight.candidates

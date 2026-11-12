@@ -28,9 +28,11 @@ Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games
 
 ### Hints during play
 
-Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Each candidate includes tactical reasons, or **engine preference** when no specific tactical explanation is available. The first two responses do not disclose moves or their destination squares.
+Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Candidates label engine-line-backed reasons **Tactical** and local move facts **Principle**; **engine preference** means neither applies. Principles describe development, castling, centre occupation or added control, rook files, king escape squares against back-rank mate, or passed-pawn advances. They describe what a move does, not why it is best or a promise of winning. Only moves inside the engine tolerance receive reasons. The first two responses do not disclose moves or their destination squares.
 
 Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to explore without submitting any moves. Select **Return to game position** before continuing play, or **Close hints** to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.
+
+Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactical, principle-only and fallback shares of candidate moves over M48's 40 recorded real games, without launching an engine. Each reached position uses its deepest available recording (deep source, focused reply, or fast search); at most three tolerance-qualified candidates count per position. Tactical takes precedence when a candidate also has a principle. These shares measure explanatory coverage, not correctness or learning outcomes, and have no pass threshold.
 
 ## Import and analyse a PGN
 
