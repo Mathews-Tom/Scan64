@@ -45,12 +45,8 @@ def test_early_steps_exclude_every_candidate_move_and_destination(name):
             }
             assert squares.isdisjoint(endpoints)
             assert squares.isdisjoint({insight_step(board, insight, 2).square})
-            assert len(squares) <= 1
+            assert len(squares) == 1
             assert step.text.endswith("?")
-            if name == "D":
-                assert not step.visualizations
-            else:
-                assert squares
         else:
             assert step.step == 2
             assert step.piece == chess.piece_name(
@@ -77,7 +73,7 @@ def test_capture_pawn_development_and_castling_do_not_leak_move_endpoints(fen, m
     squares = highlighted_squares(nudge.visualizations)
     assert squares.isdisjoint({move[:2], move[2:4]})
     assert idea.square not in squares
-    assert nudge.visualizations == []
+    assert len(nudge.visualizations) == 1
     for level in (1, 2):
         serialized = insight_step(board, insight, level).model_dump_json()
         assert move not in serialized
@@ -100,8 +96,9 @@ def test_quiet_pawn_nudge_does_not_identify_the_only_candidate_piece():
     idea = insight_step(board, insight, 2)
     assert [candidate.move for candidate in insight.candidates] == ["h2h3", "h2h4"]
     assert highlighted_squares(nudge.visualizations).isdisjoint({"h2", "h3", "h4"})
-    assert nudge.visualizations == []
-    assert nudge.text == "What threats or weaknesses can you notice in this position?"
+    assert len(nudge.visualizations) == 1
+    assert highlighted_squares(nudge.visualizations).isdisjoint({idea.square})
+    assert nudge.text == "How is the highlighted pawn defended?"
     assert idea.square == "h2"
 
 
@@ -120,6 +117,39 @@ def test_nudge_does_not_highlight_another_candidates_origin():
     assert highlighted_squares(insight_step(board, insight, 1).visualizations).isdisjoint(
         {"a1", "a2", "e2", "e3"}
     )
+
+
+def test_quiet_nudge_prioritizes_the_most_valuable_legally_attacked_opponent_piece():
+    board = chess.Board("7k/8/8/r3q3/8/8/R3R3/7K w - - 0 1")
+    insight = position_insight(
+        board, EngineAnalysis(raw_result=[{"pv": ["h1g1"], "score_cp": 0}])
+    )
+    assert insight.candidates[0].fallback
+    nudge = insight_step(board, insight, 1)
+    assert highlighted_squares(nudge.visualizations) == {"e5"}
+    assert nudge.text == "How is the highlighted queen defended?"
+
+
+def test_quiet_nudge_uses_the_last_opponent_move_when_history_is_known():
+    board = chess.Board()
+    board.push_uci("e2e4")
+    board.push_uci("e7e5")
+    insight = position_insight(
+        board, EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}])
+    )
+    nudge = insight_step(board, insight, 1)
+    assert highlighted_squares(nudge.visualizations) == {"e5"}
+    assert nudge.text == "What changed when your opponent moved this pawn?"
+
+
+def test_quiet_nudge_uses_the_opponent_king_when_no_attacked_piece_or_history_exists():
+    board = chess.Board()
+    insight = position_insight(
+        board, EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}])
+    )
+    nudge = insight_step(board, insight, 1)
+    assert highlighted_squares(nudge.visualizations) == {"e8"}
+    assert nudge.text == "What can you notice about the opposing king's safety?"
 
 
 @pytest.mark.asyncio
@@ -201,6 +231,32 @@ async def test_lesson_early_targets_exclude_all_accepted_moves_beyond_candidate_
     verify_lesson(lesson, analysis)
     endpoints = {square for move in moves for square in (move[:2], move[2:4])}
     assert highlighted_squares(lesson.hints[0].visualizations).isdisjoint(endpoints)
+    assert len(lesson.hints[0].visualizations) == 1
+    assert highlighted_squares(lesson.hints[0].visualizations).isdisjoint(
+        {lesson.hints[1].visualizations[0].square}
+    )
     idea_squares = highlighted_squares(lesson.hints[1].visualizations)
     assert cue not in idea_squares
     assert idea_squares.isdisjoint({move[2:4] for move in moves})
+
+
+@pytest.mark.asyncio
+async def test_quiet_lesson_nudge_excludes_accepted_captures_beyond_candidate_cap():
+    board = chess.Board("7k/8/8/r3q3/8/8/R3R3/7K w - - 0 1")
+    moves = ["h1g1", "e2e3", "a2a3", "e2e5", "a2a5"]
+    analysis = EngineAnalysis(raw_result=[{"pv": [move], "score_cp": 0} for move in moves])
+    insight = position_insight(board, analysis)
+    assert len(insight.candidates) == 3
+    assert insight.candidates[0].fallback
+    lesson = await generate_exact_replay_exercise(
+        Diagnosis(primary="test", confidence=1),
+        board.fen(),
+        "quiet-all-accepted-hints",
+        [board.san(chess.Move.from_uci(move)) for move in moves],
+    )
+    fill_lesson_hints(lesson, analysis)
+    verify_lesson(lesson, analysis)
+    squares = highlighted_squares(lesson.hints[0].visualizations)
+    assert squares == {"h8"}
+    assert squares.isdisjoint({square for move in moves for square in (move[:2], move[2:4])})
+    assert squares.isdisjoint({lesson.hints[1].visualizations[0].square})

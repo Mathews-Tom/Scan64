@@ -77,6 +77,37 @@ class IdeaInsight(BaseModel):
 InsightStep = NudgeInsight | IdeaInsight | PositionInsight
 
 
+def _quiet_nudge_cue(board: chess.Board, excluded: set[str]) -> tuple[str, str] | None:
+    """Find a board-backed observation without identifying a candidate's piece."""
+    cue = None
+    highest_value = 0
+    for square in chess.scan_forward(board.occupied_co[not board.turn]):
+        piece = board.piece_at(square)
+        assert piece is not None
+        name = chess.square_name(square)
+        if piece.piece_type == chess.KING or name in excluded:
+            continue
+        if VALUES[piece.piece_type] <= highest_value or not _capturers(board, square, board.turn):
+            continue
+        highest_value = VALUES[piece.piece_type]
+        cue = (name, f"How is the highlighted {chess.piece_name(piece.piece_type)} defended?")
+    if cue is not None:
+        return cue
+    if board.move_stack:
+        square = board.peek().to_square
+        piece = board.piece_at(square)
+        name = chess.square_name(square)
+        if piece is not None and piece.color != board.turn and name not in excluded:
+            return (
+                name,
+                f"What changed when your opponent moved this {chess.piece_name(piece.piece_type)}?",
+            )
+    king = board.king(not board.turn)
+    if king is not None and chess.square_name(king) not in excluded:
+        return chess.square_name(king), "What can you notice about the opposing king's safety?"
+    return None
+
+
 def insight_step(
     board: chess.Board,
     insight: PositionInsight,
@@ -111,13 +142,17 @@ def insight_step(
     )
     if step == 1:
         square = next(iter(targets), None)
+        text = "What can you notice around the highlighted square?"
         if square is None:
-            return NudgeInsight(
-                text="What threats or weaknesses can you notice in this position?",
-                visualizations=[],
-            )
+            cue = _quiet_nudge_cue(board, endpoints)
+            if cue is None:
+                return NudgeInsight(
+                    text="What threats or weaknesses can you notice in this position?",
+                    visualizations=[],
+                )
+            square, text = cue
         return NudgeInsight(
-            text="What can you notice around the highlighted square?",
+            text=text,
             visualizations=[
                 HighlightSquareCommand(square=square, description="Inspect this square.")
             ],

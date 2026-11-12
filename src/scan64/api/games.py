@@ -202,6 +202,8 @@ def list_learning_opportunities(
     for opportunity in opportunities:
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
         if not spec.hints:
+            if opportunity.verification_status == "invalid":
+                continue
             upgraded, used_fallback = _reverify_persisted_lesson(
                 opportunity, session, allow_fallback=fallbacks_remaining > 0
             )

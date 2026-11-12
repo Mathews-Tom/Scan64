@@ -64,11 +64,13 @@ Only automatic game-over states are terminal here, matching Play: checkmate, sta
 
 Each response contains only the requested step's data:
 
-- **Step 1 — nudge:** `step`, a question in `text`, and `visualizations` highlighting one reason square. The square is never the origin or destination of any candidate (or any accepted lesson move). When no safe reason square exists, the question is text-only and `visualizations` is empty.
+- **Step 1 — nudge:** `step`, a question in `text`, and `visualizations` highlighting one safe cue square. The square is never the origin or destination of any candidate (or any accepted lesson move). Without a safe reason square, the cue is the most valuable legally attacked opponent piece, otherwise the opponent's last-moved piece when history is available, otherwise the opponent king. The question matches the cue; only when none of these squares is available is it text-only with empty `visualizations`.
 - **Step 2 — idea:** `step`, `text`, `motif`, `piece`, its origin `square`, filtered `targets`, and square-highlight `visualizations`. Targets exclude every candidate destination; lessons also exclude every accepted move's origin and destination from targets.
 - **Step 3 — moves:** `step`, the source `fen`, up to three engine `candidates` within the shared win-probability-loss tolerance of 0.08, and `visualizations`. Candidates include their UCI move, SAN, engine line, numbered drawings, and board-validated reasons or an explicit engine-preference fallback.
 
 Steps 1 and 2 never include candidate SAN/UCI moves, engine lines, or destination drawings. FEN is omitted from those hint-only payloads; the client already has the source board. Lessons use the same three projections in `LessonSpec.hints`. Every step-3 reason carries a legal prefix of its own candidate's line. A mate threat means a new mate-in-one opportunity created by the candidate if the opponent did not respond; a mating move already available before the candidate is not credited. It does not claim the engine's actual reply allows mate. Previewing a line never changes the stored game or submits a move.
+
+Hydrating legacy lesson hints permits at most one fallback analysis per read. Invalid engine results consume that budget and mark the lesson invalid rather than temporarily unavailable; subsequent reads do not search that invalid lesson again.
 
 Hints use only the interactive pool: one hint is admitted at a time, leaving at least one engine available for opponent moves in the default two-engine configuration. Hints have no admission queue, wait at most 250 ms for a checkout, and search with MultiPV 4, 200,000 nodes and a 1.5-second search limit inside a three-second wall deadline (including lazy startup). Busy capacity returns retryable 503 with a visible panel message; hints are explicitly unavailable (503) when pooling is disabled or the interactive pool has fewer than two engines. Background batch work is never used for hints.
 

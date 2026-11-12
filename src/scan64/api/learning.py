@@ -78,6 +78,10 @@ class ObjectiveAnalysisUnavailable(Exception):
         self.used_fallback = used_fallback
 
 
+class InvalidFallbackAnalysis(ValueError):
+    """An invalid engine result from a search that consumed the fallback budget."""
+
+
 def _lesson_board(spec: LessonSpec) -> chess.Board:
     try:
         board = chess.Board(spec.source.fen)
@@ -127,6 +131,8 @@ def _objective_analysis_for_lesson(
         raise ObjectiveAnalysisUnavailable(
             "Objective engine analysis is unavailable", used_fallback=True
         ) from error
+    except ValueError as error:
+        raise InvalidFallbackAnalysis(str(error)) from error
     analysis.position_id = opportunity.source_position_id
     db.add(analysis)
     db.flush()
@@ -152,6 +158,7 @@ def _reverify_persisted_lesson(
         opportunity.verification_error = str(error)
         return None, used_fallback
     except (KeyError, LessonVerificationError, TypeError, ValidationError, ValueError) as error:
+        used_fallback = used_fallback or isinstance(error, InvalidFallbackAnalysis)
         opportunity.verification_status = "invalid"
         opportunity.verification_error = str(error)
         return None, used_fallback

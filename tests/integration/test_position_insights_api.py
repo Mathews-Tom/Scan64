@@ -280,7 +280,7 @@ def test_only_requested_step_is_serialized(client, db_session, monkeypatch, name
     assert "candidates" not in body
     assert "fen" not in body
     if step == 1:
-        assert len(body["visualizations"]) <= 1
+        assert len(body["visualizations"]) == 1
         assert all(drawing["command"] == "highlight_square" for drawing in body["visualizations"])
     else:
         assert body["piece"]
@@ -294,7 +294,7 @@ def test_only_requested_step_is_serialized(client, db_session, monkeypatch, name
             assert squares.isdisjoint({candidate.move[:2], candidate.move[2:4]})
 
 
-def test_quiet_pawn_ladder_starts_with_text_without_identifying_the_piece(
+def test_quiet_pawn_ladder_starts_with_a_safe_cue_without_identifying_the_piece(
     client: TestClient, db_session: Session, monkeypatch
 ):
     headers = register(db_session, "hint-owner")
@@ -319,11 +319,24 @@ def test_quiet_pawn_ladder_starts_with_text_without_identifying_the_piece(
         responses.append(response.json())
     assert responses[0] == {
         "step": 1,
-        "text": "What threats or weaknesses can you notice in this position?",
-        "visualizations": [],
+        "text": "How is the highlighted pawn defended?",
+        "visualizations": [
+            {
+                "command": "highlight_square",
+                "description": "Inspect this square.",
+                "square": "e5",
+            }
+        ],
     }
     assert responses[1]["square"] == "h2"
     assert [candidate["move"] for candidate in responses[2]["candidates"]] == ["h2h3", "h2h4"]
+    endpoints = {
+        square
+        for candidate in responses[2]["candidates"]
+        for square in (candidate["move"][:2], candidate["move"][2:4])
+    }
+    nudge_squares = {drawing["square"] for drawing in responses[0]["visualizations"]}
+    assert nudge_squares.isdisjoint(endpoints | {responses[1]["square"]})
 
 
 @pytest.mark.parametrize("step", [None, 0, 4, "moves"])
