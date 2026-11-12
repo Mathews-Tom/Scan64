@@ -17,6 +17,8 @@ The web client creates a player identity when you start a game. Its bearer token
 5. Select **Your Games** and reopen an active game to resume it.
 6. Resign or finish the game. Scan64 queues analysis automatically for completed play sessions.
 
+New games from Play, Analysis Board's play-from-here, and Famous Games' continue action use **Stockfish skill level 0**. This is an engine skill setting, not an Elo rating. The API accepts Stockfish `strength` as an integer string from `"0"` to `"20"` and defaults to `"0"` when omitted; Maia strength remains a rating.
+
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
 
 ## Import and analyse a PGN

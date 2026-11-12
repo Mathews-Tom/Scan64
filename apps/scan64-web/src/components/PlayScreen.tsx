@@ -10,6 +10,7 @@ import {
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
+import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { Chessground } from 'chessground';
@@ -84,7 +85,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       
       const newSession = await ApiClient.createPlaySession({
         player_id: pid,
-        opponent_config: { strength: '1500' },
+        opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
         coach_mode: coachMode,
       });
       sessionRef.current = newSession;

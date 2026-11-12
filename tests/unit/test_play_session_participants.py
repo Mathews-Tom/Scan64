@@ -17,13 +17,13 @@ BLACK_TO_MOVE_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 def test_player_takes_white_from_the_standard_start() -> None:
     assert participants("alice", {"provider": "stockfish", "strength": "10"}) == (
         "alice",
-        "Stockfish (strength 10)",
+        "Stockfish (skill level 10)",
     )
 
 
 def test_player_takes_the_side_to_move_of_a_seeded_position() -> None:
     assert participants("alice", {"strength": "6"}, BLACK_TO_MOVE_FEN) == (
-        "Stockfish (strength 6)",
+        "Stockfish (skill level 6)",
         "alice",
     )
 
@@ -33,8 +33,8 @@ def test_maia_opponent_is_named_by_its_selected_checkpoint() -> None:
     assert (white, black) == ("alice", "Maia 1500")
 
 
-def test_opponent_without_a_strength_setting_is_named_by_provider_alone() -> None:
-    assert participants("alice", {})[1] == "Stockfish"
+def test_opponent_without_a_strength_setting_is_named_by_default_skill_level() -> None:
+    assert participants("alice", {})[1] == "Stockfish (skill level 0)"
 
 
 def test_player_colour_defaults_to_white_from_the_standard_start() -> None:
@@ -56,7 +56,7 @@ def test_a_resumed_game_names_its_owner_on_the_side_they_play() -> None:
 
     name_player_on(game, "alice", {"strength": "8"})
 
-    assert (game.white, game.black) == ("Stockfish (strength 8)", "alice")
+    assert (game.white, game.black) == ("Stockfish (skill level 8)", "alice")
 
 
 def test_another_players_game_keeps_its_imported_names() -> None:

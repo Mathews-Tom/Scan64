@@ -229,7 +229,8 @@ class PlaySessionService:
                 ),
             )
 
-        strength = int(play_session.opponent_config.get("strength", 10))
+        default_strength = 10 if play_session.opponent_config.get("provider") == "maia" else 0
+        strength = int(play_session.opponent_config.get("strength", default_strength))
         clock = play_session.clock_config
         time_limit = clock.get("time_remaining_ms") if clock else None
         context = OpponentContext(
