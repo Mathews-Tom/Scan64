@@ -58,6 +58,32 @@ export interface PuzzleDailyRead {
   message: string;
 }
 
+export type PuzzleMode = 'daily' | 'theme' | 'streak';
+export interface PuzzleStreakRead {
+  current: number;
+  best: number;
+  reset_reason: string | null;
+}
+export interface PuzzleModesRead {
+  themes: string[];
+  streak: PuzzleStreakRead;
+}
+export interface PuzzleRunCreate {
+  mode: PuzzleMode;
+  theme?: string;
+}
+export interface PuzzleMistakesRead {
+  items: { lesson_id: string; game_id: string; ply: number; attempts_remaining: number }[];
+  excluded: { no_review_schedule: number; retired: number; untrusted: number; exhausted: number };
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+export interface PuzzleMistakeStartRead {
+  moment: GameReviewKeyMoment;
+  session_id: string;
+}
+
 export interface PuzzleRunRead {
   run_id: string;
   puzzle_id: string;
@@ -75,13 +101,17 @@ export interface PuzzleRunRead {
   widening: string | null;
   rated: boolean;
   daily: PuzzleDailyRead;
+  mode: PuzzleMode;
+  theme: string | null;
+  streak: PuzzleStreakRead;
 }
 
 export interface PuzzleStartRead {
-  status: 'ready' | 'empty' | 'exhausted';
+  status: 'idle' | 'ready' | 'empty' | 'exhausted';
   run: PuzzleRunRead | null;
   message: string;
   daily: PuzzleDailyRead;
+  streak: PuzzleStreakRead;
 }
 
 export interface Hint {

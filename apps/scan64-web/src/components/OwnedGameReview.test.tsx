@@ -25,6 +25,12 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 describe('owned move-by-move review', () => {
+  it.each([[3, 3], [999, 7], [Number.NaN, 0], [-1, 0]])('opens a linked source ply %s safely at %s', async (initialPly, expectedPly) => {
+    render(<AnalysisScreen gameId="game-1" initialPly={initialPly} />);
+    await screen.findByTestId('review-move-list');
+    expect(screen.getByTestId(`review-graph-ply-${expectedPly}`)).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('shows tactical proof and exclusions, links credited ply, and makes no external-independence claim', async () => {
     const review = makeGameReview();
     review.moves[0].credit = { skill_id: 'threat_processing.missed_capture', explanation: 'The legal line wins a pawn without merely restoring material.' };

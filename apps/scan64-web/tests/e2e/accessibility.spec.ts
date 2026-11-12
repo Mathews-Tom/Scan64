@@ -118,9 +118,16 @@ test(`Black puzzle local validation, hint and solve at ${size.width}x${size.heig
     fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1', setup: 'e2e4',
     played_moves: [] as string[], cursor: 0, revision: 0, wrong_attempts: 0, maximum_wrong_attempts: 3,
     state: 'active', hint_step: 0, hints: [] as { step: number; text: string; visualizations: never[] }[] };
-  await page.route('**/v1/puzzles/runs**', async route => {
+  const streak = { current: 0, best: 0, reset_reason: null };
+  const daily = { utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+    overdue_count: 0, total: 1, completed: 0, remaining: 1,
+    actual_mix: { due: 0, weak: 0, exploration: 1 }, message: 'Daily set reserved.' };
+  run = { ...run, ...{ mode: 'daily', theme: null, streak, daily,
+    selection_reason: 'exploration', widening: '200', rated: true } };
+  await page.route('**/v1/puzzles/modes', route => route.fulfill({ json: { themes: ['fork'], streak } }));
+  await page.route('**/v1/puzzles/{runs,active}**', async route => {
     const path = new URL(route.request().url()).pathname;
-    if (path === '/v1/puzzles/runs') return route.fulfill({ json: { status: 'ready', run, message: '' } });
+    if (path === '/v1/puzzles/active') return route.fulfill({ json: { status: 'ready', run, daily, streak, message: '' } });
     if (path.endsWith('/hints')) run = { ...run, hint_step: 1, revision: 1, hints: [{ step: 1, text: 'Inspect the central pawns.', visualizations: [] }] };
     if (path.endsWith('/moves')) {
       calls++;

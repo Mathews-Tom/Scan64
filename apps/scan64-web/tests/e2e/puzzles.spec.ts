@@ -12,13 +12,21 @@ test('navigates to puzzles, rejects a wrong move, resumes hints on reload, plays
   await prepareToday(page);
   let run: PuzzleRunRead = { run_id: 'run-1', puzzle_id: 'puzzle-1', fen: SETUP, setup: 'e2e4',
     played_moves: [], cursor: 0, revision: 0, wrong_attempts: 0, maximum_wrong_attempts: 3,
-    state: 'active', hint_step: 0, hints: [] };
+    state: 'active', hint_step: 0, hints: [],
+    mode: 'daily', theme: null, streak: { current: 0, best: 0, reset_reason: null },
+    selection_reason: 'exploration', widening: '200', rated: true,
+    daily: { utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+      overdue_count: 0, total: 1, completed: 0, remaining: 1,
+      actual_mix: { due: 0, weak: 0, exploration: 1 }, message: 'Daily set reserved.' } };
+  await page.route('**/v1/puzzles/modes', route => route.fulfill({
+    json: { themes: ['fork'], streak: run.streak },
+  }));
   const mutations: { path: string; body: Record<string, unknown> }[] = [];
   let starts = 0;
-  await page.route('**/v1/puzzles/runs**', async route => {
+  await page.route('**/v1/puzzles/{runs,active}**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (path === '/v1/puzzles/runs' && request.method() === 'POST') {
+    if (path === '/v1/puzzles/active' && request.method() === 'GET') {
       starts++;
       expect(request.postData()).toBeNull();
       await route.fulfill({ json: { status: 'ready', run, message: '' } });

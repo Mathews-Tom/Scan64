@@ -187,8 +187,8 @@ engine-hint endpoint.
 Reloading or returning to Puzzles resumes the active server-owned run, including
 across UTC midnight; no solution line or progress is saved in browser storage.
 Solved and failed states disable the board; choose **Next puzzle** to continue.
-**Abandon puzzle** closes the slot without a content attempt, but loses rating
-when it is a rated first exposure.
+**Abandon puzzle** ends the run without a content attempt. For Daily it closes
+the slot and loses rating when it is a rated first exposure; other modes are unrated.
 
 If another tab changes the run, the screen loads the conflict response's current
 state without replaying your action. Other request failures do not spend attempts
@@ -218,9 +218,9 @@ wrong attempts, but prevent an independent rated win even after changing turns.
 Due reviews, repeated puzzles and pre-existing legacy runs are unrated; historical
 practice is not replayed into the rating.
 
-Failed or assisted completions schedule spaced reviews. Independently solving a
-review retires it; independent first solves do not enter the review queue.
-Abandonment and legacy runs do not schedule reviews. Theme relationships are
+Daily failed or assisted completions schedule spaced reviews. Independently solving a
+Daily review retires it; independent first solves do not enter the review queue.
+Abandonment, legacy runs and mode runs do not schedule reviews. Theme relationships are
 versioned heuristics (`puzzle-theme-heuristic-v1`), not diagnoses or mastery;
 the reverse hangingPiece relationship is not measured prevention of hanging pieces.
 Unknown themes can still appear in reviews or exploration.
@@ -230,8 +230,40 @@ not engine recognition of move quality. The `puzzle-elo-v1` practice rating is
 not chess/FIDE strength or evidence of improvement and never changes playing
 strength priors or theme mastery.
 
-Operators must back up player rating, daily membership, progress and the historical
-rating-event ledger together before migrations, restore or deletion. Use the
+### Theme, Your mistakes and Solve streak
+
+Opening Puzzles resumes an active run, but never starts a new rated Daily puzzle
+automatically. Choose a mode beside **Daily**, then **Start**. Finish or abandon
+any active puzzle before switching; reload resumes it first. **Theme** uses the
+catalog's actual source tags.
+Theme and **Solve streak** choose unseen, never-attempted puzzles nearest your current
+puzzle rating, widening from ±200 to ±400 and then the catalog, without difficulty
+escalation. The app reports when eligible supply is exhausted. Starting either mode
+first reserves today's Daily set and excludes its unclosed puzzles; it never rerolls
+Daily membership.
+
+These mode runs are **unrated** and never create, update or retire spaced reviews.
+Solves and failures still record ordinary content attempts. A puzzle used in a mode
+permanently stops being a rated first exposure or an unseen weakness/exploration
+candidate. This consumes future Daily supply and can cause earlier widening or a
+shorter Daily set. Today's reservations protect only today's unclosed slots.
+
+**Solve streak** is untimed. Only finished runs started in that mode count: an
+unhinted solve adds one, while a hinted solve, failure or abandonment resets it.
+Wrong submissions within the three-attempt run budget are allowed. Daily and Theme
+neither add nor reset. Current/best and the last reset reason are derived from saved
+finished runs, so reloads and repeated submissions cannot mint streak progress.
+
+**Your mistakes** lists eligible owned, trusted, non-retired game lessons in pages,
+with source game/ply and remaining lifetime attempts. Excluded lessons appear only
+as reason counts, never hidden diagnosis text. **Start mistake at ply N** rechecks eligibility
+and stored analysis and opens the existing lesson retry. It reuses the lifetime
+attempt budget, hints and assisted-credit rules; it does not copy a catalog puzzle.
+Lesson hints remain app-reported assistance, not externally verifiable proof that
+no help was used.
+
+Operators must back up player rating, daily membership, mode/theme bindings, progress
+and the historical rating-event ledger together before migrations, restore or deletion. Use the
 reviewed deletion dry-run, rollback and audit workflow; retain a recoverable backup
 before destructive changes. Restore preserves awards rather than reapplying them.
 A rollback must restore a matching database/schema backup, not silently recompute

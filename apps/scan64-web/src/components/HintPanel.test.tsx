@@ -18,7 +18,7 @@ describe('HintPanel', () => {
     hint.focus();
     fireEvent.click(hint);
     const details = await screen.findByRole('region', { name: 'Hint details' });
-    expect(details).toHaveFocus();
+    await waitFor(() => expect(details).toHaveFocus());
     expect(screen.getByRole('status')).toHaveTextContent('Hint 3 of 3');
     fireEvent.keyDown(details, { key: 'Escape' });
     expect(screen.queryByRole('region', { name: 'Hint details' })).not.toBeInTheDocument();

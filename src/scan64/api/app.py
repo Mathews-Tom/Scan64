@@ -15,6 +15,7 @@ from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
+from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
 from scan64.api.puzzles import router as puzzles_router
 from scan64.api.reports import router as reports_router
 from scan64.api.web import mount_web_client, web_dist_directory
@@ -73,6 +74,7 @@ app.include_router(learning_router)
 app.include_router(insights_router)
 app.include_router(puzzles_router)
 
+app.include_router(puzzle_mistakes_router)
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.include_router(games_router)

@@ -9,6 +9,7 @@ import './OwnedGameReview.css';
 
 interface Props {
   gameId: string;
+  initialPly?: number;
   onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
   startPlayFromPosition: (fen: string) => Promise<PlaySessionRead>;
 }
@@ -37,7 +38,7 @@ async function readReviewState(gameId: string) {
   };
 }
 
-export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition }: Props) {
+export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startPlayFromPosition }: Props) {
   const [review, setReview] = useState<GameReviewRead | null>(null);
   const [status, setStatus] = useState<GameAnalysisStatusRead | null>(null);
   const [selectedPly, setSelectedPly] = useState(0);
@@ -58,12 +59,14 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
     void readReviewState(gameId).then(data => {
       if (ignore) return;
       setReview(data.review);
+      setSelectedPly(Number.isSafeInteger(initialPly)
+        ? Math.max(0, Math.min(initialPly, data.review?.moves.length ?? 0)) : 0);
       setStatus(data.status);
       setError(data.error);
       setBusy(null);
     });
     return () => { ignore = true; };
-  }, [gameId]);
+  }, [gameId, initialPly]);
 
   const initialFen = review?.initial_fen;
   const moves = review?.moves;

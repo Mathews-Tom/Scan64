@@ -25,6 +25,7 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_mode_models import PuzzleModeBinding
 from scan64.content.puzzle_practice_models import (
     PuzzleDailySet,
     PuzzleDailySlot,
@@ -64,6 +65,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         StudySession.__tablename__,
         ContentAttempt.__tablename__,
         PuzzleRun.__tablename__,
+        PuzzleModeBinding.__tablename__,
         PuzzleRating.__tablename__,
         PuzzleDailySet.__tablename__,
         PuzzleDailySlot.__tablename__,
@@ -103,6 +105,7 @@ ARCHIVE_FIELDS = {
     StudySession.__tablename__: "study_sessions",
     ContentAttempt.__tablename__: "content_attempts",
     PuzzleRun.__tablename__: "puzzle_runs",
+    PuzzleModeBinding.__tablename__: "puzzle_mode_bindings",
     PuzzleRating.__tablename__: "puzzle_rating",
     PuzzleDailySet.__tablename__: "puzzle_daily_sets",
     PuzzleDailySlot.__tablename__: "puzzle_daily_slots",
@@ -313,25 +316,83 @@ def _seed_player_lifecycle_records(
     run = seed_puzzle_run(session, player_id, solved=True)
     assert run.completed_at is not None
     daily = PuzzleDailySet(
-        player_id=player_id, utc_day=run.started_at.date().isoformat(),
+        player_id=player_id,
+        utc_day=run.started_at.date().isoformat(),
         created_at=run.started_at,
     )
     session.add(daily)
     session.flush()
     slot = PuzzleDailySlot(
-        player_id=player_id, set_id=daily.id, position=0, item_id=run.item_id,
-        item_rating=1200, reason="exploration", widening="200",
-        first_exposure=True, run_id=run.id, closed_at=run.completed_at,
+        player_id=player_id,
+        set_id=daily.id,
+        position=0,
+        item_id=run.item_id,
+        item_rating=1200,
+        reason="exploration",
+        widening="200",
+        first_exposure=True,
+        run_id=run.id,
+        closed_at=run.completed_at,
     )
     session.add(slot)
     session.flush()
     after = elo_after(1200, 1200, 1)
     session.add(PuzzleRating(player_id=player_id, rating=after, rated_count=1))
-    session.add(PuzzleRatingEvent(
-        player_id=player_id, run_id=run.id, slot_id=slot.id, item_id=run.item_id,
-        sequence=1, item_rating=1200, before=1200, after=after, score=1,
-        created_at=run.completed_at,
-    ))
+    session.add(
+        PuzzleRatingEvent(
+            player_id=player_id,
+            run_id=run.id,
+            slot_id=slot.id,
+            item_id=run.item_id,
+            sequence=1,
+            item_rating=1200,
+            before=1200,
+            after=after,
+            score=1,
+            created_at=run.completed_at,
+        )
+    )
+    original_item = session.get(ContentItem, run.item_id)
+    assert original_item is not None
+    mode_item = ContentItem.model_validate(original_item.model_dump())
+    mode_item.id = "lichess:mode-lifecycle"
+    mode_item.payload = deepcopy(mode_item.payload)
+    mode_item.payload["puzzle_id"] = "mode-lifecycle"
+    mode_item.payload["themes"] = ["fork"]
+    mode_item.payload["lesson"]["lesson_id"] = mode_item.id
+    mode_study = StudySession(player_id=player_id, domain="puzzles")
+    session.add_all([mode_item, mode_study])
+    session.flush()
+    mode_run = PuzzleRun.model_validate(
+        {
+            **run.model_dump(),
+            "id": str(uuid4()),
+            "item_id": mode_item.id,
+            "session_id": mode_study.id,
+        }
+    )
+    session.add(mode_run)
+    session.flush()
+    session.add(
+        PuzzleModeBinding(
+            run_id=mode_run.id,
+            player_id=player_id,
+            mode="theme",
+            theme="fork",
+            widening="200",
+        )
+    )
+    session.add(
+        ContentAttempt(
+            id=mode_run.id,
+            item_id=mode_item.id,
+            player_id=player_id,
+            session_id=mode_study.id,
+            success=True,
+            completed_at=mode_run.completed_at,
+            response_payload={"run_id": mode_run.id},
+        )
+    )
     session.commit()
 
     return {
@@ -387,6 +448,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert len(archive["puzzle_daily_sets"]) == 1
     assert len(archive["puzzle_daily_slots"]) == 1
     assert len(archive["puzzle_rating_events"]) == 1
+    assert len(archive["puzzle_mode_bindings"]) == 1
 
     dry_run = client.request(
         "DELETE",
@@ -415,9 +477,10 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "transfer_measurements": 1,
         "skill_states": 1,
         "review_schedules": 1,
-        "study_sessions": 2,
-        "puzzle_runs": 1,
-        "content_attempts": 2,
+        "study_sessions": 3,
+        "puzzle_runs": 2,
+        "content_attempts": 3,
+        "puzzle_mode_bindings": 1,
         "puzzle_rating": 1,
         "puzzle_daily_sets": 1,
         "puzzle_daily_slots": 1,
@@ -490,6 +553,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         ).all(),
         "puzzle_runs": db_session.exec(
             select(PuzzleRun).where(PuzzleRun.player_id == player_id)
+        ).all(),
+        "puzzle_mode_bindings": db_session.exec(
+            select(PuzzleModeBinding).where(PuzzleModeBinding.player_id == player_id)
         ).all(),
         "puzzle_rating": db_session.exec(
             select(PuzzleRating).where(PuzzleRating.player_id == player_id)
@@ -581,6 +647,10 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     restored_review = db_session.get(GameMoveReview, records["review_move_id"])
     assert restored_review is not None
     assert restored_review.model_dump(mode="json") == archive["review_moves"][0]
+    binding_data = archive["puzzle_mode_bindings"][0]
+    restored_binding = db_session.get(PuzzleModeBinding, binding_data["run_id"])
+    assert restored_binding is not None
+    assert restored_binding.model_dump(mode="json") == binding_data
 
 
 def test_deletion_preserves_shared_game_for_its_other_participant(

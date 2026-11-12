@@ -9,6 +9,7 @@ import { resolveMove } from './moveEntry';
 
 interface AnalysisScreenProps {
   gameId?: string;
+  initialPly?: number;
   onPlayFromHere?: (session: PlaySessionRead, fen: string) => void;
 }
 
@@ -26,9 +27,9 @@ async function startPlayFromPosition(fen: string): Promise<PlaySessionRead> {
   });
 }
 
-export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) {
+export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisScreenProps) {
   return gameId
-    ? <OwnedGameReview key={gameId} gameId={gameId} onPlayFromHere={onPlayFromHere} startPlayFromPosition={startPlayFromPosition} />
+    ? <OwnedGameReview key={gameId} gameId={gameId} initialPly={initialPly} onPlayFromHere={onPlayFromHere} startPlayFromPosition={startPlayFromPosition} />
     : <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} />;
 }
 
