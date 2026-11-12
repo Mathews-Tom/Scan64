@@ -151,7 +151,7 @@ def test_idempotency_does_not_replay_anonymous_registration(
     assert session.get(Player, "second-player") is not None
 
 
-def test_idempotency_does_not_replay_anonymous_famous_game_attempt(
+def test_idempotency_does_not_replay_between_authenticated_famous_game_attempts(
     client: TestClient, session: Session
 ) -> None:
     first_player = Player(id="first-attempt-player")
@@ -160,7 +160,12 @@ def test_idempotency_does_not_replay_anonymous_famous_game_attempt(
     session.add(second_player)
     session.add(PlayerProfile(player_id=first_player.id))
     session.add(PlayerProfile(player_id=second_player.id))
-    headers = {"Idempotency-Key": "shared-attempt-key"}
+    first_token, first_hash = issue_player_token()
+    second_token, second_hash = issue_player_token()
+    session.add(PlayerCredential(player_id=first_player.id, token_hash=first_hash))
+    session.add(PlayerCredential(player_id=second_player.id, token_hash=second_hash))
+    session.commit()
+    headers = {"Idempotency-Key": "shared-attempt-key", "Authorization": f"Bearer {first_token}"}
     first = client.post(
         "/v1/content/famous-games/morphy-opera-1858/attempts",
         json={
@@ -171,6 +176,7 @@ def test_idempotency_does_not_replay_anonymous_famous_game_attempt(
         },
         headers=headers,
     )
+    headers = {**headers, "Authorization": f"Bearer {second_token}"}
     second = client.post(
         "/v1/content/famous-games/morphy-opera-1858/attempts",
         json={

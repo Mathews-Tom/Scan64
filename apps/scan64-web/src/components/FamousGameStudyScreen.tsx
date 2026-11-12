@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
 
@@ -22,6 +22,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [authorizationError, setAuthorizationError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [comparison, setComparison] = useState('');
   const boardRef = useRef<HTMLDivElement>(null);
@@ -31,7 +32,6 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   const studyComplete = selectedGame !== null && currentDecision === null;
 
   useEffect(() => {
-    setPlayerId(getOrCreatePlayerId());
     let active = true;
 
     void ApiClient.getFamousGames()
@@ -47,6 +47,17 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+
+    void ensurePlayerAuthorization(getOrCreatePlayerId())
+      .then((authorizedPlayerId) => {
+        if (active) setPlayerId(authorizedPlayerId);
+      })
+      .catch((caughtError: unknown) => {
+        if (!active) return;
+        setAuthorizationError(
+          caughtError instanceof Error ? caughtError.message : 'Failed to authorize player',
+        );
       });
 
     return () => {
@@ -183,6 +194,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
     return (
       <section className="famous-games-list" data-testid="famous-games-catalogue">
         <h2>Study Famous Games</h2>
+        {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
         <ul>
           {games.map((game) => (
             <li key={game.id}>
@@ -204,6 +216,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
         <p>{selectedGame.payload.historical_context}</p>
         <p>{selectedGame.payload.strategic_context}</p>
         {error && <div role="alert">{error}</div>}
+        {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
         {feedback && <p role="status">{feedback}</p>}
         {comparison && <p data-testid="move-comparison">{comparison}</p>}
 
@@ -221,12 +234,12 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
               }}
               placeholder="e.g. Nf3"
             />
-            <button type="button" disabled={submitting || !prediction.trim()} onClick={() => void submitPrediction()}>
+            <button type="button" disabled={!playerId || submitting || !prediction.trim()} onClick={() => void submitPrediction()}>
               Submit
             </button>
             <button type="button" onClick={showHint}>Show Hint</button>
             <button type="button" onClick={showMove}>Show Move</button>
-            <button type="button" disabled={submitting} onClick={() => void continueFromHere()}>
+            <button type="button" disabled={!playerId || submitting} onClick={() => void continueFromHere()}>
               Continue from here against engine
             </button>
             <button type="button" onClick={advanceDecision}>
