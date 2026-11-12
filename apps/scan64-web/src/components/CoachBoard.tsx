@@ -3,12 +3,16 @@ import { Chess, type Move } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
+import type { Visualization } from '../api/types';
+import { BoardVisualizations } from './BoardVisualizations';
+import { linePosition } from './linePosition';
 
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 
 type Promotion = 'q' | 'r' | 'b' | 'n';
+const EMPTY_VISUALIZATIONS: Visualization[] = [];
 interface CoachBoardProps {
   fen: string;
   pgn?: string;
@@ -17,6 +21,7 @@ interface CoachBoardProps {
   resetAfterAttempt?: boolean;
   onMove: (uci: string) => void | Promise<void>;
   testId?: string;
+  visualizations?: Visualization[];
 }
 
 function position(fen: string, pgn?: string): Chess {
@@ -26,7 +31,7 @@ function position(fen: string, pgn?: string): Chess {
 }
 
 export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
-  resetAfterAttempt = false, onMove, testId = 'coach-board' }: CoachBoardProps) {
+  resetAfterAttempt = false, onMove, testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
   const [initialPosition] = useState(() => position(fen, pgn));
@@ -38,12 +43,16 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
   const [moves, setMoves] = useState<Move[]>(() => chess.current.history({ verbose: true }));
   const [ready, setReady] = useState(false);
+  const [animation, setAnimation] = useState<{ fen: string; step: number } | null>(null);
+  const animationFen = animation?.fen;
+  const animationRef = useRef<string | undefined>(undefined);
+  animationRef.current = animationFen;
 
   const draw = useCallback(() => {
     const game = chess.current;
     const history = game.history({ verbose: true });
     const last = history.at(-1);
-    const blocked = latest.current.disabled || moving.current || promotion.current !== null;
+    const blocked = latest.current.disabled || moving.current || promotion.current !== null || animationRef.current !== undefined;
     const dests = new Map<Key, Key[]>();
     if (!blocked) {
       for (const move of game.moves({ verbose: true })) {
@@ -55,7 +64,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
     }
     const color = game.turn() === 'w' ? 'white' : 'black';
     board.current?.set({
-      fen: game.fen(), orientation: latest.current.orientation, turnColor: color,
+      fen: animationRef.current ?? game.fen(), orientation: latest.current.orientation, turnColor: color,
       lastMove: last ? [last.from as Key, last.to as Key] : [],
       movable: { color: blocked ? undefined : color, dests: blocked ? undefined : dests },
     });
@@ -92,6 +101,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
     restore();
     requestAnimationFrame(() => board.current?.redrawAll());
   }, [fen, pgn, restore]);
+  useEffect(() => { setAnimation(null); }, [fen, pgn, visualizations]);
+  useEffect(() => { draw(); }, [animationFen, draw]);
 
   useEffect(() => {
     if (resetAfterAttempt && !disabled && !moving.current) restore();
@@ -107,7 +118,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',
         free: false,
         events: { after: (from, to) => {
-          if (latest.current.disabled || moving.current || promotion.current) return;
+          if (latest.current.disabled || moving.current || promotion.current || animationRef.current !== undefined) return;
           const promotes = chess.current.moves({ verbose: true }).some(
             move => move.from === from && move.to === to && move.promotion !== undefined,
           );
@@ -128,9 +139,28 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   }, [applyMove, draw]);
 
   return <div className="coach-board">
-    <div ref={element} data-testid={testId}
-      aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
-      style={{ width: 'min(400px, 100%)', aspectRatio: '1' }} />
+    <div style={{ position: 'relative', width: 'min(400px, 100%)', aspectRatio: '1' }}>
+      <div ref={element} data-testid={testId}
+        aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
+        style={{ width: '100%', height: '100%' }} />
+      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={animationFen ?? chess.current.fen()} />
+    </div>
+    {visualizations.filter(visualization => visualization.command === 'animate_line'
+      || !['draw_arrow', 'highlight_square', 'highlight_piece', 'draw_defence_map'].includes(visualization.command)).map((visualization, index) => <div key={index}>
+      {visualization.command !== 'animate_line' && <p>{visualization.description}</p>}
+      {visualization.command === 'animate_line' && visualization.moves?.length ? <>
+        <button type="button" onClick={() => {
+          const step = Math.min((animation?.step ?? 0) + 1, visualization.moves!.length);
+          try { setAnimation({ fen: linePosition(position(fen, pgn).fen(), visualization.moves!, step), step }); }
+          catch { setAnimation(null); }
+        }}>Next line move</button>
+        <button type="button" onClick={() => {
+          try { setAnimation({ fen: linePosition(position(fen, pgn).fen(), visualization.moves!, visualization.moves!.length), step: visualization.moves!.length }); }
+          catch { setAnimation(null); }
+        }}>Show full line</button>
+        <button type="button" onClick={() => setAnimation(null)}>Return to original position</button>
+      </> : null}
+    </div>)}
     {pendingPromotion !== null && <div role="group" aria-label="Choose promotion piece">
       {(['q', 'r', 'b', 'n'] as const).map(piece => <button key={piece} type="button" onClick={() => {
         const pending = promotion.current;

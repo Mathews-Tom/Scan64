@@ -10,6 +10,7 @@ from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.games import router as games_router
+from scan64.api.insights import router as insights_router
 from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
@@ -65,6 +66,7 @@ app = FastAPI(
 app.include_router(content_router)
 app.include_router(play_router)
 app.include_router(learning_router)
+app.include_router(insights_router)
 
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
