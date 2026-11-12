@@ -48,6 +48,17 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
 
     import scan64.persistence.database as db_module
     from scan64.api.app import app
+    from scan64.chess.analysis.admission import admission_controller
+
+    shutdown_events: list[str] = []
+    close = EnginePoolManager.close
+
+    async def record_close(manager: EnginePoolManager) -> None:
+        shutdown_events.append("close")
+        await close(manager)
+
+    monkeypatch.setattr(admission_controller, "stop", lambda: shutdown_events.append("stop"))
+    monkeypatch.setattr(EnginePoolManager, "close", record_close)
 
     monkeypatch.delenv("SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", raising=False)
     monkeypatch.delenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", raising=False)
@@ -68,6 +79,7 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
     # TestClient.__exit__ blocks until lifespan shutdown finishes, so this
     # observes the manager after `EnginePoolManager.close()` has run.
     assert manager.closed is True
+    assert shutdown_events == ["stop", "close"]
 
 
 @pytest.mark.asyncio

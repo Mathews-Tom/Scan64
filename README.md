@@ -27,36 +27,48 @@ Scan64 does **not** yet establish that it improves over-the-board chess performa
 
 ## Distribution and support
 
-Scan64 currently ships as a source-install local application. The repository and its release tags are the supported distribution; no signed desktop application, hosted service, or end-user installer is provided. Run Scan64 only on a machine you operate, using the prerequisites and startup steps below.
+Scan64 ships as a source-install local application, with a Dockerfile for building a local image. The repository and its release tags are the supported distribution; no published image, signed desktop application, hosted service, or end-user installer is provided. Run Scan64 only on a machine you operate.
 
 
-## Run locally
+## Run locally on one port
 
-### Prerequisites
+### With Docker
 
-- [uv](https://docs.astral.sh/uv/) for the Python 3.12+ backend.
-- [pnpm](https://pnpm.io/installation) for the React web client.
-- Stockfish 18 or later, available as `stockfish` on `PATH`.
+From the repository root, with Docker installed (no local Python, Node or Stockfish needed):
 
-### Install and start
+```sh
+docker build -t scan64 .
+docker run --name scan64 -p 127.0.0.1:8001:8001 -v scan64-data:/data scan64
+```
+
+Open **http://127.0.0.1:8001**. The image supports Linux amd64 and arm64, includes checksum-verified Stockfish 18, runs as a non-root user, and stores its SQLite database in the named `scan64-data` volume. Stop with Ctrl-C and resume with `docker start -a scan64`; games survive container restarts and replacement when the same volume is reused. Do not delete the volume unless you intend to delete the saved data. No Maia weights are included. Engine source, networks and license are included under `/usr/share/doc/stockfish`; see [third-party notices](THIRD_PARTY_NOTICES.md).
+
+### From a clone
+
+Prerequisites: [uv](https://docs.astral.sh/uv/), Python 3.12+, Node.js 24+, [pnpm](https://pnpm.io/installation) 10.33.3, and Stockfish 18+ available as `stockfish` on `PATH`.
 
 ```sh
 git clone https://github.com/Mathews-Tom/Scan64.git
 cd Scan64
 uv sync --locked
 pnpm --dir apps/scan64-web install --frozen-lockfile
-scripts/run.sh
+pnpm --dir apps/scan64-web build
+uv run scan64-cli serve
 ```
 
-The API listens at `http://127.0.0.1:8001`; the web client is at `http://127.0.0.1:5173`.
+The command checks for Stockfish and the client build, serves UI and API at **http://127.0.0.1:8001**, and opens your browser once the server is listening. Use `--no-browser` for a headless session, or `--port 8061` to select another port. It binds to loopback by default; it is not a hardened LAN or hosted deployment.
 
-Open the web client, enter a display name on your first visit, and select **Start learning**. **Today** offers Play, Train and Review; **Library** groups the existing study and import screens. The active player identity stays in that browser's local storage.
+Enter a display name on your first visit and select **Start learning**. **Today** offers Play, Train and Review; **Library** groups the existing study and import screens. The active player identity and its access token stay in that browser's local storage: keep them to access your saved games, including after a container restart.
 
-`SCAN64_DATABASE_URL` overrides the default SQLite URL, `sqlite:///database.db`:
+Client deep links such as `/games/<id>/analysis` work on reload; `/docs`, `/openapi.json`, `/health` and `/v1` remain API routes. `SCAN64_DATABASE_URL` overrides the clone's default SQLite URL, `sqlite:///database.db`:
 
 ```sh
-SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" scripts/run.sh
+SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" uv run scan64-cli serve
 ```
+
+### Development servers
+
+After installing the clone prerequisites and dependencies, `scripts/run.sh` remains the hot-reload development path: API on `http://127.0.0.1:8001`, Vite client on `http://127.0.0.1:5173`. The API also works without a client build.
 
 ## Documentation
 
