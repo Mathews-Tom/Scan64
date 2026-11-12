@@ -65,7 +65,7 @@ def _mate_session(db_session: Session) -> PlaySession:
         moves=[],
         white="Stockfish (strength 1)",
         black="alice",
-        owner_color="white",
+        owner_color="black",
         owner_player_id="alice",
     )
     db_session.add(game)

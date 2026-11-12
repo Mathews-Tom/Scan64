@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 from typing import Literal
 from uuid import UUID, uuid4
@@ -65,18 +66,27 @@ class ReferenceFocusedPass:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("owner_color", ["white", "black"])
+@pytest.mark.parametrize(
+    ("owner_color", "black_to_move"), [("white", False), ("black", False), ("black", True)]
+)
 async def test_reference_game_lessons_and_observations_are_owner_only(
-    owner_color: Literal["white", "black"], db_session: Session, monkeypatch: pytest.MonkeyPatch
+    owner_color: Literal["white", "black"],
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    black_to_move: bool,
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", ReferenceFastPass)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", ReferenceFocusedPass)
     path = Path(__file__).parents[1] / "fixtures" / "reference_amateur_game.pgn"
-    with path.open() as source:
-        parsed = chess.pgn.read_game(source)
+    pgn = path.read_text()
+    if black_to_move:
+        board = chess.Board()
+        board.push_uci("e2e4")
+        pgn = f'[FEN "{board.fen()}"]\n[SetUp "1"]\n\n1... e5 2. Nf3 Nc6 3. Bb5 a6 *'
+    parsed = chess.pgn.read_game(io.StringIO(pgn))
     assert parsed is not None and not parsed.errors
     game = Game(
-        pgn=path.read_text(),
+        pgn=pgn,
         moves=[move.uci() for move in parsed.mainline_moves()],
         headers=dict(parsed.headers),
         owner_player_id="reference-player",

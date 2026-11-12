@@ -12,6 +12,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const [pgn, setPgn] = useState('');
   const [ownerColor, setOwnerColor] = useState<'white' | 'black'>('white');
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const sideChosenManually = useRef(false);
 
   useEffect(() => {
     const playerId = getOrCreatePlayerId();
@@ -19,12 +20,15 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   }, []);
 
   useEffect(() => {
-    const names = [getOrCreatePlayerId(), displayName].filter(Boolean);
-    for (const color of ['white', 'black'] as const) {
+    if (sideChosenManually.current) return;
+    const names = [getOrCreatePlayerId()];
+    if (displayName && displayName !== 'Anonymous') names.push(displayName);
+    const matches = (['white', 'black'] as const).filter(color => {
       const header = color === 'white' ? 'White' : 'Black';
       const name = pgn.match(new RegExp(`\\[${header}\\s+"([^"]*)"\\]`))?.[1];
-      if (name && names.includes(name)) setOwnerColor(color);
-    }
+      return name !== undefined && names.includes(name);
+    });
+    setOwnerColor(matches.length === 1 ? matches[0] : 'white');
   }, [pgn, displayName]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -131,7 +135,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
     <div className="pgn-import" data-testid="pgn-import">
       <h2>Import Game</h2>
       <label>Your side
-        <select aria-label="Your side" value={ownerColor} onChange={e => setOwnerColor(e.target.value as 'white' | 'black')}>
+        <select aria-label="Your side" value={ownerColor} onChange={e => { sideChosenManually.current = true; setOwnerColor(e.target.value as 'white' | 'black'); }}>
           <option value="white">White</option>
           <option value="black">Black</option>
         </select>

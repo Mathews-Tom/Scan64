@@ -523,3 +523,13 @@ def test_reports_endpoints(client: TestClient, db_session: Session):
 
         response = client.get(f"/v1/reports/{endpoint}?player_id={player_id}")
         assert response.status_code == 401
+
+
+def test_import_rejects_invalid_game_owner_color(client: TestClient, db_session: Session) -> None:
+    archive, access_token = export_then_delete_player_data(
+        client, db_session, "invalid-owner-color"
+    )
+    archive["games"][0]["owner_color"] = "purple"
+    response = client.post("/v1/imports", json=archive, headers=authorization_header(access_token))
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid archive: malformed records"

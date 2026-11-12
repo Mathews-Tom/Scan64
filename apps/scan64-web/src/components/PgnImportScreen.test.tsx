@@ -39,6 +39,30 @@ describe('PgnImportScreen', () => {
     expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('white');
   });
 
+  it.each([
+    ['Anonymous placeholder', '[Black "Anonymous"]'],
+    ['both names match', '[White "player-1"]\n[Black "Alice"]'],
+  ])('keeps White as the default for %s', async (_, pgn) => {
+    const displayName = pgn.includes('Anonymous') ? 'Anonymous' : 'Alice';
+    vi.mocked(ApiClient.getPlayerProfile).mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: displayName });
+    render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: pgn } });
+    await waitFor(() => expect(ApiClient.getPlayerProfile).toHaveBeenCalled());
+    expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('white');
+  });
+
+  it('preserves a manual choice after PGN edits and a late profile response', async () => {
+    const profile = Promise.withResolvers<{ player_id: string; rating: number; display_name: string }>();
+    vi.mocked(ApiClient.getPlayerProfile).mockReturnValue(profile.promise);
+    render(<PgnImportScreen />);
+    fireEvent.change(screen.getByLabelText('Your side'), { target: { value: 'black' } });
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '[White "player-1"]' } });
+    profile.resolve({ player_id: 'player-1', rating: 1500, display_name: 'Alice' });
+    await waitFor(() => expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('black'));
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '[White "Alice"]' } });
+    expect((screen.getByLabelText('Your side') as HTMLSelectElement).value).toBe('black');
+  });
+
   it('renders textarea and button', () => {
     render(<PgnImportScreen />);
     expect(screen.getByTestId('pgn-textarea')).toBeTruthy();

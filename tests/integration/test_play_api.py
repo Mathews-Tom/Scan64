@@ -325,3 +325,25 @@ def test_play_session_cannot_attach_to_an_ownerless_game(
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("owner_color", ["black", None])
+def test_attaching_play_session_preserves_declared_or_legacy_owner_color(
+    client: TestClient, session: Session, owner_color: str | None
+) -> None:
+    headers = _register(session, "existing-game-owner")
+    game = Game(pgn="", owner_player_id="existing-game-owner", owner_color=owner_color)
+    session.add(game)
+    session.commit()
+    response = client.post(
+        "/v1/play-sessions",
+        json={
+            "player_id": "existing-game-owner",
+            "game_id": str(game.id),
+            "opponent_config": {"strength": "10"},
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    session.refresh(game)
+    assert game.owner_color == owner_color

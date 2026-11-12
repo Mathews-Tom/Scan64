@@ -15,6 +15,17 @@ describe('ApiClient', () => {
     localStorage.clear();
   });
 
+  it('surfaces the server detail when analysis rejects a legacy game', async () => {
+    localStorage.setItem('scan64_active_player_id', 'player-1');
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 409, statusText: 'Conflict',
+      json: async () => ({ detail: 'Cannot analyse a legacy game without owner_color' }),
+    });
+    await expect(ApiClient.createAnalysisJob('legacy-game')).rejects.toThrow('Cannot analyse a legacy game without owner_color');
+  });
+
   it('createGame calls POST /v1/games', async () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({

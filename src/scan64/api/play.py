@@ -139,10 +139,6 @@ def create_play_session(
         existing = session.get(Game, game_id)
         if existing is None or existing.owner_player_id != authenticated_player_id:
             raise HTTPException(status_code=404, detail="Game not found")
-        existing.owner_color = (
-            "white" if player_color(existing.headers.get("FEN"), existing.moves) else "black"
-        )
-        session.add(existing)
         if name_player_on(existing, session_in.player_id, session_in.opponent_config):
             session.add(existing)
 
