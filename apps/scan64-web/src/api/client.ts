@@ -295,6 +295,17 @@ export class ApiClient {
     return json as unknown as PlayMoveResponse;
   }
 
+  static async resignPlaySession(sessionId: string): Promise<PlaySessionRead> {
+    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/resign`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(getActivePlayerId()),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resign: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlaySessionRead;
+  }
+
   static async createPlayer(data: PlayerCreate): Promise<PlayerRead> {
     return (await registerPlayer(data)).player;
   }

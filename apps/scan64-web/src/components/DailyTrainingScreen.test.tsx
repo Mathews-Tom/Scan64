@@ -11,8 +11,8 @@ vi.mock('../api/client', () => ({
   }
 }));
 
-vi.mock('./LessonBoard', () => ({
-  LessonBoard: ({
+vi.mock('./CoachBoard', () => ({
+  CoachBoard: ({
     disabled,
     onMove,
   }: {
