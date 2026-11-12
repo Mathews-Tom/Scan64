@@ -5,6 +5,7 @@ import sys
 from scan64.chess.opponents.bot_policy import DEFAULT_BOT_NODES
 from scan64.cli.analyse import analyse_command
 from scan64.cli.bots import calibrate_command
+from scan64.cli.serve import serve_command
 
 
 def main() -> None:
@@ -30,6 +31,15 @@ def main() -> None:
         help="Nodes per move; defaults to the production bot budget.",
     )
 
+    serve_parser = subparsers.add_parser(
+        "serve", help="Serve the built web client and API together."
+    )
+    serve_parser.add_argument(
+        "--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)."
+    )
+    serve_parser.add_argument("--port", type=int, default=8001, help="Port (default: 8001).")
+    serve_parser.add_argument("--no-browser", action="store_true", help="Do not open a browser.")
+
     args = parser.parse_args()
 
     if args.command == "analyse":
@@ -38,6 +48,10 @@ def main() -> None:
         if args.nodes < 1:
             parser.error("--nodes must be positive")
         sys.exit(asyncio.run(calibrate_command(args.stockfish, nodes=args.nodes)))
+    elif args.command == "serve":
+        if not 1 <= args.port <= 65535:
+            parser.error("--port must be between 1 and 65535")
+        serve_command(args.host, args.port, open_browser=not args.no_browser)
     else:
         parser.print_help()
         sys.exit(1)

@@ -16,6 +16,8 @@ from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
 from scan64.api.reports import router as reports_router
+from scan64.api.web import mount_web_client, web_dist_directory
+from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.recovery import recover_analysis_jobs
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
@@ -51,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
+        await admission_controller.stop()
         if app.state.engine_pool_manager is not None:
             await app.state.engine_pool_manager.close()
         clear_host_registry()
@@ -81,3 +84,9 @@ app.include_router(reports_router)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# Registered last: known API routes retain their own methods and responses.
+web_dist = web_dist_directory()
+if web_dist.is_dir():
+    mount_web_client(app, web_dist)

@@ -53,7 +53,7 @@ async def test_jobs_beyond_the_quota_are_queued_fair_share_and_never_dropped() -
     await asyncio.gather(f1, f2, f3)
 
     assert set(run_order) == {"alice-1", "alice-2", "alice-3"}
-    controller.stop()
+    await controller.stop()
 
 
 @pytest.mark.asyncio
@@ -74,7 +74,7 @@ async def test_a_second_players_jobs_are_not_blocked_by_the_firsts_queue() -> No
     # Round-robin fair share: alice's second job never runs back-to-back
     # ahead of bob's, so bob is never starved behind alice's backlog.
     assert run_order == ["alice", "bob", "alice"]
-    controller.stop()
+    await controller.stop()
 
 
 @pytest.mark.asyncio
@@ -97,7 +97,7 @@ async def test_a_failing_job_does_not_strand_the_queue_behind_it() -> None:
     await f_second
 
     assert ran == ["first", "second"]
-    controller.stop()
+    await controller.stop()
 
 
 def test_daily_quota_env_var_is_validated_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -177,7 +177,8 @@ def test_a_player_exceeding_the_daily_quota_is_queued_not_rejected(
 
     status = _wait_for_terminal_status(client, job_data["id"], headers)
     assert status == "completed"
-    exhausted_controller.stop()
+    assert client.portal is not None
+    client.portal.call(exhausted_controller.stop)
 
 
 def test_ownerless_legacy_game_admits_no_job_at_submission(

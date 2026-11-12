@@ -48,6 +48,20 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
 
     import scan64.persistence.database as db_module
     from scan64.api.app import app
+    from scan64.chess.analysis.admission import AdmissionConfig, AdmissionController
+
+    shutdown_events: list[str] = []
+    controller = AdmissionController(AdmissionConfig(daily_quota_games=0))
+    monkeypatch.setattr("scan64.api.app.admission_controller", controller)
+    close = EnginePoolManager.close
+
+    async def record_close(manager: EnginePoolManager) -> None:
+        assert shutdown_events == ["worker-stopped"]
+        assert controller._worker_task is None
+        shutdown_events.append("close")
+        await close(manager)
+
+    monkeypatch.setattr(EnginePoolManager, "close", record_close)
 
     monkeypatch.delenv("SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", raising=False)
     monkeypatch.delenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", raising=False)
@@ -58,16 +72,35 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
         create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool),
     )
 
-    with TestClient(app):
+    async def start_queued_work() -> None:
+        acquired = asyncio.Event()
+
+        async def occupying_job() -> None:
+            try:
+                async with manager.interactive_pool.acquire():
+                    acquired.set()
+                    await asyncio.Event().wait()
+            finally:
+                # An async engine return/cleanup must finish before close().
+                await asyncio.sleep(0)
+                shutdown_events.append("worker-stopped")
+
+        controller.submit("shutdown-player", occupying_job)
+        await asyncio.wait_for(acquired.wait(), timeout=5)
+
+    with TestClient(app) as client:
         manager = app.state.engine_pool_manager
         assert isinstance(manager, EnginePoolManager)
         assert manager.interactive_pool.concurrency == 2
         assert manager.batch_pool.concurrency == 2
         assert manager.closed is False
+        assert client.portal is not None
+        client.portal.call(start_queued_work)
 
     # TestClient.__exit__ blocks until lifespan shutdown finishes, so this
     # observes the manager after `EnginePoolManager.close()` has run.
     assert manager.closed is True
+    assert shutdown_events == ["worker-stopped", "close"]
 
 
 @pytest.mark.asyncio

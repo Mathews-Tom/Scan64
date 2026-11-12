@@ -3,6 +3,7 @@ import os
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -132,10 +133,14 @@ class AdmissionController:
             if self.queues[player_id]:
                 self.active_players.append(player_id)
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         self._stop_event.set()
-        if self._worker_task:
-            self._worker_task.cancel()
+        worker = self._worker_task
+        if worker is not None:
+            worker.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker
+            self._worker_task = None
 
 
 admission_controller = AdmissionController(
