@@ -152,7 +152,7 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
       <p className="muted">Coarse 10,000-node fast-pass estimates, not Elo or Lichess accuracy. Missing scores are unscored, never zero loss. Accuracy excludes opponent moves and unscored owner moves; read it alongside coverage and all five band counts.</p>
       <section aria-label="Good move credit">
         <h3>Good move credit</h3>
-        <p>Only supported tactical best moves earn skill credit. “No in-app hint” describes Scan64's records, not independence from external assistance.</p>
+        <p>Only supported tactical best moves earn skill credit, at most two per skill per game. Credits favor the strongest proofs; other qualifying moves show “per-game credit cap reached”. “No in-app hint” describes Scan64's records, not independence from external assistance.</p>
         {!review.moves.some(move => move.is_owner_move && move.credit) && <p>No credited moves in this review.</p>}
         <ul>{review.moves.filter(move => move.is_owner_move && move.credit).map(move => <li key={move.ply}>
           <button type="button" aria-current={selectedPly === move.ply ? 'step' : undefined}

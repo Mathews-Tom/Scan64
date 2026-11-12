@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from typing import Any
 from uuid import uuid4
 
@@ -14,7 +15,7 @@ from sqlmodel import Session, col, delete, select
 from scan64.api.auth import require_player_token
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
-from scan64.chess.analysis.credit import positive_move_proof
+from scan64.chess.analysis.credit import MAX_POSITIVE_CREDITS_PER_GAME_SKILL, positive_move_proof
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -311,6 +312,11 @@ def _validate_credit_archive(
     }
     if len(credit_keys) != len(credits):
         raise ValueError("Duplicate positive credits")
+    credit_counts = Counter(
+        (item.player_id, item.game_id, item.skill_id) for item in credits
+    )
+    if any(count > MAX_POSITIVE_CREDITS_PER_GAME_SKILL for count in credit_counts.values()):
+        raise ValueError("Positive credits exceed the per-game credit cap")
     for credit in credits:
         game = games_by_id.get(credit.game_id)
         row = reviews_by_key.get((credit.game_id, credit.ply))

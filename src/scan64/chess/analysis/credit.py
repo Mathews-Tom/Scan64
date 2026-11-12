@@ -5,6 +5,7 @@ this module searches an engine or turns a negative detector into positive proof.
 """
 
 import math
+from collections import Counter
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
@@ -31,6 +32,23 @@ PROOF_VERSION = 1
 CAPTURE_SKILL = "threat_processing.missed_capture"
 CHECK_SKILL = "threat_processing.missed_check"
 BEFORE_END = "analysed before the game ended"
+MAX_POSITIVE_CREDITS_PER_GAME_SKILL = 2
+PER_GAME_CREDIT_CAP_REACHED = "per-game credit cap reached"
+
+
+def _credit_priority(
+    proof: dict[str, Any], source_analysis: EngineAnalysis | None = None
+) -> tuple[int, float, int]:
+    """Prefer mate, then gain/ply, without changing v1 capture proof archives."""
+    mate = (
+        source_analysis.raw_result[0].get("score_mate")
+        if source_analysis is not None and source_analysis.raw_result
+        else proof.get("score_mate")
+    )
+    if isinstance(mate, int) and not isinstance(mate, bool) and mate > 0:
+        return (0, 0.0, int(proof["ply"]))
+    gain = proof.get("net_material_gain", proof["material_gain"])
+    return (1, -float(gain), int(proof["ply"]))
 
 
 def positive_move_proof(
@@ -378,21 +396,37 @@ def project_move_credits(
                 proof, exclusion = None, "same-source lesson or attempt already records this skill"
             elif key in blocked_failures:
                 proof, exclusion = None, "same-source failed observation already records this skill"
-            elif not _for_award:
-                repeated = next(
-                    (
-                        credit.ply
-                        for credit in credits.values()
-                        if (credit.canonical_id, credit.skill_id) == key
-                    ),
-                    None,
-                )
-                proof, exclusion = None, (
-                    f"same position and skill already credited at ply {repeated}"
-                    if repeated is not None
-                    else "not credited by full analysis"
-                )
         result[row.ply] = (proof, exclusion)
+    # Existing ledger rows reserve slots even after a recovered/lost job marker.
+    # Choose across every eligible source before the first alpha update; input
+    # order must not consume the budget before a stronger later tactic is seen.
+    counts = Counter(credit.skill_id for credit in credits.values())
+    sources = {
+        (credit.canonical_id, credit.skill_id): credit.ply for credit in credits.values()
+    }
+    candidates = [
+        (ply, proof) for ply, (proof, _) in result.items()
+        if proof is not None and not proof.get("credited")
+    ]
+    for ply, proof in sorted(
+        candidates,
+        key=lambda item: _credit_priority(
+            item[1], analyses.get(by_ply[item[0]].before_analysis_id)
+        ),
+    ):
+        skill_id = proof["skill_id"]
+        key = (proof["canonical_id"], skill_id)
+        if key in sources:
+            result[ply] = (
+                None, f"same position and skill already credited at ply {sources[key]}"
+            )
+        elif counts[skill_id] >= MAX_POSITIVE_CREDITS_PER_GAME_SKILL:
+            result[ply] = (None, PER_GAME_CREDIT_CAP_REACHED)
+        elif _for_award:
+            counts[skill_id] += 1
+            sources[key] = ply
+        else:
+            result[ply] = (None, "not credited by full analysis")
     return result
 
 
