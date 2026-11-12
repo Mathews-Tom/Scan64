@@ -56,6 +56,14 @@ Transfer positions are seeded at application startup. When the existing mastery 
 
 Coach mode is explicitly enabled on a play session. During eligible practice moves, the server can run a capacity-bounded diagnosis path. It returns a `CriticalInterruptionRead` only after persisting the owned opportunity, review schedule, and study session. Normal play, independent calculation, and ordinary post-game analysis do not claim this interruption behavior.
 
+### Position hints
+
+`POST /v1/insights/position` requires the player's bearer token and `player_id`, plus exactly one of `play_session_id` (an owned active game, on the player's turn) or `fen` (a valid, non-terminal position). Missing tokens return 401; a different player's identity or session is not disclosed (404); invalid FENs return 422 and finished positions/sessions return 409. Session positions are reconstructed on the server, including repetition history.
+
+The response contains up to three engine candidates within the shared win-probability-loss tolerance of 0.08, their UCI lines, numbered drawing commands, and board-validated reasons or an explicit engine-preference fallback. Every reason carries a legal prefix of its own candidate's line. A mate threat means mate in one would be available if the opponent did not respond; it does not claim the engine's actual reply allows mate. Previewing a line never changes the stored game or submits a move.
+
+Hints use only the interactive pool: one hint is admitted at a time, leaving at least one engine available for opponent moves in the default two-engine configuration. Hints have no admission queue, wait at most 250 ms for a checkout, and search with MultiPV 4, 200,000 nodes and a 1.5-second search limit inside a three-second wall deadline (including lazy startup). Busy capacity returns retryable 503 with a visible panel message; hints are explicitly unavailable (503) when pooling is disabled or the interactive pool has fewer than two engines. Background batch work is never used for hints.
+
 ## Authorization and privacy
 
 Player identities receive bearer tokens. Player-reachable game, play-session, position, analysis-job, and lesson-attempt routes resolve the authenticated player before returning or changing owned data. Missing, malformed, ownerless, and non-owned resources intentionally share an undisclosing not-found response.

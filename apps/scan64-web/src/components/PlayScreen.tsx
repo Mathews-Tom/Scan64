@@ -14,6 +14,7 @@ import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CoachBoard } from './CoachBoard';
+import { HintPanel, type HintPreview } from './HintPanel';
 import { Chess } from 'chess.js';
 
 const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
@@ -52,6 +53,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [movePending, setMovePending] = useState(false);
   const [resigning, setResigning] = useState(false);
   const [resigned, setResigned] = useState(false);
+  const [hintPreview, setHintPreview] = useState<HintPreview | null>(null);
+  const currentHint = hintPreview?.sourceFen === boardPosition.fen ? hintPreview : null;
   const updateBoard = useCallback(() => {
     setBoardPosition({ fen: chessRef.current.fen(), pgn: chessRef.current.pgn() });
   }, []);
@@ -476,11 +479,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       ) : null}
       <CoachBoard
         {...boardPosition}
+        {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
         testId="chessground-board"
         disabled={!session || session.status !== 'active' || movePending || resigning ||
-          criticalInterruption !== null || queuedMoveNeedsRefreshRef.current.has(session.id)}
+          criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) || queuedMoveNeedsRefreshRef.current.has(session.id)}
         onMove={handleMove}
       />
+      {session?.status === 'active' && <HintPanel playerId={playerId} sessionId={session.id}
+        fen={boardPosition.fen} onPreview={setHintPreview}
+        disabled={movePending || resigning || criticalInterruption !== null ||
+          queuedMoveNeedsRefreshRef.current.has(session.id)} />}
       {session?.status === 'active' && <button type="button" onClick={() => void resign()}
         disabled={movePending || resigning || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {resigning ? 'Resigning…' : 'Resign'}

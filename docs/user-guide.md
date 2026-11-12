@@ -24,6 +24,12 @@ New games from Play, Analysis Board's play-from-here, and Famous Games' continue
 
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
 
+### Hints during play
+
+Select **Hint** beside the game board to request up to three numbered candidate moves for the current active session. Matching numbered arrows appear on the board. Each candidate includes tactical reasons, or **engine preference** when no specific tactical explanation is available.
+
+Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to explore without submitting any moves. Select **Return to game position** before continuing play, or **Close hints** to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.
+
 ## Import and analyse a PGN
 
 1. Open **Library**, then **Import PGN**.
