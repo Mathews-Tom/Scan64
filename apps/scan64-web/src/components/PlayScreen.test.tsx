@@ -151,7 +151,7 @@ describe('PlayScreen', () => {
     expect(ApiClient.resignPlaySession).toHaveBeenCalledWith('sess-123');
     expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/game-123/analysis');
     expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
-    expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+    await waitFor(() => expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull());
     expect(fireEvent.click(screen.getByRole('link', { name: 'Review game' }))).toBe(false);
     expect(onNavigate).toHaveBeenCalledWith('/games/game-123/analysis');
   });
