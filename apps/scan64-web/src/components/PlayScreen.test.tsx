@@ -302,20 +302,20 @@ describe('PlayScreen', () => {
       expect(ApiClient.getPlaySession).toHaveBeenCalledWith('sess-123');
       expect(ApiClient.getGame).toHaveBeenCalledWith('game-123');
       expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active');
-    });
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
-      }),
-    );
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        movable: expect.objectContaining({
-          color: 'white',
-          dests: expect.any(Map),
+      expect(chessgroundMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
         }),
-      }),
-    );
+      );
+      expect(chessgroundMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          movable: expect.objectContaining({
+            color: 'white',
+            dests: expect.any(Map),
+          }),
+        }),
+      );
+    });
     expect(setActivePlayerId).toHaveBeenCalledWith('test-player');
     expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
     expect(ApiClient.getGame).toHaveBeenCalledTimes(1);
