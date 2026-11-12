@@ -37,6 +37,22 @@ def test_opponent_without_a_strength_setting_is_named_by_default_skill_level() -
     assert participants("alice", {})[1] == "Stockfish (skill level 0)"
 
 
+@pytest.mark.parametrize(
+    "strength, expected",
+    [
+        ("1500", "Stockfish (skill level 20)"),
+        ("-1", "Stockfish (skill level 0)"),
+        ("05", "Stockfish (skill level 5)"),
+        ("not-an-integer", "Stockfish"),
+        ("1.5", "Stockfish"),
+    ],
+)
+def test_stored_stockfish_strength_is_named_by_the_effective_engine_level(
+    strength: str, expected: str
+) -> None:
+    assert participants("alice", {"strength": strength})[1] == expected
+
+
 def test_player_colour_defaults_to_white_from_the_standard_start() -> None:
     assert player_color(None) == chess.WHITE
 

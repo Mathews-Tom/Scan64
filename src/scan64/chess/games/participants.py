@@ -27,8 +27,11 @@ def opponent_name(opponent_config: dict[str, str]) -> str:
     if provider == "maia":
         checkpoint = opponent_config.get("maia_checkpoint")
         return f"Maia {checkpoint}" if checkpoint else "Maia"
-    strength = opponent_config.get("strength", "0")
-    return f"Stockfish (skill level {strength})"
+    try:
+        strength = int(opponent_config.get("strength", "0"))
+    except ValueError:
+        return "Stockfish"
+    return f"Stockfish (skill level {max(0, min(20, strength))})"
 
 
 def participants(

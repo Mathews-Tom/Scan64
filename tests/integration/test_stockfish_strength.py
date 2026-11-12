@@ -41,17 +41,24 @@ def test_stockfish_rejects_invalid_skill_level(
     assert "Stockfish strength must be an integer string from 0 to 20" in response.text
 
 
-@pytest.mark.parametrize("strength", ["0", "1", "20"])
+@pytest.mark.parametrize("strength, expected", [("0", "0"), ("1", "1"), ("20", "20"), ("05", "5")])
 def test_stockfish_accepts_skill_level_bounds(
-    client: TestClient, db_session: Session, strength: str
+    client: TestClient, db_session: Session, strength: str, expected: str
 ) -> None:
     authorize(client, db_session)
     response = client.post(
         "/v1/play-sessions",
-        json={"player_id": "skill-player", "opponent_config": {"strength": strength}},
+        json={
+            "player_id": "skill-player",
+            "opponent_config": {"strength": strength},
+            "initial_fen": chess.STARTING_FEN,
+        },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["opponent_config"]["strength"] == strength
+    assert response.json()["opponent_config"]["strength"] == expected
+    game = client.get(f"/v1/games/{response.json()['game_id']}")
+    assert game.status_code == 200, game.text
+    assert game.json()["black"] == f"Stockfish (skill level {expected})"
 
 
 @pytest.mark.parametrize("config", [{}, {"provider": "stockfish"}])
