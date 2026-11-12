@@ -15,6 +15,33 @@ describe('ApiClient', () => {
     localStorage.clear();
   });
 
+  it('records a famous game attempt with the submitted player authorization', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    localStorage.setItem('scan64_player_id', 'other-player');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'attempt-1', success: true, hint_assisted: false }),
+    });
+    const attempt = {
+      player_id: 'player-1', decision_id: 'opera-open-lines',
+      hint_assisted: false, response_payload: { move: 'Nxb5' },
+    };
+    await ApiClient.recordFamousGameAttempt('morphy-opera-1858', attempt);
+    expect(mockFetch).toHaveBeenCalledWith('/v1/content/famous-games/morphy-opera-1858/attempts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
+      body: JSON.stringify(attempt),
+    });
+  });
+
+  it('does not send a famous game attempt without stored player authorization', async () => {
+    await expect(ApiClient.recordFamousGameAttempt('morphy-opera-1858', {
+      player_id: 'player-1', decision_id: 'opera-open-lines',
+      hint_assisted: false, response_payload: { move: 'Nxb5' },
+    })).rejects.toThrow('No access token is stored for player player-1');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('reads the stored identity without creating one or throwing when absent', () => {
     expect(getStoredPlayerId()).toBeNull();
     expect(localStorage.getItem('scan64_player_id')).toBeNull();
@@ -187,11 +214,11 @@ describe('ApiClient', () => {
       json: async () => ({ id: 'sess-1' }),
     });
 
-    const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { strength: '1500' } });
+    const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { provider: 'stockfish', bot_level: '1' }, player_color: 'black' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
-      body: JSON.stringify({ player_id: 'test', opponent_config: { strength: '1500' } }),
+      body: JSON.stringify({ player_id: 'test', opponent_config: { provider: 'stockfish', bot_level: '1' }, player_color: 'black' }),
     });
     expect(res.id).toBe('sess-1');
   });

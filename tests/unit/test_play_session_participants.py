@@ -96,3 +96,19 @@ def test_naming_a_game_whose_moves_do_not_fit_it_is_loud() -> None:
 
     with pytest.raises(CorruptGameError, match="cannot be replayed"):
         name_player_on(corrupt, "alice", {})
+
+
+def test_stored_color_does_not_change_after_bot_opening_or_takeback() -> None:
+    assert player_color(None, ["e2e4"], "black") == chess.BLACK
+    assert player_color(None, [], "black") == chess.BLACK
+    assert participants("alice", {"strength": "5", "player_color": "black"}) == (
+        "Stockfish (skill level 5)",
+        "alice",
+    )
+
+
+def test_naming_uses_stored_color_instead_of_current_turn() -> None:
+    game = Game(pgn="", moves=["e2e4", "e7e5"], owner_player_id="alice", owner_color="black")
+    name_player_on(game, "alice", {"strength": "5", "player_color": "black"})
+    assert game.black == "alice"
+    assert game.white == "Stockfish (skill level 5)"

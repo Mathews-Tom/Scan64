@@ -197,7 +197,14 @@ export interface PlayerRead {
 }
 
 
+export interface BotRead {
+  level: number;
+  name: string;
+  description: string;
+}
+
 export interface PlaySessionCreate {
+  player_color?: 'white' | 'black' | 'random';
   player_id: string;
   game_id?: string;
   opponent_config?: Record<string, string>;
@@ -207,6 +214,8 @@ export interface PlaySessionCreate {
 }
 
 export interface PlaySessionRead {
+  player_color?: 'white' | 'black';
+  opponent_move?: string | null;
   id: string;
   player_id: string;
   game_id?: string;

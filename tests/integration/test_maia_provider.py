@@ -67,7 +67,7 @@ def test_malformed_maia_config_does_not_disable_stockfish_play(
         "/v1/play-sessions",
         json={
             "player_id": "stockfish-player",
-            "opponent_config": {"provider": "stockfish", "strength": "0"},
+            "opponent_config": {"provider": "stockfish", "bot_level": "1"},
         },
     )
     assert create_response.status_code == 200

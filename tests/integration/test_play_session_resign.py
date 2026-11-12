@@ -28,7 +28,7 @@ def _register(db_session: Session, player_id: str = "alice") -> dict[str, str]:
 
 
 def _start(client: TestClient, headers: dict[str, str], **extra: object) -> str:
-    body: dict[str, object] = {"player_id": "alice", "opponent_config": {"strength": "1"}}
+    body: dict[str, object] = {"player_id": "alice", "opponent_config": {"bot_level": "1"}}
     body.update(extra)
     response = client.post("/v1/play-sessions", json=body, headers=headers)
     assert response.status_code == 200, response.text
@@ -145,7 +145,7 @@ def test_resigning_a_game_already_in_progress_concedes_for_the_side_on_move(
         json={
             "player_id": "alice",
             "game_id": str(game.id),
-            "opponent_config": {"strength": "1"},
+            "opponent_config": {"bot_level": "1"},
         },
         headers=auth,
     )
@@ -189,7 +189,7 @@ def test_resigning_a_play_from_here_game_keeps_its_original_date(
     db_session.commit()
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"bot_level": "1"}},
         headers=auth,
     )
     assert created.status_code == 200, created.text

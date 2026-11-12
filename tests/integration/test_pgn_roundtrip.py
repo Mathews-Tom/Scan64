@@ -81,7 +81,7 @@ def test_played_game_pgn_reimports_and_names_the_player(
 def test_pgn_is_rebuilt_after_every_move(client: TestClient, db_session: Session) -> None:
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "opponent_config": {"bot_level": "1"}},
     )
     session_id = created.json()["id"]
 
@@ -105,7 +105,7 @@ def test_a_session_has_a_valid_pgn_before_its_first_move(
         "/v1/play-sessions",
         json={
             "player_id": "alice",
-            "opponent_config": {"strength": "1"},
+            "opponent_config": {"bot_level": "1"},
             "initial_fen": FOOLS_MATE_FEN,
         },
     )
@@ -149,7 +149,7 @@ def test_an_imported_games_tags_survive_being_played_on(
 
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"bot_level": "1"}},
     )
     assert created.status_code == 200, created.text
 
@@ -180,7 +180,7 @@ def test_another_players_game_cannot_be_attached_or_touched(
 
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "game_id": str(game.id), "opponent_config": {"bot_level": "1"}},
     )
     assert created.status_code == 404, created.text
 
@@ -196,7 +196,7 @@ def test_a_played_game_is_tagged_as_a_scan64_session(
         "/v1/play-sessions",
         json={
             "player_id": "alice",
-            "opponent_config": {"strength": "1"},
+            "opponent_config": {"bot_level": "1"},
             "initial_fen": FOOLS_MATE_FEN,
         },
     )

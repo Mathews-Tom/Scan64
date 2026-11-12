@@ -244,7 +244,7 @@ def test_play_session_create_persists_explicit_coach_opt_in(
         "/v1/play-sessions",
         json={
             "player_id": "alice",
-            "opponent_config": {"strength": "1"},
+            "opponent_config": {"bot_level": "1"},
             "coach_mode": True,
         },
         headers=auth,
@@ -264,7 +264,7 @@ def test_play_session_create_defaults_coach_mode_to_false(
 
     response = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "opponent_config": {"bot_level": "1"}},
         headers=auth,
     )
 

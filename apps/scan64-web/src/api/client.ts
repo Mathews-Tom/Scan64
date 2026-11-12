@@ -1,5 +1,6 @@
 import type {
   AnalysisJobRead,
+  BotRead,
   AttemptCreate,
   AttemptRead,
   CoachDashboard,
@@ -270,6 +271,21 @@ export class ApiClient {
     return json as unknown as AnalysisJobRead;
   }
 
+  static async getBots(): Promise<BotRead[]> {
+    const response = await fetch(`${API_BASE}/bots`);
+    if (!response.ok) throw new ApiRequestError(`Failed to fetch bots: ${response.statusText}`, response.status);
+    return await response.json() as BotRead[];
+  }
+
+  static async takebackPlaySession(sessionId: string): Promise<PlaySessionRead> {
+    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/takeback`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(getActivePlayerId()),
+    });
+    if (!response.ok) throw new ApiRequestError(`Failed to take back: ${response.statusText}`, response.status);
+    return await response.json() as PlaySessionRead;
+  }
+
   static async createPlaySession(data: PlaySessionCreate): Promise<PlaySessionRead> {
     const response = await fetch(`${API_BASE}/play-sessions`, {
       method: 'POST',
@@ -348,7 +364,10 @@ export class ApiClient {
   static async recordFamousGameAttempt(id: string, attempt: AttemptCreate): Promise<AttemptRead> {
     const response = await fetch(`${API_BASE}/content/famous-games/${id}/attempts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(attempt.player_id),
+      },
       body: JSON.stringify(attempt),
     });
     if (!response.ok) {
