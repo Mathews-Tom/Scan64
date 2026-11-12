@@ -96,6 +96,18 @@ def _puzzle_spec(item: ContentItem) -> LessonSpec:
     moves = payload.get("moves")
     puzzle_id = payload.get("puzzle_id")
     fen = payload.get("fen")
+    themes = payload.get("themes", [])
+    for value in (
+        payload.get("rating", item.difficulty_estimate), item.difficulty_estimate,
+    ):
+        try:
+            valid_number = type(value) in (int, float) and isfinite(value)
+        except OverflowError:
+            valid_number = False
+        if not valid_number:
+            raise ValueError("Invalid puzzle difficulty metadata")
+    if not isinstance(themes, list) or any(not isinstance(theme, str) for theme in themes):
+        raise ValueError("Invalid puzzle theme metadata")
     if (
         item.domain != "puzzles"
         or item.version != "0.2.0"
@@ -269,6 +281,7 @@ def _validate_puzzle_practice_archive(
     events: list[PuzzleRatingEvent],
     runs: list[PuzzleRun],
     items: list[ContentItem],
+    attempts: list[ContentAttempt],
 ) -> None:
     """Validate portable M64 history without replaying awards or trusting live metadata."""
     sets_by_id = {daily.id: daily for daily in sets}
@@ -348,6 +361,19 @@ def _validate_puzzle_practice_archive(
             other for other in runs if other.item_id == slot.item_id and other.id != run.id
         ]
         seen_before = any(other.started_at <= run.started_at for other in other_runs)
+        seen_before = seen_before or any(
+            attempt.player_id == player_id
+            and attempt.item_id == slot.item_id
+            and attempt.id != run.id
+            and (
+                attempt.started_at <= run.started_at
+                or (
+                    attempt.completed_at is not None
+                    and attempt.completed_at <= run.started_at
+                )
+            )
+            for attempt in attempts
+        )
         if slot.first_exposure == seen_before:
             raise ValueError("Puzzle first exposure does not match archived history")
     for daily in sets:
@@ -855,6 +881,18 @@ def import_player_data(
         raise HTTPException(status_code=400, detail="Invalid archive: malformed records") from error
 
     try:
+        for data in archive.puzzle_content_items:
+            difficulty = data.get("difficulty_estimate")
+            try:
+                valid_difficulty = (
+                    isinstance(difficulty, (int, float))
+                    and not isinstance(difficulty, bool)
+                    and isfinite(difficulty)
+                )
+            except OverflowError:
+                valid_difficulty = False
+            if not valid_difficulty:
+                raise ValueError("Invalid puzzle difficulty estimate")
         puzzle_items = [ContentItem.model_validate(data) for data in archive.puzzle_content_items]
         for data in archive.puzzle_runs:
             for counter in ("cursor", "revision", "wrong_attempts"):
@@ -916,7 +954,7 @@ def import_player_data(
         )
         _validate_puzzle_practice_archive(
             session, player_id, puzzle_rating, puzzle_daily_sets, puzzle_daily_slots,
-            puzzle_rating_events, puzzle_runs, puzzle_items,
+            puzzle_rating_events, puzzle_runs, puzzle_items, content_attempts,
         )
     except (ValueError, TypeError, AttributeError, LessonVerificationError) as error:
         raise HTTPException(

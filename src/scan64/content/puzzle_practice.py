@@ -64,6 +64,9 @@ def slots_for(day: PuzzleDailySet, session: Session) -> list[PuzzleDailySlot]:
 def _pool(player_id: str, rating: float, now: datetime, session: Session) -> list[dict[str, Any]]:
     attempted = select(ContentAttempt.item_id).where(ContentAttempt.player_id == player_id)
     seen = select(PuzzleRun.item_id).where(PuzzleRun.player_id == player_id)
+    active_items = select(PuzzleRun.item_id).where(
+        PuzzleRun.player_id == player_id, PuzzleRun.state == "active"
+    )
     due = session.exec(
         select(ContentItem)
         .join(ReviewSchedule, col(ReviewSchedule.item_id) == col(ContentItem.id))
@@ -73,6 +76,7 @@ def _pool(player_id: str, rating: float, now: datetime, session: Session) -> lis
             col(ReviewSchedule.retired_at).is_(None),
             ReviewSchedule.next_review_at <= now,
             col(ContentItem.id).in_(seen),
+            ~col(ContentItem.id).in_(active_items),
         )
         .order_by(
             col(ReviewSchedule.next_review_at),

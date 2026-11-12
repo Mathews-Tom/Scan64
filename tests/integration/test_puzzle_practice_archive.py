@@ -425,6 +425,7 @@ def test_due_repeat_restores_unrated_without_replaying_first_exposure(
     ))
     attempt.update(
         id=run["id"], session_id=study["id"], completed_at=run["completed_at"],
+        started_at=run["started_at"],
         response_payload={"run_id": run["id"]},
     )
     archive["content_attempts"].append(attempt)
@@ -460,4 +461,107 @@ def test_mathematically_valid_chain_cannot_start_above_initial_rating(
         event["after"] = elo_after(before, event["item_rating"], event["score"])
         before = event["after"]
     archive["puzzle_rating"]["rating"] = before
+    _reject(client, db_session, archive, headers)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("rating", "not-a-rating"), ("rating", "1500"), ("rating", None),
+    ("rating", True), ("rating", []), ("rating", {}), ("rating", 10**400),
+    ("rating", float("nan")), ("rating", float("inf")),
+    ("difficulty_estimate", "not-a-rating"), ("difficulty_estimate", "1500"),
+    ("difficulty_estimate", None), ("difficulty_estimate", True),
+    ("difficulty_estimate", float("nan")), ("difficulty_estimate", float("inf")),
+    ("themes", None), ("themes", "mateIn1"), ("themes", {"mateIn1": True}),
+    ("themes", [{}]), ("themes", [["mateIn1"]]), ("themes", [1]),
+])
+def test_unplayed_dependency_cannot_poison_other_players_practice(
+    client: TestClient, db_session: Session, field: str, value: Any,
+) -> None:
+    archive, headers = _practice_archive(client, db_session)
+    poisoned_id = "lichess:practice-4"
+    dependency = next(
+        row for row in archive["puzzle_content_items"] if row["id"] == poisoned_id
+    )
+    if field == "difficulty_estimate":
+        dependency[field] = value
+    else:
+        dependency["payload"][field] = value
+    existing = db_session.get(ContentItem, poisoned_id)
+    assert existing is not None
+    db_session.delete(existing)
+    db_session.commit()
+
+    _reject(client, db_session, archive, headers)
+    assert db_session.get(ContentItem, poisoned_id) is None
+    registration = client.post(
+        "/v1/players", json={"id": "poisoning-bystander", "display_name": "Bystander"}
+    )
+    assert registration.status_code == 200
+    other_headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
+    daily = client.get("/v1/puzzles/daily", headers=other_headers)
+    assert daily.status_code == 200, daily.text
+    assert all(
+        slot.item_id != poisoned_id for slot in db_session.exec(
+            select(PuzzleDailySlot).where(PuzzleDailySlot.player_id == "poisoning-bystander")
+        ).all()
+    )
+
+
+def test_legacy_dependency_rating_uses_validated_difficulty_fallback(
+    client: TestClient, db_session: Session,
+) -> None:
+    archive, headers = _practice_archive(client, db_session)
+    for dependency in archive["puzzle_content_items"]:
+        dependency["payload"].pop("rating")
+        dependency["difficulty_estimate"] = 1500.0
+        existing = db_session.get(ContentItem, dependency["id"])
+        assert existing is not None
+        db_session.delete(existing)
+    db_session.commit()
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    assert response.status_code == 200, response.text
+    registration = client.post(
+        "/v1/players", json={"id": "fallback-bystander", "display_name": "Bystander"}
+    )
+    assert registration.status_code == 200
+    other_headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
+    daily = client.get("/v1/puzzles/daily", headers=other_headers)
+    assert daily.status_code == 200, daily.text
+    slots = db_session.exec(
+        select(PuzzleDailySlot).where(PuzzleDailySlot.player_id == "fallback-bystander")
+    ).all()
+    assert slots
+    assert all(slot.item_rating == 1500.0 for slot in slots)
+
+
+@pytest.mark.parametrize("difficulty", [None, True, "1500", float("inf"), 10**400])
+def test_legacy_dependency_fallback_must_be_finite_numeric(
+    client: TestClient, db_session: Session, difficulty: Any,
+) -> None:
+    archive, headers = _practice_archive(client, db_session)
+    dependency = next(
+        row for row in archive["puzzle_content_items"] if row["id"] == "lichess:practice-4"
+    )
+    dependency["payload"].pop("rating")
+    if difficulty is None:
+        dependency.pop("difficulty_estimate")
+    else:
+        dependency["difficulty_estimate"] = difficulty
+    _reject(client, db_session, archive, headers)
+
+
+@pytest.mark.parametrize("completed_at", [None, "2026-11-12T12:00:01"])
+def test_earlier_legacy_attempt_without_run_cannot_be_rated_as_first_exposure(
+    client: TestClient, db_session: Session, completed_at: str | None,
+) -> None:
+    archive, headers = _practice_archive(client, db_session)
+    event = archive["puzzle_rating_events"][0]
+    attempt = deepcopy(next(
+        row for row in archive["content_attempts"] if row["id"] == event["run_id"]
+    ))
+    attempt.update(
+        id="earlier-legacy-attempt", started_at="2026-11-12T12:00:00",
+        completed_at=completed_at, response_payload={},
+    )
+    archive["content_attempts"].append(attempt)
     _reject(client, db_session, archive, headers)

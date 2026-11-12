@@ -272,6 +272,10 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "study_sessions": 0,
         "content_attempts": 0,
         "puzzle_runs": 0,
+        "puzzle_rating": 0,
+        "puzzle_daily_sets": 0,
+        "puzzle_daily_slots": 0,
+        "puzzle_rating_events": 0,
         "coach_student_links": 0,
     }
     assert data["audit_id"] is None

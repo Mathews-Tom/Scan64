@@ -421,3 +421,44 @@ def test_theme_routing_is_trusted_nonretired_above_neutral_only(
     assert run["selection_reason"] == expected
     if expected == "weak":
         assert "Exploration shortfall" in run["daily"]["message"]
+
+
+@pytest.mark.parametrize("outcome", ["independent", "hinted", "failed"])
+def test_active_due_review_crossing_midnight_cannot_reenter_new_set(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: str,
+) -> None:
+    clock(monkeypatch)
+    auth = _auth(client)
+    seed(db_session, "midnight-review")
+    run = _start(client, auth)
+    run = _action(client, auth, run, "hints", step=1).json()
+    _action(client, auth, run, "moves", move="e7e5")
+    clock(monkeypatch, (NOW + timedelta(days=1)).replace(hour=23, minute=59))
+    review = _start(client, auth)
+    assert review["selection_reason"] == "due" and not review["rated"]
+    clock(monkeypatch, NOW + timedelta(days=2))
+    resumed = _start(client, auth)
+    assert resumed["run_id"] == review["run_id"]
+    assert resumed["daily"]["total"] == resumed["daily"]["completed"] == 0
+    if outcome == "hinted":
+        resumed = _action(client, auth, resumed, "hints", step=1).json()
+    if outcome == "failed":
+        for _ in range(3):
+            resumed = _action(client, auth, resumed, "moves", move="a7a6").json()
+    else:
+        resumed = _action(client, auth, resumed, "moves", move="e7e5").json()
+    assert resumed["daily"]["total"] == resumed["daily"]["completed"] == 0
+    assert client.post("/v1/puzzles/runs", headers=auth).json()["status"] == "exhausted"
+    db_session.expire_all()
+    schedule = db_session.exec(select(ReviewSchedule)).one()
+    if outcome == "independent":
+        assert schedule.retirement_reason == "puzzle_review_passed"
+        assert schedule.retired_at is not None
+    else:
+        assert schedule.retired_at is None
+        assert not schedule.is_due(NOW + timedelta(days=2))
+    assert len(db_session.exec(select(PuzzleDailySlot)).all()) == 2
+    assert len(db_session.exec(select(PuzzleRatingEvent)).all()) == 1

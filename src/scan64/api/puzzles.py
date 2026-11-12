@@ -1,6 +1,5 @@
 """Owned, revision-checked puzzle runs; complete solution specs stay server-side."""
 
-from datetime import UTC, datetime
 from typing import Literal, cast
 
 import chess
@@ -12,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player
+from scan64.content import puzzle_practice
 from scan64.content.models import ContentAttempt, ContentItem, StudySession
 from scan64.content.puzzle_hints import puzzle_hint
 from scan64.content.puzzle_practice import daily_set, daily_summary, finish_practice, slots_for
@@ -203,7 +203,8 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
     if item is None:
         raise HTTPException(status_code=404, detail="Puzzle run not found")
     lesson = LessonSpec.model_validate(item.payload["lesson"])
-    study = StudySession(player_id=player_id, domain="puzzles")
+    started_at = puzzle_practice.utc_now()
+    study = StudySession(player_id=player_id, domain="puzzles", started_at=started_at)
     first_exposure = (
         session.exec(
             select(PuzzleRun.id)
@@ -222,7 +223,11 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
         is None
     )
     run = PuzzleRun(
-        player_id=player_id, item_id=item.id, session_id=study.id, fen=lesson.source.fen
+        player_id=player_id,
+        item_id=item.id,
+        session_id=study.id,
+        fen=lesson.source.fen,
+        started_at=started_at,
     )
     _item_and_lesson(run, session)
     try:
@@ -276,7 +281,7 @@ def _update_run(
     state: str,
     hint_steps: dict[str, int],
 ) -> PuzzleRunRead:
-    completed_at = datetime.now(UTC) if state != "active" else None
+    completed_at = puzzle_practice.utc_now() if state != "active" else None
     changed = session.execute(
         update(PuzzleRun)
         .where(
