@@ -94,6 +94,20 @@ describe('FamousGameStudyScreen', () => {
     opponent_config: { strength: '1' }, status: 'active', coach_mode: false });
   });
 
+  it('keeps public study available when player authorization fails', async () => {
+    vi.mocked(ensurePlayerAuthorization).mockRejectedValueOnce(new Error('Registration unavailable'));
+    render(<FamousGameStudyScreen onPlayFromHere={vi.fn()} />);
+    const game = await screen.findByRole('button', { name: 'Opera Game' });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Registration unavailable');
+    fireEvent.click(game);
+    fireEvent.change(screen.getByLabelText('Your move'), { target: { value: 'e4' } });
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continue from here against engine' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Predictions and engine play unavailable');
+    expect(screen.getByRole('button', { name: 'Show Move' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Show Hint' })).toBeEnabled();
+  });
+
   it('authorizes the study identity before recording a prediction', async () => {
     vi.mocked(ensurePlayerAuthorization).mockResolvedValueOnce('authorized-player');
     render(<FamousGameStudyScreen onPlayFromHere={vi.fn()} />);
