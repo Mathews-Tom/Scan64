@@ -1,6 +1,6 @@
 """On-demand hints use the reserved interactive capacity, never batch engines."""
 
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 import chess
@@ -12,7 +12,7 @@ from sqlmodel import Session
 from scan64.api.auth import require_authenticated_player
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game, PlaySession
-from scan64.learning.insights import PositionInsight, position_insight
+from scan64.learning.insights import InsightStep, insight_step, position_insight
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.pool import EnginePoolManager
 
@@ -21,6 +21,7 @@ router = APIRouter(tags=["insights"])
 
 class PositionInsightRequest(BaseModel):
     player_id: str
+    step: Literal[1, 2, 3]
     play_session_id: UUID | None = None
     fen: str | None = None
 
@@ -67,10 +68,10 @@ def _position(body: PositionInsightRequest, session: Session) -> chess.Board:
     return board
 
 
-@router.post("/v1/insights/position", response_model=PositionInsight)
+@router.post("/v1/insights/position", response_model=InsightStep)
 async def insight_position(
     body: PositionInsightRequest, request: Request, session: Session = Depends(get_session)
-) -> PositionInsight:
+) -> InsightStep:
     player_id = require_authenticated_player(request, session)
     if player_id != body.player_id:
         raise HTTPException(status_code=404, detail="Player not found")
@@ -85,7 +86,7 @@ async def insight_position(
         )
     try:
         analysis = await manager.analyze_hint(board.fen())
-        return position_insight(board, analysis)
+        return insight_step(board, position_insight(board, analysis), body.step)
     except TimeoutError:
         raise HTTPException(
             status_code=503, detail="Hint capacity is busy; try again shortly"

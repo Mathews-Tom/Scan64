@@ -39,6 +39,7 @@ export const DailyTrainingScreen: React.FC = () => {
 
   const lesson = sessionLessons[currentIndex];
   const hint = hintIndex >= 0 ? lesson.hints[hintIndex] : undefined;
+  const finished = feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts;
   const submitMove = async (move: string) => {
     if (
       sessionId === null
@@ -86,5 +87,21 @@ export const DailyTrainingScreen: React.FC = () => {
     startedAt.current = performance.now();
   };
 
-  return <div className="daily-training-screen"><h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p><CoachBoard key={lesson.lesson_id} fen={lesson.source.fen} resetAfterAttempt testId="lesson-board" disabled={submitting || feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts} onMove={submitMove} /><div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}<button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button></div>;
+  return <div className="daily-training-screen">
+    <h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p>
+    <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
+      resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
+      visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
+      onMove={submitMove} />
+    <div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>
+    {hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}
+    <button type="button" data-testid="request-hint-button"
+      disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}
+      onClick={() => setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1))}>
+      Next hint
+    </button>
+    {feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}
+    {finished && <section data-testid="lesson-explanation"><h3>Explanation</h3><p>{lesson.explanation?.text}</p></section>}
+    <button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button>
+  </div>;
 };

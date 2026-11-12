@@ -52,9 +52,80 @@ class HintCandidate(BaseModel):
 
 
 class PositionInsight(BaseModel):
+    step: Literal[3] = 3
     fen: str
     candidates: list[HintCandidate]
     visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+class NudgeInsight(BaseModel):
+    step: Literal[1] = 1
+    text: str
+    visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+class IdeaInsight(BaseModel):
+    step: Literal[2] = 2
+    text: str
+    motif: str
+    piece: str
+    square: str
+    targets: list[str]
+    visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+InsightStep = NudgeInsight | IdeaInsight | PositionInsight
+
+
+def insight_step(board: chess.Board, insight: PositionInsight, step: int) -> InsightStep:
+    """Project only the requested step; never copy PV descriptions into early hints.
+
+    Even a motif's targets can give away a capture or a pawn's SAN. Exclude every
+    candidate destination, not just the first candidate's, from both early steps.
+    FEN is deliberately absent: rank encodings can themselves contain pawn SAN.
+    """
+    if step == 3:
+        return insight
+    if step not in (1, 2) or not insight.candidates:
+        raise ValueError("No hint available for this step")
+    candidate = insight.candidates[0]
+    move = chess.Move.from_uci(candidate.move)
+    destinations = {item.move[2:4] for item in insight.candidates}
+    origin = chess.square_name(move.from_square)
+    piece_type = board.piece_type_at(move.from_square)
+    assert piece_type is not None
+    piece = chess.piece_name(piece_type)
+    reason = next(iter(candidate.reasons), None)
+    targets = list(
+        dict.fromkeys(
+            square for square in (reason.squares if reason else []) if square not in destinations
+        )
+    )
+    if step == 1:
+        square = next(iter(targets), origin)
+        return NudgeInsight(
+            text="What can you notice around the highlighted square?",
+            visualizations=[
+                HighlightSquareCommand(square=square, description="Inspect this square.")
+            ],
+        )
+    motif = reason.kind.replace("_", " ") if reason else "engine preference"
+    text = f"Look for {motif} with your {piece}."
+    return IdeaInsight(
+        text=text,
+        motif=motif,
+        piece=piece,
+        square=origin,
+        targets=targets,
+        visualizations=[
+            HighlightSquareCommand(square=origin, description=f"Consider your {piece}."),
+            *(
+                HighlightSquareCommand(square=square, description="Idea target.")
+                for square in targets
+                if square != origin
+            ),
+        ],
+    )
 
 
 def _capturers(board: chess.Board, square: chess.Square, color: chess.Color) -> list[chess.Move]:

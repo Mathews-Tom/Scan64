@@ -43,7 +43,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
       } else {
         const nextHintExists = hintIndex < lesson.hints.length - 1;
         setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
-        setStep(value => Math.max(value, 4));
+        setStep(value => attemptCount + 1 >= lesson.interaction.maximum_attempts ? 6 : Math.max(value, 4));
         setFeedback(
           nextHintExists
             ? 'Not accepted. Attempt recorded; the next hint is revealed.'
@@ -83,6 +83,12 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
   };
 
   const currentHints = hintIndex >= 0 ? lesson.hints.slice(0, hintIndex + 1) : [];
+  const finished = submittedMove !== null || attemptCount >= lesson.interaction.maximum_attempts;
+  const currentHint = lesson.hints[hintIndex];
+  const requestHint = () => {
+    setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1));
+    setStep(value => Math.max(value, 4));
+  };
 
   return (
     <div className="critical-moment-review" data-testid="critical-moment-review">
@@ -97,6 +103,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         fen={lesson.source.fen}
         resetAfterAttempt
         testId="lesson-board"
+        visualizations={finished || step >= 6 ? lesson.explanation?.visualizations : currentHint?.visualizations}
         disabled={
           submitting
           || submittedMove !== null
@@ -164,6 +171,8 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
       </div>
 
       <div className="actions">
+        <button type="button" data-testid="request-next-hint" onClick={requestHint}
+          disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}>Next hint</button>
         {step < 3 && (
           <button onClick={handleNextStep} data-testid="next-step-btn">
             Continue

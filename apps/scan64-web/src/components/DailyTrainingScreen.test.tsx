@@ -15,12 +15,15 @@ vi.mock('./CoachBoard', () => ({
   CoachBoard: ({
     disabled,
     onMove,
+    visualizations,
   }: {
     disabled: boolean;
     onMove: (move: string) => void;
+    visualizations?: unknown[];
   }) => (
     <button
       data-testid="submit-daily-move"
+      data-visualizations={JSON.stringify(visualizations ?? [])}
       disabled={disabled}
       onClick={() => onMove('e2e4')}
     >
@@ -260,5 +263,62 @@ describe('DailyTrainingScreen', () => {
       submitted_move: 'e2e4',
     }));
     expect(submitMove).toBeDisabled();
+  });
+
+  it.each([true, false])('draws all three hints and the final explanation (last success: %s)', async (success) => {
+    const visualizations = [1, 2, 3].map(level => [{
+      command: level === 3 ? 'draw_arrow' : 'highlight_square',
+      description: `Step ${level}`, square: 'e2', origin: 'e2', target: 'e4',
+    }]);
+    const lesson: LessonSpec = {
+      ...mockLesson,
+      interaction: { input: 'move', maximum_attempts: 3, accepted_moves: [] },
+      hints: visualizations.map((drawings, index) => ({
+        level: index + 1, kind: 'hint', text: `Hint ${index + 1}`, visualizations: drawings,
+      })),
+      explanation: { text: 'Final explanation', visualizations: visualizations[2] },
+    };
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'ladder-session', lessons: [lesson],
+    });
+    const result = { id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied' };
+    vi.mocked(ApiClient.recordLessonAttempt)
+      .mockResolvedValueOnce(result).mockResolvedValueOnce(result)
+      .mockResolvedValueOnce({ ...result, success });
+    render(<DailyTrainingScreen />);
+    const submit = await screen.findByTestId('submit-daily-move');
+    for (let index = 0; index < 2; index += 1) {
+      fireEvent.click(submit);
+      await waitFor(() => expect(screen.getByTestId('lesson-hint')).toHaveTextContent(`Hint ${index + 1}`));
+      expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(visualizations[index]);
+    }
+    fireEvent.click(screen.getByTestId('request-hint-button'));
+    expect(screen.getByTestId('lesson-hint')).toHaveTextContent('Hint 3');
+    expect(ApiClient.recordLessonAttempt).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(visualizations[2]);
+    expect(submit).not.toBeDisabled();
+    fireEvent.click(submit);
+    await screen.findByTestId('lesson-explanation');
+    expect(ApiClient.recordLessonAttempt).toHaveBeenLastCalledWith(expect.objectContaining({ hints_used: 3 }));
+    expect(submit).toBeDisabled();
+    expect(screen.getByTestId('lesson-explanation')).toHaveTextContent('Final explanation');
+    expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(visualizations[2]);
+  });
+
+  it('lets a player request the entire ladder before attempting a move', async () => {
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'manual-ladder', lessons: [{
+        ...mockLesson,
+        interaction: { input: 'move', maximum_attempts: 3, accepted_moves: [] },
+        hints: [1, 2, 3].map(level => ({ level, kind: 'hint', text: `Manual ${level}` })),
+      }],
+    });
+    render(<DailyTrainingScreen />);
+    const hint = await screen.findByTestId('request-hint-button');
+    for (let level = 1; level <= 3; level += 1) fireEvent.click(hint);
+    expect(screen.getByTestId('lesson-hint')).toHaveTextContent('Manual 3');
+    expect(hint).toBeDisabled();
+    expect(ApiClient.recordLessonAttempt).not.toHaveBeenCalled();
+    expect(screen.getByTestId('submit-daily-move')).not.toBeDisabled();
   });
 });

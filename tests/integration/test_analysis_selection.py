@@ -154,6 +154,16 @@ async def test_sound_and_invalid_candidates_are_replaced_before_any_database_wri
     lessons = db_session.exec(select(PersistedLessonOpportunity)).all()
     assert len(lessons) == 5
     assert {lesson.lesson_spec["source"]["fen"] for lesson in lessons} == set(sources[3:])
+    for opportunity in lessons:
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        assert [hint.level for hint in spec.hints] == [1, 2, 3]
+        assert spec.explanation is not None
+        assert any(drawing.command == "draw_arrow" for drawing in spec.explanation.visualizations)
+        board = chess.Board(spec.source.fen)
+        for drawing in spec.explanation.visualizations:
+            if drawing.command == "animate_line":
+                for uci in drawing.moves:
+                    board.push_uci(uci)
 
 
 @pytest.mark.asyncio

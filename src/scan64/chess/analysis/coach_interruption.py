@@ -23,6 +23,7 @@ from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
@@ -255,8 +256,9 @@ async def _prepare_coach_interruption(
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
     try:
+        fill_lesson_hints(lesson, before_analysis)
         verify_lesson(lesson, before_analysis)
-    except LessonVerificationError:
+    except (LessonVerificationError, ValueError):
         return None
 
     now = datetime.now(UTC)

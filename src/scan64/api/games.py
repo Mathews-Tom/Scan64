@@ -9,6 +9,7 @@ from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
+from scan64.api.learning import _reverify_persisted_lesson
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.analysis.models import (
@@ -197,11 +198,23 @@ def list_learning_opportunities(
         opportunities = opportunities[:limit]
 
     specs = []
+    fallbacks_remaining = 1
     for opportunity in opportunities:
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        if not spec.hints:
+            upgraded, used_fallback = _reverify_persisted_lesson(
+                opportunity, session, allow_fallback=fallbacks_remaining > 0
+            )
+            if used_fallback:
+                fallbacks_remaining -= 1
+            session.add(opportunity)
+            if upgraded is None:
+                continue
+            spec = upgraded
         # The opportunity UUID is the client-submittable handle for its persisted lesson.
         spec.lesson_id = str(opportunity.id)
         specs.append(spec)
+    session.commit()
     session_domain = f"game_analysis:{game_id}"
     study_session = session.exec(
         select(StudySession)

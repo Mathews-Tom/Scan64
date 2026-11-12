@@ -29,6 +29,7 @@ from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.exercises.sound_moves import analyze_lesson_source, sound_moves
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
@@ -281,13 +282,13 @@ async def run_analysis_for_game(
             fen=fen_before,
             lesson_id=f"les_{uuid4()}",
             accepted_moves_san=[board_before.san(move) for move in accepted],
-            hints=[],
         )
         lesson.explanation = await resolve_explanation(diagnosis, item.evidence, fen_before)
 
         try:
+            fill_lesson_hints(lesson, source_analysis)
             verify_lesson(lesson, source_analysis)
-        except LessonVerificationError:
+        except (LessonVerificationError, ValueError):
             continue
         _stage_position_analysis(game, fen_before, source_analysis, positions_by_fen, analyses)
         prepared.append((item, source_analysis, lesson))

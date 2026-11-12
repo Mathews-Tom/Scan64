@@ -8,12 +8,15 @@ vi.mock('./CoachBoard', () => ({
   CoachBoard: ({
     disabled,
     onMove,
+    visualizations,
   }: {
     disabled?: boolean;
     onMove: (move: string) => void;
+    visualizations?: unknown[];
   }) => (
     <button
       data-testid="submit-lesson-move"
+      data-visualizations={JSON.stringify(visualizations ?? [])}
       disabled={disabled}
       onClick={() => onMove('e2e4')}
     >
@@ -121,5 +124,50 @@ describe('CriticalMomentReview', () => {
     expect(submitMove).toBeDisabled();
     fireEvent.click(submitMove);
     expect(recordAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([true, false])('keeps the ladder inside three attempts (final success: %s)', async (success) => {
+    const drawings = [1, 2, 3].map(level => [{
+      command: level === 3 ? 'draw_arrow' : 'highlight_square',
+      description: `Drawing ${level}`, square: 'd5', origin: 'd5', target: 'c7',
+    }]);
+    const lesson = {
+      ...mockLesson,
+      interaction: { ...mockLesson.interaction, maximum_attempts: 3 },
+      hints: [1, 2, 3].map((level, index) => ({
+        level, kind: 'hint', text: `Ladder ${level}`, visualizations: drawings[index],
+      })),
+      explanation: { text: 'Final explanation', visualizations: drawings[2] },
+    };
+    const result = { id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied' };
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt')
+      .mockResolvedValueOnce(result).mockResolvedValueOnce(result)
+      .mockResolvedValueOnce({ ...result, success });
+    render(<CriticalMomentReview lesson={lesson} opportunityId="opp" sessionId="study" />);
+    const submit = screen.getByTestId('submit-lesson-move');
+    for (let index = 0; index < 2; index += 1) {
+      fireEvent.click(submit);
+      await waitFor(() => expect(screen.getByTestId(`hint-${index}`)).toHaveTextContent(`Ladder ${index + 1}`));
+      expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(drawings[index]);
+    }
+    fireEvent.click(screen.getByTestId('request-next-hint'));
+    expect(screen.getByTestId('hint-2')).toHaveTextContent('Ladder 3');
+    expect(record).toHaveBeenCalledTimes(2);
+    expect(submit).not.toBeDisabled();
+    expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(drawings[2]);
+    fireEvent.click(submit);
+    await waitFor(() => expect(submit).toBeDisabled());
+    expect(record).toHaveBeenLastCalledWith(expect.objectContaining({ hints_used: 3 }));
+    if (!success) expect(screen.getByTestId('explanation')).toHaveTextContent('Final explanation');
+    expect(JSON.parse(submit.getAttribute('data-visualizations')!)).toEqual(drawings[2]);
+  });
+
+  it('allows hints from the restored position without recording an attempt', () => {
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt');
+    render(<CriticalMomentReview lesson={mockLesson} opportunityId="opp" sessionId="study" />);
+    fireEvent.click(screen.getByTestId('request-next-hint'));
+    expect(screen.getByTestId('hint-0')).toHaveTextContent('Hint 1');
+    expect(record).not.toHaveBeenCalled();
+    expect(screen.getByTestId('submit-lesson-move')).not.toBeDisabled();
   });
 });

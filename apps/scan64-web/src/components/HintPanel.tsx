@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { linePosition } from './linePosition';
 import { ApiClient } from '../api/client';
-import type { PositionInsight, Visualization } from '../api/types';
+import type { MoveInsight, PositionInsight, Visualization } from '../api/types';
 
 export interface HintPreview { sourceFen: string; fen: string; visualizations: Visualization[] }
 
@@ -19,7 +19,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
     setResult(null); setSelection(null); setError(null); setBusy(false); onPreview(null);
     return () => { generation.current += 1; };
   }, [fen, sessionId, playerId, disabled, onPreview]);
-  const arrows = (insight: PositionInsight): Visualization[] => {
+  const arrows = (insight: MoveInsight): Visualization[] => {
     const visuals = insight.visualizations.filter(v => v.command !== 'draw_arrow');
     insight.candidates.slice(0, 3).forEach((candidate, index) => {
       visuals.push({ command: 'draw_arrow', description: candidate.san,
@@ -29,20 +29,21 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
   };
   const request = async () => {
     const requestGeneration = ++generation.current;
+    const step = Math.min((result?.step ?? 0) + 1, 3) as 1 | 2 | 3;
     setBusy(true); setError(null);
     try {
       const insight = await ApiClient.getPositionInsight(sessionId
-        ? { player_id: playerId, play_session_id: sessionId } : { player_id: playerId, fen });
+        ? { player_id: playerId, play_session_id: sessionId, step } : { player_id: playerId, fen, step });
       if (requestGeneration !== generation.current) return;
-      if (insight.fen !== fen) { setError('The game position changed. Request a new hint.'); return; }
+      if (insight.step === 3 && insight.fen !== fen) { setError('The game position changed. Request a new hint.'); return; }
       setResult(insight); setSelection(null);
-      onPreview({ sourceFen: fen, fen, visualizations: arrows(insight) });
+      onPreview({ sourceFen: fen, fen, visualizations: insight.step === 3 ? arrows(insight) : insight.visualizations });
     } catch (failure) {
       if (requestGeneration === generation.current) setError(failure instanceof Error ? failure.message : 'Hint unavailable');
     } finally { if (requestGeneration === generation.current) setBusy(false); }
   };
   const preview = (candidate: number, step: number) => {
-    if (!result) return;
+    if (!result || result.step !== 3) return;
     try {
       const item = result.candidates[candidate];
       const previewFen = linePosition(result.fen, item.line, step);
@@ -51,9 +52,11 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
     } catch { setError('This candidate line cannot be previewed.'); }
   };
   return <section aria-label="Position hints">
-    <button type="button" disabled={disabled || busy} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
+    <button type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
     {error && <p role="alert">{error}</p>}
     {result && !disabled && <div>
+      <p>Hint {result.step} of 3</p>
+      {result.step !== 3 ? <p>{result.text}</p> : <>
       <p>Explore a line without playing a move.</p>
       <ol>{result.candidates.slice(0, 3).map((candidate, index) => <li key={candidate.move}>
         <strong>{index + 1}. {candidate.san}</strong>
@@ -67,6 +70,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
         </>}
       </li>)}</ol>
       <button type="button" onClick={() => { setSelection(null); onPreview({ sourceFen: fen, fen, visualizations: arrows(result) }); }}>Return to game position</button>
+      </>}
       <button type="button" onClick={() => { setResult(null); setSelection(null); onPreview(null); }}>Close hints</button>
     </div>}
   </section>;

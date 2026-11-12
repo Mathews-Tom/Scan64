@@ -899,3 +899,151 @@ def test_pre_m47_single_move_lesson_verifies_on_read(
     assert [move["san"] for move in lessons[0]["interaction"]["accepted_moves"]] == [accepted_move]
     db_session.refresh(opportunity)
     assert opportunity.verification_status == "verified"
+
+
+@pytest.mark.parametrize("verified", [False, True])
+@pytest.mark.parametrize("screen", ["training", "critical"])
+def test_legacy_lesson_receives_and_persists_the_same_ladder_without_engine_search(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    verified: bool,
+    screen: str,
+) -> None:
+    from chess_lesson_spec import LessonSpec
+
+    from scan64.learning.exercises.hints import fill_lesson_hints
+
+    player_id = "legacy-hint-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    record = json.loads(
+        (Path(__file__).parents[1] / "fixtures/hint_engine_recording.json").read_text()
+    )["positions"]["C"]
+    source = db_session.get(Position, opportunity.source_position_id)
+    assert source is not None
+    source.fen = record["fen"]
+    spec = LessonSpec.model_validate(opportunity.lesson_spec)
+    spec.source.fen = source.fen
+    spec.interaction.accepted_moves[0].san = "Nxc7+"
+    opportunity.lesson_spec = spec.model_dump(mode="json")
+    opportunity.verification_status = "verified" if verified else "unverified"
+    analysis = EngineAnalysis(position_id=source.id, raw_result=record["raw_result"])
+    db_session.add(analysis)
+    opportunity.verification_analysis_id = analysis.id
+    db_session.add_all((source, opportunity))
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    async def forbidden_search(*_args, **_kwargs):
+        pytest.fail("Legacy ladder must reuse persisted source analysis")
+
+    monkeypatch.setattr(learning_api.StockfishAdapter, "analyze_position", forbidden_search)
+    path = (
+        f"/v1/learning/session?player_id={player_id}"
+        if screen == "training"
+        else f"/v1/games/{opportunity.game_id}/learning-opportunities?player_id={player_id}"
+    )
+    served = client.get(path)
+    assert served.status_code == 200, served.text
+    lesson = served.json()["lessons"][0]
+    fill_lesson_hints(spec, analysis)
+    assert lesson["hints"] == spec.model_dump(mode="json")["hints"]
+    assert lesson["explanation"] == spec.model_dump(mode="json")["explanation"]
+    db_session.refresh(opportunity)
+    assert opportunity.lesson_spec["hints"] == lesson["hints"]
+    assert client.get(path).json()["lessons"][0]["hints"] == lesson["hints"]
+
+
+@pytest.mark.parametrize("screen", ["training", "critical"])
+def test_legacy_hint_read_limits_engine_fallback_to_one_lesson(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    screen: str,
+) -> None:
+    player_id = "bounded-hint-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    first = create_persisted_lesson(db_session, player_id)
+    second = create_persisted_lesson(db_session, player_id)
+    second.game_id = first.game_id
+    db_session.add(second)
+    db_session.commit()
+    calls = []
+
+    async def recorded_search(_self, fen, **limits):
+        calls.append(limits)
+        assert fen == chess.STARTING_FEN
+        return EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}])
+
+    monkeypatch.setattr(learning_api.StockfishAdapter, "analyze_position", recorded_search)
+    authorize(client, db_session, player_id)
+    path = (
+        f"/v1/learning/session?player_id={player_id}"
+        if screen == "training"
+        else f"/v1/games/{first.game_id}/learning-opportunities?player_id={player_id}"
+    )
+    served = client.get(path)
+    assert served.status_code == 200, served.text
+    assert len(served.json()["lessons"]) == 1
+    assert len(served.json()["lessons"][0]["hints"]) == 3
+    assert calls == [{"nodes": 100_000, "multipv": 2}]
+
+
+def test_correct_final_attempt_with_hints_keeps_half_credit_and_server_limit(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    player_id = "hint-assisted-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    analysis = EngineAnalysis(
+        position_id=opportunity.source_position_id,
+        raw_result=[{"pv": ["e2e4"], "score_cp": 0}],
+    )
+    db_session.add(analysis)
+    opportunity.verification_analysis_id = analysis.id
+    db_session.add(opportunity)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    served = client.get(f"/v1/learning/session?player_id={player_id}").json()
+    for index, move in enumerate(("a2a3", "h2h3", "e2e4")):
+        result = client.post(
+            "/v1/learning/lesson-attempts",
+            json={
+                "session_id": served["session_id"],
+                "lesson_id": str(opportunity.id),
+                "source_kind": "persisted_opportunity",
+                "submitted_move": move,
+                "elapsed_ms": 1000,
+                "hints_used": (0, 1, 3)[index],
+            },
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["success"] is (index == 2)
+    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    assert skill is not None
+    assert skill.alpha == pytest.approx(skill.prior_alpha + 0.5)
+    assert skill.beta == pytest.approx(skill.prior_beta + 2)
+    attempt = db_session.get(LessonAttempt, result.json()["id"])
+    assert attempt is not None and attempt.hints_used == 3 and attempt.success
+    assert (
+        client.post(
+            "/v1/learning/lesson-attempts",
+            json={
+                "session_id": served["session_id"],
+                "lesson_id": str(opportunity.id),
+                "source_kind": "persisted_opportunity",
+                "submitted_move": "e2e4",
+                "elapsed_ms": 1000,
+                "hints_used": 3,
+            },
+        ).status_code
+        == 409
+    )
