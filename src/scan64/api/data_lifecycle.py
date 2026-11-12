@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from typing import Any
 from uuid import uuid4
 
@@ -14,6 +15,8 @@ from sqlmodel import Session, col, delete, select
 from scan64.api.auth import require_player_token
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
+from scan64.chess.analysis.credit import MAX_POSITIVE_CREDITS_PER_GAME_SKILL, positive_move_proof
+from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -21,7 +24,9 @@ from scan64.chess.analysis.models import (
     PersistedDiagnosis,
     PersistedLessonOpportunity,
 )
+from scan64.chess.games.assistance import SessionHintReveal, prefix_hash
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.participants import player_color
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
@@ -46,6 +51,8 @@ class ExportArchive(BaseModel):
     player: dict[str, Any] | None = None
     profile: dict[str, Any] | None = None
     play_sessions: list[dict[str, Any]] = Field(default_factory=list)
+    session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
+    positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
     games: list[dict[str, Any]] = Field(default_factory=list)
     positions: list[dict[str, Any]] = Field(default_factory=list)
     engine_analyses: list[dict[str, Any]] = Field(default_factory=list)
@@ -236,6 +243,191 @@ def _validate_puzzle_archive(
     return missing
 
 
+def _validate_reveal_snapshot(reveal: SessionHintReveal, game: Game | None) -> None:
+    if game is not None and reveal.initial_fen != game.headers.get("FEN", chess.STARTING_FEN):
+        raise ValueError("Hint snapshot initial position does not match its session")
+    board = chess.Board(reveal.initial_fen)
+    if not board.is_valid():
+        raise ValueError("Invalid hint snapshot position")
+    for move_uci in reveal.moves:
+        board.push_uci(move_uci)
+    if (
+        reveal.canonical_id != board.epd()
+        or reveal.prefix_hash != prefix_hash(reveal.initial_fen, reveal.moves)
+    ):
+        raise ValueError("Invalid hint snapshot identity")
+
+
+def _validate_credit_archive(
+    session: Session,
+    player_id: str,
+    play_sessions: list[PlaySession],
+    games: list[Game],
+    positions: list[Position],
+    analyses: list[EngineAnalysis],
+    reviews: list[GameMoveReview],
+    reveals: list[SessionHintReveal],
+    credits: list[PositiveMoveCredit],
+) -> None:
+    """Restore evidence, never apply it to mastery or trust external references."""
+    sessions_by_id = {item.id: item for item in play_sessions}
+    games_by_id = {item.id: item for item in games}
+    positions_by_id = {item.id: item for item in positions}
+    analyses_by_id = {item.id: item for item in analyses}
+    reviews_by_key = {(item.game_id, item.ply): item for item in reviews}
+    if len(sessions_by_id) != len(play_sessions):
+        raise ValueError("Duplicate play sessions")
+    if credits and (
+        len(games_by_id) != len(games)
+        or len(positions_by_id) != len(positions)
+        or len(analyses_by_id) != len(analyses)
+    ):
+        raise ValueError("Ambiguous positive credit references")
+    for item in play_sessions:
+        if item.player_id != player_id or session.get(PlaySession, item.id) is not None:
+            raise ValueError("Conflicting play session owner")
+        if item.assistance_tracking_version not in (None, 1):
+            raise ValueError("Unsupported assistance tracking version")
+
+    reveal_keys = {(item.session_id, item.prefix_hash) for item in reveals}
+    if len(reveal_keys) != len(reveals):
+        raise ValueError("Duplicate hint reveals")
+    for reveal in reveals:
+        play_session = sessions_by_id.get(reveal.session_id)
+        if (
+            reveal.player_id != player_id
+            or play_session is None
+            or not 1 <= reveal.highest_step <= 3
+            or reveal.ply != len(reveal.moves) + 1
+        ):
+            raise ValueError("Invalid hint reveal owner or snapshot")
+        _validate_reveal_snapshot(
+            reveal, games_by_id.get(play_session.game_id) if play_session.game_id else None,
+        )
+        if session.get(SessionHintReveal, (reveal.session_id, reveal.prefix_hash)) is not None:
+            raise ValueError("Conflicting hint reveal")
+
+    credit_keys = {
+        (item.player_id, item.game_id, item.canonical_id, item.skill_id) for item in credits
+    }
+    if len(credit_keys) != len(credits):
+        raise ValueError("Duplicate positive credits")
+    credit_counts = Counter(
+        (item.player_id, item.game_id, item.skill_id) for item in credits
+    )
+    if any(count > MAX_POSITIVE_CREDITS_PER_GAME_SKILL for count in credit_counts.values()):
+        raise ValueError("Positive credits exceed the per-game credit cap")
+    for credit in credits:
+        game = games_by_id.get(credit.game_id)
+        row = reviews_by_key.get((credit.game_id, credit.ply))
+        linked_sessions = [item for item in play_sessions if item.game_id == credit.game_id]
+        if (
+            credit.player_id != player_id
+            or game is None
+            or game.owner_player_id != player_id
+            or game.result == "*"
+            or row is None
+            or credit.proof_version != 1
+            or len(linked_sessions) != 1
+        ):
+            raise ValueError("Invalid positive credit provenance")
+        play_session = linked_sessions[0]
+        if (
+            play_session.assistance_tracking_version != 1
+            or play_session.status != "completed"
+            or play_session.credit_analysis_status == "analysed before the game ended"
+            or play_session.coach_mode
+            or play_session.opponent_config.get("initial_fen")
+            or play_session.opponent_config.get("custom_start") == "true"
+            or game.headers.get("FEN")
+            or credit.ply <= int(play_session.opponent_config.get("initial_ply", "0"))
+            or any(
+                reveal.session_id == play_session.id and reveal.canonical_id == credit.canonical_id
+                for reveal in reveals
+            )
+        ):
+            raise ValueError("Ineligible positive credit")
+        source = positions_by_id.get(row.source_position_id)
+        reached = positions_by_id.get(row.reached_position_id)
+        analysis = analyses_by_id.get(credit.source_analysis_id)
+        reached_analysis = analyses_by_id.get(credit.reached_analysis_id)
+        if (
+            source is None
+            or reached is None
+            or analysis is None
+            or reached_analysis is None
+            or source.game_id != game.id
+            or reached.game_id != game.id
+            or source.canonical_id != credit.canonical_id
+            or source.canonical_id != chess.Board(source.fen).epd()
+            or analysis.position_id != source.id
+            or reached_analysis.position_id != reached.id
+            or row.before_analysis_id != analysis.id
+            or row.after_analysis_id != reached_analysis.id
+            or row.mover != (
+                "white" if player_color(
+                    game.headers.get("FEN"), game.moves,
+                    play_session.opponent_config.get("player_color") or game.owner_color,
+                ) else "black"
+            )
+        ):
+            raise ValueError("Invalid positive credit source")
+        if not 1 <= credit.ply <= len(game.moves):
+            raise ValueError("Positive credit occurrence is outside the game")
+        board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        for move_uci in game.moves[:credit.ply - 1]:
+            board.push_uci(move_uci)
+        if source.fen != board.fen() or row.move_uci != game.moves[credit.ply - 1]:
+            raise ValueError("Positive credit source does not match game history")
+        board.push_uci(row.move_uci)
+        if reached.fen != board.fen():
+            raise ValueError("Positive credit reached position does not match game history")
+        previous = reviews_by_key.get((game.id, credit.ply - 1))
+        predecessor = positions_by_id.get(previous.source_position_id) if previous else None
+        if previous is not None and previous.reached_position_id != source.id:
+            raise ValueError("Disconnected positive credit predecessor")
+        proof, _ = positive_move_proof(
+            row, source, analysis, predecessor=predecessor,
+            preceding_move_uci=previous.move_uci if previous else None,
+        )
+        if proof is None or proof != credit.proof or proof.get("skill_id") != credit.skill_id:
+            raise ValueError("Invalid positive credit proof")
+        # Never validate against one archive row, then persist a different shared row.
+        existing_game = session.get(Game, game.id)
+        if (
+            existing_game is not None
+            and existing_game.model_dump(mode="json") != game.model_dump(mode="json")
+        ):
+            raise ValueError("Conflicting positive credit game")
+        for position in [source, reached] + ([predecessor] if predecessor is not None else []):
+            existing_position = session.get(Position, position.id)
+            if (
+                existing_position is not None
+                and existing_position.model_dump(mode="json") != position.model_dump(mode="json")
+            ):
+                raise ValueError("Conflicting positive credit position")
+        for engine_analysis in (analysis, reached_analysis):
+            existing_analysis = session.get(EngineAnalysis, engine_analysis.id)
+            if (
+                existing_analysis is not None
+                and existing_analysis.model_dump(mode="json")
+                != engine_analysis.model_dump(mode="json")
+            ):
+                raise ValueError("Conflicting positive credit analysis")
+        for review in [row] + ([previous] if previous is not None else []):
+            existing_review = session.get(GameMoveReview, review.id)
+            if (
+                existing_review is not None
+                and existing_review.model_dump(mode="json") != review.model_dump(mode="json")
+            ):
+                raise ValueError("Conflicting positive credit review")
+        if session.get(
+            PositiveMoveCredit,
+            (credit.player_id, credit.game_id, credit.canonical_id, credit.skill_id),
+        ) is not None:
+            raise ValueError("Conflicting positive credit")
+
+
 @router.post("/v1/exports", response_model=ExportArchive)
 def export_player_data(
     request: Request, req: ExportRequest, session: Session = Depends(get_session)
@@ -249,6 +441,12 @@ def export_player_data(
     profile = session.get(PlayerProfile, player_id)
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
+    ).all()
+    session_hint_reveals = session.exec(
+        select(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id)
+    ).all()
+    positive_move_credits = session.exec(
+        select(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id)
     ).all()
     games = session.exec(select(Game).where(col(Game.owner_player_id) == player_id)).all()
     game_ids = [game.id for game in games]
@@ -373,6 +571,8 @@ def export_player_data(
             else play_session.model_dump(mode="json")
             for play_session in play_sessions
         ],
+        session_hint_reveals=[reveal.model_dump(mode="json") for reveal in session_hint_reveals],
+        positive_move_credits=[credit.model_dump(mode="json") for credit in positive_move_credits],
         games=[game.model_dump(mode="json") for game in games],
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
@@ -461,6 +661,12 @@ def import_player_data(
         study_sessions = [StudySession.model_validate(data) for data in archive.study_sessions]
         content_attempts = [
             ContentAttempt.model_validate(data) for data in archive.content_attempts
+        ]
+        session_hint_reveals = [
+            SessionHintReveal.model_validate(data) for data in archive.session_hint_reveals
+        ]
+        positive_move_credits = [
+            PositiveMoveCredit.model_validate(data) for data in archive.positive_move_credits
         ]
         for opportunity in lesson_opportunities:
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
@@ -601,6 +807,26 @@ def import_player_data(
             if existing_analysis is not None and existing_analysis.position_id != position_id:
                 raise HTTPException(status_code=400, detail="Invalid archive: conflicting analysis")
 
+    try:
+        for data in archive.play_sessions:
+            version = data.get("assistance_tracking_version")
+            if version is not None and type(version) is not int:
+                raise ValueError("Invalid assistance tracking version")
+        for data in archive.session_hint_reveals:
+            if any(type(data.get(key)) is not int for key in ("ply", "highest_step")):
+                raise ValueError("Invalid hint snapshot counters")
+        for data in archive.positive_move_credits:
+            if any(type(data.get(key)) is not int for key in ("ply", "proof_version")):
+                raise ValueError("Invalid positive credit counters")
+        _validate_credit_archive(
+            session, player_id, play_sessions, games, positions, engine_analyses,
+            review_moves, session_hint_reveals, positive_move_credits,
+        )
+    except (ValueError, TypeError, AttributeError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed assistance or credit provenance"
+        ) from error
+
     # Puzzle dependencies are the explicit global-catalog restore exception.
     # Existing rows (including metadata) are never overwritten.
     for puzzle_item in missing_puzzles:
@@ -656,6 +882,11 @@ def import_player_data(
 
     for play_session in play_sessions:
         session.add(play_session)
+    session.flush()
+    for reveal in session_hint_reveals:
+        session.add(reveal)
+    for credit in positive_move_credits:
+        session.add(credit)
 
     for skill_state in skill_states:
         session.add(skill_state)
@@ -831,8 +1062,18 @@ def delete_player_data(
         "coach_student_links": len(coach_student_links),
     }
 
+    affected_rows["session_hint_reveals"] = len(session.exec(
+        select(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id)
+    ).all())
+    affected_rows["positive_move_credits"] = len(session.exec(
+        select(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id)
+    ).all())
+
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
+
+    session.exec(delete(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id))
+    session.exec(delete(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id))
 
     if owned_game_ids:
         session.exec(delete(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids)))

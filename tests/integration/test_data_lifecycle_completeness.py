@@ -13,12 +13,14 @@ from sqlmodel import Session, SQLModel, col, select
 from scan64.api.data_lifecycle import ExportArchive
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
+from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
     GameMoveReview,
     PersistedLessonOpportunity,
 )
+from scan64.chess.games.assistance import SessionHintReveal
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
@@ -41,6 +43,8 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         PlayerCredential.__tablename__,
         Game.__tablename__,
         PlaySession.__tablename__,
+        SessionHintReveal.__tablename__,
+        PositiveMoveCredit.__tablename__,
         Position.__tablename__,
         EngineAnalysis.__tablename__,
         GameMoveReview.__tablename__,
@@ -73,6 +77,8 @@ ARCHIVE_FIELDS = {
     Player.__tablename__: "player",
     PlayerProfile.__tablename__: "profile",
     PlaySession.__tablename__: "play_sessions",
+    SessionHintReveal.__tablename__: "session_hint_reveals",
+    PositiveMoveCredit.__tablename__: "positive_move_credits",
     Game.__tablename__: "games",
     Position.__tablename__: "positions",
     EngineAnalysis.__tablename__: "engine_analyses",
@@ -353,6 +359,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "player_credentials": 1,
         "profile": 1,
         "play_sessions": 1,
+        "session_hint_reveals": 0,
+        "positive_move_credits": 0,
         "games": 1,
         "games_disowned": 0,
         "positions": 2,
@@ -396,6 +404,12 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "game": db_session.exec(select(Game).where(Game.owner_player_id == player_id)).all(),
         "play_session": db_session.exec(
             select(PlaySession).where(PlaySession.player_id == player_id)
+        ).all(),
+        "session_hint_reveals": db_session.exec(
+            select(SessionHintReveal).where(SessionHintReveal.player_id == player_id)
+        ).all(),
+        "positive_move_credits": db_session.exec(
+            select(PositiveMoveCredit).where(PositiveMoveCredit.player_id == player_id)
         ).all(),
         "position": db_session.exec(
             select(Position).where(Position.game_id == records["game_id"])

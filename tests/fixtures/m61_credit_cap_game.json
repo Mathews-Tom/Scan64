@@ -1,0 +1,1171 @@
+{
+  "provenance": {
+    "source": "M61 disposable live game recorded once before the owner-approved cap",
+    "engine": "Stockfish 19",
+    "nodes": 10000,
+    "policy": "PVs and scores copied verbatim; no runtime exact-engine assertions",
+    "ranking_cases": {
+      "source": "tests/fixtures/m48/recorded.json",
+      "license": "CC0",
+      "selection": "One recorded mating capture and two higher-net-gain non-mating captures, copied verbatim."
+    }
+  },
+  "game": {
+    "moves": [
+      "e2e4",
+      "b7b5",
+      "f1b5",
+      "f7f5",
+      "e4f5",
+      "e8f7",
+      "d1h5",
+      "f7f6",
+      "d2d4",
+      "e7e5",
+      "c1g5",
+      "f6f5",
+      "g5d8",
+      "g7g5",
+      "h5f7",
+      "f5e4",
+      "b1d2",
+      "e4d4",
+      "f7c4"
+    ],
+    "pgn": "[Event \"Scan64 play session\"]\n[Site \"Scan64\"]\n[Date \"2026.11.12\"]\n[Round \"-\"]\n[White \"m61-live-owner\"]\n[Black \"Stockfish (level 1: First steps)\"]\n[Result \"1-0\"]\n\n1. e4 b5 2. Bxb5 f5 3. exf5 Kf7 4. Qh5+ Kf6 5. d4 e5 6. Bg5+ Kxf5 7. Bxd8+ g5 8. Qf7+ Ke4 9. Nd2+ Kxd4 10. Qc4# 1-0",
+    "white": "m61-live-owner",
+    "black": "Stockfish (level 1: First steps)",
+    "date": "2026.11.12",
+    "owner_player_id": "cap-owner",
+    "headers": {},
+    "id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+    "created_at": "2026-11-12T17:41:52.752400",
+    "result": "1-0",
+    "owner_color": "white"
+  },
+  "play_session": {
+    "player_id": "cap-owner",
+    "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+    "coach_mode": false,
+    "status": "completed",
+    "credit_analysis_status": null,
+    "clock_config": null,
+    "id": "e41a0417-d917-42c8-aa2c-abd2346f9a1a",
+    "opponent_config": {
+      "provider": "stockfish",
+      "bot_level": "1",
+      "seed": "4265161487948910474",
+      "custom_start": "false",
+      "assistance_generation": "11",
+      "player_color": "white",
+      "initial_ply": "0"
+    },
+    "assistance_tracking_version": 1
+  },
+  "positions": [
+    {
+      "id": "ace992e6-357a-4846-9626-03416ae5e021",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "full_move_number": 1,
+      "canonical_id": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "8c4d8c47-c9d6-4221-b267-748652818c39",
+      "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "full_move_number": 1,
+      "canonical_id": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "c0a3c701-810d-4143-bc6a-b87b212b54b3",
+      "fen": "rnbqkbnr/p1pppppp/8/1p6/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "full_move_number": 2,
+      "canonical_id": "rnbqkbnr/p1pppppp/8/1p6/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "4d22e111-bff5-4e6e-8694-9757fb91f969",
+      "fen": "rnbqkbnr/p1pppppp/8/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 0 2",
+      "full_move_number": 2,
+      "canonical_id": "rnbqkbnr/p1pppppp/8/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "39f8cd9d-ba8f-4021-8592-c34e8d07464e",
+      "fen": "rnbqkbnr/p1ppp1pp/8/1B3p2/4P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 3",
+      "full_move_number": 3,
+      "canonical_id": "rnbqkbnr/p1ppp1pp/8/1B3p2/4P3/8/PPPP1PPP/RNBQK1NR w KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "1854faaf-5b33-4bae-9506-1f6af91d2a3a",
+      "fen": "rnbqkbnr/p1ppp1pp/8/1B3P2/8/8/PPPP1PPP/RNBQK1NR b KQkq - 0 3",
+      "full_move_number": 3,
+      "canonical_id": "rnbqkbnr/p1ppp1pp/8/1B3P2/8/8/PPPP1PPP/RNBQK1NR b KQkq -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "48fbabd5-55f8-468c-8049-4422194fbeaa",
+      "fen": "rnbq1bnr/p1pppkpp/8/1B3P2/8/8/PPPP1PPP/RNBQK1NR w KQ - 1 4",
+      "full_move_number": 4,
+      "canonical_id": "rnbq1bnr/p1pppkpp/8/1B3P2/8/8/PPPP1PPP/RNBQK1NR w KQ -",
+      "half_move_clock": 1,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "f30c6ea9-dd87-49fc-bd7a-5212e5099985",
+      "fen": "rnbq1bnr/p1pppkpp/8/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR b KQ - 2 4",
+      "full_move_number": 4,
+      "canonical_id": "rnbq1bnr/p1pppkpp/8/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR b KQ -",
+      "half_move_clock": 2,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "95661432-6005-46ff-a8af-e27cd13b2e60",
+      "fen": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR w KQ - 3 5",
+      "full_move_number": 5,
+      "canonical_id": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR w KQ -",
+      "half_move_clock": 3,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "860875c6-9350-41fa-bf72-e2a7ba8fada9",
+      "fen": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/3P4/8/PPP2PPP/RNB1K1NR b KQ - 0 5",
+      "full_move_number": 5,
+      "canonical_id": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/3P4/8/PPP2PPP/RNB1K1NR b KQ -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "bf093e07-d23f-4080-9e47-62f1b511689b",
+      "fen": "rnbq1bnr/p1pp2pp/5k2/1B2pP1Q/3P4/8/PPP2PPP/RNB1K1NR w KQ e6 0 6",
+      "full_move_number": 6,
+      "canonical_id": "rnbq1bnr/p1pp2pp/5k2/1B2pP1Q/3P4/8/PPP2PPP/RNB1K1NR w KQ e6",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "e2057d4b-e280-49e2-82a5-7c4d4c8cd3c6",
+      "fen": "rnbq1bnr/p1pp2pp/5k2/1B2pPBQ/3P4/8/PPP2PPP/RN2K1NR b KQ - 1 6",
+      "full_move_number": 6,
+      "canonical_id": "rnbq1bnr/p1pp2pp/5k2/1B2pPBQ/3P4/8/PPP2PPP/RN2K1NR b KQ -",
+      "half_move_clock": 1,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "bc77a3f4-5eef-43c1-b73a-3a5e9eec32aa",
+      "fen": "rnbq1bnr/p1pp2pp/8/1B2pkBQ/3P4/8/PPP2PPP/RN2K1NR w KQ - 0 7",
+      "full_move_number": 7,
+      "canonical_id": "rnbq1bnr/p1pp2pp/8/1B2pkBQ/3P4/8/PPP2PPP/RN2K1NR w KQ -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "66364ffe-814f-40cb-b531-240b40fa69a9",
+      "fen": "rnbB1bnr/p1pp2pp/8/1B2pk1Q/3P4/8/PPP2PPP/RN2K1NR b KQ - 0 7",
+      "full_move_number": 7,
+      "canonical_id": "rnbB1bnr/p1pp2pp/8/1B2pk1Q/3P4/8/PPP2PPP/RN2K1NR b KQ -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "cc490e57-2762-4397-8a38-d38198f83fa2",
+      "fen": "rnbB1bnr/p1pp3p/8/1B2pkpQ/3P4/8/PPP2PPP/RN2K1NR w KQ - 0 8",
+      "full_move_number": 8,
+      "canonical_id": "rnbB1bnr/p1pp3p/8/1B2pkpQ/3P4/8/PPP2PPP/RN2K1NR w KQ -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "8a92fdb1-9b1a-4f3f-a5b3-cb66c745a204",
+      "fen": "rnbB1bnr/p1pp1Q1p/8/1B2pkp1/3P4/8/PPP2PPP/RN2K1NR b KQ - 1 8",
+      "full_move_number": 8,
+      "canonical_id": "rnbB1bnr/p1pp1Q1p/8/1B2pkp1/3P4/8/PPP2PPP/RN2K1NR b KQ -",
+      "half_move_clock": 1,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "8571e450-f1f4-4a2a-b803-b424cd918be7",
+      "fen": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3Pk3/8/PPP2PPP/RN2K1NR w KQ - 2 9",
+      "full_move_number": 9,
+      "canonical_id": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3Pk3/8/PPP2PPP/RN2K1NR w KQ -",
+      "half_move_clock": 2,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "bedfea83-7657-49fb-b7d9-a3c3a5720fc1",
+      "fen": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3Pk3/8/PPPN1PPP/R3K1NR b KQ - 3 9",
+      "full_move_number": 9,
+      "canonical_id": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3Pk3/8/PPPN1PPP/R3K1NR b KQ -",
+      "half_move_clock": 3,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    },
+    {
+      "id": "8ed59dcd-0123-41d6-b129-f3f98e1c6174",
+      "fen": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3k4/8/PPPN1PPP/R3K1NR w KQ - 0 10",
+      "full_move_number": 10,
+      "canonical_id": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3k4/8/PPPN1PPP/R3K1NR w KQ -",
+      "half_move_clock": 0,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "w"
+    },
+    {
+      "id": "2db06fc0-e3db-444e-b2ee-8a2735ec36a3",
+      "fen": "rnbB1bnr/p1pp3p/8/1B2p1p1/2Qk4/8/PPPN1PPP/R3K1NR b KQ - 1 10",
+      "full_move_number": 10,
+      "canonical_id": "rnbB1bnr/p1pp3p/8/1B2p1p1/2Qk4/8/PPPN1PPP/R3K1NR b KQ -",
+      "half_move_clock": 1,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "side_to_move": "b"
+    }
+  ],
+  "engine_analyses": [
+    {
+      "position_id": "ace992e6-357a-4846-9626-03416ae5e021",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:53.874692",
+      "raw_result": [
+        {
+          "pv": [
+            "e2e4",
+            "c7c5"
+          ],
+          "score_cp": 28
+        }
+      ],
+      "id": "c2e7172b-907b-4c8e-bb3b-a03be645dcf7"
+    },
+    {
+      "position_id": "8c4d8c47-c9d6-4221-b267-748652818c39",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:53.913060",
+      "raw_result": [
+        {
+          "pv": [
+            "c7c5",
+            "g1f3",
+            "b8c6",
+            "b1c3",
+            "g8f6",
+            "d2d4",
+            "c5d4",
+            "f3d4",
+            "e7e6"
+          ],
+          "score_cp": -32
+        }
+      ],
+      "id": "54d87ddc-ddf0-413a-bdb3-ed0eff841667"
+    },
+    {
+      "position_id": "c0a3c701-810d-4143-bc6a-b87b212b54b3",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:53.950490",
+      "raw_result": [
+        {
+          "pv": [
+            "f1b5",
+            "c7c6",
+            "b5a4",
+            "g8f6",
+            "b1c3",
+            "e7e6",
+            "g1f3",
+            "f8e7",
+            "e4e5",
+            "f6d5",
+            "c3d5",
+            "c6d5",
+            "e1g1"
+          ],
+          "score_cp": 175
+        }
+      ],
+      "id": "e1c5ce52-6664-4ab7-9b96-6b85baf4e3d6"
+    },
+    {
+      "position_id": "4d22e111-bff5-4e6e-8694-9757fb91f969",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:53.990377",
+      "raw_result": [
+        {
+          "pv": [
+            "c8b7",
+            "d2d3"
+          ],
+          "score_cp": -189
+        }
+      ],
+      "id": "c349e89d-0387-4f4e-ae09-49eb100c31cc"
+    },
+    {
+      "position_id": "39f8cd9d-ba8f-4021-8592-c34e8d07464e",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.026843",
+      "raw_result": [
+        {
+          "pv": [
+            "e4f5",
+            "c8b7",
+            "d1h5",
+            "g7g6",
+            "f5g6",
+            "g8f6",
+            "g6g7",
+            "f6h5",
+            "g7h8q",
+            "b7g2",
+            "h8h7",
+            "h5f4",
+            "d2d4"
+          ],
+          "score_cp": 469
+        }
+      ],
+      "id": "aa6d3f7d-fe03-444e-b556-c0554297185f"
+    },
+    {
+      "position_id": "1854faaf-5b33-4bae-9506-1f6af91d2a3a",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.063964",
+      "raw_result": [
+        {
+          "pv": [
+            "g8f6",
+            "d2d4",
+            "c7c6",
+            "b5d3",
+            "c6c5",
+            "g1f3",
+            "b8c6",
+            "e1g1",
+            "c6d4",
+            "f3d4",
+            "c5d4",
+            "f1e1",
+            "d8c7",
+            "b1d2",
+            "e7e5",
+            "f5e6",
+            "d7e6",
+            "d2f3"
+          ],
+          "score_cp": -603
+        }
+      ],
+      "id": "6754f165-e501-4b97-8a80-8965a242ae01"
+    },
+    {
+      "position_id": "48fbabd5-55f8-468c-8049-4422194fbeaa",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.106100",
+      "raw_result": [
+        {
+          "pv": [
+            "d1h5",
+            "f7f6",
+            "d2d4",
+            "g7g6",
+            "h5f3",
+            "c7c6",
+            "f5g6",
+            "f6g6",
+            "b5d3",
+            "g6g7"
+          ],
+          "score_cp": 856
+        }
+      ],
+      "id": "a3c42c77-72d8-4e5a-ae26-6076ed4f88ee"
+    },
+    {
+      "position_id": "f30c6ea9-dd87-49fc-bd7a-5212e5099985",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.148760",
+      "raw_result": [
+        {
+          "pv": [
+            "f7f6",
+            "g2g4",
+            "c8b7"
+          ],
+          "score_cp": -868
+        }
+      ],
+      "id": "bcc1ec9b-bc49-4b6c-9a4b-06c6a9e45e72"
+    },
+    {
+      "position_id": "95661432-6005-46ff-a8af-e27cd13b2e60",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.188824",
+      "raw_result": [
+        {
+          "pv": [
+            "d2d4",
+            "g7g6",
+            "h5f3",
+            "d7d5",
+            "f5g6",
+            "c8f5",
+            "f3h5",
+            "f5g6"
+          ],
+          "score_cp": 819
+        }
+      ],
+      "id": "99f44109-39ec-4d8c-8135-c2aaf22057b5"
+    },
+    {
+      "position_id": "860875c6-9350-41fa-bf72-e2a7ba8fada9",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.228237",
+      "raw_result": [
+        {
+          "pv": [
+            "g7g6",
+            "f5g6",
+            "f6g7",
+            "g6h7",
+            "h8h7",
+            "h5f3",
+            "c7c6",
+            "b5d3",
+            "d8a5",
+            "b1c3",
+            "d7d6",
+            "g1e2"
+          ],
+          "score_cp": -897
+        }
+      ],
+      "id": "65dac9a8-156b-401b-a1a1-fe10fec6e6bb"
+    },
+    {
+      "position_id": "bf093e07-d23f-4080-9e47-62f1b511689b",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.263093",
+      "raw_result": [
+        {
+          "pv": [
+            "c1g5",
+            "f6f5",
+            "g5d8",
+            "f5e6",
+            "h5e5",
+            "e6f7",
+            "b5c4",
+            "d7d5",
+            "c4d5",
+            "f7g6",
+            "e5g5"
+          ],
+          "score_mate": 6
+        }
+      ],
+      "id": "da683fb9-6a05-44b0-9b17-5a2c5fe92edc"
+    },
+    {
+      "position_id": "e2057d4b-e280-49e2-82a5-7c4d4c8cd3c6",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.291990",
+      "raw_result": [
+        {
+          "pv": [
+            "f6f5",
+            "g5d8",
+            "f5e6",
+            "h5e5",
+            "e6f7",
+            "b5c4",
+            "d7d5",
+            "c4d5",
+            "f7g6",
+            "e5g5"
+          ],
+          "score_mate": -5
+        }
+      ],
+      "id": "89ad463b-27d8-451c-9fe5-145b3611fd4c"
+    },
+    {
+      "position_id": "bc77a3f4-5eef-43c1-b73a-3a5e9eec32aa",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.320147",
+      "raw_result": [
+        {
+          "pv": [
+            "g5d8",
+            "f5e6",
+            "h5e5",
+            "e6f7",
+            "b5c4",
+            "d7d5",
+            "c4d5",
+            "f7g6",
+            "e5g5"
+          ],
+          "score_mate": 5
+        }
+      ],
+      "id": "5046c388-8d59-4573-b9da-a7aa1c0bde8c"
+    },
+    {
+      "position_id": "66364ffe-814f-40cb-b531-240b40fa69a9",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.342856",
+      "raw_result": [
+        {
+          "pv": [
+            "f5e6",
+            "h5e5",
+            "e6f7",
+            "b5c4",
+            "d7d5",
+            "c4d5",
+            "f7g6",
+            "e5g5"
+          ],
+          "score_mate": -4
+        }
+      ],
+      "id": "1ab6d161-afc7-4c69-92ed-00b50d95ae53"
+    },
+    {
+      "position_id": "cc490e57-2762-4397-8a38-d38198f83fa2",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.358157",
+      "raw_result": [
+        {
+          "pv": [
+            "h5f7",
+            "f5e4",
+            "b5d3",
+            "e4d4",
+            "f7c4"
+          ],
+          "score_mate": 3
+        }
+      ],
+      "id": "57fc8b95-4dd3-4633-9b1b-55b58326496c"
+    },
+    {
+      "position_id": "8a92fdb1-9b1a-4f3f-a5b3-cb66c745a204",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.370281",
+      "raw_result": [
+        {
+          "pv": [
+            "f5e4",
+            "b5d3",
+            "e4d4",
+            "f7c4"
+          ],
+          "score_mate": -2
+        }
+      ],
+      "id": "ebb0b9b1-da73-4262-a7d4-d9c6c7019ae6"
+    },
+    {
+      "position_id": "8571e450-f1f4-4a2a-b803-b424cd918be7",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.386178",
+      "raw_result": [
+        {
+          "pv": [
+            "b1c3",
+            "e4d4",
+            "f7c4"
+          ],
+          "score_mate": 2
+        }
+      ],
+      "id": "99a6553c-ed47-4f8e-8bf8-3d92ee4872ab"
+    },
+    {
+      "position_id": "bedfea83-7657-49fb-b7d9-a3c3a5720fc1",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.399486",
+      "raw_result": [
+        {
+          "pv": [
+            "e4d4",
+            "f7c4"
+          ],
+          "score_mate": -1
+        }
+      ],
+      "id": "4b88d9c4-4b42-463e-9f7f-cc355012b683"
+    },
+    {
+      "position_id": "8ed59dcd-0123-41d6-b129-f3f98e1c6174",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.408933",
+      "raw_result": [
+        {
+          "pv": [
+            "f7c4"
+          ],
+          "score_mate": 1
+        }
+      ],
+      "id": "c65a5bde-a2fd-4352-a8b0-0e9d8d1509e7"
+    },
+    {
+      "position_id": "2db06fc0-e3db-444e-b2ee-8a2735ec36a3",
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "created_at": "2026-11-12T17:41:54.414563",
+      "raw_result": [
+        {
+          "score_mate": 0
+        }
+      ],
+      "id": "7191dba1-7f5d-4306-936e-4a08c4110f11"
+    }
+  ],
+  "review_moves": [
+    {
+      "source_position_id": "ace992e6-357a-4846-9626-03416ae5e021",
+      "reached_position_id": "8c4d8c47-c9d6-4221-b267-748652818c39",
+      "ply": 1,
+      "after_analysis_id": "54d87ddc-ddf0-413a-bdb3-ed0eff841667",
+      "mover": "white",
+      "after_probability": 0.4705773918729125,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "8eb8e7cb-5bc5-4406-a92c-74c23673b6b4",
+      "before_analysis_id": "c2e7172b-907b-4c8e-bb3b-a03be645dcf7",
+      "move_uci": "e2e4",
+      "san": "e4",
+      "before_probability": 0.5257517538936253,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "8c4d8c47-c9d6-4221-b267-748652818c39",
+      "reached_position_id": "c0a3c701-810d-4143-bc6a-b87b212b54b3",
+      "ply": 2,
+      "after_analysis_id": "e1c5ce52-6664-4ab7-9b96-6b85baf4e3d6",
+      "mover": "black",
+      "after_probability": 0.6557392814366,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "826f9db6-c10e-40d0-b626-341fe915d24f",
+      "before_analysis_id": "54d87ddc-ddf0-413a-bdb3-ed0eff841667",
+      "move_uci": "b7b5",
+      "san": "b5",
+      "before_probability": 0.4705773918729125,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "c0a3c701-810d-4143-bc6a-b87b212b54b3",
+      "reached_position_id": "4d22e111-bff5-4e6e-8694-9757fb91f969",
+      "ply": 3,
+      "after_analysis_id": "c349e89d-0387-4f4e-ae09-49eb100c31cc",
+      "mover": "white",
+      "after_probability": 0.33271896373429855,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "d926ad8b-c77d-4e81-9683-4861e4ac177d",
+      "before_analysis_id": "e1c5ce52-6664-4ab7-9b96-6b85baf4e3d6",
+      "move_uci": "f1b5",
+      "san": "Bxb5",
+      "before_probability": 0.6557392814366,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "4d22e111-bff5-4e6e-8694-9757fb91f969",
+      "reached_position_id": "39f8cd9d-ba8f-4021-8592-c34e8d07464e",
+      "ply": 4,
+      "after_analysis_id": "aa6d3f7d-fe03-444e-b556-c0554297185f",
+      "mover": "black",
+      "after_probability": 0.8490148923385837,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "a30d69a0-9d1e-4691-9d47-58ffa72352dc",
+      "before_analysis_id": "c349e89d-0387-4f4e-ae09-49eb100c31cc",
+      "move_uci": "f7f5",
+      "san": "f5",
+      "before_probability": 0.33271896373429855,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "39f8cd9d-ba8f-4021-8592-c34e8d07464e",
+      "reached_position_id": "1854faaf-5b33-4bae-9506-1f6af91d2a3a",
+      "ply": 5,
+      "after_analysis_id": "6754f165-e501-4b97-8a80-8965a242ae01",
+      "mover": "white",
+      "after_probability": 0.09794280511446125,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "2cffc225-398f-4b07-9a61-88ff8f945866",
+      "before_analysis_id": "aa6d3f7d-fe03-444e-b556-c0554297185f",
+      "move_uci": "e4f5",
+      "san": "exf5",
+      "before_probability": 0.8490148923385837,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "1854faaf-5b33-4bae-9506-1f6af91d2a3a",
+      "reached_position_id": "48fbabd5-55f8-468c-8049-4422194fbeaa",
+      "ply": 6,
+      "after_analysis_id": "a3c42c77-72d8-4e5a-ae26-6076ed4f88ee",
+      "mover": "black",
+      "after_probability": 0.9589819673356063,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "6172aa06-bb14-484e-a09b-2545e2f555d5",
+      "before_analysis_id": "6754f165-e501-4b97-8a80-8965a242ae01",
+      "move_uci": "e8f7",
+      "san": "Kf7",
+      "before_probability": 0.09794280511446125,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "48fbabd5-55f8-468c-8049-4422194fbeaa",
+      "reached_position_id": "f30c6ea9-dd87-49fc-bd7a-5212e5099985",
+      "ply": 7,
+      "after_analysis_id": "bcc1ec9b-bc49-4b6c-9a4b-06c6a9e45e72",
+      "mover": "white",
+      "after_probability": 0.03931481138928116,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "0ced7b79-3d04-4f75-9111-d5c0d5a67b36",
+      "before_analysis_id": "a3c42c77-72d8-4e5a-ae26-6076ed4f88ee",
+      "move_uci": "d1h5",
+      "san": "Qh5+",
+      "before_probability": 0.9589819673356063,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "f30c6ea9-dd87-49fc-bd7a-5212e5099985",
+      "reached_position_id": "95661432-6005-46ff-a8af-e27cd13b2e60",
+      "ply": 8,
+      "after_analysis_id": "99f44109-39ec-4d8c-8135-c2aaf22057b5",
+      "mover": "black",
+      "after_probability": 0.9532749754520927,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "2552b5be-a69d-4641-b5c5-c549cc3e05f7",
+      "before_analysis_id": "bcc1ec9b-bc49-4b6c-9a4b-06c6a9e45e72",
+      "move_uci": "f7f6",
+      "san": "Kf6",
+      "before_probability": 0.03931481138928116,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "95661432-6005-46ff-a8af-e27cd13b2e60",
+      "reached_position_id": "860875c6-9350-41fa-bf72-e2a7ba8fada9",
+      "ply": 9,
+      "after_analysis_id": "65dac9a8-156b-401b-a1a1-fe10fec6e6bb",
+      "mover": "white",
+      "after_probability": 0.03547437620826284,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "b63a2d5a-6777-4de2-898c-7fa4240a22ca",
+      "before_analysis_id": "99f44109-39ec-4d8c-8135-c2aaf22057b5",
+      "move_uci": "d2d4",
+      "san": "d4",
+      "before_probability": 0.9532749754520927,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "860875c6-9350-41fa-bf72-e2a7ba8fada9",
+      "reached_position_id": "bf093e07-d23f-4080-9e47-62f1b511689b",
+      "ply": 10,
+      "after_analysis_id": "da683fb9-6a05-44b0-9b17-5a2c5fe92edc",
+      "mover": "black",
+      "after_probability": 1.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "a27c8e87-9fee-4f30-8cca-96c1cfc67940",
+      "before_analysis_id": "65dac9a8-156b-401b-a1a1-fe10fec6e6bb",
+      "move_uci": "e7e5",
+      "san": "e5",
+      "before_probability": 0.03547437620826284,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "bf093e07-d23f-4080-9e47-62f1b511689b",
+      "reached_position_id": "e2057d4b-e280-49e2-82a5-7c4d4c8cd3c6",
+      "ply": 11,
+      "after_analysis_id": "89ad463b-27d8-451c-9fe5-145b3611fd4c",
+      "mover": "white",
+      "after_probability": 0.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "e4db4a35-90b2-4aad-9073-252b32e70a6c",
+      "before_analysis_id": "da683fb9-6a05-44b0-9b17-5a2c5fe92edc",
+      "move_uci": "c1g5",
+      "san": "Bg5+",
+      "before_probability": 1.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "e2057d4b-e280-49e2-82a5-7c4d4c8cd3c6",
+      "reached_position_id": "bc77a3f4-5eef-43c1-b73a-3a5e9eec32aa",
+      "ply": 12,
+      "after_analysis_id": "5046c388-8d59-4573-b9da-a7aa1c0bde8c",
+      "mover": "black",
+      "after_probability": 1.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "32beb759-d4ab-4a26-bf2d-d859e25589cf",
+      "before_analysis_id": "89ad463b-27d8-451c-9fe5-145b3611fd4c",
+      "move_uci": "f6f5",
+      "san": "Kxf5",
+      "before_probability": 0.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "bc77a3f4-5eef-43c1-b73a-3a5e9eec32aa",
+      "reached_position_id": "66364ffe-814f-40cb-b531-240b40fa69a9",
+      "ply": 13,
+      "after_analysis_id": "1ab6d161-afc7-4c69-92ed-00b50d95ae53",
+      "mover": "white",
+      "after_probability": 0.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "1e714625-e13f-485f-91ab-ed08e8eb8f9f",
+      "before_analysis_id": "5046c388-8d59-4573-b9da-a7aa1c0bde8c",
+      "move_uci": "g5d8",
+      "san": "Bxd8+",
+      "before_probability": 1.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "66364ffe-814f-40cb-b531-240b40fa69a9",
+      "reached_position_id": "cc490e57-2762-4397-8a38-d38198f83fa2",
+      "ply": 14,
+      "after_analysis_id": "57fc8b95-4dd3-4633-9b1b-55b58326496c",
+      "mover": "black",
+      "after_probability": 1.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "4b63ac78-16c0-4aa9-bc5b-0c6233b0b600",
+      "before_analysis_id": "1ab6d161-afc7-4c69-92ed-00b50d95ae53",
+      "move_uci": "g7g5",
+      "san": "g5",
+      "before_probability": 0.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "cc490e57-2762-4397-8a38-d38198f83fa2",
+      "reached_position_id": "8a92fdb1-9b1a-4f3f-a5b3-cb66c745a204",
+      "ply": 15,
+      "after_analysis_id": "ebb0b9b1-da73-4262-a7d4-d9c6c7019ae6",
+      "mover": "white",
+      "after_probability": 0.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "165afc76-6688-4fe5-ac7f-ff44cb891178",
+      "before_analysis_id": "57fc8b95-4dd3-4633-9b1b-55b58326496c",
+      "move_uci": "h5f7",
+      "san": "Qf7+",
+      "before_probability": 1.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "8a92fdb1-9b1a-4f3f-a5b3-cb66c745a204",
+      "reached_position_id": "8571e450-f1f4-4a2a-b803-b424cd918be7",
+      "ply": 16,
+      "after_analysis_id": "99a6553c-ed47-4f8e-8bf8-3d92ee4872ab",
+      "mover": "black",
+      "after_probability": 1.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "8326c6ec-d62b-42eb-b4f1-0b6a81748805",
+      "before_analysis_id": "ebb0b9b1-da73-4262-a7d4-d9c6c7019ae6",
+      "move_uci": "f5e4",
+      "san": "Ke4",
+      "before_probability": 0.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "8571e450-f1f4-4a2a-b803-b424cd918be7",
+      "reached_position_id": "bedfea83-7657-49fb-b7d9-a3c3a5720fc1",
+      "ply": 17,
+      "after_analysis_id": "4b88d9c4-4b42-463e-9f7f-cc355012b683",
+      "mover": "white",
+      "after_probability": 0.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "0f2fe5af-153d-4b83-ad19-87de352ceda9",
+      "before_analysis_id": "99a6553c-ed47-4f8e-8bf8-3d92ee4872ab",
+      "move_uci": "b1d2",
+      "san": "Nd2+",
+      "before_probability": 1.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "bedfea83-7657-49fb-b7d9-a3c3a5720fc1",
+      "reached_position_id": "8ed59dcd-0123-41d6-b129-f3f98e1c6174",
+      "ply": 18,
+      "after_analysis_id": "c65a5bde-a2fd-4352-a8b0-0e9d8d1509e7",
+      "mover": "black",
+      "after_probability": 1.0,
+      "after_terminal": null,
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "1a8269da-b8d3-4275-b82c-454d4ac45ad2",
+      "before_analysis_id": "4b88d9c4-4b42-463e-9f7f-cc355012b683",
+      "move_uci": "e4d4",
+      "san": "Kxd4",
+      "before_probability": 0.0,
+      "before_terminal": null
+    },
+    {
+      "source_position_id": "8ed59dcd-0123-41d6-b129-f3f98e1c6174",
+      "reached_position_id": "2db06fc0-e3db-444e-b2ee-8a2735ec36a3",
+      "ply": 19,
+      "after_analysis_id": "7191dba1-7f5d-4306-936e-4a08c4110f11",
+      "mover": "white",
+      "after_probability": 0.0,
+      "after_terminal": "checkmate",
+      "game_id": "501b0561-f4c0-4ad4-8bb3-d1d17fa83023",
+      "id": "f3709cad-e0ed-49b8-b952-6ea7e746ff0a",
+      "before_analysis_id": "c65a5bde-a2fd-4352-a8b0-0e9d8d1509e7",
+      "move_uci": "f7c4",
+      "san": "Qc4#",
+      "before_probability": 1.0,
+      "before_terminal": null
+    }
+  ],
+  "ranking_cases": [
+    {
+      "source_game": "https://lichess.org/m6c8eqiw",
+      "source_ply": 159,
+      "fen": "8/6R1/8/4K3/5Qpk/8/8/8 w - - 3 80",
+      "predecessor_fen": "8/6R1/8/4K3/5Qp1/6k1/8/8 b - - 2 79",
+      "preceding_move_uci": "g3h4",
+      "raw_result": [
+        {
+          "pv": [
+            "f4g4"
+          ],
+          "score_mate": 1
+        }
+      ],
+      "net_material_gain": 1,
+      "mate": 1
+    },
+    {
+      "source_game": "https://lichess.org/7rzcutsf",
+      "source_ply": 59,
+      "fen": "4rr1k/1p2Np2/p2p2p1/2p1n3/2P1P3/2K2P1q/PP6/R2Q1B2 w - - 0 30",
+      "predecessor_fen": "4rr1k/1p2Np2/p2p2p1/2p1n3/2P1P3/2K2PqR/PP6/R2Q1B2 b - - 0 29",
+      "preceding_move_uci": "g3h3",
+      "raw_result": [
+        {
+          "pv": [
+            "f1h3",
+            "e8e7",
+            "d1d6",
+            "f8e8",
+            "d6f6",
+            "h8g8",
+            "a1g1",
+            "e8d8",
+            "f6e7",
+            "e5c6",
+            "e7b7",
+            "d8d3",
+            "c3d3"
+          ],
+          "score_cp": 706
+        }
+      ],
+      "net_material_gain": 13,
+      "mate": null
+    },
+    {
+      "source_game": "https://lichess.org/7rzcutsf",
+      "source_ply": 57,
+      "fen": "4rr1k/1p2Np2/p2p2p1/2p1n3/2P1P3/2K2Pqp/PP6/R2Q1B1R w - - 8 29",
+      "predecessor_fen": "4rr1k/1p2Np2/p2p2p1/2p1n3/2P1P3/2K2P1p/PP4q1/R2Q1B1R b - - 7 28",
+      "preceding_move_uci": "g2g3",
+      "raw_result": [
+        {
+          "pv": [
+            "h1h3",
+            "g3h3",
+            "f1h3",
+            "e8e7",
+            "d1d6",
+            "h8g8",
+            "d6e7",
+            "e5c6",
+            "e7b7",
+            "c6a7",
+            "b7a7"
+          ],
+          "score_cp": 698
+        }
+      ],
+      "net_material_gain": 12,
+      "mate": null
+    }
+  ]
+}

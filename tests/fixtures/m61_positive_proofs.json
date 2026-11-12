@@ -1,0 +1,100 @@
+{
+  "provenance": {
+    "recorded_source": "tests/fixtures/m48/recorded.json",
+    "source_url": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+    "source_sha256": "aa40b3671fa3cf1072eb182892cd90b0e1e003a4a5943492f64b77e7f3fd1635",
+    "pgn_sha256": "746f4daa743872e697b8780b3ff8681f51f4b06b730c8498cc3d6b33dd88ef05",
+    "license": "CC0",
+    "engine": "Stockfish 19",
+    "nodes": 10000,
+    "threads": 1,
+    "hash_mb": 16,
+    "reset": "ucinewgame before each position",
+    "selection": "First matching examples in the existing recorded corpus, in source order. PVs and scores copied verbatim; no runtime exact-engine assertions. Malformed, missing-predecessor and counter variants are explicit test mutations."
+  },
+  "cases": {
+    "recapture": {
+      "source_game": "https://lichess.org/6x5nq6qd",
+      "source_ply": 8,
+      "fen": "rn1qkb1r/pbpppppp/1p5B/8/2B1P3/3P4/PPP2PPP/RN1QK1NR b KQkq - 0 4",
+      "predecessor_fen": "rn1qkb1r/pbpppppp/1p5n/8/2B1P3/3P4/PPP2PPP/RNBQK1NR w KQkq - 1 4",
+      "preceding_move_uci": "c1h6",
+      "raw_result": [{"pv": ["g7h6", "b1c3", "e7e6", "g1f3", "b8c6", "d3d4", "f8g7", "d1d2"], "score_cp": -47}],
+      "exclusion": "recapture does not gain material overall"
+    },
+    "hung_black": {
+      "source_game": "https://lichess.org/6x5nq6qd",
+      "source_ply": 32,
+      "fen": "r3k1r1/p1pp1pbp/2b1p2p/8/2P5/1QP4N/PP1N1PPP/R4RK1 b q - 3 16",
+      "predecessor_fen": "r3k1r1/p1pp1pbp/2b1p2p/1Q6/2P5/2P4N/PP1N1PPP/R4RK1 w q - 2 16",
+      "preceding_move_uci": "b5b3",
+      "raw_result": [{"pv": ["g7c3", "g2g3", "c3d2", "a2a3", "e8e7", "f1b1", "a8b8"], "score_cp": -804}],
+      "skill_id": "threat_processing.missed_capture",
+      "material_gain": 4,
+      "exchange_gain": 1,
+      "net_material_gain": 4
+    },
+    "material_check": {
+      "source_game": "https://lichess.org/6x5nq6qd",
+      "source_ply": 53,
+      "fen": "4k1r1/Q1p2p2/3pp2p/2r3p1/8/6P1/P2R1P1P/5RK1 w - - 1 27",
+      "predecessor_fen": "4k1r1/Q1p2p2/3pp2p/1r4p1/8/6P1/P2R1P1P/5RK1 b - - 0 26",
+      "preceding_move_uci": "b5c5",
+      "raw_result": [{"pv": ["a7a8", "e8d7", "a8g8", "d7e7", "f1b1", "c5c6", "g8b8", "c6c3", "f2f4", "g5f4"], "score_cp": 957}],
+      "skill_id": "threat_processing.missed_check",
+      "material_gain": 4
+    },
+    "hung_white": {
+      "source_game": "https://lichess.org/6x5nq6qd",
+      "source_ply": 55,
+      "fen": "Q5r1/2p1kp2/3pp2p/2r3p1/8/6P1/P2R1P1P/5RK1 w - - 3 28",
+      "predecessor_fen": "Q3k1r1/2p2p2/3pp2p/2r3p1/8/6P1/P2R1P1P/5RK1 b - - 2 27",
+      "preceding_move_uci": "e8e7",
+      "raw_result": [{"pv": ["a8g8", "h6h5", "h2h4", "g5h4", "f1d1", "h4h3", "f2f4", "h3h2", "g1h1"], "score_cp": 978}],
+      "skill_id": "threat_processing.missed_capture",
+      "material_gain": 4,
+      "exchange_gain": 5,
+      "net_material_gain": 4
+    },
+    "capture_check_overlap": {
+      "source_game": "https://lichess.org/6x5nq6qd",
+      "source_ply": 59,
+      "fen": "7Q/2p1kp2/7p/2rpp1p1/8/6P1/P2R1P1P/5RK1 w - - 0 30",
+      "predecessor_fen": "7Q/2p1kp2/3p3p/2r1p1p1/8/6P1/P2R1P1P/5RK1 b - - 1 29",
+      "preceding_move_uci": "d6d5",
+      "raw_result": [{"pv": ["h8e5", "e7d8", "d2d5", "c5d5", "e5d5", "d8e7", "d5e5", "e7f8", "e5h8", "f8e7", "f1e1", "e7d7", "e1d1", "d7e6", "h8h6", "f7f6", "h6h3", "e6e7"], "score_cp": 1437}],
+      "skill_id": "threat_processing.missed_capture",
+      "material_gain": 3,
+      "exchange_gain": 1,
+      "net_material_gain": 3
+    },
+    "out_of_check": {
+      "source_game": "https://lichess.org/7rzcutsf",
+      "source_ply": 53,
+      "fen": "4rr1k/1p2Np2/p2p2p1/2p5/2P1P1n1/4KP1p/PP4q1/R2Q1B1R w - - 4 27",
+      "predecessor_fen": "4rr1k/1p2Np2/p2p1np1/2p5/2P1P3/4KP1p/PP4q1/R2Q1B1R b - - 3 26",
+      "preceding_move_uci": "f6g4",
+      "raw_result": [{"pv": ["f3g4", "g2h1"], "score_cp": -437}],
+      "exclusion": "capture was a reply to check"
+    },
+    "check_merely_ahead": {
+      "source_game": "https://lichess.org/7rzcutsf",
+      "source_ply": 63,
+      "fen": "5r1k/1p2rp2/p1nQ2p1/2p5/2P1P3/2K2P1B/PP6/R7 w - - 1 32",
+      "predecessor_fen": "5r1k/1p2rp2/p2Q2p1/2p1n3/2P1P3/2K2P1B/PP6/R7 b - - 0 31",
+      "preceding_move_uci": "e5c6",
+      "raw_result": [{"pv": ["d6f6", "h8g8", "a1h1", "b7b5", "h3g4", "b5b4", "c3c2", "c6d4", "c2b1"], "score_cp": 797}],
+      "exclusion": "check does not prove mate or a material gain"
+    },
+    "mate_check": {
+      "source_game": "https://lichess.org/7rzcutsf",
+      "source_ply": 65,
+      "fen": "3r3k/1p2rp2/p1nQ2p1/2p5/2P1P3/2K2P1B/PP6/7R w - - 3 33",
+      "predecessor_fen": "5r1k/1p2rp2/p1nQ2p1/2p5/2P1P3/2K2P1B/PP6/7R b - - 2 32",
+      "preceding_move_uci": "f8d8",
+      "raw_result": [{"pv": ["d6f6", "h8g8", "h3d7", "e7d7", "f6h8"], "score_mate": 3}],
+      "skill_id": "threat_processing.missed_check",
+      "material_gain": -3
+    }
+  }
+}

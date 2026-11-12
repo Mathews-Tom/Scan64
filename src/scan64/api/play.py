@@ -175,6 +175,10 @@ async def create_play_session(
     config = dict(session_in.opponent_config)
     # Client-supplied internal values cannot select another seed or undo boundary.
     config["seed"] = str(secrets.randbits(64))
+    config["custom_start"] = (
+        "true" if session_in.initial_fen is not None or session_in.game_id is not None else "false"
+    )
+    config["assistance_generation"] = "0"
     game = None
     if session_in.initial_fen is not None:
         board = chess.Board(session_in.initial_fen)
@@ -218,6 +222,7 @@ async def create_play_session(
         opponent_config=config,
         clock_config=session_in.clock_config,
         coach_mode=session_in.coach_mode,
+        assistance_tracking_version=1,
     )
     first_move = None
     if game is not None and board.turn != colour and not board.is_game_over():

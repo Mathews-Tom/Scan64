@@ -54,6 +54,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
   return <section aria-label="Position hints">
     <button type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
     {error && <p role="alert">{error}</p>}
+    {sessionId && <p>Any hint step is recorded for this position, including after takeback or reload, and excludes good-move skill credit.</p>}
     {result && !disabled && <div>
       <p>Hint {result.step} of 3</p>
       {result.step !== 3 ? <p>{result.text}</p> : <>

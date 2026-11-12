@@ -200,6 +200,8 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
     SQLModel.metadata.create_all(engine)
     try:
         with Session(engine) as session:
+            session.add(game)
+            session.commit()
             registry = PluginRegistry()
             register_seeded_detectors(registry)
             await jobs.run_analysis_for_game(game, session, registry=registry, pool_manager=manager)

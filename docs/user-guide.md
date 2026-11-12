@@ -1,6 +1,6 @@
 # Using Scan64
 
-Scan64 is a local-first chess practice and learning application. It records games you play or import, analyses them with Stockfish, turns diagnosed positions into owned lessons, and updates your profile only from server-verified answers.
+Scan64 is a local-first chess practice and learning application. It records games you play or import, analyses them with Stockfish, turns diagnosed positions into owned lessons, and updates your profile from server-verified practice and supported tactical evidence.
 
 ## Start the application
 
@@ -32,6 +32,8 @@ Select **Hint** beside the game board for a three-step ladder: first a highlight
 
 Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to explore without submitting any moves. Select **Return to game position** before continuing play, or **Close hints** to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.
 
+Live hints are recorded on the server before they are revealed. Any hint step excludes good-move credit for that canonical position, including after reload, takeback or revisiting it with different move counters. Closing the panel does not erase assistance. If the position changes while a hint is being prepared, request a new hint; the stale hint is not disclosed. Standalone FEN study hints remain available without claiming live-game assistance history.
+
 Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactical, principle-only and fallback shares of candidate moves over M48's 40 recorded real games, without launching an engine. Each reached position uses its deepest available recording (deep source, focused reply, or fast search); at most three tolerance-qualified candidates count per position. Tactical takes precedence when a candidate also has a principle. These shares measure explanatory coverage, not correctness or learning outcomes, and have no pass threshold.
 
 ## Import and analyse a PGN
@@ -54,6 +56,22 @@ For a deterministic manual diagnosis walkthrough, import this game:
 ```
 
 The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Lesson answers depend on the engine analysis, not a hard-coded move.
+
+### Good move credit
+
+Review lists credited moves with a plain-language proof and a button selecting their ply on the board. Each owner move also shows credit or its exclusion reason. **Profile → Strengths & Weaknesses** reflects the credited skill after analysis; reopen Profile to load its latest state.
+
+Credit is deliberately conservative: only a newly tracked, completed game's scored sound owner move that exactly matches the stored first engine line can qualify. Supported tactics are profitable captures (not while in check, not mere recaptures restoring material, with a known preceding move) and checks whose legal line proves material gain or a positive mate score. Capture takes precedence when both apply. Each player/game/canonical source/skill earns at most one +1 success update; repeated positions cannot farm credit. A player earns at most **two credits per skill per game**. When more qualify, proven mate comes first; otherwise higher proven net capture gain or checking-line material gain comes first, then the earliest ply. Other qualifying moves show **“per-game credit cap reached”**. Archives exceeding two credits for one player/game/skill are rejected rather than silently trimmed. Same-source lessons, attempts and failed observations exclude positive credit rather than changing existing failure or practice semantics.
+
+“No in-app hint” means only that Scan64 recorded no hint at that source; external assistance cannot be established. Imported games, old archives and unknown assistance history do not establish eligibility. Coach mode, custom-FEN starts (“started from a studied position”), hinted sources and analysis performed before the game ended receive no positive credit. Review reads and review-only backfill never award it later. Other lesson practice and hinted half-credit are unchanged.
+
+Not every good move earns credit. Unsupported, untrusted, retired or incomplete proofs earn none. Low-budget engine lines are coarse evidence, not measured improvement, a playing-strength rating or an independently validated positive-tactic precision claim.
+
+### Back up before upgrading or rolling back
+
+Before a database migration, save both a **player export archive** using the player data export API and a **database-file copy**. Stop Scan64 before copying SQLite so the backup is consistent; keep the copy outside the live data directory. The player archive preserves owned progress and credit/hint provenance, while the database copy also preserves shared data. Keep the matching application version and verify the recovery path on a disposable copy before touching your working database.
+
+The default rollback keeps already awarded skill alpha: export the positive-credit ledger before downgrading, then use the copy-tested migration downgrade and matching application version. Do not guess a subtraction from decayed skill values. Restoring a pre-upgrade database backup instead requires an explicit owner choice and loses **all later progress**, including unrelated games and practice. Older player archives restore assistance history as unknown, not independently played.
 
 ### Measure diagnosis precision offline
 

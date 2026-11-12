@@ -29,3 +29,5 @@ class PlaySession(SQLModel, table=True):
     clock_config: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
     coach_mode: bool = False
     status: str = "active"
+    assistance_tracking_version: int | None = None
+    credit_analysis_status: str | None = None
