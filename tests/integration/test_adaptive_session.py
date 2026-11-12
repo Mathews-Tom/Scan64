@@ -12,6 +12,8 @@ from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportun
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -25,7 +27,7 @@ def lesson_spec() -> dict[str, object]:
             "kind": "custom",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         },
-        "diagnosis": {"primary": "tactics.fork", "confidence": 1.0},
+        "diagnosis": {"primary": "threat_processing.missed_capture", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Play e4."},
         "interaction": {
             "input": "click",
@@ -42,7 +44,7 @@ def create_persisted_lesson(
     db_session: Session,
     player_id: str,
     *,
-    skill_id: str | None = "tactics.fork",
+    skill_id: str | None = "threat_processing.missed_capture",
     next_review_at: datetime | None = None,
     review_retired_at: datetime | None = None,
 ) -> PersistedLessonOpportunity:
@@ -63,12 +65,29 @@ def create_persisted_lesson(
     )
     db_session.add(analysis)
     db_session.flush()
+    evidence_id = f"lesson-proof-{source_position.id}"
+    spec = lesson_spec()
+    spec["diagnosis"] = {
+        "primary": "threat_processing.missed_capture",
+        "confidence": 1.0,
+        "evidence_refs": [evidence_id],
+    }
+    db_session.add(
+        Evidence(
+            evidence_id=evidence_id,
+            kind="missed_opportunity",
+            position_id=str(source_position.id),
+            engine_analysis_id=str(analysis.id),
+            claim="Adaptive-session diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=source_position.id,
         player_id=player_id,
         verification_analysis_id=analysis.id,
-        lesson_spec=lesson_spec(),
+        lesson_spec=spec,
     )
     db_session.add(opportunity)
     db_session.flush()
@@ -140,13 +159,18 @@ def test_session_loads_state_excludes_retired_skill_state(db_session: Session) -
     db_session.add(Player(id=player_id))
     db_session.commit()
     set_skill_mastery(
-        db_session, player_id, "tactics.fork", alpha=9.0, beta=1.0, retired_at=datetime.now(UTC)
+        db_session,
+        player_id,
+        "threat_processing.missed_capture",
+        alpha=9.0,
+        beta=1.0,
+        retired_at=datetime.now(UTC),
     )
     set_skill_mastery(db_session, player_id, "tactics.pin", alpha=2.0, beta=2.0)
 
     state = load_player_session_state(db_session, player_id)
 
-    assert state.skill_for("tactics.fork") is None
+    assert state.skill_for("threat_processing.missed_capture") is None
     assert state.skill_for("tactics.pin") is not None
 
 
@@ -236,17 +260,19 @@ def test_session_priority_ranks_overdue_review_above_non_due_review(
 ) -> None:
     player_id = "due-ranking-player"
     authorize_new_player(client, db_session, player_id)
-    set_skill_mastery(db_session, player_id, "tactics.fork", alpha=5.0, beta=5.0)
+    set_skill_mastery(
+        db_session, player_id, "threat_processing.missed_capture", alpha=5.0, beta=5.0
+    )
     due_opportunity = create_persisted_lesson(
         db_session,
         player_id,
-        skill_id="tactics.fork",
+        skill_id="threat_processing.missed_capture",
         next_review_at=datetime.now(UTC) - timedelta(days=1),
     )
     create_persisted_lesson(
         db_session,
         player_id,
-        skill_id="tactics.fork",
+        skill_id="threat_processing.missed_capture",
         next_review_at=datetime.now(UTC) + timedelta(days=3),
     )
 
@@ -386,7 +412,6 @@ def test_session_reuses_persisted_engine_analysis(
 
     assert served.status_code == 200
     assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(opportunity.id)]
-
 
 
 def test_session_marks_empty_pinned_analysis_as_unavailable(

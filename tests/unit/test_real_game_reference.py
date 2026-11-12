@@ -168,6 +168,7 @@ async def test_report_runs_real_detectors_without_a_live_engine(
     import chess.engine
 
     from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+    from scan64.learning.diagnosis.trust import TRUSTED_CODES
     from scan64.learning.evaluation.real_games import measure
 
     async def forbidden_engine(*args: object, **kwargs: object) -> None:
@@ -177,6 +178,9 @@ async def test_report_runs_real_detectors_without_a_live_engine(
     scores = await measure()
     assert set(scores) == set(SEED_CODES)
     assert sum(score.support for score in scores.values()) > 0
+    assert {code for code, score in scores.items() if score.trusted} == TRUSTED_CODES
+    assert len(TRUSTED_CODES) >= 3
+    assert "board_awareness.hanging_piece" in TRUSTED_CODES
 
 
 def test_reference_oracle_cannot_import_detector_predicates() -> None:

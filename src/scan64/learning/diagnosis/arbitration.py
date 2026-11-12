@@ -5,6 +5,7 @@ from typing import Any
 
 from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.models import Evidence
 
 
@@ -64,8 +65,7 @@ def _meets_declared_minimum_engine_evidence(
         )
     if requirement == "Engine detects loss of tempo > 1.5 in opening.":
         return any(
-            isinstance(payload.get("tempo_loss"), (int, float))
-            and payload["tempo_loss"] > 1.5
+            isinstance(payload.get("tempo_loss"), (int, float)) and payload["tempo_loss"] > 1.5
             for payload in payloads
         )
     if requirement == "Eval drop due to incoming mate threat or heavy attack.":
@@ -76,8 +76,10 @@ def _meets_declared_minimum_engine_evidence(
 def arbitrate_diagnoses(
     candidates: Iterable[DiagnosisCandidate],
     evidence: Iterable[Evidence],
+    *,
+    trusted_only: bool = True,
 ) -> tuple[DiagnosisCandidate, tuple[DiagnosisCandidate, ...]] | None:
-    """Choose one deterministic primary diagnosis and retain eligible competitors."""
+    """Choose exactly one trusted cause; measurement can inspect all detections."""
     evidence_by_id = {item.evidence_id: item for item in evidence}
     best_by_skill: dict[str, DiagnosisCandidate] = {}
     for candidate in candidates:
@@ -85,6 +87,8 @@ def arbitrate_diagnoses(
             raise RuntimeError(
                 f"Diagnosis candidate has an unknown taxonomy code: {candidate.skill_id!r}"
             )
+        if trusted_only and candidate.skill_id not in TRUSTED_CODES:
+            continue
         payloads = _candidate_payloads(candidate, evidence_by_id)
         if not _meets_declared_minimum_engine_evidence(candidate, payloads):
             continue
@@ -100,4 +104,4 @@ def arbitrate_diagnoses(
         best_by_skill.values(),
         key=lambda candidate: (-candidate.confidence, candidate.skill_id),
     )
-    return ranked[0], tuple(ranked[1:])
+    return ranked[0], ()

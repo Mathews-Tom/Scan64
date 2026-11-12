@@ -11,6 +11,8 @@ from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence import database
 
@@ -42,6 +44,21 @@ def authorize(db_session: Session, player_id: str) -> dict[str, str]:
     db_session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     db_session.commit()
     return {"Authorization": f"Bearer {token}"}
+
+
+def fixture_evidence(db_session: Session, position: Position) -> str:
+    evidence_id = f"lesson-proof-{position.id}"
+    db_session.add(
+        Evidence(
+            evidence_id=evidence_id,
+            kind="missed_opportunity",
+            position_id=str(position.id),
+            engine_analysis_id="learning-fixture-analysis",
+            claim="Measured diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
+    return evidence_id
 
 
 def test_player_scoped_persisted_opportunities(client: TestClient, db_session: Session) -> None:
@@ -103,7 +120,11 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
             "kind": "player_game",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         },
-        "diagnosis": {"primary": "tactics", "confidence": 1.0},
+        "diagnosis": {
+            "primary": "threat_processing.missed_capture",
+            "confidence": 1.0,
+            "evidence_refs": [fixture_evidence(db_session, source_position_1)],
+        },
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
         "verification": {"status": "verified", "engine": "syzygy"},
@@ -115,7 +136,11 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
             "kind": "player_game",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         },
-        "diagnosis": {"primary": "tactics", "confidence": 1.0},
+        "diagnosis": {
+            "primary": "threat_processing.missed_capture",
+            "confidence": 1.0,
+            "evidence_refs": [fixture_evidence(db_session, source_position_2)],
+        },
         "objective": {"type": "find_best_move", "instruction": "Find it"},
         "interaction": {"input": "click", "maximum_attempts": 3, "accepted_moves": [{"san": "e4"}]},
         "verification": {"status": "verified", "engine": "syzygy"},
@@ -206,7 +231,11 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
                     "kind": "player_game",
                     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                 },
-                "diagnosis": {"primary": "tactics", "confidence": 1.0},
+                "diagnosis": {
+                    "primary": "threat_processing.missed_capture",
+                    "confidence": 1.0,
+                    "evidence_refs": [fixture_evidence(db_session, source_position)],
+                },
                 "objective": {"type": "find_best_move", "instruction": "Find it"},
                 "interaction": {
                     "input": "click",

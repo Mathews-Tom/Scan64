@@ -14,6 +14,7 @@ from scan64.chess.positions.models import Position
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.opening_rotation import classify_opening_family
@@ -151,22 +152,18 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
     occurrences: dict[str, dict[str, set[str]]] = defaultdict(
         lambda: {"games": set(), "evidence": set()}
     )
+    visible_game_ids: set[str] = set()
     for row in rows:
-        diagnosis = row.lesson_spec.get("diagnosis")
-        if not isinstance(diagnosis, dict):
+        spec = visible_game_lesson(row, session)
+        if spec is None:
             continue
-        primary = diagnosis.get("primary")
-        evidence_refs = diagnosis.get("evidence_refs")
-        if not isinstance(primary, str) or not primary:
-            continue
+        visible_game_ids.add(str(row.game_id))
+        primary = spec.diagnosis.primary
         occurrences[primary]["games"].add(str(row.game_id))
-        if isinstance(evidence_refs, list):
-            occurrences[primary]["evidence"].update(
-                ref for ref in evidence_refs if isinstance(ref, str) and ref
-            )
+        occurrences[primary]["evidence"].update(spec.diagnosis.evidence_refs)
 
     minimum_occurrences = 3
-    game_count = len({str(row.game_id) for row in rows})
+    game_count = len(visible_game_ids)
     recurring_diagnoses = [
         DiagnosisPatternRead(
             diagnosis=diagnosis,
@@ -231,6 +228,7 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
             .join(Game, col(PersistedLessonOpportunity.game_id) == Game.id)
             .where(Game.owner_player_id == player_id)
         ).all()
+        if visible_game_lesson(opportunity, session) is not None
     }
     grouped: dict[str, list[Game]] = defaultdict(list)
     for game in games:

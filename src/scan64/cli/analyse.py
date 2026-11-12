@@ -10,38 +10,14 @@ from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestr
 from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import InvalidGameError, ingest_pgn
 from scan64.explanations.assembly import resolve_explanation
+from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
-from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
-
-
-def _classify_hanging_piece(fen_after_move: str) -> dict[str, object] | None:
-    """
-    Inspect the resulting position for a piece belonging to the side that
-    just moved which is attacked and has no defender. This is derived
-    purely from board state (python-chess attack maps), not a fabricated
-    or hardcoded label.
-    """
-    board = chess.Board(fen_after_move)
-    mover_color = not board.turn
-    opponent_color = board.turn
-    for square in chess.SQUARES:
-        piece = board.piece_at(square)
-        if piece is None or piece.color != mover_color or piece.piece_type == chess.KING:
-            continue
-        if board.is_attacked_by(opponent_color, square) and not board.is_attacked_by(
-            mover_color, square
-        ):
-            return {
-                "is_hanging_piece_blunder": True,
-                "hanging_square": chess.square_name(square),
-                "hanging_piece": piece.symbol(),
-            }
-    return None
 
 
 async def analyse_command(file_patterns: list[str], report: bool = False) -> None:
@@ -97,17 +73,18 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             fens_before.append(board.fen())
 
         for candidate in candidates:
-            evidence_payload = _classify_hanging_piece(candidate.fen)
-            if evidence_payload is None:
-                continue
-
-            evidence = Evidence(
-                evidence_id=f"ev_{uuid4()}",
-                kind="blunder_analysis",
+            focused = await adapter.analyze_position(candidate.fen, nodes=1_000_000, multipv=4)
+            evidence = compose_candidate_evidence(
+                before_board=board_from(fens_before[candidate.move_index]),
+                after_board=board_from(candidate.fen),
+                history_san=san_moves[: candidate.move_index + 1],
+                initial_fen=initial_fen,
                 position_id=candidate.fen,
-                engine_analysis_id=str(uuid4()),
-                claim="a piece was left undefended and attacked after the move",
-                payload=evidence_payload,
+                fast_analysis=candidate.before_analysis,
+                reply_analysis=candidate.after_analysis,
+                focused_analysis=focused,
+                played_move=san_moves[candidate.move_index],
+                swing_cp=candidate.swing_cp,
             )
 
             opportunity = LearningOpportunity(
@@ -120,11 +97,11 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 engine_eval_after=-(candidate.swing_cp / 100.0),
             )
 
-            diagnosis_candidates = await detector.detect(opportunity, [evidence], ctx)
-            if not diagnosis_candidates:
+            diagnosis_candidates = await detector.detect(opportunity, evidence, ctx)
+            selection = arbitrate_diagnoses(diagnosis_candidates, evidence)
+            if selection is None:
                 continue
-
-            best = max(diagnosis_candidates, key=lambda c: c.confidence)
+            best, _secondary = selection
 
             fen_before = fens_before[candidate.move_index]
             best_move_uci = None
@@ -151,7 +128,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 lesson_id=f"les_{uuid4()}",
                 accepted_moves_san=[best_move_san],
             )
-            lesson.explanation = await resolve_explanation(diagnosis, [evidence], fen_before)
+            lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
 
             try:
                 fill_lesson_hints(lesson, candidate.before_analysis)

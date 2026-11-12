@@ -20,7 +20,7 @@ async def test_template_lesson_generation_remains_valid_with_llm_disabled() -> N
     assert provider is None
 
     diagnosis = Diagnosis(
-        primary="tactics.fork.knight",
+        primary="threat_processing.missed_capture",
         confidence=0.9,
         evidence_refs=["ev_1"],
     )
@@ -31,24 +31,23 @@ async def test_template_lesson_generation_remains_valid_with_llm_disabled() -> N
         engine_analysis_id="ea_1",
         claim="the fast-pass principal variation exposes a tactical opportunity",
         payload={
-            "tactic_type": "knight_fork",
-            "fork_square": "c3",
-            "targets": [{"square": "d1", "piece": "q"}],
-            "results_in_material_gain": True,
-            "played_move": "Nc3",
-            "best_move": "e4c3",
+            "missed_type": "capture",
+            "captured_square": "c3",
+            "captured_piece": "p",
+            "played_move": "Ke2",
+            "best_move": "b1c3",
         },
     )
     lesson = await generate_exact_replay_exercise(
         diagnosis=diagnosis,
-        fen="r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5",
+        fen="r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2pP1N2/PPP2PPP/RNBQK2R w KQkq - 1 5",
         lesson_id="les_template_regression",
-        accepted_moves_san=["Nc3"],
+        accepted_moves_san=["Nxc3"],
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
     verify_lesson(
         lesson,
-        EngineAnalysis(position_id=uuid4(), raw_result=[{"pv": ["b1c3", "g8f6"]}]),
+        EngineAnalysis(position_id=uuid4(), raw_result=[{"pv": ["b1c3", "c6b4"]}]),
     )
     assert lesson.explanation is not None
     assert "c3" in lesson.explanation.text

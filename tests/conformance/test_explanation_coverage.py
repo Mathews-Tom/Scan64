@@ -1,16 +1,4 @@
-"""Conformance test: every seeded taxonomy code must render a grounded explanation.
-
-M33's production evidence composer (``learning/evidence/composer.py``) and its
-detectors (``learning/diagnosis/detectors/*.py``) emit a provenance-bearing,
-code-specific payload for each of the ten ``SEED_CODES`` taxonomy entries. M35
-requires that ``TemplateExplanationProvider`` render an explanation naming the
-concrete square, piece, move, or line drawn from that payload for every one of
-those ten codes, with no code falling back to a generic sentence.
-
-A missing template or a required evidence field a code's template needs must
-fail this test, not silently render a fallback -- see
-``test_missing_template_and_missing_field_fail_loudly`` below.
-"""
+"""Trusted codes name their grounded evidence; untrusted codes cannot explain."""
 
 from __future__ import annotations
 
@@ -24,6 +12,7 @@ from scan64.explanations.templates.provider import (
     TemplateExplanationProvider,
 )
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.models import Evidence
 
 # Representative payloads drawn from the real shapes M33's composer emits for
@@ -40,7 +29,8 @@ _FIXTURE_PAYLOADS: dict[str, dict[str, Any]] = {
         "fast_analysis_id": "fa_1",
         "focused_analysis_id": "foc_1",
         "focused_multipv": [],
-        "focused_line": ["d4e5"],
+        "proving_line": ["d4e5"],
+        "after_fen": "6k1/8/8/4n3/3B4/8/8/K7 w - - 0 1",
         "swing_cp": 220,
     },
     "threat_processing.missed_check": {
@@ -198,6 +188,10 @@ async def test_every_taxonomy_code_names_its_grounded_evidence(code: str) -> Non
         payload=_FIXTURE_PAYLOADS[code],
     )
     diagnosis = Diagnosis(primary=code, confidence=1.0, evidence_refs=[fixture.evidence_id])
+    if code not in TRUSTED_CODES:
+        with pytest.raises(ExplanationTemplateError, match="Untrusted"):
+            await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
+        return
 
     explanation = await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
 

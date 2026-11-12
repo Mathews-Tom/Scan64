@@ -200,6 +200,8 @@ async def test_existing_coach_lessons_reserve_slots_without_losing_history(
     from chess_lesson_spec import Diagnosis
 
     from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
+    from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+    from scan64.learning.evidence.models import Evidence
     from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
     from scan64.learning.plugins.registry import PluginRegistry
 
@@ -222,8 +224,23 @@ async def test_existing_coach_lessons_reserve_slots_without_losing_history(
     for move in parsed.mainline_moves():
         if board.turn == chess.WHITE and len(existing_ids) < existing_count:
             position = resolve_position(db_session, board.fen(), game.id)
+            evidence_id = f"coach-proof-{position.id}"
+            db_session.add(
+                Evidence(
+                    evidence_id=evidence_id,
+                    kind="missed_opportunity",
+                    position_id=str(position.id),
+                    engine_analysis_id="coach-fixture-analysis",
+                    claim="Existing measured coach lesson",
+                    payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+                )
+            )
             spec = await generate_exact_replay_exercise(
-                Diagnosis(primary="board_awareness.hanging_piece", confidence=0.9),
+                Diagnosis(
+                    primary="threat_processing.missed_capture",
+                    confidence=0.9,
+                    evidence_refs=[evidence_id],
+                ),
                 board.fen(),
                 f"coach-{len(existing_ids)}",
                 [board.san(next(iter(board.legal_moves)))],

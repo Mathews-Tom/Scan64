@@ -8,6 +8,8 @@ from scan64.api.learning import get_training_session
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.positions.models import Position
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.scheduling.priority import PriorityFactors, compute_session_fatigue
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
@@ -76,13 +78,13 @@ def test_review_schedule_due_selection():
     assert not schedule_not_due.is_due(now)
 
 
-
 @pytest.fixture(name="db_session")
 def session_fixture():
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
+
 
 def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> None:
     from scan64.chess.games.models import Game, PlaySession
@@ -104,6 +106,16 @@ def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> N
     db_session.add(source_position)
     db_session.commit()
 
+    db_session.add(
+        Evidence(
+            evidence_id="scheduler-proof",
+            kind="missed_opportunity",
+            position_id=str(source_position.id),
+            engine_analysis_id="scheduler-fixture-analysis",
+            claim="Measured diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=source_position.id,
@@ -115,7 +127,11 @@ def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> N
                 "kind": "custom",
                 "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             },
-            "diagnosis": {"primary": "blunder", "confidence": 1.0},
+            "diagnosis": {
+                "primary": "threat_processing.missed_capture",
+                "confidence": 1.0,
+                "evidence_refs": ["scheduler-proof"],
+            },
             "objective": {"type": "find_best_move", "instruction": "Find a better move."},
             "interaction": {
                 "input": "click",

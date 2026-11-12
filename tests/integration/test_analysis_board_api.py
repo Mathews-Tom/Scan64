@@ -12,6 +12,8 @@ from scan64.chess.analysis.models import (
 )
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.persistence.database import get_session
 
 
@@ -135,16 +137,37 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
         )
     )
     session.add(
+        Evidence(
+            evidence_id="board-diagnosis-proof",
+            kind="missed_opportunity",
+            position_id=str(initial_position.id),
+            engine_analysis_id="board-fixture-analysis",
+            claim="Measured diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
+    session.add(
         PersistedLessonOpportunity(
             game_id=game.id,
             source_position_id=initial_position.id,
             player_id="test_user",
             lesson_spec={
+                "schema_version": "1.0",
+                "lesson_id": "marker-fixture",
+                "source": {"kind": "custom", "fen": initial_position.fen},
+                "objective": {"type": "find_best_move", "instruction": "Find a move."},
+                "interaction": {
+                    "input": "move",
+                    "maximum_attempts": 3,
+                    "accepted_moves": [{"san": "Ka2"}],
+                },
+                "verification": {"status": "verified", "engine": "test"},
                 "diagnosis": {
-                    "primary": "board_awareness.hanging_piece",
+                    "primary": "threat_processing.missed_capture",
                     "secondary": ["threat_processing.missed_direct_threat"],
                     "confidence": 0.9,
-                }
+                    "evidence_refs": ["board-diagnosis-proof"],
+                },
             },
         )
     )
@@ -159,8 +182,8 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
     assert response.json()[0]["analysis"]["raw_result"] == [{"pv": ["e2e4"], "score_cp": 20}]
     assert response.json()[0]["diagnoses"] == [
         {
-            "primary": "board_awareness.hanging_piece",
-            "secondary": ["threat_processing.missed_direct_threat"],
+            "primary": "threat_processing.missed_capture",
+            "secondary": [],
             "confidence": 0.9,
         }
     ]

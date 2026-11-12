@@ -213,6 +213,7 @@ async def _prepare_coach_interruption(
         initial_fen=game.headers.get("FEN"),
         position_id=str(result_position.id),
         fast_analysis=before_analysis,
+        reply_analysis=after_analysis,
         focused_analysis=after_analysis,
         analysis_depth="interactive",
         played_move=played_move,

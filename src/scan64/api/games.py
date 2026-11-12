@@ -21,6 +21,7 @@ from scan64.chess.analysis.models import (
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
+from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.persistence.database import get_session
 
@@ -200,7 +201,9 @@ def list_learning_opportunities(
     specs = []
     fallbacks_remaining = 1
     for opportunity in opportunities:
-        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        spec = visible_game_lesson(opportunity, session)
+        if spec is None:
+            continue
         if not spec.hints:
             if opportunity.verification_status == "invalid":
                 continue
@@ -213,6 +216,7 @@ def list_learning_opportunities(
             if upgraded is None:
                 continue
             spec = upgraded
+            spec.diagnosis.secondary = []
         # The opportunity UUID is the client-submittable handle for its persisted lesson.
         spec.lesson_id = str(opportunity.id)
         specs.append(spec)
@@ -295,10 +299,6 @@ class GameAnalysisStatusRead(BaseModel):
     status: str
 
 
-def _read_diagnosis(opportunity: PersistedLessonOpportunity) -> PersistedDiagnosis:
-    return PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
-
-
 class PositionRead(BaseModel):
     id: UUID
     fen: str
@@ -347,11 +347,14 @@ def get_game_positions(
         select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.game_id == game.id)
     ).all()
     for opportunity in opportunities:
+        spec = visible_game_lesson(opportunity, session)
+        if spec is None:
+            continue
         if opportunity.source_position_id is None:
             raise RuntimeError("Persisted lesson opportunity has no source position")
         try:
             diagnoses_by_position[opportunity.source_position_id].append(
-                _read_diagnosis(opportunity)
+                PersistedDiagnosis.model_validate(spec.diagnosis.model_dump())
             )
         except KeyError as error:
             raise RuntimeError(

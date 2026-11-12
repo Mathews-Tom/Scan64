@@ -18,6 +18,7 @@ from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evaluation.transfer_measurement import (
     PRODUCTION_TRANSFER_LIFECYCLE_PREFIX,
     TransferMeasurement,
@@ -220,12 +221,10 @@ def get_training_session(
         schedule = state.active_reviews.get(str(opportunity.id))
         if schedule is None:
             continue
-        spec: LessonSpec
-        if opportunity.verification_status == "invalid":
+        spec = visible_game_lesson(opportunity, db)
+        if spec is None or opportunity.verification_status == "invalid":
             continue
-        if opportunity.verification_status == "verified" and opportunity.lesson_spec.get("hints"):
-            spec = LessonSpec.model_validate(opportunity.lesson_spec)
-        else:
+        if opportunity.verification_status != "verified" or not spec.hints:
             reverified_spec, used_fallback = _reverify_persisted_lesson(
                 opportunity,
                 db,
@@ -236,6 +235,7 @@ def get_training_session(
             if reverified_spec is None:
                 continue
             spec = reverified_spec
+            spec.diagnosis.secondary = []
         spec.lesson_id = str(opportunity.id)
         is_due = schedule.is_due(now)
         weakness_severity = compute_weakness_severity(state.skill_for(schedule.skill_id))

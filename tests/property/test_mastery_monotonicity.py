@@ -25,12 +25,12 @@ def test_repeated_diagnoses_monotonically_lower_mastery_and_uncertainty(
                 "player",
                 f"game-{index}",
                 "position-1",
-                "tactics.fork",
+                "board_awareness.hanging_piece",
                 rating,
                 observed_at,
             )
             session.commit()
-            skill = session.get(SkillState, ("player", "tactics.fork"))
+            skill = session.get(SkillState, ("player", "board_awareness.hanging_piece"))
             assert skill is not None
             assert skill.expected_mastery < previous_mastery
             assert skill.uncertainty < previous_uncertainty
