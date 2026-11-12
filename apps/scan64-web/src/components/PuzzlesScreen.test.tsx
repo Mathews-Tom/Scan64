@@ -368,13 +368,13 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(await screen.findByTestId('critical-moment-review')).toHaveTextContent('1 lifetime attempts used; 2 remaining.');
     expect(ApiClient.startPuzzleMistake).toHaveBeenCalledExactlyOnceWith(reviewLesson.lesson_id);
     const panel = screen.getByRole('region', { name: 'Retry mistake at ply 3' });
-    expect(panel).toHaveFocus();
+    await waitFor(() => expect(panel).toHaveFocus());
     fireEvent.keyDown(panel, { key: 'Escape' });
     expect(screen.getByRole('button', { name: 'Start mistake at ply 3' })).toHaveFocus();
     expect(panel).not.toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Start mistake at ply 3' }));
     await waitFor(() => expect(panel).toBeVisible());
-    expect(panel).toHaveFocus();
+    await waitFor(() => expect(panel).toHaveFocus());
     expect(screen.getByText(/Hints are app-reported/)).toBeInTheDocument();
   });
 });
