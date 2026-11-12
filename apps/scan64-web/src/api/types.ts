@@ -21,7 +21,7 @@ export interface MoveInsight {
     move: string;
     san: string;
     line: string[];
-    reasons: { kind: string; description: string; line: string[]; squares: string[] }[];
+    reasons: { kind: string; tier: 'tactical' | 'principle'; description: string; line: string[]; squares: string[] }[];
     fallback: boolean;
     visualizations: Visualization[];
   }[];

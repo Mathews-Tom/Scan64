@@ -39,6 +39,21 @@ describe('HintPanel', () => {
     expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ fen }));
     expect(submit).not.toHaveBeenCalled();
   });
+  it('labels local principles distinctly from tactical reasons', async () => {
+    const result = structuredClone(insight);
+    if (result.step !== 3) throw new Error('Expected moves');
+    result.candidates[0].fallback = false;
+    result.candidates[0].reasons = [
+      { kind: 'centre', tier: 'principle', description: 'Occupies a centre square.', line: ['e2e4'], squares: ['e4'] },
+      { kind: 'check', tier: 'tactical', description: 'Gives check.', line: ['e2e4'], squares: ['e8'] },
+    ];
+    vi.spyOn(ApiClient, 'getPositionInsight').mockResolvedValue(result);
+    render(<HintPanel playerId="p" fen={fen} onPreview={vi.fn()} />);
+    fireEvent.click(screen.getByText('Hint'));
+    expect(await screen.findByText('Principle:')).toBeVisible();
+    expect(screen.getByText('Tactical:')).toBeVisible();
+    expect(screen.getByText('Occupies a centre square.')).toBeVisible();
+  });
   it('discards a delayed response after the actual position changes', async () => {
     const { promise, resolve } = Promise.withResolvers<PositionInsight>();
     vi.spyOn(ApiClient, 'getPositionInsight').mockReturnValue(promise);

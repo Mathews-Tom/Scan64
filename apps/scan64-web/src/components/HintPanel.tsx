@@ -60,7 +60,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
       <p>Explore a line without playing a move.</p>
       <ol>{result.candidates.slice(0, 3).map((candidate, index) => <li key={candidate.move}>
         <strong>{index + 1}. {candidate.san}</strong>
-        {candidate.reasons.length ? <ul>{candidate.reasons.map((reason, i) => <li key={i}>{reason.description}</li>)}</ul> : <p>engine preference</p>}
+        {candidate.reasons.length ? <ul>{candidate.reasons.map((reason, i) => <li key={i}><strong>{reason.tier === 'principle' ? 'Principle' : 'Tactical'}:</strong> {reason.description}</li>)}</ul> : <p>engine preference</p>}
         <button type="button" onClick={() => preview(index, 1)}>Preview candidate {index + 1}</button>
         <button type="button" onClick={() => preview(index, candidate.line.length)}>Full line {index + 1}</button>
         {selection?.candidate === index && <>
