@@ -92,8 +92,8 @@ export function OnboardingCard({ onNavigate, onChange }: {
         </div>}
         {showProgress ? <div>
           <h3>Five introductory daily puzzles</h3>
-          <label htmlFor={`${id}-progress`}>{record.intro_closed} of {record.intro_target} introductory puzzles closed</label>
-          <progress id={`${id}-progress`} value={record.intro_closed} max={record.intro_target} />
+          <label id={`${id}-progress-label`} htmlFor={`${id}-progress`}>{record.intro_closed} of {record.intro_target} introductory puzzles closed</label>
+          <progress id={`${id}-progress`} aria-labelledby={`${id}-progress-label`} value={record.intro_closed} max={record.intro_target} />
           <p>{record.intro_started} started. Solved (with or without hints), failed or abandoned runs each close once. Progress carries across days; these puzzles do not determine your bot suggestion.</p>
           {record.status === 'completed' ? <p>Introduction complete. Keep practising at your own pace.</p> : <p>Short or empty daily supply? Continue another day, or play now.</p>}
           <a href="/puzzles" onClick={event => {

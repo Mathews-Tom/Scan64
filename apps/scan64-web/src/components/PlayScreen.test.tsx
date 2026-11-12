@@ -158,6 +158,7 @@ describe('PlayScreen', () => {
       ...onboardingFixture, manual_bot_level: manual, suggested_bot_level: suggestion,
     });
     render(<PlayScreen />);
+    expect(screen.getByTestId('player-id-input')).toHaveAttribute('readonly', '');
     await waitFor(() => expect(screen.getByTestId('bot-level-select')).toHaveValue(expected));
     expect(ApiClient.setPlayerBotChoice).not.toHaveBeenCalled();
   });

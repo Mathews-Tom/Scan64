@@ -556,6 +556,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             placeholder="Player ID" 
             value={playerId} 
             disabled={botChoicePending}
+            readOnly={getStoredPlayerId() !== null}
             onChange={e => setPlayerId(e.target.value)} 
             data-testid="player-id-input"
           />
