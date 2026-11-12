@@ -40,19 +40,18 @@ async def test_template_explanation_provider() -> None:
         engine_analysis_id="ea_1",
         claim="the fast-pass principal variation exposes a tactical opportunity",
         payload={
-            "tactic_type": "knight_fork",
-            "fork_square": "e7",
-            "targets": [{"square": "d5", "piece": "q"}],
-            "results_in_material_gain": True,
+            "missed_type": "capture",
+            "captured_square": "d5",
+            "captured_piece": "q",
             "played_move": "Bc4",
-            "best_move": "g5e7",
+            "best_move": "e4d5",
         },
     )
-    diagnosis_fork = Diagnosis(
-        primary="tactics.fork.knight", confidence=0.9, evidence_refs=["ev_1"]
+    diagnosis_capture = Diagnosis(
+        primary="threat_processing.missed_capture", confidence=0.9, evidence_refs=["ev_1"]
     )
-    explanation = await provider.explain(diagnosis_fork, evidence=[fixture])
-    assert "e7" in explanation.text
+    explanation = await provider.explain(diagnosis_capture, evidence=[fixture])
+    assert "e4d5" in explanation.text
     assert "d5" in explanation.text
 
     diagnosis_unknown = Diagnosis(primary="unknown.pattern", confidence=0.5, evidence_refs=[])

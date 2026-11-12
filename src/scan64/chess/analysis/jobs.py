@@ -26,6 +26,7 @@ from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
+from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
@@ -96,14 +97,17 @@ async def run_analysis_for_game(
     if game.owner_color is None:
         raise ValueError("Cannot analyse a legacy game without owner_color")
 
-    # Coach interruptions may already have durable lessons/attempts. Preserve
-    # those sources and reserve their slots rather than replacing their history.
-    existing_lessons = session.exec(
-        select(PersistedLessonOpportunity).where(
-            PersistedLessonOpportunity.game_id == game.id,
-            PersistedLessonOpportunity.player_id == game.owner_player_id,
-        )
-    ).all()
+    # Keep historical rows, but reserve sources and slots only for visible lessons.
+    existing_lessons = [
+        lesson
+        for lesson in session.exec(
+            select(PersistedLessonOpportunity).where(
+                PersistedLessonOpportunity.game_id == game.id,
+                PersistedLessonOpportunity.player_id == game.owner_player_id,
+            )
+        ).all()
+        if visible_game_lesson(lesson, session) is not None
+    ]
     existing_sources = {lesson.source_position_id for lesson in existing_lessons}
     remaining_slots = max(0, 5 - len(existing_lessons))
     positions_by_fen = {
@@ -169,6 +173,7 @@ async def run_analysis_for_game(
             initial_fen=initial_fen,
             position_id=str(after_position.id),
             fast_analysis=candidate.before_analysis,
+            reply_analysis=candidate.after_analysis,
             focused_analysis=focused_analysis,
             played_move=san_moves[candidate.move_index],
             swing_cp=candidate.swing_cp,

@@ -17,6 +17,9 @@ from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.learning.diagnosis.models import DiagnosisCandidate
+from scan64.learning.diagnosis.visibility import visible_game_lesson
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.verification.verifier import LessonVerificationError
 
 
@@ -86,9 +89,10 @@ def _install_candidates(
         async def detect(
             self, _opportunity: object, evidence: list[Any], _ctx: object
         ) -> list[DiagnosisCandidate]:
+            evidence[0].payload["missed_type"] = "capture"
             return [
                 DiagnosisCandidate(
-                    skill_id="board_awareness.hanging_piece",
+                    skill_id="threat_processing.missed_capture",
                     confidence=1.0,
                     evidence_ids=[evidence[0].evidence_id],
                 )
@@ -102,6 +106,48 @@ def _install_candidates(
     monkeypatch.setattr(jobs, "_resolve_pattern_detectors", lambda _: (Detector(),))
     monkeypatch.setattr(jobs, "resolve_explanation", explanation)
     return game, candidates, sources
+
+
+def _visible_existing_lesson(db: Session, game: Game, fen: str) -> PersistedLessonOpportunity:
+    position = ingest_fen(fen, game.id)
+    db.add(position)
+    evidence_id = f"reserved-proof-{position.id}"
+    db.add(
+        Evidence(
+            evidence_id=evidence_id,
+            kind="missed_opportunity",
+            position_id=str(position.id),
+            engine_analysis_id="reserved-analysis",
+            claim="Existing measured slot fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
+    board = chess.Board(fen)
+    lesson = PersistedLessonOpportunity(
+        game_id=game.id,
+        source_position_id=position.id,
+        player_id=game.owner_player_id,
+        lesson_spec={
+            "schema_version": "1.0",
+            "lesson_id": str(position.id),
+            "source": {"kind": "custom", "fen": fen},
+            "diagnosis": {
+                "primary": "threat_processing.missed_direct_threat",
+                "confidence": 1.0,
+                "evidence_refs": [evidence_id],
+            },
+            "objective": {"type": "find_best_move", "instruction": "Choose a move."},
+            "interaction": {
+                "input": "click",
+                "maximum_attempts": 3,
+                "accepted_moves": [{"san": board.san(next(iter(board.legal_moves)))}],
+            },
+            "verification": {"status": "verified", "engine": "test"},
+            "hints": [],
+        },
+    )
+    db.add(lesson)
+    return lesson
 
 
 @pytest.mark.asyncio
@@ -173,16 +219,7 @@ async def test_probability_loss_ranks_real_blunder_above_decided_and_mating_swin
     game, candidates, sources = _install_candidates(db_session, monkeypatch)
     # Reserve four slots with durable coach history, leaving one lesson to choose.
     for fen in sources[3:7]:
-        position = ingest_fen(fen, game.id)
-        db_session.add(position)
-        db_session.add(
-            PersistedLessonOpportunity(
-                game_id=game.id,
-                source_position_id=position.id,
-                player_id=game.owner_player_id,
-                lesson_spec={"diagnosis": {"primary": "board_awareness.hanging_piece"}},
-            )
-        )
+        _visible_existing_lesson(db_session, game, fen)
     db_session.commit()
     candidates[0].swing_cp = 500
     candidates[0].before_analysis.raw_result[0]["score_cp"] = 1000
@@ -226,15 +263,7 @@ async def test_only_kept_lessons_count_toward_skill_redundancy(
     existing_ids = set()
     existing_count = 3 if skip_reason == "kept" else 4
     for fen in sources[3 : 3 + existing_count]:
-        position = ingest_fen(fen, game.id)
-        db_session.add(position)
-        lesson = PersistedLessonOpportunity(
-            game_id=game.id,
-            source_position_id=position.id,
-            player_id=game.owner_player_id,
-            lesson_spec={"diagnosis": {"primary": "tactics.overloaded_defender"}},
-        )
-        db_session.add(lesson)
+        lesson = _visible_existing_lesson(db_session, game, fen)
         existing_ids.add(lesson.id)
     db_session.commit()
 
@@ -242,10 +271,12 @@ async def test_only_kept_lessons_count_toward_skill_redundancy(
         async def detect(
             self, opportunity: Any, evidence: list[Any], _ctx: object
         ) -> list[DiagnosisCandidate]:
+            if opportunity.played_move == "a3":
+                evidence[0].payload["missed_type"] = "capture"
             return [
                 DiagnosisCandidate(
                     skill_id=(
-                        "tactics.pin"
+                        "threat_processing.missed_capture"
                         if opportunity.played_move == "a3"
                         else "board_awareness.hanging_piece"
                     ),
@@ -286,3 +317,40 @@ async def test_only_kept_lessons_count_toward_skill_redundancy(
     ]
     expected_kept = {sources[0], sources[2]} if skip_reason == "kept" else {sources[1]}
     assert {lesson.lesson_spec["source"]["fen"] for lesson in new_lessons} == expected_kept
+
+
+@pytest.mark.asyncio
+async def test_hidden_legacy_lessons_reserve_neither_slots_nor_sources(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game, candidates, sources = _install_candidates(db_session, monkeypatch)
+    legacy = []
+    for fen in sources[:5]:
+        position = ingest_fen(fen, game.id)
+        db_session.add(position)
+        lesson = PersistedLessonOpportunity(
+            game_id=game.id,
+            source_position_id=position.id,
+            player_id=game.owner_player_id,
+            lesson_spec={"diagnosis": {"primary": "threat_processing.missed_capture"}},
+        )
+        db_session.add(lesson)
+        legacy.append(lesson)
+    db_session.commit()
+    calls = []
+
+    async def source_analysis(_self: object, fen: str, **_: object) -> EngineAnalysis:
+        calls.append(fen)
+        return EngineAnalysis(
+            position_id=uuid4(),
+            raw_result=candidates[sources.index(fen)].before_analysis.raw_result,
+        )
+
+    monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
+    await jobs.run_analysis_for_game(game, db_session)
+    rows = db_session.exec(select(PersistedLessonOpportunity)).all()
+    visible = [row for row in rows if visible_game_lesson(row, db_session) is not None]
+    assert len(calls) == len(visible) == 5
+    assert len(rows) == 10
+    assert all(db_session.get(PersistedLessonOpportunity, row.id) is not None for row in legacy)
+    assert all(visible_game_lesson(row, db_session) is None for row in legacy)

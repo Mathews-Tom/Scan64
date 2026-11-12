@@ -80,6 +80,16 @@ class _CandidateOrchestrator:
         ]
 
 
+class _ReplayableCandidateOrchestrator(_CandidateOrchestrator):
+    async def run_fast_pass(
+        self, moves: list[str], initial_fen: str | None = None
+    ) -> list[CandidatePosition]:
+        candidates = await super().run_fast_pass(moves, initial_fen)
+        candidates[0].before_analysis.raw_result = [{"pv": ["e4d3"], "score_cp": 20}]
+        candidates[0].after_analysis.raw_result = [{"pv": ["e8e2"], "score_cp": 250}]
+        return candidates
+
+
 class _FocusedOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
@@ -180,9 +190,15 @@ async def test_candidate_positions_and_analyses_are_persisted(
 async def test_reanalysis_does_not_duplicate_an_existing_source_opportunity(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _ReplayableCandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
+    game = Game(
+        pgn="",
+        headers={"FEN": "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"},
+        moves=["e4e2"],
+        owner_color="white",
+        owner_player_id="player-1",
+    )
     db_session.add(game)
     db_session.commit()
 
@@ -193,6 +209,7 @@ async def test_reanalysis_does_not_duplicate_an_existing_source_opportunity(
         len(db_session.exec(select(EngineAnalysis)).all()),
         len(db_session.exec(select(Position)).all()),
     )
+    assert first_counts[0] == 1
     await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
 
     assert first_counts == (
@@ -229,12 +246,18 @@ async def test_candidate_evidence_references_persisted_focused_multipv(
 
 
 @pytest.mark.asyncio
-async def test_production_job_persists_arbitrated_secondary_diagnoses(
+async def test_production_job_persists_one_primary_without_secondary_diagnoses(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _ReplayableCandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
+    game = Game(
+        pgn="",
+        headers={"FEN": "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"},
+        moves=["e4e2"],
+        owner_color="white",
+        owner_player_id="player-1",
+    )
     db_session.add(game)
     db_session.commit()
 
@@ -243,11 +266,11 @@ async def test_production_job_persists_arbitrated_secondary_diagnoses(
     persisted = db_session.exec(select(PersistedLessonOpportunity)).one()
     diagnosis = persisted.lesson_spec["diagnosis"]
     assert diagnosis["primary"] == "board_awareness.hanging_piece"
-    assert diagnosis["secondary"] == ["threat_processing.missed_direct_threat"]
+    assert diagnosis["secondary"] == []
     assert persisted.source_position_id is not None
     source_position = db_session.get(Position, persisted.source_position_id)
     assert source_position is not None
-    assert source_position.fen == chess.Board().fen()
+    assert source_position.fen == game.headers["FEN"]
     schedule = db_session.get(ReviewSchedule, ("player-1", str(persisted.id)))
     assert schedule is not None
     assert schedule.skill_id == diagnosis["primary"]

@@ -23,7 +23,7 @@ from scan64.providers.stockfish.pool import EnginePoolManager
 
 CHECKMATE_FEN = "7k/8/5KQ1/8/8/8/8/8 w - - 0 1"
 
-COACH_FEN = "4k3/8/8/2b5/8/8/4P3/4K3 w - - 0 1"
+COACH_FEN = "4k3/8/8/2b5/4P3/8/4Q3/4K3 w - - 0 1"
 
 
 class DeterministicOpponent:
@@ -68,7 +68,7 @@ def _analysis_for(fen: str) -> EngineAnalysis:
         config={},
         raw_result=[
             {
-                "pv": ["e1d1"] if before else ["e8d7"],
+                "pv": ["e1d1"] if before else ["c5e3"],
                 "score_cp": 0 if before else 300,
             }
         ],

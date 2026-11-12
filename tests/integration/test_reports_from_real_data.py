@@ -1,12 +1,16 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 
 
@@ -20,6 +24,50 @@ def create_source_position(db_session: Session, game_id: UUID) -> Position:
     db_session.add(position)
     db_session.flush()
     return position
+
+
+def create_report_lesson(
+    db_session: Session,
+    game: Game,
+    diagnosis: str,
+    evidence_ref: str | None = None,
+    *,
+    marked: bool = True,
+) -> PersistedLessonOpportunity:
+    source = create_source_position(db_session, game.id)
+    evidence_ref = evidence_ref or f"report-proof-{source.id}"
+    db_session.add(
+        Evidence(
+            evidence_id=evidence_ref,
+            kind="missed_opportunity",
+            position_id=str(source.id),
+            engine_analysis_id="report-analysis",
+            claim="Report-layer diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION} if marked else {},
+        )
+    )
+    opportunity = PersistedLessonOpportunity(
+        game_id=game.id,
+        player_id=game.owner_player_id,
+        source_position_id=source.id,
+        lesson_spec={
+            "schema_version": "1.0",
+            "lesson_id": str(source.id),
+            "source": {"kind": "custom", "fen": source.fen},
+            "diagnosis": {"primary": diagnosis, "confidence": 1.0, "evidence_refs": [evidence_ref]},
+            "objective": {"type": "find_best_move", "instruction": "Play e4."},
+            "interaction": {
+                "input": "click",
+                "maximum_attempts": 3,
+                "accepted_moves": [{"san": "e4"}],
+            },
+            "verification": {"status": "verified", "engine": "test"},
+            "hints": [],
+            "explanation": {"text": "Develop the centre."},
+        },
+    )
+    db_session.add(opportunity)
+    return opportunity
 
 
 def create_player_token(client: TestClient, player_id: str) -> str:
@@ -49,18 +97,7 @@ def test_patterns_reports_recurring_diagnosis_from_owned_games(
         db_session.add(game)
         db_session.flush()
         game_ids.append(str(game.id))
-        db_session.add(
-            PersistedLessonOpportunity(
-                game_id=game.id,
-                source_position_id=create_source_position(db_session, game.id).id,
-                lesson_spec={
-                    "diagnosis": {
-                        "primary": "tactics.fork.knight",
-                        "evidence_refs": [evidence_ref],
-                    }
-                },
-            )
-        )
+        create_report_lesson(db_session, game, "threat_processing.missed_capture", evidence_ref)
     other_game = Game(pgn="1. d4 d5", owner_player_id="another-player")
     db_session.add(other_game)
     db_session.flush()
@@ -90,8 +127,8 @@ def test_patterns_reports_recurring_diagnosis_from_owned_games(
         "status": "recurring_diagnosis",
         "recurring_diagnoses": [
             {
-                "diagnosis": "tactics.fork.knight",
-                "name": "Knight fork",
+                "diagnosis": "threat_processing.missed_capture",
+                "name": "Missed capture",
                 "occurrence_count": 3,
                 "game_ids": sorted(game_ids),
                 "evidence_references": evidence_refs,
@@ -105,17 +142,11 @@ def test_patterns_distinguishes_insufficient_data_from_no_recurrence(
 ) -> None:
     player_id = "sparse-player"
     token = create_player_token(client, player_id)
-    for diagnosis in ("tactics.pin", "tactics.fork.knight"):
+    for diagnosis in ("threat_processing.missed_capture", "threat_processing.missed_check"):
         game = Game(pgn="1. e4 e5", owner_player_id=player_id)
         db_session.add(game)
         db_session.flush()
-        db_session.add(
-            PersistedLessonOpportunity(
-                game_id=game.id,
-                source_position_id=create_source_position(db_session, game.id).id,
-                lesson_spec={"diagnosis": {"primary": diagnosis, "evidence_refs": []}},
-            )
-        )
+        create_report_lesson(db_session, game, diagnosis)
     db_session.commit()
 
     sparse = client.get(
@@ -127,15 +158,7 @@ def test_patterns_distinguishes_insufficient_data_from_no_recurrence(
     game = Game(pgn="1. e4 e5", owner_player_id=player_id)
     db_session.add(game)
     db_session.flush()
-    db_session.add(
-        PersistedLessonOpportunity(
-            game_id=game.id,
-            source_position_id=create_source_position(db_session, game.id).id,
-            lesson_spec={
-                "diagnosis": {"primary": "opening.delayed_development", "evidence_refs": []}
-            },
-        )
-    )
+    create_report_lesson(db_session, game, "threat_processing.missed_direct_threat")
     db_session.commit()
 
     no_recurrence = client.get(
@@ -165,6 +188,8 @@ def test_openings_report_uses_owned_game_families(client: TestClient, db_session
         result="0-1",
     )
     db_session.add_all([game, imported])
+    db_session.flush()
+    create_report_lesson(db_session, game, "threat_processing.missed_capture")
     db_session.commit()
 
     response = client.get(
@@ -178,7 +203,7 @@ def test_openings_report_uses_owned_game_families(client: TestClient, db_session
             "family_id": "italian",
             "name": "Italian Game",
             "game_count": 2,
-            "error_rate": 0.0,
+            "error_rate": 0.5,
             "eligible_result_count": 1,
             "excluded_result_count": 1,
             "win_rate": 1.0,
@@ -224,18 +249,15 @@ def test_weekly_report_selects_most_frequent_recurring_diagnosis(
 ) -> None:
     player_id = "weekly-recurring-player"
     token = create_player_token(client, player_id)
-    for diagnosis, count in (("aaa.major", 4), ("zzz.minor", 3)):
+    for diagnosis, count in (
+        ("threat_processing.missed_capture", 4),
+        ("threat_processing.missed_check", 3),
+    ):
         for _ in range(count):
             game = Game(pgn="1. e4 e5", owner_player_id=player_id)
             db_session.add(game)
             db_session.flush()
-            db_session.add(
-                PersistedLessonOpportunity(
-                    game_id=game.id,
-                    source_position_id=create_source_position(db_session, game.id).id,
-                    lesson_spec={"diagnosis": {"primary": diagnosis, "evidence_refs": []}},
-                )
-            )
+            create_report_lesson(db_session, game, diagnosis)
     db_session.commit()
 
     response = client.get(
@@ -244,8 +266,11 @@ def test_weekly_report_selects_most_frequent_recurring_diagnosis(
     )
 
     assert response.status_code == 200
-    assert response.json()["top_recurring_diagnosis"]["diagnosis"] == "aaa.major"
-    assert response.json()["top_recurring_diagnosis"]["name"] == "Unclassified skill"
+    assert (
+        response.json()["top_recurring_diagnosis"]["diagnosis"]
+        == "threat_processing.missed_capture"
+    )
+    assert response.json()["top_recurring_diagnosis"]["name"] == "Missed capture"
 
 
 def test_progress_reports_taxonomy_names_for_stored_skills(
@@ -280,3 +305,39 @@ def test_progress_reports_taxonomy_names_for_stored_skills(
         "uncertainty": 0.0375,
     }
     assert skills["legacy.unknown"]["name"] == "Unclassified skill"
+
+
+@pytest.mark.parametrize("diagnosis", [*sorted(TRUSTED_CODES), "tactics.pin"])
+def test_summaries_exclude_markerless_legacy_and_untrusted_diagnoses(
+    client: TestClient, db_session: Session, diagnosis: str
+) -> None:
+    player_id = "hidden-report-player"
+    token = create_player_token(client, player_id)
+    lessons = []
+    for _ in range(3):
+        game = Game(
+            pgn="1. e4 e5 2. Nf3 Nc6 3. Bc4",
+            moves=["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"],
+            owner_player_id=player_id,
+        )
+        db_session.add(game)
+        db_session.flush()
+        lessons.append(
+            create_report_lesson(db_session, game, diagnosis, marked=diagnosis == "tactics.pin")
+        )
+    db_session.commit()
+    headers = {"Authorization": f"Bearer {token}"}
+    patterns = client.get(f"/v1/players/{player_id}/patterns", headers=headers)
+    assert patterns.status_code == 200
+    assert patterns.json()["status"] == "insufficient_data"
+    assert patterns.json()["recurring_diagnoses"] == []
+    openings = client.get(f"/v1/reports/openings?player_id={player_id}", headers=headers)
+    assert openings.status_code == 200
+    assert openings.json()["openings"][0]["error_rate"] == 0.0
+    weekly = client.get(f"/v1/reports/weekly?player_id={player_id}", headers=headers)
+    assert weekly.status_code == 200
+    assert weekly.json()["games_played"] == 3
+    assert weekly.json()["top_recurring_diagnosis"] is None
+    for lesson in lessons:
+        retained = db_session.get(PersistedLessonOpportunity, lesson.id)
+        assert retained is not None and retained.lesson_spec["diagnosis"]["primary"] == diagnosis

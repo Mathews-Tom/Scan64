@@ -18,7 +18,8 @@ from scan64.chess.positions.models import Position
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
-from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.evaluation.real_games import reference_labels
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -139,7 +140,7 @@ def _diagnosis_codes(lesson_spec: dict[str, Any]) -> set[str]:
 
 
 @pytest.mark.asyncio
-async def test_live_detector_coverage_and_precision(
+async def test_recorded_synthetic_fixtures_obey_trusted_single_cause_policy(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _FixtureFastPassOrchestrator)
@@ -157,8 +158,8 @@ async def test_live_detector_coverage_and_precision(
 
     monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
     registry = _registry()
-    registry_stats = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}
-    isolated_stats = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}
+    seen_trusted: set[str] = set()
+    seen_untrusted: set[str] = set()
 
     for fixture in _FIXTURES:
         game = Game(
@@ -175,9 +176,12 @@ async def test_live_detector_coverage_and_precision(
 
         persisted = db_session.exec(
             select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.game_id == game.id)
-        ).one()
-        registry_codes = _diagnosis_codes(persisted.lesson_spec)
-        expected_codes = set(fixture["expected_labels"])
+        ).all()
+        registry_codes = set().union(*(_diagnosis_codes(item.lesson_spec) for item in persisted))
+        assert len(persisted) <= 1
+        for item in persisted:
+            assert item.lesson_spec["diagnosis"]["secondary"] == []
+        assert registry_codes <= TRUSTED_CODES
         positions = db_session.exec(select(Position).where(Position.game_id == game.id)).all()
         position_ids = {str(position.id) for position in positions}
         game_evidence = [
@@ -202,37 +206,24 @@ async def test_live_detector_coverage_and_precision(
             candidates = await detector.detect(
                 opportunity, game_evidence, PlayerContext(player_id="fixture-player")
             )
+            if candidates and name not in TRUSTED_CODES:
+                seen_untrusted.add(name)
             selected = arbitrate_diagnoses(candidates, game_evidence)
             if selected is not None:
                 primary, secondary = selected
                 isolated_codes.add(primary.skill_id)
-                isolated_codes.update(candidate.skill_id for candidate in secondary)
-        assert registry_codes == expected_codes
-        assert isolated_codes == expected_codes
-
-        for code in SEED_CODES:
-            for predicted, stats in (
-                (registry_codes, registry_stats),
-                (isolated_codes, isolated_stats),
-            ):
-                if code in expected_codes and code in predicted:
-                    stats[code]["tp"] += 1
-                elif code not in expected_codes and code in predicted:
-                    stats[code]["fp"] += 1
-                elif code in expected_codes:
-                    stats[code]["fn"] += 1
-
-    for code in SEED_CODES:
-        registry_tp = registry_stats[code]["tp"]
-        registry_fp = registry_stats[code]["fp"]
-        isolated_tp = isolated_stats[code]["tp"]
-        isolated_fp = isolated_stats[code]["fp"]
-        registry_precision = registry_tp / (registry_tp + registry_fp)
-        isolated_precision = isolated_tp / (isolated_tp + isolated_fp)
-        print(
-            f"{code}: registry TP={registry_tp} FP={registry_fp} FN={registry_stats[code]['fn']} "
-            f"precision={registry_precision:.3f}; isolated TP={isolated_tp} FP={isolated_fp} "
-            f"FN={isolated_stats[code]['fn']} precision={isolated_precision:.3f}"
+                assert secondary == ()
+        assert registry_codes <= isolated_codes
+        assert bool(registry_codes) == bool(isolated_codes)
+        seen_trusted.update(registry_codes)
+        before, after, _ = _replay_fixture(fixture)
+        labels = reference_labels(
+            before,
+            after,
+            [{"pv": fixture["candidate"]["fast_before_pv"], "score_cp": 0}],
+            [{"pv": line} for line in fixture["candidate"]["focused_multipv"]],
         )
-        assert registry_tp >= 1
-        assert registry_precision >= isolated_precision
+        assert registry_codes <= labels
+
+    assert seen_trusted
+    assert seen_untrusted

@@ -13,6 +13,9 @@ from scan64.chess.analysis.orchestration import CandidatePosition
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.diagnosis.visibility import visible_game_lesson
+from scan64.learning.evaluation.deep_reference import reference_labels
 from scan64.learning.evaluation.real_games import CORPUS, RecordedAdapter
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
@@ -85,5 +88,47 @@ async def test_reference_white_analysis_replays_recorded_engine_only(
     for lesson in lessons:
         source = db_session.get(Position, lesson.source_position_id)
         assert source is not None and chess.Board(source.fen).turn == chess.WHITE
-    assert db_session.exec(select(Evidence)).all()
-    assert db_session.exec(select(ProfileObservation)).all()
+        diagnosis = lesson.lesson_spec["diagnosis"]
+        assert diagnosis["primary"] in TRUSTED_CODES
+        assert diagnosis["secondary"] == []
+        assert visible_game_lesson(lesson, db_session) is not None
+        if diagnosis["primary"] == "board_awareness.hanging_piece":
+            for evidence_id in diagnosis["evidence_refs"]:
+                evidence = db_session.get(Evidence, evidence_id)
+                assert evidence is not None
+                before = chess.Board(source.fen)
+                after = before.copy()
+                after.push_san(evidence.payload["played_move"])
+                labels = reference_labels(before, after, [], evidence.payload["focused_multipv"])
+                assert "board_awareness.hanging_piece" in labels
+        elif lesson.lesson_spec.get("explanation"):
+            assert "hanging" not in lesson.lesson_spec["explanation"]["text"]
+    evidence_rows = db_session.exec(select(Evidence)).all()
+    assert any(row.kind == "opening_analysis" for row in evidence_rows)
+    observations = db_session.exec(select(ProfileObservation)).all()
+    assert observations
+    assert {observation.skill_id for observation in observations} <= TRUSTED_CODES
+
+    # Legacy competitors are removed on read only; untrusted causes are hidden.
+    legacy = PersistedLessonOpportunity.model_validate(lessons[0].model_dump())
+    legacy.lesson_spec = json.loads(json.dumps(legacy.lesson_spec))
+    legacy.lesson_spec["diagnosis"]["secondary"] = ["tactics.pin"]
+    visible = visible_game_lesson(legacy, db_session)
+    assert visible is not None and visible.diagnosis.secondary == []
+    assert legacy.lesson_spec["diagnosis"]["secondary"] == ["tactics.pin"]
+    legacy.lesson_spec["diagnosis"]["primary"] = "tactics.pin"
+    assert visible_game_lesson(legacy, db_session) is None
+
+    markerless = Evidence.model_validate(evidence_rows[0].model_dump())
+    markerless.evidence_id = "legacy-without-m48-proof"
+    markerless.payload = {
+        key: value for key, value in markerless.payload.items() if key != "diagnosis_rule_version"
+    }
+    db_session.add(markerless)
+    db_session.commit()
+    for code in TRUSTED_CODES:
+        legacy.lesson_spec = json.loads(json.dumps(lessons[0].lesson_spec))
+        legacy.lesson_spec["diagnosis"]["primary"] = code
+        legacy.lesson_spec["diagnosis"]["evidence_refs"] = [markerless.evidence_id]
+        assert visible_game_lesson(legacy, db_session) is None
+        assert legacy.lesson_spec["diagnosis"]["primary"] == code

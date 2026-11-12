@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from sqlmodel import Session
 
 from scan64.content.models import ContentAttempt, ContentItem
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.profiling.priors import get_prior_for_rating
 
@@ -54,6 +55,8 @@ def apply_analysis_observation(
     observed_at: datetime,
 ) -> bool:
     """Apply one failed diagnosis observation exactly once."""
+    if skill_id not in TRUSTED_CODES:
+        return False
     key = (player_id, game_id, position_id, skill_id)
     if session.get(ProfileObservation, key) is not None:
         return False
@@ -92,6 +95,8 @@ def apply_lesson_attempt(
     observed_at: datetime,
 ) -> str:
     """Apply a verified lesson result unless its taxonomy state is retired."""
+    if skill_id not in TRUSTED_CODES:
+        return "skipped_untrusted"
     skill = session.get(SkillState, (player_id, skill_id))
     if skill is not None and skill.retired_at is not None:
         return "skipped_retired"

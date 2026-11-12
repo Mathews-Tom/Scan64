@@ -27,6 +27,9 @@ def _diagnosis_and_evidence() -> tuple[Diagnosis, list[Evidence]]:
         claim="the fast-pass principal variation exposes a tactical opportunity",
         payload={
             "tactic_type": "knight_fork",
+            "missed_type": "capture",
+            "captured_square": "e7",
+            "captured_piece": "q",
             "fork_square": "e7",
             "targets": [{"square": "d5", "piece": "q"}],
             "results_in_material_gain": True,
@@ -35,7 +38,9 @@ def _diagnosis_and_evidence() -> tuple[Diagnosis, list[Evidence]]:
             "focused_line": ["g1f3"],
         },
     )
-    diagnosis = Diagnosis(primary="tactics.fork.knight", confidence=0.9, evidence_refs=["ev_1"])
+    diagnosis = Diagnosis(
+        primary="threat_processing.missed_capture", confidence=0.9, evidence_refs=["ev_1"]
+    )
     return diagnosis, [evidence]
 
 
@@ -56,7 +61,7 @@ async def test_default_disabled_llm_renders_the_template() -> None:
     explanation = await resolve_explanation(diagnosis, evidence, _FEN, environment={})
 
     assert "e7" in explanation.text
-    assert "d5" in explanation.text
+    assert "g1f3" in explanation.text
 
 
 @pytest.mark.asyncio
@@ -157,7 +162,7 @@ async def test_ungrounded_generation_falls_back_to_the_template(tmp_path: Path) 
         )
 
     assert "e7" in explanation.text
-    assert "d5" in explanation.text
+    assert "g1f3" in explanation.text
     assert explanation.text != "Your queen on h4 was hanging."
 
 

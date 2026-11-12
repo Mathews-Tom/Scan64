@@ -20,16 +20,14 @@ def _evidence(evidence_id: str, **payload: object) -> Evidence:
     )
 
 
-def test_arbitration_retains_one_primary_and_sorted_secondaries() -> None:
+def test_arbitration_retains_exactly_one_primary_and_no_secondaries() -> None:
     evidence = [
         _evidence("e-hanging", swing_cp=200),
         _evidence("e-pin", swing_cp=200),
         _evidence("e-check", swing_cp=200, missed_type="check"),
     ]
     candidates = [
-        DiagnosisCandidate(
-            skill_id="tactics.pin", confidence=0.9, evidence_ids=["e-pin"]
-        ),
+        DiagnosisCandidate(skill_id="tactics.pin", confidence=0.9, evidence_ids=["e-pin"]),
         DiagnosisCandidate(
             skill_id="board_awareness.hanging_piece",
             confidence=0.9,
@@ -46,8 +44,8 @@ def test_arbitration_retains_one_primary_and_sorted_secondaries() -> None:
 
     assert result is not None
     primary, secondary = result
+    assert secondary == ()
     assert primary.skill_id == "board_awareness.hanging_piece"
-    assert [candidate.skill_id for candidate in secondary] == ["tactics.pin"]
 
 
 def test_arbitration_rejects_candidates_without_focused_provenance() -> None:

@@ -22,6 +22,8 @@ from scan64.learning.evaluation.transfer_measurement import (
     assign_production_transfer_measurements,
     due_transfer_measurements,
 )
+from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferKind
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -35,7 +37,7 @@ def lesson_spec() -> dict[str, object]:
             "kind": "custom",
             "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         },
-        "diagnosis": {"primary": "tactics.fork", "confidence": 1.0},
+        "diagnosis": {"primary": "threat_processing.missed_capture", "confidence": 1.0},
         "objective": {"type": "find_best_move", "instruction": "Play e4."},
         "interaction": {
             "input": "click",
@@ -60,11 +62,28 @@ def create_persisted_lesson(db_session: Session, player_id: str) -> PersistedLes
     )
     db_session.add(source_position)
     db_session.flush()
+    evidence_id = f"lesson-proof-{source_position.id}"
+    spec = lesson_spec()
+    spec["diagnosis"] = {
+        "primary": "threat_processing.missed_capture",
+        "confidence": 1.0,
+        "evidence_refs": [evidence_id],
+    }
+    db_session.add(
+        Evidence(
+            evidence_id=evidence_id,
+            kind="missed_opportunity",
+            position_id=str(source_position.id),
+            engine_analysis_id="lesson-analysis",
+            claim="Lesson-serving diagnosis fixture",
+            payload={"diagnosis_rule_version": DIAGNOSIS_RULE_VERSION},
+        )
+    )
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=source_position.id,
         player_id=player_id,
-        lesson_spec=lesson_spec(),
+        lesson_spec=spec,
     )
     db_session.add(opportunity)
     db_session.flush()
@@ -72,7 +91,7 @@ def create_persisted_lesson(db_session: Session, player_id: str) -> PersistedLes
         ReviewSchedule(
             player_id=player_id,
             item_id=str(opportunity.id),
-            skill_id="tactics.fork",
+            skill_id="threat_processing.missed_capture",
             next_review_at=datetime.now(UTC),
         )
     )
@@ -136,7 +155,7 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
     schedule = db_session.get(ReviewSchedule, (player_id, str(opportunity.id)))
     assert schedule is not None
     assert schedule.last_reviewed_at is not None
-    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert skill is not None
     assert skill.alpha == skill.prior_alpha + 1.0
 
@@ -481,7 +500,7 @@ def test_wrong_attempt_is_recorded_and_reveals_failure_state(
     ).all()
     assert len(attempts) == 3
     assert all(attempt.success is False for attempt in attempts)
-    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert skill is not None
     assert skill.beta == pytest.approx(skill.prior_beta + 3.0)
 
@@ -496,7 +515,7 @@ def test_retired_skill_attempt_is_retained_without_reactivation(
     db_session.add(
         SkillState(
             player_id=player_id,
-            concept_code="tactics.fork",
+            concept_code="threat_processing.missed_capture",
             retired_at=now,
             retirement_reason="taxonomy retired",
         )
@@ -525,7 +544,7 @@ def test_retired_skill_attempt_is_retained_without_reactivation(
     )
     assert response.status_code == 200
     assert response.json()["profile_update_result"] == "skipped_retired"
-    retired_skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    retired_skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert retired_skill is not None
     assert retired_skill.retired_at is not None
 
@@ -855,7 +874,7 @@ def test_non_best_sound_attempt_records_success_and_updates_profile(
     assert response.json()["profile_update_result"] == "applied"
     attempt = db_session.get(LessonAttempt, response.json()["id"])
     assert attempt is not None and attempt.success is True
-    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert skill is not None and skill.alpha == skill.prior_alpha + 1
 
 
@@ -1085,7 +1104,7 @@ def test_correct_final_attempt_with_hints_keeps_half_credit_and_server_limit(
         )
         assert result.status_code == 200, result.text
         assert result.json()["success"] is (index == 2)
-    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert skill is not None
     assert skill.alpha == pytest.approx(skill.prior_alpha + 0.5)
     assert skill.beta == pytest.approx(skill.prior_beta + 2)

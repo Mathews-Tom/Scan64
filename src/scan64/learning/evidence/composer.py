@@ -10,7 +10,6 @@ from chess import (
     PAWN,
     QUEEN,
     ROOK,
-    SQUARES,
     Board,
     Color,
     Move,
@@ -29,6 +28,14 @@ _PIECE_VALUES = {
     ROOK: 5,
     QUEEN: 9,
 }
+
+DIAGNOSIS_RULE_VERSION = "m48-fast-local-v1"
+
+
+def _capture_square(board: Board, move: Move) -> int:
+    if board.is_en_passant(move):
+        return move.to_square - 8 if board.turn else move.to_square + 8
+    return move.to_square
 
 
 def _legal_pv_move(board: Board, analysis: EngineAnalysis) -> Move | None:
@@ -75,38 +82,90 @@ def _evidence(
     )
 
 
-def _hanging_piece_payload(board: Board, mover: Color) -> dict[str, Any] | None:
-    opponent = not mover
-    for square in SQUARES:
-        piece = board.piece_at(square)
-        if (
-            piece is None
-            or piece.color != mover
-            or piece.piece_type == KING
-            or not board.is_attacked_by(opponent, square)
-            or board.is_attacked_by(mover, square)
-        ):
-            continue
-        return {
-            "blunder_type": "hanging_piece_lost",
-            "hanging_square": square_name(square),
-            "hanging_piece": piece.symbol(),
-            "is_hanging_piece_blunder": True,
-        }
-    return None
+def line_material_gain(board: Board, line: list[str]) -> int | None:
+    """Account for every legal capture, exchange and promotion in a complete PV.
+
+    The result is from the initial side-to-move's perspective. Missing or
+    illegal lines prove nothing; attack maps alone never prove a material win.
+    """
+    if not line:
+        return None
+    replay = board.copy()
+    attacker = board.turn
+    gain = 0
+    for uci in line:
+        try:
+            move = Move.from_uci(uci)
+        except ValueError:
+            return None
+        if move not in replay.legal_moves:
+            return None
+        sign = 1 if replay.turn == attacker else -1
+        if replay.is_en_passant(move):
+            gain += sign
+        elif (victim := replay.piece_at(move.to_square)) is not None:
+            gain += sign * _piece_value(victim)
+        if move.promotion is not None:
+            gain += sign * (_PIECE_VALUES[move.promotion] - 1)
+        replay.push(move)
+    return gain
 
 
-def _knight_fork_payload(board: Board, move: Move) -> dict[str, Any] | None:
+def exchange_material_gain(board: Board, line: list[str]) -> int | None:
+    """Price only consecutive captures on the initial capture's target square."""
+    replay = board.copy()
+    captures: list[str] = []
+    target: int | None = None
+    for uci in line:
+        try:
+            move = Move.from_uci(uci)
+        except ValueError:
+            return None
+        if move not in replay.legal_moves:
+            return None
+        if not replay.is_capture(move) or (target is not None and move.to_square != target):
+            break
+        target = move.to_square
+        captures.append(uci)
+        replay.push(move)
+    return line_material_gain(board, captures)
+
+
+def hanging_piece_proof(board: Board, mover: Color, line: list[str]) -> dict[str, Any] | None:
+    """Name only a piece won in its own exchange, not through a later capture."""
+    gain = line_material_gain(board, line)
+    local_gain = exchange_material_gain(board, line)
+    if gain is None or gain < 1 or local_gain is None or local_gain < 1 or board.turn == mover:
+        return None
+    move = Move.from_uci(line[0])
+    victim = board.piece_at(move.to_square)
+    if (
+        not board.is_capture(move)
+        or victim is None
+        or victim.color != mover
+        or victim.piece_type in (PAWN, KING)
+    ):
+        return None
+    return {
+        "blunder_type": "hanging_piece_lost",
+        "hanging_square": square_name(move.to_square),
+        "hanging_piece": victim.symbol(),
+        "material_gain": gain,
+        "exchange_gain": local_gain,
+    }
+
+
+def _knight_fork_payload(board: Board, move: Move, gain: int | None) -> dict[str, Any] | None:
     moving_piece = board.piece_at(move.from_square)
-    if moving_piece is None or moving_piece.piece_type != KNIGHT:
+    if moving_piece is None or moving_piece.piece_type != KNIGHT or gain is None or gain < 1:
         return None
     board.push(move)
     targets = []
     for square in board.attacks(move.to_square):
         target = board.piece_at(square)
-        if target is None or target.color == moving_piece.color or target.piece_type == KING:
+        if target is None or target.color == moving_piece.color:
             continue
-        if not board.is_attacked_by(target.color, move.to_square) or _piece_value(target) > 3:
+        if target.piece_type == KING or _piece_value(target) >= 3:
             targets.append({"square": square_name(square), "piece": target.symbol()})
     if len(targets) < 2:
         return None
@@ -114,11 +173,11 @@ def _knight_fork_payload(board: Board, move: Move) -> dict[str, Any] | None:
         "tactic_type": "knight_fork",
         "fork_square": square_name(move.to_square),
         "targets": targets,
-        "results_in_material_gain": True,
+        "results_in_material_gain": gain >= 1,
     }
 
 
-def _pin_payload(board: Board, move: Move) -> dict[str, Any] | None:
+def _pin_payload(board: Board, move: Move, gain: int | None) -> dict[str, Any] | None:
     moving_color = board.turn
     board.push(move)
     pinned_color = board.turn
@@ -133,13 +192,13 @@ def _pin_payload(board: Board, move: Move) -> dict[str, Any] | None:
                 "pinned_square": square_name(square),
                 "pinned_piece": piece.symbol(),
                 "pinning_move": move.uci(),
-                "wins_material": _piece_value(piece) >= 3,
+                "wins_material": gain is not None and gain >= 1,
                 "pinning_color": "white" if moving_color else "black",
             }
     return None
 
 
-def _overload_payload(board: Board, move: Move) -> dict[str, Any] | None:
+def _overload_payload(board: Board, move: Move, gain: int | None) -> dict[str, Any] | None:
     board.push(move)
     defender_color = board.turn
     attacker_color = not defender_color
@@ -164,7 +223,7 @@ def _overload_payload(board: Board, move: Move) -> dict[str, Any] | None:
                 "defender_square": square_name(square),
                 "defender_piece": defender.symbol(),
                 "defended_targets": defended_targets,
-                "wins_material": True,
+                "wins_material": gain is not None and gain >= 1,
             }
     return None
 
@@ -215,20 +274,32 @@ def compose_candidate_evidence(
     initial_fen: str | None,
     position_id: str,
     fast_analysis: EngineAnalysis,
+    reply_analysis: EngineAnalysis,
     focused_analysis: EngineAnalysis,
     played_move: str,
     swing_cp: int,
     analysis_depth: Literal["deep", "interactive"] = "deep",
 ) -> list[Evidence]:
-    """Derive detector inputs exclusively from legal board and engine state."""
+    """Use fast source/reply signals; retain focused output only as provenance."""
     analysis_label = "deep MultiPV" if analysis_depth == "deep" else "bounded interactive"
     focused_line = _pv_line(focused_analysis)
+    reply_line = _pv_line(reply_analysis)
+    reply_gain = line_material_gain(after_board, reply_line)
+    reply_exchange_gain = exchange_material_gain(after_board, reply_line)
+    fast_line = _pv_line(fast_analysis)
+    fast_gain = line_material_gain(before_board, fast_line)
+    fast_exchange_gain = exchange_material_gain(before_board, fast_line)
     provenance: dict[str, Any] = {
         "played_move": played_move,
         "fast_analysis_id": str(fast_analysis.id),
+        "reply_analysis_id": str(reply_analysis.id),
+        "fast_line": fast_line,
+        "proving_line": reply_line,
+        "diagnosis_rule_version": DIAGNOSIS_RULE_VERSION,
         "focused_analysis_id": str(focused_analysis.id),
         "focused_multipv": focused_analysis.raw_result,
         "focused_line": focused_line,
+        "after_fen": after_board.fen(),
         "swing_cp": swing_cp,
         "analysis_depth": analysis_depth,
     }
@@ -243,14 +314,14 @@ def compose_candidate_evidence(
         )
     ]
     mover = before_board.turn
-    hanging_piece = _hanging_piece_payload(after_board, mover)
+    hanging_piece = hanging_piece_proof(after_board, mover, reply_line)
     if hanging_piece is not None and swing_cp >= 200:
         evidence.append(
             _evidence(
                 kind="blunder_analysis",
                 position_id=position_id,
                 engine_analysis_id=engine_analysis_id,
-                claim="the played move leaves an attacked piece undefended",
+                claim="the fast-pass reply wins this piece in its own local exchange",
                 payload={**provenance, **hanging_piece},
             )
         )
@@ -258,7 +329,9 @@ def compose_candidate_evidence(
     best_move = _legal_pv_move(before_board, fast_analysis)
     if best_move is not None:
         best_move_uci = best_move.uci()
-        if before_board.gives_check(best_move) and swing_cp >= 300:
+        best_score = fast_analysis.raw_result[0]
+        winning_check = best_score.get("score_cp", 0) >= 300 or best_score.get("score_mate", 0) > 0
+        if before_board.gives_check(best_move) and swing_cp >= 300 and winning_check:
             evidence.append(
                 _evidence(
                     kind="missed_opportunity",
@@ -269,14 +342,19 @@ def compose_candidate_evidence(
                         **provenance,
                         "missed_type": "check",
                         "best_move": best_move_uci,
-                        "was_unique_best": (
-                            analysis_depth == "deep" and len(fast_analysis.raw_result) == 1
-                        ),
                     },
                 )
             )
-        if before_board.is_capture(best_move) and swing_cp >= 200:
-            captured = before_board.piece_at(best_move.to_square)
+        if (
+            before_board.is_capture(best_move)
+            and swing_cp >= 200
+            and fast_gain is not None
+            and fast_gain >= 1
+            and fast_exchange_gain is not None
+            and fast_exchange_gain >= 1
+        ):
+            captured_square = _capture_square(before_board, best_move)
+            captured = before_board.piece_at(captured_square)
             evidence.append(
                 _evidence(
                     kind="missed_opportunity",
@@ -287,19 +365,18 @@ def compose_candidate_evidence(
                         **provenance,
                         "missed_type": "capture",
                         "best_move": best_move_uci,
-                        "captured_square": square_name(best_move.to_square),
+                        "captured_square": square_name(captured_square),
                         "captured_piece": captured.symbol() if captured is not None else None,
-                        "was_only_winning_line": (
-                            analysis_depth == "deep" and len(fast_analysis.raw_result) == 1
-                        ),
+                        "exchange_gain": fast_exchange_gain,
+                        "material_gain": fast_gain,
                     },
                 )
             )
         if swing_cp >= 200:
             for payload in (
-                _knight_fork_payload(before_board.copy(), best_move),
-                _pin_payload(before_board.copy(), best_move),
-                _overload_payload(before_board.copy(), best_move),
+                _knight_fork_payload(before_board.copy(), best_move, fast_gain),
+                _pin_payload(before_board.copy(), best_move, fast_gain),
+                _overload_payload(before_board.copy(), best_move, fast_gain),
             ):
                 if payload is not None:
                     evidence.append(
@@ -314,56 +391,69 @@ def compose_candidate_evidence(
                         )
                     )
 
-    focused_move = _legal_pv_move(after_board, focused_analysis)
-    if focused_move is not None:
-        focused_piece = after_board.piece_at(focused_move.to_square)
-        after_focused = after_board.copy()
-        after_focused.push(focused_move)
-        if after_board.is_capture(focused_move) and swing_cp >= 200:
+    reply_move = _legal_pv_move(after_board, reply_analysis)
+    if reply_move is not None:
+        reply_square = _capture_square(after_board, reply_move)
+        reply_piece = after_board.piece_at(reply_square)
+        after_reply = after_board.copy()
+        after_reply.push(reply_move)
+        if (
+            after_board.is_capture(reply_move)
+            and swing_cp >= 200
+            and reply_gain is not None
+            and reply_gain >= 1
+            and reply_exchange_gain is not None
+            and reply_exchange_gain >= 1
+        ):
             evidence.append(
                 _evidence(
                     kind="blunder_analysis",
                     position_id=position_id,
                     engine_analysis_id=engine_analysis_id,
-                    claim=f"the {analysis_label} principal variation immediately captures material",
+                    claim="the fast-pass reply begins with a profitable local capture",
                     payload={
                         **provenance,
                         "blunder_type": "missed_direct_threat",
-                        "threat_move": focused_move.uci(),
-                        "threatened_square": square_name(focused_move.to_square),
-                        "threatened_piece": focused_piece.symbol()
-                        if focused_piece is not None
+                        "threat_move": reply_move.uci(),
+                        "threatened_square": square_name(reply_square),
+                        "threatened_piece": reply_piece.symbol()
+                        if reply_piece is not None
                         else None,
-                        "opponent_executed_threat": True,
+                        "opponent_executed_threat": reply_gain >= 1,
+                        "material_gain": reply_gain,
+                        "exchange_gain": reply_exchange_gain,
                     },
                 )
             )
-        if after_focused.is_check() and swing_cp >= 100:
+        if after_reply.is_check() and swing_cp >= 100:
             evidence.append(
                 _evidence(
                     kind="positional_analysis",
                     position_id=position_id,
                     engine_analysis_id=engine_analysis_id,
-                    claim=f"the {analysis_label} principal variation begins with an incoming check",
+                    claim="the fast-pass reply begins with an incoming check",
                     payload={
                         **provenance,
                         "issue": "king_safety_neglect",
-                        "incoming_threat": focused_move.uci(),
+                        "incoming_threat": reply_move.uci(),
                     },
                 )
             )
-    if len(focused_line) >= 3 and swing_cp >= 200:
+    # A multi-ply line and position-level swing are only a hypothesis about
+    # calculation, never evidence of where the human stopped thinking.
+    if len(reply_line) >= 3 and swing_cp >= 200:
         evidence.append(
             _evidence(
                 kind="calculation_error",
                 position_id=position_id,
                 engine_analysis_id=engine_analysis_id,
-                claim=f"the {analysis_label} principal variation requires a forcing continuation",
+                claim="unvalidated calculation hypothesis from a multi-ply fast reply and swing",
                 payload={
                     **provenance,
                     "error_type": "stopped_early",
-                    "sequence_plies": len(focused_line),
-                    "sharp_eval_swing": True,
+                    "sequence_plies": len(reply_line),
+                    "sharp_eval_swing": swing_cp >= 200,
+                    "hypothesis_only": True,
                 },
             )
         )

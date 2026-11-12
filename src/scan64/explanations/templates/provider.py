@@ -6,6 +6,8 @@ from typing import Any
 import chess
 from chess_lesson_spec import Diagnosis, Explanation
 
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.evidence.composer import hanging_piece_proof
 from scan64.learning.evidence.models import Evidence
 
 
@@ -39,10 +41,25 @@ def _hanging_piece_text(payload: Mapping[str, Any], code: str) -> str:
     played_move = _field(payload, "played_move", code)
     square = _field(payload, "hanging_square", code)
     piece = _piece_name(_field(payload, "hanging_piece", code))
+    line = _field(payload, "proving_line", code)
+    fen = _field(payload, "after_fen", code)
+    if not isinstance(line, list) or not all(isinstance(move, str) for move in line):
+        raise ExplanationTemplateError("Hanging-piece claim has no legal proving line")
+    try:
+        board = chess.Board(fen)
+    except ValueError as error:
+        raise ExplanationTemplateError("Hanging-piece claim has no valid position") from error
+    proof = hanging_piece_proof(board, not board.turn, line)
+    if (
+        proof is None
+        or proof["hanging_square"] != square
+        or proof["hanging_piece"] != payload["hanging_piece"]
+    ):
+        raise ExplanationTemplateError("The engine line does not win the named hanging piece")
     return (
         f"After {played_move}, your {piece} on {square} is left hanging: the "
-        "opponent's principal line captures it for free. Scan every piece you "
-        "touch for an undefended attacked square before continuing your plan."
+        "opponent's principal line wins it net of exchanges. Before moving, "
+        "check the opponent's captures and the full exchange sequence."
     )
 
 
@@ -180,6 +197,10 @@ class TemplateExplanationProvider:
     """
 
     async def explain(self, diagnosis: Diagnosis, evidence: Sequence[Evidence]) -> Explanation:
+        if diagnosis.primary not in TRUSTED_CODES:
+            raise ExplanationTemplateError(f"Untrusted detector diagnosis: {diagnosis.primary!r}")
+        if diagnosis.secondary:
+            raise ExplanationTemplateError("A diagnosed explanation must have exactly one cause")
         render = _TEMPLATES.get(diagnosis.primary)
         if render is None:
             raise ExplanationTemplateError(

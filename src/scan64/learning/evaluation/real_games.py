@@ -112,6 +112,7 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 initial_fen=None,
                 position_id="recorded",
                 fast_analysis=candidate.before_analysis,
+                reply_analysis=candidate.after_analysis,
                 focused_analysis=focused,
                 played_move=game["moves"][candidate.move_index],
                 swing_cp=candidate.swing_cp,
@@ -133,7 +134,7 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 detected = await detector.detect(
                     opportunity, evidence, PlayerContext(player_id="recorded")
                 )
-                predicted = arbitrate_diagnoses(detected, evidence) is not None
+                predicted = arbitrate_diagnoses(detected, evidence, trusted_only=False) is not None
                 if predicted:
                     if code in labels:
                         score.tp += 1
