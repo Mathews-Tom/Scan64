@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, type Move } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
@@ -19,7 +19,9 @@ interface CoachBoardProps {
   orientation?: 'white' | 'black';
   disabled?: boolean;
   resetAfterAttempt?: boolean;
-  onMove: (uci: string) => void | Promise<void>;
+  onMove?: (uci: string) => void | Promise<void>;
+  selectedPly?: number;
+  onSelectedPlyChange?: (ply: number) => void;
   testId?: string;
   visualizations?: Visualization[];
 }
@@ -31,13 +33,21 @@ function position(fen: string, pgn?: string): Chess {
 }
 
 export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
-  resetAfterAttempt = false, onMove, testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
+  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange,
+  testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
+  const controlled = selectedPly !== undefined;
+  const replay = useMemo(() => {
+    if (!controlled) return null;
+    const game = position(fen, pgn);
+    const moves = game.history({ verbose: true });
+    return { moves, initialFen: moves[0]?.before ?? game.fen() };
+  }, [fen, pgn, controlled]);
   const [initialPosition] = useState(() => position(fen, pgn));
   const chess = useRef(initialPosition);
-  const latest = useRef({ fen, pgn, orientation, disabled, resetAfterAttempt, onMove });
-  latest.current = { fen, pgn, orientation, disabled, resetAfterAttempt, onMove };
+  const latest = useRef({ fen, pgn, orientation, disabled, resetAfterAttempt, onMove, selectedPly, replay });
+  latest.current = { fen, pgn, orientation, disabled, resetAfterAttempt, onMove, selectedPly, replay };
   const moving = useRef(false);
   const promotion = useRef<{ from: Key; to: Key } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
@@ -50,9 +60,11 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
 
   const draw = useCallback(() => {
     const game = chess.current;
-    const history = game.history({ verbose: true });
-    const last = history.at(-1);
-    const blocked = latest.current.disabled || moving.current || promotion.current !== null || animationRef.current !== undefined;
+    const replay = latest.current.replay;
+    const history = replay?.moves ?? game.history({ verbose: true });
+    const last = replay ? history[(latest.current.selectedPly ?? 0) - 1] : history.at(-1);
+    const blocked = latest.current.disabled || latest.current.onMove === undefined || replay !== null
+      || moving.current || promotion.current !== null || animationRef.current !== undefined;
     const dests = new Map<Key, Key[]>();
     if (!blocked) {
       for (const move of game.moves({ verbose: true })) {
@@ -72,7 +84,10 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   }, []);
 
   const restore = useCallback(() => {
-    chess.current = position(latest.current.fen, latest.current.pgn);
+    const { replay, selectedPly } = latest.current;
+    chess.current = replay
+      ? new Chess(replay.moves[Math.max(0, Math.min(selectedPly ?? 0, replay.moves.length)) - 1]?.after ?? replay.initialFen)
+      : position(latest.current.fen, latest.current.pgn);
     promotion.current = null;
     setPendingPromotion(null);
     draw();
@@ -89,7 +104,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
     moving.current = true;
     draw();
     try {
-      await latest.current.onMove(`${played.from}${played.to}${played.promotion ?? ''}`);
+      await latest.current.onMove?.(`${played.from}${played.to}${played.promotion ?? ''}`);
     } finally {
       moving.current = false;
       restore();
@@ -99,8 +114,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   useEffect(() => {
     restore();
     requestAnimationFrame(() => board.current?.redrawAll());
-  }, [fen, pgn, restore]);
-  useEffect(() => { setAnimation(null); }, [fen, pgn, visualizations]);
+  }, [fen, pgn, selectedPly, restore]);
+  useEffect(() => { setAnimation(null); }, [fen, pgn, selectedPly, visualizations]);
   useEffect(() => { draw(); }, [animationFen, draw]);
 
   useEffect(() => {
@@ -117,7 +132,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',
         free: false,
         events: { after: (from, to) => {
-          if (latest.current.disabled || moving.current || promotion.current || animationRef.current !== undefined) return;
+          if (latest.current.disabled || latest.current.onMove === undefined || latest.current.replay !== null
+            || moving.current || promotion.current || animationRef.current !== undefined) return;
           const promotes = chess.current.moves({ verbose: true }).some(
             move => move.from === from && move.to === to && move.promotion !== undefined,
           );
@@ -150,11 +166,11 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
       {visualization.command === 'animate_line' && visualization.moves?.length ? <>
         <button type="button" onClick={() => {
           const step = Math.min((animation?.step ?? 0) + 1, visualization.moves!.length);
-          try { setAnimation({ fen: linePosition(position(fen, pgn).fen(), visualization.moves!, step), step }); }
+          try { setAnimation({ fen: linePosition(controlled ? chess.current.fen() : position(fen, pgn).fen(), visualization.moves!, step), step }); }
           catch { setAnimation(null); }
         }}>Next line move</button>
         <button type="button" onClick={() => {
-          try { setAnimation({ fen: linePosition(position(fen, pgn).fen(), visualization.moves!, visualization.moves!.length), step: visualization.moves!.length }); }
+          try { setAnimation({ fen: linePosition(controlled ? chess.current.fen() : position(fen, pgn).fen(), visualization.moves!, visualization.moves!.length), step: visualization.moves!.length }); }
           catch { setAnimation(null); }
         }}>Show full line</button>
         <button type="button" onClick={() => setAnimation(null)}>Return to original position</button>
@@ -171,8 +187,13 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
     </div>}
     <ol aria-label="Moves" data-testid={`${testId}-san-move-list`}
       style={{ listStyle: 'none', padding: 0, maxHeight: '12rem', overflowY: 'auto' }}>
+      {controlled && <li><button type="button" aria-current={selectedPly === 0 ? 'step' : undefined}
+        disabled={onSelectedPlyChange === undefined} onClick={() => onSelectedPlyChange?.(0)}>Initial position</button></li>}
       {moves.map((move, index) => <li key={index}>
-        {move.before.split(' ')[5]}{move.color === 'w' ? '.' : '...'} {move.san}
+        {controlled ? <button type="button" aria-current={selectedPly === index + 1 ? 'step' : undefined}
+          disabled={onSelectedPlyChange === undefined} onClick={() => onSelectedPlyChange?.(index + 1)}>
+          {move.before.split(' ')[5]}{move.color === 'w' ? '.' : '...'} {move.san}
+        </button> : <>{move.before.split(' ')[5]}{move.color === 'w' ? '.' : '...'} {move.san}</>}
       </li>)}
     </ol>
   </div>;

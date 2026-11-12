@@ -40,7 +40,7 @@ Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactic
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
-5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner opportunities.
+5. Replay every move on the analysis board, including unflagged moves and the final position. Select a move, a graph point or a key-moment marker to keep the board and move list linked. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have review schedules; evidence and profile observations still include all diagnosed owner opportunities.
 
 For a deterministic manual diagnosis walkthrough, import this game:
 
@@ -93,10 +93,29 @@ An arbitrary mistake does not guarantee an interruption. Ordinary play, independ
 ## Review games and content
 
 - **Review** (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.
-- **Review → Analysis Board** distinguishes a game that has not been analysed, a completed analysis with no diagnosis, and an analysed game with persisted evaluations and diagnosis markers.
+- **Review → Analysis Board** distinguishes a game that has not been analysed, an analysis in progress or failed, and an analysed game with per-move review. A move can have a review score without a trusted lesson.
 - **Library → Opening Explorer** supplies opening-family missions.
 - **Library → Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
 - **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
+
+### Move-by-move game review
+
+The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.
+
+Scan64 scores only your stored owner-colour moves. Let `p_before` and `p_after` be the fast-pass win probabilities for the side to move before and after your move. The side to move switches, so your loss is:
+
+`L = clamp(p_before - (1 - p_after), 0, 1)`
+
+The Scan64 bands are **Sound** for `L ≤ 0.08`, **Inaccuracy** for `0.08 < L ≤ 0.15`, **Mistake** for `0.15 < L ≤ 0.30`, and **Blunder** above `0.30`. Missing either score makes an owner move **Unscored**, not sound. Opponent moves are labelled separately and never enter your accuracy.
+
+**Scan64 accuracy** is `100 * (1 - mean(L))` over scored owner moves only. It is unavailable when no owner move is scored. Read it beside **Coverage** (scored owner moves / all owner moves) and the Sound, Inaccuracy, Mistake, Blunder and Unscored counts; these counts cover your moves, not your opponent's. Older games with unknown owner colour remain explicit: no inferred colour, owner bands, accuracy or learning attribution.
+
+These are coarse **10,000-node fast-pass** estimates, not Elo estimates, Lichess accuracy, or a validated measure of improvement. Deeper lesson searches do not replace the fast-pass accuracy inputs. Exact checkmate and automatic draw outcomes can appear at the final position; a resignation or claimable draw does not replace the engine score with an exact result.
+
+For an older completed analysis without move-review rows, select **Backfill review scores** explicitly. Merely opening the review never searches the engine. Backfill runs one same-budget review-only pass and writes only review rows and position/analysis provenance: no extra learning writes to evidence, diagnoses, observations, lessons or skill state. The subsequent review read may reverify lessons from stored analysis and create an owned retry study session, without an engine search or new lessons.
+
+Up to three key moments explain one trusted cause each, rather than diagnosing every scored error. **Retry this moment** restores the position before that move and uses the same lesson attempt endpoint and three-step hint ladder as Daily Training. The displayed attempts used/remaining are lifetime counts shared with training; reopening a retry does not reset them. Hinted success keeps half credit. Exhausted moments show the explanation and accepted moves, with no further retry.
+
 
 ## Transfer measurement
 

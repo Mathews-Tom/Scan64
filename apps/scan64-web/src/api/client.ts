@@ -10,6 +10,7 @@ import type {
   GameAnalysisStatusRead,
   GameRead,
   GameLearningSessionRead,
+  GameReviewRead,
   LessonAttemptCreate,
   LessonAttemptRead,
   PlayMoveCreate,
@@ -230,6 +231,30 @@ export class ApiClient {
       );
     }
     return await response.json() as GameAnalysisStatusRead;
+  }
+
+  static async getGameReview(gameId: string): Promise<GameReviewRead> {
+    const response = await fetch(`${API_BASE}/games/${encodeURIComponent(gameId)}/review`, {
+      headers: getActivePlayerAuthorizationHeader(),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to get game review: ${response.statusText}`, response.status);
+    }
+    return await response.json() as GameReviewRead;
+  }
+
+  static async backfillGameReview(gameId: string): Promise<GameReviewRead> {
+    const response = await fetch(`${API_BASE}/games/${encodeURIComponent(gameId)}/review/backfill`, {
+      method: 'POST',
+      headers: getActivePlayerAuthorizationHeader(),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Failed to backfill game review: ${detail}`, response.status);
+    }
+    return await response.json() as GameReviewRead;
   }
 
   static async getLearningOpportunities(gameId: string): Promise<GameLearningSessionRead> {
