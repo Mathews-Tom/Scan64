@@ -27,7 +27,10 @@ export function PuzzlesScreen() {
       setCatalog(result); setRun(result.run); setNeedsRefresh(false);
       setNotice(result.message);
     } catch (failure) {
-      if (request === generation.current) setError(failure instanceof Error ? failure.message : 'Could not load puzzle.');
+      if (request === generation.current) {
+        setNotice('');
+        setError(failure instanceof Error ? failure.message : 'Could not load puzzle.');
+      }
     } finally {
       if (request === generation.current) { busy.current = false; setPending(false); }
     }

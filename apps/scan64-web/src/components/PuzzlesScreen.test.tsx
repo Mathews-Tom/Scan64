@@ -55,6 +55,13 @@ beforeEach(() => { vi.resetAllMocks(); board.props = null; });
 afterEach(cleanup);
 
 describe('PuzzlesScreen server-authoritative practice', () => {
+  it('clears loading speech when initial puzzle loading fails', async () => {
+    vi.mocked(ApiClient.startPuzzleRun).mockRejectedValue(new Error('Puzzle service unavailable'));
+    render(<PuzzlesScreen />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Puzzle service unavailable');
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).not.toHaveTextContent('Loading');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+  });
   it('starts at the post-setup position with solver orientation and no leaked future line', async () => {
     await mount();
     expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith();
