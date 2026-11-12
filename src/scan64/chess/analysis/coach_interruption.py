@@ -251,7 +251,7 @@ async def _prepare_coach_interruption(
         diagnosis=diagnosis,
         fen=before_board.fen(),
         lesson_id=str(opportunity_id),
-        best_move_san=before_board.san(objective_move),
+        accepted_moves_san=[before_board.san(objective_move)],
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
     try:

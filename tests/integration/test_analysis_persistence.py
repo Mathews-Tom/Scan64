@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -25,6 +27,22 @@ from scan64.learning.plugins.registry import PluginRegistry
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
 HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
+
+
+@pytest.fixture(autouse=True)
+def fake_source_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def analyze_source(_self: object, fen: str, **limits: object) -> EngineAnalysis:
+        board = chess.Board(fen)
+        move = chess.Move.from_uci("e2e4")
+        if move not in board.legal_moves:
+            move = next(iter(board.legal_moves))
+        return EngineAnalysis(
+            position_id=uuid4(),
+            config=limits,
+            raw_result=[{"pv": [move.uci()], "score_cp": 20}],
+        )
+
+    monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", analyze_source)
 
 
 def _seeded_detector_registry() -> PluginRegistry:
@@ -361,3 +379,45 @@ async def test_every_constructed_evidence_is_persisted(
 
     assert persisted_ids
     assert set(constructed_evidence_ids) == persisted_ids
+
+
+@pytest.mark.asyncio
+async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "m47_source_multipv.json").read_text()
+    )
+    calls: list[tuple[str, int]] = []
+
+    async def source_analysis(_self: object, fen: str, **limits: int) -> EngineAnalysis:
+        calls.append((fen, limits["multipv"]))
+        return EngineAnalysis(
+            position_id=uuid4(),
+            config=limits,
+            raw_result=recorded["raw_result"][: limits["multipv"]],
+        )
+
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
+    game = Game(pgn="", moves=["a2a3"], owner_color="white", owner_player_id="sound-player")
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+
+    lesson = db_session.exec(select(PersistedLessonOpportunity)).one()
+    assert calls == [(recorded["fen"], 2), (recorded["fen"], 4)]
+    assert lesson.lesson_spec["source"]["fen"] == recorded["fen"]
+    assert [move["san"] for move in lesson.lesson_spec["interaction"]["accepted_moves"]] == [
+        "e4",
+        "d4",
+    ]
+    assert recorded["played_move"] not in {
+        move["san"] for move in lesson.lesson_spec["interaction"]["accepted_moves"]
+    }
+    verification = db_session.get(EngineAnalysis, lesson.verification_analysis_id)
+    assert verification is not None
+    assert verification.position_id == lesson.source_position_id
+    assert verification.raw_result == recorded["raw_result"]

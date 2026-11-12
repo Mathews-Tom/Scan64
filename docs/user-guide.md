@@ -25,7 +25,7 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Your Games**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
-5. Review move-by-move engine evaluations and diagnosis markers on the analysis board.
+5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by mistake severity and diagnostic confidence, with a penalty for repeated skills. Only these kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner mistakes.
 
 For a deterministic manual diagnosis walkthrough, import this game:
 
@@ -38,14 +38,14 @@ For a deterministic manual diagnosis walkthrough, import this game:
 1. e4 e5 2. Qh5 Nc6 3. Qxe5+ Nxe5 0-1
 ```
 
-The analysis identifies the hanging queen as `board_awareness.hanging_piece`. The generated lesson accepts `Bc4` from the source position.
+The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Lesson answers depend on the engine analysis, not a hard-coded move.
 
 ## Train from diagnosed positions
 
 Open **Daily Training** after one or more owned games have generated eligible lessons.
 
 - A lesson is served only with durable player-owned opportunity and study-session context.
-- Move answers are checked on the server against the lesson objective.
+- Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
 - A verified attempt advances only its matching review schedule and active skill state.
 - Opening Explorer missions are recorded separately and do not change this profile path.
 - An empty training screen means Scan64 has no eligible owned lesson for the active player.
@@ -92,7 +92,7 @@ The generated API reference at `http://127.0.0.1:8001/docs` documents the live r
 3. Navigate to **Your Games** and back; confirm the active session resumes.
 4. Resign; confirm the game becomes visible in history and completes analysis.
 5. Import the hanging-queen PGN above, analyse it, and confirm a diagnosis marker and engine evaluations appear.
-6. Complete its Daily Training lesson with `Bc4`; confirm the profile gains evidence and updated mastery.
+6. Complete its Daily Training lesson with an accepted move; confirm **Correct**, recorded success, and updated profile mastery.
 7. Start a coach-mode game, make a diagnosed tactical error, complete the interruption, and confirm the profile updates.
 8. Run the full local gate:
 

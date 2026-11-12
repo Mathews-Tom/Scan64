@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 from weakref import WeakValueDictionary
@@ -22,9 +23,12 @@ from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
-from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
 from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.exercises.sound_moves import analyze_lesson_source, sound_moves
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -68,6 +72,15 @@ def _persist_position_analysis(
     return position
 
 
+@dataclass
+class _LessonCandidate:
+    source: Position
+    diagnosis: DiagnosisCandidate
+    secondary: tuple[DiagnosisCandidate, ...]
+    evidence: list[Evidence]
+    severity: float
+
+
 async def run_analysis_for_game(
     game: Game,
     session: Session,
@@ -79,6 +92,16 @@ async def run_analysis_for_game(
 
     if game.owner_color is None:
         raise ValueError("Cannot analyse a legacy game without owner_color")
+
+    # Coach interruptions may already have durable lessons/attempts. Preserve
+    # those sources and reserve their slots rather than replacing their history.
+    existing_sources = session.exec(
+        select(PersistedLessonOpportunity.source_position_id).where(
+            PersistedLessonOpportunity.game_id == game.id,
+            PersistedLessonOpportunity.player_id == game.owner_player_id,
+        )
+    ).all()
+    remaining_slots = max(0, 5 - len(existing_sources))
 
     adapter = (
         pool_manager.batch_adapter
@@ -111,17 +134,13 @@ async def run_analysis_for_game(
         fens_before.append(board.fen())
 
     positions_by_fen: dict[str, Position] = {}
+    lesson_candidates: list[_LessonCandidate] = []
     for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
-        source_position = resolve_position(session, fen_before, game.id)
-        existing_opportunity = session.exec(
-            select(PersistedLessonOpportunity.id).where(
-                PersistedLessonOpportunity.game_id == game.id,
-                PersistedLessonOpportunity.player_id == game.owner_player_id,
-                PersistedLessonOpportunity.source_position_id == source_position.id,
-            )
+        existing_position = session.exec(
+            select(Position).where(Position.game_id == game.id, Position.fen == fen_before)
         ).first()
-        if existing_opportunity is not None:
+        if existing_position is not None and existing_position.id in existing_sources:
             continue
         source_position = _persist_position_analysis(
             game, fen_before, candidate.before_analysis, session, positions_by_fen
@@ -142,8 +161,8 @@ async def run_analysis_for_game(
             played_move=san_moves[candidate.move_index],
             swing_cp=candidate.swing_cp,
         )
-        for item in evidence:
-            session.add(item)
+        for evidence_item in evidence:
+            session.add(evidence_item)
 
         if board_from(fen_before).turn != (game.owner_color == "white"):
             continue
@@ -166,25 +185,6 @@ async def run_analysis_for_game(
             continue
         best, secondary = selection
 
-        fen_before = fens_before[candidate.move_index]
-        best_move_uci = None
-        if candidate.before_analysis.raw_result:
-            pv = candidate.before_analysis.raw_result[0].get("pv") or []
-            best_move_uci = pv[0] if pv else None
-
-        board_before = chess.Board(fen_before)
-        best_move_san = (
-            board_before.san(chess.Move.from_uci(best_move_uci))
-            if best_move_uci
-            else san_moves[candidate.move_index]
-        )
-
-        diagnosis = Diagnosis(
-            primary=best.skill_id,
-            secondary=[candidate.skill_id for candidate in secondary],
-            confidence=best.confidence,
-            evidence_refs=best.evidence_ids,
-        )
         profile = session.get(PlayerProfile, game.owner_player_id)
         apply_analysis_observation(
             session=session,
@@ -196,17 +196,55 @@ async def run_analysis_for_game(
             observed_at=datetime.now(UTC),
         )
 
+        lesson_candidates.append(
+            _LessonCandidate(source_position, best, secondary, evidence, candidate.swing_cp)
+        )
+
+    # A source position can recur in a game; teach it once, using its worst
+    # diagnosed occurrence. Evidence and profile observations remain uncapped.
+    distinct: dict[UUID, _LessonCandidate] = {}
+    for item in lesson_candidates:
+        previous = distinct.get(item.source.id)
+        if previous is None or item.severity * item.diagnosis.confidence > (
+            previous.severity * previous.diagnosis.confidence
+        ):
+            distinct[item.source.id] = item
+    ranker = OpportunityRanker(overcoaching_cap=remaining_slots)
+    ranked = ranker.rank(
+        [
+            (
+                item.diagnosis,
+                RankingFactors(severity=item.severity, confidence=item.diagnosis.confidence),
+            )
+            for item in distinct.values()
+        ]
+    )
+    for choice in ranked:
+        item = next(item for item in distinct.values() if item.diagnosis is choice.candidate)
+        source_position = item.source
+        fen_before = source_position.fen
+        board_before = chess.Board(fen_before)
+        source_analysis = await analyze_lesson_source(adapter, fen_before)
+        _persist_position_analysis(game, fen_before, source_analysis, session, positions_by_fen)
+        diagnosis = Diagnosis(
+            primary=item.diagnosis.skill_id,
+            secondary=[candidate.skill_id for candidate in item.secondary],
+            confidence=item.diagnosis.confidence,
+            evidence_refs=item.diagnosis.evidence_ids,
+        )
         lesson = await generate_exact_replay_exercise(
             diagnosis=diagnosis,
             fen=fen_before,
             lesson_id=f"les_{uuid4()}",
-            best_move_san=best_move_san,
+            accepted_moves_san=[
+                board_before.san(move) for move in sound_moves(board_before, source_analysis)
+            ],
             hints=[],
         )
-        lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
+        lesson.explanation = await resolve_explanation(diagnosis, item.evidence, fen_before)
 
         try:
-            verify_lesson(lesson, candidate.before_analysis)
+            verify_lesson(lesson, source_analysis)
         except LessonVerificationError:
             continue
 
@@ -214,7 +252,7 @@ async def run_analysis_for_game(
             game_id=game.id,
             source_position_id=source_position.id,
             player_id=game.owner_player_id,
-            verification_analysis_id=candidate.before_analysis.id,
+            verification_analysis_id=source_analysis.id,
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
@@ -222,7 +260,7 @@ async def run_analysis_for_game(
             ReviewSchedule(
                 player_id=game.owner_player_id,
                 item_id=str(persisted.id),
-                skill_id=best.skill_id,
+                skill_id=item.diagnosis.skill_id,
                 next_review_at=datetime.now(UTC),
             )
         )

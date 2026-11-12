@@ -1,0 +1,9 @@
+{
+  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "played_move": "a3",
+  "raw_result": [
+    {"pv": ["e2e4", "e7e5"], "score_cp": 100},
+    {"pv": ["d2d4", "d7d5"], "score_cp": 50},
+    {"pv": ["a2a3", "e7e5"], "score_cp": -300}
+  ]
+}
