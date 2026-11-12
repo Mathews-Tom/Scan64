@@ -67,7 +67,7 @@ for (const width of [1280, 390]) {
       await page.route('**/v1/coaches/*/dashboard', route => route.fulfill({ json: { coach_id: 'player-1', students: [] } }));
       await page.route('**/v1/content/famous-games', route => route.fulfill({ json: [] }));
       await page.goto('/');
-      await expect(page.getByText('More analysed games are needed to spot recurring patterns.')).toBeVisible();
+      await expect(page.getByText('More eligible analysed games are needed before recurrence can be assessed.')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await testInfo.attach(`today-${width}-${colorScheme}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
       const nav = page.getByRole('navigation', { name: 'Main navigation' });
