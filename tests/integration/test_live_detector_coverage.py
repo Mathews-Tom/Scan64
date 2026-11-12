@@ -144,6 +144,18 @@ async def test_live_detector_coverage_and_precision(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _FixtureFastPassOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FixtureFocusedPassOrchestrator)
+
+    async def source_analysis(_self: object, fen: str, **limits: int) -> EngineAnalysis:
+        # Keep the new source pass on the same scripted engine evidence as
+        # the existing fast/focused corpus, rather than mixing in live scores.
+        fixture = next(item for item in _FIXTURES if _replay_fixture(item)[0].fen() == fen)
+        pv = fixture["candidate"]["fast_before_pv"]
+        _assert_legal_pv(chess.Board(fen), pv, fixture["id"])
+        return EngineAnalysis(
+            position_id=uuid4(), config=limits, raw_result=[{"pv": pv, "score_cp": 0}]
+        )
+
+    monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
     registry = _registry()
     registry_stats = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}
     isolated_stats = {code: {"tp": 0, "fp": 0, "fn": 0} for code in SEED_CODES}

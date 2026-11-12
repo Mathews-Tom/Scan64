@@ -14,7 +14,7 @@ async def generate_exact_replay_exercise(
     diagnosis: Diagnosis,
     fen: str,
     lesson_id: str,
-    best_move_san: str,
+    accepted_moves_san: list[str],
     hints: list[Hint] | None = None,
 ) -> LessonSpec:
     """
@@ -24,8 +24,11 @@ async def generate_exact_replay_exercise(
         hints = []
 
     source = Source(kind="player_game", fen=fen)
-    objective = Objective(type="exact_replay", instruction="Find the best move.")
-    accepted_moves = [AcceptedMove(san=best_move_san, reason="Best engine evaluation")]
+    objective = Objective(type="exact_replay", instruction="Find a sound move.")
+    accepted_moves = [
+        AcceptedMove(san=san, reason="Within the engine soundness tolerance")
+        for san in accepted_moves_san
+    ]
     interaction = Interaction(input="move", maximum_attempts=3, accepted_moves=accepted_moves)
 
     # Placeholder verification since it runs before verifier

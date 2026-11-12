@@ -91,7 +91,7 @@ async def _lesson() -> LessonSpec:
         ),
         fen=_STARTING_FEN,
         lesson_id="les_validator_boundary",
-        best_move_san="e4",
+        accepted_moves_san=["e4"],
     )
 
 

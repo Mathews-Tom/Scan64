@@ -1,17 +1,9 @@
-from collections.abc import Generator
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-from scan64.api.app import app
-from scan64.chess.analysis.jobs import execute_analysis_job
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    with TestClient(app) as c:
-        yield c
+from scan64.chess.analysis.jobs import execute_analysis_job_async
 
 
 @pytest.fixture
@@ -46,13 +38,15 @@ def test_learning_opportunities_flow(client: TestClient, sample_pgn: str) -> Non
     assert response.status_code == 200
     job_id = response.json()["id"]
 
-    # 3. Simulate executing background task synchronously for testing
-    execute_analysis_job(UUID(job_id))
+    # Join the admitted job on the application's loop, where the per-game
+    # lock serializes this request with background execution.
+    assert client.portal is not None
+    client.portal.call(execute_analysis_job_async, UUID(job_id))
 
     # 4. Check job status
     response = client.get(f"/v1/analysis-jobs/{job_id}")
     assert response.status_code == 200
-    assert response.json()["status"] == "completed"
+    assert response.json()["status"] == "completed", response.json()
 
     # 5. Fetch player-owned learning opportunities with their study-session context.
     response = client.get(f"/v1/games/{game_id}/learning-opportunities?player_id={player_id}")
