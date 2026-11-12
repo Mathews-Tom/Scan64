@@ -102,6 +102,7 @@ export interface LessonAttemptRead {
 }
 
 export interface GameCreate {
+  owner_color: 'white' | 'black';
   pgn: string;
   player_id: string;
 }

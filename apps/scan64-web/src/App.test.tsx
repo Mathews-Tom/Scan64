@@ -11,6 +11,7 @@ vi.mock('./api/client', async (importOriginal) => {
     ApiClient: {
       ...actual.ApiClient,
       getTrainingSession: vi.fn(),
+      getPlayerProfile: vi.fn().mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null }),
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
@@ -224,6 +225,16 @@ it('asks once for a display name before creating the active player', async () =>
   expect(fetchMock).toHaveBeenCalledTimes(1);
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Play' }));
   expect(screen.getByTestId('player-id-input')).toHaveValue(localStorage.getItem('scan64_player_id'));
+  const playerId = localStorage.getItem('scan64_player_id')!;
+  const createdPlayer = JSON.parse(fetchMock.mock.calls[0][1].body as string) as { display_name: string };
+  vi.mocked(ApiClient.getPlayerProfile).mockResolvedValueOnce({
+    player_id: playerId, rating: 1500, display_name: createdPlayer.display_name,
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Library' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Import PGN' }));
+  fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '[Black "Ada"]\n\n1. e4 *' } });
+  await waitFor(() => expect(screen.getByLabelText('Your side')).toHaveValue('black'));
+  expect(ApiClient.getPlayerProfile).toHaveBeenCalledWith(playerId);
 });
 
 it('keeps a failed registration on the name form without storing an identity', async () => {

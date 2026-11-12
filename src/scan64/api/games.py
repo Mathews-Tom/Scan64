@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
@@ -27,6 +27,7 @@ router = APIRouter(tags=["games"])
 
 
 class GameCreate(BaseModel):
+    owner_color: Literal["white", "black"]
     pgn: str
     player_id: str
 
@@ -91,6 +92,7 @@ def create_game(
         headers=dict(chess_game.headers),
         moves=[move.uci() for move in chess_game.mainline_moves()],
         owner_player_id=game_in.player_id,
+        owner_color=game_in.owner_color,
     )
 
     session.add(game)
@@ -237,6 +239,11 @@ def create_analysis_job(
     if owner_player_id is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    if game.owner_color is None:
+        raise HTTPException(
+            status_code=409, detail="Cannot analyse a legacy game without owner_color"
+        )
+
     job = AnalysisJob(game_id=game_id)
     session.add(job)
     session.commit()
@@ -268,14 +275,13 @@ class EngineAnalysisRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class GameAnalysisStatusRead(BaseModel):
     status: str
 
 
 def _read_diagnosis(opportunity: PersistedLessonOpportunity) -> PersistedDiagnosis:
     return PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
-
-
 
 
 class PositionRead(BaseModel):
@@ -291,7 +297,6 @@ class PositionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 @router.get("/v1/games/{game_id}/analysis-status", response_model=GameAnalysisStatusRead)
 def get_game_analysis_status(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
@@ -305,7 +310,6 @@ def get_game_analysis_status(
     return GameAnalysisStatusRead(
         status=analysis_job.status if analysis_job is not None else "not_analysed"
     )
-
 
 
 @router.get("/v1/games/{game_id}/positions", response_model=list[PositionRead])
@@ -325,9 +329,7 @@ def get_game_positions(
         position.id: [] for position in positions
     }
     opportunities = session.exec(
-        select(PersistedLessonOpportunity).where(
-            PersistedLessonOpportunity.game_id == game.id
-        )
+        select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.game_id == game.id)
     ).all()
     for opportunity in opportunities:
         if opportunity.source_position_id is None:

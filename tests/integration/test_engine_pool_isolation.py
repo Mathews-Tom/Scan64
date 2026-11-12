@@ -55,9 +55,7 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
     monkeypatch.setattr(
         db_module,
         "engine",
-        create_engine(
-            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-        ),
+        create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool),
     )
 
     with TestClient(app):
@@ -145,9 +143,7 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
         def __init__(self, adapter: object, *_: object) -> None:
             captured_adapters.append(adapter)
 
-        async def run_fast_pass(
-            self, _: list[str], initial_fen: str | None = None
-        ) -> list[object]:
+        async def run_fast_pass(self, _: list[str], initial_fen: str | None = None) -> list[object]:
             return []
 
         async def run_focused_pass(self, candidates: list[object]) -> list[object]:
@@ -156,7 +152,7 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CapturingOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _CapturingOrchestrator)
 
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="pool-analysis-player")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="pool-analysis-player")
 
     manager = EnginePoolManager(StockfishConfig(), interactive_concurrency=1, batch_concurrency=1)
     engine = create_engine(
@@ -167,9 +163,7 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
         with Session(engine) as session:
             registry = PluginRegistry()
             register_seeded_detectors(registry)
-            await jobs.run_analysis_for_game(
-                game, session, registry=registry, pool_manager=manager
-            )
+            await jobs.run_analysis_for_game(game, session, registry=registry, pool_manager=manager)
 
         # Both orchestrator passes were built from the batch pool, not from a
         # per-call adapter or the interactive pool.

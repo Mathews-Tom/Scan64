@@ -23,7 +23,9 @@ def test_imported_game_records_its_existing_owner(client: TestClient, db_session
     headers = _register(db_session, "import-owner")
 
     response = client.post(
-        "/v1/games", json={"pgn": PGN, "player_id": "import-owner"}, headers=headers
+        "/v1/games",
+        json={"owner_color": "white", "pgn": PGN, "player_id": "import-owner"},
+        headers=headers,
     )
 
     assert response.status_code == 200

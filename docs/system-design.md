@@ -40,7 +40,7 @@ flowchart LR
 
 ### Analysis and persistence
 
-A completed or resigned play session can enqueue analysis automatically. Imported games can be analysed through the owned game path. Analysis persists positions, engine analyses, evidence, and learning opportunities for the game owner; the read paths do not depend on synthetic ownership.
+A completed or resigned play session can enqueue analysis automatically. Imported games can be analysed through the owned game path. Analysis persists positions, engine analyses, and evidence for every flagged move. Only learning opportunities, lessons, and profile observations are limited to moves by the owner's side; the read paths do not depend on synthetic ownership.
 
 The analysis board renders persisted evaluation and diagnosis data. It distinguishes an unanalysed game, a completed analysis with no diagnosis, and a completed analysis with persisted findings.
 

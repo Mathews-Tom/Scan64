@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
+from weakref import WeakValueDictionary
 
 import chess
 from chess_lesson_spec import Diagnosis
@@ -76,6 +77,9 @@ async def run_analysis_for_game(
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
 
+    if game.owner_color is None:
+        raise ValueError("Cannot analyse a legacy game without owner_color")
+
     adapter = (
         pool_manager.batch_adapter
         if pool_manager is not None
@@ -140,6 +144,9 @@ async def run_analysis_for_game(
         )
         for item in evidence:
             session.add(item)
+
+        if board_from(fen_before).turn != (game.owner_color == "white"):
+            continue
 
         opportunity = LearningOpportunity(
             opportunity_id=f"opp_{uuid4()}",
@@ -223,6 +230,27 @@ async def run_analysis_for_game(
     session.commit()
 
 
+class _JobSession(Session):
+    """Keep analysis writes and completion in one durable transaction.
+
+    With defer_commit set, run_analysis_for_game's own commit becomes a flush,
+    so analysis writes and the job's completed marker commit together.
+    """
+
+    defer_commit = False
+
+    def commit(self) -> None:
+        if self.defer_commit:
+            self.flush()
+        else:
+            super().commit()
+
+
+_game_locks: WeakValueDictionary[tuple[asyncio.AbstractEventLoop, UUID], asyncio.Lock] = (
+    WeakValueDictionary()
+)
+
+
 async def execute_analysis_job_async(
     job_id: UUID, pool_manager: EnginePoolManager | None = None
 ) -> None:
@@ -239,13 +267,29 @@ async def execute_analysis_job_async(
     pass a `pool_manager` are unaffected and should keep using the sync
     `execute_analysis_job` wrapper.
     """
-    from datetime import UTC, datetime
-
     from scan64.persistence.database import engine
 
     with Session(engine) as session:
         job = session.get(AnalysisJob, job_id)
-        if not job:
+        if job is None:
+            return
+        key = (asyncio.get_running_loop(), job.game_id)
+    lock = _game_locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        await _execute_analysis_job_async(job_id, pool_manager)
+
+
+async def _execute_analysis_job_async(
+    job_id: UUID, pool_manager: EnginePoolManager | None = None
+) -> None:
+    """Call through execute_analysis_job_async; this skips per-game serialization."""
+    from datetime import UTC, datetime
+
+    from scan64.persistence.database import engine
+
+    with _JobSession(engine) as session:
+        job = session.get(AnalysisJob, job_id)
+        if not job or job.status == "completed":
             return
 
         game = session.get(Game, job.game_id)
@@ -261,10 +305,20 @@ async def execute_analysis_job_async(
         session.commit()
 
         try:
-            await run_analysis_for_game(game, session, pool_manager=pool_manager)
+            session.defer_commit = True
+            completed = session.exec(
+                select(AnalysisJob.id).where(
+                    AnalysisJob.game_id == game.id,
+                    AnalysisJob.status == "completed",
+                )
+            ).first()
+            if completed is None:
+                await run_analysis_for_game(game, session, pool_manager=pool_manager)
+            session.defer_commit = False
             job.status = "completed"
             job.completed_at = datetime.now(UTC)
         except Exception as error:
+            session.defer_commit = False
             session.rollback()
             failed_job = session.get(AnalysisJob, job_id)
             if failed_job is None:

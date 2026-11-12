@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -11,7 +12,7 @@ from scan64.coach.models import CoachStudentLink
 
 
 def create_game_records(session: Session, player_id: str) -> dict[str, object]:
-    game = Game(pgn="1. e4 e5", owner_player_id=player_id)
+    game = Game(pgn="1. e4 e5", owner_player_id=player_id, owner_color="black")
     session.add(game)
     session.commit()
     session.refresh(game)
@@ -91,7 +92,8 @@ def export_then_delete_player_data(
     return archive, access_token
 
 
-def test_export_import_roundtrip(client: TestClient, db_session: Session):
+@pytest.mark.parametrize("legacy_archive", [False, True])
+def test_export_import_roundtrip(client: TestClient, db_session: Session, legacy_archive: bool):
     player_id = "test-export-user"
     access_token = create_player_token(client, player_id, "Test User")
     record_ids = create_game_records(db_session, player_id)
@@ -104,6 +106,9 @@ def test_export_import_roundtrip(client: TestClient, db_session: Session):
     assert response.status_code == 200
     archive = response.json()
 
+    assert archive["games"][0]["owner_color"] == "black"
+    if legacy_archive:
+        archive["games"][0].pop("owner_color")
     assert archive["player"]["id"] == player_id
     assert archive["credential_hash"] != access_token
     assert archive["profile"]["display_name"] == "Test User"
@@ -137,14 +142,15 @@ def test_export_import_roundtrip(client: TestClient, db_session: Session):
     assert response.status_code == 200
     assert db_session.get(Player, player_id) is not None
     assert db_session.get(PlayerProfile, player_id).display_name == "Test User"
-    assert db_session.get(Game, record_ids["game"]) is not None
+    restored = db_session.get(Game, record_ids["game"])
+    assert restored is not None
+    assert restored.owner_color == (None if legacy_archive else "black")
     assert db_session.get(PlaySession, record_ids["play_session"]) is not None
     assert db_session.get(Position, record_ids["position"]) is not None
     assert db_session.get(EngineAnalysis, record_ids["engine_analysis"]) is not None
     assert db_session.get(AnalysisJob, record_ids["analysis_job"]) is not None
     assert db_session.get(PersistedLessonOpportunity, record_ids["lesson_opportunity"]) is not None
     assert db_session.get(PlayerCredential, player_id) is not None
-
 
 
 def test_import_rejects_missing_diagnosis_source_position(
@@ -154,13 +160,10 @@ def test_import_rejects_missing_diagnosis_source_position(
     archive, access_token = export_then_delete_player_data(client, db_session, player_id)
     archive["lesson_opportunities"][0].pop("source_position_id")
 
-    response = client.post(
-        "/v1/imports", json=archive, headers=authorization_header(access_token)
-    )
+    response = client.post("/v1/imports", json=archive, headers=authorization_header(access_token))
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid archive: malformed records"
-
 
 
 def test_import_rejects_malformed_diagnosis_payload(
@@ -170,12 +173,11 @@ def test_import_rejects_malformed_diagnosis_payload(
     archive, access_token = export_then_delete_player_data(client, db_session, player_id)
     archive["lesson_opportunities"][0]["lesson_spec"]["diagnosis"].pop("confidence")
 
-    response = client.post(
-        "/v1/imports", json=archive, headers=authorization_header(access_token)
-    )
+    response = client.post("/v1/imports", json=archive, headers=authorization_header(access_token))
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid archive: malformed records"
+
 
 def test_import_rejects_foreign_diagnosis_source_position(
     client: TestClient, db_session: Session
@@ -184,9 +186,7 @@ def test_import_rejects_foreign_diagnosis_source_position(
     archive, access_token = export_then_delete_player_data(client, db_session, player_id)
     archive["lesson_opportunities"][0]["source_position_id"] = str(uuid4())
 
-    response = client.post(
-        "/v1/imports", json=archive, headers=authorization_header(access_token)
-    )
+    response = client.post("/v1/imports", json=archive, headers=authorization_header(access_token))
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
@@ -233,6 +233,8 @@ def test_import_rejects_archive_claiming_foreign_game(
 
     assert response.status_code == 400
     assert db_session.get(Game, victim_game.id) is not None
+
+
 def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_session: Session):
     player_id = "test-delete-user"
     access_token = create_player_token(client, player_id, "Delete User")
@@ -312,7 +314,6 @@ def test_deletion_confirmed_removes_complete_owned_data(client: TestClient, db_s
     assert audit.affected_rows == data["affected_rows"]
 
 
-
 def test_deletion_removes_coach_student_links(client: TestClient, db_session: Session):
     coach_id = "test-delete-coach"
     student_id = "test-delete-student"
@@ -367,6 +368,7 @@ def test_deletion_removes_coach_student_links_when_coach_is_deleted(
     assert response.status_code == 200
     assert response.json()["affected_rows"]["coach_student_links"] == 1
     assert db_session.get(CoachStudentLink, (coach_id, student_id)) is None
+
 
 def test_deletion_preserves_shared_game_for_other_player(client: TestClient, db_session: Session):
     deleting_player_id = "test-delete-shared"
@@ -521,3 +523,13 @@ def test_reports_endpoints(client: TestClient, db_session: Session):
 
         response = client.get(f"/v1/reports/{endpoint}?player_id={player_id}")
         assert response.status_code == 401
+
+
+def test_import_rejects_invalid_game_owner_color(client: TestClient, db_session: Session) -> None:
+    archive, access_token = export_then_delete_player_data(
+        client, db_session, "invalid-owner-color"
+    )
+    archive["games"][0]["owner_color"] = "purple"
+    response = client.post("/v1/imports", json=archive, headers=authorization_header(access_token))
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid archive: malformed records"

@@ -130,7 +130,7 @@ async def test_candidate_positions_and_analyses_are_persisted(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
 
@@ -164,7 +164,7 @@ async def test_reanalysis_does_not_duplicate_an_existing_source_opportunity(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
 
@@ -191,7 +191,7 @@ async def test_candidate_evidence_references_persisted_focused_multipv(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
 
@@ -216,7 +216,7 @@ async def test_production_job_persists_arbitrated_secondary_diagnoses(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="player-1")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
 
@@ -242,7 +242,7 @@ async def test_consecutive_candidates_share_one_persisted_position(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _ConsecutiveCandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4", "e7e5"], owner_player_id="player-1")
+    game = Game(pgn="", moves=["e2e4", "e7e5"], owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.commit()
 
@@ -261,7 +261,7 @@ async def test_consecutive_candidates_share_one_persisted_position(
 def test_failed_analysis_job_rolls_back_partial_artifacts(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    game = Game(pgn="", owner_player_id="player-1")
+    game = Game(pgn="", owner_color="white", owner_player_id="player-1")
     db_session.add(game)
     db_session.flush()
     job = AnalysisJob(game_id=game.id)
@@ -300,7 +300,7 @@ async def test_completed_analysis_populates_positions_and_evidence_endpoints(
     player = Player(id="endpoint-player")
     db_session.add(player)
     db_session.add(PlayerCredential(player_id=player.id, token_hash=token_hash))
-    game = Game(pgn="", moves=["e2e4"], owner_player_id=player.id)
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id=player.id)
     db_session.add(game)
     db_session.commit()
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
@@ -351,7 +351,7 @@ async def test_every_constructed_evidence_is_persisted(
     monkeypatch.setattr(evidence_composer, "_evidence", construct_evidence)
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_player_id="guard-player")
+    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="guard-player")
     db_session.add(game)
     db_session.commit()
 

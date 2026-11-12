@@ -233,7 +233,10 @@ export class ApiClient {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to create analysis job: ${response.statusText}`, response.status);
+      const error: unknown = await response.json().catch(() => null);
+      const detail = error !== null && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string'
+        ? error.detail : response.statusText;
+      throw new ApiRequestError(`Failed to create analysis job: ${detail}`, response.status);
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;
