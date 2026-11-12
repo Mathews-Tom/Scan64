@@ -28,6 +28,7 @@ test('Famous Games records predictions with the studying player bearer token', a
     await route.fulfill({ json: { id: 'attempt-1', success: true, hint_assisted: false } });
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.getByText('Famous Games', { exact: true }).click();
   await page.getByRole('button', { name: 'Opera Game' }).click();
   await page.getByLabel('Your move').fill('e4');

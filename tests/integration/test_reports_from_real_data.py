@@ -21,6 +21,7 @@ def create_source_position(db_session: Session, game_id: UUID) -> Position:
     db_session.flush()
     return position
 
+
 def create_player_token(client: TestClient, player_id: str) -> str:
     response = client.post(
         "/v1/players",
@@ -90,6 +91,7 @@ def test_patterns_reports_recurring_diagnosis_from_owned_games(
         "recurring_diagnoses": [
             {
                 "diagnosis": "tactics.fork.knight",
+                "name": "Knight fork",
                 "occurrence_count": 3,
                 "game_ids": sorted(game_ids),
                 "evidence_references": evidence_refs,
@@ -212,7 +214,7 @@ def test_weekly_report_excludes_retired_mastery(client: TestClient, db_session: 
     assert report["games_played"] == 1
     assert report["active_concepts_observed"] == 1
     assert report["active_mastery"] == [
-        {"concept_code": "tactics.fork.knight", "mastery": 0.75}
+        {"concept_code": "tactics.fork.knight", "name": "Knight fork", "mastery": 0.75}
     ]
     assert report["top_recurring_diagnosis"] is None
 
@@ -231,9 +233,7 @@ def test_weekly_report_selects_most_frequent_recurring_diagnosis(
                 PersistedLessonOpportunity(
                     game_id=game.id,
                     source_position_id=create_source_position(db_session, game.id).id,
-                    lesson_spec={
-                        "diagnosis": {"primary": diagnosis, "evidence_refs": []}
-                    },
+                    lesson_spec={"diagnosis": {"primary": diagnosis, "evidence_refs": []}},
                 )
             )
     db_session.commit()
@@ -245,3 +245,38 @@ def test_weekly_report_selects_most_frequent_recurring_diagnosis(
 
     assert response.status_code == 200
     assert response.json()["top_recurring_diagnosis"]["diagnosis"] == "aaa.major"
+    assert response.json()["top_recurring_diagnosis"]["name"] == "Unclassified skill"
+
+
+def test_progress_reports_taxonomy_names_for_stored_skills(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "progress-player"
+    token = create_player_token(client, player_id)
+    db_session.add_all(
+        [
+            SkillState(
+                player_id=player_id,
+                concept_code="board_awareness.hanging_piece",
+                alpha=1,
+                beta=3,
+            ),
+            SkillState(player_id=player_id, concept_code="legacy.unknown"),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(
+        f"/v1/players/{player_id}/progress",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    skills = {skill["concept"]: skill for skill in response.json()["skills"]}
+    assert skills["board_awareness.hanging_piece"] == {
+        "concept": "board_awareness.hanging_piece",
+        "name": "Hanging piece",
+        "mastery": 0.25,
+        "uncertainty": 0.0375,
+    }
+    assert skills["legacy.unknown"]["name"] == "Unclassified skill"

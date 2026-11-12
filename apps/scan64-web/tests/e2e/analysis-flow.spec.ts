@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { movePiece } from './board';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 test('analysis board accepts a real pointer move before starting a player-owned game', async ({ page }) => {
   await page.route('**/v1/players', async route => {
@@ -15,6 +18,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
   });
 
   await page.goto('/');
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Review', exact: true }).click();
   await page.getByRole('button', { name: 'Analysis Board' }).click();
   await expect(page.getByRole('heading', { name: 'Analysis Board' })).toBeVisible();
 

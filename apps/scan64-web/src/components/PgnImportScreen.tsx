@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPlayerId } from '../api/client';
 import type { LessonSpec } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 
@@ -15,13 +15,15 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const sideChosenManually = useRef(false);
 
   useEffect(() => {
-    const playerId = getOrCreatePlayerId();
+    const playerId = getStoredPlayerId();
+    if (playerId === null) return;
     void ApiClient.getPlayerProfile(playerId).then(profile => setDisplayName(profile.display_name)).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (sideChosenManually.current) return;
-    const names = [getOrCreatePlayerId()];
+    const playerId = getStoredPlayerId();
+    const names = playerId === null ? [] : [playerId];
     if (displayName && displayName !== 'Anonymous') names.push(displayName);
     const matches = (['white', 'black'] as const).filter(color => {
       const header = color === 'white' ? 'White' : 'Black';

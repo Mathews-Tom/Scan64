@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
 
 export interface FamousGameStudyScreenProps {
@@ -173,7 +174,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
     try {
       const session = await ApiClient.createPlaySession({
         player_id: playerId,
-        opponent_config: { strength: '1' },
+        opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
         initial_fen: currentDecision.fen,
       });
       onPlayFromHere(session, currentDecision.fen);
