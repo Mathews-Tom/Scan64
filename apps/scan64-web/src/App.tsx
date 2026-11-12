@@ -10,7 +10,7 @@ import { DailyTrainingScreen } from './components/DailyTrainingScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CoachDashboardScreen } from './components/CoachDashboardScreen';
 import { GamesListScreen } from './components/GamesListScreen';
-import { createActivePlayer } from './api/client';
+import { createActivePlayer, getStoredPlayerId } from './api/client';
 import { TodayScreen } from './components/TodayScreen';
 
 function decodeRouteSegment(value: string): string | null {
@@ -27,7 +27,7 @@ function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
   const [activeAnalysisGameId, setActiveAnalysisGameId] = useState<string | undefined>();
-  const [hasIdentity, setHasIdentity] = useState(() => localStorage.getItem('scan64_player_id') !== null);
+  const [hasIdentity, setHasIdentity] = useState(() => getStoredPlayerId() !== null);
   const [displayName, setDisplayName] = useState('');
   const [creatingPlayer, setCreatingPlayer] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
@@ -156,7 +156,7 @@ function App() {
             <button
               key={path}
               aria-current={selected ? 'page' : undefined}
-              disabled={!hasIdentity}
+              disabled={!hasIdentity && isKnownPath}
               onClick={() => { if (path === '/play') setActivePlaySession(null); navigate(path); }}
             >{label}</button>
           );
@@ -169,6 +169,10 @@ function App() {
             <p>Play, revisit your games, and practise what matters. What should we call you?</p>
             <form onSubmit={(event) => {
               event.preventDefault();
+              if (getStoredPlayerId() !== null) {
+                setHasIdentity(true);
+                return;
+              }
               if (creatingPlayer || !displayName.trim()) return;
               setCreatingPlayer(true);
               setIdentityError(null);

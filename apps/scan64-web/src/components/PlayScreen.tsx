@@ -9,7 +9,7 @@ import {
 } from '../api/offlineQueue';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { Chessground } from 'chessground';
@@ -53,7 +53,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const cgRef = useRef<Api | null>(null);
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
   const refreshGenerationRef = useRef(0);
-  const [playerId, setPlayerId] = useState(() => localStorage.getItem('scan64_player_id') ?? '');
+  const [playerId, setPlayerId] = useState(() => getStoredPlayerId() ?? '');
   const [coachMode, setCoachMode] = useState(false);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
   const [criticalInterruption, setCriticalInterruption] =

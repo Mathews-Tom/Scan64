@@ -47,14 +47,18 @@ interface PlayerRegistration {
   issuedToken: boolean;
 }
 
+export function getStoredPlayerId(): string | null {
+  return localStorage.getItem(PLAYER_ID_STORAGE_KEY) || null;
+}
+
 export function getActivePlayerId(): string {
-  const playerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
+  const playerId = getStoredPlayerId();
   if (!playerId) throw new Error('No active player identity is stored');
   return playerId;
 }
 
 export function getOrCreatePlayerId(): string {
-  const existingPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
+  const existingPlayerId = getStoredPlayerId();
   if (existingPlayerId) return existingPlayerId;
 
   const playerId = crypto.randomUUID();

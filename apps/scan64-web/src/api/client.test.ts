@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiRequestError, createActivePlayer, getPlayerAuthorizationHeader } from './client';
+import { ApiClient, ApiRequestError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
 
 describe('ApiClient', () => {
   const mockFetch = vi.fn();
@@ -13,6 +13,14 @@ describe('ApiClient', () => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
     localStorage.clear();
+  });
+
+  it('reads the stored identity without creating one or throwing when absent', () => {
+    expect(getStoredPlayerId()).toBeNull();
+    expect(localStorage.getItem('scan64_player_id')).toBeNull();
+    localStorage.setItem('scan64_player_id', 'stored-player');
+    expect(getStoredPlayerId()).toBe('stored-player');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('creates a named active identity and stores its authorization only after success', async () => {

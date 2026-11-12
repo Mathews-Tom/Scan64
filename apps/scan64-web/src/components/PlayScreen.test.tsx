@@ -116,6 +116,7 @@ vi.mock('../api/client', () => ({
     recordLessonAttempt: vi.fn(),
   },
   setActivePlayerId: vi.fn(),
+  getStoredPlayerId: () => localStorage.getItem('scan64_player_id'),
 }));
 
 describe('PlayScreen', () => {

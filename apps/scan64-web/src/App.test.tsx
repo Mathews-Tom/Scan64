@@ -240,7 +240,10 @@ it('keeps a failed registration on the name form without storing an identity', a
 it('links the latest analysed game and orders weakest skills by name without codes', async () => {
   const gameId = '00000000-0000-0000-0000-000000000001';
   vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-    items: [{ id: gameId, white: 'Ada', black: 'Bot', result: '0-1', date: '', created_at: '', diagnosis_count: 1 }],
+    items: [
+      { id: '00000000-0000-0000-0000-000000000002', white: 'Newer player', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 0 },
+      { id: gameId, white: 'Ada', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 1 },
+    ],
     next_cursor: null,
   });
   vi.mocked(ApiClient.getWeeklyReport).mockResolvedValue({
@@ -255,6 +258,10 @@ it('links the latest analysed game and orders weakest skills by name without cod
   const skills = await screen.findByRole('heading', { name: 'Skills to practise' });
   expect(within(skills.parentElement!).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Hanging piece', 'Pin']);
   expect(screen.queryByText(/board_awareness|tactics\.pin/)).not.toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'Choose your next step' })).toBeInTheDocument();
+  expect(screen.getByText('* · 1 lesson')).toBeInTheDocument();
+  expect(screen.getByText('1 game played in the last 7 days.')).toBeInTheDocument();
+  expect(screen.queryByText('Newer player vs Bot')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Review this game' }));
   expect(window.location.pathname).toBe(`/games/${gameId}/analysis`);
   await waitFor(() => expect(ApiClient.getPositions).toHaveBeenCalledWith(gameId));
@@ -290,4 +297,25 @@ it('shows not-found rather than onboarding for an unknown first-visit path', () 
   render(<App />);
   expect(screen.getByTestId('not-found')).toBeInTheDocument();
   expect(screen.queryByLabelText('Display name')).not.toBeInTheDocument();
+  const today = within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Today' });
+  expect(today).toBeEnabled();
+  fireEvent.click(today);
+  expect(window.location.pathname).toBe('/');
+  expect(screen.getByLabelText('Display name')).toBeInTheDocument();
+  expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
+});
+
+it('adopts an identity stored by another tab before name submission', async () => {
+  localStorage.clear();
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Ada' } });
+  localStorage.setItem('scan64_player_id', 'other-tab-player');
+  localStorage.setItem('scan64_player_token:other-tab-player', 'other-tab-token');
+  fireEvent.click(screen.getByRole('button', { name: 'Start learning' }));
+  await screen.findByRole('heading', { name: 'Today' });
+  await waitFor(() => expect(ApiClient.getPlayerGames).toHaveBeenCalledWith('other-tab-player'));
+  expect(localStorage.getItem('scan64_player_id')).toBe('other-tab-player');
+  expect(fetchMock).not.toHaveBeenCalled();
 });

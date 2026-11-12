@@ -13,7 +13,7 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 ## Play a game
 
 1. Open **Play**.
-2. Enter a player ID and optional display name.
+2. Keep the player ID filled from your stored identity; no new name or ID is required.
 3. Select **Coach Mode** only when you want opt-in, post-move interruption during practice.
 4. Start a game and move pieces by drag-and-drop.
 5. Select **Review** (Your Games) and reopen an active game to resume it.
