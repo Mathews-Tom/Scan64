@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from chess_lesson_spec import Hint, LessonSpec, Verification
+from chess_lesson_spec import AcceptedMove, Hint, LessonSpec, MasteryImpact, Verification
 from chess_lesson_spec.fixtures import fixture_paths
 from pydantic import ValidationError
 
@@ -137,3 +137,55 @@ def test_external_source_verification_still_checks_overlays() -> None:
     lesson.hints = [Hint(level=1, kind="prompt", text="Invalid", squares=["z9"])]
     with pytest.raises(LessonVerificationError, match="Invalid square"):
         verify_lesson(lesson)
+
+
+SOURCE_CLAIMS: list[tuple[str, object]] = [
+    ("accepted_moves", [{"san": "Qh5"}]),
+    ("engine", "Stockfish 18"),
+    ("engine", ""),
+    ("engine_binary_digest", "digest"),
+    ("engine_binary_digest", ""),
+    ("nodes", 1),
+    ("nodes", 0),
+    ("multipv", 1),
+    ("multipv", 0),
+    ("mastery", {"skill_key": "tactics.fork", "delta": 0.1}),
+]
+
+
+@pytest.mark.parametrize(("field", "value"), SOURCE_CLAIMS)
+def test_source_verification_rejects_unproved_claims_in_contract(
+    field: str, value: object
+) -> None:
+    data = LessonSpec.model_validate(fixture("valid_external.json")).model_dump(mode="json")
+    if field == "accepted_moves":
+        data["interaction"][field] = value
+    elif field == "mastery":
+        data[field] = value
+    else:
+        data["verification"][field] = value
+    with pytest.raises(ValidationError, match="Source verification cannot claim"):
+        LessonSpec.model_validate(data)
+
+
+@pytest.mark.parametrize(("field", "value"), SOURCE_CLAIMS)
+def test_source_verifier_rechecks_mutated_unproved_claims(field: str, value: object) -> None:
+    lesson = LessonSpec.model_validate(fixture("valid_external.json"))
+    if field == "accepted_moves":
+        lesson.interaction.accepted_moves = [AcceptedMove(san="Qh5")]
+    elif field == "mastery":
+        lesson.mastery = MasteryImpact(skill_key="tactics.fork", delta=0.1)
+    else:
+        setattr(lesson.verification, field, value)
+    with pytest.raises(LessonVerificationError, match="Source verification cannot claim"):
+        verify_lesson(lesson)
+
+
+def test_source_verification_round_trips_empty_claims() -> None:
+    lesson = LessonSpec.model_validate(fixture("valid_external.json"))
+    # Default nulls/empty accepted moves also serialize without implying any claim.
+    restored = LessonSpec.model_validate_json(lesson.model_dump_json())
+    verify_lesson(restored)
+    assert restored.interaction.accepted_moves == []
+    assert restored.mastery is None
+    assert restored.verification.engine is None

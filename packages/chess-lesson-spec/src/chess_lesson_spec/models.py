@@ -163,6 +163,14 @@ class Verification(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "if": {"properties": {"status": {"const": "source_verified"}}},
+            "then": {
+                "properties": {
+                    "engine": {"type": "null"},
+                    "engine_binary_digest": {"type": "null"},
+                    "nodes": {"type": "null"},
+                    "multipv": {"type": "null"},
+                }
+            },
             "else": {
                 "required": ["engine"],
                 "properties": {"engine": {"type": "string", "minLength": 1}},
@@ -179,6 +187,11 @@ class Verification(BaseModel):
 
     @model_validator(mode="after")
     def require_engine_provenance(self) -> Self:
+        if self.status == "source_verified" and any(
+            value is not None
+            for value in (self.engine, self.engine_binary_digest, self.nodes, self.multipv)
+        ):
+            raise ValueError("Source verification cannot claim engine provenance")
         if self.status != "source_verified" and not self.engine:
             raise ValueError("Engine verification requires an engine")
         return self
@@ -215,8 +228,12 @@ class LessonSpec(BaseModel):
                             "source": {"properties": {"kind": {"const": "external"}}},
                             "interaction": {
                                 "required": ["solution"],
-                                "properties": {"solution": {"minItems": 1}},
+                                "properties": {
+                                    "solution": {"minItems": 1},
+                                    "accepted_moves": {"maxItems": 0},
+                                },
                             },
+                            "mastery": {"type": "null"},
                         }
                     },
                 },
@@ -244,4 +261,6 @@ class LessonSpec(BaseModel):
                 raise ValueError("Source verification requires an external source")
             if not self.interaction.solution:
                 raise ValueError("Source verification requires a solution line")
+            if self.interaction.accepted_moves or self.mastery is not None:
+                raise ValueError("Source verification cannot claim accepted moves or mastery")
         return self

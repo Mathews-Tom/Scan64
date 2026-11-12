@@ -775,6 +775,22 @@
       "required": [
         "status"
       ],
+      "then": {
+        "properties": {
+          "engine": {
+            "type": "null"
+          },
+          "engine_binary_digest": {
+            "type": "null"
+          },
+          "nodes": {
+            "type": "null"
+          },
+          "multipv": {
+            "type": "null"
+          }
+        }
+      },
       "title": "Verification",
       "type": "object"
     }
@@ -828,11 +844,17 @@
             "properties": {
               "solution": {
                 "minItems": 1
+              },
+              "accepted_moves": {
+                "maxItems": 0
               }
             },
             "required": [
               "solution"
             ]
+          },
+          "mastery": {
+            "type": "null"
           }
         }
       }

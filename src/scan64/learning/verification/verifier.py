@@ -35,6 +35,20 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis | None = 
     if spec.verification.status == "source_verified":
         if spec.source.kind != "external":
             raise LessonVerificationError("Source verification requires an external source")
+        if spec.interaction.accepted_moves or spec.mastery is not None:
+            raise LessonVerificationError(
+                "Source verification cannot claim accepted moves or mastery"
+            )
+        if any(
+            value is not None
+            for value in (
+                spec.verification.engine,
+                spec.verification.engine_binary_digest,
+                spec.verification.nodes,
+                spec.verification.multipv,
+            )
+        ):
+            raise LessonVerificationError("Source verification cannot claim engine provenance")
         error = validate_solution_line(spec.source.fen, spec.interaction.solution)
         if error is not None:
             raise LessonVerificationError(error)

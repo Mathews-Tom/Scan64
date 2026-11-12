@@ -17,8 +17,10 @@ Imported puzzles use a post-setup FEN and end their remaining line on a solver m
 `source.kind="player_game"` still requires a diagnosis and engine verification.
 External lessons may omit diagnosis and mastery and use
 `verification={"status": "source_verified"}` without engine fields. Source
-verification means legal source-line validation, not engine certification or a
-mastery claim. Scan64's verifier checks line legality and solver-turn parity.
+verification requires empty `accepted_moves` and no engine identity/digest, node
+budget, MultiPV or mastery claim (omitted or null). It means legal source-line
+validation, not engine certification. Both the models and Scan64's verifier reject
+these unproved claims; the verifier also checks line legality and solver-turn parity.
 The original setup move and import provenance remain the importer's responsibility.
 
 Stored 0.1.0 lessons remain readable and trainable with their original single-move
