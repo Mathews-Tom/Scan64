@@ -4,6 +4,8 @@ import hashlib
 from typing import Any
 from uuid import uuid4
 
+import chess
+from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import update
@@ -22,12 +24,15 @@ from scan64.chess.analysis.models import (
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
-from scan64.content.models import ContentAttempt, LessonAttempt, StudySession
+from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_runs import PuzzleRun
+from scan64.content.validate import validate_solution_line
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferPosition
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["data_lifecycle"])
@@ -57,7 +62,178 @@ class ExportArchive(BaseModel):
     review_schedules: list[dict[str, Any]] = Field(default_factory=list)
     study_sessions: list[dict[str, Any]] = Field(default_factory=list)
     content_attempts: list[dict[str, Any]] = Field(default_factory=list)
+    puzzle_runs: list[dict[str, Any]] = Field(default_factory=list)
+    puzzle_content_items: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
+
+
+def _puzzle_spec(item: ContentItem) -> LessonSpec:
+    """Validate portable puzzle dependencies without granting global write access."""
+    payload = item.payload
+    moves = payload.get("moves")
+    puzzle_id = payload.get("puzzle_id")
+    fen = payload.get("fen")
+    if (
+        item.domain != "puzzles"
+        or item.version != "0.2.0"
+        or item.skill_mapping
+        or not isinstance(puzzle_id, str)
+        or not puzzle_id
+        or item.id != f"lichess:{puzzle_id}"
+        or not isinstance(fen, str)
+        or not isinstance(moves, list)
+        or any(not isinstance(move, str) for move in moves)
+        or len(moves) < 2
+        or len(moves) % 2
+        or payload.get("setup") != moves[0]
+        or type(payload.get("import_sequence")) is not int
+        or payload["import_sequence"] < 0
+    ):
+        raise ValueError("Invalid puzzle identity")
+    if validate_solution_line(fen, moves) is not None:
+        raise ValueError("Invalid puzzle source line")
+    board = chess.Board(fen)
+    board.push_uci(moves[0])
+    spec = LessonSpec.model_validate(payload.get("lesson"))
+    if (
+        spec.schema_version != "0.2.0"
+        or spec.source.kind != "external"
+        or spec.verification.status != "source_verified"
+        or spec.diagnosis is not None
+        or spec.source.fen != board.fen()
+        or spec.interaction.solution != moves[1:]
+    ):
+        raise ValueError("Puzzle lesson does not match its source")
+    verify_lesson(spec)
+    return spec
+
+
+def _validate_puzzle_archive(
+    session: Session,
+    player_id: str,
+    items: list[ContentItem],
+    runs: list[PuzzleRun],
+    study_sessions: list[StudySession],
+    attempts: list[ContentAttempt],
+) -> list[ContentItem]:
+    """Preflight the entire puzzle graph before any archive records are written."""
+    catalog = {item.id: item for item in items}
+    if len(catalog) != len(items) or len({run.id for run in runs}) != len(runs):
+        raise ValueError("Duplicate puzzle records")
+    studies = {study.id: study for study in study_sessions}
+    if len(studies) != len(study_sessions) or len({run.session_id for run in runs}) != len(runs):
+        raise ValueError("Duplicate puzzle study session")
+    attempts_by_id = {attempt.id: attempt for attempt in attempts}
+    if len(attempts_by_id) != len(attempts):
+        raise ValueError("Duplicate content attempts")
+    for archived_study in study_sessions:
+        if (
+            archived_study.domain == "puzzles"
+            and session.get(StudySession, archived_study.id) is not None
+        ):
+            raise ValueError("Conflicting puzzle study session")
+    for archived_attempt in attempts:
+        if session.get(ContentAttempt, archived_attempt.id) is not None:
+            raise ValueError("Conflicting content attempt")
+    referenced = {run.item_id for run in runs} | {
+        attempt.item_id for attempt in attempts if attempt.item_id in catalog
+    }
+    if set(catalog) - referenced:
+        raise ValueError("Unreferenced puzzle catalog records")
+    missing = []
+    specs = {}
+    for item in items:
+        specs[item.id] = _puzzle_spec(item)
+        existing = session.get(ContentItem, item.id)
+        if existing is None:
+            missing.append(item)
+        elif (
+            existing.domain != "puzzles"
+            or existing.payload.get("fen") != item.payload["fen"]
+            or existing.payload.get("moves") != item.payload["moves"]
+        ):
+            raise ValueError("Conflicting puzzle identity")
+    if sum(run.state == "active" for run in runs) > 1:
+        raise ValueError("Multiple active puzzle runs")
+    for run in runs:
+        study = studies.get(run.session_id)
+        if (
+            run.player_id != player_id
+            or study is None
+            or study.player_id != player_id
+            or study.domain != "puzzles"
+            or run.item_id not in specs
+            or session.get(PuzzleRun, run.id) is not None
+            or run.state not in {"active", "solved", "failed", "abandoned"}
+            or run.cursor < 0
+            or run.revision < 0
+            or not 0 <= run.wrong_attempts <= 3
+        ):
+            raise ValueError("Invalid puzzle run references or counters")
+        solution = specs[run.item_id].interaction.solution
+        board = chess.Board(specs[run.item_id].source.fen)
+        for index, move in enumerate(run.played_moves):
+            if index >= len(solution):
+                raise ValueError("Puzzle run exceeds solution")
+            board.push_uci(move)
+            if move != solution[index] and not (
+                run.state == "solved"
+                and index == len(run.played_moves) - 1
+                and index % 2 == 0
+                and board.is_checkmate()
+            ):
+                raise ValueError("Puzzle run diverges from solution")
+        solved = run.state == "solved"
+        if (
+            run.fen != board.fen()
+            or run.cursor != len(run.played_moves)
+            or run.cursor % 2 != (1 if solved else 0)
+            or (solved and not (run.cursor == len(solution) or board.is_checkmate()))
+            or (not solved and run.cursor >= len(solution))
+            or (run.state == "failed") != (run.wrong_attempts == 3)
+            or (run.state == "active") != (run.completed_at is None)
+            or (run.completed_at is not None and run.completed_at < run.started_at)
+            or any(
+                not key.isdecimal()
+                or str(int(key)) != key
+                or int(key) % 2
+                or int(key) > run.cursor
+                or int(key) >= len(solution)
+                or type(step) is not int
+                or not 1 <= step <= 3
+                for key, step in run.hint_steps.items()
+            )
+            or run.revision
+            < (len(run.played_moves) + 1) // 2
+            + run.wrong_attempts
+            + len(run.hint_steps)
+        ):
+            raise ValueError("Invalid puzzle run state")
+        attempt = attempts_by_id.get(run.id)
+        if run.state in {"solved", "failed"}:
+            if (
+                attempt is None
+                or attempt.player_id != player_id
+                or attempt.item_id != run.item_id
+                or attempt.session_id != run.session_id
+                or attempt.success != solved
+                or attempt.hint_assisted != bool(run.hint_steps)
+                or attempt.response_payload.get("run_id") != run.id
+                or attempt.completed_at is None
+            ):
+                raise ValueError("Invalid terminal puzzle attempt")
+        elif attempt is not None:
+            raise ValueError("Unfinished puzzle run has an attempt")
+    run_ids = {run.id for run in runs}
+    for attempt in attempts:
+        attempt_item = catalog.get(attempt.item_id) or session.get(ContentItem, attempt.item_id)
+        if attempt_item is None:
+            raise ValueError("Missing content reference")
+        if attempt_item.domain == "puzzles" and (
+            attempt.item_id not in catalog or attempt.id not in run_ids
+        ):
+            raise ValueError("Puzzle attempt has no archived run")
+    return missing
 
 
 @router.post("/v1/exports", response_model=ExportArchive)
@@ -144,6 +320,17 @@ def export_player_data(
     content_attempts = session.exec(
         select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
     ).all()
+    puzzle_runs = session.exec(
+        select(PuzzleRun).where(col(PuzzleRun.player_id) == player_id)
+    ).all()
+    puzzle_item_ids = {run.item_id for run in puzzle_runs} | {
+        attempt.item_id for attempt in content_attempts
+    }
+    puzzle_content_items = (
+        session.exec(select(ContentItem).where(
+            col(ContentItem.id).in_(puzzle_item_ids), ContentItem.domain == "puzzles"
+        )).all() if puzzle_item_ids else []
+    )
     lesson_attempts = (
         session.exec(
             select(LessonAttempt).where(
@@ -212,6 +399,8 @@ def export_player_data(
         content_attempts=[
             content_attempt.model_dump(mode="json") for content_attempt in content_attempts
         ],
+        puzzle_runs=[run.model_dump(mode="json") for run in puzzle_runs],
+        puzzle_content_items=[item.model_dump(mode="json") for item in puzzle_content_items],
         credential_hash=credential_hash,
     )
 
@@ -277,6 +466,23 @@ def import_player_data(
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
     except ValidationError as error:
         raise HTTPException(status_code=400, detail="Invalid archive: malformed records") from error
+
+    try:
+        puzzle_items = [ContentItem.model_validate(data) for data in archive.puzzle_content_items]
+        for data in archive.puzzle_runs:
+            for counter in ("cursor", "revision", "wrong_attempts"):
+                if counter in data and type(data[counter]) is not int:
+                    raise ValueError("Invalid puzzle counter")
+            if any(type(step) is not int for step in data.get("hint_steps", {}).values()):
+                raise ValueError("Invalid hint steps")
+        puzzle_runs = [PuzzleRun.model_validate(data) for data in archive.puzzle_runs]
+        missing_puzzles = _validate_puzzle_archive(
+            session, player_id, puzzle_items, puzzle_runs, study_sessions, content_attempts
+        )
+    except (ValueError, TypeError, AttributeError, LessonVerificationError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed puzzle records"
+        ) from error
 
     game_ids = {game.id for game in games}
     existing_games = {game.id: session.get(Game, game.id) for game in games}
@@ -395,6 +601,11 @@ def import_player_data(
             if existing_analysis is not None and existing_analysis.position_id != position_id:
                 raise HTTPException(status_code=400, detail="Invalid archive: conflicting analysis")
 
+    # Puzzle dependencies are the explicit global-catalog restore exception.
+    # Existing rows (including metadata) are never overwritten.
+    for puzzle_item in missing_puzzles:
+        session.add(puzzle_item)
+    session.flush()
     session.add(player)
     session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     if profile:
@@ -455,6 +666,10 @@ def import_player_data(
     for study_session in study_sessions:
         session.add(study_session)
 
+    session.flush()
+    for run in puzzle_runs:
+        session.add(run)
+    session.flush()
     for content_attempt in content_attempts:
         session.add(content_attempt)
 
@@ -610,6 +825,9 @@ def delete_player_data(
                 select(ContentAttempt).where(col(ContentAttempt.player_id) == player_id)
             ).all()
         ),
+        "puzzle_runs": len(session.exec(
+            select(PuzzleRun).where(col(PuzzleRun.player_id) == player_id)
+        ).all()),
         "coach_student_links": len(coach_student_links),
     }
 
@@ -640,6 +858,7 @@ def delete_player_data(
         session.exec(delete(AnalysisJob).where(col(AnalysisJob.game_id).in_(owned_game_ids)))
         session.exec(delete(Position).where(col(Position.game_id).in_(owned_game_ids)))
     session.exec(delete(ContentAttempt).where(col(ContentAttempt.player_id) == player_id))
+    session.exec(delete(PuzzleRun).where(col(PuzzleRun.player_id) == player_id))
     session.exec(delete(StudySession).where(col(StudySession.player_id) == player_id))
     session.exec(delete(ReviewSchedule).where(col(ReviewSchedule.player_id) == player_id))
     session.exec(delete(SkillState).where(col(SkillState.player_id) == player_id))

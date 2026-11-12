@@ -23,6 +23,7 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
@@ -31,6 +32,7 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferKind, TransferPosition
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 
 PLAYER_LIFECYCLE_TABLES = frozenset(
     {
@@ -50,6 +52,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         ReviewSchedule.__tablename__,
         StudySession.__tablename__,
         ContentAttempt.__tablename__,
+        PuzzleRun.__tablename__,
         LessonAttempt.__tablename__,
         TransferMeasurement.__tablename__,
         CoachStudentLink.__tablename__,
@@ -82,6 +85,8 @@ ARCHIVE_FIELDS = {
     ReviewSchedule.__tablename__: "review_schedules",
     StudySession.__tablename__: "study_sessions",
     ContentAttempt.__tablename__: "content_attempts",
+    PuzzleRun.__tablename__: "puzzle_runs",
+    ContentItem.__tablename__: "puzzle_content_items",
     LessonAttempt.__tablename__: "lesson_attempts",
     TransferMeasurement.__tablename__: "transfer_measurements",
     TransferPosition.__tablename__: "transfer_positions",
@@ -284,6 +289,7 @@ def _seed_player_lifecycle_records(
         ]
     )
     session.commit()
+    seed_puzzle_run(session, player_id)
 
     return {
         "analysis_id": analysis.id,
@@ -332,6 +338,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert archive["transfer_measurements"]
     assert archive["transfer_positions"]
     assert archive["coach_student_links"]
+    assert archive["puzzle_runs"]
+    assert archive["puzzle_content_items"]
 
     dry_run = client.request(
         "DELETE",
@@ -358,7 +366,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "transfer_measurements": 1,
         "skill_states": 1,
         "review_schedules": 1,
-        "study_sessions": 1,
+        "study_sessions": 2,
+        "puzzle_runs": 1,
         "content_attempts": 1,
         "coach_student_links": 1,
     }
@@ -419,6 +428,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         ).all(),
         "study_session": db_session.exec(
             select(StudySession).where(StudySession.player_id == player_id)
+        ).all(),
+        "puzzle_runs": db_session.exec(
+            select(PuzzleRun).where(PuzzleRun.player_id == player_id)
         ).all(),
         "content_attempt": db_session.exec(
             select(ContentAttempt).where(ContentAttempt.player_id == player_id)

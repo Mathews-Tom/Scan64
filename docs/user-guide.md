@@ -90,6 +90,50 @@ Coach mode is an explicit practice option, not an always-on analysis engine.
 
 An arbitrary mistake does not guarantee an interruption. Ordinary play, independent calculation, and completed-game review do not use the coach interruption path.
 
+## Import a puzzle catalog
+
+An operator must import puzzles before players can practise them. Nothing downloads at startup.
+Use the application's database environment (`SCAN64_DATABASE_URL`) for these commands:
+
+```sh
+uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json
+# Or explicitly download the complete database, then import it:
+uv run scan64-cli puzzles import --download --json
+# In an already running local Docker container:
+docker exec <container> scan64-cli puzzles import --download --json
+```
+
+`--download` saves the **entire** compressed Lichess CC0 database, roughly **310 MB**
+and growing, before importing any rows. It is not a small filtered download. Allow space for
+the complete file and a temporary replacement when downloading again. Interrupted downloads
+do not replace a previously saved file. The default destination is
+`lichess_db_puzzle.csv.zst` beside the SQLite database (or `./data` for other databases);
+`SCAN64_DATA_DIR` or `--data-dir /path` overrides that directory. `--output filename.csv.zst`
+changes the name (an absolute path overrides the directory), and `--url URL` changes the
+download source. Download-only options cannot be combined with a local input path.
+
+Import streams CSV by header through the pinned BSD-licensed `zstandard` library; it does not
+load the whole dataset into memory. Defaults select the first **50,000 qualifying unique
+puzzles in file order**: rating **600–1800 inclusive**, rating deviation **≤100**,
+popularity **≥80**, and plays **≥100**. Explicit overrides are `--limit`, `--min-rating`,
+`--max-rating`, `--max-rating-deviation`, `--min-popularity`, and `--min-plays`.
+An underfilled import reports its actual count and never relaxes these filters.
+
+The text summary (or `--json`) includes filters, rows read, accepted/inserted/existing counts,
+`metadata_changed`, and skipped counts by reason. It also records the complete compressed
+file's own SHA256, byte size, local path, source URL and HTTP ETag/Last-Modified when supplied.
+For a local file the unavailable URL/HTTP fields are explicitly null. The operator-computed
+checksum supports reproducibility; it is **not upstream authentication**.
+
+Reimport the saved file with the same filters to leave the catalog unchanged: qualifying
+already-present puzzles count toward the cap, so reruns do not append another 50,000.
+Duplicate ids do not consume the cap. Identity is PuzzleId plus the original FEN and complete
+UCI Moves (including the opponent's setup); changed FEN/Moves are skipped as conflicts.
+Changed rating/themes and other metadata are refreshed and counted as `metadata_changed`,
+without replacing the immutable lesson, original provenance, import order or player runs.
+The first UCI move is applied as setup; the remaining legal continuation becomes a
+source-verified external lesson, not an engine diagnosis or a theme-mastery update.
+
 ## Review games and content
 
 - **Review** (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.
