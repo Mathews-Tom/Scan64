@@ -24,7 +24,7 @@ Play offers eight server-defined levels from `GET /v1/bots`; Analysis Board's pl
 
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
 
-Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. It prints the Stockfish version and each higher level's score against the level below; the command fails if any score is below 60%. Repeat with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
+Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
 
 ## Import and analyse a PGN
 

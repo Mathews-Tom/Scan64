@@ -15,7 +15,7 @@ import chess.engine
 from scan64.chess.opponents.bots import get_bot_level
 from scan64.chess.opponents.protocols import OpponentContext
 
-DEFAULT_BOT_NODES = 12_000
+DEFAULT_BOT_NODES = 1_000
 
 
 def error_budget(level: int) -> int:
