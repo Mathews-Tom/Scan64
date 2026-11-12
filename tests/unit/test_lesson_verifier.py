@@ -21,7 +21,7 @@ from scan64.learning.verification.verifier import LessonVerificationError, verif
 
 def _create_valid_spec() -> LessonSpec:
     return LessonSpec(
-        schema_version="0.1.0",
+        schema_version="0.2.0",
         lesson_id="test1",
         source=Source(
             kind="player_game",

@@ -121,7 +121,7 @@ def test_scheduler_serves_only_persisted_opportunities(db_session: Session) -> N
         source_position_id=source_position.id,
         player_id="player1",
         lesson_spec={
-            "schema_version": "1.0",
+            "schema_version": "0.2.0",
             "lesson_id": "opp1",
             "source": {
                 "kind": "custom",

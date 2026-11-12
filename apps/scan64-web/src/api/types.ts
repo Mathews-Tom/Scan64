@@ -52,14 +52,15 @@ export interface Hint {
 
 export interface AcceptedMove {
   san: string;
-  lan: string;
-  reason: string;
+  lan?: string | null;
+  reason?: string | null;
 }
 
 export interface Interaction {
   input: string;
   maximum_attempts: number;
   accepted_moves: AcceptedMove[];
+  solution?: string[];
 }
 
 export interface Diagnosis {
@@ -70,7 +71,7 @@ export interface Diagnosis {
 }
 
 export interface Source {
-  kind: string;
+  kind: 'player_game' | 'custom' | 'external';
   fen: string;
 }
 
@@ -86,11 +87,11 @@ export interface Explanation {
 
 export interface Verification {
   status: string;
-  engine: string;
-  engine_binary_digest: string;
-  nodes: number;
-  multipv: number;
-  verified_at: string;
+  engine?: string | null;
+  engine_binary_digest?: string | null;
+  nodes?: number | null;
+  multipv?: number | null;
+  verified_at?: string | null;
 }
 
 export interface MasteryImpact {
@@ -98,18 +99,19 @@ export interface MasteryImpact {
   delta: number;
 }
 
-export interface LessonSpec {
+export type LessonSpec = {
   schema_version: string;
   lesson_id: string;
-  source: Source;
-  diagnosis: Diagnosis;
   objective: Objective;
   interaction: Interaction;
   hints: Hint[];
-  explanation: Explanation;
+  explanation?: Explanation | null;
   verification: Verification;
-  mastery: MasteryImpact;
-}
+  mastery?: MasteryImpact | null;
+} & (
+  | { source: Source & { kind: 'player_game' }; diagnosis: Diagnosis }
+  | { source: Source & { kind: 'custom' | 'external' }; diagnosis?: Diagnosis | null }
+);
 
 export interface TrainingSessionRead {
   session_id: string;

@@ -10,7 +10,7 @@ def test_reference_renderer_conforms() -> None:
     result = _run_renderer("reference_renderer_stub")
 
     assert result.returncode == 0
-    assert result.stdout == "Conformance passed: 3 fixtures, 15 visualization commands.\n"
+    assert result.stdout == "Conformance passed: 6 fixtures, 15 visualization commands.\n"
     assert result.stderr == ""
 
 

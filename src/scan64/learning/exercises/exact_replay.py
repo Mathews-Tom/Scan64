@@ -35,7 +35,7 @@ async def generate_exact_replay_exercise(
     verification = Verification(status="unverified", engine="stockfish")
 
     return LessonSpec(
-        schema_version="0.1.0",
+        schema_version="0.2.0",
         lesson_id=lesson_id,
         source=source,
         diagnosis=diagnosis,

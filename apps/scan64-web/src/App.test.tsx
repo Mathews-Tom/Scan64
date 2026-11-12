@@ -209,10 +209,10 @@ describe('App', () => {
 
   it('navigates to daily training screen and loads a lesson', async () => {
     const mockLesson: LessonSpec = {
-      schema_version: '1.0',
+      schema_version: '0.2.0',
       lesson_id: 'lesson-1',
       source: {
-        kind: 'position',
+        kind: 'player_game',
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
       },
       diagnosis: {

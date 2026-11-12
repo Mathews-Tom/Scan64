@@ -31,7 +31,7 @@ from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
 def lesson_spec() -> dict[str, object]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "0.2.0",
         "lesson_id": "generated-lesson",
         "source": {
             "kind": "custom",
@@ -113,14 +113,18 @@ def authorize(client: TestClient, db_session: Session, player_id: str) -> None:
     client.headers["Authorization"] = f"Bearer {token}"
 
 
+@pytest.mark.parametrize("schema_version", ["0.1.0", "0.2.0"])
 def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
-    client: TestClient, db_session: Session
+    client: TestClient, db_session: Session, schema_version: str
 ) -> None:
     player_id = "lesson-player"
     db_session.add(Player(id=player_id))
     db_session.add(PlayerProfile(player_id=player_id, rating=1500))
     db_session.commit()
     opportunity = create_persisted_lesson(db_session, player_id)
+    opportunity.lesson_spec = {**opportunity.lesson_spec, "schema_version": schema_version}
+    db_session.add(opportunity)
+    db_session.commit()
     authorize(client, db_session, player_id)
 
     served = client.get(f"/v1/learning/session?player_id={player_id}")
@@ -603,6 +607,7 @@ def test_transfer_measurement_is_served_completed_and_reported(
 
     assert served.status_code == 200
     assert str(measurement.id) in {lesson["lesson_id"] for lesson in served.json()["lessons"]}
+    assert all(lesson["schema_version"] == "0.2.0" for lesson in served.json()["lessons"])
     completed = client.post(
         "/v1/learning/lesson-attempts",
         json={

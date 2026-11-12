@@ -1,0 +1,8 @@
+{
+  "schema_version": "0.2.0",
+  "lesson_id": "external_promotion",
+  "source": { "kind": "external", "fen": "8/P7/8/8/8/2k5/8/7K w - - 0 1" },
+  "objective": { "type": "puzzle", "instruction": "Find the promotion." },
+  "interaction": { "input": "move", "maximum_attempts": 3, "solution": ["a7a8n"] },
+  "verification": { "status": "source_verified" }
+}

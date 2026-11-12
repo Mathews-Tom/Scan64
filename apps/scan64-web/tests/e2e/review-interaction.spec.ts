@@ -7,10 +7,10 @@ import { prepareToday } from './today';
 test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 const serverLesson = {
-  schema_version: '0.1.0',
+  schema_version: '0.2.0',
   lesson_id: 'lesson-123',
   source: {
-    kind: 'pgn',
+    kind: 'player_game',
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
   },
   diagnosis: {
@@ -20,7 +20,7 @@ const serverLesson = {
     evidence_refs: [],
   },
   objective: { type: 'tactic', instruction: 'Find the best move.' },
-  interaction: { input: 'move', maximum_attempts: 1, accepted_moves: ['e2e4'] },
+  interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [{ san: 'e4', lan: 'e2e4' }] },
   hints: [],
   explanation: { text: 'The committed server lesson.' },
   verification: {

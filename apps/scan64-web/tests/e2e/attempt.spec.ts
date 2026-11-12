@@ -5,9 +5,9 @@ import { prepareToday } from './today';
 test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 const lesson = {
-  schema_version: '1.0',
+  schema_version: '0.2.0',
   lesson_id: '00000000-0000-0000-0000-000000000001',
-  source: { kind: 'position', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
+  source: { kind: 'player_game', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
   diagnosis: { primary: 'tactics.fork', secondary: [], confidence: 1, evidence_refs: [] },
   objective: { type: 'find_best_move', instruction: 'Play e4.' },
   interaction: { input: 'click', maximum_attempts: 3, accepted_moves: [{ san: 'e4' }] },

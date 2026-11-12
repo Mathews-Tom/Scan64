@@ -78,9 +78,9 @@ vi.mock('./CriticalMomentReview', () => ({
 }));
 
 const serverLesson: LessonSpec = {
-  schema_version: '0.1.0',
+  schema_version: '0.2.0',
   lesson_id: 'lesson-123',
-  source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
+  source: { kind: 'player_game', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
   diagnosis: { primary: 'test', secondary: [], confidence: 1, evidence_refs: [] },
   objective: { type: 'test', instruction: 'Find the best move' },
   interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },

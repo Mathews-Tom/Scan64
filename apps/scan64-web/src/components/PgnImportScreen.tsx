@@ -174,7 +174,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
           <ul>
             {lessons.map(lesson => (
               <li key={lesson.lesson_id}>
-                {lesson.diagnosis.primary} (confidence: {lesson.diagnosis.confidence})
+                {lesson.diagnosis
+                  ? `${lesson.diagnosis.primary} (confidence: ${lesson.diagnosis.confidence})`
+                  : lesson.objective.instruction}
                 <button 
                   data-testid={`review-btn-${lesson.lesson_id}`}
                   onClick={() => setSelectedLesson(lesson)}

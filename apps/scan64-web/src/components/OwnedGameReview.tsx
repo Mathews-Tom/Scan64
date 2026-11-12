@@ -199,8 +199,8 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
         {review.key_moments.length === 0 && <p>No trusted key moments are available. A scored mistake does not always have a verified lesson.</p>}
         {review.key_moments.map(moment => <article key={moment.lesson_id} data-testid={`review-key-moment-${moment.ply}`}>
           <button type="button" aria-current={selectedPly === moment.ply ? 'step' : undefined} onClick={() => setSelectedPly(moment.ply)}>Key moment at ply {moment.ply}</button>
-          <h4>{moment.lesson.diagnosis.primary.replaceAll('_', ' ').replaceAll('.', ' / ')}</h4>
-          <p>{moment.lesson.explanation.text}</p>
+          {moment.lesson.diagnosis && <h4>{moment.lesson.diagnosis.primary.replaceAll('_', ' ').replaceAll('.', ' / ')}</h4>}
+          {moment.lesson.explanation && <p>{moment.lesson.explanation.text}</p>}
           <p>{moment.attempts_used} lifetime attempts used; {moment.attempts_remaining} remaining.</p>
           {moment.attempts_remaining === 0 ? <>
             <p>Attempts exhausted. This moment is available for study, not another retry.</p>

@@ -21,7 +21,7 @@ def render_visualization(command: dict[str, object]) -> None:
     report = run_conformance(tmp_path)
 
     command_names = (tmp_path / "commands.txt").read_text(encoding="utf-8").splitlines()
-    assert report.fixture_count == 3
+    assert report.fixture_count == 6
     assert report.visualization_count == 15
     assert command_names.count("highlight_region") == 2
     assert set(command_names) == {

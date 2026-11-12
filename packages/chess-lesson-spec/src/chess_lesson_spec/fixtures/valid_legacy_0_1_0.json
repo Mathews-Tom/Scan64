@@ -1,0 +1,13 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "les_legacy",
+  "source": { "kind": "player_game", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" },
+  "diagnosis": { "primary": "test.diagnosis", "confidence": 0.9 },
+  "objective": { "type": "exact_replay", "instruction": "Find a sound move." },
+  "interaction": {
+    "input": "move",
+    "maximum_attempts": 3,
+    "accepted_moves": [{ "san": "e4" }]
+  },
+  "verification": { "status": "verified", "engine": "Stockfish 16.1" }
+}

@@ -551,6 +551,15 @@
           },
           "title": "Accepted Moves",
           "type": "array"
+        },
+        "solution": {
+          "description": "UCI line from source.fen, alternating solver moves and automatic replies.",
+          "items": {
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+            "type": "string"
+          },
+          "title": "Solution",
+          "type": "array"
         }
       },
       "required": [
@@ -678,14 +687,40 @@
       "type": "object"
     },
     "Verification": {
+      "else": {
+        "properties": {
+          "engine": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "engine"
+        ]
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "source_verified"
+          }
+        }
+      },
       "properties": {
         "status": {
           "title": "Status",
           "type": "string"
         },
         "engine": {
-          "title": "Engine",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine"
         },
         "engine_binary_digest": {
           "anyOf": [
@@ -738,13 +773,93 @@
         }
       },
       "required": [
-        "status",
-        "engine"
+        "status"
       ],
+      "then": {
+        "properties": {
+          "engine": {
+            "type": "null"
+          },
+          "engine_binary_digest": {
+            "type": "null"
+          },
+          "nodes": {
+            "type": "null"
+          },
+          "multipv": {
+            "type": "null"
+          }
+        }
+      },
       "title": "Verification",
       "type": "object"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "properties": {
+              "kind": {
+                "const": "player_game"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "diagnosis": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "diagnosis"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "status": {
+                "const": "source_verified"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "properties": {
+              "kind": {
+                "const": "external"
+              }
+            }
+          },
+          "interaction": {
+            "properties": {
+              "solution": {
+                "minItems": 1
+              },
+              "accepted_moves": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "solution"
+            ]
+          },
+          "mastery": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "schema_version": {
       "title": "Schema Version",
@@ -758,7 +873,15 @@
       "$ref": "#/$defs/Source"
     },
     "diagnosis": {
-      "$ref": "#/$defs/Diagnosis"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Diagnosis"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "objective": {
       "$ref": "#/$defs/Objective"
@@ -803,7 +926,6 @@
     "schema_version",
     "lesson_id",
     "source",
-    "diagnosis",
     "objective",
     "interaction",
     "verification"

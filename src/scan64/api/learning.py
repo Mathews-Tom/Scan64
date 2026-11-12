@@ -186,7 +186,7 @@ def _transfer_measurement_lesson(
         return None
     return LessonSpec.model_validate(
         {
-            "schema_version": "1.0",
+            "schema_version": "0.2.0",
             "lesson_id": measurement.id,
             "source": {"kind": "custom", "fen": measurement.target_fen},
             "diagnosis": {"primary": measurement.skill_id, "confidence": 1.0},
@@ -235,6 +235,8 @@ def get_training_session(
             if reverified_spec is None:
                 continue
             spec = reverified_spec
+            if spec.diagnosis is None:
+                continue
             spec.diagnosis.secondary = []
         spec.lesson_id = str(opportunity.id)
         is_due = schedule.is_due(now)

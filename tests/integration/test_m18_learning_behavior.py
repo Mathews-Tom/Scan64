@@ -114,7 +114,7 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
 
     # Create opportunities
     spec1 = {
-        "schema_version": "1.0",
+        "schema_version": "0.2.0",
         "lesson_id": f"lesson_{uuid4()}",
         "source": {
             "kind": "player_game",
@@ -130,7 +130,7 @@ def test_player_scoped_persisted_opportunities(client: TestClient, db_session: S
         "verification": {"status": "verified", "engine": "syzygy"},
     }
     spec2 = {
-        "schema_version": "1.0",
+        "schema_version": "0.2.0",
         "lesson_id": f"lesson_{uuid4()}",
         "source": {
             "kind": "player_game",
@@ -225,7 +225,7 @@ def test_due_schedule_survives_sqlite_datetime_round_trip(
             source_position_id=source_position.id,
             player_id=player_id,
             lesson_spec={
-                "schema_version": "1.0",
+                "schema_version": "0.2.0",
                 "lesson_id": f"lesson-{uuid4()}",
                 "source": {
                     "kind": "player_game",

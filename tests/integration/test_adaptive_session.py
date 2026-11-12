@@ -21,7 +21,7 @@ from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
 def lesson_spec() -> dict[str, object]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "0.2.0",
         "lesson_id": "generated-lesson",
         "source": {
             "kind": "custom",
