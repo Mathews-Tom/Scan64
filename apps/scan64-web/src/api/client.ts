@@ -26,6 +26,8 @@ import type {
   PositionRead,
   PositionInsight,
   PositionInsightRequest,
+  PuzzleRunRead,
+  PuzzleStartRead,
   TrainingSessionRead,
   WeeklyReport,
 } from './types';
@@ -45,6 +47,17 @@ export class ApiRequestError extends Error {
     this.status = status;
   }
 }
+
+export class PuzzleConflictError extends ApiRequestError {
+  readonly run: PuzzleRunRead;
+
+  constructor(message: string, run: PuzzleRunRead) {
+    super(message, 409);
+    this.run = run;
+  }
+}
+
+type PuzzleExpectedState = { expected_cursor: number; expected_revision: number };
 
 interface PlayerRegistration {
   player: PlayerRead;
@@ -156,6 +169,45 @@ function getActivePlayerAuthorizationHeader(): Record<string, string> {
 }
 
 export class ApiClient {
+  private static async puzzleRequest<T>(path: string, method: 'GET' | 'POST', data?: object): Promise<T> {
+    const response = await fetch(`${API_BASE}/puzzles/runs${path}`, {
+      method,
+      headers: { ...getActivePlayerAuthorizationHeader(), ...(data ? { 'Content-Type': 'application/json' } : {}) },
+      ...(data ? { body: JSON.stringify(data) } : {}),
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+      if (response.status === 409 && detail !== null && typeof detail === 'object'
+        && 'message' in detail && typeof detail.message === 'string' && 'run' in detail
+        && detail.run !== null && typeof detail.run === 'object' && 'run_id' in detail.run) {
+        throw new PuzzleConflictError(detail.message, detail.run as PuzzleRunRead);
+      }
+      throw new ApiRequestError(typeof detail === 'string' ? detail : `Puzzle request failed: ${response.statusText}`, response.status);
+    }
+    return body as T;
+  }
+
+  static startPuzzleRun(): Promise<PuzzleStartRead> {
+    return this.puzzleRequest('', 'POST');
+  }
+
+  static getPuzzleRun(runId: string): Promise<PuzzleRunRead> {
+    return this.puzzleRequest(`/${encodeURIComponent(runId)}`, 'GET');
+  }
+
+  static submitPuzzleMove(runId: string, body: PuzzleExpectedState & { move: string }): Promise<PuzzleRunRead> {
+    return this.puzzleRequest(`/${encodeURIComponent(runId)}/moves`, 'POST', body);
+  }
+
+  static revealPuzzleHint(runId: string, body: PuzzleExpectedState & { step: 1 | 2 | 3 }): Promise<PuzzleRunRead> {
+    return this.puzzleRequest(`/${encodeURIComponent(runId)}/hints`, 'POST', body);
+  }
+
+  static abandonPuzzleRun(runId: string, body: PuzzleExpectedState): Promise<PuzzleRunRead> {
+    return this.puzzleRequest(`/${encodeURIComponent(runId)}/abandon`, 'POST', body);
+  }
+
   static async getPositionInsight(data: PositionInsightRequest): Promise<PositionInsight> {
     const response = await fetch(`${API_BASE}/insights/position`, {
       method: 'POST',

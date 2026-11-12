@@ -26,6 +26,7 @@ vi.mock('./api/client', async (importOriginal) => {
       createGame: vi.fn(),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
+      startPuzzleRun: vi.fn().mockResolvedValue({ status: 'empty', run: null, message: 'Import puzzles to begin.' }),
     },
   };
 });
@@ -76,6 +77,30 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+  });
+
+  it('navigates to imported puzzles and preserves the known deep-link route', async () => {
+    render(<App />);
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Puzzles' }));
+    expect(window.location.pathname).toBe('/puzzles');
+    expect(screen.getByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
+    expect(await screen.findByText('Import puzzles to begin.')).toBeInTheDocument();
+  });
+
+  it('requires identity onboarding on the puzzles deep link instead of treating it as unknown', () => {
+    localStorage.clear();
+    window.history.replaceState({}, '', '/puzzles');
+    render(<App />);
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /display name/i })).toBeInTheDocument();
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
+  });
+
+  it('starts or resumes puzzles when a stored identity opens the deep link', async () => {
+    window.history.replaceState({}, '', '/puzzles');
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
+    await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith());
   });
 
   it('renders a game analysis screen from its deep-link URL', async () => {

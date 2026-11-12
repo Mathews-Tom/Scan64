@@ -1,0 +1,8 @@
+.puzzles-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); gap: var(--space-6); align-items: start; }
+.puzzles-layout > * { min-width: 0; }
+.puzzles-screen > p { max-width: 75ch; }
+.puzzles-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-6); }
+.puzzles-screen code { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .puzzles-layout { grid-template-columns: minmax(0, 1fr); }
+}
