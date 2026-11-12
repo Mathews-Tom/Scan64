@@ -26,6 +26,16 @@ RECORDING = json.loads(
         (chess.STARTING_FEN, "e2e4", "centre", True),
         (chess.STARTING_FEN, "g1f3", "centre", True),
         (chess.STARTING_FEN, "h2h3", "centre", False),
+        ("4k3/8/8/8/3N4/8/8/4K3 w - - 0 1", "d4b3", "centre", False),
+        ("4k3/8/8/3Q4/8/8/8/K7 w - - 0 1", "d5d1", "centre", False),
+        ("4k3/8/8/8/3B4/8/8/4K3 w - - 0 1", "d4a1", "centre", False),
+        ("8/8/8/8/4K3/8/8/k7 w - - 0 1", "e4f3", "centre", False),
+        (
+            "r3k1r1/p1pp1pbp/4p2p/1Q6/2P1b3/2P4N/PP1N1PPP/R4RK1 b q - 1 15",
+            "e4c6",
+            "centre",
+            False,
+        ),
         ("4k3/8/8/8/8/8/P7/R3K3 w - - 0 1", "a1d1", "rook_file", True),
         ("4k3/3p4/8/8/8/8/P7/R3K3 w - - 0 1", "a1d1", "rook_file", True),
         ("4k3/8/8/8/8/8/3P4/R3K3 w - - 0 1", "a1d1", "rook_file", False),
@@ -34,10 +44,15 @@ RECORDING = json.loads(
         ("6k1/8/8/8/8/8/5PPP/6K1 w - - 0 1", "h2h3", "king_escape", False),
         ("r5k1/8/8/8/8/5P2/6PP/6K1 w - - 0 1", "h2h3", "king_escape", False),
         ("r5k1/8/8/8/8/6b1/5PPP/6K1 w - - 0 1", "h2h3", "king_escape", False),
+        ("r6k/8/8/8/8/8/5PRP/6K1 w - - 0 1", "g2g3", "king_escape", True),
+        ("7k/8/8/8/8/8/5PRP/6K1 w - - 0 1", "g2g3", "king_escape", False),
+        ("r6k/8/8/8/8/5b2/5PRP/6K1 w - - 0 1", "g2g3", "king_escape", False),
+        ("r5k1/8/8/8/8/8/5PNP/6K1 w - - 0 1", "g2e3", "king_escape", False),
         ("7k/8/8/4P3/8/8/8/K7 w - - 0 1", "e5e6", "passed_pawn", True),
         ("7k/4p3/8/4P3/8/8/8/K7 w - - 0 1", "e5e6", "passed_pawn", False),
         ("7k/3p4/8/4P3/8/8/8/K7 w - - 0 1", "e5e6", "passed_pawn", False),
-        ("7k/8/8/3p4/4P3/8/8/K7 w - - 0 1", "e4e5", "passed_pawn", False),
+        ("7k/8/8/3p4/4P3/8/8/K7 w - - 0 1", "e4e5", "passed_pawn", True),
+        ("7k/8/8/8/8/5p2/4P3/K7 w - - 0 1", "e2e4", "passed_pawn", True),
     ],
 )
 @pytest.mark.parametrize("mirror", [False, True])
@@ -60,6 +75,20 @@ def test_principle_positive_and_negative_predicates(fen, uci, kind, applies, mir
         assert reason.tier == "principle"
         assert reason.line == [move.uci()]
         assert not {"wins", "gain", "winning"} & set(reason.description.split())
+
+
+@pytest.mark.parametrize(
+    ("fen", "description"),
+    [
+        ("4k3/8/8/8/8/8/P7/R3K3 w - - 0 1", "Puts a rook on an open file."),
+        ("4k3/3p4/8/8/8/8/P7/R3K3 w - - 0 1", "Puts a rook on a half-open file."),
+    ],
+)
+def test_rook_file_description_matches_enemy_pawns(fen, description):
+    reasons = extract_reasons(chess.Board(fen), ["a1d1"])
+    assert (
+        next(reason.description for reason in reasons if reason.kind == "rook_file") == description
+    )
 
 
 def test_principles_never_admit_an_out_of_tolerance_candidate():

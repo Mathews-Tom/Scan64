@@ -73,7 +73,11 @@ def principle_facts(
     if move.to_square in CENTRE:
         facts.append(("centre", "Occupies a centre square.", [move.to_square]))
     else:
-        added = (after.attacks(move.to_square) - board.attacks(move.from_square)) & CENTRE
+        added = (
+            after.attacks(move.to_square)
+            - board.attacks(move.from_square)
+            - chess.SquareSet.from_square(move.from_square)
+        ) & CENTRE
         if added:
             facts.append(("centre", "Adds the moved piece's control of the centre.", list(added)))
 
@@ -85,9 +89,11 @@ def principle_facts(
             and not after.pawns & after.occupied_co[color] & file_mask
         ):
             label = (
-                "half-open" if after.pawns & after.occupied_co[not color] & file_mask else "open"
+                "a half-open"
+                if after.pawns & after.occupied_co[not color] & file_mask
+                else "an open"
             )
-            facts.append(("rook_file", f"Puts a rook on an {label} file.", [move.to_square]))
+            facts.append(("rook_file", f"Puts a rook on {label} file.", [move.to_square]))
 
     if piece.piece_type == chess.PAWN:
         direction = 1 if color else -1
@@ -96,35 +102,36 @@ def principle_facts(
         ) * direction
         if advances > 0 and not board.is_capture(move) and move.promotion is None:
             ahead = range(
-                chess.square_rank(move.from_square) + direction,
+                chess.square_rank(move.to_square) + direction,
                 8 if color else -1,
                 direction,
             )
             files = range(
-                max(0, chess.square_file(move.from_square) - 1),
-                min(7, chess.square_file(move.from_square) + 1) + 1,
+                max(0, chess.square_file(move.to_square) - 1),
+                min(7, chess.square_file(move.to_square) + 1) + 1,
             )
             blockers = any(
-                board.piece_at(chess.square(file, rank)) == chess.Piece(chess.PAWN, not color)
+                after.piece_at(chess.square(file, rank)) == chess.Piece(chess.PAWN, not color)
                 for rank in ahead
                 for file in files
             )
             if not blockers:
                 facts.append(("passed_pawn", "Advances a passed pawn.", [move.to_square]))
-        king = board.king(color)
-        if (
-            king is not None
-            and chess.square_rank(king) == home_rank
-            and not _king_escapes(board, color)
-            and (escapes := _king_escapes(after, color))
-            and _back_rank_mate_threat(board, color)
-            and not _back_rank_mate_threat(after, color)
-        ):
-            facts.append(
-                (
-                    "king_escape",
-                    "Makes a king escape square against a back-rank mate.",
-                    sorted(escapes),
-                )
+    king = board.king(color)
+    if (
+        king is not None
+        and chess.square_rank(king) == home_rank
+        and not _king_escapes(board, color)
+        and (escapes := _king_escapes(after, color))
+        and move.from_square in escapes
+        and _back_rank_mate_threat(board, color)
+        and not _back_rank_mate_threat(after, color)
+    ):
+        facts.append(
+            (
+                "king_escape",
+                "Makes a king escape square against a back-rank mate.",
+                sorted(escapes),
             )
+        )
     return facts
