@@ -1118,8 +1118,8 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
     render(<PlayScreen />);
     await screen.findByTestId('session-info');
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      movable: expect.objectContaining({ color: 'black' }) }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      orientation: 'black', movable: expect.objectContaining({ color: 'black' }) })));
     await act(async () => { await getRegisteredMoveHandler()('e7', 'e5'); });
     await waitFor(() => expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('reload-black', { move: 'e7e5' }));
     fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
@@ -1150,8 +1150,8 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledWith('undo-game'));
     await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeDisabled());
     expect(ApiClient.takebackPlaySession).toHaveBeenCalledWith('undo');
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
-      fen: expect.stringContaining('PPPPPPPP/RNBQKBNR w'), orientation: 'white' }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      fen: expect.stringContaining('PPPPPPPP/RNBQKBNR w'), orientation: 'white' })));
   });
 
   it('refuses takeback when an offline move is queued, in both UI and handler', async () => {
