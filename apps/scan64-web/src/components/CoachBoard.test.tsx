@@ -22,6 +22,21 @@ async function move(from: Key, to: Key) {
 describe('CoachBoard', () => {
   beforeEach(() => { vi.clearAllMocks(); board.after = undefined; });
 
+  it('exposes board readiness and marks disabled and promotion states busy', async () => {
+    const onMove = vi.fn();
+    const fen = '8/P7/8/8/8/8/8/k6K w - - 0 1';
+    const rendered = render(<CoachBoard fen={fen} testId="lesson-board" onMove={onMove} />);
+    expect(screen.getByTestId('lesson-board')).toHaveAttribute('aria-busy', 'false');
+    rendered.rerender(<CoachBoard fen={fen} testId="lesson-board" disabled onMove={onMove} />);
+    expect(screen.getByTestId('lesson-board')).toHaveAttribute('aria-busy', 'true');
+    rendered.rerender(<CoachBoard fen={fen} testId="lesson-board" onMove={onMove} />);
+    expect(screen.getByTestId('lesson-board')).toHaveAttribute('aria-busy', 'false');
+    await move('a7', 'a8');
+    expect(screen.getByTestId('lesson-board')).toHaveAttribute('aria-busy', 'true');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Promote to rook' })); });
+    expect(screen.getByTestId('lesson-board')).toHaveAttribute('aria-busy', 'false');
+  });
+
   it('resets rejected lesson attempts without remounting', async () => {
     const fen = new Chess().fen();
     const onMove = vi.fn();

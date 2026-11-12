@@ -36,6 +36,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   const promotion = useRef<{ from: Key; to: Key } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
   const [moves, setMoves] = useState<Move[]>(() => chess.current.history({ verbose: true }));
+  const [ready, setReady] = useState(false);
 
   const draw = useCallback(() => {
     const game = chess.current;
@@ -120,12 +121,15 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
       },
     });
     draw();
+    setReady(true);
     requestAnimationFrame(() => board.current?.redrawAll());
     return () => { board.current?.destroy(); board.current = null; };
   }, [applyMove, draw]);
 
   return <div className="coach-board">
-    <div ref={element} data-testid={testId} style={{ width: 'min(400px, 100%)', aspectRatio: '1' }} />
+    <div ref={element} data-testid={testId}
+      aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
+      style={{ width: 'min(400px, 100%)', aspectRatio: '1' }} />
     {pendingPromotion !== null && <div role="group" aria-label="Choose promotion piece">
       {(['q', 'r', 'b', 'n'] as const).map(piece => <button key={piece} type="button" onClick={() => {
         const pending = promotion.current;
