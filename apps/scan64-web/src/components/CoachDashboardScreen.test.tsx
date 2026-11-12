@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from '../api/client';
 import type { CoachDashboard } from '../api/types';
 import { CoachDashboardScreen } from './CoachDashboardScreen';
+import { strengthFixture } from './strength.test-fixtures';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
@@ -21,6 +22,7 @@ const dashboard: CoachDashboard = {
         rating: 1530,
         display_name: 'Student One',
       },
+      strength: strengthFixture,
       patterns: {
         player_id: 'student-1',
         minimum_occurrences: 3, eligible_game_count: 3,
@@ -75,6 +77,10 @@ describe('CoachDashboardScreen', () => {
     expect(screen.getByText('Missed a knight fork')).toBeInTheDocument();
     expect(screen.getByText('tactical-motif')).toBeInTheDocument();
     expect(screen.getByText('scan64 · 1')).toBeInTheDocument();
+    expect(screen.queryByText('Rating 1530')).not.toBeInTheDocument();
+    expect(screen.getByText('Declared level: Developing.')).toBeInTheDocument();
+    expect(screen.getByText(/Suggested bot level: 3/)).toBeInTheDocument();
+    expect(screen.getByText(/Scan64 puzzle rating: 1216 \(provisional\)/)).toBeInTheDocument();
   });
 
   it('distinguishes no recurrence from insufficient evidence', async () => {

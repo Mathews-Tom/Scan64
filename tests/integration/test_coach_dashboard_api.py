@@ -101,6 +101,11 @@ def test_coach_dashboard_aggregates_linked_student_public_contracts(
     assert students[0]["profile"] == profile_response.json()
     assert students[0]["patterns"] == patterns_response.json()
     assert students[0]["evidence"] == evidence_response.json()
+    assert students[0]["strength"]["declared_level"] is None
+    assert students[0]["strength"]["suggested_bot_level"] is None
+    assert students[0]["strength"]["puzzle_rating"] == 1200
+    assert students[0]["strength"]["puzzle_provisional"] is True
+    assert students[0]["strength"]["bot_cohorts"] == []
     assert students[0]["evidence"]["evidence_items"] == [
         {
             "evidence_id": "student-evidence-1",

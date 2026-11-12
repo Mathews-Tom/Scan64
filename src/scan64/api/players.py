@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
@@ -13,6 +13,7 @@ from scan64.api.auth import require_player_token
 from scan64.api.models import (
     Player,
     PlayerCredential,
+    PlayerOnboarding,
     PlayerProfile,
     issue_player_token,
 )
@@ -28,6 +29,14 @@ class PlayerCreate(BaseModel):
     id: str
     display_name: str | None = None
     preferences: dict[str, Any] = {}
+
+    @field_validator("preferences")
+    @classmethod
+    def validate_preferences(cls, preferences: dict[str, Any]) -> dict[str, Any]:
+        value = preferences.get("manual_bot_level")
+        if "manual_bot_level" in preferences and (type(value) is not int or not 1 <= value <= 8):
+            raise ValueError("manual_bot_level must be an integer from 1 to 8")
+        return preferences
 
 
 class PlayerRead(BaseModel):
@@ -60,6 +69,7 @@ def create_player(
     session.add(player)
     session.add(profile)
     session.add(credential)
+    session.add(PlayerOnboarding(player_id=player.id))
     session.commit()
 
     return PlayerCreateResponse(

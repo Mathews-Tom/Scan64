@@ -16,7 +16,14 @@ from sqlmodel import Session, col, delete, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.middleware import IdempotencyRecord
-from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
+from scan64.api.models import (
+    DeletionAudit,
+    Player,
+    PlayerCredential,
+    PlayerOnboarding,
+    PlayerProfile,
+)
+from scan64.api.onboarding import INTRO_TARGET, LEVEL_MAPPING, MAPPING_VERSION, read_onboarding, utc
 from scan64.chess.analysis.credit import MAX_POSITIVE_CREDITS_PER_GAME_SKILL, positive_move_proof
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
@@ -63,6 +70,7 @@ class ExportRequest(BaseModel):
 class ExportArchive(BaseModel):
     player: dict[str, Any] | None = None
     profile: dict[str, Any] | None = None
+    onboarding: dict[str, Any] | None = None
     play_sessions: list[dict[str, Any]] = Field(default_factory=list)
     session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
     positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
@@ -90,6 +98,109 @@ class ExportArchive(BaseModel):
     puzzle_daily_slots: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_rating_events: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
+
+
+def _validate_onboarding_archive(
+    data: dict[str, Any] | None,
+    player_id: str,
+    runs: list[PuzzleRun],
+    sets: list[PuzzleDailySet],
+    slots: list[PuzzleDailySlot],
+) -> PlayerOnboarding:
+    """Restore declarations, never client progress claims or preference provenance."""
+    if data is None:
+        return PlayerOnboarding(player_id=player_id, status="not_offered")
+    fields = {
+        "player_id", "status", "declared_level", "suggested_bot_level", "mapping_version",
+        "intro_started_at", "skipped_at", "completed_at",
+    }
+    if set(data) != fields or type(data["player_id"]) is not str or data["player_id"] != player_id:
+        raise ValueError("Invalid onboarding fields or owner")
+    status = data["status"]
+    if type(status) is not str or status not in {
+        "pending", "not_offered", "in_progress", "skipped", "completed",
+    }:
+        raise ValueError("Invalid onboarding status")
+    levels = LEVEL_MAPPING
+    declared = data["declared_level"]
+    suggestion = data["suggested_bot_level"]
+    mapping = data["mapping_version"]
+    if declared is not None:
+        if (
+            type(declared) is not str
+            or declared not in levels
+            or type(suggestion) is not int
+            or suggestion != levels[declared]
+            or type(mapping) is not str
+            or mapping != MAPPING_VERSION
+        ):
+            raise ValueError("Invalid onboarding declaration mapping")
+    elif suggestion is not None or mapping is not None:
+        raise ValueError("Unplaced onboarding has a suggestion")
+
+    timestamps: dict[str, datetime | None] = {}
+    now = datetime.now(UTC)
+    for key in ("intro_started_at", "skipped_at", "completed_at"):
+        raw = data[key]
+        if raw is None:
+            timestamps[key] = None
+            continue
+        if type(raw) is not str or "T" not in raw:
+            raise ValueError("Invalid onboarding timestamp type")
+        parsed = utc(datetime.fromisoformat(raw))
+        if parsed > now:
+            raise ValueError("Future onboarding timestamp")
+        timestamps[key] = parsed
+    started = timestamps["intro_started_at"]
+    skipped = timestamps["skipped_at"]
+    completed = timestamps["completed_at"]
+    if (declared is None) != (started is None):
+        raise ValueError("Onboarding clock does not match declaration")
+    if status in {"pending", "not_offered"} and (
+        declared is not None or skipped is not None or completed is not None
+    ):
+        raise ValueError("Unplaced onboarding has placement history")
+    if (status in {"in_progress", "completed"} or completed is not None) and declared is None:
+        raise ValueError("Onboarding declaration is missing")
+    if (status == "skipped") != (skipped is not None):
+        raise ValueError("Onboarding skip timestamp does not match status")
+    if (status == "completed" and completed is None) or (
+        status not in {"completed", "skipped"} and completed is not None
+    ):
+        raise ValueError("Onboarding completion timestamp does not match status")
+    if skipped is not None and (
+        started is not None and skipped < started
+        or completed is not None and skipped < completed
+    ):
+        raise ValueError("Onboarding skip precedes declaration or completion")
+
+    if started is not None:
+        own_sets = {daily.id for daily in sets if daily.player_id == player_id}
+        bound = {
+            slot.run_id: slot
+            for slot in slots
+            if slot.player_id == player_id and slot.set_id in own_sets and slot.run_id is not None
+        }
+        introductory = sorted(
+            (
+                run for run in runs
+                if run.player_id == player_id and run.id in bound and utc(run.started_at) >= started
+            ),
+            key=lambda run: (utc(run.started_at), run.id),
+        )[:INTRO_TARGET]
+        closed = [
+            utc(run.completed_at)
+            for run in introductory
+            if run.state in {"solved", "failed", "abandoned"}
+            and run.completed_at is not None
+            and bound[run.id].closed_at is not None
+        ]
+        all_closed = len(closed) == INTRO_TARGET
+        if status != "skipped" and (status == "completed") != all_closed:
+            raise ValueError("Onboarding completion does not match introductory runs")
+        if completed is not None and (not all_closed or completed != max(closed)):
+            raise ValueError("Onboarding completion does not match introductory closure")
+    return PlayerOnboarding.model_validate({**data, **timestamps})
 
 
 def _puzzle_spec(item: ContentItem) -> LessonSpec:
@@ -676,6 +787,8 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
+    read_onboarding(player, session)
+    onboarding = session.get(PlayerOnboarding, player_id)
     session_hint_reveals = session.exec(
         select(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id)
     ).all()
@@ -818,6 +931,7 @@ def export_player_data(
     return ExportArchive(
         player=player.model_dump(mode="json"),
         profile=profile.model_dump(mode="json") if profile else None,
+        onboarding=onboarding.model_dump(mode="json") if onboarding else None,
         play_sessions=[
             play_session.model_copy(update={"game_id": None}).model_dump(mode="json")
             if play_session.game_id not in archived_game_ids
@@ -1036,6 +1150,22 @@ def import_player_data(
             status_code=400, detail="Invalid archive: malformed puzzle records"
         ) from error
 
+    if "manual_bot_level" in player.preferences:
+        manual = player.preferences["manual_bot_level"]
+        if type(manual) is not int or not 1 <= manual <= 8:
+            raise HTTPException(
+                status_code=400, detail="Invalid archive: malformed manual bot choice",
+            )
+
+    try:
+        onboarding = _validate_onboarding_archive(
+            archive.onboarding, player_id, puzzle_runs, puzzle_daily_sets, puzzle_daily_slots,
+        )
+    except (ValueError, TypeError, AttributeError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed onboarding",
+        ) from error
+
     game_ids = {game.id for game in games}
     existing_games = {game.id: session.get(Game, game.id) for game in games}
     position_ids = {position.id for position in positions}
@@ -1189,6 +1319,7 @@ def import_player_data(
     session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     if profile:
         session.add(profile)
+    session.add(onboarding)
 
     for game in games:
         if session.get(Game, game.id) is None:
@@ -1394,6 +1525,7 @@ def delete_player_data(
         "player": 1,
         "player_credentials": 1 if session.get(PlayerCredential, player_id) is not None else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
+        "onboarding": int(session.get(PlayerOnboarding, player_id) is not None),
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
         "games_disowned": len(disowned_game_ids),
@@ -1522,6 +1654,7 @@ def delete_player_data(
     profile = session.get(PlayerProfile, player_id)
     if profile:
         session.delete(profile)
+    session.exec(delete(PlayerOnboarding).where(col(PlayerOnboarding.player_id) == player_id))
     session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)
     principal = hashlib.sha256(request.headers["Authorization"].encode("utf-8")).hexdigest()

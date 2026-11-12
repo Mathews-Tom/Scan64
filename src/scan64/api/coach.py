@@ -12,6 +12,7 @@ from scan64.api.reports import (
     read_player_evidence,
     read_player_patterns,
 )
+from scan64.api.strength import StrengthRead, read_strength
 from scan64.coach.models import CoachStudentLink
 from scan64.persistence.database import get_session
 
@@ -23,6 +24,7 @@ class CoachStudentDashboard(BaseModel):
     profile: PlayerProfileRead
     patterns: PatternsSummaryReport
     evidence: EvidenceReport
+    strength: StrengthRead
 
 
 class CoachDashboard(BaseModel):
@@ -50,6 +52,7 @@ def get_coach_dashboard(
                 read_player_patterns(link.student_id, session).model_dump()
             ),
             evidence=read_player_evidence(link.student_id, session),
+            strength=read_strength(link.student_id, session),
         )
         for link in links
     ]

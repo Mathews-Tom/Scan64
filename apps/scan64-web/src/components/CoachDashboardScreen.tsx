@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type { CoachDashboard } from '../api/types';
 import './CoachDashboardScreen.css';
+import { StrengthSummary } from './StrengthSummary';
 
 
 function evidenceSourceLabel(producer: Record<string, unknown>): string | null {
@@ -74,8 +75,8 @@ export function CoachDashboardScreen() {
                   <p className="coach-dashboard__eyebrow">Student dossier</p>
                   <h3>{student.profile.display_name ?? student.student_id}</h3>
                 </div>
-                <p className="coach-student__rating">Rating {student.profile.rating}</p>
               </header>
+              <StrengthSummary strength={student.strength} />
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-patterns`}>
                 <h4 id={`${student.student_id}-patterns`}>Recurring diagnoses</h4>

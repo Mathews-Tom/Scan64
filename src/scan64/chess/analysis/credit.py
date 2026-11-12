@@ -19,6 +19,7 @@ from sqlmodel import Session, col, select
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview, PersistedLessonOpportunity
 from scan64.chess.games.assistance import SessionHintReveal
+from scan64.chess.games.eligibility import session_exclusion
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt
@@ -216,23 +217,13 @@ def positive_move_proof(
 
 
 def _session_exclusion(game: Game, play: PlaySession | None) -> str | None:
-    if play is None or play.player_id != game.owner_player_id:
-        return "unknown assistance (imported or historical game)"
-    if play.credit_analysis_status == BEFORE_END:
-        return BEFORE_END
-    if play.status != "completed" or game.result == "*":
-        return BEFORE_END
-    if play.assistance_tracking_version != 1:
-        return "unknown assistance (session was not tracked)"
-    if play.coach_mode:
-        return "coach mode"
     if (
-        game.headers.get("FEN")
-        or play.opponent_config.get("initial_fen")
-        or play.opponent_config.get("custom_start") == "true"
+        play is not None
+        and play.player_id == game.owner_player_id
+        and play.credit_analysis_status == BEFORE_END
     ):
-        return "started from a studied position"
-    return None
+        return BEFORE_END
+    return session_exclusion(game, play)
 
 
 def _lesson_sources(session: Session, player_id: str) -> set[tuple[str, str]]:

@@ -46,7 +46,8 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
 
     const playLink = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true });
     await playLink.click();
-    await page.getByTestId('player-id-input').fill('e2e-offline-player');
+    await expect(page.getByTestId('player-id-input')).toHaveValue('player-1');
+    await expect(page.getByTestId('player-id-input')).toHaveAttribute('readonly', '');
     await page.getByTestId('start-btn').click();
 
     // Verify session started

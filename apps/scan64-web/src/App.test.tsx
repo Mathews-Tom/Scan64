@@ -4,6 +4,7 @@ import App from './App';
 import { ApiClient } from './api/client';
 import type { LessonSpec } from './api/types';
 import { makeGameReview } from './components/review.test-fixtures';
+import { onboardingFixture, strengthFixture } from './components/strength.test-fixtures';
 
 vi.mock('./api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/client')>();
@@ -12,6 +13,10 @@ vi.mock('./api/client', async (importOriginal) => {
     ApiClient: {
       ...actual.ApiClient,
       getBots: vi.fn().mockResolvedValue([]),
+      getPlayerOnboarding: vi.fn(),
+      updatePlayerOnboarding: vi.fn(),
+      setPlayerBotChoice: vi.fn(),
+      getPlayerStrength: vi.fn(),
       getTrainingSession: vi.fn(),
       getPlayerProfile: vi.fn().mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null }),
       getPlayerProgress: vi.fn(),
@@ -57,6 +62,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   localStorage.setItem('scan64_player_id', 'player-1');
+  vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue({ ...onboardingFixture, status: 'not_offered' });
+  vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue(strengthFixture);
   vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
   vi.mocked(ApiClient.getGameReview).mockImplementation(async gameId => makeGameReview({
     game_id: gameId, key_moments: [], session_id: null,
@@ -342,6 +349,7 @@ it('navigates to profile screen', async () => {
 
 it('asks once for a display name before creating the active player', async () => {
   localStorage.clear();
+  vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
   const fetchMock = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
     const player = JSON.parse(init.body as string) as { id: string; display_name: string };
     return { ok: true, json: async () => ({ ...player, preferences: {}, access_token: 'named-token' }) };
@@ -353,6 +361,7 @@ it('asks once for a display name before creating the active player', async () =>
   fireEvent.change(screen.getByLabelText('Display name'), { target: { value: '  Ada  ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Start learning' }));
   await screen.findByRole('heading', { name: 'Today' });
+  expect(await screen.findByRole('group', { name: 'How would you describe your chess experience?' })).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toMatchObject({ display_name: 'Ada' });
   expect(localStorage.getItem('scan64_player_id')).toBeTruthy();

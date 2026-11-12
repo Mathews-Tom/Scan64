@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
+from scan64.api.models import Player
+from scan64.api.onboarding import manual_bot_level, onboarding_for
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants, player_color
@@ -28,6 +30,8 @@ from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["play-sessions"])
+
+BOT_POLICY_VERSION = "stockfish-error-budget-v1"
 
 
 class PlaySessionCreate(BaseModel):
@@ -48,11 +52,12 @@ class PlaySessionCreate(BaseModel):
         if provider_name == "stockfish":
             if "strength" in opponent_config:
                 raise ValueError("Stockfish sessions use bot_level, not strength")
-            level = opponent_config.get("bot_level", "1")
-            if not level.isascii() or not level.isdecimal():
-                raise ValueError("bot_level must identify one of the eight bot levels")
-            get_bot_level(int(level))
-            opponent_config["bot_level"] = str(int(level))
+            level = opponent_config.get("bot_level")
+            if level is not None:
+                if not level.isascii() or not level.isdecimal():
+                    raise ValueError("bot_level must identify one of the eight bot levels")
+                get_bot_level(int(level))
+                opponent_config["bot_level"] = str(int(level))
         return opponent_config
 
     @field_validator("initial_fen")
@@ -173,6 +178,21 @@ async def create_play_session(
     if authenticated_player_id != session_in.player_id:
         raise HTTPException(status_code=403, detail="Player bearer token does not match")
     config = dict(session_in.opponent_config)
+    if config.get("provider", "stockfish") == "stockfish":
+        config["provider"] = "stockfish"
+        if "bot_level" not in config:
+            player = session.get(Player, authenticated_player_id)
+            manual = manual_bot_level(player) if player is not None else None
+            suggestion = onboarding_for(authenticated_player_id, session).suggested_bot_level
+            # Continuing an analysed/studied position retains its existing level-1 default.
+            config["bot_level"] = str(
+                (manual or suggestion or 1)
+                if session_in.initial_fen is None and session_in.game_id is None
+                else 1
+            )
+        config["bot_policy_version"] = BOT_POLICY_VERSION
+    else:
+        config.pop("bot_policy_version", None)
     # Client-supplied internal values cannot select another seed or undo boundary.
     config["seed"] = str(secrets.randbits(64))
     config["custom_start"] = (

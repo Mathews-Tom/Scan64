@@ -10,6 +10,66 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 
 **Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import PGN under **Library**. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
 
+## Choose a starting point
+
+New registrations see **Your starting point** in Today and Profile. Existing players
+are not automatically enrolled: choose **Set up my starting point** to opt in.
+Declare Beginner, Developing, Club, Advanced or Not sure, then select **Save level
+and show suggestion**. The server immediately suggests bot level **2, 3, 5, 6 or 1**
+respectively (`declared-level-v1`); puzzles are not required to obtain it. These are
+overridable starting choices, not measured strength, placement results or human Elo.
+
+**Skip introduction** and **Continue later** keep your identity and any recorded
+progress. Returning or reloading uses the same stored browser identity and server
+record; no second registration is needed. A later declaration does not reset the
+introduction's original start time or erase a manual bot choice.
+
+After declaring, **Start/resume daily puzzles** opens the existing Puzzles screen:
+resume the active run or use its Daily **Start** action. The introduction counts the
+first five daily-slot-bound runs started after the server's introduction start time,
+not a separate placement set. Pre-opt-in active runs and slots reserved before opting
+in do not count. Each qualifying run closes once, whether solved (with or without hints),
+failed or abandoned. The displayed count comes from server evidence, carries into later days,
+and does not estimate playing strength. A short or empty daily catalog never blocks
+**Play now**; practise another day rather than rerolling or manufacturing slots.
+
+Play preselects your saved last manual bot choice, otherwise your declared-level
+suggestion, otherwise level 1. Only explicitly changing **Bot level** saves a manual
+choice. Suggestions never overwrite it and results never adjust the level
+automatically. Analysis Board and Famous Games keep their level-1 defaults.
+
+## Read your strength record
+
+Profile separates your declared experience, starting bot suggestion, puzzle Elo
+event history and Stockfish results. Coach shows the same separate values for
+explicitly linked students, including provisional puzzle status; it does not show
+the internal profile rating as a measured player rating.
+
+The **puzzle** scale starts at **1200**, uses **K=32**, and is provisional until
+**20 rated puzzles**. Events show before/after values and the recorded score. This
+is not chess/FIDE/site Elo, a bot-level conversion, theme mastery or a demonstrated
+improvement outcome. New skill states still use the provisional **(3, 2)** seed:
+it is a prior, not observed ability. Measured skill evidence is preserved, as is the
+internal **1500** profile rating; onboarding changes none of those values.
+
+Bot result samples are separated by **Stockfish level and server-stamped policy
+version**, not mixed into puzzle Elo. Each cohort shows all eligible wins/draws/losses,
+latest-five and previous-five samples and their trend; fewer than five games in either
+window means insufficient data. Ordering uses game creation time and id, not analysis
+completion. Legacy tracked results use the separately disclosed `v1(unstamped)`
+cohort; Maia is excluded. Seed, colour and arbitrary client config keys do not define
+new cohorts.
+
+Only owned, tracked, completed games with terminal results, a standard start, no
+coach mode and **no recorded in-app hints** qualify. Imports, unknown assistance,
+unfinished/unknown results and custom starts do not; resignations do. Analysis
+credit status is not required. These filters do **not** certify absence of takebacks
+or external help, and the windows describe results against that bot policy—not
+human playing strength or causal improvement. Archives preserve onboarding and
+existing history without replaying ratings; old archives without onboarding remain
+unplaced and opt-in.
+
+
 ## Keyboard, touch and screen readers
 
 - Use **Skip to content** to reach the main study area. Tab/Shift+Tab move between native controls; Enter/Space activate buttons. Navigation and browser Back/Forward move focus to the new study area and update the page title. Focus outlines follow the system light/dark theme.
@@ -27,7 +87,7 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 
 1. Open **Play**.
 2. Keep the player ID filled from your stored identity; no new name or ID is required.
-3. Choose a named **Bot level** and **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
+3. Keep the preselected **Bot level**, or explicitly change it to save your manual preference, and choose **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
 4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and use the labelled move field, source/destination taps or drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
 6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
