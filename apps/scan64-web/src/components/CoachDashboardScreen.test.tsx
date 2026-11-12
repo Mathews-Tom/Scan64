@@ -23,7 +23,7 @@ const dashboard: CoachDashboard = {
       },
       patterns: {
         player_id: 'student-1',
-        minimum_occurrences: 3,
+        minimum_occurrences: 3, eligible_game_count: 3,
         status: 'recurring_diagnosis',
         recurring_diagnoses: [
           {
@@ -31,7 +31,7 @@ const dashboard: CoachDashboard = {
             name: 'Knight fork',
             occurrence_count: 3,
             game_ids: ['game-1', 'game-2', 'game-3'],
-            evidence_references: ['evidence-1'],
+            evidence_references: ['evidence-1'], template: 'A knight forks two pieces.', total_occurrences: 4, scored_occurrences: 3, observed_loss: 0.6,
           },
         ],
       },
@@ -71,7 +71,7 @@ describe('CoachDashboardScreen', () => {
 
     expect(ApiClient.getCoachDashboard).toHaveBeenCalledWith('coach-1');
     expect(screen.getByText('Student One')).toBeInTheDocument();
-    expect(screen.getByText('tactics.fork.knight: 3 games')).toBeInTheDocument();
+    expect(screen.getByText(/Support: 3 distinct games/)).toBeInTheDocument();
     expect(screen.getByText('Missed a knight fork')).toBeInTheDocument();
     expect(screen.getByText('tactical-motif')).toBeInTheDocument();
     expect(screen.getByText('scan64 · 1')).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('CoachDashboardScreen', () => {
           ...dashboard.students[0],
           patterns: {
             player_id: 'student-1',
-            minimum_occurrences: 3,
+            minimum_occurrences: 3, eligible_game_count: 3,
             status: 'no_recurring_diagnosis',
             recurring_diagnoses: [],
           },
@@ -97,7 +97,7 @@ describe('CoachDashboardScreen', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No diagnosis has recurred across 3 games.'),
+        screen.getByText('No trusted diagnosis recurs across 3 distinct games.'),
       ).toBeInTheDocument();
     });
   });
@@ -110,7 +110,7 @@ describe('CoachDashboardScreen', () => {
           ...dashboard.students[0],
           patterns: {
             player_id: 'student-1',
-            minimum_occurrences: 3,
+            minimum_occurrences: 3, eligible_game_count: 3,
             status: 'insufficient_data',
             recurring_diagnoses: [],
           },
@@ -122,7 +122,7 @@ describe('CoachDashboardScreen', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('More analysed games are needed before recurrence can be assessed.'),
+        screen.getByText('More eligible analysed games are needed before recurrence can be assessed.'),
       ).toBeInTheDocument();
     });
   });

@@ -69,7 +69,7 @@ beforeEach(() => {
     player_id: 'player-1', games_played: 0, active_concepts_observed: 0, active_mastery: [], top_recurring_diagnosis: null,
   });
   vi.mocked(ApiClient.getPlayerPatterns).mockResolvedValue({
-    player_id: 'player-1', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [],
+    player_id: 'player-1', minimum_occurrences: 3, eligible_game_count: 3, status: 'insufficient_data', recurring_diagnoses: [],
   });
 });
 
@@ -325,7 +325,7 @@ it('navigates to profile screen', async () => {
   });
   vi.spyOn(ApiClient, 'getPlayerPatterns').mockResolvedValue({
     player_id: 'player-1',
-    minimum_occurrences: 3,
+    minimum_occurrences: 3, eligible_game_count: 3,
     status: 'insufficient_data',
     recurring_diagnoses: [],
   });

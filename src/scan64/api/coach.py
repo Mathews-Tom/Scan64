@@ -8,7 +8,7 @@ from scan64.api.auth import require_player_token
 from scan64.api.players import PlayerProfileRead, read_player_profile
 from scan64.api.reports import (
     EvidenceReport,
-    PatternsReport,
+    PatternsSummaryReport,
     read_player_evidence,
     read_player_patterns,
 )
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/v1/coaches", tags=["coaches"])
 class CoachStudentDashboard(BaseModel):
     student_id: str
     profile: PlayerProfileRead
-    patterns: PatternsReport
+    patterns: PatternsSummaryReport
     evidence: EvidenceReport
 
 
@@ -46,7 +46,9 @@ def get_coach_dashboard(
         CoachStudentDashboard(
             student_id=link.student_id,
             profile=read_player_profile(link.student_id, session),
-            patterns=read_player_patterns(link.student_id, session),
+            patterns=PatternsSummaryReport.model_validate(
+                read_player_patterns(link.student_id, session).model_dump()
+            ),
             evidence=read_player_evidence(link.student_id, session),
         )
         for link in links

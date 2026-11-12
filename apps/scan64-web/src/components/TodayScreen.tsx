@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PatternCard } from './PatternCard';
 import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
 import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
 
@@ -90,16 +91,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
             <p>{data.weekly.games_played} {data.weekly.games_played === 1 ? 'game' : 'games'} played in the last 7 days.</p>
             <p>{data.weekly.active_concepts_observed} {data.weekly.active_concepts_observed === 1 ? 'skill' : 'skills'} observed.</p>
           </section>
-          <section className="study-panel">
-            <h2>Patterns in your play</h2>
-            {data.patterns.recurring_diagnoses.length ? (
-              <ul>{data.patterns.recurring_diagnoses.map(pattern => (
-                <li key={pattern.diagnosis}>{pattern.name}: {pattern.occurrence_count} games</li>
-              ))}</ul>
-            ) : <p>{data.patterns.status === 'insufficient_data'
-              ? 'More analysed games are needed to spot recurring patterns.'
-              : 'No recurring pattern found yet. Keep reviewing your games.'}</p>}
-          </section>
+          <PatternCard report={data.patterns} onNavigate={onNavigate} />
         </div>
       )}
     </section>

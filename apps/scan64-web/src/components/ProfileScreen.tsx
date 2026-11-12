@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PatternCard } from './PatternCard';
 import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type {
   EvidenceReport,
@@ -71,22 +72,7 @@ export function ProfileScreen() {
         </ul>
       </section>
 
-      <section>
-        <h3>Recurring Diagnoses</h3>
-        <ul>
-          {patterns.status === 'insufficient_data' ? (
-            <li>More analysed games are needed before recurrence can be assessed.</li>
-          ) : null}
-          {patterns.status === 'no_recurring_diagnosis' ? (
-            <li>No diagnosis has recurred across {patterns.minimum_occurrences} games.</li>
-          ) : null}
-          {patterns.recurring_diagnoses.map((diagnosis) => (
-            <li key={diagnosis.diagnosis}>
-              {diagnosis.name}: {diagnosis.occurrence_count} games
-            </li>
-          ))}
-        </ul>
-      </section>
+      <PatternCard report={patterns} />
     </div>
   );
 }

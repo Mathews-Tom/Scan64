@@ -1,23 +1,33 @@
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import Player
-from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    GameMoveReview,
+    PersistedLessonOpportunity,
+)
+from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
+from scan64.content.puzzle_practice import THEME_SKILLS
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.opening_rotation import classify_opening_family
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.tolerance import review_loss
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["reports"])
@@ -42,20 +52,44 @@ class EvidenceReport(BaseModel):
     evidence_items: list[EvidenceItemRead]
 
 
-class DiagnosisPatternRead(BaseModel):
+class PatternMoveRead(BaseModel):
+    game_id: str
+    ply: int
+    lesson_id: str
+    loss: float | None
+
+
+class DiagnosisPatternSummaryRead(BaseModel):
     diagnosis: str
     name: str
+    template: str
     occurrence_count: int
     game_ids: list[str]
     evidence_references: list[str]
+    total_occurrences: int
+    scored_occurrences: int
+    observed_loss: float | None
+
+
+class DiagnosisPatternRead(DiagnosisPatternSummaryRead):
+    supporting_moves: list[PatternMoveRead]
+    practice_themes: list[str]
+
+
+class PatternsSummaryReport(BaseModel):
+    player_id: str
+    minimum_occurrences: int
+    eligible_game_count: int
+    status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
+    recurring_diagnoses: list[DiagnosisPatternSummaryRead]
 
 
 class PatternsReport(BaseModel):
     player_id: str
     minimum_occurrences: int
+    eligible_game_count: int
     status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
     recurring_diagnoses: list[DiagnosisPatternRead]
-
 
 def _skill_name(code: str) -> str:
     definition = SEED_CODES.get(code)
@@ -141,42 +175,137 @@ def get_player_evidence(
 
 
 def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
+    """Project retained trusted owner evidence without engines or learning writes.
+
+    Presence is descriptive, not a result/strength or statistical claim. Full
+    source FEN replay supplies occurrence links even before review backfill;
+    only stored, correctly joined review probabilities supply A8 costs.
+    """
     if session.get(Player, player_id) is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    rows = session.exec(
-        select(PersistedLessonOpportunity)
-        .join(Game, col(PersistedLessonOpportunity.game_id) == Game.id)
-        .where(Game.owner_player_id == player_id)
-    ).all()
-    occurrences: dict[str, dict[str, set[str]]] = defaultdict(
-        lambda: {"games": set(), "evidence": set()}
+    games = {
+        game.id: game
+        for game in session.exec(
+            select(Game)
+            .join(AnalysisJob, AnalysisJob.game_id == Game.id)
+            .where(
+                Game.owner_player_id == player_id,
+                col(Game.owner_color).is_not(None),
+                AnalysisJob.status == "completed",
+            )
+        ).all()
+    }
+    retired_codes = set(
+        session.exec(
+            select(SkillState.concept_code).where(
+                SkillState.player_id == player_id, col(SkillState.retired_at).is_not(None)
+            )
+        ).all()
     )
-    visible_game_ids: set[str] = set()
-    for row in rows:
-        spec = visible_game_lesson(row, session)
-        if spec is None or spec.diagnosis is None:
-            continue
-        visible_game_ids.add(str(row.game_id))
-        primary = spec.diagnosis.primary
-        occurrences[primary]["games"].add(str(row.game_id))
-        occurrences[primary]["evidence"].update(spec.diagnosis.evidence_refs)
+    occurrences: dict[str, dict[tuple[UUID, int], PatternMoveRead]] = defaultdict(dict)
+    evidence: dict[str, set[str]] = defaultdict(set)
+    if games:
+        rows = session.exec(
+            select(PersistedLessonOpportunity)
+            .where(
+                col(PersistedLessonOpportunity.game_id).in_(games),
+                PersistedLessonOpportunity.player_id == player_id,
+            )
+            .order_by(col(PersistedLessonOpportunity.id))
+        ).all()
+        reviews = {
+            (row.game_id, row.source_position_id, row.ply): row
+            for row in session.exec(
+                select(GameMoveReview).where(col(GameMoveReview.game_id).in_(games))
+            ).all()
+        }
+        # Unlike canonical EPD, full FEN preserves occurrence clocks. Never
+        # match an opportunity to an arbitrary reached or other-game position.
+        source_plies: dict[tuple[UUID, str], list[int]] = defaultdict(list)
+        for game in games.values():
+            board = board_from(game.headers.get("FEN"))
+            for ply, move in enumerate(game.moves, 1):
+                if ("white" if board.turn else "black") == game.owner_color:
+                    source_plies[(game.id, board.fen())].append(ply)
+                board.push_uci(move)
+        for row in rows:
+            if row.verification_status == "invalid" or row.verification_analysis_id is None:
+                continue
+            schedule = session.get(ReviewSchedule, (player_id, str(row.id)))
+            if schedule is None or schedule.retired_at is not None:
+                continue
+            try:
+                spec = visible_game_lesson(row, session)
+            except (TypeError, ValidationError, ValueError):
+                continue
+            if spec is None or spec.diagnosis is None:
+                continue
+            code = spec.diagnosis.primary
+            if code in retired_codes:
+                continue
+            position = session.get(Position, row.source_position_id)
+            analysis = session.get(EngineAnalysis, row.verification_analysis_id)
+            if (
+                position is None
+                or position.game_id != row.game_id
+                or position.fen != spec.source.fen
+                or analysis is None
+                or analysis.position_id != row.source_position_id
+            ):
+                continue
+            game = games[row.game_id]
+            for ply in source_plies.get((game.id, position.fen), []):
+                review = reviews.get((game.id, position.id, ply))
+                loss = None
+                if (
+                    review is not None
+                    and review.mover == game.owner_color
+                    and review.move_uci == game.moves[ply - 1]
+                ):
+                    loss = review_loss(review.before_probability, review.after_probability)
+                key = (game.id, ply)
+                # Duplicate retained lessons cannot multiply observed cost.
+                if key not in occurrences[code]:
+                    occurrences[code][key] = PatternMoveRead(
+                        game_id=str(game.id), ply=ply, lesson_id=str(row.id), loss=loss
+                    )
+                evidence[code].update(spec.diagnosis.evidence_refs)
 
-    minimum_occurrences = 3
-    game_count = len(visible_game_ids)
-    recurring_diagnoses = [
-        DiagnosisPatternRead(
-            diagnosis=diagnosis,
-            name=_skill_name(diagnosis),
-            occurrence_count=len(values["games"]),
-            game_ids=sorted(values["games"]),
-            evidence_references=sorted(values["evidence"]),
+    recurring_diagnoses = []
+    for code, values in occurrences.items():
+        game_ids = sorted({str(game_id) for game_id, _ in values})
+        if len(game_ids) < 3:
+            continue
+        moves = sorted(values.values(), key=lambda move: (move.game_id, move.ply))
+        scored_losses = [move.loss for move in moves if move.loss is not None]
+        recurring_diagnoses.append(
+            DiagnosisPatternRead(
+                diagnosis=code,
+                name=_skill_name(code),
+                template=SEED_CODES[code].detection_requirements,
+                occurrence_count=len(game_ids),
+                game_ids=game_ids,
+                evidence_references=sorted(evidence[code]),
+                total_occurrences=len(moves),
+                scored_occurrences=len(scored_losses),
+                observed_loss=sum(scored_losses) if scored_losses else None,
+                supporting_moves=moves,
+                practice_themes=sorted(
+                    theme for theme, skills in THEME_SKILLS.items() if code in skills
+                ),
+            )
         )
-        for diagnosis, values in sorted(occurrences.items())
-        if len(values["games"]) >= minimum_occurrences
-    ]
+    recurring_diagnoses.sort(
+        key=lambda pattern: (
+            pattern.observed_loss is None,
+            -(pattern.observed_loss if pattern.observed_loss is not None else 0.0),
+            -pattern.occurrence_count,
+            pattern.diagnosis,
+        )
+    )
     status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
-    if game_count < minimum_occurrences:
+    if len(games) < 3:
         status = "insufficient_data"
     elif recurring_diagnoses:
         status = "recurring_diagnosis"
@@ -184,7 +313,8 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
         status = "no_recurring_diagnosis"
     return PatternsReport(
         player_id=player_id,
-        minimum_occurrences=minimum_occurrences,
+        minimum_occurrences=3,
+        eligible_game_count=len(games),
         status=status,
         recurring_diagnoses=recurring_diagnoses,
     )
@@ -306,13 +436,7 @@ def read_weekly_report(player_id: str, session: Session) -> WeeklyReport:
             for skill in sorted(active_skills, key=lambda skill: skill.concept_code)
         ],
         top_recurring_diagnosis=(
-            max(
-                patterns.recurring_diagnoses,
-                key=lambda diagnosis: (
-                    diagnosis.occurrence_count,
-                    diagnosis.diagnosis,
-                ),
-            )
+            patterns.recurring_diagnoses[0]
             if patterns.recurring_diagnoses
             else None
         ),

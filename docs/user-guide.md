@@ -110,6 +110,16 @@ Open **Train** (Daily Training) after one or more owned games have generated eli
 
 Open **Profile** to inspect active mastery, evidence, and recurring diagnoses after completing an attempt.
 
+### The pattern with its evidence
+
+Today and Profile show the same ranked recurring diagnoses as the weekly summary. A pattern needs retained trusted lessons in at least three distinct owned games with completed analysis and a known playing colour; an unfinished (`*`) result still counts for presence. Opponent moves, invalid lessons, retired lesson schedules and retired skills do not count. Reads do not run an engine or update learning records; later invalidation or retirement removes supporting evidence on the next read.
+
+“Highest observed loss among scored retained moments” means the sum of stored A8 win-probability losses, not all mistakes in your games or a causal explanation of your play. Scored patterns rank before unscored patterns; ties use distinct-game support then diagnosis code. Coverage shows scored occurrences out of all supporting retained occurrences separately from game support. Missing scores are unavailable, never zero. The A3 retention cap (at most five lessons per game) biases this sample: these are descriptive recurring diagnoses, not statistically validated habits, population comparisons, or psychological causes.
+
+Each supporting link opens your owned Review at that move. The pattern supplies its diagnosis template; only Review's existing top-three key moments supply a detailed explanation or retry there. Other supporting moves remain inspectable without expanding that limit. Linked coaches can see the pattern, observed cost and coverage, but receive no student Review or practice actions.
+
+Pattern practice tries available same-code **Your mistakes** retries, then a mapped **Theme run** as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says **may be unrelated**. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.
+
 ## Use coach mode
 
 Coach mode is an explicit practice option, not an always-on analysis engine.

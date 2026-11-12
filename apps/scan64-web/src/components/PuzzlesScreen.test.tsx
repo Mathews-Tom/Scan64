@@ -341,7 +341,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
   it('paginates sparse owned mistake pages and links game and ply without hidden lessons', async () => {
     const excluded = { no_review_schedule: 1, retired: 2, untrusted: 3, exhausted: 4 };
     vi.mocked(ApiClient.getPuzzleMistakes).mockResolvedValueOnce({ items: [], excluded, offset: 0, limit: 20, has_more: true })
-      .mockResolvedValueOnce({ items: [{ lesson_id: 'lesson-1', game_id: 'game-1', ply: 12, attempts_remaining: 2 }],
+      .mockResolvedValueOnce({ items: [{ lesson_id: 'lesson-1', game_id: 'game-1', ply: 12, attempts_remaining: 2, diagnosis: 'threat_processing.missed_capture' }],
         excluded, offset: 20, limit: 20, has_more: false });
     await mount(run({ state: 'solved' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Your mistakes' }));
@@ -354,7 +354,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
   });
   it('opens an owned retry with its server session and lifetime lesson budget', async () => {
     vi.mocked(ApiClient.getPuzzleMistakes).mockResolvedValue({
-      items: [{ lesson_id: reviewLesson.lesson_id, game_id: 'game-1', ply: 3, attempts_remaining: 2 }],
+      items: [{ lesson_id: reviewLesson.lesson_id, game_id: 'game-1', ply: 3, attempts_remaining: 2, diagnosis: 'threat_processing.missed_capture' }],
       excluded: { no_review_schedule: 0, retired: 0, untrusted: 0, exhausted: 0 },
       offset: 0, limit: 20, has_more: false,
     });
@@ -376,5 +376,72 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     await waitFor(() => expect(panel).toBeVisible());
     expect(panel).toHaveFocus();
     expect(screen.getByText(/Hints are app-reported/)).toBeInTheDocument();
+  });
+});
+
+describe('pattern practice routes', () => {
+  afterEach(() => window.history.replaceState(null, '', '/puzzles'));
+
+  it('returns keyboard focus to Your mistakes after closing a pattern-linked retry', async () => {
+    window.history.replaceState(null, '', `/puzzles?lesson=${reviewLesson.lesson_id}&game=game-1`);
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: '', daily, streak });
+    vi.mocked(ApiClient.startPuzzleMistake).mockResolvedValue({
+      moment: { lesson_id: reviewLesson.lesson_id, lesson: reviewLesson, ply: 3, attempts_used: 0, attempts_remaining: 3 },
+      session_id: 'owned-study',
+    });
+    render(<PuzzlesScreen />);
+    const retry = await screen.findByRole('region', { name: 'Retry mistake at ply 3' });
+    await waitFor(() => expect(retry).toHaveFocus());
+    fireEvent.keyDown(retry, { key: 'Escape' });
+    expect(screen.getByRole('heading', { name: 'Your mistakes' })).toHaveFocus();
+  });
+
+  it('labels related theme practice after a retry admission race and clears it for unrelated runs', async () => {
+    window.history.replaceState(null, '', '/puzzles?lesson=spent&game=game-1&fallbackTheme=fork');
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: '', daily, streak });
+    vi.mocked(ApiClient.startPuzzleMistake).mockRejectedValue(new Error('Retry budget exhausted'));
+    vi.mocked(ApiClient.startPuzzleRun)
+      .mockResolvedValueOnce({ status: 'ready', run: run({ mode: 'theme', theme: 'fork', rated: false, state: 'solved' }), message: '', daily, streak })
+      .mockResolvedValueOnce({ status: 'ready', run: run({ mode: 'daily', theme: null }), message: '', daily, streak });
+    render(<PuzzlesScreen />);
+    expect(await screen.findByText('Related unrated theme practice, not diagnosis mastery.')).toBeInTheDocument();
+    expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith({ mode: 'theme', theme: 'fork' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Daily' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start daily' }));
+    await waitFor(() => expect(screen.queryByText('Related unrated theme practice, not diagnosis mastery.')).not.toBeInTheDocument());
+  });
+
+  it('offers the unrelated Daily link when the related theme request fails', async () => {
+    window.history.replaceState(null, '', '/puzzles?theme=fork');
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: '', daily, streak });
+    vi.mocked(ApiClient.startPuzzleRun).mockRejectedValue(new Error('Practice unavailable'));
+    render(<PuzzlesScreen />);
+    expect(await screen.findByRole('link', { name: 'Daily puzzles — may be unrelated' })).toHaveAttribute('href', '/puzzles');
+  });
+
+  it('starts the mapped unrated theme through the existing run API', async () => {
+    window.history.replaceState(null, '', '/puzzles?theme=fork');
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: '', daily, streak });
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ mode: 'theme', theme: 'fork', rated: false }), message: '', daily, streak });
+    render(<PuzzlesScreen />);
+    await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith({ mode: 'theme', theme: 'fork' }));
+    expect(await screen.findByText('Related unrated theme practice, not diagnosis mastery.')).toBeInTheDocument();
+  });
+
+  it('never replaces an active run with pattern practice', async () => {
+    window.history.replaceState(null, '', '/puzzles?theme=fork');
+    await mount();
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
+    expect(screen.getByText('Finish or abandon the active puzzle before switching modes.')).toBeInTheDocument();
+  });
+
+  it('offers plain Daily without starting it when mapped theme supply is unavailable', async () => {
+    window.history.replaceState(null, '', '/puzzles?theme=fork');
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: '', daily, streak });
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: null, message: 'No related puzzles available.', daily, streak });
+    render(<PuzzlesScreen />);
+    expect(await screen.findByRole('link', { name: 'Daily puzzles — may be unrelated' })).toHaveAttribute('href', '/puzzles');
+    expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1);
+    expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith({ mode: 'theme', theme: 'fork' });
   });
 });

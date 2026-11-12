@@ -1,11 +1,9 @@
+import { PatternCard } from './PatternCard';
 import { useEffect, useState } from 'react';
 import { ApiClient, getOrCreatePlayerId } from '../api/client';
-import type { CoachDashboard, DiagnosisPatternRead } from '../api/types';
+import type { CoachDashboard } from '../api/types';
 import './CoachDashboardScreen.css';
 
-function patternLabel(pattern: DiagnosisPatternRead): string {
-  return `${pattern.diagnosis}: ${pattern.occurrence_count} games`;
-}
 
 function evidenceSourceLabel(producer: Record<string, unknown>): string | null {
   const name = producer.name;
@@ -81,19 +79,7 @@ export function CoachDashboardScreen() {
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-patterns`}>
                 <h4 id={`${student.student_id}-patterns`}>Recurring diagnoses</h4>
-                {student.patterns.status === 'insufficient_data' ? (
-                  <p className="coach-student__muted">More analysed games are needed before recurrence can be assessed.</p>
-                ) : null}
-                {student.patterns.status === 'no_recurring_diagnosis' ? (
-                  <p className="coach-student__muted">No diagnosis has recurred across {student.patterns.minimum_occurrences} games.</p>
-                ) : null}
-                {student.patterns.recurring_diagnoses.length > 0 ? (
-                  <ul className="coach-student__patterns">
-                    {student.patterns.recurring_diagnoses.map((pattern) => (
-                      <li key={pattern.diagnosis}>{patternLabel(pattern)}</li>
-                    ))}
-                  </ul>
-                ) : null}
+                <PatternCard report={student.patterns} owner={false} />
               </section>
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-evidence`}>

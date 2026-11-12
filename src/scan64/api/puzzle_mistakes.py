@@ -32,6 +32,7 @@ class PuzzleMistakeRead(BaseModel):
     game_id: str
     ply: int
     attempts_remaining: int
+    diagnosis: str
 
 
 class PuzzleMistakeExclusionsRead(BaseModel):
@@ -162,11 +163,13 @@ def read_puzzle_mistakes(
         if isinstance(candidate, str):
             excluded[candidate] += 1
             continue
+        assert candidate.spec.diagnosis is not None
         items.append(
             PuzzleMistakeRead(
                 lesson_id=str(opportunity.id),
                 game_id=str(game.id),
                 ply=candidate.ply,
+                diagnosis=candidate.spec.diagnosis.primary,
                 attempts_remaining=candidate.spec.interaction.maximum_attempts
                 - candidate.attempts_used,
             )

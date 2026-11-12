@@ -16,7 +16,7 @@ export async function mockTodayReports(page: Page): Promise<void> {
     active_mastery: [], top_recurring_diagnosis: null,
   } }));
   await page.route('**/v1/players/*/patterns', route => route.fulfill({ json: {
-    player_id: 'player-1', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [],
+    player_id: 'player-1', minimum_occurrences: 3, eligible_game_count: 3, status: 'insufficient_data', recurring_diagnoses: [],
   } }));
 }
 

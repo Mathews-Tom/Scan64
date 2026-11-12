@@ -73,7 +73,7 @@ export interface PuzzleRunCreate {
   theme?: string;
 }
 export interface PuzzleMistakesRead {
-  items: { lesson_id: string; game_id: string; ply: number; attempts_remaining: number }[];
+  items: { lesson_id: string; game_id: string; ply: number; attempts_remaining: number; diagnosis: string }[];
   excluded: { no_review_schedule: number; retired: number; untrusted: number; exhausted: number };
   offset: number;
   limit: number;
@@ -448,6 +448,12 @@ export interface DiagnosisPatternRead {
   occurrence_count: number;
   game_ids: string[];
   evidence_references: string[];
+  template: string;
+  total_occurrences: number;
+  scored_occurrences: number;
+  observed_loss: number | null;
+  supporting_moves?: { game_id: string; ply: number; lesson_id: string; loss: number | null }[];
+  practice_themes?: string[];
 }
 
 export type PatternReportStatus =
@@ -456,6 +462,7 @@ export type PatternReportStatus =
   | 'recurring_diagnosis';
 
 export interface PatternsReport {
+  eligible_game_count: number;
   player_id: string;
   minimum_occurrences: number;
   status: PatternReportStatus;
