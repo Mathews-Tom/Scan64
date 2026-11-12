@@ -108,6 +108,7 @@ vi.mock('../api/client', () => ({
   },
   ApiClient: {
     createPlayer: vi.fn(),
+    createGame: vi.fn(),
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
     resignPlaySession: vi.fn(),
@@ -136,13 +137,45 @@ describe('PlayScreen', () => {
     const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
       game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false };
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
-    render(<PlayScreen initialSession={session} />);
+    const onNavigate = vi.fn();
+    render(<PlayScreen initialSession={session} onNavigate={onNavigate} />);
     fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
     expect(await screen.findByTestId('game-result')).toHaveTextContent('You resigned. Opponent wins.');
     expect(ApiClient.resignPlaySession).toHaveBeenCalledWith('sess-123');
     expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/game-123/analysis');
     expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
     expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+    expect(fireEvent.click(screen.getByRole('link', { name: 'Review game' }))).toBe(false);
+    expect(onNavigate).toHaveBeenCalledWith('/games/game-123/analysis');
+  });
+
+  it('resigns before the first move without creating or linking an empty game', async () => {
+    const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
+      opponent_config: {}, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
+    render(<PlayScreen initialSession={session} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    expect(await screen.findByTestId('game-result')).toHaveTextContent('You resigned. Opponent wins.');
+    expect(screen.queryByRole('link', { name: 'Review game' })).not.toBeInTheDocument();
+    expect(ApiClient.getPlaySession).not.toHaveBeenCalled();
+    expect(ApiClient.createGame).not.toHaveBeenCalled();
+  });
+
+  it('shows a terminal result immediately and fetches the lazily created game review id', async () => {
+    const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
+      opponent_config: {}, status: 'active', coach_mode: false };
+    const persistedSession = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(persistedSession.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
+    render(<PlayScreen initialFen="7k/8/5KQ1/8/8/8/8/8 w - - 0 1" initialSession={session} />);
+    await act(async () => { await getRegisteredMoveHandler()('g6', 'g7'); });
+    expect(screen.getByTestId('game-result')).toHaveTextContent('Checkmate. White wins.');
+    expect(ApiClient.getPlaySession).toHaveBeenCalledWith('sess-123');
+    expect(screen.queryByRole('link', { name: 'Review game' })).not.toBeInTheDocument();
+    await act(async () => {
+      persistedSession.resolve({ ...session, status: 'completed', game_id: 'game-123' });
+    });
+    expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/game-123/analysis');
   });
 
   it.each([
@@ -166,8 +199,8 @@ describe('PlayScreen', () => {
     await act(async () => { await getRegisteredMoveHandler()('a7', 'a8'); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Promote to rook' })); });
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('sess-123', { move: 'a7a8r' });
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('a8=R+');
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('Kb1');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('a8=R+');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('Kb1');
   });
 
   it('shows an insufficient-material draw after bishop promotion', async () => {
@@ -210,7 +243,6 @@ describe('PlayScreen', () => {
         player_id: 'test-player',
         opponent_config: { strength: '0' },
         coach_mode: false,
-        initial_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       });
       expect(screen.getByTestId('session-info').textContent).toContain('Status: active');
       expect(chessgroundMock.set).toHaveBeenCalledWith(

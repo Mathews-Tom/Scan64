@@ -23,9 +23,10 @@ const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
 export interface PlayScreenProps {
   initialSession?: PlaySessionRead;
   initialFen?: string;
+  onNavigate?: (path: string) => void;
 }
 
-export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {}) {
+export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScreenProps = {}) {
   const [session, setSession] = useState<PlaySessionRead | null>(initialSession || null);
   const sessionRef = useRef<PlaySessionRead | null>(initialSession || null);
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
@@ -72,7 +73,6 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
         player_id: pid,
         opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
         coach_mode: coachMode,
-        initial_fen: new Chess().fen(),
       });
       sessionRef.current = newSession;
       criticalInterruptionRef.current = null;
@@ -119,6 +119,22 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       const updatedSession = { ...currentSession, status: response.status };
       sessionRef.current = updatedSession;
       setSession(updatedSession);
+      if (response.status !== 'active' && !updatedSession.game_id) {
+        void (async () => {
+          try {
+            const persistedSession = await ApiClient.getPlaySession(updatedSession.id);
+            if (sessionRef.current?.id !== updatedSession.id) return;
+            const terminalSession = { ...sessionRef.current, game_id: persistedSession.game_id };
+            sessionRef.current = terminalSession;
+            setSession(terminalSession);
+          } catch (caught) {
+            if (sessionRef.current?.id !== updatedSession.id) return;
+            setError(`Game ended, but its review could not be loaded: ${
+              caught instanceof Error ? caught.message : 'Unknown error'
+            }`);
+          }
+        })();
+      }
     }
     updateBoard();
     setError(null);
@@ -474,7 +490,12 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
           ? `Checkmate. ${chessRef.current.turn() === 'w' ? 'Black' : 'White'} wins.`
           : chessRef.current.isStalemate() ? 'Draw by stalemate.'
           : chessRef.current.isDraw() ? 'Draw.' : 'Game ended.'}
-        {session.game_id && <> <a href={`/games/${session.game_id}/analysis`}>Review game</a></>}
+        {session.game_id && <> <a href={`/games/${encodeURIComponent(session.game_id)}/analysis`}
+          onClick={event => {
+            if (!onNavigate || !session.game_id || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            onNavigate(`/games/${encodeURIComponent(session.game_id)}/analysis`);
+          }}>Review game</a></>}
       </div>}
       {criticalInterruption ? (
         <CriticalMomentReview

@@ -29,7 +29,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
   resetAfterAttempt = false, onMove, testId = 'coach-board' }: CoachBoardProps) {
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
-  const chess = useRef(position(fen, pgn));
+  const [initialPosition] = useState(() => position(fen, pgn));
+  const chess = useRef(initialPosition);
   const latest = useRef({ fen, pgn, orientation, disabled, resetAfterAttempt, onMove });
   latest.current = { fen, pgn, orientation, disabled, resetAfterAttempt, onMove };
   const moving = useRef(false);
@@ -139,7 +140,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
         void applyMove(pending.from, pending.to, piece);
       }}>Promote to {piece === 'q' ? 'queen' : piece === 'r' ? 'rook' : piece === 'b' ? 'bishop' : 'knight'}</button>)}
     </div>}
-    <ol aria-label="Moves" data-testid="san-move-list" style={{ maxHeight: '12rem', overflowY: 'auto' }}>
+    <ol aria-label="Moves" data-testid={`${testId}-san-move-list`}
+      style={{ listStyle: 'none', padding: 0, maxHeight: '12rem', overflowY: 'auto' }}>
       {moves.map((move, index) => <li key={index}>
         {move.before.split(' ')[5]}{move.color === 'w' ? '.' : '...'} {move.san}
       </li>)}

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Chess } from 'chess.js';
 import type { Key } from 'chessground/types';
 import { CoachBoard } from './CoachBoard';
@@ -21,6 +21,32 @@ async function move(from: Key, to: Key) {
 
 describe('CoachBoard', () => {
   beforeEach(() => { vi.clearAllMocks(); board.after = undefined; });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('does not reparse unchanged PGN during board UI rerenders', () => {
+    const onMove = vi.fn();
+    const fen = new Chess().fen();
+    const pgn = '1. e4 e5 *';
+    const loadPgn = vi.spyOn(Chess.prototype, 'loadPgn');
+    const rendered = render(<CoachBoard fen={fen} pgn={pgn} onMove={onMove} />);
+    loadPgn.mockClear();
+    rendered.rerender(<CoachBoard fen={fen} pgn={pgn} disabled orientation="black" onMove={onMove} />);
+    expect(loadPgn).not.toHaveBeenCalled();
+  });
+
+  it('scopes SAN lists to each board and displays move numbers without list markers', () => {
+    const chess = new Chess();
+    chess.move('e4'); chess.move('e5');
+    render(<>
+      <CoachBoard fen={chess.fen()} pgn={chess.pgn()} testId="play-board" onMove={vi.fn()} />
+      <CoachBoard fen={new Chess().fen()} testId="lesson-board" onMove={vi.fn()} />
+    </>);
+    const list = screen.getByTestId('play-board-san-move-list');
+    expect(list).toHaveTextContent('1. e4');
+    expect(list).toHaveTextContent('1... e5');
+    expect(list).toHaveStyle({ listStyle: 'none', padding: '0px' });
+    expect(screen.getByTestId('lesson-board-san-move-list')).toBeEmptyDOMElement();
+  });
 
   it('exposes board readiness and marks disabled and promotion states busy', async () => {
     const onMove = vi.fn();
@@ -79,12 +105,12 @@ describe('CoachBoard', () => {
     const rendered = render(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} orientation="black" onMove={vi.fn()} />);
     chess.move('e4'); chess.move('e5');
     rendered.rerender(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} orientation="black" onMove={vi.fn()} />);
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('1. e4');
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('1... e5');
+    expect(screen.getByTestId('coach-board-san-move-list')).toHaveTextContent('1. e4');
+    expect(screen.getByTestId('coach-board-san-move-list')).toHaveTextContent('1... e5');
     chess.move('Nf3'); chess.move('Nc6');
     rendered.rerender(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} orientation="black" onMove={vi.fn()} />);
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('2. Nf3');
-    expect(screen.getByTestId('san-move-list')).toHaveTextContent('2... Nc6');
+    expect(screen.getByTestId('coach-board-san-move-list')).toHaveTextContent('2. Nf3');
+    expect(screen.getByTestId('coach-board-san-move-list')).toHaveTextContent('2... Nc6');
     expect(board.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black', lastMove: ['b8', 'c6'] }));
   });
 });
