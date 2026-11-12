@@ -71,11 +71,19 @@ def test_stockfish_accepts_named_levels(
 
 
 @pytest.mark.parametrize("config", [{}, {"provider": "stockfish"}])
-def test_stockfish_defaults_to_bot_level_one(config: dict[str, str]) -> None:
-    assert (
-        PlaySessionCreate(player_id="player", opponent_config=config).opponent_config["bot_level"]
-        == "1"
+def test_stockfish_resolves_default_from_owned_state(
+    client: TestClient, db_session: Session, config: dict[str, str],
+) -> None:
+    assert "bot_level" not in PlaySessionCreate(
+        player_id="player", opponent_config=config,
+    ).opponent_config
+    authorize(client, db_session)
+    response = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "skill-player", "opponent_config": config},
     )
+    assert response.status_code == 200
+    assert response.json()["opponent_config"]["bot_level"] == "1"
 
 
 @pytest.mark.parametrize("strength", ["0", "20", "1500"])

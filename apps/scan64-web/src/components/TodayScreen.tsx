@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
 import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
+import { OnboardingCard } from './OnboardingCard';
 
 interface TodayData {
   games: PlayerGamesPage;
@@ -46,6 +47,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
         <button onClick={() => onNavigate('/training')}><strong>Train</strong><span>Practise with a daily lesson</span></button>
         <button onClick={() => onNavigate('/games')}><strong>Review</strong><span>Learn from your own games</span></button>
       </div>
+      <OnboardingCard onNavigate={onNavigate} />
       {error ? (
         <div role="alert" className="report-error">
           <p>Today’s reports could not load: {error}</p>

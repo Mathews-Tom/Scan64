@@ -55,6 +55,6 @@ def test_puzzle_upgrade_downgrade_preserves_existing_catalog_and_player(tmp_path
         assert connection.execute(text("SELECT COUNT(*) FROM puzzlerun")).scalar_one() == 0
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "20261113_15"
+            == "20261113_16"
         )
     engine.dispose()

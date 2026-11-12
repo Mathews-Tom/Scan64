@@ -17,6 +17,9 @@ import type {
   PlayMoveResponse,
   PlayerCreate,
   PlayerRead,
+  PlayerOnboardingRead,
+  OnboardingAction,
+  StrengthRead,
   PlayerGamesPage,
   PatternsReport,
   PlayerProfileRead,
@@ -521,6 +524,39 @@ export class ApiClient {
 
   static async getPlayerProfile(playerId: string): Promise<PlayerProfileRead> {
     return this.getPlayerResource<PlayerProfileRead>(playerId, 'profile');
+  }
+
+  static getPlayerOnboarding(playerId: string): Promise<PlayerOnboardingRead> {
+    return this.getPlayerResource<PlayerOnboardingRead>(playerId, 'onboarding');
+  }
+
+  static getPlayerStrength(playerId: string): Promise<StrengthRead> {
+    return this.getPlayerResource<StrengthRead>(playerId, 'strength');
+  }
+
+  private static async updatePlayerChoice(
+    playerId: string,
+    resource: 'onboarding' | 'bot-choice',
+    method: 'POST' | 'PUT',
+    data: OnboardingAction | { bot_level: number },
+  ): Promise<PlayerOnboardingRead> {
+    const response = await fetch(`${API_BASE}/players/${encodeURIComponent(playerId)}/${resource}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Could not save ${resource}: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayerOnboardingRead;
+  }
+
+  static updatePlayerOnboarding(playerId: string, data: OnboardingAction): Promise<PlayerOnboardingRead> {
+    return this.updatePlayerChoice(playerId, 'onboarding', 'POST', data);
+  }
+
+  static setPlayerBotChoice(playerId: string, botLevel: number): Promise<PlayerOnboardingRead> {
+    return this.updatePlayerChoice(playerId, 'bot-choice', 'PUT', { bot_level: botLevel });
   }
 
   static async getPlayerProgress(playerId: string): Promise<PlayerProgressReport> {

@@ -20,6 +20,17 @@ class PlayerProfile(SQLModel, table=True):
     display_name: str | None = None
 
 
+class PlayerOnboarding(SQLModel, table=True):
+    player_id: str = Field(primary_key=True, foreign_key="player.id")
+    status: str = "pending"
+    declared_level: str | None = None
+    suggested_bot_level: int | None = None
+    mapping_version: str | None = None
+    intro_started_at: datetime | None = None
+    skipped_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
 class PlayerCredential(SQLModel, table=True):
     player_id: str = Field(primary_key=True, foreign_key="player.id")
     token_hash: str = Field(index=True)

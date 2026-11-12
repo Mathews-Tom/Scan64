@@ -36,6 +36,37 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [coachMode, setCoachMode] = useState(false);
   const [bots, setBots] = useState<BotRead[]>([]);
   const [botLevel, setBotLevel] = useState(DEFAULT_BOT_LEVEL);
+  const [botChoiceReady, setBotChoiceReady] = useState(() => !getStoredPlayerId());
+  const [botChoicePending, setBotChoicePending] = useState(false);
+  const [botChoiceError, setBotChoiceError] = useState<string | null>(null);
+  const [botChoiceRequest, setBotChoiceRequest] = useState(0);
+  const botChoiceBusy = useRef(false);
+  useEffect(() => {
+    if (!playerId || initialSession) return;
+    let cancelled = false;
+    setBotChoiceReady(false); setBotChoiceError(null);
+    void ApiClient.getPlayerOnboarding(playerId).then(result => {
+      if (cancelled) return;
+      setBotLevel(String(result.manual_bot_level ?? result.suggested_bot_level ?? 1));
+      setBotChoiceReady(true);
+    }).catch(cause => {
+      if (!cancelled) setBotChoiceError(cause instanceof Error ? cause.message : 'Could not load bot choice.');
+    });
+    return () => { cancelled = true; };
+  }, [playerId, initialSession, botChoiceRequest]);
+
+  const chooseBotLevel = async (value: string) => {
+    if (botChoiceBusy.current) return;
+    if (!playerId) return;
+    botChoiceBusy.current = true;
+    setBotChoicePending(true); setBotChoiceError(null);
+    try {
+      const result = await ApiClient.setPlayerBotChoice(playerId, Number(value));
+      setBotLevel(String(result.manual_bot_level ?? result.preferred_bot_level));
+    } catch (cause) {
+      setBotChoiceError(cause instanceof Error ? cause.message : 'Could not save bot choice.');
+    } finally { botChoiceBusy.current = false; setBotChoicePending(false); }
+  };
   const [playerColor, setPlayerColor] = useState<'white' | 'black' | 'random'>('white');
   const [takingBack, setTakingBack] = useState(false);
   const takebackPendingRef = useRef(false);
@@ -91,6 +122,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
 
   const startGame = async () => {
+    if (!botChoiceReady || botChoicePending) return;
     try {
       setError(null);
       let pid = playerId;
@@ -523,6 +555,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             id="play-player-id"
             placeholder="Player ID" 
             value={playerId} 
+            disabled={botChoicePending}
             onChange={e => setPlayerId(e.target.value)} 
             data-testid="player-id-input"
           />
@@ -544,18 +577,23 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             Coach Mode
           </label>
           <label>Bot level
-            <select data-testid="bot-level-select" value={botLevel} onChange={event => setBotLevel(event.target.value)}>
+            <select data-testid="bot-level-select" value={botLevel} disabled={!playerId || !botChoiceReady || botChoicePending}
+              onChange={event => void chooseBotLevel(event.target.value)}>
               {bots.map(bot => <option key={bot.level} value={String(bot.level)}>{bot.level}. {bot.name}</option>)}
             </select>
           </label>
           {bots.find(bot => String(bot.level) === botLevel)?.description}
+          {!botChoiceReady && !botChoiceError ? <p role="status">Loading your bot choice…</p> : null}
+          {botChoicePending ? <p role="status">Saving bot choice…</p> : null}
+          {botChoiceError ? <div role="alert"><p>{botChoiceError}</p><button onClick={() => setBotChoiceRequest(value => value + 1)}>Retry bot choice</button></div> : null}
+          <p>Your last manual choice takes priority over your starting suggestion. Bot levels are not chess Elo.</p>
           <label>Play as
             <select data-testid="player-color-select" value={playerColor}
               onChange={event => setPlayerColor(event.target.value as 'white' | 'black' | 'random')}>
               <option value="white">White</option><option value="black">Black</option><option value="random">Random</option>
             </select>
           </label>
-          <button onClick={startGame} data-testid="start-btn">Start Game</button>
+          <button onClick={startGame} disabled={!botChoiceReady || botChoicePending} data-testid="start-btn">Start Game</button>
         </div>
       )}
       {error && <div className="error" role="alert">{error}</div>}
