@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 
 from scan64.chess.analysis import jobs
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
-from scan64.chess.analysis.orchestration import CandidatePosition
+from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.learning.diagnosis.models import DiagnosisCandidate
@@ -70,9 +70,13 @@ def _install_candidates(
         def __init__(self, *_: object) -> None:
             pass
 
-        async def run_fast_pass(self, *_: object) -> list[CandidatePosition]:
+        async def run_fast_pass(self, *_: object) -> FastPassResult:
             assert not db.new and not db.dirty
-            return candidates
+            evaluations = [EngineAnalysis(raw_result=[]) for _ in range(len(game.moves) + 1)]
+            for candidate in candidates:
+                evaluations[candidate.move_index] = candidate.before_analysis
+                evaluations[candidate.move_index + 1] = candidate.after_analysis
+            return FastPassResult(candidates, evaluations)
 
     class FocusedPass:
         def __init__(self, *_: object) -> None:

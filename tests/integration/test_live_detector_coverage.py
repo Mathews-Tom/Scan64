@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
-from scan64.chess.analysis.orchestration import CandidatePosition
+from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -78,7 +78,7 @@ class _FixtureFastPassOrchestrator:
 
     async def run_fast_pass(
         self, moves: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
+    ) -> FastPassResult:
         if initial_fen is None:
             raise AssertionError("The live corpus always supplies an initial FEN")
         fixture = _FIXTURES_BY_INITIAL_FEN[initial_fen]
@@ -86,7 +86,7 @@ class _FixtureFastPassOrchestrator:
         before_board, after_board, after_fen = _replay_fixture(fixture)
         _assert_legal_pv(before_board, candidate["fast_before_pv"], fixture["id"])
         _assert_legal_pv(after_board, candidate["fast_after_pv"], fixture["id"])
-        return [
+        candidates = [
             CandidatePosition(
                 fen=after_fen,
                 move_index=candidate["move_index"],
@@ -103,6 +103,10 @@ class _FixtureFastPassOrchestrator:
                 swing_cp=candidate["swing_cp"],
             )
         ]
+        evaluations = [EngineAnalysis(raw_result=[]) for _ in range(len(moves) + 1)]
+        evaluations[candidate["move_index"]] = candidates[0].before_analysis
+        evaluations[candidate["move_index"] + 1] = candidates[0].after_analysis
+        return FastPassResult(candidates, evaluations)
 
 
 class _FixtureFocusedPassOrchestrator:

@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from datetime import UTC, datetime
 from hashlib import sha256
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import Column, MetaData, String, Table
@@ -12,7 +13,12 @@ from sqlmodel import Session, SQLModel, col, select
 from scan64.api.data_lifecycle import ExportArchive
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    GameMoveReview,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
@@ -35,6 +41,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         PlaySession.__tablename__,
         Position.__tablename__,
         EngineAnalysis.__tablename__,
+        GameMoveReview.__tablename__,
         AnalysisJob.__tablename__,
         PersistedLessonOpportunity.__tablename__,
         Evidence.__tablename__,
@@ -66,6 +73,7 @@ ARCHIVE_FIELDS = {
     Game.__tablename__: "games",
     Position.__tablename__: "positions",
     EngineAnalysis.__tablename__: "engine_analyses",
+    GameMoveReview.__tablename__: "review_moves",
     AnalysisJob.__tablename__: "analysis_jobs",
     PersistedLessonOpportunity.__tablename__: "lesson_opportunities",
     Evidence.__tablename__: "evidence",
@@ -102,10 +110,7 @@ def _unregistered_player_tables(tables: Iterable[Table]) -> set[str]:
 
 def test_all_sqlmodel_tables_have_explicit_lifecycle_semantics() -> None:
     registered = (
-        PLAYER_LIFECYCLE_TABLES
-        | GLOBAL_REFERENCE_TABLES
-        | TOMBSTONE_TABLES
-        | OPERATIONAL_TABLES
+        PLAYER_LIFECYCLE_TABLES | GLOBAL_REFERENCE_TABLES | TOMBSTONE_TABLES | OPERATIONAL_TABLES
     )
     assert _table_names(SQLModel.metadata.tables.values()) == registered
 
@@ -160,6 +165,31 @@ def _seed_player_lifecycle_records(
     analysis = EngineAnalysis(position_id=position.id)
     session.add(analysis)
     session.flush()
+    reached_position = Position(
+        game_id=game.id,
+        fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        side_to_move="b",
+        canonical_id="after-e4",
+    )
+    session.add(reached_position)
+    session.flush()
+    reached_analysis = EngineAnalysis(position_id=reached_position.id)
+    session.add(reached_analysis)
+    session.flush()
+    review_move = GameMoveReview(
+        game_id=game.id,
+        ply=1,
+        source_position_id=position.id,
+        reached_position_id=reached_position.id,
+        before_analysis_id=analysis.id,
+        after_analysis_id=reached_analysis.id,
+        move_uci="e2e4",
+        san="e4",
+        mover="white",
+        before_probability=0.55,
+        after_probability=0.46,
+    )
+    session.add(review_move)
     opportunity = PersistedLessonOpportunity(
         game_id=game.id,
         source_position_id=position.id,
@@ -257,6 +287,7 @@ def _seed_player_lifecycle_records(
 
     return {
         "analysis_id": analysis.id,
+        "review_move_id": review_move.id,
         "game_id": game.id,
         "position_id": position.id,
         "opportunity_id": opportunity.id,
@@ -296,6 +327,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert archive["evidence"]
     assert archive["profile_observations"]
     assert archive["lesson_attempts"]
+    assert len(archive["review_moves"]) == 1
+    assert archive["review_moves"][0]["move_uci"] == "e2e4"
     assert archive["transfer_measurements"]
     assert archive["transfer_positions"]
     assert archive["coach_student_links"]
@@ -314,8 +347,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "play_sessions": 1,
         "games": 1,
         "games_disowned": 0,
-        "positions": 1,
-        "engine_analyses": 1,
+        "positions": 2,
+        "engine_analyses": 2,
+        "review_moves": 1,
         "analysis_jobs": 1,
         "lesson_opportunities": 1,
         "evidence": 1,
@@ -335,6 +369,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
         headers={**_authorization(token), "Idempotency-Key": "m42-delete"},
     )
+    assert deletion.json()["affected_rows"]["review_moves"] == 1
     assert deletion.status_code == 200
     assert deletion.json()["affected_rows"]["player"] == 1
     audit_id = deletion.json()["audit_id"]
@@ -349,14 +384,15 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "credential": db_session.exec(
             select(PlayerCredential).where(PlayerCredential.player_id == player_id)
         ).all(),
-        "game": db_session.exec(
-            select(Game).where(Game.owner_player_id == player_id)
-        ).all(),
+        "game": db_session.exec(select(Game).where(Game.owner_player_id == player_id)).all(),
         "play_session": db_session.exec(
             select(PlaySession).where(PlaySession.player_id == player_id)
         ).all(),
         "position": db_session.exec(
             select(Position).where(Position.game_id == records["game_id"])
+        ).all(),
+        "review_moves": db_session.exec(
+            select(GameMoveReview).where(GameMoveReview.game_id == records["game_id"])
         ).all(),
         "engine_analysis": db_session.exec(
             select(EngineAnalysis).where(EngineAnalysis.position_id == records["position_id"])
@@ -405,29 +441,63 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
             )
         ).all(),
     }
-    assert not {
-        name: len(rows) for name, rows in residual_counts.items() if rows
-    }, db_session.connection().exec_driver_sql(
-        "SELECT id FROM player WHERE id = :player_id", {"player_id": player_id}
-    ).all()
+    assert not {name: len(rows) for name, rows in residual_counts.items() if rows}, (
+        db_session.connection()
+        .exec_driver_sql("SELECT id FROM player WHERE id = :player_id", {"player_id": player_id})
+        .all()
+    )
     tampered_archive = deepcopy(archive)
     tampered_archive["transfer_positions"][0]["id"] = "untrusted-transfer-position"
-    tampered_archive["transfer_measurements"][0][
-        "source_position_id"
-    ] = "untrusted-transfer-position"
-    rejected = client.post(
-        "/v1/imports", json=tampered_archive, headers=_authorization(token)
+    tampered_archive["transfer_measurements"][0]["source_position_id"] = (
+        "untrusted-transfer-position"
     )
+    rejected = client.post("/v1/imports", json=tampered_archive, headers=_authorization(token))
     assert rejected.status_code == 400
     assert db_session.get(TransferPosition, records["transfer_position_id"]) is not None
-    restored = client.post(
-        "/v1/imports", json=archive, headers=_authorization(token)
+    for field in (
+        "game_id",
+        "source_position_id",
+        "reached_position_id",
+        "before_analysis_id",
+        "after_analysis_id",
+    ):
+        invalid_review = deepcopy(archive)
+        invalid_review["review_moves"][0][field] = str(uuid4())
+        response = client.post("/v1/imports", json=invalid_review, headers=_authorization(token))
+        assert response.status_code == 400, field
+    inconsistent_review = deepcopy(archive)
+    inconsistent_review["review_moves"][0]["before_analysis_id"] = archive["review_moves"][0][
+        "after_analysis_id"
+    ]
+    assert (
+        client.post(
+            "/v1/imports", json=inconsistent_review, headers=_authorization(token)
+        ).status_code
+        == 400
     )
+    duplicate_review = deepcopy(archive)
+    duplicate_review["review_moves"].append(
+        {**duplicate_review["review_moves"][0], "id": str(uuid4())}
+    )
+    assert (
+        client.post("/v1/imports", json=duplicate_review, headers=_authorization(token)).status_code
+        == 400
+    )
+    foreign_review = deepcopy(archive)
+    foreign_review["games"][0]["owner_player_id"] = coach_id
+    assert (
+        client.post("/v1/imports", json=foreign_review, headers=_authorization(token)).status_code
+        == 400
+    )
+    restored = client.post("/v1/imports", json=archive, headers=_authorization(token))
     assert restored.status_code == 200
     assert db_session.get(Player, player_id) is not None
     assert db_session.get(Game, records["game_id"]) is not None
     assert db_session.get(Position, records["position_id"]) is not None
     assert db_session.get(PersistedLessonOpportunity, records["opportunity_id"]) is not None
+    restored_review = db_session.get(GameMoveReview, records["review_move_id"])
+    assert restored_review is not None
+    assert restored_review.model_dump(mode="json") == archive["review_moves"][0]
 
 
 def test_deletion_preserves_shared_game_for_its_other_participant(
@@ -493,9 +563,7 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
     assert owner_id not in preserved_game.pgn
     assert owner_id not in str(preserved_game.headers)
     assert not db_session.exec(
-        select(PersistedLessonOpportunity).where(
-            PersistedLessonOpportunity.player_id == owner_id
-        )
+        select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == owner_id)
     ).all()
     assert (
         db_session.exec(
@@ -529,3 +597,32 @@ def test_deletion_preserves_shared_game_for_its_other_participant(
         headers=_authorization(participant_token),
     )
     assert participant_restore.status_code == 200
+
+
+def test_old_archive_without_review_moves_imports(client: TestClient, db_session: Session) -> None:
+    player_id = "m59-old-archive"
+    coach_id = "m59-old-coach"
+    token = _create_player_token(client, player_id)
+    _create_player_token(client, coach_id)
+    _seed_player_lifecycle_records(db_session, player_id, coach_id)
+    exported = client.post(
+        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token)
+    )
+    assert exported.status_code == 200
+    archive = exported.json()
+    del archive["review_moves"]
+    assert ExportArchive.model_validate(archive).review_moves == []
+    deleted = client.request(
+        "DELETE",
+        f"/v1/players/{player_id}/data",
+        json={"dry_run": False, "confirmation": f"delete-{player_id}"},
+        headers=_authorization(token),
+    )
+    assert deleted.status_code == 200
+    restored = client.post("/v1/imports", json=archive, headers=_authorization(token))
+    assert restored.status_code == 200
+    reexported = client.post(
+        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token)
+    )
+    assert reexported.status_code == 200
+    assert reexported.json()["review_moves"] == []

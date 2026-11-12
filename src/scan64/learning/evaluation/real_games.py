@@ -96,10 +96,10 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
     # The synthetic reference game is exercised separately, not part of real-game precision.
     for game in corpus["games"][: corpus["provenance"]["game_count"]]:
         adapter = RecordedAdapter(game)
-        candidates = await FastPassOrchestrator(
-            adapter, FastPassConfig(nodes=10_000)
-        ).run_fast_pass(game["moves"])
-        for candidate in candidates:
+        fast_pass = await FastPassOrchestrator(adapter, FastPassConfig(nodes=10_000)).run_fast_pass(
+            game["moves"]
+        )
+        for candidate in fast_pass.candidates:
             before = chess.Board(adapter.fens[candidate.move_index])
             after = chess.Board(candidate.fen)
             focused = EngineAnalysis(

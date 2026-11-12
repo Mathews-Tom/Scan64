@@ -9,9 +9,10 @@ from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
+from scan64.api.game_review import GameReviewRead, build_game_review
 from scan64.api.learning import _reverify_persisted_lesson
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
-from scan64.chess.analysis.jobs import submit_analysis_job
+from scan64.chess.analysis.jobs import backfill_game_review, submit_analysis_job
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -372,3 +373,30 @@ def get_game_positions(
         position_data["diagnoses"] = diagnoses_by_position[position.id]
         result.append(PositionRead.model_validate(position_data))
     return result
+
+
+@router.get("/v1/games/{game_id}/review", response_model=GameReviewRead)
+def get_game_review(
+    game_id: UUID, request: Request, session: Session = Depends(get_session)
+) -> GameReviewRead:
+    return build_game_review(_get_owned_game(game_id, request, session), session)
+
+
+@router.post("/v1/games/{game_id}/review/backfill", response_model=GameReviewRead)
+async def backfill_review(
+    game_id: UUID, request: Request, session: Session = Depends(get_session)
+) -> GameReviewRead:
+    game = _get_owned_game(game_id, request, session)
+    completed = session.exec(
+        select(AnalysisJob.id).where(
+            AnalysisJob.game_id == game.id, AnalysisJob.status == "completed"
+        )
+    ).first()
+    if completed is None:
+        raise HTTPException(status_code=409, detail="Complete game analysis before review backfill")
+    await backfill_game_review(
+        game, session, pool_manager=getattr(request.app.state, "engine_pool_manager", None)
+    )
+    # A backfill is strictly review/provenance-only. GET separately verifies
+    # eligible lessons and creates a retry session.
+    return build_game_review(game, session, include_key_moments=False)

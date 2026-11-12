@@ -15,6 +15,7 @@ from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerPro
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
+    GameMoveReview,
     PersistedDiagnosis,
     PersistedLessonOpportunity,
 )
@@ -32,8 +33,6 @@ from scan64.persistence.database import get_session
 router = APIRouter(tags=["data_lifecycle"])
 
 
-
-
 class ExportRequest(BaseModel):
     player_id: str
 
@@ -45,6 +44,7 @@ class ExportArchive(BaseModel):
     games: list[dict[str, Any]] = Field(default_factory=list)
     positions: list[dict[str, Any]] = Field(default_factory=list)
     engine_analyses: list[dict[str, Any]] = Field(default_factory=list)
+    review_moves: list[dict[str, Any]] = Field(default_factory=list)
     analysis_jobs: list[dict[str, Any]] = Field(default_factory=list)
     lesson_opportunities: list[dict[str, Any]] = Field(default_factory=list)
     evidence: list[dict[str, Any]] = Field(default_factory=list)
@@ -74,9 +74,7 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    games = session.exec(
-        select(Game).where(col(Game.owner_player_id) == player_id)
-    ).all()
+    games = session.exec(select(Game).where(col(Game.owner_player_id) == player_id)).all()
     game_ids = [game.id for game in games]
     archived_game_ids = set(game_ids)
     positions = (
@@ -90,6 +88,11 @@ def export_player_data(
             select(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
         ).all()
         if position_ids
+        else []
+    )
+    review_moves = (
+        session.exec(select(GameMoveReview).where(col(GameMoveReview.game_id).in_(game_ids))).all()
+        if game_ids
         else []
     )
     evidence = (
@@ -162,9 +165,7 @@ def export_player_data(
     }
     transfer_positions = (
         session.exec(
-            select(TransferPosition).where(
-                col(TransferPosition.id).in_(transfer_position_ids)
-            )
+            select(TransferPosition).where(col(TransferPosition.id).in_(transfer_position_ids))
         ).all()
         if transfer_position_ids
         else []
@@ -189,6 +190,7 @@ def export_player_data(
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
         analysis_jobs=[analysis_job.model_dump(mode="json") for analysis_job in analysis_jobs],
+        review_moves=[move.model_dump(mode="json") for move in review_moves],
         lesson_opportunities=[
             opportunity.model_dump(mode="json") for opportunity in lesson_opportunities
         ],
@@ -243,13 +245,11 @@ def import_player_data(
         play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
         games = [Game.model_validate(data) for data in archive.games]
         positions = [Position.model_validate(data) for data in archive.positions]
-        engine_analyses = [
-            EngineAnalysis.model_validate(data) for data in archive.engine_analyses
-        ]
+        engine_analyses = [EngineAnalysis.model_validate(data) for data in archive.engine_analyses]
+        review_moves = [GameMoveReview.model_validate(data) for data in archive.review_moves]
         analysis_jobs = [AnalysisJob.model_validate(data) for data in archive.analysis_jobs]
         lesson_opportunities = [
-            PersistedLessonOpportunity.model_validate(data)
-            for data in archive.lesson_opportunities
+            PersistedLessonOpportunity.model_validate(data) for data in archive.lesson_opportunities
         ]
         evidence = [Evidence.model_validate(data) for data in archive.evidence]
         profile_observations = [
@@ -276,9 +276,7 @@ def import_player_data(
         for opportunity in lesson_opportunities:
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
     except ValidationError as error:
-        raise HTTPException(
-            status_code=400, detail="Invalid archive: malformed records"
-        ) from error
+        raise HTTPException(status_code=400, detail="Invalid archive: malformed records") from error
 
     game_ids = {game.id for game in games}
     existing_games = {game.id: session.get(Game, game.id) for game in games}
@@ -287,6 +285,7 @@ def import_player_data(
     analysis_ids = {str(analysis.id) for analysis in engine_analyses}
     positions_by_id = {position.id: position for position in positions}
     study_session_ids = {study_session.id for study_session in study_sessions}
+    analyses_by_id = {analysis.id: analysis for analysis in engine_analyses}
     lesson_opportunity_ids = {opportunity.id for opportunity in lesson_opportunities}
     transfer_position_ids = {position.id for position in transfer_positions}
     has_foreign_owner = (
@@ -315,14 +314,25 @@ def import_player_data(
         or any(analysis.position_id not in position_ids for analysis in engine_analyses)
         or any(analysis_job.game_id not in game_ids for analysis_job in analysis_jobs)
         or any(
+            move.game_id not in game_ids
+            or move.source_position_id not in positions_by_id
+            or move.reached_position_id not in positions_by_id
+            or positions_by_id[move.source_position_id].game_id != move.game_id
+            or positions_by_id[move.reached_position_id].game_id != move.game_id
+            or move.before_analysis_id not in analyses_by_id
+            or move.after_analysis_id not in analyses_by_id
+            or analyses_by_id[move.before_analysis_id].position_id != move.source_position_id
+            or analyses_by_id[move.after_analysis_id].position_id != move.reached_position_id
+            for move in review_moves
+        )
+        or any(
             item.position_id not in position_ids_as_strings
             or item.engine_analysis_id not in analysis_ids
             for item in evidence
         )
         or any(
             opportunity.source_position_id not in positions_by_id
-            or positions_by_id[opportunity.source_position_id].game_id
-            != opportunity.game_id
+            or positions_by_id[opportunity.source_position_id].game_id != opportunity.game_id
             for opportunity in lesson_opportunities
         )
         or any(
@@ -367,6 +377,24 @@ def import_player_data(
             detail="Invalid archive: records do not belong to the authorized player",
         )
 
+    review_keys = {(move.game_id, move.ply) for move in review_moves}
+    if len(review_keys) != len(review_moves) or len({move.id for move in review_moves}) != len(
+        review_moves
+    ):
+        raise HTTPException(status_code=400, detail="Invalid archive: duplicate review moves")
+    for move in review_moves:
+        for position_id in (move.source_position_id, move.reached_position_id):
+            existing_position = session.get(Position, position_id)
+            if existing_position is not None and existing_position.game_id != move.game_id:
+                raise HTTPException(status_code=400, detail="Invalid archive: conflicting position")
+        for analysis_id, position_id in (
+            (move.before_analysis_id, move.source_position_id),
+            (move.after_analysis_id, move.reached_position_id),
+        ):
+            existing_analysis = session.get(EngineAnalysis, analysis_id)
+            if existing_analysis is not None and existing_analysis.position_id != position_id:
+                raise HTTPException(status_code=400, detail="Invalid archive: conflicting analysis")
+
     session.add(player)
     session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))
     if profile:
@@ -383,6 +411,12 @@ def import_player_data(
     for analysis in engine_analyses:
         if session.get(EngineAnalysis, analysis.id) is None:
             session.add(analysis)
+    for move in review_moves:
+        existing_move = session.get(GameMoveReview, move.id)
+        if existing_move is not None and existing_move.model_dump() != move.model_dump():
+            raise HTTPException(status_code=400, detail="Invalid archive: conflicting review move")
+        if existing_move is None:
+            session.add(move)
 
     for analysis_job in analysis_jobs:
         if session.get(AnalysisJob, analysis_job.id) is None:
@@ -408,7 +442,6 @@ def import_player_data(
     for link in coach_student_links:
         if session.get(CoachStudentLink, (link.coach_id, link.student_id)) is None:
             session.add(link)
-
 
     for play_session in play_sessions:
         session.add(play_session)
@@ -466,11 +499,7 @@ def delete_player_data(
     ).all()
     game_ids = {
         play_session.game_id for play_session in play_sessions if play_session.game_id
-    } | set(
-        session.exec(
-            select(Game.id).where(col(Game.owner_player_id) == player_id)
-        ).all()
-    )
+    } | set(session.exec(select(Game.id).where(col(Game.owner_player_id) == player_id)).all())
     shared_game_ids = (
         set(
             session.exec(
@@ -510,6 +539,13 @@ def delete_player_data(
         if owned_game_ids
         else []
     )
+    review_moves = (
+        session.exec(
+            select(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids))
+        ).all()
+        if owned_game_ids
+        else []
+    )
     lesson_opportunities = session.exec(
         select(PersistedLessonOpportunity).where(
             (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))
@@ -544,15 +580,14 @@ def delete_player_data(
 
     affected_rows = {
         "player": 1,
-        "player_credentials": 1
-        if session.get(PlayerCredential, player_id) is not None
-        else 0,
+        "player_credentials": 1 if session.get(PlayerCredential, player_id) is not None else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "play_sessions": len(play_sessions),
         "games": len(owned_game_ids),
         "games_disowned": len(disowned_game_ids),
         "positions": len(positions),
         "engine_analyses": len(engine_analyses),
+        "review_moves": len(review_moves),
         "analysis_jobs": len(analysis_jobs),
         "lesson_opportunities": len(lesson_opportunities),
         "evidence": len(evidence),
@@ -581,6 +616,8 @@ def delete_player_data(
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
 
+    if owned_game_ids:
+        session.exec(delete(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids)))
     if position_ids:
         session.exec(
             delete(Evidence).where(
@@ -590,13 +627,9 @@ def delete_player_data(
         session.exec(
             delete(EngineAnalysis).where(col(EngineAnalysis.position_id).in_(position_ids))
         )
-    session.exec(
-        delete(ProfileObservation).where(col(ProfileObservation.player_id) == player_id)
-    )
+    session.exec(delete(ProfileObservation).where(col(ProfileObservation.player_id) == player_id))
     session.exec(delete(LessonAttempt).where(col(LessonAttempt.player_id) == player_id))
-    session.exec(
-        delete(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id)
-    )
+    session.exec(delete(TransferMeasurement).where(col(TransferMeasurement.player_id) == player_id))
     session.exec(
         delete(PersistedLessonOpportunity).where(
             (col(PersistedLessonOpportunity.game_id).in_(owned_game_ids))

@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
+from sqlalchemy import UniqueConstraint
 from sqlmodel import JSON, Field, SQLModel
 
 
@@ -52,3 +53,24 @@ class PersistedLessonOpportunity(SQLModel, table=True):
     verification_status: str = Field(default="unverified", index=True)
     verification_analysis_id: UUID | None = Field(default=None, index=True)
     verification_error: str | None = None
+
+
+class GameMoveReview(SQLModel, table=True):
+    """Immutable fast-pass inputs, identified by occurrence rather than FEN."""
+
+    __table_args__ = (UniqueConstraint("game_id", "ply", name="uq_game_review_ply"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    game_id: UUID = Field(foreign_key="game.id", index=True)
+    ply: int
+    source_position_id: UUID = Field(foreign_key="position.id")
+    reached_position_id: UUID = Field(foreign_key="position.id")
+    before_analysis_id: UUID = Field(foreign_key="engineanalysis.id")
+    after_analysis_id: UUID = Field(foreign_key="engineanalysis.id")
+    move_uci: str
+    san: str
+    mover: str
+    before_probability: float | None = None
+    after_probability: float | None = None
+    before_terminal: str | None = None
+    after_terminal: str | None = None

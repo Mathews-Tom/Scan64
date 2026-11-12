@@ -258,6 +258,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "games_disowned": 0,
         "positions": 1,
         "engine_analyses": 1,
+        "review_moves": 0,
         "analysis_jobs": 1,
         "lesson_opportunities": 1,
         "evidence": 0,

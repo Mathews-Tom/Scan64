@@ -46,7 +46,9 @@ async def test_fast_pass_orchestrator():
     # 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 (a mistake, gives up e5 and drops evaluation)
     moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4"]
 
-    candidates = await orchestrator.run_fast_pass(moves)
+    result = await orchestrator.run_fast_pass(moves)
+    candidates = result.candidates
+    assert len(result.evaluations) == len(moves) + 1
 
     assert len(candidates) >= 1
     # Nd4 is the 6th move (index 5)
@@ -65,7 +67,7 @@ async def test_focused_pass_orchestrator():
     )
 
     moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4"]
-    candidates = await fast_orchestrator.run_fast_pass(moves)
+    candidates = (await fast_orchestrator.run_fast_pass(moves)).candidates
 
     # Nd4 is the mistake
     assert len(candidates) >= 1

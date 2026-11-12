@@ -18,7 +18,7 @@ from scan64.chess.analysis.models import (
     EngineAnalysis,
     PersistedLessonOpportunity,
 )
-from scan64.chess.analysis.orchestration import CandidatePosition
+from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
@@ -26,7 +26,7 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 
-HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
+HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 1 1"
 
 
 @pytest.fixture(autouse=True)
@@ -55,9 +55,7 @@ class _CandidateOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_fast_pass(
-        self, _: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
+    async def run_fast_pass(self, _: list[str], initial_fen: str | None = None) -> FastPassResult:
         board = chess.Board()
         board.push_san("e4")
         analysis = EngineAnalysis(
@@ -65,7 +63,7 @@ class _CandidateOrchestrator:
             config={"nodes": 10_000},
             raw_result=[{"pv": ["e2e4"], "score_cp": 20}],
         )
-        return [
+        candidates = [
             CandidatePosition(
                 fen=HANGING_PIECE_FEN,
                 move_index=0,
@@ -78,16 +76,17 @@ class _CandidateOrchestrator:
                 swing_cp=200,
             )
         ]
+        return FastPassResult(candidates, [analysis, candidates[0].after_analysis])
 
 
 class _ReplayableCandidateOrchestrator(_CandidateOrchestrator):
     async def run_fast_pass(
         self, moves: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
-        candidates = await super().run_fast_pass(moves, initial_fen)
-        candidates[0].before_analysis.raw_result = [{"pv": ["e4d3"], "score_cp": 20}]
-        candidates[0].after_analysis.raw_result = [{"pv": ["e8e2"], "score_cp": 250}]
-        return candidates
+    ) -> FastPassResult:
+        result = await super().run_fast_pass(moves, initial_fen)
+        result.candidates[0].before_analysis.raw_result = [{"pv": ["e4d3"], "score_cp": 20}]
+        result.candidates[0].after_analysis.raw_result = [{"pv": ["e8e2"], "score_cp": 250}]
+        return result
 
 
 class _FocusedOrchestrator:
@@ -112,9 +111,7 @@ class _ConsecutiveCandidateOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_fast_pass(
-        self, _: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
+    async def run_fast_pass(self, _: list[str], initial_fen: str | None = None) -> FastPassResult:
         board = chess.Board()
         before_analysis = EngineAnalysis(
             position_id=uuid4(),
@@ -134,7 +131,7 @@ class _ConsecutiveCandidateOrchestrator:
             config={"nodes": 10_000},
             raw_result=[{"pv": ["g1f3"], "score_cp": 5}],
         )
-        return [
+        candidates = [
             CandidatePosition(
                 fen=first_fen,
                 move_index=0,
@@ -150,6 +147,7 @@ class _ConsecutiveCandidateOrchestrator:
                 swing_cp=200,
             ),
         ]
+        return FastPassResult(candidates, [before_analysis, shared_analysis, after_analysis])
 
 
 @pytest.mark.asyncio
@@ -158,7 +156,13 @@ async def test_candidate_positions_and_analyses_are_persisted(
 ) -> None:
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
-    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id="player-1")
+    game = Game(
+        pgn="",
+        headers={"FEN": "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"},
+        moves=["e4e2"],
+        owner_color="white",
+        owner_player_id="player-1",
+    )
     db_session.add(game)
     db_session.commit()
 
@@ -341,7 +345,13 @@ async def test_completed_analysis_populates_positions_and_evidence_endpoints(
     player = Player(id="endpoint-player")
     db_session.add(player)
     db_session.add(PlayerCredential(player_id=player.id, token_hash=token_hash))
-    game = Game(pgn="", moves=["e2e4"], owner_color="white", owner_player_id=player.id)
+    game = Game(
+        pgn="",
+        headers={"FEN": "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"},
+        moves=["e4e2"],
+        owner_color="white",
+        owner_player_id=player.id,
+    )
     db_session.add(game)
     db_session.commit()
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
@@ -425,10 +435,10 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
         def __init__(self, *_: object) -> None:
             pass
 
-        async def run_fast_pass(self, *_: object) -> list[CandidatePosition]:
+        async def run_fast_pass(self, *_: object) -> FastPassResult:
             board = chess.Board(recorded["fen"])
             board.push_san(recorded["played_move"])
-            return [
+            candidates = [
                 CandidatePosition(
                     fen=board.fen(),
                     move_index=0,
@@ -441,6 +451,9 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
                     ),
                 )
             ]
+            return FastPassResult(
+                candidates, [candidates[0].before_analysis, candidates[0].after_analysis]
+            )
 
     class RecordedFocusedPass:
         def __init__(self, *_: object) -> None:

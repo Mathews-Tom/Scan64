@@ -63,7 +63,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
         if not san_moves:
             continue
 
-        candidates = await orchestrator.run_fast_pass(san_moves, initial_fen)
+        fast_pass = await orchestrator.run_fast_pass(san_moves, initial_fen)
 
         # FEN before each move index, needed for the exact-replay decision point.
         board = board_from(initial_fen)
@@ -72,7 +72,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             board.push_san(san)
             fens_before.append(board.fen())
 
-        for candidate in candidates:
+        for candidate in fast_pass.candidates:
             focused = await adapter.analyze_position(candidate.fen, nodes=1_000_000, multipv=4)
             evidence = compose_candidate_evidence(
                 before_board=board_from(fens_before[candidate.move_index]),

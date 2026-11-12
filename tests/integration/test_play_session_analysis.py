@@ -9,7 +9,8 @@ from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
 from scan64.api.models import Player, PlayerCredential, issue_player_token
-from scan64.chess.analysis.models import AnalysisJob
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
+from scan64.chess.analysis.orchestration import FastPassResult
 from scan64.chess.games.models import Game, PlaySession
 
 FOOLS_MATE_FEN = "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2"
@@ -46,8 +47,10 @@ class _NoCandidateOrchestrator:
     def __init__(self, *_: object) -> None:
         pass
 
-    async def run_fast_pass(self, _: list[str], initial_fen: str | None = None) -> list[object]:
-        return []
+    async def run_fast_pass(
+        self, moves: list[str], initial_fen: str | None = None
+    ) -> FastPassResult:
+        return FastPassResult([], [EngineAnalysis(raw_result=[]) for _ in range(len(moves) + 1)])
 
 
 def _register(db_session: Session, player_id: str = "alice") -> dict[str, str]:
