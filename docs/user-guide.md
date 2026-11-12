@@ -28,7 +28,7 @@ Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games
 
 ### Hints during play
 
-Select **Hint** beside the game board to request up to three numbered candidate moves for the current active session. Matching numbered arrows appear on the board. Each candidate includes tactical reasons, or **engine preference** when no specific tactical explanation is available.
+Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Each candidate includes tactical reasons, or **engine preference** when no specific tactical explanation is available. The first two responses do not disclose moves or their destination squares.
 
 Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to explore without submitting any moves. Select **Return to game position** before continuing play, or **Close hints** to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.
 
@@ -60,6 +60,7 @@ Open **Train** (Daily Training) after one or more owned games have generated eli
 - A lesson is served only with durable player-owned opportunity and study-session context.
 - Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
 - A verified attempt advances only its matching review schedule and active skill state.
+- Lessons have three attempts. A first wrong answer draws the nudge and a second draws the idea. **Next hint** reveals the next step at any time without spending an attempt, so you can see the moves before your final try. Hint usage is recorded with each answer; a hinted success keeps half credit. A third wrong answer ends the lesson with its explanation and drawings. Critical-moment review uses the same ladder, including for older lessons upgraded on read from their existing source-position analysis (at most one bounded engine fallback per read).
 - Opening Explorer missions are recorded separately and do not change this profile path.
 - An empty training screen means Scan64 has no eligible owned lesson for the active player.
 

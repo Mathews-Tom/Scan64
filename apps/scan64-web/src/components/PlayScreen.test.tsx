@@ -151,7 +151,7 @@ describe('PlayScreen', () => {
     expect(ApiClient.resignPlaySession).toHaveBeenCalledWith('sess-123');
     expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/game-123/analysis');
     expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
-    expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+    await waitFor(() => expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull());
     expect(fireEvent.click(screen.getByRole('link', { name: 'Review game' }))).toBe(false);
     expect(onNavigate).toHaveBeenCalledWith('/games/game-123/analysis');
   });
@@ -302,20 +302,20 @@ describe('PlayScreen', () => {
       expect(ApiClient.getPlaySession).toHaveBeenCalledWith('sess-123');
       expect(ApiClient.getGame).toHaveBeenCalledWith('game-123');
       expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active');
-    });
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
-      }),
-    );
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        movable: expect.objectContaining({
-          color: 'white',
-          dests: expect.any(Map),
+      expect(chessgroundMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
         }),
-      }),
-    );
+      );
+      expect(chessgroundMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          movable: expect.objectContaining({
+            color: 'white',
+            dests: expect.any(Map),
+          }),
+        }),
+      );
+    });
     expect(setActivePlayerId).toHaveBeenCalledWith('test-player');
     expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
     expect(ApiClient.getGame).toHaveBeenCalledTimes(1);
@@ -1118,8 +1118,8 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
     render(<PlayScreen />);
     await screen.findByTestId('session-info');
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      movable: expect.objectContaining({ color: 'black' }) }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      orientation: 'black', movable: expect.objectContaining({ color: 'black' }) })));
     await act(async () => { await getRegisteredMoveHandler()('e7', 'e5'); });
     await waitFor(() => expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('reload-black', { move: 'e7e5' }));
     fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
@@ -1150,8 +1150,8 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledWith('undo-game'));
     await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeDisabled());
     expect(ApiClient.takebackPlaySession).toHaveBeenCalledWith('undo');
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
-      fen: expect.stringContaining('PPPPPPPP/RNBQKBNR w'), orientation: 'white' }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      fen: expect.stringContaining('PPPPPPPP/RNBQKBNR w'), orientation: 'white' })));
   });
 
   it('refuses takeback when an offline move is queued, in both UI and handler', async () => {

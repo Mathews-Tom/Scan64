@@ -52,9 +52,128 @@ class HintCandidate(BaseModel):
 
 
 class PositionInsight(BaseModel):
+    step: Literal[3] = 3
     fen: str
     candidates: list[HintCandidate]
     visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+class NudgeInsight(BaseModel):
+    step: Literal[1] = 1
+    text: str
+    visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+class IdeaInsight(BaseModel):
+    step: Literal[2] = 2
+    text: str
+    motif: str
+    piece: str
+    square: str
+    targets: list[str]
+    visualizations: list[SerializeAsAny[VisualizationCommand]]
+
+
+InsightStep = NudgeInsight | IdeaInsight | PositionInsight
+
+
+def _quiet_nudge_cue(board: chess.Board, excluded: set[str]) -> tuple[str, str] | None:
+    """Find a board-backed observation without identifying a candidate's piece."""
+    cue = None
+    highest_value = 0
+    for square in chess.scan_forward(board.occupied_co[not board.turn]):
+        piece = board.piece_at(square)
+        assert piece is not None
+        name = chess.square_name(square)
+        if piece.piece_type == chess.KING or name in excluded:
+            continue
+        if VALUES[piece.piece_type] <= highest_value or not _capturers(board, square, board.turn):
+            continue
+        highest_value = VALUES[piece.piece_type]
+        cue = (name, f"How is the highlighted {chess.piece_name(piece.piece_type)} defended?")
+    if cue is not None:
+        return cue
+    if board.move_stack:
+        square = board.peek().to_square
+        piece = board.piece_at(square)
+        name = chess.square_name(square)
+        if piece is not None and piece.color != board.turn and name not in excluded:
+            return (
+                name,
+                f"What changed when your opponent moved this {chess.piece_name(piece.piece_type)}?",
+            )
+    king = board.king(not board.turn)
+    if king is not None and chess.square_name(king) not in excluded:
+        return chess.square_name(king), "What can you notice about the opposing king's safety?"
+    return None
+
+
+def insight_step(
+    board: chess.Board,
+    insight: PositionInsight,
+    step: int,
+    *,
+    accepted_moves: set[str] | None = None,
+) -> InsightStep:
+    """Project only the requested step; never copy PV descriptions into early hints.
+
+    Exclude every candidate or accepted move endpoint from cue targets.
+    Step 2 separately identifies the moving piece at its origin.
+    FEN is absent to keep these responses scoped to the requested hint, not to
+    hide the position: the client already has the board.
+    """
+    if step == 3:
+        return insight
+    if step not in (1, 2) or not insight.candidates:
+        raise ValueError("No hint available for this step")
+    candidate = insight.candidates[0]
+    move = chess.Move.from_uci(candidate.move)
+    moves = {item.move for item in insight.candidates} | (accepted_moves or set())
+    endpoints = {square for uci in moves for square in (uci[:2], uci[2:4])}
+    origin = chess.square_name(move.from_square)
+    piece_type = board.piece_type_at(move.from_square)
+    assert piece_type is not None
+    piece = chess.piece_name(piece_type)
+    reason = next(iter(candidate.reasons), None)
+    targets = list(
+        dict.fromkeys(
+            square for square in (reason.squares if reason else []) if square not in endpoints
+        )
+    )
+    if step == 1:
+        square = next(iter(targets), None)
+        text = "What can you notice around the highlighted square?"
+        if square is None:
+            cue = _quiet_nudge_cue(board, endpoints)
+            if cue is None:
+                return NudgeInsight(
+                    text="What threats or weaknesses can you notice in this position?",
+                    visualizations=[],
+                )
+            square, text = cue
+        return NudgeInsight(
+            text=text,
+            visualizations=[
+                HighlightSquareCommand(square=square, description="Inspect this square.")
+            ],
+        )
+    motif = reason.kind.replace("_", " ") if reason else "engine preference"
+    text = f"Look for {motif} with your {piece}."
+    return IdeaInsight(
+        text=text,
+        motif=motif,
+        piece=piece,
+        square=origin,
+        targets=targets,
+        visualizations=[
+            HighlightSquareCommand(square=origin, description=f"Consider your {piece}."),
+            *(
+                HighlightSquareCommand(square=square, description="Idea target.")
+                for square in targets
+                if square != origin
+            ),
+        ],
+    )
 
 
 def _capturers(board: chess.Board, square: chess.Square, color: chess.Color) -> list[chess.Move]:

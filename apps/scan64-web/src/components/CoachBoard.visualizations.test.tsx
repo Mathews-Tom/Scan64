@@ -64,7 +64,7 @@ describe('board visualizations', () => {
       { command: 'animate_line', description: 'Animation description', moves: ['e2e4'] },
       { command: 'future_command', description: 'Unsupported description' },
     ]} />);
-    expect([...container.querySelectorAll('p')].map(paragraph => paragraph.textContent)).toEqual(['Unsupported description']);
+    expect([...container.querySelectorAll('p')].map(paragraph => paragraph.textContent)).toEqual(['Animation description', 'Unsupported description']);
     expect(screen.getByRole('button', { name: 'Next line move' })).toBeTruthy();
   });
   it('previews animate_line without moving and retains unknown descriptions', async () => {

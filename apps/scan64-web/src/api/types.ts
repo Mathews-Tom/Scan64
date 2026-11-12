@@ -9,11 +9,12 @@ export interface Visualization {
   moves?: string[];
 }
 
-export type PositionInsightRequest = { player_id: string } & (
+export type PositionInsightRequest = { player_id: string; step: 1 | 2 | 3 } & (
   { fen: string; play_session_id?: never } | { play_session_id: string; fen?: never }
 );
 
-export interface PositionInsight {
+export interface MoveInsight {
+  step: 3;
   fen: string;
   candidates: {
     number: number;
@@ -26,6 +27,20 @@ export interface PositionInsight {
   }[];
   visualizations: Visualization[];
 }
+
+export type PositionInsight = MoveInsight | {
+  step: 1;
+  text: string;
+  visualizations: Visualization[];
+} | {
+  step: 2;
+  text: string;
+  motif: string;
+  piece: string;
+  square: string;
+  targets: string[];
+  visualizations: Visualization[];
+};
 
 export interface Hint {
   level: number;

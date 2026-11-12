@@ -29,6 +29,7 @@ from scan64.learning.evaluation.transfer_measurement import (
     record_training_completion,
     record_transfer_measurement,
 )
+from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.exercises.sound_moves import analyze_lesson_source
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
@@ -72,7 +73,13 @@ class LessonAttemptRead(BaseModel):
 
 
 class ObjectiveAnalysisUnavailable(Exception):
-    pass
+    def __init__(self, message: str, *, used_fallback: bool = False) -> None:
+        super().__init__(message)
+        self.used_fallback = used_fallback
+
+
+class InvalidFallbackAnalysis(ValueError):
+    """An invalid engine result from a search that consumed the fallback budget."""
 
 
 def _lesson_board(spec: LessonSpec) -> chess.Board:
@@ -121,7 +128,11 @@ def _objective_analysis_for_lesson(
             )
         )
     except (OSError, chess.engine.EngineError) as error:
-        raise ObjectiveAnalysisUnavailable("Objective engine analysis is unavailable") from error
+        raise ObjectiveAnalysisUnavailable(
+            "Objective engine analysis is unavailable", used_fallback=True
+        ) from error
+    except ValueError as error:
+        raise InvalidFallbackAnalysis(str(error)) from error
     analysis.position_id = opportunity.source_position_id
     db.add(analysis)
     db.flush()
@@ -139,11 +150,15 @@ def _reverify_persisted_lesson(
             opportunity, spec, db, allow_fallback=allow_fallback
         )
         verify_lesson(spec, analysis)
+        fill_lesson_hints(spec, analysis)
+        verify_lesson(spec, analysis)
     except ObjectiveAnalysisUnavailable as error:
+        used_fallback = error.used_fallback
         opportunity.verification_status = "unavailable"
         opportunity.verification_error = str(error)
         return None, used_fallback
     except (KeyError, LessonVerificationError, TypeError, ValidationError, ValueError) as error:
+        used_fallback = used_fallback or isinstance(error, InvalidFallbackAnalysis)
         opportunity.verification_status = "invalid"
         opportunity.verification_error = str(error)
         return None, used_fallback
@@ -208,7 +223,7 @@ def get_training_session(
         spec: LessonSpec
         if opportunity.verification_status == "invalid":
             continue
-        if opportunity.verification_status == "verified":
+        if opportunity.verification_status == "verified" and opportunity.lesson_spec.get("hints"):
             spec = LessonSpec.model_validate(opportunity.lesson_spec)
         else:
             reverified_spec, used_fallback = _reverify_persisted_lesson(

@@ -14,6 +14,7 @@ from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDete
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
@@ -149,13 +150,13 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 fen=fen_before,
                 lesson_id=f"les_{uuid4()}",
                 accepted_moves_san=[best_move_san],
-                hints=[],
             )
             lesson.explanation = await resolve_explanation(diagnosis, [evidence], fen_before)
 
             try:
+                fill_lesson_hints(lesson, candidate.before_analysis)
                 verify_lesson(lesson, candidate.before_analysis)
-            except LessonVerificationError as exc:
+            except (LessonVerificationError, ValueError) as exc:
                 print(f"Rejected lesson from {file_path.name}: {exc}")
                 continue
 
