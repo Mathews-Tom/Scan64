@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { Chessground } from 'chessground';
-import type { Api } from 'chessground/api';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
+import { CoachBoard } from './CoachBoard';
+import { resolveMove } from './moveEntry';
 
 export interface FamousGameStudyScreenProps {
   onPlayFromHere: (session: PlaySessionRead, fen: string) => void;
@@ -25,8 +25,11 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   const [authorizationError, setAuthorizationError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [comparison, setComparison] = useState('');
-  const boardRef = useRef<HTMLDivElement>(null);
-  const chessgroundRef = useRef<Api | null>(null);
+  const predictionField = useRef<HTMLInputElement>(null);
+  const studyHeading = useRef<HTMLHeadingElement>(null);
+  const catalogueHeading = useRef<HTMLHeadingElement>(null);
+  const busy = useRef(false);
+  const [predictionError, setPredictionError] = useState('');
 
   const currentDecision = selectedGame?.payload.decisions[decisionIndex] ?? null;
   const studyComplete = selectedGame !== null && currentDecision === null;
@@ -66,24 +69,9 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   }, []);
 
   useEffect(() => {
-    if (!selectedGame || !boardRef.current) return;
-
-    chessgroundRef.current?.destroy();
-    const board = Chessground(boardRef.current, {
-      fen: selectedGame.payload.decisions[0]?.fen ?? '',
-      movable: { color: undefined, free: false, dests: new Map() },
-    });
-    chessgroundRef.current = board;
-
-    return () => {
-      board.destroy();
-      if (chessgroundRef.current === board) chessgroundRef.current = null;
-    };
-  }, [selectedGame]);
-
-  useEffect(() => {
-    chessgroundRef.current?.set({ fen: currentFen });
-  }, [currentFen]);
+    if (selectedGame) studyHeading.current?.focus();
+    else if (!loading) catalogueHeading.current?.focus();
+  }, [selectedGame, decisionIndex, loading]);
 
   const selectGame = (game: FamousGameRead) => {
     const firstDecision = game.payload.decisions[0];
@@ -97,6 +85,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
     setCurrentFen(firstDecision.fen);
     setPrediction('');
     setHintsUsed(0);
+    setPredictionError('');
     setFeedback('');
     setComparison('');
     setError('');
@@ -108,6 +97,8 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
     setHintsUsed(0);
     setFeedback('');
     setComparison('');
+    setPredictionError('');
+    setError('');
   };
 
   const advanceDecision = () => {
@@ -120,9 +111,20 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   };
 
   const submitPrediction = async () => {
-    if (!selectedGame || !currentDecision || !playerId || !prediction.trim()) return;
+    if (!selectedGame || !currentDecision || !playerId || !prediction.trim() || busy.current) return;
 
-    const move = prediction.trim();
+    const resolved = resolveMove(new Chess(currentDecision.fen), prediction);
+    if (resolved.kind !== 'move') {
+      setPredictionError(resolved.kind === 'promotion'
+        ? 'Choose a promotion piece: add q, r, b or n to your UCI move, or use canonical SAN such as e8=Q.'
+        : resolved.message);
+      predictionField.current?.focus();
+      return;
+    }
+
+    const move = resolved.move.san;
+    busy.current = true;
+    setPredictionError('');
     setSubmitting(true);
     setError('');
 
@@ -141,6 +143,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
       );
     } finally {
       setSubmitting(false);
+      busy.current = false;
     }
   };
 
@@ -167,7 +170,9 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   };
 
   const continueFromHere = async () => {
-    if (!currentDecision || !playerId) return;
+    if (!currentDecision || !playerId || busy.current) return;
+
+    busy.current = true;
 
     setSubmitting(true);
     setError('');
@@ -184,16 +189,17 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
       );
     } finally {
       setSubmitting(false);
+      busy.current = false;
     }
   };
 
-  if (loading) return <div>Loading famous games...</div>;
+  if (loading) return <div role="status">Loading famous games...</div>;
   if (error && !selectedGame) return <div role="alert">{error}</div>;
 
   if (!selectedGame) {
     return (
       <section className="famous-games-list" data-testid="famous-games-catalogue">
-        <h2>Study Famous Games</h2>
+        <h2 ref={catalogueHeading} tabIndex={-1}>Study Famous Games</h2>
         {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
         <ul>
           {games.map((game) => (
@@ -210,46 +216,58 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
 
   return (
     <section className="famous-game-study" data-testid="famous-game-study">
-      <div ref={boardRef} aria-label="Famous game board" style={{ height: '400px', width: '400px' }} />
+      <CoachBoard fen={currentFen} disabled testId="famous-game-board" />
       <div className="controls-section">
-        <h2>{selectedGame.payload.title}</h2>
+        <h2 ref={studyHeading} tabIndex={-1}>{selectedGame.payload.title}</h2>
         <p>{selectedGame.payload.historical_context}</p>
         <p>{selectedGame.payload.strategic_context}</p>
         {error && <div role="alert">{error}</div>}
         {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
-        {feedback && <p role="status">{feedback}</p>}
+        <p role="status">{submitting ? 'Submitting...' : studyComplete ? 'Game Completed' : feedback}</p>
         {comparison && <p data-testid="move-comparison">{comparison}</p>}
 
         {currentDecision && (
-          <div className="predict-controls">
+          <form className="predict-controls" onSubmit={(event) => {
+            event.preventDefault();
+            void submitPrediction();
+          }}>
             <h3>Predict the next move</h3>
             <p>{currentDecision.prompt}</p>
             <label htmlFor="predict-input">Your move</label>
             <input
               id="predict-input"
+              ref={predictionField}
+              aria-describedby={predictionError ? 'prediction-help prediction-error' : 'prediction-help'}
+              aria-invalid={predictionError ? true : undefined}
+              readOnly={submitting}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={prediction}
-              onChange={(event) => setPrediction(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void submitPrediction();
+              onChange={(event) => {
+                setPrediction(event.currentTarget.value);
+                setPredictionError('');
               }}
-              placeholder="e.g. Nf3"
+              placeholder="e.g. e2e4 or Nf3"
             />
-            <button type="button" disabled={!playerId || submitting || !prediction.trim()} onClick={() => void submitPrediction()}>
+            <p id="prediction-help">Enter strict UCI (e2e4, e7e8q) or canonical English SAN (Nf3, O-O). Include the promotion piece.</p>
+            {predictionError && <p id="prediction-error" role="alert">{predictionError}</p>}
+            <button type="submit" disabled={!playerId || submitting || !prediction.trim()}>
               Submit
             </button>
-            <button type="button" onClick={showHint}>Show Hint</button>
-            <button type="button" onClick={showMove}>Show Move</button>
+            <button type="button" disabled={submitting} onClick={showHint}>Show Hint</button>
+            <button type="button" disabled={submitting} onClick={showMove}>Show Move</button>
             <button type="button" disabled={!playerId || submitting} onClick={() => void continueFromHere()}>
               Continue from here against engine
             </button>
-            <button type="button" onClick={advanceDecision}>
+            <button type="button" disabled={submitting} onClick={advanceDecision}>
               {decisionIndex + 1 < selectedGame.payload.decisions.length ? 'Next decision' : 'Complete study'}
             </button>
-          </div>
+          </form>
         )}
 
         {studyComplete && <h3>Game Completed</h3>}
-        <button type="button" onClick={() => setSelectedGame(null)}>Back to Games</button>
+        <button type="button" disabled={submitting} onClick={() => setSelectedGame(null)}>Back to Games</button>
       </div>
     </section>
   );

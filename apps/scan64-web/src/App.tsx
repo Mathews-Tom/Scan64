@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import { PlayScreen } from './components/PlayScreen';
 import { PgnImportScreen } from './components/PgnImportScreen';
@@ -32,6 +32,21 @@ function App() {
   const [displayName, setDisplayName] = useState('');
   const [creatingPlayer, setCreatingPlayer] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const previousScreen = useRef({ pathname, hasIdentity });
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
+      '/training': 'Daily Training', '/puzzles': 'Puzzles', '/profile': 'Profile',
+      '/coach': 'Coach', '/library': 'Library', '/import': 'Import PGN',
+      '/famous': 'Famous Games', '/explorer': 'Opening Explorer',
+    };
+    document.title = `${!hasIdentity ? 'Welcome' : titles[pathname] ?? (pathname.startsWith('/games/') ? 'Game review' : 'Page not found')} · Scan64`;
+    if (previousScreen.current.pathname !== pathname || previousScreen.current.hasIdentity !== hasIdentity) {
+      mainRef.current?.focus();
+    }
+    previousScreen.current = { pathname, hasIdentity };
+  }, [pathname, hasIdentity]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -178,7 +193,7 @@ function App() {
           );
         })}
       </nav>
-      <main id="main-content">
+      <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content">
         {!hasIdentity && isKnownPath ? (
           <section className="identity-screen" aria-labelledby="welcome-title">
             <h1 id="welcome-title">Welcome to Scan64</h1>

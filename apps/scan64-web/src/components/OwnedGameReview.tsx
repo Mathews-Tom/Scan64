@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError } from '../api/client';
 import type { GameAnalysisStatusRead, GameReviewRead, PlaySessionRead, ReviewBand } from '../api/types';
@@ -45,6 +45,13 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
   const [openedRetries, setOpenedRetries] = useState<string[]>([]);
   const [busy, setBusy] = useState<'load' | 'refresh' | 'analysis' | 'backfill' | 'play' | null>('load');
   const [error, setError] = useState<string | null>(null);
+  const retryPanel = useRef<HTMLDivElement>(null);
+  const retryButton = useRef<HTMLButtonElement | null>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (retryLessonId) retryPanel.current?.focus();
+    else if (retryButton.current) (retryButton.current.isConnected ? retryButton.current : reviewHeading.current)?.focus();
+  }, [retryLessonId]);
 
   useEffect(() => {
     let ignore = false;
@@ -114,9 +121,9 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
 
   const lastPly = review?.moves.at(-1)?.ply ?? 0;
   return <div className="analysis-screen owned-game-review">
-    <h2>Analysis Board</h2>
+    <h2 ref={reviewHeading} tabIndex={-1}>Analysis Board</h2>
     {error && <p role="alert">{error}</p>}
-    {busy === 'load' && <p>Loading...</p>}
+    {busy === 'load' && <p role="status">Loading...</p>}
     {busy !== 'load' && <button type="button" onClick={refresh} disabled={busy !== null}>Refresh review</button>}
     {status?.status === 'not_analysed' && <>
       <p data-testid="analysis-not-analysed">This game has not been analysed yet.</p>
@@ -167,7 +174,7 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
         <section className="owned-review-board" aria-label="Selected game position">
           <CoachBoard fen={review.initial_fen} pgn={pgn} selectedPly={selectedPly}
             onSelectedPlyChange={setSelectedPly} orientation={review.owner_color ?? 'white'} disabled testId="review-board" />
-          <p aria-live="polite" data-testid="review-selected-position">{selectedPly === 0 ? 'Initial position'
+          <p data-testid="review-selected-position">{selectedPly === 0 ? 'Initial position'
             : `Ply ${selectedPly}: ${selectedMove?.san}${selectedPly === lastPly ? ' (final position)' : ''}`}</p>
           <nav className="review-controls" aria-label="Replay controls">
             <button type="button" onClick={() => setSelectedPly(0)} disabled={selectedPly === 0}>First</button>
@@ -222,12 +229,20 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
             <p>Attempts exhausted. This moment is available for study, not another retry.</p>
             <p>Accepted moves: {moment.lesson.interaction.accepted_moves.map(move => move.san).join(', ')}</p>
           </> : review.session_id === null ? <p>Retry is unavailable without an owned study session.</p> :
-            <button type="button" onClick={() => {
+            <button type="button" aria-expanded={retryLessonId === moment.lesson_id}
+              aria-controls={openedRetries.includes(moment.lesson_id) ? `retry-${moment.lesson_id}` : undefined}
+              onClick={event => {
+              retryButton.current = event.currentTarget;
               setSelectedPly(moment.ply);
               setRetryLessonId(retryLessonId === moment.lesson_id ? null : moment.lesson_id);
               setOpenedRetries(ids => ids.includes(moment.lesson_id) ? ids : [...ids, moment.lesson_id]);
             }}>{retryLessonId === moment.lesson_id ? 'Close retry' : 'Retry this moment'}</button>}
-          {openedRetries.includes(moment.lesson_id) && review.session_id !== null && <div hidden={retryLessonId !== moment.lesson_id}>
+          {openedRetries.includes(moment.lesson_id) && review.session_id !== null && <div
+            id={`retry-${moment.lesson_id}`} ref={retryLessonId === moment.lesson_id ? retryPanel : undefined}
+            tabIndex={-1} role="region" aria-label={`Retry key moment at ply ${moment.ply}`}
+            hidden={retryLessonId !== moment.lesson_id} onKeyDown={event => {
+              if (event.key === 'Escape' && !event.defaultPrevented) setRetryLessonId(null);
+            }}>
             <CriticalMomentReview key={moment.lesson_id}
               lesson={moment.lesson} opportunityId={moment.lesson_id} sessionId={review.session_id}
               initialAttemptsUsed={moment.attempts_used} initialAttemptsRemaining={moment.attempts_remaining}

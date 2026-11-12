@@ -36,8 +36,8 @@ export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
   return (
     <section data-testid="games-list-screen">
       <h1>Your games</h1>
-      {loading && <p>Loading games...</p>}
-      {error && <div className="error">{error}</div>}
+      {loading && <p role="status">Loading games...</p>}
+      {error && <div className="error" role="alert">{error}</div>}
       {!loading && !error && games.length === 0 && <p>No games yet.</p>}
       <ul>
         {games.map((game) => (

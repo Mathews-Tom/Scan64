@@ -91,17 +91,19 @@ describe('DailyTrainingScreen', () => {
 
     // We start at index 0, total 2
     expect(screen.getByText('Find the winning tactic.')).toBeInTheDocument();
-    expect(screen.getByText('0 / 2')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Lesson progress' })).toHaveTextContent('Lesson 1 of 2');
 
     // Click next
     fireEvent.click(screen.getByTestId('next-lesson-button'));
 
     // Now at index 1
     expect(screen.getByText('Find the next move.')).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Lesson progress' })).toHaveTextContent('Lesson 2 of 2');
+    expect(screen.getByRole('heading', { name: 'Daily Training' })).toHaveFocus();
     
     // Click next again to finish
     fireEvent.click(screen.getByTestId('next-lesson-button'));
+    expect(screen.getByRole('heading', { name: 'Training Complete!' })).toHaveFocus();
 
     expect(screen.getByTestId('session-complete')).toBeInTheDocument();
   });

@@ -6,7 +6,7 @@
 .app-nav { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: 0 var(--space-8) var(--space-4); border-bottom: 1px solid var(--border); }
 .app-nav button { background: transparent; border-color: transparent; }
 .app-nav button[aria-current='page'] { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-border); font-weight: 700; }
-.app-shell main { padding: var(--space-8); min-width: 0; overflow-wrap: anywhere; overflow-x: auto; }
+.app-shell main { padding: var(--space-8); min-width: 0; overflow-wrap: anywhere; }
 .skip-link { position: absolute; transform: translateY(-200%); background: var(--surface); padding: var(--space-3); z-index: 10; }
 .skip-link:focus { transform: translateY(0); }
 .section-nav { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }

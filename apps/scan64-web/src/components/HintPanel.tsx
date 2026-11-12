@@ -14,8 +14,31 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ candidate: number; step: number } | null>(null);
   const generation = useRef(0);
+  const hintButton = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const requestFocus = useRef(false);
+  const hintDetails = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!busy && requestFocus.current) {
+      requestFocus.current = false;
+      if (document.activeElement !== document.body && document.activeElement !== hintButton.current) return;
+      if (result?.step === 3) hintDetails.current?.focus();
+      else hintButton.current?.focus();
+    }
+  }, [busy, result]);
+  const close = () => {
+    restoreFocus.current = true;
+    setResult(null); setSelection(null); onPreview(null);
+  };
+  useEffect(() => {
+    if (!result && restoreFocus.current) {
+      restoreFocus.current = false;
+      hintButton.current?.focus();
+    }
+  }, [result]);
   useEffect(() => {
     generation.current += 1;
+    requestFocus.current = false;
     setResult(null); setSelection(null); setError(null); setBusy(false); onPreview(null);
     return () => { generation.current += 1; };
   }, [fen, sessionId, playerId, disabled, onPreview]);
@@ -28,6 +51,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
     return visuals;
   };
   const request = async () => {
+    requestFocus.current = document.activeElement === hintButton.current;
     const requestGeneration = ++generation.current;
     const step = Math.min((result?.step ?? 0) + 1, 3) as 1 | 2 | 3;
     setBusy(true); setError(null);
@@ -51,13 +75,18 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
       onPreview({ sourceFen: fen, fen: previewFen, visualizations: step ? item.visualizations.filter(v => v.command !== 'draw_arrow') : arrows(result) });
     } catch { setError('This candidate line cannot be previewed.'); }
   };
-  return <section aria-label="Position hints">
-    <button type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
+  return <section aria-label="Position hints" onKeyDown={event => {
+    if (event.key === 'Escape' && result) { event.preventDefault(); close(); }
+  }}>
+    <button ref={hintButton} type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
     {error && <p role="alert">{error}</p>}
     {sessionId && <p>Any hint step is recorded for this position, including after takeback or reload, and excludes good-move skill credit.</p>}
-    {result && !disabled && <div>
+    <div role="status" aria-atomic="true">{result && !disabled ? <>
       <p>Hint {result.step} of 3</p>
-      {result.step !== 3 ? <p>{result.text}</p> : <>
+      {result.step !== 3 ? <p>{result.text}</p> : <p>Candidate moves revealed below.</p>}
+    </> : null}</div>
+    {result && !disabled && <div ref={hintDetails} tabIndex={-1} role="region" aria-label="Hint details">
+      {result.step === 3 && <>
       <p>Explore a line without playing a move.</p>
       <ol>{result.candidates.slice(0, 3).map((candidate, index) => <li key={candidate.move}>
         <strong>{index + 1}. {candidate.san}</strong>
@@ -72,7 +101,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
       </li>)}</ol>
       <button type="button" onClick={() => { setSelection(null); onPreview({ sourceFen: fen, fen, visualizations: arrows(result) }); }}>Return to game position</button>
       </>}
-      <button type="button" onClick={() => { setResult(null); setSelection(null); onPreview(null); }}>Close hints</button>
+      <button type="button" onClick={close}>Close hints</button>
     </div>}
   </section>;
 }

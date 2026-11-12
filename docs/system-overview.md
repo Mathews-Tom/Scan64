@@ -53,7 +53,7 @@ The local quality gate covers backend tests, strict typing, linting, license che
 That evidence proves the application path works; it does not prove that Scan64 improves chess performance. The following are outside the current delivered capability:
 
 - Calibrated behavioural-habit detection and context-conditioned profiling.
-- Keyboard board interaction and complete accessibility coverage.
+- Certified accessibility or universal assistive-technology compatibility. Keyboard UCI/canonical English SAN, readable positions/legal choices and replay/hint/practice controls are implemented alongside pointer boards. WCAG 2.2 AA is the all-route target; human Safari/VoiceOver acceptance is pending owner observation, not an observed pass. See [keyboard coverage and limits](user-guide.md#keyboard-touch-and-screen-readers).
 - Hosted deployment and PostgreSQL production verification.
 - Configurable retention or compaction for persisted engine payloads.
 

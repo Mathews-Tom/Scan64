@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import { CoachBoard } from './CoachBoard';
 import type { LessonSpec } from '../api/types';
@@ -25,6 +25,12 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const startedAt = useRef(performance.now());
+  const heading = useRef<HTMLHeadingElement>(null);
+  const firstStep = useRef(step);
+  useEffect(() => {
+    if (step !== firstStep.current) heading.current?.focus();
+    firstStep.current = step;
+  }, [step]);
 
   const recordAttempt = async (move: string) => {
     if (
@@ -89,7 +95,6 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
     }
   };
 
-  const currentHints = hintIndex >= 0 ? lesson.hints.slice(0, hintIndex + 1) : [];
   const finished = submittedMove !== null || attemptCount >= attemptLimit;
   const currentHint = lesson.hints[hintIndex];
   const requestHint = () => {
@@ -99,9 +104,10 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
 
   return (
     <div className="critical-moment-review" data-testid="critical-moment-review">
-      <h2>Critical Moment Review</h2>
+      <h2 ref={heading} tabIndex={-1}>Critical Moment Review</h2>
       <div className="objective">
         <strong>Objective:</strong> {lesson.objective.instruction}
+      <p role="status" aria-atomic="true">Review step {step} of 7</p>
       </div>
       {(initialAttemptsUsed > 0 || initialAttemptsRemaining < lesson.interaction.maximum_attempts) && (
         <p>{attemptCount} lifetime attempts used; {Math.max(0, attemptLimit - attemptCount)} remaining.</p>
@@ -131,6 +137,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
             <p>Please inspect the position.</p>
             {step === 2 && (
               <textarea 
+                aria-label="What were you thinking?"
                 data-testid="intent-input"
                 placeholder="What were you thinking?"
                 value={intent}
@@ -149,22 +156,13 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
           </div>
         )}
 
-        {step >= 4 && currentHints.length > 0 && (
-          <div className="hints-container" data-testid="hints-container">
-            {currentHints.map((hint, idx) => (
-              <div key={idx} className="hint" data-testid={`hint-${idx}`}>
-                {hint.text}
-                {hint.visualizations && hint.visualizations.length > 0 && (
-                  <ul className="visualizations">
-                    {hint.visualizations.map((vis, vIdx) => (
-                      <li key={vIdx}>{vis.command}: {vis.description}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="hints-container" data-testid="hints-container">
+          {lesson.hints.map((hint, idx) => (
+            <div key={idx} role="status" aria-atomic="true">
+              {step >= 4 && idx <= hintIndex ? <div className="hint" data-testid={`hint-${idx}`}>{hint.text}</div> : null}
+            </div>
+          ))}
+        </div>
 
         {(finished || step >= 6) && lesson.explanation && (
           <div className="explanation" data-testid="explanation">

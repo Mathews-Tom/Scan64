@@ -26,7 +26,9 @@ The learning engine publishes renderer-independent `LessonSpec` objects. The Rea
 
 Scan64 has a functioning transfer-measurement mechanism. It does not yet establish that its training improves chess performance in real learners.
 
-The product also does not currently claim calibrated behavioural-habit detection, context-conditioned profiling, keyboard board interaction, hosted deployment, PostgreSQL production verification, or configurable engine-payload retention.
+The product also does not currently claim calibrated behavioural-habit detection, context-conditioned profiling, hosted deployment, PostgreSQL production verification, or configurable engine-payload retention.
+
+Keyboard move entry (strict UCI or canonical English SAN), readable chess positions, legal choices and keyboard replay/hints/practice accompany the pointer boards. WCAG 2.2 AA is the all-route design target, not a certification or universal screen-reader claim. Human Safari/VoiceOver acceptance remains pending owner observation; see the [user guide](user-guide.md#keyboard-touch-and-screen-readers) for coverage and limits.
 
 ## Use and evaluate it
 

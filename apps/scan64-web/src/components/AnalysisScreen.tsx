@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Chessground } from 'chessground';
-import type { Api } from 'chessground/api';
-import type { Key } from 'chessground/types';
-import 'chessground/assets/chessground.base.css';
-import 'chessground/assets/chessground.brown.css';
-import 'chessground/assets/chessground.cburnett.css';
+import { useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
 import type { PlaySessionRead } from '../api/types';
 import { OwnedGameReview } from './OwnedGameReview';
+import { CoachBoard } from './CoachBoard';
+import { resolveMove } from './moveEntry';
 
 interface AnalysisScreenProps {
   gameId?: string;
@@ -37,36 +33,34 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
 }
 
 function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
-  const boardRef = useRef<HTMLDivElement>(null);
-  const cg = useRef<Api | null>(null);
+  const fenField = useRef<HTMLInputElement>(null);
   const [chess] = useState(() => new Chess());
+  const [fen, setFen] = useState(chess.fen());
+  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fenInput, setFenInput] = useState(chess.fen());
 
-  useEffect(() => {
-    if (!boardRef.current) return;
-    const api = Chessground(boardRef.current, {
-      fen: chess.fen(),
-      movable: { color: 'both', free: false, dests: getDests(chess) },
-      events: { move: (orig, dest) => {
-        try {
-          chess.move({ from: orig, to: dest, promotion: 'q' });
-          api.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
-          setFenInput(chess.fen());
-        } catch { api.set({ fen: chess.fen() }); }
-      } },
-    });
-    cg.current = api;
-    return () => { api.destroy(); cg.current = null; };
-  }, [chess]);
+  const handleMove = (uci: string) => {
+    const resolved = resolveMove(chess, uci);
+    if (resolved.kind !== 'move') throw new Error('Could not apply analysis move.');
+    const { from, to, promotion } = resolved.move;
+    chess.move({ from, to, promotion });
+    setFen(chess.fen());
+    setFenInput(chess.fen());
+    setError(null);
+  };
 
   const handleLoadFen = () => {
     try {
       chess.load(fenInput);
-      cg.current?.set({ fen: chess.fen(), movable: { dests: getDests(chess) } });
+      setFen(chess.fen());
       setError(null);
-    } catch { setError('Invalid FEN'); }
+      setStatus('Position loaded.');
+    } catch {
+      setError('Invalid FEN');
+      fenField.current?.focus();
+    }
   };
 
   const playFromHere = async () => {
@@ -84,14 +78,15 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
   return <div className="analysis-screen">
     <h2>Analysis Board</h2>
     {error && <p role="alert">{error}</p>}
-    {loading && <p>Loading...</p>}
+    <p role="status">{loading ? 'Loading...' : status}</p>
     <div className="review-replay-layout">
-      <div ref={boardRef} data-testid="free-analysis-board" style={{ width: 'min(400px, 100%)', aspectRatio: '1' }} />
+      <CoachBoard fen={fen} pgn={chess.pgn()} onMove={handleMove} disabled={loading} testId="free-analysis-board" />
       <div className="analysis-sidebar">
         <button type="button" onClick={playFromHere} disabled={loading || !onPlayFromHere} data-testid="play-from-here">{loading ? 'Starting...' : 'Play from here'}</button>
         <div className="fen-setup">
           <h3>FEN Setup</h3>
-          <input type="text" aria-label="FEN" value={fenInput} onChange={event => setFenInput(event.target.value)} placeholder="Paste FEN here" style={{ width: '100%' }} />
+          <label htmlFor="analysis-fen">FEN</label>
+          <input ref={fenField} id="analysis-fen" type="text" value={fenInput} onChange={event => setFenInput(event.target.value)} placeholder="Paste FEN here" style={{ width: '100%' }} />
           <button type="button" onClick={handleLoadFen}>Load FEN</button>
         </div>
         <div className="pgn-export">
@@ -104,7 +99,11 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
             link.click();
             URL.revokeObjectURL(url);
           }}>Download PGN</button>
-          <button type="button" onClick={() => navigator.clipboard.writeText(chess.fen())}>Copy FEN</button>
+          <button type="button" onClick={() => {
+            void navigator.clipboard.writeText(chess.fen())
+              .then(() => setStatus('FEN copied.'))
+              .catch(() => setError('Could not copy FEN.'));
+          }}>Copy FEN</button>
         </div>
         <div className="multipv-container" data-testid="multipv-lines">
           <h3>Engine Evaluation</h3>
@@ -115,13 +114,3 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
   </div>;
 }
 
-function getDests(chess: Chess): Map<Key, Key[]> {
-  const dests = new Map<Key, Key[]>();
-  for (const move of chess.moves({ verbose: true })) {
-    const from = move.from as Key;
-    const destinations = dests.get(from) ?? [];
-    destinations.push(move.to as Key);
-    dests.set(from, destinations);
-  }
-  return dests;
-}

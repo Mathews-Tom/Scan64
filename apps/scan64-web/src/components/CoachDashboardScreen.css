@@ -1,5 +1,5 @@
 .coach-dashboard {
-  color: #26211c;
+  color: var(--text);
   margin: 36px auto;
   max-width: 980px;
   padding: 0 28px 48px;
@@ -8,7 +8,7 @@
 
 .coach-dashboard__header {
   align-items: end;
-  border-bottom: 3px solid #26211c;
+  border-bottom: 3px solid var(--text-h);
   display: flex;
   gap: 32px;
   justify-content: space-between;
@@ -31,12 +31,12 @@
 }
 
 .coach-dashboard__header > div > p:last-child {
-  color: #625a50;
+  color: var(--text);
   max-width: 540px;
 }
 
 .coach-dashboard__eyebrow {
-  color: #9b331f;
+  color: var(--accent);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.7rem;
   font-weight: 700;
@@ -47,11 +47,11 @@
 
 .coach-dashboard__identity,
 .coach-student__rating {
-  color: #625a50;
+  color: var(--text);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.75rem;
   margin: 0;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .coach-dashboard__students {
@@ -62,6 +62,7 @@
 
 .coach-student,
 .coach-dashboard__empty {
+  color: #26211c;
   background: #f7f0e3;
   border: 1px solid #b6a990;
   box-shadow: 7px 7px 0 #9b331f;
@@ -98,7 +99,7 @@
 }
 
 .coach-student__muted {
-  color: #766d61;
+  color: #625a50;
   font-size: 0.9rem;
   font-style: italic;
 }
@@ -151,6 +152,7 @@
 .coach-dashboard--error {
   background: #fff0ed;
   border: 1px solid #9b331f;
+  color: #26211c;
   padding: 24px;
 }
 
@@ -171,3 +173,8 @@
     white-space: normal;
   }
 }
+
+.coach-dashboard__header h2 { color: var(--text-h); }
+.coach-student__rating { color: #625a50; }
+.coach-dashboard--error h2 { color: #26211c; }
+.coach-student .coach-dashboard__eyebrow, .coach-dashboard--error .coach-dashboard__eyebrow { color: #9b331f; }

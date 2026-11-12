@@ -38,11 +38,11 @@ export function ProfileScreen() {
   }, [playerId]);
 
   if (error) {
-    return <div data-testid="profile-error">Profile unavailable: {error}</div>;
+    return <div role="alert" data-testid="profile-error">Profile unavailable: {error}</div>;
   }
 
   if (!progress || !evidence || !patterns) {
-    return <div>Loading profile...</div>;
+    return <div role="status">Loading profile...</div>;
   }
 
   return (

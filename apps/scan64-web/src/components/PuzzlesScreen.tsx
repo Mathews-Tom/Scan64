@@ -52,9 +52,15 @@ export function PuzzlesScreen() {
           : await ApiClient.abandonPuzzleRun(run.run_id, expected);
       if (request !== generation.current) return;
       setRun(next);
+      const committed = next.played_moves.slice(run.played_moves.length);
+      const moveAnnouncements = committed.map((uci, index) => {
+        const white = (run.fen.split(' ')[1] === 'w') !== (index % 2 === 1);
+        const promoted = uci[4] ? `, promoting to ${{ q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }[uci[4] as 'q' | 'r' | 'b' | 'n']}` : '';
+        return `${white ? 'White' : 'Black'} played ${uci.slice(0, 2)} to ${uci.slice(2, 4)}${promoted}.`;
+      }).join(' ');
       setNotice(action === 'move' && next.wrong_attempts > run.wrong_attempts
         ? next.state === 'active' ? 'That move is not the source continuation. Try again.' : 'That move is not the source continuation.'
-        : action === 'move' && next.state === 'active' ? 'Source move accepted. Continue the puzzle.' : '');
+        : action === 'move' ? `${moveAnnouncements}${next.state === 'active' ? ' Source move accepted. Continue the puzzle.' : ''}` : '');
     } catch (failure) {
       if (request !== generation.current) return;
       if (failure instanceof PuzzleConflictError) {
@@ -91,6 +97,7 @@ export function PuzzlesScreen() {
   const solverBlack = run ? blackToMove !== (run.played_moves.length % 2 === 1) : false;
   const active = run?.state === 'active';
   const latestHint = run?.hints.at(-1);
+  const hintSlots = [1, 2, 3].map(step => run?.hints.find(hint => hint.step === step));
   const daily = run?.daily ?? catalog?.daily;
   return <section className="puzzles-screen" aria-labelledby="puzzles-title" aria-busy={pending}>
     <h1 id="puzzles-title">Puzzles</h1>
@@ -105,7 +112,7 @@ export function PuzzlesScreen() {
       <p>Up to 10 puzzles per UTC day. Refreshing or choosing Next does not regenerate or skip the set. An active puzzle resumes first, even after UTC midnight.</p>
     </section> : null}
     <p>On a rated first exposure, an independent solve wins rating; hints, failure or abandonment lose rating. Mistakes within the three-attempt limit are allowed. Reviews and repeats are unrated.</p>
-    <div role="status" aria-live="polite">
+    <div role="status" aria-label="Puzzle progress" aria-live="polite">
       {pending ? <p>Loading puzzle state…</p> : null}
       {notice ? <p>{notice}</p> : null}
       {run ? <>
@@ -142,13 +149,13 @@ export function PuzzlesScreen() {
         <section aria-label="Puzzle hints">
           <button disabled={pending || !active || needsRefresh || run.hint_step >= 3} onClick={() => void mutate('hint')}>Show hint</button>
           <p>Hint {run.hint_step} of 3. The third hint can reveal the source line.</p>
-          {run.hints.map(hint => <div key={hint.step}>
-            <h3>Hint {hint.step}</h3>
+          {hintSlots.map((hint, index) => <div key={index} role="status" aria-atomic="true">
+            {hint ? <><h3>Hint {hint.step}</h3>
             {hint.step !== 3 ? <p>{hint.text}</p> : <ol>{hint.candidates.map(candidate => <li key={candidate.move}>
               <strong>Source continuation: {candidate.san}</strong>
               <p>Source line (UCI): {candidate.line.join(' ')}</p>
               {candidate.reasons.length ? <ul>{candidate.reasons.map((reason, index) => <li key={index}><strong>{reason.tier === 'principle' ? 'Principle' : 'Tactical'}:</strong> {reason.description}</li>)}</ul> : <p>Source continuation; no engine-quality claim.</p>}
-            </li>)}</ol>}
+            </li>)}</ol>}</> : null}
           </div>)}
         </section>
         <div className="puzzles-actions">

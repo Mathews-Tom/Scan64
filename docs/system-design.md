@@ -105,5 +105,5 @@ Stockfish is required for the local application. Maia is optional and requires o
 - SQLite is the implemented local storage target; PostgreSQL production verification is not delivered.
 - No hosted deployment is documented or supported here.
 - Behavioural-habit and context-conditioned profiling are not implemented as calibrated production capabilities.
-- Keyboard board interaction and complete accessibility coverage are outstanding.
+- The shared board exposes readable coordinates/pieces/side/check/result, legal choices and strict UCI/canonical English SAN entry through the same authoritative chess state and move callback as pointer input. Replay and Famous Game study remain read-only; Famous Game prediction resolves locally and submits canonical SAN to unchanged server grading. Navigation, hints, retries, promotion and responsive controls target WCAG 2.2 AA across shipped routes. Conformance is not certified: human Safari/VoiceOver acceptance is pending owner observation, and no universal AT support is claimed. See [keyboard coverage and limits](user-guide.md#keyboard-touch-and-screen-readers).
 - Persisted engine payload retention and compaction are not configurable.
