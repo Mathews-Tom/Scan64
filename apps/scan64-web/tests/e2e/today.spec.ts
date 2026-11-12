@@ -43,6 +43,9 @@ test('Today links an analysed game and uses skill names rather than codes', asyn
   await page.route(`**/v1/games/${gameId}/positions`, route => route.fulfill({ json: [] }));
   await page.route(`**/v1/games/${gameId}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
   await page.goto('/');
+  await expect(page.getByText('Scan64 puzzle rating: 1200 (provisional) · 0 rated puzzles')).toBeVisible();
+  await expect(page.getByText('3 of 10 completed · 7 remaining · 2 overdue reviews')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Continue puzzles' })).toHaveAttribute('href', '/puzzles');
   const skills = page.locator('.study-panel').filter({ has: page.getByRole('heading', { name: 'Skills to practise' }) });
   await expect(skills.getByRole('listitem')).toHaveText(['Hanging piece', 'Pin']);
   await expect(page.locator('main')).not.toContainText('board_awareness.hanging_piece');

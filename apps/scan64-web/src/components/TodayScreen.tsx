@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
-import type { PatternsReport, PlayerGamesPage, WeeklyReport } from '../api/types';
+import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
 
 interface TodayData {
   games: PlayerGamesPage;
   weekly: WeeklyReport;
   patterns: PatternsReport;
+  puzzles: PuzzleDailyRead;
 }
 
 export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void }) {
@@ -17,12 +18,13 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
     let cancelled = false;
     void ensurePlayerAuthorization(getActivePlayerId())
       .then(async (playerId) => {
-        const [games, weekly, patterns] = await Promise.all([
+        const [games, weekly, patterns, puzzles] = await Promise.all([
           ApiClient.getPlayerGames(playerId),
           ApiClient.getWeeklyReport(playerId),
           ApiClient.getPlayerPatterns(playerId),
+          ApiClient.getPuzzleDaily(),
         ]);
-        if (!cancelled) setData({ games, weekly, patterns });
+        if (!cancelled) setData({ games, weekly, patterns, puzzles });
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'Reports unavailable');
@@ -51,6 +53,18 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
         </div>
       ) : !data ? <p role="status">Loading your study table…</p> : (
         <div className="today-panels">
+          <section className="study-panel">
+            <h2>Your puzzle practice</h2>
+            <p>Scan64 puzzle rating: {data.puzzles.rating}{data.puzzles.provisional ? ' (provisional)' : ''} · {data.puzzles.rated_count} rated puzzles</p>
+            <p>{data.puzzles.completed} of {data.puzzles.total} completed · {data.puzzles.remaining} remaining · {data.puzzles.overdue_count} overdue reviews</p>
+            <p>{data.puzzles.message}</p>
+            <p>A separate practice rating, not chess strength or theme mastery. Daily sets reset at UTC midnight.</p>
+            <a href="/puzzles" onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              onNavigate('/puzzles');
+            }}>Continue puzzles</a>
+          </section>
           <section className="study-panel">
             <h2>Your latest analysed game</h2>
             {latestGame ? (

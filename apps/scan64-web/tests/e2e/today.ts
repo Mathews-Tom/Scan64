@@ -1,6 +1,12 @@
 import type { Page } from '@playwright/test';
 
 export async function mockTodayReports(page: Page): Promise<void> {
+  await page.route('**/v1/puzzles/daily', route => route.fulfill({ json: {
+    utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+    overdue_count: 2, total: 10, completed: 3, remaining: 7,
+    actual_mix: { due: 4, weak: 5, exploration: 1 },
+    message: "Today's stable set resets at 00:00 UTC.",
+  } }));
   await page.route('**/v1/bots', route => route.fulfill({ json: [
     { level: 1, name: 'Beginner fixture', description: 'A friendly opponent' },
   ] }));

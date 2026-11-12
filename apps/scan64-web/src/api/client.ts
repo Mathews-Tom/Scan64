@@ -26,6 +26,7 @@ import type {
   PositionRead,
   PositionInsight,
   PositionInsightRequest,
+  PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
   TrainingSessionRead,
@@ -170,7 +171,7 @@ function getActivePlayerAuthorizationHeader(): Record<string, string> {
 
 export class ApiClient {
   private static async puzzleRequest<T>(path: string, method: 'GET' | 'POST', data?: object): Promise<T> {
-    const response = await fetch(`${API_BASE}/puzzles/runs${path}`, {
+    const response = await fetch(`${API_BASE}/puzzles${path}`, {
       method,
       headers: { ...getActivePlayerAuthorizationHeader(), ...(data ? { 'Content-Type': 'application/json' } : {}) },
       ...(data ? { body: JSON.stringify(data) } : {}),
@@ -188,24 +189,28 @@ export class ApiClient {
     return body as T;
   }
 
+  static getPuzzleDaily(): Promise<PuzzleDailyRead> {
+    return this.puzzleRequest('/daily', 'GET');
+  }
+
   static startPuzzleRun(): Promise<PuzzleStartRead> {
-    return this.puzzleRequest('', 'POST');
+    return this.puzzleRequest('/runs', 'POST');
   }
 
   static getPuzzleRun(runId: string): Promise<PuzzleRunRead> {
-    return this.puzzleRequest(`/${encodeURIComponent(runId)}`, 'GET');
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}`, 'GET');
   }
 
   static submitPuzzleMove(runId: string, body: PuzzleExpectedState & { move: string }): Promise<PuzzleRunRead> {
-    return this.puzzleRequest(`/${encodeURIComponent(runId)}/moves`, 'POST', body);
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/moves`, 'POST', body);
   }
 
   static revealPuzzleHint(runId: string, body: PuzzleExpectedState & { step: 1 | 2 | 3 }): Promise<PuzzleRunRead> {
-    return this.puzzleRequest(`/${encodeURIComponent(runId)}/hints`, 'POST', body);
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/hints`, 'POST', body);
   }
 
   static abandonPuzzleRun(runId: string, body: PuzzleExpectedState): Promise<PuzzleRunRead> {
-    return this.puzzleRequest(`/${encodeURIComponent(runId)}/abandon`, 'POST', body);
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/abandon`, 'POST', body);
   }
 
   static async getPositionInsight(data: PositionInsightRequest): Promise<PositionInsight> {

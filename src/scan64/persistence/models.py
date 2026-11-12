@@ -10,7 +10,7 @@ def load_models() -> None:
     from scan64.chess.positions import models as position_models
     from scan64.coach import models as coach_models
     from scan64.content import models as content_models
-    from scan64.content import puzzle_runs
+    from scan64.content import puzzle_practice_models, puzzle_runs
     from scan64.learning.evaluation import transfer_measurement
     from scan64.learning.evidence import models as evidence_models
     from scan64.learning.exercises import transfer
@@ -28,6 +28,7 @@ def load_models() -> None:
         coach_models,
         content_models,
         puzzle_runs,
+        puzzle_practice_models,
         transfer_measurement,
         evidence_models,
         transfer,
