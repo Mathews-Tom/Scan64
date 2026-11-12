@@ -43,7 +43,7 @@ async def test_template_lesson_generation_remains_valid_with_llm_disabled() -> N
         diagnosis=diagnosis,
         fen="r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5",
         lesson_id="les_template_regression",
-        best_move_san="Nc3",
+        accepted_moves_san=["Nc3"],
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence=[fixture])
     verify_lesson(

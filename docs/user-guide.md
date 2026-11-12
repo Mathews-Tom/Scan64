@@ -17,7 +17,7 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 3. Choose a named **Bot level** and **Your colour** (White, Black or Random). As Black, the opponent makes the opening move before you play.
 4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and move by drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
-6. Reload or return to **Play** to resume with your chosen colour and board orientation. Offline moves stay queued until the connection returns. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
+6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
 7. Select **Resign**, or finish by checkmate or a draw. The result appears immediately. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move creates no empty game and has no review link.
 
 Play offers eight server-defined levels from `GET /v1/bots`; Analysis Board's play-from-here and Famous Games' continue action default to level 1. The API takes `opponent_config: {"bot_level": "1"}` for Stockfish and optional `player_color` (`white`, `black` or `random`). Omitted colour uses the position's side to move. All eight levels use the same session-seeded MultiPV candidate policy with decreasing error budgets. They are calibrated relative to each other, **not Elo-anchored**, and show no Elo figure. Stockfish's native reduced-strength move generator has no seed control, so it is not used for these levels. Maia's rating-based `strength` is unchanged. Stored older Stockfish sessions still resume using their original native skill setting.
@@ -26,13 +26,19 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 
 Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
 
+### Hints during play
+
+Select **Hint** beside the game board to request up to three numbered candidate moves for the current active session. Matching numbered arrows appear on the board. Each candidate includes tactical reasons, or **engine preference** when no specific tactical explanation is available.
+
+Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to explore without submitting any moves. Select **Return to game position** before continuing play, or **Close hints** to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.
+
 ## Import and analyse a PGN
 
 1. Open **Library**, then **Import PGN**.
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
-5. Review move-by-move engine evaluations and diagnosis markers on the analysis board.
+5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner opportunities.
 
 For a deterministic manual diagnosis walkthrough, import this game:
 
@@ -45,14 +51,14 @@ For a deterministic manual diagnosis walkthrough, import this game:
 1. e4 e5 2. Qh5 Nc6 3. Qxe5+ Nxe5 0-1
 ```
 
-The analysis identifies the hanging queen as `board_awareness.hanging_piece`. The generated lesson accepts `Bc4` from the source position.
+The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Lesson answers depend on the engine analysis, not a hard-coded move.
 
 ## Train from diagnosed positions
 
 Open **Train** (Daily Training) after one or more owned games have generated eligible lessons.
 
 - A lesson is served only with durable player-owned opportunity and study-session context.
-- Move answers are checked on the server against the lesson objective.
+- Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
 - A verified attempt advances only its matching review schedule and active skill state.
 - Opening Explorer missions are recorded separately and do not change this profile path.
 - An empty training screen means Scan64 has no eligible owned lesson for the active player.
@@ -99,7 +105,7 @@ The generated API reference at `http://127.0.0.1:8001/docs` documents the live r
 3. Navigate to **Review** and back; confirm the active session resumes.
 4. Resign; confirm the game becomes visible in history and completes analysis.
 5. Import the hanging-queen PGN above, analyse it, and confirm a diagnosis marker and engine evaluations appear.
-6. Complete its Daily Training lesson with `Bc4`; confirm the profile gains evidence and updated mastery.
+6. Complete its Daily Training lesson with an accepted move; confirm **Correct**, recorded success, and updated profile mastery.
 7. Start a coach-mode game, make a diagnosed tactical error, complete the interruption, and confirm the profile updates.
 8. Run the full local gate:
 

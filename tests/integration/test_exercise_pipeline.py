@@ -18,7 +18,7 @@ async def test_exact_replay_exercise_generation() -> None:
     fen = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5"
 
     lesson = await generate_exact_replay_exercise(
-        diagnosis=diagnosis, fen=fen, lesson_id="les_test123", best_move_san="Nc3", hints=[]
+        diagnosis=diagnosis, fen=fen, lesson_id="les_test123", accepted_moves_san=["Nc3"], hints=[]
     )
 
     assert lesson.source.kind == "player_game"

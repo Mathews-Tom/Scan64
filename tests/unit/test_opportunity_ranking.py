@@ -61,3 +61,28 @@ def test_overcoaching_cap():
     assert len(ranked) == 2
     assert ranked[0].candidate.skill_id == "skill_0"
     assert ranked[1].candidate.skill_id == "skill_1"
+
+
+def test_ranker_recomputes_skill_redundancy_after_each_choice() -> None:
+    first = DiagnosisCandidate(skill_id="repeat", confidence=1.0, evidence_ids=[])
+    repeated = DiagnosisCandidate(skill_id="repeat", confidence=1.0, evidence_ids=[])
+    distinct = DiagnosisCandidate(skill_id="other", confidence=1.0, evidence_ids=[])
+    factors = [RankingFactors(severity=value) for value in (1000, 900, 500)]
+    ranked = OpportunityRanker(overcoaching_cap=3).rank(
+        list(zip([first, repeated, distinct], factors, strict=True))
+    )
+    assert [item.candidate for item in ranked] == [first, distinct, repeated]
+    assert ranked[-1].factors.redundancy == 1.0
+    assert all(factor.redundancy == 0 for factor in factors)
+
+
+def test_ranker_weights_severity_by_diagnostic_confidence() -> None:
+    uncertain = DiagnosisCandidate(skill_id="uncertain", confidence=0.1, evidence_ids=[])
+    certain = DiagnosisCandidate(skill_id="certain", confidence=0.9, evidence_ids=[])
+    ranked = OpportunityRanker().rank(
+        [
+            (uncertain, RankingFactors(severity=1000, confidence=uncertain.confidence)),
+            (certain, RankingFactors(severity=500, confidence=certain.confidence)),
+        ]
+    )
+    assert ranked[0].candidate is certain

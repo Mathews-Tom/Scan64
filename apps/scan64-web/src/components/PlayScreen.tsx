@@ -14,6 +14,7 @@ import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { BotRead, CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CoachBoard } from './CoachBoard';
+import { HintPanel, type HintPreview } from './HintPanel';
 import { Chess } from 'chess.js';
 
 const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
@@ -71,6 +72,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [movePending, setMovePending] = useState(false);
   const [resigning, setResigning] = useState(false);
   const [resigned, setResigned] = useState(false);
+  const [hintPreview, setHintPreview] = useState<HintPreview | null>(null);
+  const currentHint = hintPreview?.sourceFen === boardPosition.fen ? hintPreview : null;
   const updateBoard = useCallback(() => {
     setBoardPosition({ fen: chessRef.current.fen(), pgn: chessRef.current.pgn() });
   }, []);
@@ -169,9 +172,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setCriticalInterruption(null);
     updateBoard();
   }, [updateBoard]);
-  const refreshQueuedSession = useCallback((sessionId: string) => {
-    const generation = refreshGenerationRef.current + 1;
-    refreshGenerationRef.current = generation;
+  const refreshQueuedSession = useCallback((sessionId: string, generation = ++refreshGenerationRef.current) => {
+    if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return;
+    queuedMoveNeedsRefreshRef.current.add(sessionId);
+    updateBoard();
     void (async () => {
       try {
         const refreshedSession = await ApiClient.getPlaySession(sessionId);
@@ -220,21 +224,26 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [updateBoard]);
 
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
+    if (sessionRef.current?.id !== sessionId) return;
+    const generation = ++refreshGenerationRef.current;
+    queuedMoveNeedsRefreshRef.current.add(sessionId);
+    updateBoard();
     setRefreshSessionId(null);
     void (async () => {
       try {
         await syncQueuedMoves();
+        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
         const queuedMoves = await getQueuedMoves();
-        if (sessionRef.current?.id !== sessionId) return;
+        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
         if (queuedMoves.some((queuedMove) => queuedMove.sessionId === sessionId)) {
           setSyncRetrySessionId(sessionId);
           setError('Queued move could not be synchronized. Reconnect to retry.');
           return;
         }
         setSyncRetrySessionId(null);
-        refreshQueuedSession(sessionId);
+        refreshQueuedSession(sessionId, generation);
       } catch (error: unknown) {
-        if (sessionRef.current?.id !== sessionId) return;
+        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
         setSyncRetrySessionId(sessionId);
         setError(
           `Unable to synchronize queued moves: ${
@@ -243,7 +252,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         );
       }
     })();
-  }, [refreshQueuedSession]);
+  }, [refreshQueuedSession, updateBoard]);
 
   const handleMove = useCallback(async (lan: string) => {
     const activeSession = sessionRef.current;
@@ -454,10 +463,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         (event as CustomEvent<QueuedMoveSyncSuccess>).detail;
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
-      queuedMoveNeedsRefreshRef.current.delete(queuedMove.sessionId);
-      if (!applyMoveResponse(response)) {
-        queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
-      }
+      queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
+      applyMoveResponse(response);
     };
     const handleSyncFailure = (event: Event) => {
       const { queuedMove, message } =
@@ -473,6 +480,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     window.addEventListener(QUEUED_MOVE_SYNC_SUCCEEDED, handleSyncSuccess);
     window.addEventListener(QUEUED_MOVE_SYNC_FAILED, handleSyncFailure);
     return () => {
+      refreshGenerationRef.current += 1;
       window.removeEventListener(QUEUED_MOVE_SYNC_SUCCEEDED, handleSyncSuccess);
       window.removeEventListener(QUEUED_MOVE_SYNC_FAILED, handleSyncFailure);
     };
@@ -556,14 +564,22 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       ) : null}
       <CoachBoard
         {...boardPosition}
+        {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
         testId="chessground-board"
         orientation={sessionPlayerColor(session) ?? 'white'}
         disabled={!session || session.status !== 'active' || movePending || resigning || takingBack ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
-          criticalInterruption !== null || queuedMoveNeedsRefreshRef.current.has(session.id)}
+          criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) ||
+          queuedMoveNeedsRefreshRef.current.has(session.id)}
         onMove={handleMove}
       />
+      {session?.status === 'active' && <HintPanel playerId={playerId} sessionId={session.id}
+        fen={boardPosition.fen} onPreview={setHintPreview}
+        disabled={movePending || resigning || takingBack || criticalInterruption !== null ||
+          (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
+            (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
+          queuedMoveNeedsRefreshRef.current.has(session.id)} />}
       {session?.status === 'active' && <button type="button" onClick={() => void resign()}
         disabled={movePending || resigning || takingBack || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {resigning ? 'Resigning…' : 'Resign'}

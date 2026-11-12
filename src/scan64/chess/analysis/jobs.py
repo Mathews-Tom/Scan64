@@ -1,10 +1,12 @@
 import asyncio
+from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 from weakref import WeakValueDictionary
 
 import chess
-from chess_lesson_spec import Diagnosis
+from chess_lesson_spec import Diagnosis, LessonSpec
 from sqlmodel import Session, select
 
 from scan64.api.models import PlayerProfile
@@ -17,19 +19,23 @@ from scan64.chess.analysis.orchestration import (
     FocusedPassOrchestrator,
 )
 from scan64.chess.boards import board_from, uci_moves_to_san
-from scan64.chess.games.ingestion import resolve_position
+from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
-from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
 from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
+from scan64.learning.exercises.sound_moves import analyze_lesson_source, sound_moves
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.tolerance import win_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -50,22 +56,31 @@ def _resolve_pattern_detectors(
     return tuple(detectors)
 
 
-def _persist_position_analysis(
+def _stage_position_analysis(
     game: Game,
     fen: str,
     analysis: EngineAnalysis,
-    session: Session,
     positions_by_fen: dict[str, Position],
+    analyses: dict[UUID, EngineAnalysis],
 ) -> Position:
+    """Prepare detached rows without acquiring SQLite's write lock."""
     position = positions_by_fen.get(fen)
     if position is None:
-        position = resolve_position(session, fen, game.id)
+        position = ingest_fen(fen, game.id)
         positions_by_fen[fen] = position
-    session.add(position)
-    if analysis.position_id != position.id:
-        analysis.position_id = position.id
-        session.add(analysis)
+    analysis.position_id = position.id
+    analyses[analysis.id] = analysis
     return position
+
+
+@dataclass
+class _LessonCandidate:
+    source: Position
+    diagnosis: DiagnosisCandidate
+    secondary: tuple[DiagnosisCandidate, ...]
+    evidence: list[Evidence]
+    severity: float
+    played_move: chess.Move
 
 
 async def run_analysis_for_game(
@@ -79,6 +94,23 @@ async def run_analysis_for_game(
 
     if game.owner_color is None:
         raise ValueError("Cannot analyse a legacy game without owner_color")
+
+    # Coach interruptions may already have durable lessons/attempts. Preserve
+    # those sources and reserve their slots rather than replacing their history.
+    existing_lessons = session.exec(
+        select(PersistedLessonOpportunity).where(
+            PersistedLessonOpportunity.game_id == game.id,
+            PersistedLessonOpportunity.player_id == game.owner_player_id,
+        )
+    ).all()
+    existing_sources = {lesson.source_position_id for lesson in existing_lessons}
+    remaining_slots = max(0, 5 - len(existing_lessons))
+    positions_by_fen = {
+        position.fen: position
+        for position in session.exec(select(Position).where(Position.game_id == game.id)).all()
+    }
+    profile = session.get(PlayerProfile, game.owner_player_id)
+    rating = profile.rating if profile is not None else 1500
 
     adapter = (
         pool_manager.batch_adapter
@@ -110,27 +142,25 @@ async def run_analysis_for_game(
         board.push_san(san)
         fens_before.append(board.fen())
 
-    positions_by_fen: dict[str, Position] = {}
+    # All diagnosis, engine searches and verification happen on detached rows.
+    # No add/flush (including query-triggered autoflush) may precede the final
+    # engine call: interactive moves and attempts must remain able to write.
+    analyses: dict[UUID, EngineAnalysis] = {}
+    all_evidence: list[Evidence] = []
+    observations: list[tuple[UUID, str]] = []
+    lesson_candidates: list[_LessonCandidate] = []
     for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
-        source_position = resolve_position(session, fen_before, game.id)
-        existing_opportunity = session.exec(
-            select(PersistedLessonOpportunity.id).where(
-                PersistedLessonOpportunity.game_id == game.id,
-                PersistedLessonOpportunity.player_id == game.owner_player_id,
-                PersistedLessonOpportunity.source_position_id == source_position.id,
-            )
-        ).first()
-        if existing_opportunity is not None:
+        existing_position = positions_by_fen.get(fen_before)
+        if existing_position is not None and existing_position.id in existing_sources:
             continue
-        source_position = _persist_position_analysis(
-            game, fen_before, candidate.before_analysis, session, positions_by_fen
+        source_position = _stage_position_analysis(
+            game, fen_before, candidate.before_analysis, positions_by_fen, analyses
         )
-        after_position = _persist_position_analysis(
-            game, candidate.fen, candidate.after_analysis, session, positions_by_fen
+        after_position = _stage_position_analysis(
+            game, candidate.fen, candidate.after_analysis, positions_by_fen, analyses
         )
-
-        _persist_position_analysis(game, candidate.fen, focused_analysis, session, positions_by_fen)
+        _stage_position_analysis(game, candidate.fen, focused_analysis, positions_by_fen, analyses)
         evidence = compose_candidate_evidence(
             before_board=board_from(fen_before),
             after_board=board_from(candidate.fen),
@@ -142,8 +172,7 @@ async def run_analysis_for_game(
             played_move=san_moves[candidate.move_index],
             swing_cp=candidate.swing_cp,
         )
-        for item in evidence:
-            session.add(item)
+        all_evidence.extend(evidence)
 
         if board_from(fen_before).turn != (game.owner_color == "white"):
             continue
@@ -166,55 +195,125 @@ async def run_analysis_for_game(
             continue
         best, secondary = selection
 
-        fen_before = fens_before[candidate.move_index]
-        best_move_uci = None
-        if candidate.before_analysis.raw_result:
-            pv = candidate.before_analysis.raw_result[0].get("pv") or []
-            best_move_uci = pv[0] if pv else None
+        observations.append((after_position.id, best.skill_id))
+        before_probability = (
+            win_probability(candidate.before_analysis.raw_result[0])
+            if candidate.before_analysis.raw_result
+            else None
+        )
+        after_probability = (
+            win_probability(candidate.after_analysis.raw_result[0])
+            if candidate.after_analysis.raw_result
+            else None
+        )
+        # The after score is the opponent's POV. Compare the owner's winning
+        # chances rather than over-weighting centipawn swings in decided games.
+        loss = (
+            max(0.0, before_probability + after_probability - 1.0)
+            if before_probability is not None and after_probability is not None
+            else 0.0
+        )
+        lesson_candidates.append(
+            _LessonCandidate(
+                source_position,
+                best,
+                secondary,
+                evidence,
+                loss,
+                board_from(fen_before).parse_san(san_moves[candidate.move_index]),
+            )
+        )
 
+    # A source position can recur in a game; teach it once, using its worst
+    # diagnosed occurrence. Evidence and profile observations remain uncapped.
+    distinct: dict[UUID, _LessonCandidate] = {}
+    for item in lesson_candidates:
+        previous = distinct.get(item.source.id)
+        if previous is None or item.severity * item.diagnosis.confidence > (
+            previous.severity * previous.diagnosis.confidence
+        ):
+            distinct[item.source.id] = item
+    ranker = OpportunityRanker(overcoaching_cap=1)
+    chosen_skills: Counter[str] = Counter()
+    for existing_lesson in existing_lessons:
+        skill = existing_lesson.lesson_spec.get("diagnosis", {}).get("primary")
+        if isinstance(skill, str):
+            chosen_skills[skill] += 1
+    prepared: list[tuple[_LessonCandidate, EngineAnalysis, LessonSpec]] = []
+    while distinct and len(prepared) < remaining_slots:
+        # Only durable/verified choices consume redundancy. A discarded engine
+        # candidate must not demote another teachable mistake of the same skill.
+        choice = ranker.rank(
+            [
+                (
+                    item.diagnosis,
+                    RankingFactors(
+                        severity=item.severity,
+                        confidence=item.diagnosis.confidence,
+                        redundancy=chosen_skills[item.diagnosis.skill_id],
+                    ),
+                )
+                for item in distinct.values()
+            ]
+        )[0]
+        item = next(item for item in distinct.values() if item.diagnosis is choice.candidate)
+        distinct.pop(item.source.id)
+        source_position = item.source
+        fen_before = source_position.fen
         board_before = chess.Board(fen_before)
-        best_move_san = (
-            board_before.san(chess.Move.from_uci(best_move_uci))
-            if best_move_uci
-            else san_moves[candidate.move_index]
-        )
-
+        try:
+            source_analysis = await analyze_lesson_source(adapter, fen_before)
+            accepted = sound_moves(board_before, source_analysis)
+        except ValueError:
+            continue
+        if item.played_move in accepted:
+            # A shallow swing is not a teachable mistake if the deeper source
+            # search proves the actual move sound under the shared A2 policy.
+            continue
         diagnosis = Diagnosis(
-            primary=best.skill_id,
-            secondary=[candidate.skill_id for candidate in secondary],
-            confidence=best.confidence,
-            evidence_refs=best.evidence_ids,
+            primary=item.diagnosis.skill_id,
+            secondary=[candidate.skill_id for candidate in item.secondary],
+            confidence=item.diagnosis.confidence,
+            evidence_refs=item.diagnosis.evidence_ids,
         )
-        profile = session.get(PlayerProfile, game.owner_player_id)
-        apply_analysis_observation(
-            session=session,
-            player_id=game.owner_player_id,
-            game_id=str(game.id),
-            position_id=str(after_position.id),
-            skill_id=best.skill_id,
-            rating=profile.rating if profile is not None else 1500,
-            observed_at=datetime.now(UTC),
-        )
-
         lesson = await generate_exact_replay_exercise(
             diagnosis=diagnosis,
             fen=fen_before,
             lesson_id=f"les_{uuid4()}",
-            best_move_san=best_move_san,
+            accepted_moves_san=[board_before.san(move) for move in accepted],
             hints=[],
         )
-        lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
+        lesson.explanation = await resolve_explanation(diagnosis, item.evidence, fen_before)
 
         try:
-            verify_lesson(lesson, candidate.before_analysis)
+            verify_lesson(lesson, source_analysis)
         except LessonVerificationError:
             continue
+        _stage_position_analysis(game, fen_before, source_analysis, positions_by_fen, analyses)
+        prepared.append((item, source_analysis, lesson))
+        chosen_skills[item.diagnosis.skill_id] += 1
 
+    # Only now begin the atomic write phase (_JobSession defers this commit
+    # together with the job's completed marker during normal/recovered runs).
+    session.add_all(positions_by_fen.values())
+    session.add_all(analyses.values())
+    session.add_all(all_evidence)
+    for position_id, skill_id in observations:
+        apply_analysis_observation(
+            session=session,
+            player_id=game.owner_player_id,
+            game_id=str(game.id),
+            position_id=str(position_id),
+            skill_id=skill_id,
+            rating=rating,
+            observed_at=datetime.now(UTC),
+        )
+    for item, source_analysis, lesson in prepared:
         persisted = PersistedLessonOpportunity(
             game_id=game.id,
-            source_position_id=source_position.id,
+            source_position_id=item.source.id,
             player_id=game.owner_player_id,
-            verification_analysis_id=candidate.before_analysis.id,
+            verification_analysis_id=source_analysis.id,
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
@@ -222,7 +321,7 @@ async def run_analysis_for_game(
             ReviewSchedule(
                 player_id=game.owner_player_id,
                 item_id=str(persisted.id),
-                skill_id=best.skill_id,
+                skill_id=item.diagnosis.skill_id,
                 next_review_at=datetime.now(UTC),
             )
         )

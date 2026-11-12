@@ -173,13 +173,27 @@ class EnginePool:
         self.closed = False
 
     async def initialize(self) -> None:
-        if self._initialized:
-            return
-        for _ in range(self.concurrency):
-            adapter = PooledStockfishAdapter(self.config)
-            await adapter.ensure_started()
-            self._queue.put_nowait(adapter)
-        self._initialized = True
+        # Set before the first await: cold opponent and hint checkouts must
+        # share one startup, not each create another full pool of engines.
+        if not hasattr(self, "_initialize_lock"):
+            self._initialize_lock = asyncio.Lock()
+        async with self._initialize_lock:
+            if self._initialized:
+                return
+            adapters = []
+            try:
+                for _ in range(self.concurrency):
+                    adapter = PooledStockfishAdapter(self.config)
+                    adapters.append(adapter)
+                    await adapter.ensure_started()
+            except BaseException:
+                # Includes cancellation from the hint's wall deadline.
+                for adapter in adapters:
+                    await adapter.quit()
+                raise
+            for adapter in adapters:
+                self._queue.put_nowait(adapter)
+            self._initialized = True
 
     async def close(self) -> None:
         while not self._queue.empty():
@@ -292,3 +306,30 @@ class EnginePoolManager:
             return await adapter.analyze_position(
                 fen, nodes=nodes, depth=depth, multipv=multipv, time_ms=time_ms
             )
+
+    _hint_in_progress = False
+
+    async def analyze_hint(self, fen: str) -> EngineAnalysis:
+        """Admit one hint, leaving an interactive slot for opponent moves.
+
+        No hint queue: reject concurrent hints or a single-engine deployment.
+        Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
+        with a three-second wall deadline (including lazy engine startup).
+        """
+        if self.interactive_pool.concurrency < 2 or self._hint_in_progress:
+            raise TimeoutError("Hint capacity is busy")
+        self._hint_in_progress = True
+        try:
+            async with asyncio.timeout(3):
+                await self.interactive_pool.initialize()
+                lease = self.interactive_pool.acquire()
+                async with asyncio.timeout(0.25):
+                    adapter = await lease.__aenter__()
+                try:
+                    return await adapter.analyze_position(
+                        fen, nodes=200_000, time_ms=1500, multipv=4
+                    )
+                finally:
+                    await lease.__aexit__(None, None, None)
+        finally:
+            self._hint_in_progress = False

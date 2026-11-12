@@ -33,7 +33,10 @@ function App() {
   const [identityError, setIdentityError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handlePopState = () => setPathname(window.location.pathname);
+    const handlePopState = () => {
+      if (window.location.pathname !== '/play') setActivePlaySession(null);
+      setPathname(window.location.pathname);
+    };
     const handleStorage = () => {
       if (getStoredPlayerId() !== null) setHasIdentity(true);
     };
@@ -47,6 +50,7 @@ function App() {
 
   const navigate = useCallback((nextPathname: string) => {
     if (nextPathname === window.location.pathname) return;
+    if (nextPathname !== '/play') setActivePlaySession(null);
     window.history.pushState({}, '', nextPathname);
     setPathname(window.location.pathname);
   }, []);
@@ -165,7 +169,7 @@ function App() {
               key={path}
               aria-current={selected ? 'page' : undefined}
               disabled={!hasIdentity && isKnownPath}
-              onClick={() => { if (path === '/play') setActivePlaySession(null); navigate(path); }}
+              onClick={() => navigate(path)}
             >{label}</button>
           );
         })}

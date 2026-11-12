@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 
+import chess
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+import scan64.api.learning as learning_api
 from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token
-from scan64.chess.analysis.models import PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
@@ -104,9 +108,7 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
     assert served.status_code == 200
     served_session_id = served.json()["session_id"]
     assert db_session.get(StudySession, served_session_id) is not None
-    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [
-        str(opportunity.id)
-    ]
+    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(opportunity.id)]
 
     response = client.post(
         "/v1/learning/lesson-attempts",
@@ -155,9 +157,7 @@ def test_game_learning_opportunity_serves_owned_context_for_verified_attempt(
 
     assert served.status_code == 200
     served_session_id = served.json()["session_id"]
-    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [
-        str(opportunity.id)
-    ]
+    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(opportunity.id)]
     study_session = db_session.get(StudySession, served_session_id)
     assert study_session is not None
     assert study_session.player_id == player_id
@@ -218,9 +218,9 @@ def test_game_learning_opportunities_require_authentication_before_ownership(
     assert missing_token_response.status_code == 401
     assert wrong_token_response.status_code == 403
     assert unowned_game_response.status_code == 404
-    assert db_session.exec(
-        select(StudySession).where(StudySession.player_id == owner_id)
-    ).all() == []
+    assert (
+        db_session.exec(select(StudySession).where(StudySession.player_id == owner_id)).all() == []
+    )
 
 
 def test_empty_game_learning_opportunities_do_not_create_a_study_session(
@@ -233,9 +233,7 @@ def test_empty_game_learning_opportunities_do_not_create_a_study_session(
     db_session.commit()
     authorize(client, db_session, player_id)
 
-    response = client.get(
-        f"/v1/games/{game.id}/learning-opportunities?player_id={player_id}"
-    )
+    response = client.get(f"/v1/games/{game.id}/learning-opportunities?player_id={player_id}")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -243,10 +241,9 @@ def test_empty_game_learning_opportunities_do_not_create_a_study_session(
         "lessons": [],
         "next_cursor": None,
     }
-    assert db_session.exec(
-        select(StudySession).where(StudySession.player_id == player_id)
-    ).all() == []
-
+    assert (
+        db_session.exec(select(StudySession).where(StudySession.player_id == player_id)).all() == []
+    )
 
 
 def test_served_session_without_owned_opportunities_is_explicitly_empty(
@@ -262,6 +259,7 @@ def test_served_session_without_owned_opportunities_is_explicitly_empty(
     assert response.status_code == 200
     assert response.json()["lessons"] == []
     assert db_session.get(StudySession, response.json()["session_id"]) is not None
+
 
 def test_training_session_rejects_missing_and_wrong_player_tokens(
     client: TestClient, db_session: Session
@@ -281,15 +279,12 @@ def test_training_session_rejects_missing_and_wrong_player_tokens(
 
     assert missing_token_response.status_code == 401
     assert wrong_token_response.status_code == 403
-    assert db_session.exec(
-        select(StudySession).where(StudySession.player_id == owner_id)
-    ).all() == []
+    assert (
+        db_session.exec(select(StudySession).where(StudySession.player_id == owner_id)).all() == []
+    )
 
 
-
-def test_scheduleless_opportunities_are_not_served(
-    client: TestClient, db_session: Session
-) -> None:
+def test_scheduleless_opportunities_are_not_served(client: TestClient, db_session: Session) -> None:
     player_id = "scheduleless-player"
     db_session.add(Player(id=player_id))
     db_session.add(PlayerProfile(player_id=player_id, rating=1500))
@@ -316,9 +311,7 @@ def test_scheduleless_opportunities_are_not_served(
     authorize(client, db_session, player_id)
 
     daily_response = client.get(f"/v1/learning/session?player_id={player_id}")
-    game_response = client.get(
-        f"/v1/games/{game.id}/learning-opportunities?player_id={player_id}"
-    )
+    game_response = client.get(f"/v1/games/{game.id}/learning-opportunities?player_id={player_id}")
 
     assert daily_response.status_code == 200
     assert daily_response.json()["lessons"] == []
@@ -410,6 +403,7 @@ def test_persisted_attempt_rejects_static_or_unowned_lesson_ids(
     assert unowned_id_response.status_code == 404
     assert removed_source_response.status_code == 422
 
+
 def test_lesson_attempt_rejects_missing_and_wrong_player_tokens(
     client: TestClient, db_session: Session
 ) -> None:
@@ -430,27 +424,26 @@ def test_lesson_attempt_rejects_missing_and_wrong_player_tokens(
 
     authorize(client, db_session, owner_id)
     client.headers.pop("Authorization")
-    missing_token_response = client.post(
-        "/v1/learning/lesson-attempts", json=attempt_payload
-    )
+    missing_token_response = client.post("/v1/learning/lesson-attempts", json=attempt_payload)
     unknown_session_response = client.post(
         "/v1/learning/lesson-attempts",
         json={**attempt_payload, "session_id": "unknown-study-session"},
         headers={"Authorization": "Bearer unregistered-token"},
     )
 
-
     authorize(client, db_session, other_player_id)
-    wrong_token_response = client.post(
-        "/v1/learning/lesson-attempts", json=attempt_payload
-    )
+    wrong_token_response = client.post("/v1/learning/lesson-attempts", json=attempt_payload)
 
     assert missing_token_response.status_code == 401
     assert unknown_session_response.status_code == 401
     assert wrong_token_response.status_code == 404
-    assert db_session.exec(
-        select(LessonAttempt).where(LessonAttempt.session_id == study_session.id)
-    ).all() == []
+    assert (
+        db_session.exec(
+            select(LessonAttempt).where(LessonAttempt.session_id == study_session.id)
+        ).all()
+        == []
+    )
+
 
 def test_wrong_attempt_is_recorded_and_reveals_failure_state(
     client: TestClient, db_session: Session
@@ -480,10 +473,7 @@ def test_wrong_attempt_is_recorded_and_reveals_failure_state(
     assert exhausted_response.status_code == 409
     reloaded_study_session = create_study_session(db_session, player_id)
     reloaded_payload = {**attempt_payload, "session_id": reloaded_study_session.id}
-    assert (
-        client.post("/v1/learning/lesson-attempts", json=reloaded_payload).status_code
-        == 409
-    )
+    assert client.post("/v1/learning/lesson-attempts", json=reloaded_payload).status_code == 409
     attempts = db_session.exec(
         select(LessonAttempt)
         .where(LessonAttempt.session_id == study_session.id)
@@ -586,18 +576,14 @@ def test_transfer_measurement_is_served_completed_and_reported(
         target_difficulty=1300,
         now=now,
     )
-    measurement = due_transfer_measurements(
-        db_session, player_id=player_id, now=now
-    )[0]
+    measurement = due_transfer_measurements(db_session, player_id=player_id, now=now)[0]
     assert measurement.target_move_uci is not None
     authorize(client, db_session, player_id)
 
     served = client.get(f"/v1/learning/session?player_id={player_id}")
 
     assert served.status_code == 200
-    assert str(measurement.id) in {
-        lesson["lesson_id"] for lesson in served.json()["lessons"]
-    }
+    assert str(measurement.id) in {lesson["lesson_id"] for lesson in served.json()["lessons"]}
     completed = client.post(
         "/v1/learning/lesson-attempts",
         json={
@@ -622,9 +608,9 @@ def test_transfer_measurement_is_served_completed_and_reported(
     )
     assert len(post_tests) == 2
     assert all(post_test.scheduled_for is not None for post_test in post_tests)
-    assert len(
-        due_transfer_measurements(db_session, player_id=player_id, now=datetime.now(UTC))
-    ) == 1
+    assert (
+        len(due_transfer_measurements(db_session, player_id=player_id, now=datetime.now(UTC))) == 1
+    )
     repeated = client.post(
         "/v1/learning/lesson-attempts",
         json={
@@ -637,14 +623,10 @@ def test_transfer_measurement_is_served_completed_and_reported(
         },
     )
     assert repeated.status_code == 409
-    report = client.get(
-        f"/v1/learning/transfer-report?player_id={player_id}&skill_id={skill_id}"
-    )
+    report = client.get(f"/v1/learning/transfer-report?player_id={player_id}&skill_id={skill_id}")
     assert report.status_code == 200
     pre_test = next(
-        item
-        for item in report.json()["measurements"]
-        if item["measurement_point"] == "pre_test"
+        item for item in report.json()["measurements"] if item["measurement_point"] == "pre_test"
     )
     assert pre_test == {
         "measurement_point": "pre_test",
@@ -695,7 +677,6 @@ def test_mastered_lesson_without_catalog_positions_still_records_attempt(
 
     assert recorded.status_code == 200
     assert db_session.get(LessonAttempt, recorded.json()["id"]) is not None
-
 
 
 def test_session_limits_due_transfer_measurements_to_session_capacity(
@@ -762,7 +743,6 @@ def test_session_limits_due_transfer_measurements_to_session_capacity(
     assert len(served.json()["lessons"]) == 5
 
 
-
 def test_session_skips_unplayable_legacy_transfer_measurements(
     client: TestClient, db_session: Session
 ) -> None:
@@ -803,3 +783,119 @@ def test_session_skips_unplayable_legacy_transfer_measurements(
     assert served.json()["lessons"] == []
     assert db_session.get(TransferMeasurement, measurement_id) is not None
     assert missing_report.status_code == 404
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_non_best_sound_attempt_records_success_and_updates_profile(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, fallback: bool
+) -> None:
+    player_id = "sound-alternative-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    recorded = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "m47_source_multipv.json").read_text()
+    )
+    source = db_session.get(Position, opportunity.source_position_id)
+    assert source is not None
+    source.fen = recorded["fen"]
+    source.side_to_move = "b"
+    source.canonical_id = chess.Board(recorded["fen"]).epd()
+    db_session.add(source)
+    calls: list[int] = []
+
+    async def source_analysis(_self: object, fen: str, **limits: int) -> EngineAnalysis:
+        assert fen == recorded["fen"]
+        assert limits["nodes"] == 100_000
+        calls.append(limits["multipv"])
+        return EngineAnalysis(
+            position_id=source.id,
+            raw_result=recorded["searches"][str(limits["multipv"])]["raw_result"],
+        )
+
+    monkeypatch.setattr(learning_api.StockfishAdapter, "analyze_position", source_analysis)
+    if not fallback:
+        analysis = EngineAnalysis(
+            position_id=source.id, raw_result=recorded["searches"]["4"]["raw_result"]
+        )
+        db_session.add(analysis)
+        opportunity.verification_analysis_id = analysis.id
+    spec = dict(opportunity.lesson_spec)
+    spec["source"] = {"kind": "player_game", "fen": recorded["fen"]}
+    spec["interaction"] = {
+        "input": "move",
+        "maximum_attempts": 3,
+        "accepted_moves": [{"san": "Na5"}, {"san": "O-O-O"}],
+    }
+    opportunity.lesson_spec = spec
+    db_session.add(opportunity)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    assert served.status_code == 200
+    assert [
+        move["san"] for move in served.json()["lessons"][0]["interaction"]["accepted_moves"]
+    ] == ["Na5", "O-O-O"]
+    assert calls == ([2, 4] if fallback else [])
+    response = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": served.json()["session_id"],
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e8c8",
+            "elapsed_ms": 4200,
+            "hints_used": 0,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["profile_update_result"] == "applied"
+    attempt = db_session.get(LessonAttempt, response.json()["id"])
+    assert attempt is not None and attempt.success is True
+    skill = db_session.get(SkillState, (player_id, "tactics.fork"))
+    assert skill is not None and skill.alpha == skill.prior_alpha + 1
+
+
+@pytest.mark.parametrize(("accepted_move", "scored"), [("e4", False), ("e4", True), ("d4", True)])
+def test_pre_m47_single_move_lesson_verifies_on_read(
+    client: TestClient, db_session: Session, accepted_move: str, scored: bool
+) -> None:
+    player_id = "legacy-sound-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = create_persisted_lesson(db_session, player_id)
+    analysis = EngineAnalysis(
+        position_id=opportunity.source_position_id,
+        raw_result=[
+            {"pv": ["e2e4"], "score_cp": 100},
+            {"pv": ["d2d4"], "score_cp": 50},
+            {"pv": ["a2a3"], "score_cp": -300},
+        ],
+    )
+    if not scored:
+        analysis.raw_result = [{"pv": ["e2e4"]}]
+    db_session.add(analysis)
+    opportunity.verification_analysis_id = analysis.id
+    spec = dict(opportunity.lesson_spec)
+    spec["interaction"] = {
+        "input": "move",
+        "maximum_attempts": 3,
+        "accepted_moves": [{"san": accepted_move}],
+    }
+    opportunity.lesson_spec = spec
+    db_session.add(opportunity)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+    assert served.status_code == 200
+    lessons = served.json()["lessons"]
+    assert len(lessons) == 1
+    assert lessons[0]["verification"]["status"] == "verified"
+    assert [move["san"] for move in lessons[0]["interaction"]["accepted_moves"]] == [accepted_move]
+    db_session.refresh(opportunity)
+    assert opportunity.verification_status == "verified"
