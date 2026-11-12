@@ -120,7 +120,7 @@ describe('owned move-by-move review', () => {
     expect(await screen.findByTestId('review-accuracy')).toHaveTextContent('80.0%');
     expect(screen.getByTestId('review-coverage')).toHaveTextContent('2 / 3 owner moves');
     expect(screen.getByTestId('review-graph-ply-7')).toHaveAccessibleName(/100.0% White win probability/);
-    expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black' }));
+    await waitFor(() => expect(boards.get('review-board')?.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black' })));
     expect(screen.getByTestId('review-move-1')).toHaveTextContent('Opponent move');
   });
 

@@ -8,6 +8,10 @@ import './PuzzlesScreen.css';
 const IMPORT_COMMAND = 'uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json';
 
 export function PuzzlesScreen() {
+  const [practiceRequest] = useState(() => new URLSearchParams(window.location.search));
+  const practiceStarted = useRef(false);
+  const [patternUnavailable, setPatternUnavailable] = useState(false);
+  const [relatedTheme, setRelatedTheme] = useState<string | null>(null);
   const [run, setRun] = useState<PuzzleRunRead | null>(null);
   const [catalog, setCatalog] = useState<PuzzleStartRead | null>(null);
   const [pending, setPending] = useState(true);
@@ -29,15 +33,20 @@ export function PuzzlesScreen() {
   const busy = useRef(false);
   const generation = useRef(0);
 
-  const start = useCallback(async (body?: PuzzleRunCreate) => {
+  const start = useCallback(async (body?: PuzzleRunCreate, related = false) => {
     if (busy.current) return;
     busy.current = true;
     const request = generation.current;
     setPending(true); setError(null);
+    if (body) {
+      setRelatedTheme(related && body.mode === 'theme' ? body.theme ?? null : null);
+      setPatternUnavailable(false);
+    }
     try {
       const result = body ? await ApiClient.startPuzzleRun(body) : await ApiClient.getActivePuzzleRun();
       if (request !== generation.current) return;
       setCatalog(result); setRun(result.run); setNeedsRefresh(false);
+      if (!result.run && related) setPatternUnavailable(true);
       if (result.run) {
         setMode(result.run.mode);
         if (result.run.theme) setTheme(result.run.theme);
@@ -47,6 +56,7 @@ export function PuzzlesScreen() {
       if (request === generation.current) {
         setNotice('');
         setError(failure instanceof Error ? failure.message : 'Could not load puzzle.');
+        if (related) setPatternUnavailable(true);
       }
     } finally {
       if (request === generation.current) { busy.current = false; setPending(false); }
@@ -130,7 +140,7 @@ export function PuzzlesScreen() {
     }
   };
 
-  const startMistake = async (item: NonNullable<typeof mistakes>['items'][number]) => {
+  const startMistake = useCallback(async (item: { lesson_id: string; game_id: string }) => {
     if (busy.current || run?.state === 'active') return;
     busy.current = true; setPending(true); setError(null);
     const request = generation.current;
@@ -142,22 +152,53 @@ export function PuzzlesScreen() {
         setOpenedMistakes(current => current.some(entry => entry.moment.lesson_id === item.lesson_id) ? current : [...current, opened]);
       }
     } catch (failure) {
-      if (request === generation.current) setError(failure instanceof Error ? failure.message : 'Could not start this mistake.');
+      if (request === generation.current) {
+        setError(failure instanceof Error ? failure.message : 'Could not start this mistake.');
+        if (practiceRequest.get('lesson') === item.lesson_id) {
+          try {
+            const available = await ApiClient.getPuzzleModes();
+            const fallback = practiceRequest.getAll('fallbackTheme').find(theme => available.themes.includes(theme));
+            if (request !== generation.current) return;
+            if (fallback) {
+              busy.current = false;
+              await start({ mode: 'theme', theme: fallback }, true);
+            } else setPatternUnavailable(true);
+          } catch { if (request === generation.current) setPatternUnavailable(true); }
+        }
+      }
     } finally {
       if (request === generation.current) { busy.current = false; setPending(false); }
     }
-  };
+  }, [run?.state, practiceRequest, start]);
 
   useEffect(() => {
     if (mistake) retryPanel.current?.focus();
-    else if (retryButton.current) (retryButton.current.isConnected ? retryButton.current : mistakeHeading.current)?.focus();
+    else (retryButton.current?.isConnected ? retryButton.current : mistakeHeading.current)?.focus();
   }, [mistake]);
 
   const chooseMode = (next: PuzzleMode | 'mistakes') => {
     if (busy.current || run?.state === 'active') return;
     setMode(next); setMistake(null); setError(null); setNotice('');
+    setPatternUnavailable(false);
     if (next === 'mistakes') void loadMistakes();
   };
+
+  useEffect(() => {
+    if (pending || practiceStarted.current || !catalog) return;
+    const lessonId = practiceRequest.get('lesson');
+    const gameId = practiceRequest.get('game');
+    const relatedTheme = practiceRequest.get('theme');
+    if (!lessonId && !relatedTheme) return;
+    if (run?.state === 'active') return;
+    practiceStarted.current = true;
+    if (lessonId && gameId) {
+      setMode('mistakes');
+      void startMistake({ lesson_id: lessonId, game_id: gameId });
+    } else if (relatedTheme) {
+      setMode('theme'); setTheme(relatedTheme);
+      void start({ mode: 'theme', theme: relatedTheme }, true);
+    }
+  }, [pending, catalog, practiceRequest, run?.state, start, startMistake]);
 
   const startSelected = () => mode !== 'mistakes'
     ? start({ mode, ...(mode === 'theme' ? { theme } : {}) }) : loadMistakes(mistakes?.offset ?? 0);
@@ -190,6 +231,8 @@ export function PuzzlesScreen() {
       </label> : null}
       {mode !== 'mistakes' ? <button disabled={mode === 'theme' && !theme} onClick={() => void startSelected()}>Start {mode === 'streak' ? 'solve streak' : mode}</button> : null}
     </fieldset>
+    {run?.mode === 'theme' && run.theme === relatedTheme ? <p>Related unrated theme practice, not diagnosis mastery.</p> : null}
+    {patternUnavailable ? <p role="status">Related practice is unavailable. <a href="/puzzles">Daily puzzles — may be unrelated</a>. Today’s set may contain no related puzzle.</p> : null}
     {active ? <p>Finish or abandon the active puzzle before switching modes.</p> : null}
     {modesError ? <p role="alert">{modesError}</p> : null}
     <p>Theme, Your mistakes and Solve streak are unrated. Mode-used puzzles permanently cease to be rated first exposures or weak/exploration candidates; future Daily supply may widen or be shorter.</p>

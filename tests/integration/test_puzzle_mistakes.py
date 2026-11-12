@@ -200,6 +200,7 @@ def test_list_is_engine_free_write_free_and_spoiler_free(
                 "game_id": str(lesson.game_id),
                 "ply": 1,
                 "attempts_remaining": 2,
+                "diagnosis": SKILL,
             }
         ],
         "excluded": {"no_review_schedule": 0, "retired": 0, "untrusted": 0, "exhausted": 0},
@@ -209,7 +210,8 @@ def test_list_is_engine_free_write_free_and_spoiler_free(
     }
     assert _snapshot(db_session) == before
     assert "Private" not in response.text
-    assert "diagnosis" not in response.text
+    assert "secondary" not in response.text
+    assert "evidence_refs" not in response.text
     assert "accepted_moves" not in response.text
     assert "fen" not in response.text
 
@@ -440,6 +442,7 @@ def test_start_creates_game_analysis_session_and_returns_black_source_game_ply(
             "game_id": str(lesson.game_id),
             "ply": 2,
             "attempts_remaining": 3,
+            "diagnosis": "threat_processing.missed_capture",
         }
     ]
     response = client.post(f"{PATH}/{lesson.id}/start", headers=auth)

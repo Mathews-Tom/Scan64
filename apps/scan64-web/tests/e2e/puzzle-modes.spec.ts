@@ -20,7 +20,7 @@ test('keyboard chooses modes, finishes before switching, resumes binding and exp
       status: run ? 'ready' : 'idle', run, daily, streak, message: 'Choose a practice mode, then Start.',
     } });
     if (path.endsWith('/mistakes')) return route.fulfill({ json: { items: [{
-      lesson_id: 'owned-lesson', game_id: '00000000-0000-0000-0000-000000000001', ply: 7, attempts_remaining: 2,
+      lesson_id: 'owned-lesson', game_id: '00000000-0000-0000-0000-000000000001', ply: 7, attempts_remaining: 2, diagnosis: 'threat_processing.missed_capture',
     }], excluded: { no_review_schedule: 1, retired: 2, untrusted: 3, exhausted: 4 }, offset: 0, limit: 20, has_more: false } });
     if (path.endsWith('/runs')) {
       if (request.postData() && run?.state !== 'active') {

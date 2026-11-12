@@ -45,7 +45,7 @@ afterEach(() => {
 describe('ProfileScreen recurring diagnoses', () => {
   it('refreshes the separate strength report after changing the declaration', async () => {
     renderProfile({
-      player_id: 'profile-player', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [],
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0, status: 'insufficient_data', recurring_diagnoses: [],
     });
     expect(await screen.findByText('Declared level: Developing.')).toBeInTheDocument();
     expect(screen.getByText(/Scan64 puzzle rating: 1216 \(provisional\)/)).toBeInTheDocument();
@@ -65,14 +65,14 @@ describe('ProfileScreen recurring diagnoses', () => {
   it('explains when the corpus is too sparse', async () => {
     renderProfile({
       player_id: 'profile-player',
-      minimum_occurrences: 3,
+      minimum_occurrences: 3, eligible_game_count: 3,
       status: 'insufficient_data',
       recurring_diagnoses: [],
     });
 
     await waitFor(() => {
       expect(
-        screen.getByText('More analysed games are needed before recurrence can be assessed.'),
+        screen.getByText('More eligible analysed games are needed before recurrence can be assessed.'),
       ).toBeInTheDocument();
     });
   });
@@ -80,14 +80,14 @@ describe('ProfileScreen recurring diagnoses', () => {
   it('distinguishes no recurrence from a sparse corpus', async () => {
     renderProfile({
       player_id: 'profile-player',
-      minimum_occurrences: 3,
+      minimum_occurrences: 3, eligible_game_count: 3,
       status: 'no_recurring_diagnosis',
       recurring_diagnoses: [],
     });
 
     await waitFor(() => {
       expect(
-        screen.getByText('No diagnosis has recurred across 3 games.'),
+        screen.getByText('No trusted diagnosis recurs across 3 distinct games.'),
       ).toBeInTheDocument();
     });
   });
@@ -95,7 +95,7 @@ describe('ProfileScreen recurring diagnoses', () => {
   it('renders recurring diagnosis counts', async () => {
     renderProfile({
       player_id: 'profile-player',
-      minimum_occurrences: 3,
+      minimum_occurrences: 3, eligible_game_count: 3,
       status: 'recurring_diagnosis',
       recurring_diagnoses: [
         {
@@ -103,13 +103,13 @@ describe('ProfileScreen recurring diagnoses', () => {
           name: 'Knight fork',
           occurrence_count: 3,
           game_ids: ['game-1', 'game-2', 'game-3'],
-          evidence_references: ['evidence-1'],
+          evidence_references: ['evidence-1'], template: 'A knight forks two pieces.', total_occurrences: 4, scored_occurrences: 3, observed_loss: 0.6,
         },
       ],
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Knight fork: 3 games')).toBeInTheDocument();
+      expect(screen.getByText(/Support: 3 distinct games/)).toBeInTheDocument();
       expect(screen.getByText('Hanging piece: 0.25 (Uncertainty: 0.50)')).toBeInTheDocument();
       expect(screen.queryByText(/board_awareness|tactics\.fork/)).not.toBeInTheDocument();
     });

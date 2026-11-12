@@ -16,7 +16,7 @@ const lesson = {
 };
 const evidence = { player_id: 'player-1', evidence_items: [{ evidence_id: long, kind: 'tactical-motif', position_id: long,
   claim: long, payload: {}, producer: { name: 'scan64', version: '1' } }] };
-const patterns = { player_id: 'player-1', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [] };
+const patterns = { player_id: 'player-1', minimum_occurrences: 3, eligible_game_count: 3, status: 'insufficient_data', recurring_diagnoses: [] };
 
 async function capture(page: Page, info: TestInfo, state: string) {
   const widths = await page.evaluate(() => {
