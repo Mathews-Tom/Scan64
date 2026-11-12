@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 
 from scan64.chess.analysis import jobs
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
-from scan64.chess.analysis.orchestration import CandidatePosition
+from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.games.ingestion import resolve_position
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
@@ -26,7 +26,7 @@ class ReferenceFastPass:
 
     async def run_fast_pass(
         self, moves: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
+    ) -> FastPassResult:
         board = chess.Board(initial_fen) if initial_fen else chess.Board()
         candidates = []
         for index, san in enumerate(moves):
@@ -51,7 +51,10 @@ class ReferenceFastPass:
                     swing_cp=1000,
                 )
             )
-        return candidates
+        return FastPassResult(
+            candidates,
+            [candidates[0].before_analysis] + [item.after_analysis for item in candidates],
+        )
 
 
 class ReferenceFocusedPass:

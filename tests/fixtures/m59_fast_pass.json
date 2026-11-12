@@ -1,0 +1,173 @@
+{
+  "provenance": "Stockfish live output recorded once 2026-11-12; 10000 nodes per position; side-to-move scores",
+  "moves": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bc4",
+    "Nd4"
+  ],
+  "evaluations": [
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "e2e4",
+            "c7c5"
+          ],
+          "score_cp": 28
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "c7c5",
+            "g1f3",
+            "b8c6",
+            "b1c3",
+            "g8f6",
+            "d2d4",
+            "c5d4",
+            "f3d4",
+            "e7e6"
+          ],
+          "score_cp": -32
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "g1f3",
+            "b8c6",
+            "d2d4",
+            "e5d4",
+            "f3d4",
+            "d7d5",
+            "b1c3",
+            "d5e4",
+            "d4c6",
+            "d8d1",
+            "e1d1",
+            "b7c6",
+            "c3e4",
+            "c8g4",
+            "f1e2"
+          ],
+          "score_cp": 44
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "b8c6",
+            "b1c3"
+          ],
+          "score_cp": -32
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "f1c4",
+            "g8f6"
+          ],
+          "score_cp": 33
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "g8f6",
+            "d2d3"
+          ],
+          "score_cp": -24
+        }
+      ]
+    },
+    {
+      "config": {
+        "engine_name": "Stockfish 19",
+        "engine_version": "unknown",
+        "network": null,
+        "nodes": 10000,
+        "depth": null,
+        "time_ms": null,
+        "multipv": 1
+      },
+      "raw_result": [
+        {
+          "pv": [
+            "f3d4",
+            "e5d4"
+          ],
+          "score_cp": 134
+        }
+      ]
+    }
+  ]
+}

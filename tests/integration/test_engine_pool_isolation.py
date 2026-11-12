@@ -165,6 +165,8 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import scan64.chess.analysis.jobs as jobs
+    from scan64.chess.analysis.models import EngineAnalysis
+    from scan64.chess.analysis.orchestration import FastPassResult
     from scan64.chess.games.models import Game
     from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
     from scan64.learning.plugins.registry import PluginRegistry
@@ -176,8 +178,12 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
         def __init__(self, adapter: object, *_: object) -> None:
             captured_adapters.append(adapter)
 
-        async def run_fast_pass(self, _: list[str], initial_fen: str | None = None) -> list[object]:
-            return []
+        async def run_fast_pass(
+            self, moves: list[str], initial_fen: str | None = None
+        ) -> FastPassResult:
+            return FastPassResult(
+                [], [EngineAnalysis(raw_result=[]) for _ in range(len(moves) + 1)]
+            )
 
         async def run_focused_pass(self, candidates: list[object]) -> list[object]:
             return []

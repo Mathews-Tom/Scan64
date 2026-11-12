@@ -22,6 +22,12 @@ class CandidatePosition:
     swing_cp: int
 
 
+@dataclass
+class FastPassResult:
+    candidates: list[CandidatePosition]
+    evaluations: list[EngineAnalysis]
+
+
 class FastPassOrchestrator:
     def __init__(self, adapter: EngineAdapter, config: FastPassConfig = FastPassConfig()):
         self.adapter = adapter
@@ -29,7 +35,7 @@ class FastPassOrchestrator:
 
     async def run_fast_pass(
         self, pgn_moves: list[str], initial_fen: str | None = None
-    ) -> list[CandidatePosition]:
+    ) -> FastPassResult:
         """
         Runs a fast pass over a sequence of moves to flag candidate critical positions.
         """
@@ -98,7 +104,7 @@ class FastPassOrchestrator:
                     )
                 )
 
-        return candidates
+        return FastPassResult(candidates=candidates, evaluations=evaluations)
 
 
 @dataclass

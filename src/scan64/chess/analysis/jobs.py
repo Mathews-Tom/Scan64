@@ -11,15 +11,24 @@ from sqlmodel import Session, select
 
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.admission import admission_controller
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    GameMoveReview,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.analysis.orchestration import (
     FastPassConfig,
     FastPassOrchestrator,
     FocusedPassConfig,
     FocusedPassOrchestrator,
 )
+from scan64.chess.analysis.review import (
+    REVIEW_NODES,
+    stage_game_review,
+    stage_position_analysis,
+)
 from scan64.chess.boards import board_from, uci_moves_to_san
-from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.assembly import resolve_explanation
@@ -56,23 +65,6 @@ def _resolve_pattern_detectors(
     if not detectors:
         raise RuntimeError("The host plugin registry has no pattern detectors")
     return tuple(detectors)
-
-
-def _stage_position_analysis(
-    game: Game,
-    fen: str,
-    analysis: EngineAnalysis,
-    positions_by_fen: dict[str, Position],
-    analyses: dict[UUID, EngineAnalysis],
-) -> Position:
-    """Prepare detached rows without acquiring SQLite's write lock."""
-    position = positions_by_fen.get(fen)
-    if position is None:
-        position = ingest_fen(fen, game.id)
-        positions_by_fen[fen] = position
-    analysis.position_id = position.id
-    analyses[analysis.id] = analysis
-    return position
 
 
 @dataclass
@@ -123,17 +115,15 @@ async def run_analysis_for_game(
         else StockfishAdapter(StockfishConfig())
     )
     orchestrator = FastPassOrchestrator(
-        adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
+        adapter, FastPassConfig(nodes=REVIEW_NODES, swing_threshold_cp=150)
     )
     detectors = _resolve_pattern_detectors(registry)
     ctx = PlayerContext(player_id=game.owner_player_id)
 
     initial_fen = game.headers.get("FEN")
     san_moves = uci_moves_to_san(game.moves, initial_fen)
-    if not san_moves:
-        return
-
-    candidates = await orchestrator.run_fast_pass(san_moves, initial_fen)
+    fast_pass = await orchestrator.run_fast_pass(san_moves, initial_fen)
+    candidates = fast_pass.candidates
     focused_orchestrator = FocusedPassOrchestrator(
         adapter, FocusedPassConfig(nodes=1_000_000, multipv=4)
     )
@@ -151,6 +141,12 @@ async def run_analysis_for_game(
     # No add/flush (including query-triggered autoflush) may precede the final
     # engine call: interactive moves and attempts must remain able to write.
     analyses: dict[UUID, EngineAnalysis] = {}
+    existing_plies = set(
+        session.exec(select(GameMoveReview.ply).where(GameMoveReview.game_id == game.id)).all()
+    )
+    review_rows = stage_game_review(
+        game, fast_pass.evaluations, positions_by_fen, analyses, existing_plies
+    )
     all_evidence: list[Evidence] = []
     observations: list[tuple[UUID, str]] = []
     lesson_candidates: list[_LessonCandidate] = []
@@ -159,13 +155,13 @@ async def run_analysis_for_game(
         existing_position = positions_by_fen.get(fen_before)
         if existing_position is not None and existing_position.id in existing_sources:
             continue
-        source_position = _stage_position_analysis(
+        source_position = stage_position_analysis(
             game, fen_before, candidate.before_analysis, positions_by_fen, analyses
         )
-        after_position = _stage_position_analysis(
+        after_position = stage_position_analysis(
             game, candidate.fen, candidate.after_analysis, positions_by_fen, analyses
         )
-        _stage_position_analysis(game, candidate.fen, focused_analysis, positions_by_fen, analyses)
+        stage_position_analysis(game, candidate.fen, focused_analysis, positions_by_fen, analyses)
         evidence = compose_candidate_evidence(
             before_board=board_from(fen_before),
             after_board=board_from(candidate.fen),
@@ -295,7 +291,7 @@ async def run_analysis_for_game(
             verify_lesson(lesson, source_analysis)
         except (LessonVerificationError, ValueError):
             continue
-        _stage_position_analysis(game, fen_before, source_analysis, positions_by_fen, analyses)
+        stage_position_analysis(game, fen_before, source_analysis, positions_by_fen, analyses)
         prepared.append((item, source_analysis, lesson))
         chosen_skills[item.diagnosis.skill_id] += 1
 
@@ -303,6 +299,7 @@ async def run_analysis_for_game(
     # together with the job's completed marker during normal/recovered runs).
     session.add_all(positions_by_fen.values())
     session.add_all(analyses.values())
+    session.add_all(review_rows)
     session.add_all(all_evidence)
     for position_id, skill_id in observations:
         apply_analysis_observation(
@@ -320,6 +317,7 @@ async def run_analysis_for_game(
             source_position_id=item.source.id,
             player_id=game.owner_player_id,
             verification_analysis_id=source_analysis.id,
+            verification_status="verified",
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
@@ -354,6 +352,40 @@ class _JobSession(Session):
 _game_locks: WeakValueDictionary[tuple[asyncio.AbstractEventLoop, UUID], asyncio.Lock] = (
     WeakValueDictionary()
 )
+
+
+async def backfill_game_review(
+    game: Game, session: Session, pool_manager: EnginePoolManager | None = None
+) -> None:
+    """One explicit same-budget pass; never call the learning pipeline."""
+    key = (asyncio.get_running_loop(), game.id)
+    lock = _game_locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        existing_plies = set(
+            session.exec(select(GameMoveReview.ply).where(GameMoveReview.game_id == game.id)).all()
+        )
+        if existing_plies == set(range(1, len(game.moves) + 1)):
+            return
+        adapter = (
+            pool_manager.batch_adapter
+            if pool_manager is not None
+            else StockfishAdapter(StockfishConfig())
+        )
+        fast_pass = await FastPassOrchestrator(
+            adapter, FastPassConfig(nodes=REVIEW_NODES)
+        ).run_fast_pass(
+            uci_moves_to_san(game.moves, game.headers.get("FEN")), game.headers.get("FEN")
+        )
+        positions = {
+            position.fen: position
+            for position in session.exec(select(Position).where(Position.game_id == game.id)).all()
+        }
+        analyses: dict[UUID, EngineAnalysis] = {}
+        rows = stage_game_review(game, fast_pass.evaluations, positions, analyses, existing_plies)
+        session.add_all(positions.values())
+        session.add_all(analyses.values())
+        session.add_all(rows)
+        session.commit()
 
 
 async def execute_analysis_job_async(

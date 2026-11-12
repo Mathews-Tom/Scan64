@@ -27,8 +27,9 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         "profileobservation",
         "lessonattempt",
         "transfermeasurement",
+        "gamemovereview",
     } <= tables
-    assert revision == "20261112_10"
+    assert revision == "20261112_11"
     opportunity_columns = {
         column["name"]: column
         for column in inspect(database_engine).get_columns("persistedlessonopportunity")
@@ -105,7 +106,7 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
     assert not coach_mode
-    assert revision == "20261112_10"
+    assert revision == "20261112_11"
 
 
 def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:
@@ -303,7 +304,7 @@ def test_owner_color_upgrade_and_downgrade_preserve_legacy_game(tmp_path: Path) 
     with database_engine.begin() as connection:
         assert connection.execute(text("SELECT owner_color FROM game")).scalar_one() is None
         connection.execute(text("UPDATE game SET owner_color = 'black'"))
-    command.downgrade(config, "-1")
+    command.downgrade(config, "20260731_09")
     assert "owner_color" not in {
         column["name"] for column in inspect(database_engine).get_columns("game")
     }
@@ -312,3 +313,32 @@ def test_owner_color_upgrade_and_downgrade_preserve_legacy_game(tmp_path: Path) 
     command.upgrade(config, "head")
     with database_engine.connect() as connection:
         assert connection.execute(text("SELECT owner_color FROM game")).scalar_one() is None
+
+
+def test_review_upgrade_downgrade_preserves_existing_game(tmp_path: Path) -> None:
+    database_engine = create_engine(f"sqlite:///{tmp_path / 'review.db'}")
+    config = _migration_config(database_engine)
+    command.upgrade(config, "20261112_10")
+    game_id = uuid4().hex
+    with database_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO game (id, created_at, pgn, headers, moves, white, black, "
+                "result, owner_player_id, owner_color) "
+                "VALUES (:id, CURRENT_TIMESTAMP, '1. e4 e5', '{}', "
+                "'[\"e2e4\", \"e7e5\"]', 'White', 'Black', '*', 'owner', 'white')"
+            ),
+            {"id": game_id},
+        )
+    command.upgrade(config, "head")
+    assert "gamemovereview" in inspect(database_engine).get_table_names()
+    unique = inspect(database_engine).get_unique_constraints("gamemovereview")
+    assert any(item["column_names"] == ["game_id", "ply"] for item in unique)
+    command.downgrade(config, "20261112_10")
+    assert "gamemovereview" not in inspect(database_engine).get_table_names()
+    with database_engine.connect() as connection:
+        assert connection.execute(text("SELECT pgn, owner_color FROM game")).one() == (
+            "1. e4 e5",
+            "white",
+        )
+    command.upgrade(config, "head")
