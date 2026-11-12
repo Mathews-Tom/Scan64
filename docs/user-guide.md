@@ -14,15 +14,17 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 
 1. Open **Play**.
 2. Keep the player ID filled from your stored identity; no new name or ID is required.
-3. Select **Coach Mode** only when you want opt-in, post-move interruption during practice.
-4. Start a game and move pieces by drag-and-drop. The move list shows standard algebraic notation (SAN), including the opponent's replies.
+3. Choose a named **Bot level** and **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
+4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and move by drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
-6. Reload or return to **Play** to resume your active game from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving and resigning stay disabled until the server's canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing.
+6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
 7. Select **Resign**, or finish by checkmate or a draw. The result appears immediately. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move creates no empty game and has no review link.
 
-New games from Play, Analysis Board's play-from-here, and Famous Games' continue action use **Stockfish skill level 0**. This is an engine skill setting, not an Elo rating. The API accepts Stockfish `strength` as an integer string from `"0"` to `"20"` and defaults to `"0"` when omitted; Maia strength remains a rating.
+Play offers eight server-defined levels from `GET /v1/bots`; Analysis Board's play-from-here and Famous Games' continue action default to level 1. The API takes `opponent_config: {"bot_level": "1"}` for Stockfish and optional `player_color` (`white`, `black` or `random`). Omitted colour uses the position's side to move. All eight levels use the same session-seeded MultiPV candidate policy with decreasing error budgets. They are calibrated relative to each other, **not Elo-anchored**, and show no Elo figure. Stockfish's native reduced-strength move generator has no seed control, so it is not used for these levels. Maia's rating-based `strength` is unchanged. Stored older Stockfish sessions still resume using their original native skill setting.
 
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
+
+Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
 
 ### Hints during play
 

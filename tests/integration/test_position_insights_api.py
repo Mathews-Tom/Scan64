@@ -10,8 +10,10 @@ from sqlmodel import Session
 
 from scan64.api.app import app
 from scan64.api.models import Player, PlayerCredential, issue_player_token
+from scan64.api.play import get_opponent_provider
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.opponents.protocols import MoveDecision
 
 RECORDING = json.loads(
     (Path(__file__).parents[1] / "fixtures/hint_engine_recording.json").read_text()
@@ -241,6 +243,91 @@ def test_claimable_threefold_remains_playable_but_fivefold_is_terminal(
     db_session.add(play)
     db_session.commit()
     analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    response = client.post(
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+    )
+    assert response.status_code == expected, response.text
+    assert analyze.await_count == (1 if expected == 200 else 0)
+
+
+def test_black_hint_before_human_first_move_and_after_takeback(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session, "hint-owner")
+    opponent = AsyncMock()
+    opponent.choose_move.side_effect = [
+        MoveDecision(uci_move="e2e4"),
+        MoveDecision(uci_move="g1f3"),
+    ]
+    app.dependency_overrides[get_opponent_provider] = lambda: opponent
+    created = client.post(
+        "/v1/play-sessions",
+        headers=headers,
+        json={
+            "player_id": "hint-owner",
+            "player_color": "black",
+            "opponent_config": {"bot_level": "1"},
+        },
+    )
+    assert created.status_code == 200, created.text
+    play = created.json()
+    assert play["opponent_move"] == "e2e4"
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["e7e5"], "score_cp": 0}]))
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    board = chess.Board()
+    board.push_uci("e2e4")
+    body = {"player_id": "hint-owner", "play_session_id": play["id"]}
+    first = client.post("/v1/insights/position", headers=headers, json=body)
+    assert first.status_code == 200, first.text
+    assert first.json()["fen"] == board.fen()
+    assert (
+        client.post(
+            f"/v1/play-sessions/{play['id']}/moves", headers=headers, json={"move": "e7e5"}
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(f"/v1/play-sessions/{play['id']}/takeback", headers=headers).status_code == 200
+    )
+    repeated = client.post("/v1/insights/position", headers=headers, json=body)
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["fen"] == board.fen()
+    assert analyze.await_count == 2
+    assert all(call.args == (board.fen(),) for call in analyze.await_args_list)
+
+
+@pytest.mark.parametrize(
+    ("color", "moves", "expected"),
+    [("black", ["e2e4"], 200), ("black", [], 409), (None, ["e2e4"], 200)],
+)
+def test_hint_uses_session_color_before_owner_color_with_legacy_fallback(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    color: str | None,
+    moves: list[str],
+    expected: int,
+) -> None:
+    headers = register(db_session, "hint-owner")
+    game = Game(
+        pgn="*",
+        moves=moves,
+        owner_player_id="hint-owner",
+        owner_color="white" if color is not None else None,
+    )
+    db_session.add(game)
+    db_session.flush()
+    play = PlaySession(
+        player_id="hint-owner",
+        game_id=game.id,
+        opponent_config={"player_color": color} if color is not None else {},
+    )
+    db_session.add(play)
+    db_session.commit()
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["e7e5"], "score_cp": 0}]))
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
     response = client.post(
         "/v1/insights/position",

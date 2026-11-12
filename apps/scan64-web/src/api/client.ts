@@ -1,5 +1,6 @@
 import type {
   AnalysisJobRead,
+  BotRead,
   AttemptCreate,
   AttemptRead,
   CoachDashboard,
@@ -268,6 +269,21 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;
+  }
+
+  static async getBots(): Promise<BotRead[]> {
+    const response = await fetch(`${API_BASE}/bots`);
+    if (!response.ok) throw new ApiRequestError(`Failed to fetch bots: ${response.statusText}`, response.status);
+    return await response.json() as BotRead[];
+  }
+
+  static async takebackPlaySession(sessionId: string): Promise<PlaySessionRead> {
+    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/takeback`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(getActivePlayerId()),
+    });
+    if (!response.ok) throw new ApiRequestError(`Failed to take back: ${response.statusText}`, response.status);
+    return await response.json() as PlaySessionRead;
   }
 
   static async createPlaySession(data: PlaySessionCreate): Promise<PlaySessionRead> {

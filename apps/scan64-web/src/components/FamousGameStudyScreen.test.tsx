@@ -91,7 +91,7 @@ describe('FamousGameStudyScreen', () => {
       hint_assisted: false,
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'session-1', player_id: 'player-1', game_id: 'game-1',
-    opponent_config: { strength: '0' }, status: 'active', coach_mode: false });
+    opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false });
   });
 
   it('keeps public study available when player authorization fails', async () => {
@@ -163,7 +163,7 @@ describe('FamousGameStudyScreen', () => {
     await waitFor(() => {
       expect(ApiClient.createPlaySession).toHaveBeenCalledWith({
         player_id: 'player-1',
-        opponent_config: { strength: '0' },
+        opponent_config: { provider: 'stockfish', bot_level: '1' },
         initial_fen: games[0].payload.decisions[0].fen,
       });
     });

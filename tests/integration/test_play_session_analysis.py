@@ -104,7 +104,7 @@ def test_resigning_completes_an_analysis_job_without_a_further_call(
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _NoCandidateOrchestrator)
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "opponent_config": {"bot_level": "1"}},
         headers=auth,
     )
     session_id = created.json()["id"]
@@ -129,7 +129,7 @@ def test_resigning_before_a_move_enqueues_nothing(client: TestClient, db_session
         "/v1/play-sessions",
         json={
             "player_id": "alice",
-            "opponent_config": {"strength": "1"},
+            "opponent_config": {"bot_level": "1"},
             "initial_fen": FOOLS_MATE_FEN,
         },
         headers=auth,
@@ -148,7 +148,7 @@ def test_resigning_a_session_without_a_game_enqueues_nothing(
     auth = _register(db_session)
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "opponent_config": {"strength": "1"}},
+        json={"player_id": "alice", "opponent_config": {"bot_level": "1"}},
         headers=auth,
     )
     assert created.status_code == 200, created.text

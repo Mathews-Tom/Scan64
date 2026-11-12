@@ -12,6 +12,7 @@ from sqlmodel import Session
 from scan64.api.auth import require_authenticated_player
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.games.participants import player_color
 from scan64.learning.insights import PositionInsight, position_insight
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -49,11 +50,13 @@ def _position(body: PositionInsightRequest, session: Session) -> chess.Board:
                 board.push_uci(uci)
         except ValueError:
             raise HTTPException(status_code=409, detail="Stored game has illegal moves") from None
-        if (
-            game is not None
-            and game.owner_color is not None
-            and board.turn != (game.owner_color == "white")
-        ):
+        colour = player_color(
+            game.headers.get("FEN") if game is not None else None,
+            game.moves if game is not None else (),
+            stored_color=play.opponent_config.get("player_color")
+            or (game.owner_color if game is not None else None),
+        )
+        if board.turn != colour:
             raise HTTPException(status_code=409, detail="Wait for the opponent's move")
     else:
         try:
