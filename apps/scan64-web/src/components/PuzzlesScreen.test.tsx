@@ -55,6 +55,13 @@ beforeEach(() => { vi.resetAllMocks(); board.props = null; });
 afterEach(cleanup);
 
 describe('PuzzlesScreen server-authoritative practice', () => {
+  it('clears loading speech when initial puzzle loading fails', async () => {
+    vi.mocked(ApiClient.startPuzzleRun).mockRejectedValue(new Error('Puzzle service unavailable'));
+    render(<PuzzlesScreen />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Puzzle service unavailable');
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).not.toHaveTextContent('Loading');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+  });
   it('starts at the post-setup position with solver orientation and no leaked future line', async () => {
     await mount();
     expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith();
@@ -74,6 +81,8 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     }));
     await move();
     expect(screen.getByText('1 wrong attempts remaining')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Puzzle progress' }))
+      .toHaveTextContent('Black played e7 to e5. White played g1 to f3.');
     await move('a7a6');
     expectBoard(REPLY, true);
     expect(screen.getByText(/puzzle failed/i)).toBeInTheDocument();
@@ -99,7 +108,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     await waitFor(() => expectBoard(SETUP));
     expect(method).toHaveBeenCalledTimes(1);
     expect(screen.getByText('2 wrong attempts remaining')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/Server state changed/);
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/Server state changed/);
     expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
   });
 

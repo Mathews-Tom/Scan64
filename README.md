@@ -23,7 +23,9 @@ Daily Training composes eligible lessons from active mastery, due review, verifi
 - Use opt-in coach-mode interruptions during practice.
 - Export, import, and delete player-derived data.
 
-Scan64 does **not** yet establish that it improves over-the-board chess performance. It also does not currently provide calibrated behavioural-habit detection, context-conditioned profiling, keyboard board interaction, hosted deployment, or PostgreSQL production verification.
+Scan64 does **not** yet establish that it improves over-the-board chess performance. It also does not currently provide calibrated behavioural-habit detection, context-conditioned profiling, hosted deployment, or PostgreSQL production verification.
+
+Chess workflows provide labelled strict UCI/canonical English SAN entry, readable positions and legal choices alongside pointer/tap boards, with keyboard replay, hint and practice controls. All shipped routes target WCAG 2.2 AA and narrow-screen reflow; this is not certification or universal assistive-technology support. The human Safari/VoiceOver acceptance pass is pending owner observation; implementation and automated checks alone do not establish conformance. See [keyboard use and accessibility limits](docs/user-guide.md#keyboard-touch-and-screen-readers).
 
 ## Distribution and support
 

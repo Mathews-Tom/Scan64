@@ -10,6 +10,38 @@ const fen = new Chess().fen();
 const insight: PositionInsight = { step: 3, fen, visualizations: [], candidates: [{ number: 1, move: 'e2e4', san: 'e4', line: ['e2e4', 'e7e5'], reasons: [], fallback: true, visualizations: [] }] };
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe('HintPanel', () => {
+  it('announces hint steps and restores the Hint control on Escape or Close', async () => {
+    vi.spyOn(ApiClient, 'getPositionInsight').mockResolvedValue(insight);
+    const onPreview = vi.fn();
+    render(<HintPanel playerId="p" fen={fen} onPreview={onPreview} />);
+    const hint = screen.getByRole('button', { name: 'Hint' });
+    hint.focus();
+    fireEvent.click(hint);
+    const details = await screen.findByRole('region', { name: 'Hint details' });
+    expect(details).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Hint 3 of 3');
+    fireEvent.keyDown(details, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Hint details' })).not.toBeInTheDocument();
+    expect(hint).toHaveFocus();
+    expect(onPreview).toHaveBeenLastCalledWith(null);
+    fireEvent.click(hint);
+    await screen.findByRole('region', { name: 'Hint details' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close hints' }));
+    expect(hint).toHaveFocus();
+  });
+  it('restores keyboard focus after a pending hint disabled its trigger', async () => {
+    const { promise, resolve } = Promise.withResolvers<PositionInsight>();
+    vi.spyOn(ApiClient, 'getPositionInsight').mockReturnValue(promise);
+    render(<HintPanel playerId="p" fen={fen} onPreview={vi.fn()} />);
+    const hint = screen.getByRole('button', { name: 'Hint' });
+    hint.focus();
+    fireEvent.click(hint);
+    hint.blur();
+    await act(async () => resolve({ step: 1, text: 'Study the centre.', visualizations: [] }));
+    expect(hint).toHaveFocus();
+    fireEvent.keyDown(hint, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Hint details' })).not.toBeInTheDocument();
+  });
   it('preserves standalone FEN study without a live assistance claim', async () => {
     const request = vi.spyOn(ApiClient, 'getPositionInsight').mockResolvedValue({ step: 1, text: 'Study the centre.', visualizations: [] });
     render(<HintPanel playerId="p" fen={fen} onPreview={vi.fn()} />);

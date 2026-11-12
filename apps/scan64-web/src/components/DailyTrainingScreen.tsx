@@ -15,6 +15,10 @@ export const DailyTrainingScreen: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const startedAt = useRef(0);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (currentIndex > 0) heading.current?.focus();
+  }, [currentIndex]);
 
   useEffect(() => {
     void (async () => {
@@ -32,10 +36,10 @@ export const DailyTrainingScreen: React.FC = () => {
     })();
   }, []);
 
-  if (loading) return <div data-testid="loading-indicator">Loading your daily training...</div>;
-  if (error) return <div data-testid="error-message">{error}</div>;
+  if (loading) return <div role="status" data-testid="loading-indicator">Loading your daily training...</div>;
+  if (error) return <div role="alert" data-testid="error-message">{error}</div>;
   if (sessionLessons.length === 0) return <div data-testid="no-eligible-lessons"><h2>No training lessons available</h2><p>Analyse another game to generate a reviewable lesson.</p></div>;
-  if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2>Training Complete!</h2></div>;
+  if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2 ref={heading} tabIndex={-1}>Training Complete!</h2></div>;
 
   const lesson = sessionLessons[currentIndex];
   const hint = hintIndex >= 0 ? lesson.hints[hintIndex] : undefined;
@@ -88,19 +92,19 @@ export const DailyTrainingScreen: React.FC = () => {
   };
 
   return <div className="daily-training-screen">
-    <h2>Daily Training</h2><p>{currentIndex} / {sessionLessons.length}</p>
+    <h2 ref={heading} tabIndex={-1}>Daily Training</h2><p role="status" aria-label="Lesson progress">Lesson {currentIndex + 1} of {sessionLessons.length}</p>
     <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
       resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
       visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
       onMove={submitMove} />
     <div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>
-    {hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}
+    <div role="status" aria-atomic="true">{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}</div>
     <button type="button" data-testid="request-hint-button"
       disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}
       onClick={() => setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1))}>
       Next hint
     </button>
-    {feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}
+    <div role="status" aria-atomic="true">{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}</div>
     {finished && <section data-testid="lesson-explanation"><h3>Explanation</h3><p>{lesson.explanation?.text}</p></section>}
     <button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button>
   </div>;

@@ -92,6 +92,10 @@ describe('App', () => {
 
     expect(window.location.pathname).toBe('/play');
     expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+    expect(screen.getByRole('main', { name: 'Study content' })).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main-content');
+    expect(document.title).toBe('Play · Scan64');
   });
 
   it('renders a directly addressed screen from its URL', () => {

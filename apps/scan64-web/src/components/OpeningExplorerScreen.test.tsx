@@ -1,34 +1,18 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpeningExplorerScreen } from './OpeningExplorerScreen';
 import { ApiClient } from '../api/client';
 
-type MoveHandler = (orig: string, dest: string) => void;
-
-const chessgroundMock = vi.hoisted(() => ({
-  after: undefined as MoveHandler | undefined,
-  set: vi.fn(),
-}));
-
 vi.mock('chessground', () => ({
-  Chessground: (
-    _element: Element,
-    config: { movable: { events?: { after?: MoveHandler } } },
-  ) => {
-    chessgroundMock.after = config.movable.events?.after;
-    return {
-      set: (update: { movable?: { events?: { after?: MoveHandler } } }) => {
-        const after = update.movable?.events?.after;
-        if (after) chessgroundMock.after = after;
-        chessgroundMock.set(update);
-      },
-    };
-  },
+  Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
 }));
 
 beforeEach(() => {
-  chessgroundMock.after = undefined;
-  chessgroundMock.set.mockReset();
+  vi.restoreAllMocks();
+  vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
+    session_id: 'opening-study-1',
+    lessons: [],
+  });
 });
 
 describe('OpeningExplorerScreen', () => {
@@ -54,25 +38,29 @@ describe('OpeningExplorerScreen', () => {
     expect(screen.getByText(/minor_pieces_developed/)).toBeInTheDocument();
   });
 
-  it('surfaces a rejected board move and resynchronizes Chessground', async () => {
+  it('announces rejected keyboard moves, retains focus and leaves the position unchanged', () => {
     render(<OpeningExplorerScreen />);
+    const entry = screen.getByLabelText('Move (UCI or SAN)');
+    fireEvent.change(entry, { target: { value: 'e2e8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a legal move');
+    expect(entry).toHaveFocus();
+    expect(screen.getByText('e2: White pawn')).toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+  });
 
-    await waitFor(() => {
-      expect(chessgroundMock.after).toBeDefined();
-    });
-    const after = chessgroundMock.after;
-    if (!after) throw new Error('Chessground move handler was not registered');
-
-    await act(async () => {
-      after('e2', 'e8');
-    });
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid move');
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      }),
-    );
+  it('shares the selected opening position and move history with accessible keyboard play', async () => {
+    render(<OpeningExplorerScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Italian Game' }));
+    expect(screen.getByText('c4: White bishop')).toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('3. Bc4');
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'g8f6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('3... Nf6'));
+    expect(screen.getByText('f6: Black knight')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Queen's Gambit" }));
+    expect(screen.getByText('c4: White pawn')).toBeInTheDocument();
+    expect(screen.queryByText('f6: Black knight')).not.toBeInTheDocument();
   });
 
   it('records an opening mission through the server-side attempt endpoint', async () => {

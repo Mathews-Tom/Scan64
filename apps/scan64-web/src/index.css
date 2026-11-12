@@ -4,7 +4,7 @@
   --text-h: #142d47;
   --bg: #edf2f7;
   --surface: #ffffff;
-  --border: #c5d2de;
+  --border: #73869a;
   --code-bg: #e4ebf2;
   --accent: #235da0;
   --accent-bg: #e2edf9;
@@ -41,7 +41,7 @@
     --text-h: #f0f5fa;
     --bg: #142234;
     --surface: #1d3046;
-    --border: #4a6178;
+    --border: #8296aa;
     --code-bg: #293e55;
     --accent: #9ec9ff;
     --accent-bg: #293f5b;
@@ -52,7 +52,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
+body { margin: 0; }
 #root { min-height: 100svh; }
 h1, h2, h3 { color: var(--text-h); font-family: var(--heading); line-height: 1.2; }
 h1 { font-size: var(--type-title); letter-spacing: -.04em; margin: 0 0 var(--space-4); }
@@ -85,3 +85,21 @@ input:not([type='checkbox']):not([type='radio']), select { min-height: 44px; }
 textarea { width: 100%; }
 code { font-family: var(--mono); background: var(--code-bg); padding: .15em .35em; border-radius: var(--radius-sm); }
 .muted { color: var(--text); font-size: var(--type-small); }
+
+/* Shrink content, not the document or main scrollport, at narrow widths/zoom. */
+main :where(div, section, article, form, fieldset, ul, ol, li, figure) { min-width: 0; max-width: 100%; }
+button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+input, select, textarea { min-width: 0; }
+img, svg { max-width: 100%; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+fieldset { margin-inline: 0; }
+label { overflow-wrap: anywhere; }
+input[type='checkbox'], input[type='radio'] { min-width: 24px; min-height: 24px; vertical-align: middle; }
+.board-annotation-text { padding-inline-start: var(--space-6); }
+.coach-board .cg-wrap coords.files { left: 0; }
+.player-setup { display: flex; flex-direction: column; align-items: start; gap: var(--space-3); }
+.player-setup label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

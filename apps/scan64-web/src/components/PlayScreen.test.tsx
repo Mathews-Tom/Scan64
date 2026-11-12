@@ -1090,8 +1090,8 @@ describe('PlayScreen', () => {
     await screen.findByTestId('session-info');
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith({ player_id: 'test-player',
       opponent_config: { provider: 'stockfish', bot_level: '8' }, player_color: 'black', coach_mode: false });
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      fen: expect.stringContaining('4P3'), movable: expect.objectContaining({ color: 'black' }) }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: expect.stringContaining('4P3'), movable: expect.objectContaining({ color: 'black' }) })));
     expect(screen.getByTestId('takeback-btn')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
   });

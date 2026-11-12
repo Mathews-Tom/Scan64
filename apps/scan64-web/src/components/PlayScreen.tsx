@@ -57,6 +57,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   );
   const currentSessionId = session?.id;
   const currentSessionStatus = session?.status;
+  const heading = useRef<HTMLHeadingElement>(null);
+  const interruptionPanel = useRef<HTMLDivElement>(null);
+  const previousSession = useRef(currentSessionId);
+  const previousInterruption = useRef<CriticalInterruptionRead | null>(null);
+  useEffect(() => {
+    if (criticalInterruption && criticalInterruption !== previousInterruption.current) interruptionPanel.current?.focus();
+    else if (currentSessionId !== previousSession.current || (!criticalInterruption && previousInterruption.current)) heading.current?.focus();
+    previousSession.current = currentSessionId;
+    previousInterruption.current = criticalInterruption;
+  }, [currentSessionId, criticalInterruption]);
   const [initialChess] = useState(() => {
     const chess = new Chess(initialFen);
     if (initialSession?.opponent_move) {
@@ -503,19 +513,23 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   return (
     <div className="play-screen" data-testid="play-screen">
-      <h1>Play against Scan64</h1>
-      {resuming ? <div data-testid="resuming-game">Resuming game...</div> : null}
+      <h1 ref={heading} tabIndex={-1}>Play against Scan64</h1>
+      {resuming ? <div role="status" data-testid="resuming-game">Resuming game...</div> : null}
       {!session && !resuming && (
         <div className="player-setup">
+          <label htmlFor="play-player-id">Player ID</label>
           <input 
             type="text" 
+            id="play-player-id"
             placeholder="Player ID" 
             value={playerId} 
             onChange={e => setPlayerId(e.target.value)} 
             data-testid="player-id-input"
           />
+          <label htmlFor="play-display-name">Display name (optional)</label>
           <input 
             type="text" 
+            id="play-display-name"
             placeholder="Display Name" 
             value={playerName} 
             onChange={e => setPlayerName(e.target.value)} 
@@ -544,7 +558,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           <button onClick={startGame} data-testid="start-btn">Start Game</button>
         </div>
       )}
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
       {syncRetrySessionId ? (
         <button
           type="button"
@@ -567,6 +581,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         {...boardPosition}
         {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
         testId="chessground-board"
+        preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
         orientation={sessionPlayerColor(session) ?? 'white'}
         disabled={!session || session.status !== 'active' || movePending || resigning || takingBack ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
@@ -591,7 +606,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           chessRef.current.history().length < 2 || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {takingBack ? 'Taking back…' : 'Take back'}
       </button>}
-      {session && session.status !== 'active'  && <div role="status" data-testid="game-result">
+      {session && session.status !== 'active' && <div role={resigned ? 'status' : undefined} data-testid="game-result">
         {resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
           ? `Checkmate. ${chessRef.current.turn() === 'w' ? 'Black' : 'White'} wins.`
           : chessRef.current.isStalemate() ? 'Draw by stalemate.'
@@ -604,12 +619,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           }}>Review game</a></>}
       </div>}
       {criticalInterruption ? (
+        <div ref={interruptionPanel} tabIndex={-1} role="region" aria-label="Coach review">
         <CriticalMomentReview
           lesson={criticalInterruption.lesson}
           opportunityId={criticalInterruption.opportunity_id}
           sessionId={criticalInterruption.study_session_id}
           onComplete={resumeAfterCriticalReview}
         />
+        </div>
       ) : null}
       {session && (
         <div data-testid="session-info">

@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Chessground } from 'chessground';
-import type { Api } from 'chessground/api';
-import type { Key } from 'chessground/types';
-import 'chessground/assets/chessground.base.css';
-import 'chessground/assets/chessground.brown.css';
-import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient } from '../api/client';
+import { CoachBoard } from './CoachBoard';
+import { resolveMove } from './moveEntry';
 
 interface OpeningMission {
   id: string;
@@ -60,53 +56,16 @@ const SEED_FAMILIES: OpeningFamily[] = [
   }
 ];
 
-function getDests(chess: Chess): Map<Key, Key[]> {
-  const dests = new Map<Key, Key[]>();
-  chess.moves({ verbose: true }).forEach((move) => {
-    const orig = move.from as Key;
-    const dest = move.to as Key;
-    if (!dests.has(orig)) {
-      dests.set(orig, []);
-    }
-    dests.get(orig)!.push(dest);
-  });
-  return dests;
-}
-
-function syncBoard(chess: Chess, board: Api): void {
-  board.set({
-    fen: chess.fen(),
-    turnColor: chess.turn() === 'w' ? 'white' : 'black',
-    movable: {
-      color: chess.turn() === 'w' ? 'white' : 'black',
-      dests: getDests(chess),
-    },
-  });
-}
 
 export function OpeningExplorerScreen() {
-  const boardRef = useRef<HTMLDivElement>(null);
-  const [cg, setCg] = useState<Api | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<OpeningFamily | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [recordedMissionId, setRecordedMissionId] = useState<string | null>(null);
   const chessRef = useRef(new Chess());
+  const [fen, setFen] = useState(chessRef.current.fen());
+  const [status, setStatus] = useState('');
 
-  useEffect(() => {
-    if (boardRef.current && !cg) {
-      const api = Chessground(boardRef.current, {
-        fen: chessRef.current.fen(),
-        turnColor: 'white',
-        movable: {
-          color: 'white',
-          free: false,
-          dests: getDests(chessRef.current),
-        }
-      });
-      setCg(api);
-    }
-  }, [cg]);
 
   useEffect(() => {
     void ApiClient.getTrainingSession()
@@ -114,25 +73,14 @@ export function OpeningExplorerScreen() {
       .catch(() => setError('Could not create an opening study session.'));
   }, []);
 
-  useEffect(() => {
-    if (!cg) return;
-
-    cg.set({
-      movable: {
-        events: {
-          after: (orig, dest, _metadata) => {
-            try {
-              chessRef.current.move({ from: orig, to: dest, promotion: 'q' });
-              setError(null);
-            } catch (error: unknown) {
-              setError(error instanceof Error ? error.message : 'Could not apply opening move.');
-            }
-            syncBoard(chessRef.current, cg);
-          },
-        },
-      },
-    });
-  }, [cg]);
+  const handleMove = (uci: string) => {
+    const resolved = resolveMove(chessRef.current, uci);
+    if (resolved.kind !== 'move') throw new Error('Could not apply opening move.');
+    const { from, to, promotion } = resolved.move;
+    chessRef.current.move({ from, to, promotion });
+    setFen(chessRef.current.fen());
+    setError(null);
+  };
 
   const loadFamily = (family: OpeningFamily) => {
     chessRef.current.reset();
@@ -147,13 +95,14 @@ export function OpeningExplorerScreen() {
       setError(
         error instanceof Error ? `Could not load ${family.name}: ${error.message}` : `Could not load ${family.name}.`,
       );
-      if (cg) syncBoard(chessRef.current, cg);
+      setFen(chessRef.current.fen());
       return;
     }
 
     setSelectedFamily(family);
     setError(null);
-    if (cg) syncBoard(chessRef.current, cg);
+    setFen(chessRef.current.fen());
+    setStatus(`${family.name} loaded.`);
   };
 
   const recordMission = async (mission: OpeningMission) => {
@@ -171,6 +120,7 @@ export function OpeningExplorerScreen() {
       });
       setRecordedMissionId(mission.id);
       setError(null);
+      setStatus('Opening mission recorded.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not record opening mission.');
     }
@@ -180,7 +130,8 @@ export function OpeningExplorerScreen() {
     <div className="opening-explorer" data-testid="opening-explorer">
       <h2>Opening Explorer</h2>
       {error && <p role="alert">{error}</p>}
-      <div style={{ display: 'flex', gap: '20px' }}>
+      <p role="status">{status}</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <h3>Families</h3>
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -191,9 +142,7 @@ export function OpeningExplorerScreen() {
             ))}
           </ul>
         </div>
-        <div>
-          <div ref={boardRef} style={{ width: '400px', height: '400px' }} data-testid="chessground-board" />
-        </div>
+        <CoachBoard fen={fen} pgn={chessRef.current.pgn()} onMove={handleMove} testId="chessground-board" />
         {selectedFamily && (
           <div data-testid="family-details">
             <h3>{selectedFamily.name}</h3>

@@ -39,7 +39,7 @@ export function CoachDashboardScreen() {
 
   if (error) {
     return (
-      <section className="coach-dashboard coach-dashboard--error" aria-live="polite">
+      <section className="coach-dashboard coach-dashboard--error" role="alert">
         <p className="coach-dashboard__eyebrow">Coach workspace</p>
         <h2>Dashboard unavailable</h2>
         <p>{error}</p>
@@ -48,7 +48,7 @@ export function CoachDashboardScreen() {
   }
 
   if (!dashboard) {
-    return <div data-testid="coach-dashboard-loading">Loading coach dashboard...</div>;
+    return <div role="status" data-testid="coach-dashboard-loading">Loading coach dashboard...</div>;
   }
 
   return (

@@ -49,6 +49,13 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   const [selectedLesson, setSelectedLesson] = useState<LessonSpec | null>(null);
   const [lessonSessionId, setLessonSessionId] = useState<string | null>(null);
   const [analyzedGameId, setAnalyzedGameId] = useState<string | null>(null);
+  const reviewContainer = useRef<HTMLDivElement>(null);
+  const reviewOpener = useRef<string | null>(null);
+  const reviewButtons = useRef(new Map<string, HTMLButtonElement>());
+  useEffect(() => {
+    if (selectedLesson) reviewContainer.current?.focus();
+    else if (reviewOpener.current) reviewButtons.current.get(reviewOpener.current)?.focus();
+  }, [selectedLesson]);
   const handleImport = async () => {
     if (!pgn.trim()) return;
     
@@ -122,12 +129,15 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
 
   if (selectedLesson !== null && lessonSessionId !== null) {
     return (
-      <div>
+      <div ref={reviewContainer} tabIndex={-1} role="region" aria-label="Imported game lesson" onKeyDown={event => {
+        if (event.key === 'Escape' && !event.defaultPrevented) setSelectedLesson(null);
+      }}>
         <button onClick={() => setSelectedLesson(null)}>Back to Import</button>
         <CriticalMomentReview
           lesson={selectedLesson}
           opportunityId={selectedLesson.lesson_id}
           sessionId={lessonSessionId}
+          onComplete={() => setSelectedLesson(null)}
         />
       </div>
     );
@@ -142,7 +152,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
           <option value="black">Black</option>
         </select>
       </label>
+      <label htmlFor="import-pgn">PGN game text</label>
       <textarea
+        id="import-pgn"
         value={pgn}
         onChange={(e) => setPgn(e.target.value)}
         placeholder="Paste PGN here..."
@@ -155,9 +167,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
         {loading ? 'Importing...' : 'Import PGN'}
       </button>
       
-      {statusText && <div className="status" data-testid="import-status">{statusText}</div>}
+      {statusText && <div className="status" role="status" data-testid="import-status">{statusText}</div>}
 
-      {error && <div className="error" data-testid="import-error">{error}</div>}
+      {error && <div className="error" role="alert" data-testid="import-error">{error}</div>}
 
 
       {analyzedGameId && onExploreAnalysis && (
@@ -178,8 +190,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
                   ? `${lesson.diagnosis.primary} (confidence: ${lesson.diagnosis.confidence})`
                   : lesson.objective.instruction}
                 <button 
+                  ref={button => { if (button) reviewButtons.current.set(lesson.lesson_id, button); else reviewButtons.current.delete(lesson.lesson_id); }}
                   data-testid={`review-btn-${lesson.lesson_id}`}
-                  onClick={() => setSelectedLesson(lesson)}
+                  onClick={() => { reviewOpener.current = lesson.lesson_id; setSelectedLesson(lesson); }}
                 >
                   Review
                 </button>

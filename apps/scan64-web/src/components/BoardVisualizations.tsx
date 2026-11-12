@@ -2,10 +2,8 @@ import { useId } from 'react';
 import { Chess, type Square } from 'chess.js';
 import type { Visualization } from '../api/types';
 
-export function BoardVisualizations({ visualizations, orientation, fen }: { visualizations: Visualization[]; orientation: 'white' | 'black'; fen: string }) {
-  const id = useId().replace(/:/g, '');
-  const game = new Chess(fen);
-  const defenders = (target: string): string[] => {
+function defenders(fen: string, target: string): string[] {
+    const game = new Chess(fen);
     if (!/^[a-h][1-8]$/.test(target)) return [];
     const square = target as Square;
     const piece = game.get(square);
@@ -22,7 +20,27 @@ export function BoardVisualizations({ visualizations, orientation, fen }: { visu
       const king = probe.board().flat().find(p => p?.type === 'k' && p.color === piece.color);
       return !!king && !probe.isAttacked(king.square, piece.color === 'w' ? 'b' : 'w');
     });
-  };
+}
+
+export function VisualizationDescriptions({ visualizations, fen }: { visualizations: Visualization[]; fen: string }) {
+  const graphical = visualizations.filter(v => ['draw_arrow', 'draw_defence_map', 'highlight_square', 'highlight_piece'].includes(v.command));
+  if (!graphical.length) return null;
+  return <ul aria-label="Board annotations" className="board-annotation-text">
+    {graphical.map((v, index) => {
+      const squares = v.square ? [v.square] : v.squares ?? [];
+      return <li key={index}>{v.label ? `${v.label}. ` : ''}{v.description}
+        {v.command === 'draw_arrow' ? ` (${v.origin} to ${v.target})` : squares.length ? ` (${squares.join(', ')})` : ''}
+        {v.command === 'draw_defence_map' && squares.map(square => {
+          const origins = defenders(fen, square);
+          return <span key={square}> {square}: {origins.length ? `defended by ${origins.join(', ')}` : 'no legal defenders'}.</span>;
+        })}
+      </li>;
+    })}
+  </ul>;
+}
+
+export function BoardVisualizations({ visualizations, orientation, fen }: { visualizations: Visualization[]; orientation: 'white' | 'black'; fen: string }) {
+  const id = useId().replace(/:/g, '');
   const point = (square?: string) => {
     if (!square || !/^[a-h][1-8]$/.test(square)) return null;
     const file = square.charCodeAt(0) - 97;
@@ -30,7 +48,7 @@ export function BoardVisualizations({ visualizations, orientation, fen }: { visu
     return orientation === 'white' ? [file * 12.5 + 6.25, (7 - rank) * 12.5 + 6.25] : [(7 - file) * 12.5 + 6.25, rank * 12.5 + 6.25];
   };
   let arrow = 0;
-  return <svg aria-label="Board visualizations" viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+  return <svg aria-hidden="true" focusable="false" viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
     <defs><marker id={id} markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" fill="#186d32" /></marker></defs>
     <defs><marker id={`${id}-defence`} markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" fill="#2478ba" /></marker></defs>
     {visualizations.map((v, index) => {
@@ -47,7 +65,7 @@ export function BoardVisualizations({ visualizations, orientation, fen }: { visu
         return <g key={index} aria-label={v.description}>{(v.square ? [v.square] : v.squares ?? []).flatMap(square => {
           const to = point(square);
           if (!to) return [];
-          return defenders(square).map(origin => {
+          return defenders(fen, square).map(origin => {
             const from = point(origin)!;
             return <line key={`${origin}-${square}`} aria-label={`Defender ${origin} to ${square}`}
               x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]}
