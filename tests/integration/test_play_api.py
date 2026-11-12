@@ -203,7 +203,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     assert game.owner_color == "black"
     assert game.headers == {"FEN": initial_fen}
     assert game.owner_player_id == "player_123"
-    assert (game.white, game.black) == ("Stockfish (strength 10)", "player_123")
+    assert (game.white, game.black) == ("Stockfish (skill level 10)", "player_123")
 
 
 def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
@@ -241,7 +241,7 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
     assert game.owner_color == "white"
-    assert (game.white, game.black) == ("player_123", "Stockfish (strength 10)")
+    assert (game.white, game.black) == ("player_123", "Stockfish (skill level 10)")
 
     retry_resp = client.post(
         f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers

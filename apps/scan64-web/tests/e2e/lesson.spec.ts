@@ -3,6 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { LessonSpec } from '../../src/api/types';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 test.describe('Lesson Review Flow', () => {
   test('renders hint ladder matching LessonSpec fixture', async ({ page }) => {
@@ -49,6 +52,7 @@ test.describe('Lesson Review Flow', () => {
 
     // Go to home and navigate to import screen
     await page.goto('/');
+    await page.getByRole('button', { name: 'Library', exact: true }).click();
     await page.getByText('Import PGN').click();
 
     // Import a game

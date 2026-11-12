@@ -6,24 +6,28 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 Follow the [root quickstart](../README.md#run-locally). It starts the API at `http://127.0.0.1:8001` and the web application at `http://127.0.0.1:5173`.
 
-The web client creates a player identity when you start a game. Its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player.
+On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
+
+**Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import PGN under **Library**. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
 
 ## Play a game
 
-1. Open **Play Game**.
-2. Enter a player ID and optional display name.
+1. Open **Play**.
+2. Keep the player ID filled from your stored identity; no new name or ID is required.
 3. Select **Coach Mode** only when you want opt-in, post-move interruption during practice.
 4. Start a game and move pieces by drag-and-drop.
-5. Select **Your Games** and reopen an active game to resume it.
+5. Select **Review** (Your Games) and reopen an active game to resume it.
 6. Resign or finish the game. Scan64 queues analysis automatically for completed play sessions.
+
+New games from Play, Analysis Board's play-from-here, and Famous Games' continue action use **Stockfish skill level 0**. This is an engine skill setting, not an Elo rating. The API accepts Stockfish `strength` as an integer string from `"0"` to `"20"` and defaults to `"0"` when omitted; Maia strength remains a rating.
 
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
 
 ## Import and analyse a PGN
 
-1. Open **Import PGN**.
+1. Open **Library**, then **Import PGN**.
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
-3. Open **Your Games**, select the imported game, then select **Analyse game** when it has not already been analysed.
+3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
 5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by mistake severity and diagnostic confidence, with a penalty for repeated skills. Only these kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner mistakes.
 
@@ -42,7 +46,7 @@ The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Le
 
 ## Train from diagnosed positions
 
-Open **Daily Training** after one or more owned games have generated eligible lessons.
+Open **Train** (Daily Training) after one or more owned games have generated eligible lessons.
 
 - A lesson is served only with durable player-owned opportunity and study-session context.
 - Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
@@ -65,11 +69,11 @@ An arbitrary mistake does not guarantee an interruption. Ordinary play, independ
 
 ## Review games and content
 
-- **Your Games** lists player-owned played and imported games. Every game has an analysis deep link.
-- **Analysis Board** distinguishes a game that has not been analysed, a completed analysis with no diagnosis, and an analysed game with persisted evaluations and diagnosis markers.
-- **Opening Explorer** supplies opening-family missions.
-- **Famous Games** provides guided historical-game study.
-- **Coach Dashboard** displays linked-student information for coach identities with relationships.
+- **Review** (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.
+- **Review → Analysis Board** distinguishes a game that has not been analysed, a completed analysis with no diagnosis, and an analysed game with persisted evaluations and diagnosis markers.
+- **Library → Opening Explorer** supplies opening-family missions.
+- **Library → Famous Games** provides guided historical-game study.
+- **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
 
 ## Transfer measurement
 
@@ -89,7 +93,7 @@ The generated API reference at `http://127.0.0.1:8001/docs` documents the live r
 
 1. Start Scan64 with a disposable database.
 2. Create a player and play `e2` to `e4`; confirm the opponent reply arrives.
-3. Navigate to **Your Games** and back; confirm the active session resumes.
+3. Navigate to **Review** and back; confirm the active session resumes.
 4. Resign; confirm the game becomes visible in history and completes analysis.
 5. Import the hanging-queen PGN above, analyse it, and confirm a diagnosis marker and engine evaluations appear.
 6. Complete its Daily Training lesson with an accepted move; confirm **Correct**, recorded success, and updated profile mastery.

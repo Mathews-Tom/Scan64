@@ -29,7 +29,7 @@ router = APIRouter(tags=["play-sessions"])
 class PlaySessionCreate(BaseModel):
     player_id: str
     game_id: UUID | None = None
-    opponent_config: dict[str, str] = Field(default_factory=dict)
+    opponent_config: dict[str, str] = Field(default_factory=dict, validate_default=True)
     clock_config: dict[str, str] | None = None
     initial_fen: str | None = None
     coach_mode: bool = False
@@ -40,6 +40,11 @@ class PlaySessionCreate(BaseModel):
         provider_name = opponent_config.get("provider", "stockfish")
         if provider_name not in {"stockfish", "maia"}:
             raise ValueError(f"Unsupported opponent provider: {provider_name}")
+        if provider_name == "stockfish":
+            strength = opponent_config.get("strength", "0")
+            if not strength.isascii() or not strength.isdecimal() or not 0 <= int(strength) <= 20:
+                raise ValueError("Stockfish strength must be an integer string from 0 to 20")
+            opponent_config["strength"] = str(int(strength))
         return opponent_config
 
     @field_validator("initial_fen")

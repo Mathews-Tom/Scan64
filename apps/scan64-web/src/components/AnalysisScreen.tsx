@@ -6,6 +6,7 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
 import type { GameAnalysisStatusRead, PlaySessionRead, PositionRead } from '../api/types';
 import type { Key } from 'chessground/types';
 
@@ -170,7 +171,7 @@ export function AnalysisScreen({ gameId, onPlayFromHere }: AnalysisScreenProps) 
       const playSession = await ApiClient.createPlaySession({
         player_id: playerId,
         game_id: game.id,
-        opponent_config: { strength: '1500' },
+        opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
       });
       onPlayFromHere(playSession, fen);
     } catch (error: unknown) {

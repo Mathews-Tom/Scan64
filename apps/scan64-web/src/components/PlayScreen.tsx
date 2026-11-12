@@ -9,7 +9,8 @@ import {
 } from '../api/offlineQueue';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, getStoredPlayerId, setActivePlayerId } from '../api/client';
+import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { Chessground } from 'chessground';
@@ -53,7 +54,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
   const cgRef = useRef<Api | null>(null);
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
   const refreshGenerationRef = useRef(0);
-  const [playerId, setPlayerId] = useState('');
+  const [playerId, setPlayerId] = useState(() => getStoredPlayerId() ?? '');
   const [coachMode, setCoachMode] = useState(false);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
   const [criticalInterruption, setCriticalInterruption] =
@@ -84,7 +85,7 @@ export function PlayScreen({ initialSession, initialFen }: PlayScreenProps = {})
       
       const newSession = await ApiClient.createPlaySession({
         player_id: pid,
-        opponent_config: { strength: '1500' },
+        opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
         coach_mode: coachMode,
       });
       sessionRef.current = newSession;
