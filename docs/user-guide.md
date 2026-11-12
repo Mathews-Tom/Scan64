@@ -68,7 +68,7 @@ An arbitrary mistake does not guarantee an interruption. Ordinary play, independ
 - **Your Games** lists player-owned played and imported games. Every game has an analysis deep link.
 - **Analysis Board** distinguishes a game that has not been analysed, a completed analysis with no diagnosis, and an analysed game with persisted evaluations and diagnosis markers.
 - **Opening Explorer** supplies opening-family missions.
-- **Famous Games** provides guided historical-game study.
+- **Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
 - **Coach Dashboard** displays linked-student information for coach identities with relationships.
 
 ## Transfer measurement

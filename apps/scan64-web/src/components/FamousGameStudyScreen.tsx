@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
 
 export interface FamousGameStudyScreenProps {
@@ -30,12 +30,15 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
   const studyComplete = selectedGame !== null && currentDecision === null;
 
   useEffect(() => {
-    setPlayerId(getOrCreatePlayerId());
     let active = true;
 
-    void ApiClient.getFamousGames()
-      .then((loadedGames) => {
+    void Promise.all([
+      ApiClient.getFamousGames(),
+      ensurePlayerAuthorization(getOrCreatePlayerId()),
+    ])
+      .then(([loadedGames, authorizedPlayerId]) => {
         if (!active) return;
+        setPlayerId(authorizedPlayerId);
         setGames(loadedGames);
       })
       .catch((caughtError: unknown) => {

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization } from '../api/client';
 import type { FamousGameRead } from '../api/types';
 import { FamousGameStudyScreen } from './FamousGameStudyScreen';
 
@@ -26,6 +26,7 @@ vi.mock('../api/client', () => ({
     recordFamousGameAttempt: vi.fn(),
   },
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
+  ensurePlayerAuthorization: vi.fn(async () => 'player-1'),
 }));
 
 const games: FamousGameRead[] = [
@@ -79,6 +80,7 @@ const games: FamousGameRead[] = [
 
 describe('FamousGameStudyScreen', () => {
   beforeEach(() => {
+    vi.mocked(ensurePlayerAuthorization).mockResolvedValue('player-1');
     chessgroundMock.destroy.mockReset();
     chessgroundMock.fens.length = 0;
     localStorage.setItem('scan64_player_id', 'player-1');
@@ -90,6 +92,17 @@ describe('FamousGameStudyScreen', () => {
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'session-1', player_id: 'player-1', game_id: 'game-1',
     opponent_config: { strength: '1' }, status: 'active', coach_mode: false });
+  });
+
+  it('authorizes the study identity before recording a prediction', async () => {
+    vi.mocked(ensurePlayerAuthorization).mockResolvedValueOnce('authorized-player');
+    render(<FamousGameStudyScreen onPlayFromHere={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Opera Game' }));
+    fireEvent.change(screen.getByLabelText('Your move'), { target: { value: 'Nxb5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    await waitFor(() => expect(ApiClient.recordFamousGameAttempt).toHaveBeenCalledWith(
+      'morphy-opera-1858', expect.objectContaining({ player_id: 'authorized-player' }),
+    ));
   });
 
   it('records a prediction against the selected decision and reveals its comparison', async () => {

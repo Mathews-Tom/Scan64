@@ -304,7 +304,10 @@ export class ApiClient {
   static async recordFamousGameAttempt(id: string, attempt: AttemptCreate): Promise<AttemptRead> {
     const response = await fetch(`${API_BASE}/content/famous-games/${id}/attempts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(attempt.player_id),
+      },
       body: JSON.stringify(attempt),
     });
     if (!response.ok) {

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session, select
 
+from scan64.api.auth import require_authenticated_player
 from scan64.api.models import PlayerProfile
 from scan64.content.famous_games.curated import FAMOUS_GAMES
 from scan64.content.famous_games.models import FamousGamePayload
@@ -96,8 +97,12 @@ def get_famous_game(game_id: str, session: Session = Depends(get_session)) -> Fa
 def record_famous_game_attempt(
     game_id: str,
     attempt_in: AttemptCreate,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> AttemptRead:
+    authenticated_player_id = require_authenticated_player(request, session)
+    if authenticated_player_id != attempt_in.player_id:
+        raise HTTPException(status_code=404, detail="Player not found")
     seed_famous_games(session)
     item = get_famous_game_item(game_id, session)
     payload = famous_game_payload(item)
