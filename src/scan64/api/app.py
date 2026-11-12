@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
-        admission_controller.stop()
+        await admission_controller.stop()
         if app.state.engine_pool_manager is not None:
             await app.state.engine_pool_manager.close()
         clear_host_registry()

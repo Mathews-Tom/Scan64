@@ -82,3 +82,34 @@ async def test_headless_server_never_opens_browser() -> None:
         await _run_server(server, "http://127.0.0.1:8061", False)
     server.serve.assert_awaited_once()
     browser.assert_not_called()
+
+
+def test_ctrl_c_is_a_clean_stop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "index.html").write_text("<html></html>")
+    monkeypatch.setenv("SCAN64_WEB_DIST", str(tmp_path))
+    with (
+        patch("scan64.cli.serve.shutil.which", return_value="/usr/bin/stockfish"),
+        patch("scan64.cli.serve._run_server", new=AsyncMock(side_effect=KeyboardInterrupt)) as run,
+    ):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    run.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("host", "browser_host"),
+    [("0.0.0.0", "127.0.0.1"), ("::", "[::1]"), ("::1", "[::1]")],
+)
+def test_browser_uses_reachable_loopback_address(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host: str, browser_host: str
+) -> None:
+    (tmp_path / "index.html").write_text("<html></html>")
+    monkeypatch.setenv("SCAN64_WEB_DIST", str(tmp_path))
+    with (
+        patch("scan64.cli.serve.shutil.which", return_value="/usr/bin/stockfish"),
+        patch("scan64.cli.serve._run_server", new=AsyncMock()) as run,
+    ):
+        serve_command(host, 8001, open_browser=True)
+    server, url, open_browser = run.await_args.args
+    assert server.config.host == host
+    assert url == f"http://{browser_host}:8001"
+    assert open_browser is True

@@ -35,6 +35,7 @@ def test_startup_recovers_analysis_once(
     monkeypatch.setenv("SCAN64_ENGINE_POOL_ENABLED", "0")
     controller = AdmissionController(AdmissionConfig(daily_quota_games=quota))
     monkeypatch.setattr(jobs, "admission_controller", controller)
+    monkeypatch.setattr("scan64.api.app.admission_controller", controller)
     monkeypatch.setattr(jobs, "FastPassOrchestrator", _FixtureFastPassOrchestrator)
     monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FixtureFocusedPassOrchestrator)
     fixture = _FIXTURES[0]
@@ -111,7 +112,6 @@ def test_startup_recovers_analysis_once(
         with Session(database.engine) as session:
             for model, count in counts.items():
                 assert len(session.exec(select(model)).all()) == count
-    controller.stop()
 
 
 @pytest.mark.asyncio

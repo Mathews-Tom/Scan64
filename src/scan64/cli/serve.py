@@ -28,8 +28,12 @@ def serve_command(host: str, port: int, *, open_browser: bool) -> None:
             "Built web client not found. Run pnpm --dir apps/scan64-web install --frozen-lockfile "
             "and pnpm --dir apps/scan64-web build first."
         )
-    browser_host = "127.0.0.1" if host == "0.0.0.0" else host
+    browser_host = {"0.0.0.0": "127.0.0.1", "::": "::1"}.get(host, host)
     if ":" in browser_host:
         browser_host = f"[{browser_host}]"
     server = uvicorn.Server(uvicorn.Config("scan64.api.app:app", host=host, port=port))
-    asyncio.run(_run_server(server, f"http://{browser_host}:{port}", open_browser))
+    try:
+        asyncio.run(_run_server(server, f"http://{browser_host}:{port}", open_browser))
+    except KeyboardInterrupt:
+        # Uvicorn re-raises SIGINT after its clean, awaited shutdown.
+        pass

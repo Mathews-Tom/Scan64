@@ -35,7 +35,7 @@ async def test_admission_controller_quota():
 
     assert tasks_run == 3
 
-    controller.stop()
+    await controller.stop()
 
 
 @pytest.mark.asyncio
@@ -67,4 +67,4 @@ async def test_admission_controller_fair_share():
     # Then Player A gets their second task.
     assert run_order == ["A", "B", "A"]
 
-    controller.stop()
+    await controller.stop()

@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1
-FROM node:24-bookworm-slim AS web
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS web
 WORKDIR /app
-RUN npm install --global pnpm@10.33.3
+RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/scan64-web/package.json apps/scan64-web/package.json
-RUN pnpm --dir apps/scan64-web install --frozen-lockfile
-COPY apps/scan64-web apps/scan64-web
-RUN pnpm --dir apps/scan64-web build
+WORKDIR /app/apps/scan64-web
+RUN pnpm install --frozen-lockfile
+COPY apps/scan64-web .
+RUN pnpm build
 
-FROM debian:bookworm-slim AS stockfish
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS stockfish
 ARG TARGETARCH
 RUN apt-get update && apt-get install --yes --no-install-recommends \
     ca-certificates curl g++ make && rm -rf /var/lib/apt/lists/*
@@ -39,8 +40,8 @@ RUN mkdir /out && \
     cp src/stockfish /out/stockfish && \
     cp Copying.txt src/*.nnue /out/
 
-FROM python:3.12-slim-bookworm AS python
-COPY --from=ghcr.io/astral-sh/uv:0.9.17 /uv /usr/local/bin/uv
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS python
+COPY --from=ghcr.io/astral-sh/uv:0.9.17@sha256:5cb6b54d2bc3fe2eb9a8483db958a0b9eebf9edff68adedb369df8e7b98711a2 /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_PYTHON_DOWNLOADS=never
 COPY pyproject.toml uv.lock README.md ./
@@ -48,7 +49,7 @@ COPY packages/chess-lesson-spec packages/chess-lesson-spec
 COPY src src
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS runtime
 RUN apt-get update && apt-get install --yes --no-install-recommends libstdc++6 libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 scan64 \

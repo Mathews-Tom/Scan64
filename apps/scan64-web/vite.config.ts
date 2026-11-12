@@ -22,7 +22,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        navigateFallbackDenylist: [/^\/(?:v1|health|docs|openapi\.json|redoc)(?:\/|$)/],
+        navigateFallbackDenylist: [/^\/(?:v1|health|docs|openapi\.json|redoc)(?:[/?#]|$)/],
       },
       includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
