@@ -24,7 +24,6 @@ from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
 from scan64.content.puzzle_runs import PuzzleRun
-from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
@@ -33,6 +32,7 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferKind, TransferPosition
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 
 PLAYER_LIFECYCLE_TABLES = frozenset(
     {
@@ -429,7 +429,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "study_session": db_session.exec(
             select(StudySession).where(StudySession.player_id == player_id)
         ).all(),
-        "puzzle_runs": db_session.exec(select(PuzzleRun).where(PuzzleRun.player_id == player_id)).all(),
+        "puzzle_runs": db_session.exec(
+            select(PuzzleRun).where(PuzzleRun.player_id == player_id)
+        ).all(),
         "content_attempt": db_session.exec(
             select(ContentAttempt).where(ContentAttempt.player_id == player_id)
         ).all(),

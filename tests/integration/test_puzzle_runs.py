@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -8,12 +10,14 @@ from typing import Any
 
 import chess
 import pytest
+import zstandard
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine, select
 
 import scan64.api.puzzles as puzzles
 from scan64.api.app import app
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt
+from scan64.content.puzzle_import import import_puzzles
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -303,3 +307,125 @@ def test_concurrent_wrong_submissions_use_atomic_revision_check(
     finally:
         app.dependency_overrides[get_session] = previous
         engine.dispose()
+
+
+def test_concurrent_starts_resume_one_atomic_run(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'puzzle-start-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    SQLModel.metadata.create_all(engine)
+    previous = app.dependency_overrides[get_session]
+
+    def sessions():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = sessions
+    try:
+        auth = _auth(client, "racing-start-player")
+        with Session(engine) as session:
+            _seed(session)
+        barrier = Barrier(2)
+        original = puzzles._active_run
+
+        def synchronized(player_id, session):
+            active = original(player_id, session)
+            if active is None:
+                barrier.wait(timeout=10)
+            return active
+
+        monkeypatch.setattr(puzzles, "_active_run", synchronized)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            responses = list(
+                executor.map(
+                    lambda _: client.post("/v1/puzzles/runs", headers=auth),
+                    range(2),
+                )
+            )
+        assert [response.status_code for response in responses] == [200, 200]
+        assert len({response.json()["run"]["run_id"] for response in responses}) == 1
+        with Session(engine) as session:
+            assert len(session.exec(select(PuzzleRun)).all()) == 1
+            assert len(session.exec(select(puzzles.StudySession)).all()) == 1
+            assert not session.exec(select(ContentAttempt)).all()
+    finally:
+        app.dependency_overrides[get_session] = previous
+        engine.dispose()
+
+
+def test_imported_spec_drives_run_and_reimport_preserves_progress(
+    client: TestClient,
+    db_session: Session,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "operator-puzzles.csv.zst"
+
+    def source(*, rating: int = 1000, moves: str = "e2e4 e7e5 g1f3 b8c6") -> None:
+        text = io.StringIO(newline="")
+        writer = csv.writer(text)
+        writer.writerow(
+            [
+                "PuzzleId",
+                "FEN",
+                "Moves",
+                "Rating",
+                "RatingDeviation",
+                "Popularity",
+                "NbPlays",
+                "Themes",
+                "GameUrl",
+                "OpeningTags",
+            ]
+        )
+        writer.writerow(
+            [
+                "RC123",
+                chess.STARTING_FEN,
+                moves,
+                rating,
+                100,
+                80,
+                100,
+                "opening short",
+                "https://lichess.org/example",
+                "Kings_Pawn_Game",
+            ]
+        )
+        path.write_bytes(zstandard.ZstdCompressor().compress(text.getvalue().encode()))
+
+    source()
+    assert import_puzzles(db_session, path).inserted == 1
+    item = db_session.exec(select(ContentItem)).one()
+    initial = json.loads(json.dumps(item.payload))
+    auth = _auth(client, "import-consumer-player")
+    run = _start(client, auth)
+    assert run["fen"] == initial["lesson"]["source"]["fen"]
+    assert run["setup"] == "e2e4" and run["puzzle_id"] == "lichess:RC123"
+    _safe(run)
+    run = _action(client, auth, run, "hints", step=1).json()
+    run = _action(client, auth, run, "moves", move="a7a6").json()
+    assert run["wrong_attempts"] == 1 and run["revision"] == 2
+    db_session.expire_all()
+    progress = db_session.exec(select(PuzzleRun)).one().model_dump(mode="json")
+    source(rating=1100)
+    refreshed = import_puzzles(db_session, path)
+    assert refreshed.metadata_changed == 1 and refreshed.existing == 1
+    db_session.expire_all()
+    item = db_session.exec(select(ContentItem)).one()
+    assert item.payload["rating"] == 1100
+    for key in ("lesson", "import_sequence", "provenance"):
+        assert item.payload[key] == initial[key]
+    assert db_session.exec(select(PuzzleRun)).one().model_dump(mode="json") == progress
+    metadata_payload = json.loads(json.dumps(item.payload))
+    source(rating=1200, moves="e2e4 c7c5 g1f3 d7d6")
+    conflict = import_puzzles(db_session, path)
+    assert conflict.skipped == {"conflict": 1} and conflict.accepted == 0
+    db_session.expire_all()
+    assert db_session.exec(select(ContentItem)).one().payload == metadata_payload
+    assert db_session.exec(select(PuzzleRun)).one().model_dump(mode="json") == progress
+    assert client.get(f"/v1/puzzles/runs/{run['run_id']}", headers=auth).json() == run

@@ -32,7 +32,9 @@ def main() -> None:
         help="Nodes per move; defaults to the production bot budget.",
     )
 
-    add_puzzle_parser(subparsers.add_parser("puzzles", help="Import the CC0 Lichess puzzle catalog."))
+    add_puzzle_parser(
+        subparsers.add_parser("puzzles", help="Import the CC0 Lichess puzzle catalog.")
+    )
 
     serve_parser = subparsers.add_parser(
         "serve", help="Serve the built web client and API together."
