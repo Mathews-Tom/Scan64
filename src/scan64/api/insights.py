@@ -39,15 +39,21 @@ def _position(body: PositionInsightRequest, session: Session) -> chess.Board:
         game = session.get(Game, play.game_id) if play.game_id else None
         if play.status != "active" or (game is not None and game.result != "*"):
             raise HTTPException(status_code=409, detail="PlaySession is not active")
-        if game is None:
+        if play.game_id is not None and game is None:
             raise HTTPException(status_code=404, detail="Game not found")
-        board = board_from(game.headers.get("FEN"))
+        # A new standard session has no Game row until its first move.
+        # Custom-start sessions already store their initial FEN on the Game.
+        board = board_from(game.headers.get("FEN") if game is not None else None)
         try:
-            for uci in game.moves:
+            for uci in game.moves if game is not None else []:
                 board.push_uci(uci)
         except ValueError:
             raise HTTPException(status_code=409, detail="Stored game has illegal moves") from None
-        if game.owner_color is not None and board.turn != (game.owner_color == "white"):
+        if (
+            game is not None
+            and game.owner_color is not None
+            and board.turn != (game.owner_color == "white")
+        ):
             raise HTTPException(status_code=409, detail="Wait for the opponent's move")
     else:
         try:

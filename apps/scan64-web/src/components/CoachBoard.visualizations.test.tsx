@@ -44,6 +44,29 @@ describe('board visualizations', () => {
       orientation="white" visualizations={[{ command: 'draw_defence_map', description: 'Pinned', square: 'c4' }]} />);
     expect(container.querySelectorAll('line')).toHaveLength(0);
   });
+  it('labels all three candidate arrows separately even when their origin is shared', () => {
+    const { container } = render(<BoardVisualizations fen={new Chess().fen()} orientation="white" visualizations={[
+      { command: 'draw_arrow', description: 'First', origin: 'g1', target: 'f3', label: '1' },
+      { command: 'draw_arrow', description: 'Second', origin: 'g1', target: 'h3', label: '2' },
+      { command: 'draw_arrow', description: 'Third', origin: 'b1', target: 'c3', label: '3' },
+    ]} />);
+    expect([...container.querySelectorAll('text')].map(text => text.textContent)).toEqual(['1', '2', '3']);
+    expect(['1: First', '2: Second', '3: Third'].map(label => screen.getByLabelText(label))).toHaveLength(3);
+    const positions = [...container.querySelectorAll('text')].map(text => `${text.getAttribute('x')},${text.getAttribute('y')}`);
+    expect(new Set(positions).size).toBe(3);
+  });
+  it('shows description paragraphs only for commands not rendered on the board', () => {
+    const { container } = render(<CoachBoard fen={new Chess().fen()} onMove={vi.fn()} visualizations={[
+      { command: 'draw_arrow', description: 'Arrow description', origin: 'g1', target: 'f3' },
+      { command: 'highlight_square', description: 'Square description', square: 'e4' },
+      { command: 'highlight_piece', description: 'Piece description', square: 'g1' },
+      { command: 'draw_defence_map', description: 'Defence description', square: 'e2' },
+      { command: 'animate_line', description: 'Animation description', moves: ['e2e4'] },
+      { command: 'future_command', description: 'Unsupported description' },
+    ]} />);
+    expect([...container.querySelectorAll('p')].map(paragraph => paragraph.textContent)).toEqual(['Unsupported description']);
+    expect(screen.getByRole('button', { name: 'Next line move' })).toBeTruthy();
+  });
   it('previews animate_line without moving and retains unknown descriptions', async () => {
     const fen = new Chess().fen();
     const onMove = vi.fn();

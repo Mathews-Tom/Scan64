@@ -38,7 +38,10 @@ export function BoardVisualizations({ visualizations, orientation, fen }: { visu
         arrow += 1;
         const from = point(v.origin); const to = point(v.target); const label = v.label ?? String(arrow);
         if (!from || !to) return null;
-        return <g key={index} aria-label={`${label}: ${v.description}`}><line x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} stroke="#186d32" strokeWidth="1.7" markerEnd={`url(#${id})`} opacity="0.8" /><circle cx={from[0]} cy={from[1]} r="3.2" fill="white" /><text x={from[0]} y={from[1]} dy="1.5" textAnchor="middle" fontSize="4.5" fill="#16391d">{label}</text></g>;
+        // Number the arrow near its destination: candidates can share an origin.
+        const labelX = from[0] + (to[0] - from[0]) * 0.75;
+        const labelY = from[1] + (to[1] - from[1]) * 0.75;
+        return <g key={index} aria-label={`${label}: ${v.description}`}><line x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} stroke="#186d32" strokeWidth="1.7" markerEnd={`url(#${id})`} opacity="0.8" /><circle cx={labelX} cy={labelY} r="3.2" fill="white" /><text x={labelX} y={labelY} dy="1.5" textAnchor="middle" fontSize="4.5" fill="#16391d">{label}</text></g>;
       }
       if (v.command === 'draw_defence_map') {
         return <g key={index} aria-label={v.description}>{(v.square ? [v.square] : v.squares ?? []).flatMap(square => {

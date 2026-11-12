@@ -145,8 +145,9 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
         style={{ width: '100%', height: '100%' }} />
       <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={animationFen ?? chess.current.fen()} />
     </div>
-    {visualizations.map((visualization, index) => <div key={index}>
-      <p>{visualization.description}</p>
+    {visualizations.filter(visualization => visualization.command === 'animate_line'
+      || !['draw_arrow', 'highlight_square', 'highlight_piece', 'draw_defence_map'].includes(visualization.command)).map((visualization, index) => <div key={index}>
+      {visualization.command !== 'animate_line' && <p>{visualization.description}</p>}
       {visualization.command === 'animate_line' && visualization.moves?.length ? <>
         <button type="button" onClick={() => {
           const step = Math.min((animation?.step ?? 0) + 1, visualization.moves!.length);

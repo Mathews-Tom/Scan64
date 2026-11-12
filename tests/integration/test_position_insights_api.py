@@ -175,3 +175,37 @@ def test_single_engine_is_explicitly_unavailable(
     )
     assert response.status_code == 503
     assert "at least two" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("initial_fen", [None, RECORDING["positions"]["A"]["fen"]])
+def test_hint_before_first_move_uses_session_start(
+    client: TestClient, db_session: Session, monkeypatch, initial_fen
+):
+    headers = register(db_session, "hint-owner")
+    created = client.post(
+        "/v1/play-sessions",
+        headers=headers,
+        json={"player_id": "hint-owner", "initial_fen": initial_fen},
+    )
+    assert created.status_code == 200
+    play = created.json()
+    fen = initial_fen or chess.STARTING_FEN
+    lines = (
+        RECORDING["positions"]["A"]["raw_result"]
+        if initial_fen
+        else [{"pv": ["g1f3", "g8f6"], "score_cp": 0}]
+    )
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=lines))
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    response = client.post(
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "play_session_id": play["id"]},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["fen"] == fen
+    analyze.assert_awaited_once_with(fen)
+    if initial_fen is None:
+        assert play["game_id"] is None
+        resumed = client.get(f"/v1/play-sessions/{play['id']}", headers=headers)
+        assert resumed.json()["game_id"] is None
