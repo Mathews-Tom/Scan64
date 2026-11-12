@@ -187,11 +187,11 @@ describe('ApiClient', () => {
       json: async () => ({ id: 'sess-1' }),
     });
 
-    const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { strength: '1500' } });
+    const res = await ApiClient.createPlaySession({ player_id: 'test', opponent_config: { provider: 'stockfish', bot_level: '1' }, player_color: 'black' });
     expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
-      body: JSON.stringify({ player_id: 'test', opponent_config: { strength: '1500' } }),
+      body: JSON.stringify({ player_id: 'test', opponent_config: { provider: 'stockfish', bot_level: '1' }, player_color: 'black' }),
     });
     expect(res.id).toBe('sess-1');
   });

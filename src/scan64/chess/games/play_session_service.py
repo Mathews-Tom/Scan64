@@ -30,6 +30,10 @@ class PlaySessionNotActive(ValueError):
     """The play session has already reached a terminal state."""
 
 
+class TakebackNotAllowed(ValueError):
+    """The session has no undoable human move pair."""
+
+
 @dataclass(frozen=True)
 class PlayMoveResult:
     opponent_move: str | None
@@ -90,6 +94,62 @@ class PlaySessionService:
             opponent_config["maia_coverage_disclosure"] = selection.disclosure
         play_session.opponent_config = opponent_config
 
+    def human_color(self, play_session: PlaySession, game: Game) -> chess.Color:
+        return player_color(
+            game.headers.get("FEN"),
+            game.moves,
+            play_session.opponent_config.get("player_color") or game.owner_color,
+        )
+
+    async def play_opponent_move(
+        self, play_session: PlaySession, game: Game, board: chess.Board
+    ) -> str:
+        """Apply one opponent move, shared by opening moves and paired replies."""
+        config = play_session.opponent_config
+        default_strength = 10 if config.get("provider") == "maia" else 0
+        strength = int(config.get("strength", default_strength))
+        clock = play_session.clock_config
+        time_limit = clock.get("time_remaining_ms") if clock else None
+        context = OpponentContext(
+            strength_setting=strength,
+            time_remaining_ms=int(time_limit) if time_limit else None,
+            bot_level=int(config["bot_level"]) if "bot_level" in config else None,
+            seed=int(config.get("seed", "0")),
+            ply=len(game.moves),
+        )
+        position = Position(
+            fen=board.fen(),
+            side_to_move="w" if board.turn == chess.WHITE else "b",
+            canonical_id=board.fen().split(" ")[0],
+        )
+        decision = await self.opponent_provider_for(config).choose_move(position, context)
+        self.persist_maia_selection(play_session, strength)
+        move = chess.Move.from_uci(decision.uci_move)
+        if move not in board.legal_moves:
+            raise RuntimeError(f"Opponent produced illegal move: {decision.uci_move}")
+        board.push(move)
+        game.moves = [*game.moves, decision.uci_move]
+        return decision.uci_move
+
+    def takeback(self, session_id: UUID) -> PlaySession:
+        play_session = self.db.get(PlaySession, session_id)
+        if play_session is None:
+            raise PlaySessionNotFound("PlaySession not found")
+        if play_session.status != "active":
+            raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
+        if play_session.coach_mode:
+            raise TakebackNotAllowed("Take-back is unavailable in coach mode")
+        game = self.db.get(Game, play_session.game_id) if play_session.game_id else None
+        initial_ply = int(play_session.opponent_config.get("initial_ply", "0"))
+        if game is None or len(game.moves) - initial_ply < 2:
+            raise TakebackNotAllowed("No human move pair to take back")
+        # Keep the opening bot move (and any imported history) intact.
+        game.moves = game.moves[:-2]
+        game.pgn = build_pgn(game)
+        self.db.add(game)
+        self.db.commit()
+        return play_session
+
     def complete_session(
         self, play_session: PlaySession, game: Game | None, result: str | None
     ) -> None:
@@ -144,7 +204,7 @@ class PlaySessionService:
         if game is None:
             raise CorruptGameError(f"Game {play_session.game_id} is missing")
 
-        conceded = player_color(game.headers.get("FEN"), game.moves)
+        conceded = self.human_color(play_session, game)
         self.complete_session(play_session, game, "0-1" if conceded == chess.WHITE else "1-0")
         return play_session
 
@@ -165,7 +225,11 @@ class PlaySessionService:
                 white=white,
                 black=black,
                 owner_player_id=play_session.player_id,
-                owner_color="white",  # Fresh game: the human moves first.
+                owner_color=(
+                    "black"
+                    if play_session.opponent_config.get("player_color") == "black"
+                    else "white"
+                ),
             )
             game.pgn = build_pgn(game)
             self.db.add(game)
@@ -184,6 +248,8 @@ class PlaySessionService:
         board = chess.Board(initial_fen) if initial_fen else chess.Board()
         for recorded_move in fetched.moves:
             board.push_uci(recorded_move)
+        if board.turn != self.human_color(play_session, fetched):
+            raise ValueError("It is not the player's turn")
         before_board = board.copy()
         moves_before = list(fetched.moves)
 
@@ -229,36 +295,14 @@ class PlaySessionService:
                 ),
             )
 
-        default_strength = 10 if play_session.opponent_config.get("provider") == "maia" else 0
-        strength = int(play_session.opponent_config.get("strength", default_strength))
-        clock = play_session.clock_config
-        time_limit = clock.get("time_remaining_ms") if clock else None
-        context = OpponentContext(
-            strength_setting=strength, time_remaining_ms=int(time_limit) if time_limit else None
-        )
-        position = Position(
-            fen=board.fen(),
-            side_to_move="w" if board.turn == chess.WHITE else "b",
-            canonical_id=board.fen().split(" ")[0],
-        )
-        decision = await self.opponent_provider_for(play_session.opponent_config).choose_move(
-            position, context
-        )
-        self.persist_maia_selection(play_session, strength)
-
-        opponent_move = chess.Move.from_uci(decision.uci_move)
-        if opponent_move not in board.legal_moves:
-            raise RuntimeError(f"Opponent produced illegal move: {decision.uci_move}")
-
-        board.push(opponent_move)
-        fetched.moves = [*fetched.moves, decision.uci_move]
+        opponent_move = await self.play_opponent_move(play_session, fetched, board)
 
         if board.is_game_over():
             if prepared_interruption is not None:
                 prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
             return PlayMoveResult(
-                opponent_move=decision.uci_move,
+                opponent_move=opponent_move,
                 interruption=(
                     prepared_interruption.interruption
                     if prepared_interruption is not None
@@ -274,7 +318,7 @@ class PlaySessionService:
         self.db.commit()
 
         return PlayMoveResult(
-            opponent_move=decision.uci_move,
+            opponent_move=opponent_move,
             interruption=(
                 prepared_interruption.interruption if prepared_interruption is not None else None
             ),

@@ -197,7 +197,7 @@ describe('AnalysisScreen', () => {
   it('starts a play session from the analysed position', async () => {
     const onPlayFromHere = vi.fn();
     const playSession = { id: 'session-1', player_id: 'player-1', game_id: 'game-1',
-    opponent_config: { strength: '0' }, status: 'active', coach_mode: false };
+    opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false };
     vi.mocked(ApiClient.createGame).mockResolvedValue({
       id: 'game-1',
       pgn: '',
@@ -212,7 +212,7 @@ describe('AnalysisScreen', () => {
 
     await waitFor(() => {
       expect(ApiClient.createPlaySession).toHaveBeenCalledWith(
-        expect.objectContaining({ game_id: 'game-1', opponent_config: { strength: '0' } })
+        expect.objectContaining({ game_id: 'game-1', opponent_config: { provider: 'stockfish', bot_level: '1' } })
       );
     });
     expect(onPlayFromHere).toHaveBeenCalledWith(

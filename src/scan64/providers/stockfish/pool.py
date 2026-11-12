@@ -8,6 +8,8 @@ import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.opponents.bot_policy import choose_ladder_move
+from scan64.chess.opponents.protocols import OpponentContext
 from scan64.providers.stockfish.adapter import StockfishConfig
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
@@ -88,11 +90,23 @@ class PooledStockfishAdapter:
     ) -> chess.engine.PlayResult:
         await self.ensure_started()
         assert self._engine is not None
-        await self._engine.configure({"Skill Level": skill_level})
+        await self._engine.configure(
+            {
+                "Threads": self.config.threads,
+                "Skill Level": skill_level,
+                "UCI_LimitStrength": False,
+                "UCI_Elo": 1320,
+            }
+        )
         board = chess.Board(fen)
         return await self._engine.play(
             board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
         )
+
+    async def play_bot_move(self, fen: str, context: OpponentContext) -> chess.engine.PlayResult:
+        await self.ensure_started()
+        assert self._engine is not None
+        return await choose_ladder_move(self._engine, chess.Board(fen), context, self.game_token)
 
     async def analyze_position(
         self,
@@ -105,6 +119,14 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
+        await engine.configure(
+            {
+                "Threads": self.config.threads,
+                "Skill Level": 20,
+                "UCI_LimitStrength": False,
+                "UCI_Elo": 1320,
+            }
+        )
         board = chess.Board(fen)
         limit = chess.engine.Limit(
             nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
@@ -251,6 +273,12 @@ class EnginePoolManager:
     ) -> chess.engine.PlayResult:
         async with self.interactive_pool.acquire() as adapter:
             return await adapter.play_move(fen, skill_level, limit)
+
+    async def play_bot_interactive(
+        self, fen: str, context: OpponentContext
+    ) -> chess.engine.PlayResult:
+        async with self.interactive_pool.acquire() as adapter:
+            return await adapter.play_bot_move(fen, context)
 
     async def analyze_batch(
         self,

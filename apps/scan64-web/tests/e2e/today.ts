@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 
 export async function mockTodayReports(page: Page): Promise<void> {
+  await page.route('**/v1/bots', route => route.fulfill({ json: [
+    { level: 1, name: 'Beginner fixture', description: 'A friendly opponent' },
+  ] }));
   await page.route('**/v1/players/*/games*', route => route.fulfill({ json: { items: [], next_cursor: null } }));
   await page.route('**/v1/reports/weekly?*', route => route.fulfill({ json: {
     player_id: 'player-1', games_played: 0, active_concepts_observed: 0,

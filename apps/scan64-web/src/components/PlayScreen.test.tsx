@@ -107,6 +107,8 @@ vi.mock('../api/client', () => ({
     }
   },
   ApiClient: {
+    getBots: vi.fn().mockResolvedValue([{ level: 1, name: 'Server beginner', description: 'Friendly bot' }]),
+    takebackPlaySession: vi.fn(),
     createPlayer: vi.fn(),
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
@@ -124,6 +126,10 @@ vi.mock('../api/client', () => ({
 describe('PlayScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(ApiClient.getBots).mockResolvedValue([
+      { level: 1, name: 'Server beginner', description: 'Friendly bot' },
+      { level: 8, name: 'Server expert', description: 'Expert bot' },
+    ]);
     localStorage.clear();
     chessgroundMock.after = undefined;
     chessgroundMock.color = undefined;
@@ -241,8 +247,9 @@ describe('PlayScreen', () => {
       expect(ApiClient.createPlayer).toHaveBeenCalledWith({ id: 'test-player', display_name: 'Anonymous' });
       expect(ApiClient.createPlaySession).toHaveBeenCalledWith({
         player_id: 'test-player',
-        opponent_config: { strength: '0' },
+        opponent_config: { provider: 'stockfish', bot_level: '1' },
         coach_mode: false,
+        player_color: 'white',
       });
       expect(screen.getByTestId('session-info').textContent).toContain('Status: active');
       expect(chessgroundMock.set).toHaveBeenCalledWith(
@@ -841,7 +848,7 @@ describe('PlayScreen', () => {
 
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith(
       expect.objectContaining({
-        opponent_config: { strength: '0' },
+        opponent_config: { provider: 'stockfish', bot_level: '1' },
         coach_mode: true,
       }),
     );
@@ -961,4 +968,125 @@ describe('PlayScreen', () => {
       expect(screen.getByText('Network Error')).toBeTruthy();
     });
   });
+  it('uses server bot names and sends selected level and color, applying Black opening move', async () => {
+    vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'black-start', player_id: 'test-player',
+      opponent_config: { player_color: 'black' }, player_color: 'black', opponent_move: 'e2e4',
+      status: 'active', coach_mode: false });
+    render(<PlayScreen />);
+    await screen.findByRole('option', { name: '8. Server expert' });
+    fireEvent.change(screen.getByTestId('bot-level-select'), { target: { value: '8' } });
+    fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'black' } });
+    fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
+    fireEvent.click(screen.getByTestId('start-btn'));
+    await screen.findByTestId('session-info');
+    expect(ApiClient.createPlaySession).toHaveBeenCalledWith({ player_id: 'test-player',
+      opponent_config: { provider: 'stockfish', bot_level: '8' }, player_color: 'black', coach_mode: false });
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: expect.stringContaining('4P3'), movable: expect.objectContaining({ color: 'black' }) }));
+    expect(screen.getByTestId('takeback-btn')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
+  });
+
+  it('offers random color without guessing the server chosen color', async () => {
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'random-start', player_id: 'test-player',
+      opponent_config: {}, player_color: 'black', opponent_move: 'd2d4', status: 'active', coach_mode: false });
+    render(<PlayScreen />);
+    fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
+    fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'random' } });
+    fireEvent.click(screen.getByTestId('start-btn'));
+    await screen.findByTestId('session-info');
+    expect(ApiClient.createPlaySession).toHaveBeenCalledWith(expect.objectContaining({ player_color: 'random' }));
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black' }));
+  });
+
+  it('reloads persisted Black orientation and permits only human moves and resignation', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'reload-black');
+    const session: PlaySessionRead = { id: 'reload-black', player_id: 'test-player', game_id: 'black-game',
+      opponent_config: { player_color: 'black' }, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(session);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'black-game', pgn: '1. e4', white: 'bot', black: 'human', result: '*' });
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'g1f3', status: 'active' });
+    vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
+    render(<PlayScreen />);
+    await screen.findByTestId('session-info');
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      movable: expect.objectContaining({ color: 'black' }) }));
+    await act(async () => { await getRegisteredMoveHandler()('e7', 'e5'); });
+    await waitFor(() => expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('reload-black', { move: 'e7e5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    await screen.findByTestId('game-result');
+    expect(ApiClient.resignPlaySession).toHaveBeenCalledWith('reload-black');
+  });
+
+  it('locks an explicit Black session when the authoritative board is on the bot turn', async () => {
+    render(<PlayScreen initialSession={{ id: 'black-wait', player_id: 'test-player', opponent_config: {},
+      player_color: 'black', status: 'active', coach_mode: false }} />);
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      movable: expect.objectContaining({ color: undefined }) }));
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
+  });
+
+  it('takes back a pair and reloads the authoritative game', async () => {
+    const session: PlaySessionRead = { id: 'undo', player_id: 'test-player', game_id: 'undo-game',
+      player_color: 'white', opponent_config: {}, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
+    vi.mocked(ApiClient.takebackPlaySession).mockResolvedValue(session);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'undo-game', pgn: '', white: 'human', black: 'bot', result: '*' });
+    render(<PlayScreen initialSession={session} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('takeback-btn'));
+    await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledWith('undo-game'));
+    await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeDisabled());
+    expect(ApiClient.takebackPlaySession).toHaveBeenCalledWith('undo');
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      fen: expect.stringContaining('PPPPPPPP/RNBQKBNR w'), orientation: 'white' }));
+  });
+
+  it('refuses takeback when an offline move is queued, in both UI and handler', async () => {
+    const session: PlaySessionRead = { id: 'queued-undo', player_id: 'test-player', game_id: 'queued-game',
+      opponent_config: {}, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
+    render(<PlayScreen initialSession={session} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeEnabled());
+    vi.mocked(getQueuedMoves).mockResolvedValue([{ sessionId: session.id, move: 'g1f3', timestamp: 1 }]);
+    fireEvent.click(screen.getByTestId('takeback-btn'));
+    expect(await screen.findByText('Synchronize queued moves before taking back.')).toBeInTheDocument();
+    expect(ApiClient.takebackPlaySession).not.toHaveBeenCalled();
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new Error('offline'));
+    await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
+    await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeDisabled());
+    fireEvent.click(screen.getByTestId('takeback-btn'));
+    expect(ApiClient.takebackPlaySession).not.toHaveBeenCalled();
+    offline.mockRestore();
+  });
+
+  it('does not offer takeback in coach mode', () => {
+    render(<PlayScreen initialSession={{ id: 'coach-undo', player_id: 'test-player', opponent_config: {},
+      status: 'active', coach_mode: true }} />);
+    expect(screen.queryByTestId('takeback-btn')).not.toBeInTheDocument();
+  });
+
+  it('disables takeback after a live offline move is queued', async () => {
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({ opponent_move: 'e7e5', status: 'active' });
+    render(<PlayScreen initialSession={{ id: 'live-offline', player_id: 'test-player',
+      opponent_config: {}, status: 'active', coach_mode: false }} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeEnabled());
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(queueMove).mockResolvedValue();
+    await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
+    await waitFor(() => expect(queueMove).toHaveBeenCalledWith('live-offline', 'g1f3'));
+    expect(screen.getByTestId('takeback-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('takeback-btn'));
+    expect(ApiClient.takebackPlaySession).not.toHaveBeenCalled();
+    offline.mockRestore();
+  });
+
 });

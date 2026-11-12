@@ -10,9 +10,9 @@ import {
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient, ApiRequestError, getStoredPlayerId, setActivePlayerId } from '../api/client';
-import { DEFAULT_STOCKFISH_SKILL_LEVEL } from '../api/opponent';
+import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
-import type { CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
+import type { BotRead, CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { Chess } from 'chess.js';
 
@@ -33,6 +33,17 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const refreshGenerationRef = useRef(0);
   const [playerId, setPlayerId] = useState(() => getStoredPlayerId() ?? '');
   const [coachMode, setCoachMode] = useState(false);
+  const [bots, setBots] = useState<BotRead[]>([]);
+  const [botLevel, setBotLevel] = useState(DEFAULT_BOT_LEVEL);
+  const [playerColor, setPlayerColor] = useState<'white' | 'black' | 'random'>('white');
+  const [takingBack, setTakingBack] = useState(false);
+  const takebackPendingRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void ApiClient.getBots().then(result => { if (!cancelled) setBots(result); })
+      .catch(caught => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unable to load bots'); });
+    return () => { cancelled = true; };
+  }, []);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
   const [criticalInterruption, setCriticalInterruption] =
     useState<CriticalInterruptionRead | null>(null);
@@ -45,7 +56,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   );
   const currentSessionId = session?.id;
   const currentSessionStatus = session?.status;
-  const chessRef = useRef(new Chess(initialFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'));
+  const [initialChess] = useState(() => {
+    const chess = new Chess(initialFen);
+    if (initialSession?.opponent_move) {
+      const move = initialSession.opponent_move;
+      chess.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+    }
+    return chess;
+  });
+  const chessRef = useRef(initialChess);
   const [boardPosition, setBoardPosition] = useState(() => ({
     fen: chessRef.current.fen(), pgn: chessRef.current.pgn(),
   }));
@@ -71,7 +90,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       
       const newSession = await ApiClient.createPlaySession({
         player_id: pid,
-        opponent_config: { strength: DEFAULT_STOCKFISH_SKILL_LEVEL },
+        opponent_config: { provider: 'stockfish', bot_level: botLevel },
+        player_color: playerColor,
         coach_mode: coachMode,
       });
       sessionRef.current = newSession;
@@ -79,6 +99,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setCriticalInterruption(null);
       setSession(newSession);
       chessRef.current.reset();
+      if (newSession.opponent_move) {
+        const move = newSession.opponent_move;
+        chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+      }
       updateBoard();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -223,7 +247,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   const handleMove = useCallback(async (lan: string) => {
     const activeSession = sessionRef.current;
-    if (!activeSession || activeSession.status !== 'active' ||
+    const color = sessionPlayerColor(activeSession);
+    if (!activeSession || activeSession.status !== 'active' || takebackPendingRef.current ||
+      (color !== undefined && chessRef.current.turn() !== (color === 'white' ? 'w' : 'b')) ||
       criticalInterruptionRef.current !== null ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
     let moveApplied = false;
@@ -253,9 +279,51 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     }
   }, [applyMoveResponse, updateBoard]);
 
+  const takeback = async () => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || activeSession.status !== 'active' || activeSession.coach_mode ||
+      movePending || resigning || takebackPendingRef.current || !navigator.onLine ||
+      queuedMoveNeedsRefreshRef.current.has(activeSession.id) ||
+      chessRef.current.history().length < 2) return;
+    takebackPendingRef.current = true;
+    setTakingBack(true);
+    let needsAuthoritativeRefresh = false;
+    try {
+      const queued = await getQueuedMoves();
+      if (queued.some(move => move.sessionId === activeSession.id)) {
+        queuedMoveNeedsRefreshRef.current.add(activeSession.id);
+        setError('Synchronize queued moves before taking back.');
+        return;
+      }
+      if (!navigator.onLine || sessionRef.current?.id !== activeSession.id ||
+        queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
+      const restoredSession = await ApiClient.takebackPlaySession(activeSession.id);
+      needsAuthoritativeRefresh = true;
+      if (!restoredSession.game_id) throw new Error('Takeback response is missing the game record.');
+      const game = await ApiClient.getGame(restoredSession.game_id);
+      if (sessionRef.current?.id !== activeSession.id) return;
+      const restoredChess = new Chess();
+      restoredChess.loadPgn(game.pgn);
+      chessRef.current = restoredChess;
+      sessionRef.current = restoredSession;
+      setSession(restoredSession);
+      updateBoard();
+      setError(null);
+    } catch (caught) {
+      if (needsAuthoritativeRefresh && sessionRef.current?.id === activeSession.id) {
+        queuedMoveNeedsRefreshRef.current.add(activeSession.id);
+        setRefreshSessionId(activeSession.id);
+      }
+      setError(caught instanceof Error ? caught.message : 'Could not take back.');
+    } finally {
+      takebackPendingRef.current = false;
+      setTakingBack(false);
+    }
+  };
+
   const resign = async () => {
     const activeSession = sessionRef.current;
-    if (!activeSession || activeSession.status !== 'active' || movePending || resigning ||
+    if (!activeSession || activeSession.status !== 'active' || movePending || resigning || takebackPendingRef.current ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
     setResigning(true);
     try {
@@ -452,6 +520,18 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             />
             Coach Mode
           </label>
+          <label>Bot level
+            <select data-testid="bot-level-select" value={botLevel} onChange={event => setBotLevel(event.target.value)}>
+              {bots.map(bot => <option key={bot.level} value={String(bot.level)}>{bot.level}. {bot.name}</option>)}
+            </select>
+          </label>
+          {bots.find(bot => String(bot.level) === botLevel)?.description}
+          <label>Play as
+            <select data-testid="player-color-select" value={playerColor}
+              onChange={event => setPlayerColor(event.target.value as 'white' | 'black' | 'random')}>
+              <option value="white">White</option><option value="black">Black</option><option value="random">Random</option>
+            </select>
+          </label>
           <button onClick={startGame} data-testid="start-btn">Start Game</button>
         </div>
       )}
@@ -477,15 +557,24 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       <CoachBoard
         {...boardPosition}
         testId="chessground-board"
-        disabled={!session || session.status !== 'active' || movePending || resigning ||
+        orientation={sessionPlayerColor(session) ?? 'white'}
+        disabled={!session || session.status !== 'active' || movePending || resigning || takingBack ||
+          (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
+            (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
           criticalInterruption !== null || queuedMoveNeedsRefreshRef.current.has(session.id)}
         onMove={handleMove}
       />
       {session?.status === 'active' && <button type="button" onClick={() => void resign()}
-        disabled={movePending || resigning || queuedMoveNeedsRefreshRef.current.has(session.id)}>
+        disabled={movePending || resigning || takingBack || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {resigning ? 'Resigning…' : 'Resign'}
       </button>}
-      {session && session.status !== 'active' && <div role="status" data-testid="game-result">
+      {session?.status === 'active' && !session.coach_mode && <button type="button"
+        data-testid="takeback-btn" onClick={() => void takeback()}
+        disabled={movePending || resigning || takingBack || !navigator.onLine ||
+          chessRef.current.history().length < 2 || queuedMoveNeedsRefreshRef.current.has(session.id)}>
+        {takingBack ? 'Taking back…' : 'Take back'}
+      </button>}
+      {session && session.status !== 'active'  && <div role="status" data-testid="game-result">
         {resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
           ? `Checkmate. ${chessRef.current.turn() === 'w' ? 'Black' : 'White'} wins.`
           : chessRef.current.isStalemate() ? 'Draw by stalemate.'

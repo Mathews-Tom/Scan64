@@ -142,7 +142,7 @@ def test_create_and_get_play_session_api(client: TestClient, session: Session):
     headers = _register(session, "player_123")
     req_body = {
         "player_id": "player_123",
-        "opponent_config": {"strength": "10"},
+        "opponent_config": {"bot_level": "1"},
         "clock_config": {"time_remaining_ms": "60000"},
     }
     create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
@@ -164,7 +164,7 @@ def test_play_session_hides_non_owned_reads_and_writes(
     bob_headers = _register(session, "bob")
     created = client.post(
         "/v1/play-sessions",
-        json={"player_id": "alice", "opponent_config": {"strength": "10"}},
+        json={"player_id": "alice", "opponent_config": {"bot_level": "1"}},
         headers=alice_headers,
     )
     session_id = created.json()["id"]
@@ -189,7 +189,7 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
         "/v1/play-sessions",
         json={
             "player_id": "player_123",
-            "opponent_config": {"strength": "10"},
+            "opponent_config": {"bot_level": "1"},
             "initial_fen": initial_fen,
         },
         headers=headers,
@@ -203,7 +203,8 @@ def test_create_play_session_persists_initial_fen(client: TestClient, session: S
     assert game.owner_color == "black"
     assert game.headers == {"FEN": initial_fen}
     assert game.owner_player_id == "player_123"
-    assert (game.white, game.black) == ("Stockfish (skill level 10)", "player_123")
+    assert game.black == "player_123"
+    assert game.white.startswith("Stockfish (level 1:")
 
 
 def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> None:
@@ -211,7 +212,7 @@ def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> 
         "/v1/play-sessions",
         json={
             "player_id": "player_123",
-            "opponent_config": {"strength": "10"},
+            "opponent_config": {"bot_level": "1"},
             "initial_fen": "not a FEN",
         },
     )
@@ -221,7 +222,7 @@ def test_create_play_session_rejects_invalid_initial_fen(client: TestClient) -> 
 
 def test_play_session_moves_api(client: TestClient, session: Session):
     headers = _register(session, "player_123")
-    req_body = {"player_id": "player_123", "opponent_config": {"strength": "10"}}
+    req_body = {"player_id": "player_123", "opponent_config": {"bot_level": "1"}}
     create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
     session_id = create_resp.json()["id"]
 
@@ -241,7 +242,8 @@ def test_play_session_moves_api(client: TestClient, session: Session):
     assert game.owner_player_id == "player_123"
     assert move_data["status"] == "active"
     assert game.owner_color == "white"
-    assert (game.white, game.black) == ("player_123", "Stockfish (skill level 10)")
+    assert game.white == "player_123"
+    assert game.black.startswith("Stockfish (level 1:")
 
     retry_resp = client.post(
         f"/v1/play-sessions/{session_id}/moves", json=move_req, headers=move_headers
@@ -328,7 +330,7 @@ def test_play_session_cannot_attach_to_an_ownerless_game(
 
 
 @pytest.mark.parametrize("owner_color", ["black", None])
-def test_attaching_play_session_preserves_declared_or_legacy_owner_color(
+def test_attaching_play_session_records_chosen_owner_color(
     client: TestClient, session: Session, owner_color: str | None
 ) -> None:
     headers = _register(session, "existing-game-owner")
@@ -340,10 +342,10 @@ def test_attaching_play_session_preserves_declared_or_legacy_owner_color(
         json={
             "player_id": "existing-game-owner",
             "game_id": str(game.id),
-            "opponent_config": {"strength": "10"},
+            "opponent_config": {"bot_level": "1"},
         },
         headers=headers,
     )
     assert response.status_code == 200, response.text
     session.refresh(game)
-    assert game.owner_color == owner_color
+    assert game.owner_color == "white"

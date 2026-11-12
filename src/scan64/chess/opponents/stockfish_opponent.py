@@ -6,12 +6,12 @@ import chess.engine
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext, OpponentPolicy
 from scan64.chess.positions.models import Position
 from scan64.providers.stockfish.adapter import StockfishConfig
-from scan64.providers.stockfish.pool import EnginePoolManager
+from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
 
 
 def _limit_for(context: OpponentContext) -> chess.engine.Limit:
-    # Stockfish Skill Level works better with depth limits too, but time is fine.
-    # We'll use a fast limit so tests don't take forever.
+    if context.nodes is not None:
+        return chess.engine.Limit(nodes=context.nodes)
     if context.time_remaining_ms:
         return chess.engine.Limit(time=context.time_remaining_ms / 1000.0)
     return chess.engine.Limit(time=0.1)
@@ -46,11 +46,9 @@ class StockfishOpponentProvider(OpponentPolicy):
         """
         Choose a move for the given position using Stockfish.
 
-        The context.strength_setting maps to Stockfish's Skill Level (0-20).
-        This provides an approximate Elo range of 1320 - 3190.
-        Note: The playstyle at reduced strength is NOT human-like. It relies on
-        occasional blunders interspersed with strong moves, and is only meant
-        for configurable conventional engine play prior to Maia integration (M21).
+        New sessions use the session-seeded, node-limited bot ladder. Stored
+        sessions without ``bot_level`` retain their legacy Skill Level path,
+        including clamping old stored strengths to the engine's 0–20 range.
 
         When ``pool_manager`` is set, moves are served from the interactive
         engine pool so live play is never queued behind batch analysis and no
@@ -59,6 +57,18 @@ class StockfishOpponentProvider(OpponentPolicy):
         torn down for this call only.
         """
         board = chess.Board(position.fen)
+        if context.bot_level is not None:
+            start_time = time.monotonic()
+            if self.pool_manager is not None:
+                result = await self.pool_manager.play_bot_interactive(position.fen, context)
+            else:
+                adapter = PooledStockfishAdapter(self.config)
+                try:
+                    await adapter.reset()
+                    result = await adapter.play_bot_move(position.fen, context)
+                finally:
+                    await adapter.quit()
+            return _decision_from(result, board, int((time.monotonic() - start_time) * 1000))
         skill_level = max(0, min(20, context.strength_setting))
         limit = _limit_for(context)
 
@@ -75,6 +85,8 @@ class StockfishOpponentProvider(OpponentPolicy):
                     "Threads": self.config.threads,
                     "Hash": self.config.hash_size,
                     "Skill Level": skill_level,
+                    "UCI_LimitStrength": False,
+                    "UCI_Elo": 1320,
                 }
             )
 
