@@ -45,7 +45,7 @@ afterEach(() => {
 describe('ProfileScreen recurring diagnoses', () => {
   it('refreshes the separate strength report after changing the declaration', async () => {
     renderProfile({
-      player_id: 'profile-player', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [],
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0, status: 'insufficient_data', recurring_diagnoses: [],
     });
     expect(await screen.findByText('Declared level: Developing.')).toBeInTheDocument();
     expect(screen.getByText(/Scan64 puzzle rating: 1216 \(provisional\)/)).toBeInTheDocument();
