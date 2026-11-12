@@ -319,7 +319,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       updateBoard();
       setError(null);
     } catch (caught) {
-      if (needsAuthoritativeRefresh && sessionRef.current?.id === activeSession.id) {
+      const definiteRejection = caught instanceof ApiRequestError && caught.status >= 400 && caught.status < 500;
+      if ((needsAuthoritativeRefresh || !definiteRejection) && sessionRef.current?.id === activeSession.id) {
         queuedMoveNeedsRefreshRef.current.add(activeSession.id);
         setRefreshSessionId(activeSession.id);
       }

@@ -14,7 +14,7 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 
 1. Open **Play**.
 2. Keep the player ID filled from your stored identity; no new name or ID is required.
-3. Choose a named **Bot level** and **Your colour** (White, Black or Random). As Black, the opponent makes the opening move before you play.
+3. Choose a named **Bot level** and **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
 4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and move by drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
 6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.

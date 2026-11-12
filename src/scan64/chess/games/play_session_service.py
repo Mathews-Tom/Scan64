@@ -5,7 +5,8 @@ from uuid import UUID
 
 import chess
 from sqlalchemy import update
-from sqlmodel import Session, col
+from sqlalchemy.orm.attributes import set_committed_value
+from sqlmodel import Session, col, select
 
 from scan64.chess.analysis.coach_interruption import CoachInterruption, prepare_coach_interruption
 from scan64.chess.analysis.models import AnalysisJob
@@ -113,7 +114,11 @@ class PlaySessionService:
         context = OpponentContext(
             strength_setting=strength,
             time_remaining_ms=int(time_limit) if time_limit else None,
-            bot_level=int(config["bot_level"]) if "bot_level" in config else None,
+            bot_level=(
+                int(config["bot_level"])
+                if config.get("provider", "stockfish") == "stockfish" and "bot_level" in config
+                else None
+            ),
             seed=int(config.get("seed", "0")),
             ply=len(game.moves),
         )
@@ -131,6 +136,32 @@ class PlaySessionService:
         game.moves = [*game.moves, decision.uci_move]
         return decision.uci_move
 
+    def persist_moves(
+        self, play_session: PlaySession, game: Game, moves_before: list[str]
+    ) -> None:
+        """Publish a move edit only while its active-session snapshot still matches."""
+        pgn = build_pgn(game)
+        with self.db.no_autoflush:
+            changed = self.db.exec(
+                update(Game)
+                .where(col(Game.id) == game.id)
+                .where(col(Game.moves) == moves_before)
+                .where(
+                    col(Game.id).in_(
+                        select(PlaySession.game_id)
+                        .where(col(PlaySession.id) == play_session.id)
+                        .where(col(PlaySession.status) == "active")
+                    )
+                )
+                .values(moves=game.moves, pgn=pgn)
+                .execution_options(synchronize_session=False)
+            )
+        if changed.rowcount == 0:
+            self.db.rollback()
+            raise PlaySessionNotActive("PlaySession changed while editing moves")
+        set_committed_value(game, "moves", game.moves)
+        set_committed_value(game, "pgn", pgn)
+
     def takeback(self, session_id: UUID) -> PlaySession:
         play_session = self.db.get(PlaySession, session_id)
         if play_session is None:
@@ -144,9 +175,9 @@ class PlaySessionService:
         if game is None or len(game.moves) - initial_ply < 2:
             raise TakebackNotAllowed("No human move pair to take back")
         # Keep the opening bot move (and any imported history) intact.
-        game.moves = game.moves[:-2]
-        game.pgn = build_pgn(game)
-        self.db.add(game)
+        moves_before = list(game.moves)
+        game.moves = moves_before[:-2]
+        self.persist_moves(play_session, game, moves_before)
         self.db.commit()
         return play_session
 
@@ -264,16 +295,17 @@ class PlaySessionService:
         prepared_interruption = None
         if play_session.coach_mode and not player_position.is_game_over():
             try:
-                prepared_interruption = await prepare_coach_interruption(
-                    session=self.db,
-                    game=fetched,
-                    player_id=play_session.player_id,
-                    before_board=before_board,
-                    after_board=player_position,
-                    played_move=before_board.san(move),
-                    history_san=uci_moves_to_san([*moves_before, player_move], initial_fen),
-                    pool_manager=self.engine_pool_manager,
-                )
+                with self.db.no_autoflush:
+                    prepared_interruption = await prepare_coach_interruption(
+                        session=self.db,
+                        game=fetched,
+                        player_id=play_session.player_id,
+                        before_board=before_board,
+                        after_board=player_position,
+                        played_move=before_board.san(move),
+                        history_san=uci_moves_to_san([*moves_before, player_move], initial_fen),
+                        pool_manager=self.engine_pool_manager,
+                    )
             except Exception:
                 logger.exception(
                     "Coach diagnostic failed for play_session_id=%s move=%s; "
@@ -283,6 +315,7 @@ class PlaySessionService:
                 )
 
         if board.is_game_over():
+            self.persist_moves(play_session, fetched, moves_before)
             if prepared_interruption is not None:
                 prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
@@ -298,6 +331,7 @@ class PlaySessionService:
         opponent_move = await self.play_opponent_move(play_session, fetched, board)
 
         if board.is_game_over():
+            self.persist_moves(play_session, fetched, moves_before)
             if prepared_interruption is not None:
                 prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
@@ -310,8 +344,7 @@ class PlaySessionService:
                 ),
             )
 
-        fetched.pgn = build_pgn(fetched)
-        self.db.add(fetched)
+        self.persist_moves(play_session, fetched, moves_before)
         self.db.add(play_session)
         if prepared_interruption is not None:
             prepared_interruption.add_to(self.db)

@@ -344,3 +344,79 @@ def test_black_coach_diagnostic_uses_the_human_move_not_the_bot_opening(
     assert arguments["played_move"] == "e5"
     assert arguments["history_san"] == ["e4", "e5"]
     assert arguments["game"].owner_color == "black"
+
+
+def test_takeback_conflicts_when_resign_commits_after_read(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import scan64.persistence.database as db_module
+    from scan64.chess.games import play_session_service as service_module
+
+    authorize(client, db_session)
+    opponent = AsyncMock()
+    opponent.choose_move.return_value = MoveDecision(uci_move="e7e5")
+    app.dependency_overrides[get_opponent_provider] = lambda: opponent
+    created = client.post("/v1/play-sessions", json={"player_id": "skill-player"}).json()
+    session_id = created["id"]
+    assert client.post(
+        f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}
+    ).status_code == 200
+    original_build = service_module.build_pgn
+    injected = False
+
+    def resign_before_write(game: Game) -> str:
+        nonlocal injected
+        if not injected:
+            injected = True
+            with Session(db_module.engine) as concurrent:
+                PlaySessionService(concurrent, opponent).resign(UUID(session_id))
+        return original_build(game)
+
+    monkeypatch.setattr(service_module, "build_pgn", resign_before_write)
+    response = client.post(f"/v1/play-sessions/{session_id}/takeback")
+    assert injected
+    assert response.status_code == 409, response.text
+    db_session.expire_all()
+    play = db_session.get(PlaySession, UUID(session_id))
+    assert play is not None and play.status == "completed"
+    game = db_session.get(Game, play.game_id)
+    assert game is not None
+    assert game.moves == ["e2e4", "e7e5"]
+    assert game.result == "0-1"
+    assert "1. e4 e5" in game.pgn
+    assert '[Result "0-1"]' in game.pgn
+
+
+def test_move_conflicts_when_takeback_commits_during_engine_wait(
+    client: TestClient, db_session: Session
+) -> None:
+    import scan64.persistence.database as db_module
+
+    authorize(client, db_session)
+    opponent = AsyncMock()
+    opponent.choose_move.return_value = MoveDecision(uci_move="e7e5")
+    app.dependency_overrides[get_opponent_provider] = lambda: opponent
+    session_id = client.post(
+        "/v1/play-sessions", json={"player_id": "skill-player"}
+    ).json()["id"]
+    assert client.post(
+        f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}
+    ).status_code == 200
+
+    async def takeback_before_reply(*args: object) -> MoveDecision:
+        with Session(db_module.engine) as concurrent:
+            PlaySessionService(concurrent, opponent).takeback(UUID(session_id))
+        return MoveDecision(uci_move="b8c6")
+
+    opponent.choose_move.side_effect = takeback_before_reply
+    response = client.post(
+        f"/v1/play-sessions/{session_id}/moves", json={"move": "g1f3"}
+    )
+    assert response.status_code == 409, response.text
+    db_session.expire_all()
+    play = db_session.get(PlaySession, UUID(session_id))
+    assert play is not None and play.status == "active"
+    game = db_session.get(Game, play.game_id)
+    assert game is not None
+    assert game.moves == []
+    assert "Nf3" not in game.pgn
