@@ -30,13 +30,16 @@ async def test_recorded_multipv_accepts_two_sound_moves_and_rejects_played_move(
             multipv: int = 1,
         ) -> EngineAnalysis:
             calls.append((fen, multipv))
-            return EngineAnalysis(position_id=uuid4(), raw_result=recorded["raw_result"][:multipv])
+            return EngineAnalysis(
+                position_id=uuid4(),
+                raw_result=recorded["searches"][str(multipv)]["raw_result"],
+            )
 
     analysis = await analyze_lesson_source(RecordedAdapter(), recorded["fen"])
     assert calls == [(recorded["fen"], 2), (recorded["fen"], 4)]
     board = chess.Board(recorded["fen"])
     accepted = [board.san(move) for move in sound_moves(board, analysis)]
-    assert accepted == ["e4", "d4"]
+    assert accepted == ["Na5", "O-O-O"]
     lesson = await generate_exact_replay_exercise(
         Diagnosis(primary="tactics.fork", confidence=1.0),
         recorded["fen"],
@@ -44,7 +47,7 @@ async def test_recorded_multipv_accepts_two_sound_moves_and_rejects_played_move(
         accepted,
     )
     verify_lesson(lesson, analysis)
-    assert [move.san for move in lesson.interaction.accepted_moves] == ["e4", "d4"]
+    assert [move.san for move in lesson.interaction.accepted_moves] == ["Na5", "O-O-O"]
     lesson.interaction.accepted_moves.append(AcceptedMove(san=recorded["played_move"]))
     with pytest.raises(LessonVerificationError, match="engine-confirmed sound"):
         verify_lesson(lesson, analysis)

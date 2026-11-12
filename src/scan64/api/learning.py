@@ -29,6 +29,7 @@ from scan64.learning.evaluation.transfer_measurement import (
     record_training_completion,
     record_transfer_measurement,
 )
+from scan64.learning.exercises.sound_moves import analyze_lesson_source
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
@@ -115,7 +116,7 @@ def _objective_analysis_for_lesson(
         raise ObjectiveAnalysisUnavailable("Objective engine analysis is deferred")
     try:
         analysis = asyncio.run(
-            StockfishAdapter(StockfishConfig()).analyze_position(spec.source.fen, nodes=100_000)
+            analyze_lesson_source(StockfishAdapter(StockfishConfig()), spec.source.fen)
         )
     except (OSError, chess.engine.EngineError) as error:
         raise ObjectiveAnalysisUnavailable("Objective engine analysis is unavailable") from error
@@ -324,9 +325,7 @@ def record_lesson_attempt(
                 status_code=409,
                 detail="Transfer measurement cannot produce a lesson",
             )
-        success = _submitted_move_is_accepted(
-            transfer_spec, attempt_in.submitted_move
-        )
+        success = _submitted_move_is_accepted(transfer_spec, attempt_in.submitted_move)
         completed_at = datetime.now(UTC)
         try:
             completed_measurement = record_transfer_measurement(
@@ -386,15 +385,11 @@ def record_lesson_attempt(
     if opportunity.verification_status == "verified":
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
     else:
-        reverified_spec, _ = _reverify_persisted_lesson(
-            opportunity, db, allow_fallback=True
-        )
+        reverified_spec, _ = _reverify_persisted_lesson(opportunity, db, allow_fallback=True)
         if reverified_spec is None:
             db.add(opportunity)
             db.commit()
-            raise HTTPException(
-                status_code=409, detail="Persisted lesson is not verified"
-            )
+            raise HTTPException(status_code=409, detail="Persisted lesson is not verified")
         spec = reverified_spec
     if attempt_in.submitted_move is None:
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")

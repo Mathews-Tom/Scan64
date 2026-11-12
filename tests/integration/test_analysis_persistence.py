@@ -33,7 +33,7 @@ HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 0 1"
 def fake_source_engine(monkeypatch: pytest.MonkeyPatch) -> None:
     async def analyze_source(_self: object, fen: str, **limits: object) -> EngineAnalysis:
         board = chess.Board(fen)
-        move = chess.Move.from_uci("e2e4")
+        move = chess.Move.from_uci("d2d4")
         if move not in board.legal_moves:
             move = next(iter(board.legal_moves))
         return EngineAnalysis(
@@ -395,13 +395,52 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
         return EngineAnalysis(
             position_id=uuid4(),
             config=limits,
-            raw_result=recorded["raw_result"][: limits["multipv"]],
+            raw_result=recorded["searches"][str(limits["multipv"])]["raw_result"],
         )
 
-    monkeypatch.setattr(jobs, "FastPassOrchestrator", _CandidateOrchestrator)
-    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    class RecordedFastPass:
+        def __init__(self, *_: object) -> None:
+            pass
+
+        async def run_fast_pass(self, *_: object) -> list[CandidatePosition]:
+            board = chess.Board(recorded["fen"])
+            board.push_san(recorded["played_move"])
+            return [
+                CandidatePosition(
+                    fen=board.fen(),
+                    move_index=0,
+                    swing_cp=300,
+                    before_analysis=EngineAnalysis(
+                        position_id=uuid4(), raw_result=recorded["searches"]["2"]["raw_result"]
+                    ),
+                    after_analysis=EngineAnalysis(
+                        position_id=uuid4(), raw_result=[{"pv": ["f3h5"], "score_cp": 500}]
+                    ),
+                )
+            ]
+
+    class RecordedFocusedPass:
+        def __init__(self, *_: object) -> None:
+            pass
+
+        async def run_focused_pass(
+            self, candidates: list[CandidatePosition]
+        ) -> list[EngineAnalysis]:
+            return [
+                EngineAnalysis(position_id=uuid4(), raw_result=candidate.after_analysis.raw_result)
+                for candidate in candidates
+            ]
+
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", RecordedFastPass)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", RecordedFocusedPass)
     monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
-    game = Game(pgn="", moves=["a2a3"], owner_color="white", owner_player_id="sound-player")
+    game = Game(
+        pgn="",
+        headers={"FEN": recorded["fen"]},
+        moves=["a7b7"],
+        owner_color="black",
+        owner_player_id="sound-player",
+    )
     db_session.add(game)
     db_session.commit()
 
@@ -411,8 +450,8 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
     assert calls == [(recorded["fen"], 2), (recorded["fen"], 4)]
     assert lesson.lesson_spec["source"]["fen"] == recorded["fen"]
     assert [move["san"] for move in lesson.lesson_spec["interaction"]["accepted_moves"]] == [
-        "e4",
-        "d4",
+        "Na5",
+        "O-O-O",
     ]
     assert recorded["played_move"] not in {
         move["san"] for move in lesson.lesson_spec["interaction"]["accepted_moves"]
@@ -420,4 +459,4 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
     verification = db_session.get(EngineAnalysis, lesson.verification_analysis_id)
     assert verification is not None
     assert verification.position_id == lesson.source_position_id
-    assert verification.raw_result == recorded["raw_result"]
+    assert verification.raw_result == recorded["searches"]["4"]["raw_result"]

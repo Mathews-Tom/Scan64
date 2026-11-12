@@ -4,10 +4,12 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import chess
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+import scan64.api.learning as learning_api
 from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
@@ -783,8 +785,9 @@ def test_session_skips_unplayable_legacy_transfer_measurements(
     assert missing_report.status_code == 404
 
 
+@pytest.mark.parametrize("fallback", [False, True])
 def test_non_best_sound_attempt_records_success_and_updates_profile(
-    client: TestClient, db_session: Session
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, fallback: bool
 ) -> None:
     player_id = "sound-alternative-player"
     db_session.add(Player(id=player_id))
@@ -794,16 +797,36 @@ def test_non_best_sound_attempt_records_success_and_updates_profile(
     recorded = json.loads(
         (Path(__file__).parents[1] / "fixtures" / "m47_source_multipv.json").read_text()
     )
-    analysis = EngineAnalysis(
-        position_id=opportunity.source_position_id, raw_result=recorded["raw_result"]
-    )
-    db_session.add(analysis)
-    opportunity.verification_analysis_id = analysis.id
+    source = db_session.get(Position, opportunity.source_position_id)
+    assert source is not None
+    source.fen = recorded["fen"]
+    source.side_to_move = "b"
+    source.canonical_id = chess.Board(recorded["fen"]).epd()
+    db_session.add(source)
+    calls: list[int] = []
+
+    async def source_analysis(_self: object, fen: str, **limits: int) -> EngineAnalysis:
+        assert fen == recorded["fen"]
+        assert limits["nodes"] == 1_000_000
+        calls.append(limits["multipv"])
+        return EngineAnalysis(
+            position_id=source.id,
+            raw_result=recorded["searches"][str(limits["multipv"])]["raw_result"],
+        )
+
+    monkeypatch.setattr(learning_api.StockfishAdapter, "analyze_position", source_analysis)
+    if not fallback:
+        analysis = EngineAnalysis(
+            position_id=source.id, raw_result=recorded["searches"]["4"]["raw_result"]
+        )
+        db_session.add(analysis)
+        opportunity.verification_analysis_id = analysis.id
     spec = dict(opportunity.lesson_spec)
+    spec["source"] = {"kind": "player_game", "fen": recorded["fen"]}
     spec["interaction"] = {
         "input": "move",
         "maximum_attempts": 3,
-        "accepted_moves": [{"san": "e4"}, {"san": "d4"}],
+        "accepted_moves": [{"san": "Na5"}, {"san": "O-O-O"}],
     }
     opportunity.lesson_spec = spec
     db_session.add(opportunity)
@@ -814,14 +837,15 @@ def test_non_best_sound_attempt_records_success_and_updates_profile(
     assert served.status_code == 200
     assert [
         move["san"] for move in served.json()["lessons"][0]["interaction"]["accepted_moves"]
-    ] == ["e4", "d4"]
+    ] == ["Na5", "O-O-O"]
+    assert calls == ([2, 4] if fallback else [])
     response = client.post(
         "/v1/learning/lesson-attempts",
         json={
             "session_id": served.json()["session_id"],
             "lesson_id": str(opportunity.id),
             "source_kind": "persisted_opportunity",
-            "submitted_move": "d2d4",
+            "submitted_move": "e8c8",
             "elapsed_ms": 4200,
             "hints_used": 0,
         },

@@ -23,7 +23,7 @@ class RankedOpportunity(BaseModel):
 
 
 class OpportunityRanker:
-    def __init__(self, epsilon: float = 1e-4, overcoaching_cap: int = 3):
+    def __init__(self, epsilon: float = 1e-4, overcoaching_cap: int | None = 3):
         self.epsilon = epsilon
         self.overcoaching_cap = overcoaching_cap
 
@@ -58,7 +58,7 @@ class OpportunityRanker:
         remaining = list(candidates)
         ranked: list[RankedOpportunity] = []
         chosen_skills: dict[str, int] = {}
-        while remaining and len(ranked) < self.overcoaching_cap:
+        while remaining and (self.overcoaching_cap is None or len(ranked) < self.overcoaching_cap):
             choices = []
             for candidate, factors in remaining:
                 adjusted = factors.model_copy(

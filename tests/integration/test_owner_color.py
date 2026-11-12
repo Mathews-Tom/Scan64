@@ -13,6 +13,7 @@ from sqlmodel import Session, select
 from scan64.chess.analysis import jobs
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import CandidatePosition
+from scan64.chess.games.ingestion import resolve_position
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.learning.evidence.models import Evidence
@@ -220,7 +221,7 @@ async def test_existing_coach_lessons_reserve_slots_without_losing_history(
     board = chess.Board()
     for move in parsed.mainline_moves():
         if board.turn == chess.WHITE and len(existing_ids) < existing_count:
-            position = jobs.resolve_position(db_session, board.fen(), game.id)
+            position = resolve_position(db_session, board.fen(), game.id)
             spec = await generate_exact_replay_exercise(
                 Diagnosis(primary="board_awareness.hanging_piece", confidence=0.9),
                 board.fen(),
