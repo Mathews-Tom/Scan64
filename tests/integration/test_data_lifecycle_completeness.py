@@ -12,7 +12,13 @@ from sqlmodel import Session, SQLModel, col, select
 
 from scan64.api.data_lifecycle import ExportArchive
 from scan64.api.middleware import IdempotencyRecord
-from scan64.api.models import DeletionAudit, Player, PlayerCredential, PlayerProfile
+from scan64.api.models import (
+    DeletionAudit,
+    Player,
+    PlayerCredential,
+    PlayerOnboarding,
+    PlayerProfile,
+)
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -48,6 +54,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
     {
         Player.__tablename__,
         PlayerProfile.__tablename__,
+        PlayerOnboarding.__tablename__,
         PlayerCredential.__tablename__,
         Game.__tablename__,
         PlaySession.__tablename__,
@@ -89,6 +96,7 @@ OPERATIONAL_TABLES = frozenset({IdempotencyRecord.__tablename__})
 ARCHIVE_FIELDS = {
     Player.__tablename__: "player",
     PlayerProfile.__tablename__: "profile",
+    PlayerOnboarding.__tablename__: "onboarding",
     PlaySession.__tablename__: "play_sessions",
     SessionHintReveal.__tablename__: "session_hint_reveals",
     PositiveMoveCredit.__tablename__: "positive_move_credits",
@@ -449,6 +457,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert len(archive["puzzle_daily_slots"]) == 1
     assert len(archive["puzzle_rating_events"]) == 1
     assert len(archive["puzzle_mode_bindings"]) == 1
+    assert archive["onboarding"]["player_id"] == player_id
+    assert archive["onboarding"]["status"] == "pending"
 
     dry_run = client.request(
         "DELETE",
@@ -461,6 +471,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "player": 1,
         "player_credentials": 1,
         "profile": 1,
+        "onboarding": 1,
         "play_sessions": 1,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
@@ -505,6 +516,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "player": db_session.exec(select(Player).where(Player.id == player_id)).all(),
         "profile": db_session.exec(
             select(PlayerProfile).where(PlayerProfile.player_id == player_id)
+        ).all(),
+        "onboarding": db_session.exec(
+            select(PlayerOnboarding).where(PlayerOnboarding.player_id == player_id)
         ).all(),
         "credential": db_session.exec(
             select(PlayerCredential).where(PlayerCredential.player_id == player_id)
@@ -644,6 +658,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert db_session.get(Game, records["game_id"]) is not None
     assert db_session.get(Position, records["position_id"]) is not None
     assert db_session.get(PersistedLessonOpportunity, records["opportunity_id"]) is not None
+    restored_onboarding = db_session.get(PlayerOnboarding, player_id)
+    assert restored_onboarding is not None
+    assert restored_onboarding.model_dump(mode="json") == archive["onboarding"]
     restored_review = db_session.get(GameMoveReview, records["review_move_id"])
     assert restored_review is not None
     assert restored_review.model_dump(mode="json") == archive["review_moves"][0]

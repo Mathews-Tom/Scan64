@@ -148,7 +148,7 @@ function App() {
       screen = <PuzzlesScreen />;
       break;
     case '/profile':
-      screen = <ProfileScreen />;
+      screen = <ProfileScreen onNavigate={navigate} />;
       break;
     case '/coach':
       screen = <CoachDashboardScreen />;

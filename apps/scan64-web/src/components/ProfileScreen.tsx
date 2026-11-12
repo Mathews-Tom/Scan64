@@ -1,17 +1,24 @@
-import { useEffect, useState } from 'react';
-import { ApiClient, getOrCreatePlayerId } from '../api/client';
+import { useCallback, useEffect, useState } from 'react';
+import { ApiClient, getActivePlayerId } from '../api/client';
+import { OnboardingCard } from './OnboardingCard';
+import { StrengthSummary } from './StrengthSummary';
 import type {
   EvidenceReport,
   PatternsReport,
   PlayerProgressReport,
+  StrengthRead,
 } from '../api/types';
 
-export function ProfileScreen() {
+export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
   const [progress, setProgress] = useState<PlayerProgressReport | null>(null);
   const [evidence, setEvidence] = useState<EvidenceReport | null>(null);
   const [patterns, setPatterns] = useState<PatternsReport | null>(null);
+  const [strength, setStrength] = useState<StrengthRead | null>(null);
+  const [strengthError, setStrengthError] = useState<string | null>(null);
+  const [strengthRequest, setStrengthRequest] = useState(0);
+  const refreshStrength = useCallback(() => setStrengthRequest(value => value + 1), []);
   const [error, setError] = useState<string | null>(null);
-  const playerId = getOrCreatePlayerId();
+  const playerId = getActivePlayerId();
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +44,17 @@ export function ProfileScreen() {
     };
   }, [playerId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setStrengthError(null);
+    void ApiClient.getPlayerStrength(playerId).then(result => {
+      if (!cancelled) setStrength(result);
+    }).catch(cause => {
+      if (!cancelled) setStrengthError(cause instanceof Error ? cause.message : 'Strength report unavailable');
+    });
+    return () => { cancelled = true; };
+  }, [playerId, strengthRequest]);
+
   if (error) {
     return <div role="alert" data-testid="profile-error">Profile unavailable: {error}</div>;
   }
@@ -48,10 +66,14 @@ export function ProfileScreen() {
   return (
     <div className="profile-screen" data-testid="profile-screen">
       <h2>Player Profile: {playerId}</h2>
+      <OnboardingCard onNavigate={onNavigate} onChange={refreshStrength} />
+      {strengthError ? <div role="alert"><p>{strengthError}</p><button onClick={refreshStrength}>Retry strength report</button></div>
+        : strength ? <StrengthSummary strength={strength} /> : <p role="status">Loading strength report…</p>}
 
       <section>
         <h3>Strengths & Weaknesses</h3>
         <p>Skills include verified practice and eligible completed-game tactical successes. Review a game to inspect good-move proof and exclusions; “no in-app hint” does not establish absence of external help.</p>
+        <p>New skills begin with a provisional (3, 2) seed, not a measurement of your ability. Observed evidence updates those priors; the internal profile rating is not a playing-strength estimate.</p>
         <ul>
           {progress.skills.map((skill) => (
             <li key={skill.concept}>

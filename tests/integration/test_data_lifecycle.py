@@ -253,6 +253,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "player": 1,
         "player_credentials": 1,
         "profile": 1,
+        "onboarding": 1,
         "play_sessions": 1,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,

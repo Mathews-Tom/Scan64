@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
 import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
 import type { LessonSpec, PlaySessionRead } from '../api/types';
+import { onboardingFixture } from './strength.test-fixtures';
 import {
   getQueuedMoves,
   QUEUED_MOVE_SYNC_SUCCEEDED,
@@ -109,6 +110,8 @@ vi.mock('../api/client', () => ({
   },
   ApiClient: {
     getBots: vi.fn().mockResolvedValue([{ level: 1, name: 'Server beginner', description: 'Friendly bot' }]),
+    getPlayerOnboarding: vi.fn(),
+    setPlayerBotChoice: vi.fn(),
     takebackPlaySession: vi.fn(),
     createPlayer: vi.fn(),
     createGame: vi.fn(),
@@ -127,6 +130,10 @@ vi.mock('../api/client', () => ({
 describe('PlayScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
+    vi.mocked(ApiClient.setPlayerBotChoice).mockImplementation(async (_playerId, botLevel) => ({
+      ...onboardingFixture, manual_bot_level: botLevel, preferred_bot_level: botLevel,
+    }));
     vi.mocked(ApiClient.getBots).mockResolvedValue([
       { level: 1, name: 'Server beginner', description: 'Friendly bot' },
       { level: 8, name: 'Server expert', description: 'Expert bot' },
@@ -139,6 +146,60 @@ describe('PlayScreen', () => {
     chessgroundMock.destroy.mockReset();
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
+  });
+
+  it.each([
+    { manual: 8, suggestion: 2, expected: '8' },
+    { manual: null, suggestion: 8, expected: '8' },
+    { manual: null, suggestion: null, expected: '1' },
+  ])('preselects manual $manual before suggestion $suggestion without persisting effects', async ({ manual, suggestion, expected }) => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue({
+      ...onboardingFixture, manual_bot_level: manual, suggested_bot_level: suggestion,
+    });
+    render(<PlayScreen />);
+    expect(screen.getByTestId('player-id-input')).toHaveAttribute('readonly', '');
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toHaveValue(expected));
+    expect(ApiClient.setPlayerBotChoice).not.toHaveBeenCalled();
+  });
+
+  it('persists only explicit manual changes and retains them after a later suggestion and reload', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const view = render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toBeEnabled());
+    fireEvent.change(screen.getByTestId('bot-level-select'), { target: { value: '8' } });
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toHaveValue('8'));
+    expect(ApiClient.setPlayerBotChoice).toHaveBeenCalledExactlyOnceWith('test-player', 8);
+    view.unmount();
+    vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue({
+      ...onboardingFixture, manual_bot_level: 8, suggested_bot_level: 2,
+    });
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toHaveValue('8'));
+    expect(ApiClient.setPlayerBotChoice).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start with a guessed default when the saved bot choice cannot load', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.getPlayerOnboarding).mockRejectedValueOnce(new Error('Offline'));
+    render(<PlayScreen />);
+    expect(await screen.findByText('Offline')).toBeInTheDocument();
+    expect(screen.getByTestId('start-btn')).toBeDisabled();
+    vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue({ ...onboardingFixture, manual_bot_level: 8 });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry bot choice' }));
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
+    expect(screen.getByTestId('bot-level-select')).toHaveValue('8');
+    expect(ApiClient.createPlaySession).not.toHaveBeenCalled();
+  });
+
+  it('keeps the previous choice after a failed manual write', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.setPlayerBotChoice).mockRejectedValueOnce(new Error('Choice was not saved'));
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toBeEnabled());
+    fireEvent.change(screen.getByTestId('bot-level-select'), { target: { value: '8' } });
+    expect(await screen.findByText('Choice was not saved')).toBeInTheDocument();
+    expect(screen.getByTestId('bot-level-select')).toHaveValue('1');
   });
   it('resigns immediately and links to the completed game review', async () => {
     const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
@@ -242,6 +303,7 @@ describe('PlayScreen', () => {
 
     render(<PlayScreen />);
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
     fireEvent.click(screen.getByTestId('start-btn'));
 
     await waitFor(() => {
@@ -1070,6 +1132,7 @@ describe('PlayScreen', () => {
 
     render(<PlayScreen />);
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
     fireEvent.click(screen.getByTestId('start-btn'));
 
     await waitFor(() => {
@@ -1083,9 +1146,11 @@ describe('PlayScreen', () => {
       status: 'active', coach_mode: false });
     render(<PlayScreen />);
     await screen.findByRole('option', { name: '8. Server expert' });
-    fireEvent.change(screen.getByTestId('bot-level-select'), { target: { value: '8' } });
-    fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'black' } });
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
+    fireEvent.change(screen.getByTestId('bot-level-select'), { target: { value: '8' } });
+    await waitFor(() => expect(screen.getByTestId('bot-level-select')).toHaveValue('8'));
+    fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'black' } });
     fireEvent.click(screen.getByTestId('start-btn'));
     await screen.findByTestId('session-info');
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith({ player_id: 'test-player',
@@ -1102,6 +1167,7 @@ describe('PlayScreen', () => {
     render(<PlayScreen />);
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
     fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'random' } });
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
     fireEvent.click(screen.getByTestId('start-btn'));
     await screen.findByTestId('session-info');
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith(expect.objectContaining({ player_color: 'random' }));

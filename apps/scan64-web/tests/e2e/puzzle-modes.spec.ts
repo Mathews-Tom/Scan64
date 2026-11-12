@@ -58,8 +58,11 @@ test('keyboard chooses modes, finishes before switching, resumes binding and exp
   await expect(page.getByText('Finish or abandon the active puzzle before switching modes.')).toBeVisible();
   await page.getByRole('button', { name: 'Abandon puzzle', exact: true }).focus(); await page.keyboard.press('Enter');
   const streakRadio = page.getByRole('radio', { name: 'Solve streak', exact: true });
+  await expect(streakRadio).toBeEnabled();
   await streakRadio.focus(); await page.keyboard.press('Space');
+  await expect(streakRadio).toBeChecked();
   await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Abandon puzzle', exact: true })).toBeEnabled();
   const move = page.getByRole('textbox', { name: 'Move (UCI or SAN)' });
   await move.focus(); await page.keyboard.type('e5'); await page.keyboard.press('Enter');
   await expect(page.getByText('Current: 1 · Best: 1')).toBeVisible();

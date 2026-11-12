@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ApiClient } from '../api/client';
 import type { PatternsReport } from '../api/types';
 import type * as ClientModule from '../api/client';
 import { ProfileScreen } from './ProfileScreen';
+import { onboardingFixture, strengthFixture } from './strength.test-fixtures';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof ClientModule>();
@@ -12,14 +13,19 @@ vi.mock('../api/client', async (importOriginal) => {
     ApiClient: {
       ...actual.ApiClient,
       getPlayerProgress: vi.fn(),
+      getPlayerOnboarding: vi.fn(),
+      getPlayerStrength: vi.fn(),
+      updatePlayerOnboarding: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
     },
-    getOrCreatePlayerId: () => 'profile-player',
+    getActivePlayerId: () => 'profile-player',
   };
 });
 
 function renderProfile(patterns: PatternsReport): void {
+  vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
+  vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue(strengthFixture);
   vi.spyOn(ApiClient, 'getPlayerProgress').mockResolvedValue({
     player_id: 'profile-player',
     skills: [{ concept: 'board_awareness.hanging_piece', name: 'Hanging piece', mastery: 0.25, uncertainty: 0.5 }],
@@ -37,6 +43,25 @@ afterEach(() => {
 });
 
 describe('ProfileScreen recurring diagnoses', () => {
+  it('refreshes the separate strength report after changing the declaration', async () => {
+    renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, status: 'insufficient_data', recurring_diagnoses: [],
+    });
+    expect(await screen.findByText('Declared level: Developing.')).toBeInTheDocument();
+    expect(screen.getByText(/Scan64 puzzle rating: 1216 \(provisional\)/)).toBeInTheDocument();
+    expect(screen.getByText(/provisional \(3, 2\) seed/)).toBeInTheDocument();
+    vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue({ ...strengthFixture, declared_level: 'beginner', suggested_bot_level: 2 });
+    vi.mocked(ApiClient.updatePlayerOnboarding).mockResolvedValue({
+      ...onboardingFixture, status: 'in_progress', declared_level: 'beginner', suggested_bot_level: 2,
+      intro_started_at: '2026-11-13T10:00:00Z', mapping_version: 'declared-level-v1',
+    });
+    fireEvent.click(await screen.findByRole('radio', { name: 'Beginner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save level and show suggestion' }));
+    expect(await screen.findByText('Declared level: Beginner.')).toBeInTheDocument();
+    expect(ApiClient.getPlayerStrength).toHaveBeenLastCalledWith('profile-player');
+    expect(screen.queryByText('Rating 1500')).not.toBeInTheDocument();
+  });
+
   it('explains when the corpus is too sparse', async () => {
     renderProfile({
       player_id: 'profile-player',

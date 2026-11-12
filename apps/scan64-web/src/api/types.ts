@@ -45,6 +45,54 @@ export type PositionInsight = MoveInsight | {
 /** The server's three-step hint union, shared with position hints. */
 export type InsightStep = PositionInsight;
 
+export type DeclaredLevel = 'beginner' | 'developing' | 'club' | 'advanced' | 'not_sure';
+
+export interface PlayerOnboardingRead {
+  player_id: string;
+  status: 'pending' | 'not_offered' | 'in_progress' | 'skipped' | 'completed';
+  declared_level: DeclaredLevel | null;
+  suggested_bot_level: number | null;
+  mapping_version: 'declared-level-v1' | null;
+  intro_started_at: string | null;
+  skipped_at: string | null;
+  completed_at: string | null;
+  intro_started: number;
+  intro_closed: number;
+  intro_target: number;
+  preferred_bot_level: number;
+  manual_bot_level: number | null;
+}
+
+export interface OnboardingAction {
+  action: 'declare' | 'skip' | 'continue_later';
+  declared_level?: DeclaredLevel;
+}
+
+export interface BotResultsSample {
+  sample_size: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface StrengthRead {
+  declared_level: DeclaredLevel | null;
+  suggested_bot_level: number | null;
+  puzzle_rating: number;
+  puzzle_rated_count: number;
+  puzzle_provisional: boolean;
+  puzzle_events: { sequence: number; before: number; after: number; score: number }[];
+  bot_cohorts: (BotResultsSample & {
+    provider: 'stockfish';
+    bot_level: number;
+    bot_policy_version: string;
+    latest: BotResultsSample;
+    previous: BotResultsSample;
+    trend: 'improving' | 'steady' | 'declining' | 'insufficient_data';
+  })[];
+  disclosure: string;
+}
+
 export interface PuzzleDailyRead {
   utc_day: string;
   rating: number;
@@ -479,6 +527,7 @@ export interface EvidenceReport {
 export interface CoachStudentDashboard {
   student_id: string;
   profile: PlayerProfileRead;
+  strength: StrengthRead;
   patterns: PatternsReport;
   evidence: EvidenceReport;
 }

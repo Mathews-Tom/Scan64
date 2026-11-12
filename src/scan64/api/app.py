@@ -13,11 +13,13 @@ from scan64.api.games import router as games_router
 from scan64.api.insights import router as insights_router
 from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
+from scan64.api.onboarding import router as onboarding_router
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
 from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
 from scan64.api.puzzles import router as puzzles_router
 from scan64.api.reports import router as reports_router
+from scan64.api.strength import router as strength_router
 from scan64.api.web import mount_web_client, web_dist_directory
 from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.recovery import recover_analysis_jobs
@@ -82,6 +84,8 @@ app.include_router(coach_linkage_router)
 app.include_router(coach_router)
 app.include_router(players_router)
 app.include_router(data_lifecycle_router)
+app.include_router(onboarding_router)
+app.include_router(strength_router)
 app.include_router(reports_router)
 
 

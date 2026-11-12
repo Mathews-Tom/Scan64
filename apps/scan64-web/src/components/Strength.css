@@ -1,0 +1,17 @@
+.onboarding-card { margin-block: var(--space-6); min-width: 0; }
+.onboarding-card h2 { font-size: 1.25rem; }
+.onboarding-card fieldset { min-width: 0; margin-block: var(--space-4); padding: var(--space-3); border: 1px solid var(--border); }
+.onboarding-choice { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; }
+.onboarding-choice input { width: auto; flex: 0 0 auto; }
+.strength-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block: var(--space-4); }
+.strength-actions button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.onboarding-card progress { display: block; width: 100%; margin-block: var(--space-2); accent-color: var(--accent); }
+.onboarding-card > a { display: inline-block; margin-top: var(--space-4); }
+.strength-summary { min-width: 0; overflow-wrap: anywhere; }
+.strength-summary section { margin-block: var(--space-6); }
+.strength-summary ol, .bot-cohorts { padding-left: var(--space-6); }
+.bot-cohorts > li { margin-block: var(--space-4); }
+@media (max-width: 600px) {
+  .strength-actions { flex-direction: column; align-items: stretch; }
+  .onboarding-card fieldset { padding: var(--space-2); }
+}

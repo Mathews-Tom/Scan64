@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClient, ApiRequestError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
+import { onboardingFixture, strengthFixture } from '../components/strength.test-fixtures';
 
 describe('ApiClient', () => {
   const mockFetch = vi.fn();
@@ -13,6 +14,39 @@ describe('ApiClient', () => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
     localStorage.clear();
+  });
+
+  it('reads owned onboarding and strength with the stored token', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => onboardingFixture });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => strengthFixture });
+    await expect(ApiClient.getPlayerOnboarding('player-1')).resolves.toEqual(onboardingFixture);
+    await expect(ApiClient.getPlayerStrength('player-1')).resolves.toEqual(strengthFixture);
+    expect(mockFetch).toHaveBeenNthCalledWith(1, '/v1/players/player-1/onboarding', { headers: { Authorization: 'Bearer token-1' } });
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/players/player-1/strength', { headers: { Authorization: 'Bearer token-1' } });
+  });
+
+  it('writes declarations and explicit manual choices only through owned endpoints', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValue({ ok: true, json: async () => onboardingFixture });
+    await ApiClient.updatePlayerOnboarding('player-1', { action: 'declare', declared_level: 'club' });
+    await ApiClient.setPlayerBotChoice('player-1', 8);
+    expect(mockFetch).toHaveBeenNthCalledWith(1, '/v1/players/player-1/onboarding', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
+      body: JSON.stringify({ action: 'declare', declared_level: 'club' }),
+    });
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/players/player-1/bot-choice', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-1' },
+      body: JSON.stringify({ bot_level: 8 }),
+    });
+  });
+
+  it('preserves shared not-found errors for rejected onboarding writes', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' });
+    await expect(ApiClient.updatePlayerOnboarding('player-1', { action: 'skip' })).rejects.toMatchObject({ status: 404 });
+    await expect(ApiClient.setPlayerBotChoice('player-1', 2)).rejects.toMatchObject({ status: 404 });
+    expect(localStorage.getItem('scan64_player_token:player-1')).toBe('token-1');
   });
 
   it('records a famous game attempt with the submitted player authorization', async () => {

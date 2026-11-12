@@ -45,8 +45,7 @@
   text-transform: uppercase;
 }
 
-.coach-dashboard__identity,
-.coach-student__rating {
+.coach-dashboard__identity {
   color: var(--text);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.75rem;
@@ -168,13 +167,11 @@
     flex-direction: column;
   }
 
-  .coach-dashboard__identity,
-  .coach-student__rating {
+  .coach-dashboard__identity {
     white-space: normal;
   }
 }
 
 .coach-dashboard__header h2 { color: var(--text-h); }
-.coach-student__rating { color: #625a50; }
 .coach-dashboard--error h2 { color: #26211c; }
 .coach-student .coach-dashboard__eyebrow, .coach-dashboard--error .coach-dashboard__eyebrow { color: #9b331f; }

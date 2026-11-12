@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { prepareToday } from './today';
+import { strengthFixture } from '../../src/components/strength.test-fixtures';
 
 const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const long = 'LongUnbrokenPlayerAndEvidenceName'.repeat(5);
@@ -43,7 +44,7 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
       await page.route('**/v1/players/*/patterns', route => route.fulfill({ json: patterns }));
       await page.route('**/v1/players/*/profile', route => route.fulfill({ json: { player_id: 'player-1', rating: 1200, display_name: long } }));
       await page.route('**/v1/players/*/games*', route => route.fulfill({ json: { items: [{ id: '00000000-0000-0000-0000-000000000001', white: long, black: long, result: '1-0', date: '2026.11.13', created_at: '2026-11-13T00:00:00Z', diagnosis_count: 2 }], next_cursor: null } }));
-      await page.route('**/v1/coaches/*/dashboard', route => route.fulfill({ json: { coach_id: 'player-1', students: [{ student_id: long, profile: { player_id: long, display_name: long, rating: 1200 }, evidence, patterns }] } }));
+      await page.route('**/v1/coaches/*/dashboard', route => route.fulfill({ json: { coach_id: 'player-1', students: [{ student_id: long, profile: { player_id: long, display_name: long, rating: 1200 }, strength: strengthFixture, evidence, patterns }] } }));
       await page.route('**/v1/learning/session?*', route => route.fulfill({ json: { session_id: 'study-1', lessons: [lesson] } }));
       await page.route('**/v1/learning/lesson-attempts', route => route.fulfill({ json: { id: 'attempt-1', success: true, grading_status: 'verified', profile_update_result: 'applied' } }));
       await page.route('**/v1/content/famous-games', route => route.fulfill({ json: [{ id: 'opera', skill_mapping: {}, payload: { title: 'Opera Game', historical_context: long, strategic_context: long, moves: ['e4'], decisions: [{ id: 'opening', ply: 0, fen, prompt: long, played_move: 'e4', accepted_moves: ['e4'], verified_alternatives: [], hints: [long], comparison: long }] } }] }));
@@ -56,9 +57,12 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
 
       await page.goto('/profile');
       await expect(page.getByTestId('profile-screen')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Puzzle Elo and event trend' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Your starting point' })).toBeVisible();
       await capture(page, info, 'profile-populated');
       await page.goto('/coach');
       await expect(page.getByTestId('coach-dashboard')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Puzzle Elo and event trend' })).toBeVisible();
       await capture(page, info, 'coach-populated');
       await page.goto('/games');
       await expect(page.getByRole('button', { name: /vs/ })).toBeVisible();
