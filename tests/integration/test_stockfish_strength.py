@@ -420,3 +420,49 @@ def test_move_conflicts_when_takeback_commits_during_engine_wait(
     assert game is not None
     assert game.moves == []
     assert "Nf3" not in game.pgn
+
+
+def test_resign_pgn_reflects_takeback_committed_after_resign_read(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import scan64.persistence.database as db_module
+
+    authorize(client, db_session)
+    opponent = AsyncMock()
+    opponent.choose_move.side_effect = [
+        MoveDecision(uci_move="e7e5"),
+        MoveDecision(uci_move="b8c6"),
+    ]
+    app.dependency_overrides[get_opponent_provider] = lambda: opponent
+    session_id = client.post(
+        "/v1/play-sessions", json={"player_id": "skill-player"}
+    ).json()["id"]
+    for move in ("e2e4", "g1f3"):
+        assert client.post(
+            f"/v1/play-sessions/{session_id}/moves", json={"move": move}
+        ).status_code == 200
+    original_human_color = PlaySessionService.human_color
+    injected = False
+
+    def takeback_after_resign_read(
+        self: PlaySessionService, play_session: PlaySession, game: Game
+    ) -> chess.Color:
+        nonlocal injected
+        if not injected:
+            injected = True
+            with Session(db_module.engine) as concurrent:
+                PlaySessionService(concurrent, opponent).takeback(UUID(session_id))
+        return original_human_color(self, play_session, game)
+
+    monkeypatch.setattr(PlaySessionService, "human_color", takeback_after_resign_read)
+    response = client.post(f"/v1/play-sessions/{session_id}/resign")
+    assert injected
+    assert response.status_code == 200, response.text
+    db_session.expire_all()
+    play = db_session.get(PlaySession, UUID(session_id))
+    assert play is not None and play.status == "completed"
+    game = db_session.get(Game, play.game_id)
+    assert game is not None
+    assert game.moves == ["e2e4", "e7e5"]
+    assert "Nf3" not in game.pgn
+    assert '[Result "0-1"]' in game.pgn

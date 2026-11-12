@@ -204,6 +204,9 @@ class PlaySessionService:
         play_session.status = "completed"
 
         if game is not None and result is not None:
+            # The status write serialises against take-back; re-read the moves
+            # so a take-back committed after `game` was loaded reaches the PGN.
+            self.db.refresh(game, attribute_names=["moves"])
             game.result = result
             game.date = game.date or game.created_at.strftime("%Y.%m.%d")
             game.pgn = build_pgn(game)
