@@ -4,8 +4,8 @@ import { CriticalMomentReview } from './CriticalMomentReview';
 import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
 
-vi.mock('./LessonBoard', () => ({
-  LessonBoard: ({
+vi.mock('./CoachBoard', () => ({
+  CoachBoard: ({
     disabled,
     onMove,
   }: {

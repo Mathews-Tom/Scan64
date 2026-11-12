@@ -53,13 +53,30 @@ class OpportunityRanker:
         self,
         candidates: list[tuple[DiagnosisCandidate, RankingFactors]],
     ) -> list[RankedOpportunity]:
-        ranked = []
-        for candidate, factors in candidates:
-            score = self.calculate_score(factors)
-            ranked.append(RankedOpportunity(candidate=candidate, score=score, factors=factors))
-
-        # Sort descending by score
-        ranked.sort(key=lambda x: x.score, reverse=True)
-
-        # Apply overcoaching cap
-        return ranked[: self.overcoaching_cap]
+        # Re-score after each choice: repeated skills have diminishing teaching
+        # value, but a sufficiently severe repeat can still outrank a new skill.
+        remaining = list(candidates)
+        ranked: list[RankedOpportunity] = []
+        chosen_skills: dict[str, int] = {}
+        while remaining and len(ranked) < self.overcoaching_cap:
+            choices = []
+            for candidate, factors in remaining:
+                adjusted = factors.model_copy(
+                    update={
+                        "redundancy": factors.redundancy + chosen_skills.get(candidate.skill_id, 0)
+                    }
+                )
+                choices.append(
+                    RankedOpportunity(
+                        candidate=candidate,
+                        score=self.calculate_score(adjusted),
+                        factors=adjusted,
+                    )
+                )
+            index = max(range(len(choices)), key=lambda index: choices[index].score)
+            choice = choices[index]
+            ranked.append(choice)
+            remaining.pop(index)
+            skill = choice.candidate.skill_id
+            chosen_skills[skill] = chosen_skills.get(skill, 0) + 1
+        return ranked

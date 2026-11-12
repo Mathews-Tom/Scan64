@@ -148,7 +148,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 diagnosis=diagnosis,
                 fen=fen_before,
                 lesson_id=f"les_{uuid4()}",
-                best_move_san=best_move_san,
+                accepted_moves_san=[best_move_san],
                 hints=[],
             )
             lesson.explanation = await resolve_explanation(diagnosis, [evidence], fen_before)

@@ -11,8 +11,8 @@ vi.mock('../api/client', () => ({
   }
 }));
 
-vi.mock('./LessonBoard', () => ({
-  LessonBoard: ({
+vi.mock('./CoachBoard', () => ({
+  CoachBoard: ({
     disabled,
     onMove,
   }: {
@@ -225,5 +225,40 @@ describe('DailyTrainingScreen', () => {
     );
     fireEvent.click(submitMove);
     expect(ApiClient.recordLessonAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Correct for a non-best accepted move and sends it for server grading', async () => {
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      session_id: 'session-sound',
+      lessons: [{
+        ...mockLesson,
+        interaction: {
+          input: 'move',
+          maximum_attempts: 3,
+          accepted_moves: [
+            { san: 'd4', lan: 'd2d4', reason: 'Best engine evaluation' },
+            { san: 'e4', lan: 'e2e4', reason: 'Within soundness tolerance' },
+          ],
+        },
+      }],
+    });
+    vi.mocked(ApiClient.recordLessonAttempt).mockResolvedValueOnce({
+      id: 'attempt-sound',
+      success: true,
+      grading_status: 'verified',
+      profile_update_result: 'applied',
+    });
+
+    render(<DailyTrainingScreen />);
+    const submitMove = await screen.findByTestId('submit-daily-move');
+    fireEvent.click(submitMove);
+
+    expect(await screen.findByTestId('lesson-feedback')).toHaveTextContent('Correct. Attempt recorded.');
+    expect(ApiClient.recordLessonAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      session_id: 'session-sound',
+      source_kind: 'persisted_opportunity',
+      submitted_move: 'e2e4',
+    }));
+    expect(submitMove).toBeDisabled();
   });
 });

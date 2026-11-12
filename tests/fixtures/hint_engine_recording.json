@@ -1,0 +1,194 @@
+{
+  "engine": {
+    "name": "Stockfish 19",
+    "author": "the Stockfish developers (see AUTHORS file)"
+  },
+  "nodes": 200000,
+  "multipv": 4,
+  "threads": 1,
+  "hash_mb": 128,
+  "time_ms": null,
+  "recorded_on": "2026-11-12",
+  "regenerate_command": "uv run python scripts/record_hint_engine.py --engine stockfish",
+  "positions": {
+    "A": {
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3",
+      "raw_result": [
+        {
+          "pv": [
+            "f1c4",
+            "g7g6",
+            "h5f3",
+            "g8f6",
+            "g1e2",
+            "d7d6",
+            "b1c3",
+            "f8g7",
+            "d2d3",
+            "e8g8",
+            "e1g1",
+            "h7h6"
+          ],
+          "score_cp": -24
+        },
+        {
+          "pv": [
+            "h5d1",
+            "g8f6",
+            "b1c3",
+            "f8b4",
+            "f1c4",
+            "b4c3"
+          ],
+          "score_cp": -86
+        },
+        {
+          "pv": [
+            "b1c3",
+            "g8f6"
+          ],
+          "score_cp": -98
+        },
+        {
+          "pv": [
+            "h5e2",
+            "g8f6",
+            "g1f3",
+            "f8c5",
+            "d2d3",
+            "d7d5",
+            "c1g5",
+            "d5d4",
+            "g5h4",
+            "a7a5",
+            "e2d1",
+            "a5a4",
+            "f1e2",
+            "h7h6",
+            "h4g3"
+          ],
+          "score_cp": -112
+        }
+      ]
+    },
+    "C": {
+      "fen": "r3k2r/ppp2ppp/2n5/3N4/8/8/PPP2PPP/R3K2R w KQkq - 0 1",
+      "raw_result": [
+        {
+          "pv": [
+            "d5c7",
+            "e8e7",
+            "c7a8",
+            "h8a8",
+            "e1c1",
+            "c6d8",
+            "h1e1",
+            "d8e6",
+            "e1e3",
+            "a8c8",
+            "c2c3",
+            "g7g6"
+          ],
+          "score_cp": 624
+        },
+        {
+          "pv": [
+            "e1c1",
+            "e8c8",
+            "h1e1",
+            "h8e8",
+            "d5f4",
+            "e8e1",
+            "d1e1",
+            "d8d6",
+            "c2c3"
+          ],
+          "score_cp": 5
+        },
+        {
+          "pv": [
+            "c2c3",
+            "e8c8",
+            "e1c1",
+            "h8e8",
+            "d5e3",
+            "e8e6"
+          ],
+          "score_cp": 2
+        },
+        {
+          "pv": [
+            "h2h3",
+            "e8c8",
+            "e1c1",
+            "d8d7",
+            "h1e1",
+            "h8d8",
+            "c2c4",
+            "d7d6",
+            "b2b3",
+            "d6d7"
+          ],
+          "score_cp": -1
+        }
+      ]
+    },
+    "D": {
+      "fen": "r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2QK2R w KQ - 0 8",
+      "raw_result": [
+        {
+          "pv": [
+            "h2h3",
+            "e7d6",
+            "f3e5",
+            "d8c7",
+            "d2f3",
+            "c8d7",
+            "e1g1",
+            "f8d8",
+            "f4g5",
+            "c5c4",
+            "e5d7",
+            "d8d7",
+            "g5f6",
+            "g7f6"
+          ],
+          "score_cp": 31
+        },
+        {
+          "pv": [
+            "f3e5",
+            "f6d7",
+            "e1g1",
+            "a7a5",
+            "a2a4",
+            "f7f6",
+            "d1h5",
+            "f6f5",
+            "e5d7",
+            "c8d7",
+            "h5h3"
+          ],
+          "score_cp": 30
+        },
+        {
+          "pv": [
+            "h2h4",
+            "f6h5"
+          ],
+          "score_cp": 24
+        },
+        {
+          "pv": [
+            "f4g5",
+            "f6d7",
+            "g5f4",
+            "f7f6",
+            "d1c2"
+          ],
+          "score_cp": 5
+        }
+      ]
+    }
+  }
+}

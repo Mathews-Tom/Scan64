@@ -22,6 +22,8 @@ import type {
   PlaySessionCreate,
   PlaySessionRead,
   PositionRead,
+  PositionInsight,
+  PositionInsightRequest,
   TrainingSessionRead,
   WeeklyReport,
 } from './types';
@@ -152,6 +154,21 @@ function getActivePlayerAuthorizationHeader(): Record<string, string> {
 }
 
 export class ApiClient {
+  static async getPositionInsight(data: PositionInsightRequest): Promise<PositionInsight> {
+    const response = await fetch(`${API_BASE}/insights/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(data.player_id) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Failed to get hint: ${detail}`, response.status);
+    }
+    return await response.json() as PositionInsight;
+  }
+
   static async createGame(data: GameCreate): Promise<GameRead> {
     const response = await fetch(`${API_BASE}/games`, {
       method: 'POST',
@@ -293,6 +310,17 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as PlayMoveResponse;
+  }
+
+  static async resignPlaySession(sessionId: string): Promise<PlaySessionRead> {
+    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/resign`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(getActivePlayerId()),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resign: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlaySessionRead;
   }
 
   static async createPlayer(data: PlayerCreate): Promise<PlayerRead> {

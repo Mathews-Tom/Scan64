@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
-import { LessonBoard } from './LessonBoard';
+import { CoachBoard } from './CoachBoard';
 import type { LessonSpec } from '../api/types';
 
 interface Props {
@@ -92,14 +92,17 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
       </div>
 
       {feedback && <p role="alert">{feedback}</p>}
-      <LessonBoard
-        lesson={lesson}
+      <CoachBoard
+        key={lesson.lesson_id}
+        fen={lesson.source.fen}
+        resetAfterAttempt
+        testId="lesson-board"
         disabled={
           submitting
           || submittedMove !== null
           || attemptCount >= lesson.interaction.maximum_attempts
         }
-        onMove={move => void recordAttempt(move)}
+        onMove={recordAttempt}
       />
       {submittedMove && <p data-testid="critical-attempt-recorded">Attempt recorded.</p>}
 

@@ -1,8 +1,30 @@
 export interface Visualization {
   command: string;
   description: string;
+  origin?: string;
+  target?: string;
+  square?: string;
+  label?: string;
   squares?: string[];
   moves?: string[];
+}
+
+export type PositionInsightRequest = { player_id: string } & (
+  { fen: string; play_session_id?: never } | { play_session_id: string; fen?: never }
+);
+
+export interface PositionInsight {
+  fen: string;
+  candidates: {
+    number: number;
+    move: string;
+    san: string;
+    line: string[];
+    reasons: { kind: string; description: string; line: string[]; squares: string[] }[];
+    fallback: boolean;
+    visualizations: Visualization[];
+  }[];
+  visualizations: Visualization[];
 }
 
 export interface Hint {
