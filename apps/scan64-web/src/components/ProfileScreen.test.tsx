@@ -22,7 +22,7 @@ vi.mock('../api/client', async (importOriginal) => {
 function renderProfile(patterns: PatternsReport): void {
   vi.spyOn(ApiClient, 'getPlayerProgress').mockResolvedValue({
     player_id: 'profile-player',
-    skills: [],
+    skills: [{ concept: 'board_awareness.hanging_piece', name: 'Hanging piece', mastery: 0.25, uncertainty: 0.5 }],
   });
   vi.spyOn(ApiClient, 'getPlayerEvidence').mockResolvedValue({
     player_id: 'profile-player',
@@ -75,6 +75,7 @@ describe('ProfileScreen recurring diagnoses', () => {
       recurring_diagnoses: [
         {
           diagnosis: 'tactics.fork.knight',
+          name: 'Knight fork',
           occurrence_count: 3,
           game_ids: ['game-1', 'game-2', 'game-3'],
           evidence_references: ['evidence-1'],
@@ -83,7 +84,9 @@ describe('ProfileScreen recurring diagnoses', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('tactics.fork.knight: 3 games')).toBeInTheDocument();
+      expect(screen.getByText('Knight fork: 3 games')).toBeInTheDocument();
+      expect(screen.getByText('Hanging piece: 0.25 (Uncertainty: 0.50)')).toBeInTheDocument();
+      expect(screen.queryByText(/board_awareness|tactics\.fork/)).not.toBeInTheDocument();
     });
   });
 });

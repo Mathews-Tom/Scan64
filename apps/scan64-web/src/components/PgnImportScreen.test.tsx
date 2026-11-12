@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PgnImportScreen } from './PgnImportScreen';
-import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPlayerId } from '../api/client';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
@@ -14,6 +14,7 @@ vi.mock('../api/client', () => ({
   },
   ensurePlayerAuthorization: vi.fn(),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
+  getStoredPlayerId: vi.fn(),
 }));
 
 describe('PgnImportScreen', () => {
@@ -21,6 +22,7 @@ describe('PgnImportScreen', () => {
     vi.resetAllMocks();
     vi.mocked(ApiClient.getPlayerProfile).mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null });
     vi.mocked(getOrCreatePlayerId).mockReturnValue('player-1');
+    vi.mocked(getStoredPlayerId).mockReturnValue('player-1');
     vi.mocked(ensurePlayerAuthorization).mockResolvedValue('recovered-player-2');
   });
 

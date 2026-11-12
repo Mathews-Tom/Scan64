@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 import { attemptMovePiece, movePiece } from './board';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 const serverLesson = {
   schema_version: '0.1.0',
@@ -108,7 +111,7 @@ test.describe('Coach interruption interaction', () => {
     });
 
     await page.goto('/');
-    await page.getByText('Play Game').click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true }).click();
     await page.getByTestId('coach-mode-toggle').check();
     await page.getByTestId('start-btn').click();
     const gameBoard = page.getByTestId('chessground-board');
@@ -183,7 +186,7 @@ test.describe('Coach interruption interaction', () => {
     });
 
     await page.goto('/');
-    await page.getByText('Play Game').click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true }).click();
     await page.getByTestId('start-btn').click();
     const gameBoard = page.getByTestId('chessground-board');
     await expect(gameBoard).toBeVisible();
@@ -222,7 +225,7 @@ test.describe('Coach interruption interaction', () => {
     });
 
     await page.goto('/');
-    await page.getByText('Play Game').click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true }).click();
     await page.getByTestId('coach-mode-toggle').check();
     await page.getByTestId('start-btn').click();
     const gameBoard = page.getByTestId('chessground-board');

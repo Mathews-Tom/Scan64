@@ -50,7 +50,7 @@ scripts/run.sh
 
 The API listens at `http://127.0.0.1:8001`; the web client is at `http://127.0.0.1:5173`.
 
-Open the web client, select **Play Game**, enter a player ID, and start a game. The active player identity stays in that browser's local storage.
+Open the web client, enter a display name on your first visit, and select **Start learning**. **Today** offers Play, Train and Review; **Library** groups the existing study and import screens. The active player identity stays in that browser's local storage.
 
 `SCAN64_DATABASE_URL` overrides the default SQLite URL, `sqlite:///database.db`:
 

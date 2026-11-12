@@ -54,7 +54,7 @@ export function ProfileScreen() {
         <ul>
           {progress.skills.map((skill) => (
             <li key={skill.concept}>
-              {skill.concept}: {skill.mastery.toFixed(2)} (Uncertainty: {skill.uncertainty.toFixed(2)})
+              {skill.name}: {skill.mastery.toFixed(2)} (Uncertainty: {skill.uncertainty.toFixed(2)})
             </li>
           ))}
         </ul>
@@ -81,7 +81,7 @@ export function ProfileScreen() {
           ) : null}
           {patterns.recurring_diagnoses.map((diagnosis) => (
             <li key={diagnosis.diagnosis}>
-              {diagnosis.diagnosis}: {diagnosis.occurrence_count} games
+              {diagnosis.name}: {diagnosis.occurrence_count} games
             </li>
           ))}
         </ul>

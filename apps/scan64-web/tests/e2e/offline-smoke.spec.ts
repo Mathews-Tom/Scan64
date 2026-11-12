@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { prepareToday } from './today';
+
+test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
 interface E2EWindow extends Window {
   __e2e_move?: () => Promise<void>;
@@ -41,7 +44,7 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
     });
     await page.goto('/');
 
-    const playLink = page.getByRole('button', { name: 'Play Game' });
+    const playLink = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true });
     await playLink.click();
     await page.getByTestId('player-id-input').fill('e2e-offline-player');
     await page.getByTestId('start-btn').click();
@@ -85,9 +88,12 @@ test.describe('Offline and Phase 2 Exit Criterion', () => {
     await expect(errorMsg).toHaveCount(0);
 
     // Navigation to other Phase 2 views
-    const views = ['Analysis Board', 'Opening Explorer', 'Famous Games', 'Daily Training', 'Profile'];
+    const views = ['Analysis Board', 'Opening Explorer', 'Famous Games', 'Train', 'Profile'];
     for (const view of views) {
-      await page.getByRole('button', { name: view }).click();
+      const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+      if (view === 'Analysis Board') await navigation.getByRole('button', { name: 'Review', exact: true }).click();
+      if (['Opening Explorer', 'Famous Games'].includes(view)) await navigation.getByRole('button', { name: 'Library', exact: true }).click();
+      await page.getByRole('button', { name: view, exact: true }).click();
       await expect(page.locator('main')).toBeVisible();
     }
   });
