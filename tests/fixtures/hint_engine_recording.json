@@ -7,6 +7,9 @@
   "multipv": 4,
   "threads": 1,
   "hash_mb": 128,
+  "time_ms": null,
+  "recorded_on": "2026-11-12",
+  "regenerate_command": "uv run python scripts/record_hint_engine.py --engine stockfish",
   "positions": {
     "A": {
       "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3",

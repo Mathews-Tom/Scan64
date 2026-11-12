@@ -3,7 +3,7 @@ from pathlib import Path
 
 import chess
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from scan64.chess.analysis.models import EngineAnalysis
@@ -126,22 +126,68 @@ def test_illegal_engine_continuation_is_rejected():
         )
 
 
-@given(st.lists(st.integers(min_value=0, max_value=1000), min_size=1, max_size=20))
-@settings(max_examples=50, deadline=None)
-def test_reason_prefix_property_for_arbitrary_legal_lines(choices):
-    board = chess.Board()
-    line = []
-    for choice in choices:
-        moves = list(board.legal_moves)
-        if not moves or board.is_game_over():
+@given(
+    root_choices=st.lists(st.integers(min_value=0, max_value=1000), min_size=1, max_size=50),
+    continuations=st.lists(
+        st.lists(st.integers(min_value=0, max_value=1000), min_size=1, max_size=15),
+        min_size=3,
+        max_size=3,
+    ),
+    mate_scored=st.booleans(),
+)
+@settings(max_examples=100, deadline=None)
+def test_reason_prefix_property_for_arbitrary_roots_and_candidates(
+    root_choices, continuations, mate_scored
+):
+    root = chess.Board()
+    for choice in root_choices:
+        moves = list(root.legal_moves)
+        if not moves or root.is_game_over():
             break
-        move = moves[choice % len(moves)]
-        line.append(move.uci())
-        board.push(move)
-    result = position_insight(
-        chess.Board(), EngineAnalysis(raw_result=[{"pv": line, "score_cp": 0}])
-    )
+        root.push(moves[choice % len(moves)])
+    root_moves = list(root.legal_moves)
+    assume(not root.is_game_over() and len(root_moves) >= 2)
+    lines = []
+    offset = continuations[0][0] % len(root_moves)
+    for index, choices in enumerate(continuations[: min(3, len(root_moves))]):
+        board = root.copy()
+        first = root_moves[(offset + index) % len(root_moves)]
+        board.push(first)
+        line = [first.uci()]
+        for choice in choices:
+            moves = list(board.legal_moves)
+            if not moves or board.is_game_over():
+                break
+            move = moves[choice % len(moves)]
+            line.append(move.uci())
+            board.push(move)
+        lines.append({"pv": line, **({"score_mate": 1} if mate_scored else {"score_cp": 0})})
+    result = position_insight(root, EngineAnalysis(raw_result=lines))
+    assert 2 <= len(result.candidates) <= 3
     for candidate in result.candidates:
+        replay = root.copy()
+        for uci in candidate.line:
+            move = chess.Move.from_uci(uci)
+            assert move in replay.legal_moves
+            replay.push(move)
         for reason in candidate.reasons:
             assert reason.line
             assert candidate.line[: len(reason.line)] == reason.line
+            replay = root.copy()
+            for uci in reason.line:
+                move = chess.Move.from_uci(uci)
+                assert move in replay.legal_moves
+                replay.push(move)
+
+
+@pytest.mark.parametrize(
+    ("fen", "move", "excluded"),
+    [
+        ("7r/1P6/8/4n3/8/8/8/K6k w - - 0 1", "b7b8q", "fork"),
+        ("6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1", "h2h3", "mate_threat"),
+        ("4k3/8/8/8/8/8/4r3/4K3 w - - 0 1", "e1f1", "rescue"),
+    ],
+)
+def test_reason_truthfulness_review_probes(fen, move, excluded):
+    reasons = extract_reasons(chess.Board(fen), [move])
+    assert excluded not in {reason.kind for reason in reasons}

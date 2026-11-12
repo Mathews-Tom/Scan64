@@ -209,3 +209,43 @@ def test_hint_before_first_move_uses_session_start(
         assert play["game_id"] is None
         resumed = client.get(f"/v1/play-sessions/{play['id']}", headers=headers)
         assert resumed.json()["game_id"] is None
+
+
+@pytest.mark.parametrize(("halfmove_clock", "expected"), [(100, 200), (150, 409)])
+def test_claimable_fifty_moves_remains_playable_but_seventyfive_is_terminal(
+    client: TestClient, db_session: Session, monkeypatch, halfmove_clock, expected
+):
+    headers = register(db_session, "hint-owner")
+    fen = chess.STARTING_FEN.replace("0 1", f"{halfmove_clock} 80")
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    response = client.post(
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "fen": fen},
+    )
+    assert response.status_code == expected, response.text
+    assert analyze.await_count == (1 if expected == 200 else 0)
+
+
+@pytest.mark.parametrize(("cycles", "expected"), [(2, 200), (4, 409)])
+def test_claimable_threefold_remains_playable_but_fivefold_is_terminal(
+    client: TestClient, db_session: Session, monkeypatch, cycles, expected
+):
+    headers = register(db_session, "hint-owner")
+    moves = ["g1f3", "g8f6", "f3g1", "f6g8"] * cycles
+    game = Game(pgn="*", moves=moves, owner_player_id="hint-owner", owner_color="white")
+    db_session.add(game)
+    db_session.flush()
+    play = PlaySession(player_id="hint-owner", game_id=game.id)
+    db_session.add(play)
+    db_session.commit()
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    response = client.post(
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+    )
+    assert response.status_code == expected, response.text
+    assert analyze.await_count == (1 if expected == 200 else 0)

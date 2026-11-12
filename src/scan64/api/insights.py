@@ -62,7 +62,7 @@ def _position(body: PositionInsightRequest, session: Session) -> chess.Board:
             raise HTTPException(status_code=422, detail="Invalid FEN") from None
     if not board.is_valid():
         raise HTTPException(status_code=422, detail="Invalid chess position")
-    if board.is_game_over(claim_draw=True):
+    if board.is_game_over():
         raise HTTPException(status_code=409, detail="Position is game over")
     return board
 

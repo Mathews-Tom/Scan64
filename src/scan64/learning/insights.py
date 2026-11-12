@@ -97,6 +97,8 @@ def extract_reasons(
     color = board.turn
     piece = board.piece_at(move.from_square)
     assert piece is not None
+    moved_piece = after.piece_at(move.to_square)
+    assert moved_piece is not None
     reasons: list[HintReason] = []
 
     def add(kind: Motif, description: str, squares: list[chess.Square], length: int = 1) -> None:
@@ -119,12 +121,20 @@ def extract_reasons(
         threat = after.copy(stack=False)
         threat.turn = color
         threat.ep_square = None
+        existing_mates = set()
+        before = board.copy(stack=False)
+        before.ep_square = None
+        for existing_move in list(before.legal_moves):
+            before.push(existing_move)
+            if before.is_checkmate():
+                existing_mates.add(existing_move)
+            before.pop()
         for mating_move in list(threat.legal_moves):
             san = threat.san(mating_move)
             threat.push(mating_move)
             mates = threat.is_checkmate()
             threat.pop()
-            if mates:
+            if mates and mating_move not in existing_mates:
                 add(
                     "mate_threat",
                     f"Threatens {san} if the opponent does not respond.",
@@ -137,7 +147,7 @@ def extract_reasons(
         for square in after.attacks(move.to_square)
         if (target := after.piece_at(square)) is not None
         and target.color != color
-        and VALUES[target.piece_type] > VALUES[piece.piece_type]
+        and VALUES[target.piece_type] > VALUES[moved_piece.piece_type]
         and (
             target.piece_type == chess.KING
             or any(
@@ -176,8 +186,10 @@ def extract_reasons(
                 len(line),
             )
 
-    if _capturers(board, move.from_square, not color) and not _capturers(
-        after, move.to_square, not color
+    if (
+        piece.piece_type != chess.KING
+        and _capturers(board, move.from_square, not color)
+        and not _capturers(after, move.to_square, not color)
     ):
         add(
             "rescue",
