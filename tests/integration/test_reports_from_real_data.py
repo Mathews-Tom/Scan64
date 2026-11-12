@@ -768,7 +768,7 @@ def test_coach_patterns_keep_cost_support_coverage_but_not_owner_actions(
             f"/v1/players/{player_id}/patterns",
             headers={"Authorization": f"Bearer {coach_token}"},
         ).status_code
-        == 404
+        == 403
     )
 
 

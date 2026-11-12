@@ -442,6 +442,7 @@ def test_start_creates_game_analysis_session_and_returns_black_source_game_ply(
             "game_id": str(lesson.game_id),
             "ply": 2,
             "attempts_remaining": 3,
+            "diagnosis": "threat_processing.missed_capture",
         }
     ]
     response = client.post(f"{PATH}/{lesson.id}/start", headers=auth)

@@ -188,7 +188,7 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
         game.id: game
         for game in session.exec(
             select(Game)
-            .join(AnalysisJob, AnalysisJob.game_id == Game.id)
+            .join(AnalysisJob, col(AnalysisJob.game_id) == Game.id)
             .where(
                 Game.owner_player_id == player_id,
                 col(Game.owner_color).is_not(None),
