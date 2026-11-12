@@ -78,7 +78,10 @@ function App() {
           key={activePlaySession ? activePlaySession.session.id : 'new'}
           initialSession={activePlaySession?.session}
           initialFen={activePlaySession?.fen}
-          onNavigate={navigate}
+          onNavigate={path => {
+            setActivePlaySession(null);
+            navigate(path);
+          }}
         />
       );
       break;

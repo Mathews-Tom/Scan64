@@ -17,7 +17,7 @@ On your first visit, enter a display name and select **Start learning**. Scan64 
 3. Select **Coach Mode** only when you want opt-in, post-move interruption during practice.
 4. Start a game and move pieces by drag-and-drop. The move list shows standard algebraic notation (SAN), including the opponent's replies.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
-6. Reload or return to **Play** to resume your active game. Offline moves stay queued until the connection returns.
+6. Reload or return to **Play** to resume your active game. Offline moves stay queued until the connection returns. Moving and resigning stay disabled until the server's canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing.
 7. Select **Resign**, or finish by checkmate or a draw. The result appears immediately. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move creates no empty game and has no review link.
 
 New games from Play, Analysis Board's play-from-here, and Famous Games' continue action use **Stockfish skill level 0**. This is an engine skill setting, not an Elo rating. The API accepts Stockfish `strength` as an integer string from `"0"` to `"20"` and defaults to `"0"` when omitted; Maia strength remains a rating.
