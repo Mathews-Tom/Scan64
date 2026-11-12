@@ -1,4 +1,5 @@
 import asyncio
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -232,29 +233,31 @@ async def run_analysis_for_game(
             previous.severity * previous.diagnosis.confidence
         ):
             distinct[item.source.id] = item
-    ranker = OpportunityRanker(overcoaching_cap=None)
-    ranked = ranker.rank(
-        [
-            (
-                item.diagnosis,
-                RankingFactors(
-                    severity=item.severity,
-                    confidence=item.diagnosis.confidence,
-                    redundancy=sum(
-                        lesson.lesson_spec.get("diagnosis", {}).get("primary")
-                        == item.diagnosis.skill_id
-                        for lesson in existing_lessons
-                    ),
-                ),
-            )
-            for item in distinct.values()
-        ]
-    )
+    ranker = OpportunityRanker(overcoaching_cap=1)
+    chosen_skills: Counter[str] = Counter()
+    for existing_lesson in existing_lessons:
+        skill = existing_lesson.lesson_spec.get("diagnosis", {}).get("primary")
+        if isinstance(skill, str):
+            chosen_skills[skill] += 1
     prepared: list[tuple[_LessonCandidate, EngineAnalysis, LessonSpec]] = []
-    for choice in ranked:
-        if len(prepared) >= remaining_slots:
-            break
+    while distinct and len(prepared) < remaining_slots:
+        # Only durable/verified choices consume redundancy. A discarded engine
+        # candidate must not demote another teachable mistake of the same skill.
+        choice = ranker.rank(
+            [
+                (
+                    item.diagnosis,
+                    RankingFactors(
+                        severity=item.severity,
+                        confidence=item.diagnosis.confidence,
+                        redundancy=chosen_skills[item.diagnosis.skill_id],
+                    ),
+                )
+                for item in distinct.values()
+            ]
+        )[0]
         item = next(item for item in distinct.values() if item.diagnosis is choice.candidate)
+        distinct.pop(item.source.id)
         source_position = item.source
         fen_before = source_position.fen
         board_before = chess.Board(fen_before)
@@ -288,6 +291,7 @@ async def run_analysis_for_game(
             continue
         _stage_position_analysis(game, fen_before, source_analysis, positions_by_fen, analyses)
         prepared.append((item, source_analysis, lesson))
+        chosen_skills[item.diagnosis.skill_id] += 1
 
     # Only now begin the atomic write phase (_JobSession defers this commit
     # together with the job's completed marker during normal/recovered runs).

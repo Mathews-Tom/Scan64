@@ -48,10 +48,12 @@ def sound_moves(board: chess.Board, analysis: EngineAnalysis) -> list[chess.Move
     return moves
 
 
-async def analyze_lesson_source(adapter: EngineAdapter, fen: str) -> EngineAnalysis:
+async def analyze_lesson_source(
+    adapter: EngineAdapter, fen: str, *, nodes: int = 1_000_000
+) -> EngineAnalysis:
     """Widen MultiPV until it brackets the sound set, or reaches eight lines."""
     for multipv in (2, 4, 8):
-        analysis = await adapter.analyze_position(fen, nodes=1_000_000, multipv=multipv)
+        analysis = await adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
         # Validate the objective before persisting it as verification evidence.
         sound_moves(chess.Board(fen), analysis)
         best = win_probability(analysis.raw_result[0])

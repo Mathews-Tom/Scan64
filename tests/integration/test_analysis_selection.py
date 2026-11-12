@@ -1,4 +1,5 @@
 import io
+import math
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -195,3 +196,83 @@ async def test_probability_loss_ranks_real_blunder_above_decided_and_mating_swin
     await jobs.run_analysis_for_game(game, db_session)
     assert calls == [sources[1]]
     assert len(db_session.exec(select(PersistedLessonOpportunity)).all()) == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skip_reason", ["sound", "invalid_pv", "verification", "kept"])
+async def test_only_kept_lessons_count_toward_skill_redundancy(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, skip_reason: str
+) -> None:
+    game, candidates, sources = _install_candidates(db_session, monkeypatch)
+    del candidates[3:]
+    # A: skill X, loss .30, skipped; B: X, .25; C: Y, .12.
+    # Penalizing X for A would incorrectly let C displace B in the last slot.
+    # With two slots and A kept, its penalty must instead let C displace B.
+    for candidate, loss in zip(candidates, (0.30, 0.25, 0.12), strict=True):
+        candidate.before_analysis.raw_result[0]["score_cp"] = 0
+        candidate.after_analysis.raw_result[0]["score_cp"] = (
+            math.log((0.5 + loss) / (0.5 - loss)) / 0.00368208
+        )
+    existing_ids = set()
+    existing_count = 3 if skip_reason == "kept" else 4
+    for fen in sources[3 : 3 + existing_count]:
+        position = ingest_fen(fen, game.id)
+        db_session.add(position)
+        lesson = PersistedLessonOpportunity(
+            game_id=game.id,
+            source_position_id=position.id,
+            player_id=game.owner_player_id,
+            lesson_spec={"diagnosis": {"primary": "tactics.overloaded_defender"}},
+        )
+        db_session.add(lesson)
+        existing_ids.add(lesson.id)
+    db_session.commit()
+
+    class Detector:
+        async def detect(
+            self, opportunity: Any, evidence: list[Any], _ctx: object
+        ) -> list[DiagnosisCandidate]:
+            return [
+                DiagnosisCandidate(
+                    skill_id=(
+                        "tactics.pin"
+                        if opportunity.played_move == "a3"
+                        else "board_awareness.hanging_piece"
+                    ),
+                    confidence=1.0,
+                    evidence_ids=[evidence[0].evidence_id],
+                )
+            ]
+
+    calls = []
+
+    async def source_analysis(_self: object, fen: str, **_: object) -> EngineAnalysis:
+        calls.append(fen)
+        index = sources.index(fen)
+        raw = candidates[index].before_analysis.raw_result
+        if index == 0 and skip_reason == "sound":
+            raw = [{"pv": [game.moves[0]], "score_cp": 100}]
+        elif index == 0 and skip_reason == "invalid_pv":
+            raw = []
+        return EngineAnalysis(position_id=uuid4(), raw_result=raw)
+
+    original_verify = jobs.verify_lesson
+
+    def verify(spec: LessonSpec, analysis: EngineAnalysis) -> None:
+        if spec.source.fen == sources[0] and skip_reason == "verification":
+            raise LessonVerificationError("Rejected test verification evidence")
+        original_verify(spec, analysis)
+
+    monkeypatch.setattr(jobs, "_resolve_pattern_detectors", lambda _: (Detector(),))
+    monkeypatch.setattr(jobs.StockfishAdapter, "analyze_position", source_analysis)
+    monkeypatch.setattr(jobs, "verify_lesson", verify)
+    await jobs.run_analysis_for_game(game, db_session)
+    expected = [sources[0], sources[2]] if skip_reason == "kept" else sources[:2]
+    assert calls == expected
+    new_lessons = [
+        lesson
+        for lesson in db_session.exec(select(PersistedLessonOpportunity)).all()
+        if lesson.id not in existing_ids
+    ]
+    expected_kept = {sources[0], sources[2]} if skip_reason == "kept" else {sources[1]}
+    assert {lesson.lesson_spec["source"]["fen"] for lesson in new_lessons} == expected_kept

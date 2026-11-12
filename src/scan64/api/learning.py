@@ -116,7 +116,9 @@ def _objective_analysis_for_lesson(
         raise ObjectiveAnalysisUnavailable("Objective engine analysis is deferred")
     try:
         analysis = asyncio.run(
-            analyze_lesson_source(StockfishAdapter(StockfishConfig()), spec.source.fen)
+            analyze_lesson_source(
+                StockfishAdapter(StockfishConfig()), spec.source.fen, nodes=100_000
+            )
         )
     except (OSError, chess.engine.EngineError) as error:
         raise ObjectiveAnalysisUnavailable("Objective engine analysis is unavailable") from error

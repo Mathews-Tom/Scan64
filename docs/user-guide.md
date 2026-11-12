@@ -29,7 +29,7 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
-5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for repeated skills. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots. Only kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner opportunities.
+5. Review engine evaluations and diagnosis markers on the analysis board. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have board markers and review schedules; evidence and profile observations still include all diagnosed owner opportunities.
 
 For a deterministic manual diagnosis walkthrough, import this game:
 

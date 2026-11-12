@@ -807,7 +807,7 @@ def test_non_best_sound_attempt_records_success_and_updates_profile(
 
     async def source_analysis(_self: object, fen: str, **limits: int) -> EngineAnalysis:
         assert fen == recorded["fen"]
-        assert limits["nodes"] == 1_000_000
+        assert limits["nodes"] == 100_000
         calls.append(limits["multipv"])
         return EngineAnalysis(
             position_id=source.id,
