@@ -105,6 +105,9 @@ def _safe(response: dict[str, Any]) -> None:
         "widening",
         "rated",
         "daily",
+        "mode",
+        "theme",
+        "streak",
     }
     text = json.dumps(response)
     for hidden in ("solution", "accepted_moves", "skill_mapping", "engine", "diagnosis"):
@@ -324,7 +327,6 @@ def test_concurrent_wrong_submissions_use_atomic_revision_check(
 def test_concurrent_starts_resume_one_atomic_run(
     client: TestClient,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     engine = create_engine(
         f"sqlite:///{tmp_path / 'puzzle-start-race.db'}",
@@ -343,19 +345,15 @@ def test_concurrent_starts_resume_one_atomic_run(
         with Session(engine) as session:
             _seed(session)
         barrier = Barrier(2)
-        original = puzzles._active_run
 
-        def synchronized(player_id, session):
-            active = original(player_id, session)
-            if active is None:
-                barrier.wait(timeout=10)
-            return active
+        def synchronized(_):
+            barrier.wait(timeout=10)
+            return client.post("/v1/puzzles/runs", headers=auth)
 
-        monkeypatch.setattr(puzzles, "_active_run", synchronized)
         with ThreadPoolExecutor(max_workers=2) as executor:
             responses = list(
                 executor.map(
-                    lambda _: client.post("/v1/puzzles/runs", headers=auth),
+                    synchronized,
                     range(2),
                 )
             )

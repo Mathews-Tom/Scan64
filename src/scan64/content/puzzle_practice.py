@@ -7,6 +7,7 @@ from sqlalchemy import String, cast, func, or_, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
+from scan64.api.models import Player
 from scan64.content.models import ContentAttempt, ContentItem
 from scan64.content.puzzle_practice_models import (
     PuzzleDailySet,
@@ -168,12 +169,30 @@ def _pool(player_id: str, rating: float, now: datetime, session: Session) -> lis
     return pool
 
 
-def daily_set(player_id: str, session: Session, now: datetime | None = None) -> PuzzleDailySet:
+def lock_puzzle_player(player_id: str, session: Session) -> None:
+    """Serialize daily reservation and all starts without changing player data."""
+    session.execute(
+        update(Player)
+        .where(col(Player.id) == player_id)
+        .values(id=player_id)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def daily_set(
+    player_id: str, session: Session, now: datetime | None = None, *, commit_new: bool = True
+) -> PuzzleDailySet:
+    """Reserve once; starts retain the transaction until their run is inserted."""
     now = now or utc_now()
     utc_day = now.astimezone(UTC).date().isoformat()
     statement = select(PuzzleDailySet).where(
         PuzzleDailySet.player_id == player_id, PuzzleDailySet.utc_day == utc_day
     )
+    existing = session.exec(statement).one_or_none()
+    if existing is not None:
+        return existing
+    lock_puzzle_player(player_id, session)
+    # Another request may have reserved the day while this one waited for the lock.
     existing = session.exec(statement).one_or_none()
     if existing is not None:
         return existing
@@ -205,7 +224,10 @@ def daily_set(player_id: str, session: Session, now: datetime | None = None) -> 
                     first_exposure=candidate["reason"] != "due",
                 )
             )
-        session.commit()
+        if commit_new:
+            session.commit()
+        else:
+            session.flush()
         return day
     except IntegrityError:
         session.rollback()
@@ -269,7 +291,7 @@ def finish_practice(
         select(PuzzleDailySlot).where(PuzzleDailySlot.run_id == run.id)
     ).one_or_none()
     if slot is None:
-        return True  # Legacy runs have no rating or review effects.
+        return True  # Legacy and mode runs have no rating or review effects.
     slot.closed_at = completed_at
     session.add(slot)
     independent = state == "solved" and not hint_steps

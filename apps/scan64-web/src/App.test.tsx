@@ -31,6 +31,15 @@ vi.mock('./api/client', async (importOriginal) => {
       createGame: vi.fn(),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
+      getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),
+      getActivePuzzleRun: vi.fn().mockResolvedValue({
+        status: 'empty', run: null, message: 'Import puzzles to begin.',
+        daily: {
+          utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+          overdue_count: 0, total: 0, completed: 0, remaining: 0,
+          actual_mix: { due: 0, weak: 0, exploration: 0 }, message: '',
+        }, streak: { current: 0, best: 0, reset_reason: null },
+      }),
       startPuzzleRun: vi.fn().mockResolvedValue({
         status: 'empty', run: null, message: 'Import puzzles to begin.',
         daily: {
@@ -83,7 +92,8 @@ describe('App', () => {
     expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('link', { name: 'Continue puzzles' }));
     expect(window.location.pathname).toBe('/puzzles');
-    await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(ApiClient.getActivePuzzleRun).toHaveBeenCalledTimes(1));
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
   });
 
   it('navigates to play screen and updates the URL', () => {
@@ -123,11 +133,12 @@ describe('App', () => {
     expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
   });
 
-  it('starts or resumes puzzles when a stored identity opens the deep link', async () => {
+  it('only resumes active puzzles when a stored identity opens the deep link', async () => {
     window.history.replaceState({}, '', '/puzzles');
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
-    await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith());
+    await waitFor(() => expect(ApiClient.getActivePuzzleRun).toHaveBeenCalledWith());
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
   });
 
   it('renders a game analysis screen from its deep-link URL', async () => {

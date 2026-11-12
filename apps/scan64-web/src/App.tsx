@@ -82,6 +82,7 @@ function App() {
       <AnalysisScreen
         key={gameAnalysisId}
         gameId={gameAnalysisId}
+        initialPly={Number(new URLSearchParams(window.location.search).get('ply'))}
         onPlayFromHere={(session, fen) => {
           setActivePlaySession({ session, fen });
           navigate('/play');

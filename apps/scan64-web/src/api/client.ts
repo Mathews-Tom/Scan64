@@ -29,6 +29,10 @@ import type {
   PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
+  PuzzleRunCreate,
+  PuzzleModesRead,
+  PuzzleMistakesRead,
+  PuzzleMistakeStartRead,
   TrainingSessionRead,
   WeeklyReport,
 } from './types';
@@ -193,8 +197,24 @@ export class ApiClient {
     return this.puzzleRequest('/daily', 'GET');
   }
 
-  static startPuzzleRun(): Promise<PuzzleStartRead> {
-    return this.puzzleRequest('/runs', 'POST');
+  static getActivePuzzleRun(): Promise<PuzzleStartRead> {
+    return this.puzzleRequest('/active', 'GET');
+  }
+
+  static startPuzzleRun(body?: PuzzleRunCreate): Promise<PuzzleStartRead> {
+    return this.puzzleRequest('/runs', 'POST', body);
+  }
+
+  static getPuzzleModes(): Promise<PuzzleModesRead> {
+    return this.puzzleRequest('/modes', 'GET');
+  }
+
+  static getPuzzleMistakes(offset = 0, limit = 20): Promise<PuzzleMistakesRead> {
+    return this.puzzleRequest(`/mistakes?offset=${offset}&limit=${limit}`, 'GET');
+  }
+
+  static startPuzzleMistake(lessonId: string): Promise<PuzzleMistakeStartRead> {
+    return this.puzzleRequest(`/mistakes/${encodeURIComponent(lessonId)}/start`, 'POST');
   }
 
   static getPuzzleRun(runId: string): Promise<PuzzleRunRead> {

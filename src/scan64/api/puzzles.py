@@ -5,7 +5,7 @@ from typing import Literal, cast
 import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
@@ -14,6 +14,14 @@ from scan64.api.auth import require_authenticated_player
 from scan64.content import puzzle_practice
 from scan64.content.models import ContentAttempt, ContentItem, StudySession
 from scan64.content.puzzle_hints import puzzle_hint
+from scan64.content.puzzle_mode_models import PuzzleModeBinding
+from scan64.content.puzzle_modes import (
+    PracticeMode,
+    PuzzleStreakRead,
+    select_mode_item,
+    source_themes,
+    streak_for,
+)
 from scan64.content.puzzle_practice import daily_set, daily_summary, finish_practice, slots_for
 from scan64.content.puzzle_practice_models import PuzzleDailySlot
 from scan64.content.puzzle_runs import PuzzleRun
@@ -56,13 +64,35 @@ class PuzzleRunRead(BaseModel):
     widening: str | None
     rated: bool
     daily: PuzzleDailyRead
+    mode: PracticeMode
+    theme: str | None
+    streak: PuzzleStreakRead
 
 
 class PuzzleStartRead(BaseModel):
-    status: Literal["ready", "empty", "exhausted"]
+    status: Literal["idle", "ready", "empty", "exhausted"]
     run: PuzzleRunRead | None = None
     message: str
     daily: PuzzleDailyRead
+    streak: PuzzleStreakRead
+
+
+class PuzzleModesRead(BaseModel):
+    themes: list[str]
+    streak: PuzzleStreakRead
+
+
+class PuzzleStartCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: PracticeMode = "daily"
+    theme: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def check_theme(self) -> "PuzzleStartCreate":
+        if (self.mode == "theme") != (self.theme is not None):
+            raise ValueError("Only theme mode requires a source theme.")
+        return self
 
 
 class ExpectedPuzzleState(BaseModel):
@@ -111,6 +141,7 @@ def _safe_run(run: PuzzleRun, session: Session) -> PuzzleRunRead:
     slot = session.exec(
         select(PuzzleDailySlot).where(PuzzleDailySlot.run_id == run.id)
     ).one_or_none()
+    binding = session.get(PuzzleModeBinding, run.id)
     return PuzzleRunRead(
         run_id=run.id,
         puzzle_id=item.id,
@@ -123,10 +154,13 @@ def _safe_run(run: PuzzleRun, session: Session) -> PuzzleRunRead:
         state=cast(RunState, run.state),
         hint_step=step,
         hints=hints,
-        selection_reason=slot.reason if slot else None,
-        widening=slot.widening if slot else None,
+        selection_reason=binding.mode if binding else slot.reason if slot else None,
+        widening=binding.widening if binding else slot.widening if slot else None,
         rated=bool(slot and slot.first_exposure),
         daily=PuzzleDailyRead(**daily_summary(run.player_id, session)),
+        mode=cast(PracticeMode, binding.mode if binding else "daily"),
+        theme=binding.theme if binding else None,
+        streak=streak_for(run.player_id, session),
     )
 
 
@@ -173,16 +207,71 @@ def read_puzzle_daily(request: Request, session: Session = Depends(get_session))
     return PuzzleDailyRead(**daily_summary(player_id, session))
 
 
-@router.post("/runs", response_model=PuzzleStartRead)
-def start_puzzle_run(request: Request, session: Session = Depends(get_session)) -> PuzzleStartRead:
+@router.get("/modes", response_model=PuzzleModesRead)
+def read_puzzle_modes(request: Request, session: Session = Depends(get_session)) -> PuzzleModesRead:
+    player_id = require_authenticated_player(request, session)
+    return PuzzleModesRead(themes=source_themes(session), streak=streak_for(player_id, session))
+
+
+def _ready(run: PuzzleRun, session: Session, message: str) -> PuzzleStartRead:
+    safe = _safe_run(run, session)
+    return PuzzleStartRead(
+        status="ready", run=safe, message=message, daily=safe.daily, streak=safe.streak
+    )
+
+
+@router.get("/active", response_model=PuzzleStartRead)
+def resume_puzzle_run(request: Request, session: Session = Depends(get_session)) -> PuzzleStartRead:
     player_id = require_authenticated_player(request, session)
     active = _active_run(player_id, session)
     if active is not None:
-        safe = _safe_run(active, session)
-        return PuzzleStartRead(status="ready", run=safe, message="Run resumed.", daily=safe.daily)
-    day = daily_set(player_id, session)
-    slot = next((entry for entry in slots_for(day, session) if entry.closed_at is None), None)
-    if slot is None:
+        return _ready(active, session, "Run resumed. Finish or abandon it before switching modes.")
+    daily = PuzzleDailyRead(**daily_summary(player_id, session))
+    has_catalog = (
+        session.exec(select(ContentItem.id).where(ContentItem.domain == "puzzles").limit(1)).first()
+        is not None
+    )
+    return PuzzleStartRead(
+        status="idle" if has_catalog else "empty",
+        daily=daily,
+        streak=streak_for(player_id, session),
+        message="Choose a practice mode, then Start."
+        if has_catalog
+        else "Import puzzles to begin.",
+    )
+
+
+@router.post("/runs", response_model=PuzzleStartRead)
+def start_puzzle_run(
+    request: Request,
+    body: PuzzleStartCreate | None = None,
+    session: Session = Depends(get_session),
+) -> PuzzleStartRead:
+    player_id = require_authenticated_player(request, session)
+    choice = body or PuzzleStartCreate()
+    # Hold one reservation transaction through set creation, selection and insertion.
+    # The day is computed after acquiring the lock, including across UTC midnight.
+    puzzle_practice.lock_puzzle_player(player_id, session)
+    day = daily_set(player_id, session, commit_new=False)
+    active = _active_run(player_id, session)
+    if active is not None:
+        session.commit()
+        return _ready(active, session, "Run resumed. Finish or abandon it before switching modes.")
+    slot: PuzzleDailySlot | None = None
+    widening = ""
+    item: ContentItem | None = None
+    if choice.mode == "daily":
+        slot = next((entry for entry in slots_for(day, session) if entry.closed_at is None), None)
+        if slot is not None:
+            item = session.get(ContentItem, slot.item_id)
+    else:
+        if choice.mode == "theme" and choice.theme not in source_themes(session):
+            raise HTTPException(status_code=422, detail="Choose an imported source theme.")
+        candidate = select_mode_item(player_id, day, choice.theme, session)
+        if candidate is not None:
+            item, widening = candidate
+    if item is None:
+        session.commit()
         daily = PuzzleDailyRead(**daily_summary(player_id, session))
         has_catalog = (
             session.exec(
@@ -193,15 +282,20 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
         return PuzzleStartRead(
             status="exhausted" if has_catalog else "empty",
             daily=daily,
-            message=daily.message
+            streak=streak_for(player_id, session),
+            message=(
+                daily.message
+                if choice.mode == "daily"
+                else "No eligible unseen puzzles remain for this mode. Today's unclosed Daily "
+                "puzzles stay reserved; choose Daily or import more source puzzles."
+            )
             if has_catalog
-            else "No puzzles imported. Run scan64-cli puzzles import --download locally, "
-            "or docker exec <container> scan64-cli puzzles import --download. "
-            "An already created daily set resets at 00:00 UTC.",
+            else (
+                "No puzzles imported. Run scan64-cli puzzles import --download locally, "
+                "or docker exec <container> scan64-cli puzzles import --download. "
+                "An already created daily set resets at 00:00 UTC."
+            ),
         )
-    item = session.get(ContentItem, slot.item_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Puzzle run not found")
     lesson = LessonSpec.model_validate(item.payload["lesson"])
     started_at = puzzle_practice.utc_now()
     study = StudySession(player_id=player_id, domain="puzzles", started_at=started_at)
@@ -212,9 +306,6 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
             .limit(1)
         ).first()
         is None
-    )
-    first_exposure = (
-        first_exposure
         and session.exec(
             select(ContentAttempt.id)
             .where(ContentAttempt.player_id == player_id, ContentAttempt.item_id == item.id)
@@ -235,31 +326,40 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
         session.flush()
         session.add(run)
         session.flush()
-        bound = session.execute(
-            update(PuzzleDailySlot)
-            .where(
-                col(PuzzleDailySlot.id) == slot.id,
-                col(PuzzleDailySlot.run_id).is_(None),
-                col(PuzzleDailySlot.closed_at).is_(None),
+        if slot is not None:
+            bound = session.execute(
+                update(PuzzleDailySlot)
+                .where(
+                    col(PuzzleDailySlot.id) == slot.id,
+                    col(PuzzleDailySlot.run_id).is_(None),
+                    col(PuzzleDailySlot.closed_at).is_(None),
+                )
+                .values(run_id=run.id, first_exposure=first_exposure)
+                .returning(col(PuzzleDailySlot.id))
+                .execution_options(synchronize_session=False)
+            ).scalar_one_or_none()
+            if bound is None:
+                session.rollback()
+                raise HTTPException(status_code=409, detail="Puzzle state changed. Try again.")
+        else:
+            session.add(
+                PuzzleModeBinding(
+                    run_id=run.id,
+                    player_id=player_id,
+                    mode=choice.mode,
+                    theme=choice.theme,
+                    widening=widening,
+                )
             )
-            .values(run_id=run.id, first_exposure=first_exposure)
-            .returning(col(PuzzleDailySlot.id))
-            .execution_options(synchronize_session=False)
-        ).scalar_one_or_none()
-        if bound is None:
-            session.rollback()
-            raise HTTPException(status_code=409, detail="Puzzle state changed. Try again.")
         session.commit()
     except IntegrityError:
         session.rollback()
         active = _active_run(player_id, session)
         if active is None:
             raise
-        safe = _safe_run(active, session)
-        return PuzzleStartRead(status="ready", run=safe, message="Run resumed.", daily=safe.daily)
+        return _ready(active, session, "Run resumed.")
     session.refresh(run)
-    safe = _safe_run(run, session)
-    return PuzzleStartRead(status="ready", run=safe, message="Puzzle ready.", daily=safe.daily)
+    return _ready(run, session, "Puzzle ready.")
 
 
 @router.get("/runs/{run_id}", response_model=PuzzleRunRead)
