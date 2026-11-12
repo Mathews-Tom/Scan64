@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
+from datetime import UTC, date, datetime
+from math import isclose, isfinite
 from typing import Any
 from uuid import uuid4
 
@@ -30,6 +32,16 @@ from scan64.chess.games.participants import player_color
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_practice_models import (
+    INITIAL_RATING,
+    POLICY_VERSION,
+    THEME_MAP_VERSION,
+    PuzzleDailySet,
+    PuzzleDailySlot,
+    PuzzleRating,
+    PuzzleRatingEvent,
+    elo_after,
+)
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.content.validate import validate_solution_line
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
@@ -71,6 +83,10 @@ class ExportArchive(BaseModel):
     content_attempts: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_runs: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_content_items: list[dict[str, Any]] = Field(default_factory=list)
+    puzzle_rating: dict[str, Any] | None = None
+    puzzle_daily_sets: list[dict[str, Any]] = Field(default_factory=list)
+    puzzle_daily_slots: list[dict[str, Any]] = Field(default_factory=list)
+    puzzle_rating_events: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
 
 
@@ -122,6 +138,7 @@ def _validate_puzzle_archive(
     runs: list[PuzzleRun],
     study_sessions: list[StudySession],
     attempts: list[ContentAttempt],
+    slots: list[PuzzleDailySlot],
 ) -> list[ContentItem]:
     """Preflight the entire puzzle graph before any archive records are written."""
     catalog = {item.id: item for item in items}
@@ -142,7 +159,7 @@ def _validate_puzzle_archive(
     for archived_attempt in attempts:
         if session.get(ContentAttempt, archived_attempt.id) is not None:
             raise ValueError("Conflicting content attempt")
-    referenced = {run.item_id for run in runs} | {
+    referenced = {run.item_id for run in runs} | {slot.item_id for slot in slots} | {
         attempt.item_id for attempt in attempts if attempt.item_id in catalog
     }
     if set(catalog) - referenced:
@@ -226,7 +243,7 @@ def _validate_puzzle_archive(
                 or attempt.success != solved
                 or attempt.hint_assisted != bool(run.hint_steps)
                 or attempt.response_payload.get("run_id") != run.id
-                or attempt.completed_at is None
+                or attempt.completed_at != run.completed_at
             ):
                 raise ValueError("Invalid terminal puzzle attempt")
         elif attempt is not None:
@@ -241,6 +258,153 @@ def _validate_puzzle_archive(
         ):
             raise ValueError("Puzzle attempt has no archived run")
     return missing
+
+
+def _validate_puzzle_practice_archive(
+    session: Session,
+    player_id: str,
+    rating: PuzzleRating | None,
+    sets: list[PuzzleDailySet],
+    slots: list[PuzzleDailySlot],
+    events: list[PuzzleRatingEvent],
+    runs: list[PuzzleRun],
+    items: list[ContentItem],
+) -> None:
+    """Validate portable M64 history without replaying awards or trusting live metadata."""
+    sets_by_id = {daily.id: daily for daily in sets}
+    slots_by_id = {slot.id: slot for slot in slots}
+    runs_by_id = {run.id: run for run in runs}
+    item_ids = {item.id for item in items}
+    if (
+        len(sets_by_id) != len(sets)
+        or len(slots_by_id) != len(slots)
+        or len({daily.utc_day for daily in sets}) != len(sets)
+        or len({event.run_id for event in events}) != len(events)
+        or len({event.slot_id for event in events}) != len(events)
+    ):
+        raise ValueError("Duplicate puzzle practice records")
+    if rating is None:
+        if sets or slots or events:
+            raise ValueError("Puzzle practice history requires a rating")
+    elif (
+        rating.player_id != player_id
+        or not isfinite(rating.rating)
+        or rating.rated_count < 0
+        or session.get(PuzzleRating, player_id) is not None
+    ):
+        raise ValueError("Invalid puzzle rating")
+    for daily in sets:
+        created_utc = (
+            daily.created_at.replace(tzinfo=UTC) if daily.created_at.tzinfo is None
+            else daily.created_at.astimezone(UTC)
+        )
+        if (
+            daily.player_id != player_id
+            or daily.policy_version != POLICY_VERSION
+            or daily.theme_map_version != THEME_MAP_VERSION
+            or not isfinite(daily.player_rating)
+            or date.fromisoformat(daily.utc_day).isoformat() != daily.utc_day
+            or created_utc.date().isoformat() != daily.utc_day
+            or session.get(PuzzleDailySet, daily.id) is not None
+        ):
+            raise ValueError("Invalid puzzle daily policy snapshot")
+    bound_runs: set[str] = set()
+    first_items: set[str] = set()
+    for slot in slots:
+        daily_set = sets_by_id.get(slot.set_id)
+        if (
+            slot.player_id != player_id
+            or daily_set is None
+            or slot.item_id not in item_ids
+            or not isfinite(slot.item_rating)
+            or slot.reason not in {"due", "weak", "exploration"}
+            or slot.widening not in {"200", "400", "catalog", "due"}
+            or (slot.reason == "due") != (slot.widening == "due")
+            or (slot.reason == "due" and slot.first_exposure)
+            or session.get(PuzzleDailySlot, slot.id) is not None
+        ):
+            raise ValueError("Invalid puzzle daily slot")
+        if slot.first_exposure and slot.run_id is not None:
+            if slot.item_id in first_items:
+                raise ValueError("Duplicate first puzzle exposure")
+            first_items.add(slot.item_id)
+        if slot.run_id is None:
+            if slot.closed_at is not None:
+                raise ValueError("Unplayed puzzle slot is closed")
+            continue
+        run = runs_by_id.get(slot.run_id)
+        if (
+            slot.run_id in bound_runs
+            or run is None
+            or run.player_id != player_id
+            or run.item_id != slot.item_id
+            or (run.state == "active") != (slot.closed_at is None)
+            or slot.closed_at != run.completed_at
+            or run.started_at < daily_set.created_at
+        ):
+            raise ValueError("Invalid puzzle slot run binding")
+        bound_runs.add(slot.run_id)
+        other_runs = [
+            other for other in runs if other.item_id == slot.item_id and other.id != run.id
+        ]
+        seen_before = any(other.started_at <= run.started_at for other in other_runs)
+        if slot.first_exposure == seen_before:
+            raise ValueError("Puzzle first exposure does not match archived history")
+    for daily in sets:
+        members = [slot for slot in slots if slot.set_id == daily.id]
+        if (
+            len(members) > 10
+            or len({slot.item_id for slot in members}) != len(members)
+            or sorted(slot.position for slot in members) != list(range(len(members)))
+        ):
+            raise ValueError("Invalid puzzle daily membership")
+    expected_events = {
+        slot.run_id for slot in slots
+        if slot.first_exposure and slot.run_id is not None and slot.closed_at is not None
+    }
+    if {event.run_id for event in events} != expected_events:
+        raise ValueError("Missing or ineligible puzzle rating event")
+    before = INITIAL_RATING
+    previous_completed: datetime | None = None
+    for sequence, event in enumerate(sorted(events, key=lambda item: item.sequence), start=1):
+        bound_slot = slots_by_id.get(event.slot_id)
+        run = runs_by_id.get(event.run_id)
+        if (
+            event.player_id != player_id
+            or event.sequence != sequence
+            or event.policy_version != POLICY_VERSION
+            or bound_slot is None
+            or run is None
+            or bound_slot.run_id != run.id
+            or not bound_slot.first_exposure
+            or bound_slot.reason == "due"
+            or run.state not in {"solved", "failed", "abandoned"}
+            or event.item_id != bound_slot.item_id
+            or event.item_id != run.item_id
+            or run.completed_at is None
+            or event.item_rating != bound_slot.item_rating
+            or event.policy_version != sets_by_id[bound_slot.set_id].policy_version
+            or event.score != int(run.state == "solved" and not run.hint_steps)
+            or not all(isfinite(value) for value in (
+                event.before, event.after, event.item_rating,
+            ))
+            or not isclose(event.before, before, rel_tol=0, abs_tol=1e-9)
+            or not isclose(
+                event.after, elo_after(event.before, event.item_rating, event.score),
+                rel_tol=0, abs_tol=1e-9,
+            )
+            or event.created_at < run.completed_at
+            or previous_completed is not None and run.completed_at < previous_completed
+            or session.get(PuzzleRatingEvent, event.run_id) is not None
+        ):
+            raise ValueError("Invalid puzzle rating event chain")
+        before = event.after
+        previous_completed = run.completed_at
+    if rating is not None and (
+        rating.rated_count != len(events)
+        or not isclose(rating.rating, before, rel_tol=0, abs_tol=1e-9)
+    ):
+        raise ValueError("Puzzle rating does not match its ledger")
 
 
 def _validate_reveal_snapshot(reveal: SessionHintReveal, game: Game | None) -> None:
@@ -521,9 +685,22 @@ def export_player_data(
     puzzle_runs = session.exec(
         select(PuzzleRun).where(col(PuzzleRun.player_id) == player_id)
     ).all()
-    puzzle_item_ids = {run.item_id for run in puzzle_runs} | {
-        attempt.item_id for attempt in content_attempts
-    }
+    puzzle_rating = session.get(PuzzleRating, player_id)
+    puzzle_daily_sets = session.exec(
+        select(PuzzleDailySet).where(col(PuzzleDailySet.player_id) == player_id)
+    ).all()
+    puzzle_daily_slots = session.exec(
+        select(PuzzleDailySlot).where(col(PuzzleDailySlot.player_id) == player_id)
+    ).all()
+    puzzle_rating_events = session.exec(
+        select(PuzzleRatingEvent).where(col(PuzzleRatingEvent.player_id) == player_id)
+        .order_by(col(PuzzleRatingEvent.sequence))
+    ).all()
+    puzzle_item_ids = (
+        {run.item_id for run in puzzle_runs}
+        | {slot.item_id for slot in puzzle_daily_slots}
+        | {attempt.item_id for attempt in content_attempts}
+    )
     puzzle_content_items = (
         session.exec(select(ContentItem).where(
             col(ContentItem.id).in_(puzzle_item_ids), ContentItem.domain == "puzzles"
@@ -601,6 +778,10 @@ def export_player_data(
         ],
         puzzle_runs=[run.model_dump(mode="json") for run in puzzle_runs],
         puzzle_content_items=[item.model_dump(mode="json") for item in puzzle_content_items],
+        puzzle_rating=puzzle_rating.model_dump(mode="json") if puzzle_rating else None,
+        puzzle_daily_sets=[daily.model_dump(mode="json") for daily in puzzle_daily_sets],
+        puzzle_daily_slots=[slot.model_dump(mode="json") for slot in puzzle_daily_slots],
+        puzzle_rating_events=[event.model_dump(mode="json") for event in puzzle_rating_events],
         credential_hash=credential_hash,
     )
 
@@ -682,8 +863,60 @@ def import_player_data(
             if any(type(step) is not int for step in data.get("hint_steps", {}).values()):
                 raise ValueError("Invalid hint steps")
         puzzle_runs = [PuzzleRun.model_validate(data) for data in archive.puzzle_runs]
+        puzzle_rating = (
+            PuzzleRating.model_validate(archive.puzzle_rating)
+            if archive.puzzle_rating is not None else None
+        )
+        puzzle_daily_sets = [
+            PuzzleDailySet.model_validate(data) for data in archive.puzzle_daily_sets
+        ]
+        puzzle_daily_slots = [
+            PuzzleDailySlot.model_validate(data) for data in archive.puzzle_daily_slots
+        ]
+        puzzle_rating_events = [
+            PuzzleRatingEvent.model_validate(data) for data in archive.puzzle_rating_events
+        ]
+        integer_fields = (
+            (
+                [archive.puzzle_rating] if archive.puzzle_rating is not None else [],
+                ("rated_count",),
+            ),
+            (archive.puzzle_daily_slots, ("position",)),
+            (archive.puzzle_rating_events, ("sequence", "score")),
+        )
+        for records, fields in integer_fields:
+            for data in records:
+                if any(type(data.get(field)) is not int for field in fields):
+                    raise ValueError("Invalid puzzle practice counter")
+        for data in archive.puzzle_daily_slots:
+            if type(data.get("first_exposure")) is not bool:
+                raise ValueError("Invalid first exposure flag")
+        numeric_fields = (
+            ([archive.puzzle_rating] if archive.puzzle_rating is not None else [], ("rating",)),
+            (archive.puzzle_daily_sets, ("player_rating",)),
+            (archive.puzzle_daily_slots, ("item_rating",)),
+            (archive.puzzle_rating_events, ("before", "after", "item_rating")),
+        )
+        for records, snapshot_fields in numeric_fields:
+            for data in records:
+                if any(type(data.get(field)) not in (int, float) for field in snapshot_fields):
+                    raise ValueError("Invalid puzzle practice snapshot")
+        for data in archive.puzzle_daily_sets:
+            if (
+                data.get("policy_version") != POLICY_VERSION
+                or data.get("theme_map_version") != THEME_MAP_VERSION
+            ):
+                raise ValueError("Missing or unsupported puzzle selection policy")
+        for data in archive.puzzle_rating_events:
+            if data.get("policy_version") != POLICY_VERSION:
+                raise ValueError("Missing or unsupported puzzle rating policy")
         missing_puzzles = _validate_puzzle_archive(
-            session, player_id, puzzle_items, puzzle_runs, study_sessions, content_attempts
+            session, player_id, puzzle_items, puzzle_runs, study_sessions, content_attempts,
+            puzzle_daily_slots,
+        )
+        _validate_puzzle_practice_archive(
+            session, player_id, puzzle_rating, puzzle_daily_sets, puzzle_daily_slots,
+            puzzle_rating_events, puzzle_runs, puzzle_items,
         )
     except (ValueError, TypeError, AttributeError, LessonVerificationError) as error:
         raise HTTPException(
@@ -901,6 +1134,17 @@ def import_player_data(
     for run in puzzle_runs:
         session.add(run)
     session.flush()
+    if puzzle_rating is not None:
+        session.add(puzzle_rating)
+    for daily in puzzle_daily_sets:
+        session.add(daily)
+    session.flush()
+    for slot in puzzle_daily_slots:
+        session.add(slot)
+    session.flush()
+    # Restore the validated ledger verbatim; never call terminal award/schedule logic.
+    for event in puzzle_rating_events:
+        session.add(event)
     for content_attempt in content_attempts:
         session.add(content_attempt)
 
@@ -1068,12 +1312,26 @@ def delete_player_data(
     affected_rows["positive_move_credits"] = len(session.exec(
         select(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id)
     ).all())
+    affected_rows["puzzle_rating"] = int(session.get(PuzzleRating, player_id) is not None)
+    affected_rows["puzzle_daily_sets"] = len(session.exec(
+        select(PuzzleDailySet).where(col(PuzzleDailySet.player_id) == player_id)
+    ).all())
+    affected_rows["puzzle_daily_slots"] = len(session.exec(
+        select(PuzzleDailySlot).where(col(PuzzleDailySlot.player_id) == player_id)
+    ).all())
+    affected_rows["puzzle_rating_events"] = len(session.exec(
+        select(PuzzleRatingEvent).where(col(PuzzleRatingEvent.player_id) == player_id)
+    ).all())
 
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
 
     session.exec(delete(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id))
     session.exec(delete(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id))
+    session.exec(delete(PuzzleRatingEvent).where(col(PuzzleRatingEvent.player_id) == player_id))
+    session.exec(delete(PuzzleDailySlot).where(col(PuzzleDailySlot.player_id) == player_id))
+    session.exec(delete(PuzzleDailySet).where(col(PuzzleDailySet.player_id) == player_id))
+    session.exec(delete(PuzzleRating).where(col(PuzzleRating.player_id) == player_id))
 
     if owned_game_ids:
         session.exec(delete(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids)))

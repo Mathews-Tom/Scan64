@@ -14,6 +14,8 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_authenticated_player
 from scan64.content.models import ContentAttempt, ContentItem, StudySession
 from scan64.content.puzzle_hints import puzzle_hint
+from scan64.content.puzzle_practice import daily_set, daily_summary, finish_practice, slots_for
+from scan64.content.puzzle_practice_models import PuzzleDailySlot
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.insights import InsightStep
 from scan64.learning.verification.verifier import verify_lesson
@@ -22,6 +24,19 @@ from scan64.persistence.database import get_session
 router = APIRouter(prefix="/v1/puzzles", tags=["puzzles"])
 MAX_WRONG_ATTEMPTS = 3
 RunState = Literal["active", "solved", "failed", "abandoned"]
+
+
+class PuzzleDailyRead(BaseModel):
+    utc_day: str
+    rating: int
+    rated_count: int
+    provisional: bool
+    overdue_count: int
+    total: int
+    completed: int
+    remaining: int
+    actual_mix: dict[str, int]
+    message: str
 
 
 class PuzzleRunRead(BaseModel):
@@ -37,12 +52,17 @@ class PuzzleRunRead(BaseModel):
     state: RunState
     hint_step: int
     hints: list[InsightStep]
+    selection_reason: str | None
+    widening: str | None
+    rated: bool
+    daily: PuzzleDailyRead
 
 
 class PuzzleStartRead(BaseModel):
     status: Literal["ready", "empty", "exhausted"]
     run: PuzzleRunRead | None = None
     message: str
+    daily: PuzzleDailyRead
 
 
 class ExpectedPuzzleState(BaseModel):
@@ -88,6 +108,9 @@ def _safe_run(run: PuzzleRun, session: Session) -> PuzzleRunRead:
         puzzle_hint(chess.Board(run.fen), lesson.interaction.solution[run.cursor :], level)
         for level in range(1, step + 1)
     ]
+    slot = session.exec(
+        select(PuzzleDailySlot).where(PuzzleDailySlot.run_id == run.id)
+    ).one_or_none()
     return PuzzleRunRead(
         run_id=run.id,
         puzzle_id=item.id,
@@ -100,6 +123,10 @@ def _safe_run(run: PuzzleRun, session: Session) -> PuzzleRunRead:
         state=cast(RunState, run.state),
         hint_step=step,
         hints=hints,
+        selection_reason=slot.reason if slot else None,
+        widening=slot.widening if slot else None,
+        rated=bool(slot and slot.first_exposure),
+        daily=PuzzleDailyRead(**daily_summary(run.player_id, session)),
     )
 
 
@@ -140,22 +167,23 @@ def _active_run(player_id: str, session: Session) -> PuzzleRun | None:
     ).one_or_none()
 
 
+@router.get("/daily", response_model=PuzzleDailyRead)
+def read_puzzle_daily(request: Request, session: Session = Depends(get_session)) -> PuzzleDailyRead:
+    player_id = require_authenticated_player(request, session)
+    return PuzzleDailyRead(**daily_summary(player_id, session))
+
+
 @router.post("/runs", response_model=PuzzleStartRead)
 def start_puzzle_run(request: Request, session: Session = Depends(get_session)) -> PuzzleStartRead:
     player_id = require_authenticated_player(request, session)
     active = _active_run(player_id, session)
     if active is not None:
-        return PuzzleStartRead(
-            status="ready", run=_safe_run(active, session), message="Run resumed."
-        )
-    finished = select(PuzzleRun.item_id).where(PuzzleRun.player_id == player_id)
-    item = session.exec(
-        select(ContentItem)
-        .where(ContentItem.domain == "puzzles", ~col(ContentItem.id).in_(finished))
-        .order_by(col(ContentItem.payload)["import_sequence"].as_integer(), ContentItem.id)
-        .limit(1)
-    ).first()
-    if item is None:
+        safe = _safe_run(active, session)
+        return PuzzleStartRead(status="ready", run=safe, message="Run resumed.", daily=safe.daily)
+    day = daily_set(player_id, session)
+    slot = next((entry for entry in slots_for(day, session) if entry.closed_at is None), None)
+    if slot is None:
+        daily = PuzzleDailyRead(**daily_summary(player_id, session))
         has_catalog = (
             session.exec(
                 select(ContentItem.id).where(ContentItem.domain == "puzzles").limit(1)
@@ -164,15 +192,35 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
         )
         return PuzzleStartRead(
             status="exhausted" if has_catalog else "empty",
-            message=(
-                "You have finished all imported puzzles. Import more to continue."
-                if has_catalog
-                else "No puzzles imported. Run scan64-cli puzzles import --download locally, "
-                "or docker exec <container> scan64-cli puzzles import --download."
-            ),
+            daily=daily,
+            message=daily.message
+            if has_catalog
+            else "No puzzles imported. Run scan64-cli puzzles import --download locally, "
+            "or docker exec <container> scan64-cli puzzles import --download. "
+            "An already created daily set resets at 00:00 UTC.",
         )
+    item = session.get(ContentItem, slot.item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Puzzle run not found")
     lesson = LessonSpec.model_validate(item.payload["lesson"])
     study = StudySession(player_id=player_id, domain="puzzles")
+    first_exposure = (
+        session.exec(
+            select(PuzzleRun.id)
+            .where(PuzzleRun.player_id == player_id, PuzzleRun.item_id == item.id)
+            .limit(1)
+        ).first()
+        is None
+    )
+    first_exposure = (
+        first_exposure
+        and session.exec(
+            select(ContentAttempt.id)
+            .where(ContentAttempt.player_id == player_id, ContentAttempt.item_id == item.id)
+            .limit(1)
+        ).first()
+        is None
+    )
     run = PuzzleRun(
         player_id=player_id, item_id=item.id, session_id=study.id, fen=lesson.source.fen
     )
@@ -181,17 +229,32 @@ def start_puzzle_run(request: Request, session: Session = Depends(get_session)) 
         session.add(study)
         session.flush()
         session.add(run)
+        session.flush()
+        bound = session.execute(
+            update(PuzzleDailySlot)
+            .where(
+                col(PuzzleDailySlot.id) == slot.id,
+                col(PuzzleDailySlot.run_id).is_(None),
+                col(PuzzleDailySlot.closed_at).is_(None),
+            )
+            .values(run_id=run.id, first_exposure=first_exposure)
+            .returning(col(PuzzleDailySlot.id))
+            .execution_options(synchronize_session=False)
+        ).scalar_one_or_none()
+        if bound is None:
+            session.rollback()
+            raise HTTPException(status_code=409, detail="Puzzle state changed. Try again.")
         session.commit()
     except IntegrityError:
         session.rollback()
         active = _active_run(player_id, session)
         if active is None:
             raise
-        return PuzzleStartRead(
-            status="ready", run=_safe_run(active, session), message="Run resumed."
-        )
+        safe = _safe_run(active, session)
+        return PuzzleStartRead(status="ready", run=safe, message="Run resumed.", daily=safe.daily)
     session.refresh(run)
-    return PuzzleStartRead(status="ready", run=_safe_run(run, session), message="Puzzle ready.")
+    safe = _safe_run(run, session)
+    return PuzzleStartRead(status="ready", run=safe, message="Puzzle ready.", daily=safe.daily)
 
 
 @router.get("/runs/{run_id}", response_model=PuzzleRunRead)
@@ -256,6 +319,8 @@ def _update_run(
         if study is not None:
             study.completed_at = completed_at
             session.add(study)
+        if not finish_practice(run, state, hint_steps, completed_at, session):
+            _conflict(run, session)
     session.commit()
     session.refresh(run)
     return _safe_run(run, session)

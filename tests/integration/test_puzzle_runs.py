@@ -18,6 +18,7 @@ import scan64.api.puzzles as puzzles
 from scan64.api.app import app
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt
 from scan64.content.puzzle_import import import_puzzles
+from scan64.content.puzzle_practice_models import PuzzleRatingEvent
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -100,6 +101,10 @@ def _safe(response: dict[str, Any]) -> None:
         "state",
         "hint_step",
         "hints",
+        "selection_reason",
+        "widening",
+        "rated",
+        "daily",
     }
     text = json.dumps(response)
     for hidden in ("solution", "accepted_moves", "skill_mapping", "engine", "diagnosis"):
@@ -112,6 +117,8 @@ def test_empty_exhausted_and_import_order(client: TestClient, db_session: Sessio
     assert empty["status"] == "empty" and empty["run"] is None
     assert "scan64-cli puzzles import --download" in empty["message"]
     assert "docker exec" in empty["message"]
+    # Empty daily membership stays empty; a new player has not yet created a set.
+    auth = _auth(client, "catalog-player")
     _seed(db_session, puzzle_id="alphabetically-first", sequence=2, moves=["e2e4", "e7e5"])
     _seed(db_session, puzzle_id="z-first-imported", sequence=1, moves=["e2e4", "e7e5"])
     run = _start(client, auth)
@@ -216,9 +223,6 @@ def test_requested_hints_are_scoped_to_current_turn_and_mark_assistance(
 def test_any_legal_mate_and_exact_underpromotion(client: TestClient, db_session: Session) -> None:
     auth = _auth(client)
     _seed(db_session, original_fen="8/5K1k/6Q1/8/8/8/8/8 b - - 0 1", moves=["h7h8", "g6g7"])
-    run = _start(client, auth)
-    solved = _action(client, auth, run, "moves", move="g6h6")
-    assert solved.status_code == 200 and solved.json()["state"] == "solved"
     _seed(
         db_session,
         puzzle_id="promotion",
@@ -226,6 +230,9 @@ def test_any_legal_mate_and_exact_underpromotion(client: TestClient, db_session:
         original_fen="7k/P7/8/8/8/8/8/7K b - - 0 1",
         moves=["h8g8", "a7a8n"],
     )
+    run = _start(client, auth)
+    solved = _action(client, auth, run, "moves", move="g6h6")
+    assert solved.status_code == 200 and solved.json()["state"] == "solved"
     run = _start(client, auth)
     wrong = _action(client, auth, run, "moves", move="a7a8q").json()
     assert wrong["wrong_attempts"] == 1 and wrong["state"] == "active"
@@ -265,10 +272,13 @@ def test_ownership_payload_validation_and_no_attempt_on_abandon(
     assert not db_session.exec(select(ContentAttempt)).all()
 
 
+@pytest.mark.parametrize("move,terminal", [("a7a6", False), ("e7e5", True)])
 def test_concurrent_wrong_submissions_use_atomic_revision_check(
     client: TestClient,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    move: str,
+    terminal: bool,
 ) -> None:
     engine = create_engine(
         f"sqlite:///{tmp_path / 'puzzle-race.db'}",
@@ -285,7 +295,7 @@ def test_concurrent_wrong_submissions_use_atomic_revision_check(
     try:
         auth = _auth(client, "racing-player")
         with Session(engine) as session:
-            _seed(session)
+            _seed(session, moves=["e2e4", "e7e5"])
         run = _start(client, auth)
         barrier = Barrier(2)
         original = puzzles._expect_active
@@ -297,13 +307,15 @@ def test_concurrent_wrong_submissions_use_atomic_revision_check(
         monkeypatch.setattr(puzzles, "_expect_active", synchronized)
         with ThreadPoolExecutor(max_workers=2) as executor:
             responses = list(
-                executor.map(lambda _: _action(client, auth, run, "moves", move="a7a6"), range(2))
+                executor.map(lambda _: _action(client, auth, run, "moves", move=move), range(2))
             )
         assert sorted(response.status_code for response in responses) == [200, 409]
         with Session(engine) as session:
             stored = session.exec(select(PuzzleRun)).one()
-            assert stored.wrong_attempts == stored.revision == 1
-            assert not session.exec(select(ContentAttempt)).all()
+            assert stored.revision == 1
+            assert stored.wrong_attempts == (0 if terminal else 1)
+            assert len(session.exec(select(ContentAttempt)).all()) == int(terminal)
+            assert len(session.exec(select(PuzzleRatingEvent)).all()) == int(terminal)
     finally:
         app.dependency_overrides[get_session] = previous
         engine.dispose()

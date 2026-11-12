@@ -21,12 +21,24 @@ vi.mock('./api/client', async (importOriginal) => {
       getGameAnalysisStatus: vi.fn().mockResolvedValue({ status: 'not_analysed' }),
       getPlayerGames: vi.fn(),
       getWeeklyReport: vi.fn(),
+      getPuzzleDaily: vi.fn().mockResolvedValue({
+        utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+        overdue_count: 4, total: 10, completed: 2, remaining: 8,
+        actual_mix: { due: 4, weak: 5, exploration: 1 }, message: 'Your daily set is ready.',
+      }),
       getFamousGames: vi.fn().mockResolvedValue([]),
       getCoachDashboard: vi.fn().mockResolvedValue({ coach_id: 'player-1', students: [] }),
       createGame: vi.fn(),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
-      startPuzzleRun: vi.fn().mockResolvedValue({ status: 'empty', run: null, message: 'Import puzzles to begin.' }),
+      startPuzzleRun: vi.fn().mockResolvedValue({
+        status: 'empty', run: null, message: 'Import puzzles to begin.',
+        daily: {
+          utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+          overdue_count: 0, total: 0, completed: 0, remaining: 0,
+          actual_mix: { due: 0, weak: 0, exploration: 0 }, message: '',
+        },
+      }),
     },
   };
 });
@@ -61,6 +73,17 @@ describe('App', () => {
   it('renders Today by default for a stored identity', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument();
+  });
+
+  it('shows separate puzzle progress on Today without starting a run and links to puzzles', async () => {
+    render(<App />);
+    expect(await screen.findByText(/1200 \(provisional\)/)).toBeInTheDocument();
+    expect(screen.getByText(/2 of 10 completed.*8 remaining.*4 overdue reviews/)).toBeInTheDocument();
+    expect(ApiClient.getPuzzleDaily).toHaveBeenCalledTimes(1);
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('link', { name: 'Continue puzzles' }));
+    expect(window.location.pathname).toBe('/puzzles');
+    await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1));
   });
 
   it('navigates to play screen and updates the URL', () => {

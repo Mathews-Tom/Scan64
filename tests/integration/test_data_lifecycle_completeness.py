@@ -25,6 +25,13 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_practice_models import (
+    PuzzleDailySet,
+    PuzzleDailySlot,
+    PuzzleRating,
+    PuzzleRatingEvent,
+    elo_after,
+)
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
@@ -57,6 +64,10 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         StudySession.__tablename__,
         ContentAttempt.__tablename__,
         PuzzleRun.__tablename__,
+        PuzzleRating.__tablename__,
+        PuzzleDailySet.__tablename__,
+        PuzzleDailySlot.__tablename__,
+        PuzzleRatingEvent.__tablename__,
         LessonAttempt.__tablename__,
         TransferMeasurement.__tablename__,
         CoachStudentLink.__tablename__,
@@ -92,6 +103,10 @@ ARCHIVE_FIELDS = {
     StudySession.__tablename__: "study_sessions",
     ContentAttempt.__tablename__: "content_attempts",
     PuzzleRun.__tablename__: "puzzle_runs",
+    PuzzleRating.__tablename__: "puzzle_rating",
+    PuzzleDailySet.__tablename__: "puzzle_daily_sets",
+    PuzzleDailySlot.__tablename__: "puzzle_daily_slots",
+    PuzzleRatingEvent.__tablename__: "puzzle_rating_events",
     ContentItem.__tablename__: "puzzle_content_items",
     LessonAttempt.__tablename__: "lesson_attempts",
     TransferMeasurement.__tablename__: "transfer_measurements",
@@ -295,7 +310,29 @@ def _seed_player_lifecycle_records(
         ]
     )
     session.commit()
-    seed_puzzle_run(session, player_id)
+    run = seed_puzzle_run(session, player_id, solved=True)
+    assert run.completed_at is not None
+    daily = PuzzleDailySet(
+        player_id=player_id, utc_day=run.started_at.date().isoformat(),
+        created_at=run.started_at,
+    )
+    session.add(daily)
+    session.flush()
+    slot = PuzzleDailySlot(
+        player_id=player_id, set_id=daily.id, position=0, item_id=run.item_id,
+        item_rating=1200, reason="exploration", widening="200",
+        first_exposure=True, run_id=run.id, closed_at=run.completed_at,
+    )
+    session.add(slot)
+    session.flush()
+    after = elo_after(1200, 1200, 1)
+    session.add(PuzzleRating(player_id=player_id, rating=after, rated_count=1))
+    session.add(PuzzleRatingEvent(
+        player_id=player_id, run_id=run.id, slot_id=slot.id, item_id=run.item_id,
+        sequence=1, item_rating=1200, before=1200, after=after, score=1,
+        created_at=run.completed_at,
+    ))
+    session.commit()
 
     return {
         "analysis_id": analysis.id,
@@ -346,6 +383,10 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert archive["coach_student_links"]
     assert archive["puzzle_runs"]
     assert archive["puzzle_content_items"]
+    assert archive["puzzle_rating"]["rated_count"] == 1
+    assert len(archive["puzzle_daily_sets"]) == 1
+    assert len(archive["puzzle_daily_slots"]) == 1
+    assert len(archive["puzzle_rating_events"]) == 1
 
     dry_run = client.request(
         "DELETE",
@@ -376,7 +417,11 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "review_schedules": 1,
         "study_sessions": 2,
         "puzzle_runs": 1,
-        "content_attempts": 1,
+        "content_attempts": 2,
+        "puzzle_rating": 1,
+        "puzzle_daily_sets": 1,
+        "puzzle_daily_slots": 1,
+        "puzzle_rating_events": 1,
         "coach_student_links": 1,
     }
 
@@ -445,6 +490,18 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         ).all(),
         "puzzle_runs": db_session.exec(
             select(PuzzleRun).where(PuzzleRun.player_id == player_id)
+        ).all(),
+        "puzzle_rating": db_session.exec(
+            select(PuzzleRating).where(PuzzleRating.player_id == player_id)
+        ).all(),
+        "puzzle_daily_sets": db_session.exec(
+            select(PuzzleDailySet).where(PuzzleDailySet.player_id == player_id)
+        ).all(),
+        "puzzle_daily_slots": db_session.exec(
+            select(PuzzleDailySlot).where(PuzzleDailySlot.player_id == player_id)
+        ).all(),
+        "puzzle_rating_events": db_session.exec(
+            select(PuzzleRatingEvent).where(PuzzleRatingEvent.player_id == player_id)
         ).all(),
         "content_attempt": db_session.exec(
             select(ContentAttempt).where(ContentAttempt.player_id == player_id)

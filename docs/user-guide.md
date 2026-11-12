@@ -171,19 +171,58 @@ The third hint may disclose the source move and remaining line. Hints reset on t
 next solving turn. These hints come from the imported puzzle, not the live game's
 engine-hint endpoint.
 
-Reloading or returning to Puzzles resumes the active server-owned run; no solution
-line or progress is saved in browser storage. Solved and failed states disable the
-board; choose **Next puzzle** to continue. **Abandon puzzle** ends the run without
-recording a success or failure and also offers Next puzzle.
+Reloading or returning to Puzzles resumes the active server-owned run, including
+across UTC midnight; no solution line or progress is saved in browser storage.
+Solved and failed states disable the board; choose **Next puzzle** to continue.
+**Abandon puzzle** closes the slot without a content attempt, but loses rating
+when it is a rated first exposure.
 
 If another tab changes the run, the screen loads the conflict response's current
 state without replaying your action. Other request failures do not spend attempts
 locally: choose **Retry** to reload canonical state before acting again. Puzzle
 mutations require a connection; they are not queued for offline submission.
 
-Imported Lichess CC0 puzzles are **source verified**: their continuation is legal.
-This is not engine recognition of move quality, an Elo estimate, or evidence of
-learning improvement. Puzzle practice does not award theme mastery or rating gains.
+### Daily selection and separate puzzle rating
+
+Today shows your separate Scan64 puzzle rating, provisional status, daily progress
+and overdue review count without starting a run. Puzzles shows the server's reason
+and selection range. A stable set contains at most **10 puzzles per UTC day**,
+targeting **4 due reviews, 5 related to weaknesses and 1 exploration**. Available
+candidates can change the actual mix or leave a short set; the server reports it.
+New puzzles start within ±200 of your puzzle rating, explicitly widening to ±400
+and then the catalog when necessary. Refresh, Start and Next cannot regenerate
+the set, skip an active run or duplicate slots. Complete days reset at UTC midnight;
+an existing active run always resumes before current-day practice.
+
+The rating starts at **1200**, with **K=32**, and remains provisional until **20
+rated puzzles**. For player rating R and the item's rating snapshotted when the
+daily set is created: `E = 1 / (1 + 10^((item_rating - R) / 400))`, then
+`R' = R + 32 * (S - E)`. Precision is stored; only display is rounded.
+First exposure is committed when its daily-slot run starts. Completing it without
+any requested hints gives S=1; hinted completion, failure or abandonment gives
+S=0. Wrong moves are allowed within the three-submission limit. Hints do not spend
+wrong attempts, but prevent an independent rated win even after changing turns.
+Due reviews, repeated puzzles and pre-existing legacy runs are unrated; historical
+practice is not replayed into the rating.
+
+Failed or assisted completions schedule spaced reviews. Independently solving a
+review retires it; independent first solves do not enter the review queue.
+Abandonment and legacy runs do not schedule reviews. Theme relationships are
+versioned heuristics (`puzzle-theme-heuristic-v1`), not diagnoses or mastery;
+the reverse hangingPiece relationship is not measured prevention of hanging pieces.
+Unknown themes can still appear in reviews or exploration.
+
+Imported Lichess CC0 puzzles are **source verified**: their continuation is legal,
+not engine recognition of move quality. The `puzzle-elo-v1` practice rating is
+not chess/FIDE strength or evidence of improvement and never changes playing
+strength priors or theme mastery.
+
+Operators must back up player rating, daily membership, progress and the historical
+rating-event ledger together before migrations, restore or deletion. Use the
+reviewed deletion dry-run, rollback and audit workflow; retain a recoverable backup
+before destructive changes. Restore preserves awards rather than reapplying them.
+A rollback must restore a matching database/schema backup, not silently recompute
+historical awards under new policy or refreshed catalog ratings.
 
 ## Review games and content
 

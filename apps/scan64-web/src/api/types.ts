@@ -45,6 +45,19 @@ export type PositionInsight = MoveInsight | {
 /** The server's three-step hint union, shared with position hints. */
 export type InsightStep = PositionInsight;
 
+export interface PuzzleDailyRead {
+  utc_day: string;
+  rating: number;
+  rated_count: number;
+  provisional: boolean;
+  overdue_count: number;
+  total: number;
+  completed: number;
+  remaining: number;
+  actual_mix: { due: number; weak: number; exploration: number };
+  message: string;
+}
+
 export interface PuzzleRunRead {
   run_id: string;
   puzzle_id: string;
@@ -58,12 +71,17 @@ export interface PuzzleRunRead {
   state: 'active' | 'solved' | 'failed' | 'abandoned';
   hint_step: number;
   hints: InsightStep[];
+  selection_reason: string | null;
+  widening: string | null;
+  rated: boolean;
+  daily: PuzzleDailyRead;
 }
 
 export interface PuzzleStartRead {
   status: 'ready' | 'empty' | 'exhausted';
   run: PuzzleRunRead | null;
   message: string;
+  daily: PuzzleDailyRead;
 }
 
 export interface Hint {

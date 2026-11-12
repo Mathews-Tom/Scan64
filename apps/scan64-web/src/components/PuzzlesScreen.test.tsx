@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PuzzlesScreen } from './PuzzlesScreen';
 import { ApiClient, PuzzleConflictError } from '../api/client';
-import type { PuzzleRunRead, PuzzleStartRead } from '../api/types';
+import type { PuzzleDailyRead, PuzzleRunRead, PuzzleStartRead } from '../api/types';
 import type * as ClientModule from '../api/client';
 
 const board = vi.hoisted(() => ({ props: null as null | {
@@ -25,16 +25,21 @@ vi.mock('../api/client', async importOriginal => {
 const SETUP = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
 const REPLY = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
 const FINISH = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
+const daily: PuzzleDailyRead = {
+  utc_day: '2026-11-13', rating: 1200, rated_count: 0, provisional: true,
+  overdue_count: 4, total: 10, completed: 0, remaining: 10,
+  actual_mix: { due: 4, weak: 5, exploration: 1 }, message: 'Your stable UTC daily set.',
+};
 function run(overrides: Partial<PuzzleRunRead> = {}): PuzzleRunRead {
   return { run_id: 'run-1', puzzle_id: 'puzzle-1', fen: SETUP, setup: 'e2e4', played_moves: [],
     cursor: 0, revision: 0, wrong_attempts: 0, maximum_wrong_attempts: 3,
-    state: 'active', hint_step: 0, hints: [], ...overrides };
+    state: 'active', hint_step: 0, hints: [], selection_reason: 'weak', widening: '400', rated: true, daily, ...overrides };
 }
 function deferred<T>() {
   return Promise.withResolvers<T>();
 }
 async function mount(value = run()) {
-  vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: value, message: '' });
+  vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: value, message: '', daily: value.daily });
   const view = render(<PuzzlesScreen />);
   await screen.findByTestId('puzzle-board');
   return view;
@@ -125,7 +130,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
       if (wrong < 3) expect(screen.getByText(`${3 - wrong} wrong attempts remaining`)).toBeInTheDocument();
     }
     expect(screen.getByText(/failed/i)).toBeInTheDocument();
-    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '' });
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily });
     fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
     await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(2));
     await waitFor(() => expectBoard(SETUP));
@@ -165,7 +170,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.getByRole('button', { name: 'Next puzzle' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
     expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(2);
-    await act(async () => pending.resolve({ status: 'ready', run: run({ run_id: 'run-2' }), message: '' }));
+    await act(async () => pending.resolve({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily }));
     expectBoard(SETUP);
     expect(screen.getByText('3 wrong attempts remaining')).toBeInTheDocument();
   });
@@ -228,7 +233,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     for (const button of screen.queryAllByRole('button')) expect(button).toBeDisabled();
     await act(async () => pending.reject(new Error('Cannot start puzzle')));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Cannot start puzzle|retry|try again/i);
-    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ fen: REPLY, cursor: 2, revision: 5, wrong_attempts: 1, played_moves: ['e7e5', 'g1f3'] }), message: '' });
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ fen: REPLY, cursor: 2, revision: 5, wrong_attempts: 1, played_moves: ['e7e5', 'g1f3'] }), message: '', daily });
     fireEvent.click(screen.getByRole('button', { name: /retry|try again/i }));
     await screen.findByTestId('puzzle-board');
     expectBoard(REPLY);
@@ -240,12 +245,29 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
   });
 
-  it.each(['empty', 'exhausted'] as const)('shows server %s guidance and an explicit offline import command', async status => {
-    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status, run: null, message: `Server says ${status}: import another puzzle set.` });
+  it.each(['empty', 'exhausted'] as const)('shows server %s guidance without starting a board', async status => {
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status, run: null, message: `Server says ${status}: import another puzzle set.`, daily });
     render(<PuzzlesScreen />);
     expect(await screen.findByText(`Server says ${status}: import another puzzle set.`)).toBeInTheDocument();
-    expect(screen.getByText(/scan64.*puzzles.*import/)).toBeInTheDocument();
+    if (status === 'empty') expect(screen.getByText(/scan64.*puzzles.*import/)).toBeInTheDocument();
+    else expect(screen.getByText(/next daily set resets at UTC midnight/i)).toBeInTheDocument();
     expect(screen.queryByTestId('puzzle-board')).not.toBeInTheDocument();
     expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
+  });
+  it('shows selection limits and updates rating and progress from the terminal response', async () => {
+    await mount();
+    expect(screen.getByText(/1200 \(provisional\)/)).toBeInTheDocument();
+    expect(screen.getByText(/0 of 10 completed.*4 overdue reviews/)).toBeInTheDocument();
+    expect(screen.getByText(/Widened to ±400/)).toBeInTheDocument();
+    expect(screen.getByText(/Related to recurring weaknesses/)).toBeInTheDocument();
+    expect(screen.getByText(/hints, failure or abandonment lose rating/)).toBeInTheDocument();
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValue(run({
+      state: 'solved', revision: 1,
+      daily: { ...daily, rating: 1216, rated_count: 1, completed: 1, remaining: 9 },
+    }));
+    await move();
+    expect(screen.getByText(/1216 \(provisional\)/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 10 completed.*9 remaining/)).toBeInTheDocument();
+    expect(screen.queryByText(/Source line \(UCI\)/)).not.toBeInTheDocument();
   });
 });

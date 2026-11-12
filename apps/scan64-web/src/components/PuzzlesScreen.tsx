@@ -91,10 +91,20 @@ export function PuzzlesScreen() {
   const solverBlack = run ? blackToMove !== (run.played_moves.length % 2 === 1) : false;
   const active = run?.state === 'active';
   const latestHint = run?.hints.at(-1);
+  const daily = run?.daily ?? catalog?.daily;
   return <section className="puzzles-screen" aria-labelledby="puzzles-title" aria-busy={pending}>
     <h1 id="puzzles-title">Puzzles</h1>
     <p>Practise the complete imported source continuation. The opponent’s setup move is already played.</p>
-    <p className="muted">Lichess CC0 source-verified practice: the source line is legal, not an engine judgement of move quality. This does not award mastery or rating gains.</p>
+    <p className="muted">Lichess CC0 source-verified practice: the source line is legal, not an engine judgement of move quality. Puzzle rating is separate from chess strength and does not award theme mastery.</p>
+    {daily ? <section className="study-panel" aria-label="Daily puzzle practice">
+      <h2>Daily puzzle practice · {daily.utc_day} UTC</h2>
+      <p>Scan64 puzzle rating: {daily.rating}{daily.provisional ? ' (provisional)' : ''} · {daily.rated_count} rated puzzles</p>
+      <p>{daily.completed} of {daily.total} completed · {daily.remaining} remaining · {daily.overdue_count} overdue reviews</p>
+      <p>Selected mix: {daily.actual_mix.due} due reviews, {daily.actual_mix.weak} related to weaknesses, {daily.actual_mix.exploration} exploration.</p>
+      <p>{daily.message}</p>
+      <p>Up to 10 puzzles per UTC day. Refreshing or choosing Next does not regenerate or skip the set. An active puzzle resumes first, even after UTC midnight.</p>
+    </section> : null}
+    <p>On a rated first exposure, an independent solve wins rating; hints, failure or abandonment lose rating. Mistakes within the three-attempt limit are allowed. Reviews and repeats are unrated.</p>
     <div role="status" aria-live="polite">
       {pending ? <p>Loading puzzle state…</p> : null}
       {notice ? <p>{notice}</p> : null}
@@ -102,17 +112,19 @@ export function PuzzlesScreen() {
         <p>{Math.max(0, run.maximum_wrong_attempts - run.wrong_attempts)} wrong attempts remaining</p>
         {run.state === 'solved' ? <p>Puzzle solved. You completed the source continuation.</p> : null}
         {run.state === 'failed' ? <p>Puzzle failed. All wrong attempts have been used.</p> : null}
-        {run.state === 'abandoned' ? <p>Puzzle abandoned. No success or failure was recorded.</p> : null}
+        {run.state === 'abandoned' ? <p>Puzzle abandoned. No content success or failure attempt was recorded; a rated first exposure counts as a rating loss.</p> : null}
       </> : null}
     </div>
     {error ? <div role="alert"><p>{error} Please retry loading the server state before continuing.</p>
       <button disabled={pending} onClick={() => void (run ? refresh() : start())}>Retry</button>
     </div> : null}
     {!run && catalog && catalog.status !== 'ready' ? <div className="study-panel">
-      <p>{catalog.status === 'empty' ? 'No imported puzzles are available.' : 'You have exhausted the available puzzles.'}</p>
-      <p>Ask the operator to import more puzzles into the application database:</p>
-      <code>{IMPORT_COMMAND}</code>
-      <p>Nothing downloads automatically.</p>
+      <p>{catalog.status === 'empty' ? 'No imported puzzles are available.' : 'No more puzzles are available in today’s set. The next daily set resets at UTC midnight.'}</p>
+      {catalog.status === 'empty' ? <>
+        <p>Ask the operator to import puzzles into the application database:</p>
+        <code>{IMPORT_COMMAND}</code>
+        <p>Nothing downloads automatically.</p>
+      </> : null}
       <button disabled={pending} onClick={() => void start()}>Check for puzzles</button>
     </div> : null}
     {run ? <div className="puzzles-layout">
@@ -122,6 +134,9 @@ export function PuzzlesScreen() {
       <div className="study-panel">
         <h2>Source puzzle</h2>
         <p>Puzzle: {run.puzzle_id}</p>
+        <p>Selection: {run.selection_reason === 'due' ? 'Due review' : run.selection_reason === 'weak' ? 'Related to recurring weaknesses (theme heuristic, not measured mastery)' : run.selection_reason === 'exploration' ? 'Exploration' : 'Resumed earlier practice'}</p>
+        {run.widening ? <p>Selection range: {run.widening === '200' ? 'Within ±200 of your puzzle rating' : run.widening === '400' ? 'Widened to ±400 of your puzzle rating' : run.widening === 'catalog' ? 'Widened to the available catalog' : 'Scheduled due review'}</p> : null}
+        <p>{run.rated ? 'Rated first exposure' : 'Unrated review, repeat or earlier run'}</p>
         <p>Setup move (UCI): {run.setup}</p>
         <p>Played continuation (UCI): {run.played_moves.length ? run.played_moves.join(' ') : 'No solver moves yet.'}</p>
         <section aria-label="Puzzle hints">
