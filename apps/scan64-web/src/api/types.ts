@@ -163,6 +163,8 @@ export interface GameMoveReviewRead {
   loss: number | null;
   band: ReviewBand | null;
   is_owner_move: boolean;
+  credit?: Record<string, unknown> | null;
+  credit_exclusion?: string | null;
 }
 
 export interface GameReviewKeyMoment {
@@ -290,6 +292,8 @@ export interface PlaySessionRead {
   clock_config?: Record<string, string>;
   status: string;
   coach_mode: boolean;
+  assistance_tracking_version?: number | null;
+  credit_analysis_status?: string | null;
 }
 
 export interface PlayMoveCreate {

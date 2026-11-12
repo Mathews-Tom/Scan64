@@ -51,6 +51,7 @@ export function ProfileScreen() {
 
       <section>
         <h3>Strengths & Weaknesses</h3>
+        <p>Skills include verified practice and eligible completed-game tactical successes. Review a game to inspect good-move proof and exclusions; “no in-app hint” does not establish absence of external help.</p>
         <ul>
           {progress.skills.map((skill) => (
             <li key={skill.concept}>

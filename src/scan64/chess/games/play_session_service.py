@@ -11,6 +11,7 @@ from sqlmodel import Session, col, select
 from scan64.chess.analysis.coach_interruption import CoachInterruption, prepare_coach_interruption
 from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.boards import uci_moves_to_san
+from scan64.chess.games.assistance import PlaySnapshot, StalePlaySnapshot, claim_snapshot
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import participants, player_color
 from scan64.chess.games.pgn import CorruptGameError, build_pgn
@@ -137,9 +138,18 @@ class PlaySessionService:
         return decision.uci_move
 
     def persist_moves(
-        self, play_session: PlaySession, game: Game, moves_before: list[str]
+        self, play_session: PlaySession, game: Game, moves_before: list[str],
+        snapshot: PlaySnapshot,
     ) -> None:
         """Publish a move edit only while its active-session snapshot still matches."""
+        config = dict(play_session.opponent_config)
+        try:
+            claimed_config = claim_snapshot(self.db, snapshot)
+        except StalePlaySnapshot as error:
+            raise PlaySessionNotActive(str(error)) from error
+        play_session.opponent_config = {
+            **config, "assistance_generation": claimed_config["assistance_generation"]
+        }
         pgn = build_pgn(game)
         with self.db.no_autoflush:
             changed = self.db.exec(
@@ -176,8 +186,9 @@ class PlaySessionService:
             raise TakebackNotAllowed("No human move pair to take back")
         # Keep the opening bot move (and any imported history) intact.
         moves_before = list(game.moves)
+        snapshot = PlaySnapshot.capture(play_session, game)
         game.moves = moves_before[:-2]
-        self.persist_moves(play_session, game, moves_before)
+        self.persist_moves(play_session, game, moves_before, snapshot)
         self.db.commit()
         return play_session
 
@@ -196,6 +207,11 @@ class PlaySessionService:
             update(PlaySession)
             .where(col(PlaySession.id) == play_session.id)
             .where(col(PlaySession.status) == "active")
+            .where(
+                col(PlaySession.game_id).is_(None)
+                if game is None
+                else col(PlaySession.game_id) == game.id
+            )
             .values(status="completed")
         )
         if completed.rowcount == 0:
@@ -252,6 +268,10 @@ class PlaySessionService:
             raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
 
         if not play_session.game_id:
+            try:
+                claim_snapshot(self.db, PlaySnapshot.capture(play_session, None))
+            except StalePlaySnapshot as error:
+                raise PlaySessionNotActive(str(error)) from error
             white, black = participants(play_session.player_id, play_session.opponent_config)
             game = Game(
                 pgn="",
@@ -267,8 +287,7 @@ class PlaySessionService:
             )
             game.pgn = build_pgn(game)
             self.db.add(game)
-            self.db.commit()
-            self.db.refresh(game)
+            self.db.flush()
             play_session.game_id = game.id
             self.db.add(play_session)
             self.db.commit()
@@ -286,6 +305,7 @@ class PlaySessionService:
             raise ValueError("It is not the player's turn")
         before_board = board.copy()
         moves_before = list(fetched.moves)
+        snapshot = PlaySnapshot.capture(play_session, fetched)
 
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
@@ -318,7 +338,7 @@ class PlaySessionService:
                 )
 
         if board.is_game_over():
-            self.persist_moves(play_session, fetched, moves_before)
+            self.persist_moves(play_session, fetched, moves_before, snapshot)
             if prepared_interruption is not None:
                 prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
@@ -334,7 +354,7 @@ class PlaySessionService:
         opponent_move = await self.play_opponent_move(play_session, fetched, board)
 
         if board.is_game_over():
-            self.persist_moves(play_session, fetched, moves_before)
+            self.persist_moves(play_session, fetched, moves_before, snapshot)
             if prepared_interruption is not None:
                 prepared_interruption.add_to(self.db)
             self.complete_session(play_session, fetched, board.result())
@@ -347,7 +367,7 @@ class PlaySessionService:
                 ),
             )
 
-        self.persist_moves(play_session, fetched, moves_before)
+        self.persist_moves(play_session, fetched, moves_before, snapshot)
         self.db.add(play_session)
         if prepared_interruption is not None:
             prepared_interruption.add_to(self.db)

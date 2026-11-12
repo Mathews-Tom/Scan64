@@ -7,10 +7,12 @@ from weakref import WeakValueDictionary
 
 import chess
 from chess_lesson_spec import Diagnosis, LessonSpec
-from sqlmodel import Session, select
+from sqlalchemy import update
+from sqlmodel import Session, col, select
 
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.admission import admission_controller
+from scan64.chess.analysis.credit import apply_positive_move_credits
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -29,7 +31,7 @@ from scan64.chess.analysis.review import (
     stage_position_analysis,
 )
 from scan64.chess.boards import board_from, uci_moves_to_san
-from scan64.chess.games.models import Game
+from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
@@ -88,6 +90,9 @@ async def run_analysis_for_game(
 
     if game.owner_color is None:
         raise ValueError("Cannot analyse a legacy game without owner_color")
+    analyzed_moves = list(game.moves)
+    analyzed_headers = dict(game.headers)
+    analyzed_color = game.owner_color
 
     # Keep historical rows, but reserve sources and slots only for visible lessons.
     existing_lessons = [
@@ -297,6 +302,30 @@ async def run_analysis_for_game(
 
     # Only now begin the atomic write phase (_JobSession defers this commit
     # together with the job's completed marker during normal/recovered runs).
+    # Match play's session-before-game lock order. A takeback or move during
+    # engine work invalidates the entire staged transaction, not only credit.
+    with session.no_autoflush:
+        session.execute(
+            update(PlaySession)
+            .where(col(PlaySession.game_id) == game.id)
+            .values(status=col(PlaySession.status))
+            .execution_options(synchronize_session=False)
+        )
+        unchanged = session.execute(
+            update(Game)
+            .where(
+                col(Game.id) == game.id,
+                col(Game.moves) == analyzed_moves,
+                col(Game.headers) == analyzed_headers,
+                col(Game.owner_color) == analyzed_color,
+            )
+            .values(result=col(Game.result))
+            .returning(col(Game.id))
+            .execution_options(synchronize_session=False)
+        ).first()
+    if unchanged is None:
+        session.rollback()
+        raise ValueError("Game changed during analysis; analyse the finished game again")
     session.add_all(positions_by_fen.values())
     session.add_all(analyses.values())
     session.add_all(review_rows)
@@ -329,6 +358,10 @@ async def run_analysis_for_game(
                 next_review_at=datetime.now(UTC),
             )
         )
+
+    apply_positive_move_credits(
+        game, session, rating=rating, staged_observations=observations
+    )
 
     session.commit()
 

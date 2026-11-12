@@ -150,6 +150,18 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
         </dl>
       </section>
       <p className="muted">Coarse 10,000-node fast-pass estimates, not Elo or Lichess accuracy. Missing scores are unscored, never zero loss. Accuracy excludes opponent moves and unscored owner moves; read it alongside coverage and all five band counts.</p>
+      <section aria-label="Good move credit">
+        <h3>Good move credit</h3>
+        <p>Only supported tactical best moves earn skill credit. “No in-app hint” describes Scan64's records, not independence from external assistance.</p>
+        {!review.moves.some(move => move.is_owner_move && move.credit) && <p>No credited moves in this review.</p>}
+        <ul>{review.moves.filter(move => move.is_owner_move && move.credit).map(move => <li key={move.ply}>
+          <button type="button" aria-current={selectedPly === move.ply ? 'step' : undefined}
+            onClick={() => setSelectedPly(move.ply)}>Credited move at ply {move.ply}: {move.san}</button>
+          <p>No in-app hint · {typeof move.credit?.skill_id === 'string'
+            ? move.credit.skill_id.replaceAll('_', ' ').replaceAll('.', ' / ') : 'Tactical skill'}</p>
+          <p>{typeof move.credit?.explanation === 'string' ? move.credit.explanation : 'Stored tactical proof is available for this credited move.'}</p>
+        </li>)}</ul>
+      </section>
       <ReviewProbabilityGraph review={review} selectedPly={selectedPly} onSelectedPlyChange={setSelectedPly} />
       <div className="review-replay-layout">
         <section className="owned-review-board" aria-label="Selected game position">
@@ -189,6 +201,10 @@ export function OwnedGameReview({ gameId, onPlayFromHere, startPlayFromPosition 
                   : move.is_owner_move ? `Your move · ${BAND_LABELS[move.band ?? 'unscored']}` : 'Opponent move'}</span>
                 {review.key_moments.some(moment => moment.ply === move.ply) && <span aria-label="Key moment">★</span>}
               </button>
+              {move.is_owner_move && <p data-testid={`review-credit-${move.ply}`}>
+                {move.credit ? 'Skill credit · no in-app hint'
+                  : `No skill credit: ${move.credit_exclusion ?? 'credit history unavailable'}`}
+              </p>}
             </li>)}
           </ol>
         </section>

@@ -1,5 +1,6 @@
 """Engine-free review projection; policy is computed from immutable fast inputs."""
 
+from typing import Any
 from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
@@ -8,6 +9,7 @@ from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from scan64.api.learning import _reverify_persisted_lesson
+from scan64.chess.analysis.credit import project_move_credits
 from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview, PersistedLessonOpportunity
 from scan64.chess.analysis.review import REVIEW_NODES
 from scan64.chess.boards import board_from
@@ -31,6 +33,8 @@ class ReviewMoveRead(BaseModel):
     loss: float | None
     band: ReviewBand | None
     is_owner_move: bool
+    credit: dict[str, Any] | None = None
+    credit_exclusion: str | None = None
 
 
 class ReviewKeyMomentRead(BaseModel):
@@ -149,6 +153,7 @@ def build_game_review(
             select(GameMoveReview).where(GameMoveReview.game_id == game.id)
         ).all()
     }
+    credit_projection = project_move_credits(game, session)
     board = board_from(game.headers.get("FEN"))
     initial_fen = board.fen()
     initial_probability = rows[1].before_probability if 1 in rows else None
@@ -173,6 +178,10 @@ def build_game_review(
         loss = review_loss(before, after)
         is_owner = game.owner_color == mover
         band = review_band(loss) if is_owner else None
+        credit, credit_exclusion = (
+            credit_projection.get(ply, (None, "missing source analysis"))
+            if is_owner else (None, None)
+        )
         if is_owner:
             total_owner_moves += 1
             counts[review_band(loss)] += 1
@@ -194,6 +203,8 @@ def build_game_review(
                 loss=loss,
                 band=band,
                 is_owner_move=is_owner,
+                credit=credit,
+                credit_exclusion=credit_exclusion,
             )
         )
     moments = _key_moments(game, moves, rows, session) if include_key_moments else []

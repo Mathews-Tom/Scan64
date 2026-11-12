@@ -25,6 +25,25 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 describe('owned move-by-move review', () => {
+  it('shows tactical proof and exclusions, links credited ply, and makes no external-independence claim', async () => {
+    const review = makeGameReview();
+    review.moves[0].credit = { skill_id: 'threat_processing.missed_capture', explanation: 'The legal line wins a pawn without merely restoring material.' };
+    review.moves[2].credit_exclusion = 'coach mode';
+    review.moves[4].credit_exclusion = 'assistance history unknown';
+    vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
+    render(<AnalysisScreen gameId="game-1" />);
+    const credits = await screen.findByRole('region', { name: 'Good move credit' });
+    expect(credits).toHaveTextContent('The legal line wins a pawn without merely restoring material.');
+    expect(credits).toHaveTextContent('not independence from external assistance');
+    expect(screen.getByTestId('review-credit-1')).toHaveTextContent('no in-app hint');
+    expect(screen.getByTestId('review-credit-3')).toHaveTextContent('coach mode');
+    expect(screen.getByTestId('review-credit-5')).toHaveTextContent('assistance history unknown');
+    expect(screen.queryByTestId('review-credit-2')).not.toBeInTheDocument();
+    fireEvent.click(within(credits).getByRole('button', { name: /Credited move at ply 1/ }));
+    expect(screen.getByTestId('review-move-1')).toHaveAttribute('aria-current', 'step');
+    expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: review.moves[0].fen }));
+  });
+
   it('continues graph arrow navigation from the current selection while focus stays on one point', async () => {
     const review = makeGameReview();
     render(<AnalysisScreen gameId="game-1" />);
