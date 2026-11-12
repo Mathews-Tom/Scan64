@@ -227,8 +227,8 @@ async def run_analysis_for_game(
 class _JobSession(Session):
     """Keep analysis writes and completion in one durable transaction.
 
-    Helpers also serve offline callers and may commit. During a job those
-    commits only flush, so a crash cannot persist lessons without completion.
+    With defer_commit set, run_analysis_for_game's own commit becomes a flush,
+    so analysis writes and the job's completed marker commit together.
     """
 
     defer_commit = False
@@ -248,7 +248,19 @@ _game_locks: WeakValueDictionary[tuple[asyncio.AbstractEventLoop, UUID], asyncio
 async def execute_analysis_job_async(
     job_id: UUID, pool_manager: EnginePoolManager | None = None
 ) -> None:
-    """Serialize jobs for one game on the app loop, including recovered jobs."""
+    """Run one analysis job to completion.
+
+    This is the entrypoint the production path must schedule directly onto
+    the FastAPI app's event loop (e.g. via `BackgroundTasks.add_task`, which
+    awaits async callables on that loop rather than a worker thread) when a
+    `pool_manager` is supplied: `EnginePool`'s queue and the pooled UCI
+    subprocess transports are bound to whichever loop first uses them, so
+    running this inside a fresh `asyncio.run()` loop per call — as
+    `execute_analysis_job` below does — would hang on the pooled path after
+    the first invocation. Direct/offline callers (the CLI, tests) that never
+    pass a `pool_manager` are unaffected and should keep using the sync
+    `execute_analysis_job` wrapper.
+    """
     from scan64.persistence.database import engine
 
     with Session(engine) as session:
@@ -264,19 +276,7 @@ async def execute_analysis_job_async(
 async def _execute_analysis_job_async(
     job_id: UUID, pool_manager: EnginePoolManager | None = None
 ) -> None:
-    """Run one analysis job to completion.
-
-    This is the entrypoint the production path must schedule directly onto
-    the FastAPI app's event loop (e.g. via `BackgroundTasks.add_task`, which
-    awaits async callables on that loop rather than a worker thread) when a
-    `pool_manager` is supplied: `EnginePool`'s queue and the pooled UCI
-    subprocess transports are bound to whichever loop first uses them, so
-    running this inside a fresh `asyncio.run()` loop per call — as
-    `execute_analysis_job` below does — would hang on the pooled path after
-    the first invocation. Direct/offline callers (the CLI, tests) that never
-    pass a `pool_manager` are unaffected and should keep using the sync
-    `execute_analysis_job` wrapper.
-    """
+    """Call through execute_analysis_job_async; this skips per-game serialization."""
     from datetime import UTC, datetime
 
     from scan64.persistence.database import engine
