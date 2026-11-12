@@ -903,12 +903,14 @@ def test_pre_m47_single_move_lesson_verifies_on_read(
 
 @pytest.mark.parametrize("verified", [False, True])
 @pytest.mark.parametrize("screen", ["training", "critical"])
+@pytest.mark.parametrize("name", ["C", "D"])
 def test_legacy_lesson_receives_and_persists_the_same_ladder_without_engine_search(
     client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
     verified: bool,
     screen: str,
+    name: str,
 ) -> None:
     from chess_lesson_spec import LessonSpec
 
@@ -921,13 +923,13 @@ def test_legacy_lesson_receives_and_persists_the_same_ladder_without_engine_sear
     opportunity = create_persisted_lesson(db_session, player_id)
     record = json.loads(
         (Path(__file__).parents[1] / "fixtures/hint_engine_recording.json").read_text()
-    )["positions"]["C"]
+    )["positions"][name]
     source = db_session.get(Position, opportunity.source_position_id)
     assert source is not None
     source.fen = record["fen"]
     spec = LessonSpec.model_validate(opportunity.lesson_spec)
     spec.source.fen = source.fen
-    spec.interaction.accepted_moves[0].san = "Nxc7+"
+    spec.interaction.accepted_moves[0].san = "Nxc7+" if name == "C" else "h3"
     opportunity.lesson_spec = spec.model_dump(mode="json")
     opportunity.verification_status = "verified" if verified else "unverified"
     analysis = EngineAnalysis(position_id=source.id, raw_result=record["raw_result"])
@@ -952,6 +954,17 @@ def test_legacy_lesson_receives_and_persists_the_same_ladder_without_engine_sear
     fill_lesson_hints(spec, analysis)
     assert lesson["hints"] == spec.model_dump(mode="json")["hints"]
     assert lesson["explanation"] == spec.model_dump(mode="json")["explanation"]
+    nudge = lesson["hints"][0]
+    if name == "D":
+        assert nudge["visualizations"] == []
+    else:
+        assert nudge["visualizations"]
+    assert all(drawing["command"] == "highlight_square" for drawing in nudge["visualizations"])
+    squares = {drawing["square"] for drawing in nudge["visualizations"]}
+    board = chess.Board(source.fen)
+    for accepted_move in spec.interaction.accepted_moves:
+        move = board.parse_san(accepted_move.san).uci()
+        assert squares.isdisjoint({move[:2], move[2:4]})
     db_session.refresh(opportunity)
     assert opportunity.lesson_spec["hints"] == lesson["hints"]
     assert client.get(path).json()["lessons"][0]["hints"] == lesson["hints"]
@@ -992,6 +1005,53 @@ def test_legacy_hint_read_limits_engine_fallback_to_one_lesson(
     assert len(served.json()["lessons"]) == 1
     assert len(served.json()["lessons"][0]["hints"]) == 3
     assert calls == [{"nodes": 100_000, "multipv": 2}]
+
+
+@pytest.mark.parametrize("screen", ["training", "critical"])
+def test_invalid_source_analysis_does_not_consume_hint_fallback_budget(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    screen: str,
+) -> None:
+    player_id = "invalid-source-hint-player"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    first = create_persisted_lesson(db_session, player_id)
+    second = create_persisted_lesson(db_session, player_id)
+    second.game_id = first.game_id
+    db_session.add(second)
+    db_session.commit()
+    # Training visits insertion order; critical-moment review visits newest first.
+    invalid, valid = (first, second) if screen == "training" else (second, first)
+    calls = []
+
+    async def recorded_search(_self, fen, **limits):
+        calls.append(limits)
+        assert fen == chess.STARTING_FEN
+        return EngineAnalysis(
+            raw_result=[] if len(calls) == 1 else [{"pv": ["e2e4"], "score_cp": 0}]
+        )
+
+    monkeypatch.setattr(learning_api.StockfishAdapter, "analyze_position", recorded_search)
+    authorize(client, db_session, player_id)
+    path = (
+        f"/v1/learning/session?player_id={player_id}"
+        if screen == "training"
+        else f"/v1/games/{first.game_id}/learning-opportunities?player_id={player_id}"
+    )
+    served = client.get(path)
+    assert served.status_code == 200, served.text
+    assert [lesson["lesson_id"] for lesson in served.json()["lessons"]] == [str(valid.id)]
+    assert len(served.json()["lessons"][0]["hints"]) == 3
+    assert calls == [{"nodes": 100_000, "multipv": 2}] * 2
+    db_session.refresh(invalid)
+    db_session.refresh(valid)
+    assert invalid.verification_status == "invalid"
+    assert invalid.verification_error == "Engine analysis has no principal variation"
+    assert invalid.verification_analysis_id is None
+    assert valid.verification_status == "verified"
 
 
 def test_correct_final_attempt_with_hints_keeps_half_credit_and_server_limit(

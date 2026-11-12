@@ -123,7 +123,7 @@ def _objective_analysis_for_lesson(
                 StockfishAdapter(StockfishConfig()), spec.source.fen, nodes=100_000
             )
         )
-    except (OSError, chess.engine.EngineError, ValueError) as error:
+    except (OSError, chess.engine.EngineError) as error:
         raise ObjectiveAnalysisUnavailable(
             "Objective engine analysis is unavailable", used_fallback=True
         ) from error

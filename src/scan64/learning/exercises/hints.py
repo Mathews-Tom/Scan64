@@ -23,7 +23,7 @@ def fill_lesson_hints(spec: LessonSpec, analysis: EngineAnalysis) -> None:
     if not insight.candidates:
         raise ValueError("No accepted engine line for lesson hints")
     for level, kind in ((1, "nudge"), (2, "idea"), (3, "moves")):
-        step = insight_step(board, insight, level)
+        step = insight_step(board, insight, level, accepted_moves=accepted)
         text = (
             step.text
             if step.step != 3

@@ -77,12 +77,19 @@ class IdeaInsight(BaseModel):
 InsightStep = NudgeInsight | IdeaInsight | PositionInsight
 
 
-def insight_step(board: chess.Board, insight: PositionInsight, step: int) -> InsightStep:
+def insight_step(
+    board: chess.Board,
+    insight: PositionInsight,
+    step: int,
+    *,
+    accepted_moves: set[str] | None = None,
+) -> InsightStep:
     """Project only the requested step; never copy PV descriptions into early hints.
 
-    Even a motif's targets can give away a capture or a pawn's SAN. Exclude every
-    candidate destination, not just the first candidate's, from both early steps.
-    FEN is deliberately absent: rank encodings can themselves contain pawn SAN.
+    Exclude every candidate or accepted move endpoint from cue targets.
+    Step 2 separately identifies the moving piece at its origin.
+    FEN is absent to keep these responses scoped to the requested hint, not to
+    hide the position: the client already has the board.
     """
     if step == 3:
         return insight
@@ -90,7 +97,8 @@ def insight_step(board: chess.Board, insight: PositionInsight, step: int) -> Ins
         raise ValueError("No hint available for this step")
     candidate = insight.candidates[0]
     move = chess.Move.from_uci(candidate.move)
-    destinations = {item.move[2:4] for item in insight.candidates}
+    moves = {item.move for item in insight.candidates} | (accepted_moves or set())
+    endpoints = {square for uci in moves for square in (uci[:2], uci[2:4])}
     origin = chess.square_name(move.from_square)
     piece_type = board.piece_type_at(move.from_square)
     assert piece_type is not None
@@ -98,11 +106,16 @@ def insight_step(board: chess.Board, insight: PositionInsight, step: int) -> Ins
     reason = next(iter(candidate.reasons), None)
     targets = list(
         dict.fromkeys(
-            square for square in (reason.squares if reason else []) if square not in destinations
+            square for square in (reason.squares if reason else []) if square not in endpoints
         )
     )
     if step == 1:
-        square = next(iter(targets), origin)
+        square = next(iter(targets), None)
+        if square is None:
+            return NudgeInsight(
+                text="What threats or weaknesses can you notice in this position?",
+                visualizations=[],
+            )
         return NudgeInsight(
             text="What can you notice around the highlighted square?",
             visualizations=[

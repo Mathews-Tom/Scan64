@@ -279,12 +279,51 @@ def test_only_requested_step_is_serialized(client, db_session, monkeypatch, name
         return
     assert "candidates" not in body
     assert "fen" not in body
-    assert len(body["visualizations"]) == 1 if step == 1 else body["piece"]
+    if step == 1:
+        assert len(body["visualizations"]) <= 1
+        assert all(drawing["command"] == "highlight_square" for drawing in body["visualizations"])
+    else:
+        assert body["piece"]
     serialized = json.dumps(body)
     for candidate in position_insight(chess.Board(record["fen"]), analysis).candidates:
         assert candidate.san not in serialized
         assert candidate.move not in serialized
         assert candidate.move[2:4] not in serialized
+        if step == 1:
+            squares = {drawing["square"] for drawing in body["visualizations"]}
+            assert squares.isdisjoint({candidate.move[:2], candidate.move[2:4]})
+
+
+def test_quiet_pawn_ladder_starts_with_text_without_identifying_the_piece(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    headers = register(db_session, "hint-owner")
+    fen = "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 0 6"
+    analysis = EngineAnalysis(
+        raw_result=[
+            {"pv": ["h2h3"], "score_cp": 31},
+            {"pv": ["h2h4"], "score_cp": 24},
+        ]
+    )
+    monkeypatch.setattr(
+        app.state.engine_pool_manager, "analyze_hint", AsyncMock(return_value=analysis)
+    )
+    responses = []
+    for step in (1, 2, 3):
+        response = client.post(
+            "/v1/insights/position",
+            headers=headers,
+            json={"player_id": "hint-owner", "fen": fen, "step": step},
+        )
+        assert response.status_code == 200, response.text
+        responses.append(response.json())
+    assert responses[0] == {
+        "step": 1,
+        "text": "What threats or weaknesses can you notice in this position?",
+        "visualizations": [],
+    }
+    assert responses[1]["square"] == "h2"
+    assert [candidate["move"] for candidate in responses[2]["candidates"]] == ["h2h3", "h2h4"]
 
 
 @pytest.mark.parametrize("step", [None, 0, 4, "moves"])
