@@ -37,7 +37,7 @@ def test_recorded_insight_response(client: TestClient, db_session: Session, monk
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "fen": record["fen"]},
+        json={"player_id": "hint-owner", "fen": record["fen"], "step": 3},
     )
     assert response.status_code == 200, response.text
     body = response.json()
@@ -54,7 +54,7 @@ def test_recorded_insight_response(client: TestClient, db_session: Session, monk
 def test_authentication_ownership_and_not_found(client: TestClient, db_session: Session):
     owner = register(db_session, "hint-owner")
     other = register(db_session, "hint-other")
-    body = {"player_id": "hint-owner", "fen": chess.STARTING_FEN}
+    body = {"player_id": "hint-owner", "fen": chess.STARTING_FEN, "step": 3}
     assert client.post("/v1/insights/position", json=body).status_code == 401
     assert (
         client.post(
@@ -74,12 +74,12 @@ def test_authentication_ownership_and_not_found(client: TestClient, db_session: 
     foreign_session = client.post(
         "/v1/insights/position",
         headers=owner,
-        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+        json={"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3},
     )
     missing_session = client.post(
         "/v1/insights/position",
         headers=owner,
-        json={"player_id": "hint-owner", "play_session_id": str(uuid4())},
+        json={"player_id": "hint-owner", "play_session_id": str(uuid4()), "step": 3},
     )
     assert foreign_session.status_code == missing_session.status_code == 404
     assert foreign_session.json() == missing_session.json()
@@ -98,7 +98,9 @@ def test_authentication_ownership_and_not_found(client: TestClient, db_session: 
 def test_illegal_and_game_over_fens_rejected(client: TestClient, db_session: Session, fen, status):
     headers = register(db_session, "hint-owner")
     response = client.post(
-        "/v1/insights/position", headers=headers, json={"player_id": "hint-owner", "fen": fen}
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "fen": fen, "step": 3},
     )
     assert response.status_code == status
 
@@ -111,7 +113,7 @@ def test_finished_session_rejected(client: TestClient, db_session: Session):
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+        json={"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3},
     )
     assert response.status_code == 409
 
@@ -129,7 +131,7 @@ def test_active_session_uses_current_position(client: TestClient, db_session: Se
     db_session.commit()
     analyze = AsyncMock(return_value=EngineAnalysis(raw_result=record["raw_result"]))
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
-    body = {"player_id": "hint-owner", "play_session_id": str(play.id)}
+    body = {"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3}
     response = client.post("/v1/insights/position", headers=headers, json=body)
     assert response.status_code == 200
     analyze.assert_awaited_once_with(record["fen"])
@@ -144,7 +146,9 @@ def test_source_is_exclusive(client: TestClient, db_session: Session):
     for source in ({}, {"fen": chess.STARTING_FEN, "play_session_id": str(uuid4())}):
         assert (
             client.post(
-                "/v1/insights/position", headers=headers, json={"player_id": "hint-owner", **source}
+                "/v1/insights/position",
+                headers=headers,
+                json={"player_id": "hint-owner", "step": 3, **source},
             ).status_code
             == 422
         )
@@ -152,7 +156,7 @@ def test_source_is_exclusive(client: TestClient, db_session: Session):
 
 def test_busy_and_disabled_pool_are_explicit(client: TestClient, db_session: Session, monkeypatch):
     headers = register(db_session, "hint-owner")
-    body = {"player_id": "hint-owner", "fen": chess.STARTING_FEN}
+    body = {"player_id": "hint-owner", "fen": chess.STARTING_FEN, "step": 3}
     monkeypatch.setattr(
         app.state.engine_pool_manager, "analyze_hint", AsyncMock(side_effect=TimeoutError)
     )
@@ -173,7 +177,7 @@ def test_single_engine_is_explicitly_unavailable(
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "fen": chess.STARTING_FEN},
+        json={"player_id": "hint-owner", "fen": chess.STARTING_FEN, "step": 3},
     )
     assert response.status_code == 503
     assert "at least two" in response.json()["detail"]
@@ -202,7 +206,7 @@ def test_hint_before_first_move_uses_session_start(
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "play_session_id": play["id"]},
+        json={"player_id": "hint-owner", "play_session_id": play["id"], "step": 3},
     )
     assert response.status_code == 200, response.text
     assert response.json()["fen"] == fen
@@ -224,7 +228,7 @@ def test_claimable_fifty_moves_remains_playable_but_seventyfive_is_terminal(
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "fen": fen},
+        json={"player_id": "hint-owner", "fen": fen, "step": 3},
     )
     assert response.status_code == expected, response.text
     assert analyze.await_count == (1 if expected == 200 else 0)
@@ -247,10 +251,103 @@ def test_claimable_threefold_remains_playable_but_fivefold_is_terminal(
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+        json={"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3},
     )
     assert response.status_code == expected, response.text
     assert analyze.await_count == (1 if expected == 200 else 0)
+
+
+@pytest.mark.parametrize("name", ["A", "C", "D"])
+@pytest.mark.parametrize("step", [1, 2, 3])
+def test_only_requested_step_is_serialized(client, db_session, monkeypatch, name, step):
+    from scan64.learning.insights import position_insight
+
+    headers = register(db_session, "hint-owner")
+    record = RECORDING["positions"][name]
+    analysis = EngineAnalysis(raw_result=record["raw_result"])
+    monkeypatch.setattr(
+        app.state.engine_pool_manager, "analyze_hint", AsyncMock(return_value=analysis)
+    )
+    response = client.post(
+        "/v1/insights/position",
+        headers=headers,
+        json={"player_id": "hint-owner", "fen": record["fen"], "step": step},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["step"] == step
+    if step == 3:
+        assert body["candidates"]
+        return
+    assert "candidates" not in body
+    assert "fen" not in body
+    if step == 1:
+        assert len(body["visualizations"]) == 1
+        assert all(drawing["command"] == "highlight_square" for drawing in body["visualizations"])
+    else:
+        assert body["piece"]
+    serialized = json.dumps(body)
+    for candidate in position_insight(chess.Board(record["fen"]), analysis).candidates:
+        assert candidate.san not in serialized
+        assert candidate.move not in serialized
+        assert candidate.move[2:4] not in serialized
+        if step == 1:
+            squares = {drawing["square"] for drawing in body["visualizations"]}
+            assert squares.isdisjoint({candidate.move[:2], candidate.move[2:4]})
+
+
+def test_quiet_pawn_ladder_starts_with_a_safe_cue_without_identifying_the_piece(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    headers = register(db_session, "hint-owner")
+    fen = "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 0 6"
+    analysis = EngineAnalysis(
+        raw_result=[
+            {"pv": ["h2h3"], "score_cp": 31},
+            {"pv": ["h2h4"], "score_cp": 24},
+        ]
+    )
+    monkeypatch.setattr(
+        app.state.engine_pool_manager, "analyze_hint", AsyncMock(return_value=analysis)
+    )
+    responses = []
+    for step in (1, 2, 3):
+        response = client.post(
+            "/v1/insights/position",
+            headers=headers,
+            json={"player_id": "hint-owner", "fen": fen, "step": step},
+        )
+        assert response.status_code == 200, response.text
+        responses.append(response.json())
+    assert responses[0] == {
+        "step": 1,
+        "text": "How is the highlighted pawn defended?",
+        "visualizations": [
+            {
+                "command": "highlight_square",
+                "description": "Inspect this square.",
+                "square": "e5",
+            }
+        ],
+    }
+    assert responses[1]["square"] == "h2"
+    assert [candidate["move"] for candidate in responses[2]["candidates"]] == ["h2h3", "h2h4"]
+    endpoints = {
+        square
+        for candidate in responses[2]["candidates"]
+        for square in (candidate["move"][:2], candidate["move"][2:4])
+    }
+    nudge_squares = {drawing["square"] for drawing in responses[0]["visualizations"]}
+    assert nudge_squares.isdisjoint(endpoints | {responses[1]["square"]})
+
+
+@pytest.mark.parametrize("step", [None, 0, 4, "moves"])
+def test_step_is_required_and_bounded(client, db_session, step):
+    headers = register(db_session, "hint-owner")
+    body = {"player_id": "hint-owner", "fen": chess.STARTING_FEN}
+    if step is not None:
+        body["step"] = step
+    assert client.post("/v1/insights/position", headers=headers, json=body).status_code == 422
 
 
 def test_black_hint_before_human_first_move_and_after_takeback(
@@ -279,7 +376,7 @@ def test_black_hint_before_human_first_move_and_after_takeback(
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
     board = chess.Board()
     board.push_uci("e2e4")
-    body = {"player_id": "hint-owner", "play_session_id": play["id"]}
+    body = {"player_id": "hint-owner", "play_session_id": play["id"], "step": 3}
     first = client.post("/v1/insights/position", headers=headers, json=body)
     assert first.status_code == 200, first.text
     assert first.json()["fen"] == board.fen()
@@ -332,7 +429,7 @@ def test_hint_uses_session_color_before_owner_color_with_legacy_fallback(
     response = client.post(
         "/v1/insights/position",
         headers=headers,
-        json={"player_id": "hint-owner", "play_session_id": str(play.id)},
+        json={"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3},
     )
     assert response.status_code == expected, response.text
     assert analyze.await_count == (1 if expected == 200 else 0)

@@ -92,8 +92,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
       await latest.current.onMove(`${played.from}${played.to}${played.promotion ?? ''}`);
     } finally {
       moving.current = false;
-      if (!latest.current.resetAfterAttempt || !latest.current.disabled) restore();
-      else draw();
+      restore();
     }
   }, [draw, restore]);
 
@@ -147,7 +146,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false,
     </div>
     {visualizations.filter(visualization => visualization.command === 'animate_line'
       || !['draw_arrow', 'highlight_square', 'highlight_piece', 'draw_defence_map'].includes(visualization.command)).map((visualization, index) => <div key={index}>
-      {visualization.command !== 'animate_line' && <p>{visualization.description}</p>}
+      <p>{visualization.description}</p>
       {visualization.command === 'animate_line' && visualization.moves?.length ? <>
         <button type="button" onClick={() => {
           const step = Math.min((animation?.step ?? 0) + 1, visualization.moves!.length);
