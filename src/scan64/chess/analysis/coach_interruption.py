@@ -156,6 +156,8 @@ async def prepare_coach_interruption(
         return None
 
     lesson = prepared.interruption.lesson
+    if lesson.diagnosis is None:
+        raise ValueError("Coach interruptions require a player-game diagnosis")
     lesson.explanation = await _resolve_coach_explanation(
         lesson.diagnosis, list(prepared.evidence), prepared.source_position.fen
     )

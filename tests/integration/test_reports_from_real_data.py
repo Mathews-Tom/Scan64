@@ -51,7 +51,7 @@ def create_report_lesson(
         player_id=game.owner_player_id,
         source_position_id=source.id,
         lesson_spec={
-            "schema_version": "1.0",
+            "schema_version": "0.2.0",
             "lesson_id": str(source.id),
             "source": {"kind": "custom", "fen": source.fen},
             "diagnosis": {"primary": diagnosis, "confidence": 1.0, "evidence_refs": [evidence_ref]},

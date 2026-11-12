@@ -26,9 +26,9 @@ vi.mock('./CoachBoard', () => ({
 }));
 
 const mockLesson: LessonSpec = {
-  schema_version: '0.1.0',
+  schema_version: '0.2.0',
   lesson_id: 'les_1',
-  source: { kind: 'pgn', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
+  source: { kind: 'player_game', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
   diagnosis: { primary: 'test', secondary: [], confidence: 1, evidence_refs: [] },
   objective: { type: 'test', instruction: 'Find the best move' },
   interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },
@@ -88,6 +88,20 @@ describe('CriticalMomentReview', () => {
     // Step 7 -> Complete
     fireEvent.click(screen.getByTestId('complete-btn'));
     expect(onComplete).toHaveBeenCalled();
+  });
+  it.each(['0.1.0', '0.2.0'])('reads a %s lesson without an optional explanation', schemaVersion => {
+    render(
+      <CriticalMomentReview
+        lesson={{ ...mockLesson, schema_version: schemaVersion, hints: [], explanation: null }}
+        opportunityId="opportunity-1"
+        sessionId="study-1"
+      />,
+    );
+    fireEvent.click(screen.getByTestId('next-step-btn'));
+    fireEvent.click(screen.getByTestId('next-step-btn'));
+    fireEvent.click(screen.getByTestId('request-cue-btn'));
+    expect(screen.queryByTestId('explanation')).toBeNull();
+    expect(screen.getByTestId('replay-btn')).toBeVisible();
   });
   it('records a rejected game lesson against the supplied study context', async () => {
     const recordAttempt = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from chess_lesson_spec.claims import ExplanationClaim
 
@@ -139,6 +139,10 @@ class Interaction(BaseModel):
     input: str
     maximum_attempts: int
     accepted_moves: list[AcceptedMove] = Field(default_factory=list)
+    solution: list[Annotated[str, Field(pattern=r"^[a-h][1-8][a-h][1-8][qrbn]?$")]] = Field(
+        default_factory=list,
+        description="UCI line from source.fen, alternating solver moves and automatic replies.",
+    )
 
 
 class Hint(BaseModel):
@@ -156,12 +160,28 @@ class Explanation(BaseModel):
 
 
 class Verification(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "if": {"properties": {"status": {"const": "source_verified"}}},
+            "else": {
+                "required": ["engine"],
+                "properties": {"engine": {"type": "string", "minLength": 1}},
+            },
+        }
+    )
+
     status: str
-    engine: str
+    engine: str | None = None
     engine_binary_digest: str | None = None
     nodes: int | None = None
     multipv: int | None = None
     verified_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def require_engine_provenance(self) -> Self:
+        if self.status != "source_verified" and not self.engine:
+            raise ValueError("Engine verification requires an engine")
+        return self
 
 
 class MasteryImpact(BaseModel):
@@ -170,13 +190,58 @@ class MasteryImpact(BaseModel):
 
 
 class LessonSpec(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "source": {"properties": {"kind": {"const": "player_game"}}}
+                        }
+                    },
+                    "then": {
+                        "required": ["diagnosis"],
+                        "properties": {"diagnosis": {"type": "object"}},
+                    },
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "verification": {"properties": {"status": {"const": "source_verified"}}}
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "source": {"properties": {"kind": {"const": "external"}}},
+                            "interaction": {
+                                "required": ["solution"],
+                                "properties": {"solution": {"minItems": 1}},
+                            },
+                        }
+                    },
+                },
+            ]
+        }
+    )
+
     schema_version: str
     lesson_id: str
     source: Source
-    diagnosis: Diagnosis
+    diagnosis: Diagnosis | None = None
     objective: Objective
     interaction: Interaction
     hints: list[Hint] = Field(default_factory=list)
     explanation: Explanation | None = None
     verification: Verification
     mastery: MasteryImpact | None = None
+
+    @model_validator(mode="after")
+    def validate_source_contract(self) -> Self:
+        if self.source.kind == "player_game" and self.diagnosis is None:
+            raise ValueError("Player-game lessons require a diagnosis")
+        if self.verification.status == "source_verified":
+            if self.source.kind != "external":
+                raise ValueError("Source verification requires an external source")
+            if not self.interaction.solution:
+                raise ValueError("Source verification requires a solution line")
+        return self

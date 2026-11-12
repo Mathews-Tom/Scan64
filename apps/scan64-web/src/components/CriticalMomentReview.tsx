@@ -166,7 +166,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
           </div>
         )}
 
-        {(finished || step >= 6) && (
+        {(finished || step >= 6) && lesson.explanation && (
           <div className="explanation" data-testid="explanation">
             <h3>Explanation</h3>
             <p>{lesson.explanation.text}</p>

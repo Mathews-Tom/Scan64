@@ -217,6 +217,8 @@ def list_learning_opportunities(
             if upgraded is None:
                 continue
             spec = upgraded
+            if spec.diagnosis is None:
+                continue
             spec.diagnosis.secondary = []
         # The opportunity UUID is the client-submittable handle for its persisted lesson.
         spec.lesson_id = str(opportunity.id)
@@ -349,7 +351,7 @@ def get_game_positions(
     ).all()
     for opportunity in opportunities:
         spec = visible_game_lesson(opportunity, session)
-        if spec is None:
+        if spec is None or spec.diagnosis is None:
             continue
         if opportunity.source_position_id is None:
             raise RuntimeError("Persisted lesson opportunity has no source position")

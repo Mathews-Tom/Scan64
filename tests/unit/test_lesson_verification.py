@@ -12,7 +12,7 @@ from scan64.learning.verification.verifier import LessonVerificationError, verif
 def _lesson(accepted_move: str) -> LessonSpec:
     return LessonSpec.model_validate(
         {
-            "schema_version": "1.0",
+            "schema_version": "0.2.0",
             "lesson_id": "objective-check",
             "source": {
                 "kind": "player_game",

@@ -21,6 +21,8 @@ async def test_exact_replay_exercise_generation() -> None:
         diagnosis=diagnosis, fen=fen, lesson_id="les_test123", accepted_moves_san=["Nc3"], hints=[]
     )
 
+    assert lesson.schema_version == "0.2.0"
+    assert lesson.diagnosis is not None
     assert lesson.source.kind == "player_game"
     assert lesson.source.fen == fen
     assert lesson.diagnosis.primary == "tactics.knight_fork"
@@ -70,7 +72,7 @@ def test_export_reproducibility_bundle(tmp_path: Path) -> None:
         detector_versions={"tactics": "0.1.0"},
         diagnosis_result={"primary": "tactics.knight_fork"},
         profile_snapshot={"rating": 1200},
-        lesson_spec={"schema_version": "0.1.0"},
+        lesson_spec={"schema_version": "0.2.0"},
         verification_report={"status": "verified"},
     )
 

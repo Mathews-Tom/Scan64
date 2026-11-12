@@ -155,7 +155,7 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
     visible_game_ids: set[str] = set()
     for row in rows:
         spec = visible_game_lesson(row, session)
-        if spec is None:
+        if spec is None or spec.diagnosis is None:
             continue
         visible_game_ids.add(str(row.game_id))
         primary = spec.diagnosis.primary

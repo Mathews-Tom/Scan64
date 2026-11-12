@@ -152,7 +152,7 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
             source_position_id=initial_position.id,
             player_id="test_user",
             lesson_spec={
-                "schema_version": "1.0",
+                "schema_version": "0.2.0",
                 "lesson_id": "marker-fixture",
                 "source": {"kind": "custom", "fen": initial_position.fen},
                 "objective": {"type": "find_best_move", "instruction": "Find a move."},

@@ -106,8 +106,8 @@ describe('PgnImportScreen', () => {
       session_id: 'study-1',
       lessons: [
         {
-          schema_version: '1', lesson_id: 'les-1',
-          source: { kind: 'pgn', fen: 'fen' },
+          schema_version: '0.2.0', lesson_id: 'les-1',
+          source: { kind: 'player_game', fen: 'fen' },
           diagnosis: { primary: 'tactics.fork', secondary: [], confidence: 0.9, evidence_refs: [] },
           objective: { type: 'play', instruction: 'win' },
           interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },

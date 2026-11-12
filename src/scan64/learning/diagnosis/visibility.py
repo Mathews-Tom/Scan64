@@ -37,6 +37,8 @@ def visible_game_lesson(
     if not proof_evidence:
         return None
     spec = LessonSpec.model_validate(opportunity.lesson_spec)
+    if spec.diagnosis is None:
+        return None
     if primary == "board_awareness.hanging_piece":
         for evidence in proof_evidence:
             payload = evidence.payload

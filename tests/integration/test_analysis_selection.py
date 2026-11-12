@@ -132,7 +132,7 @@ def _visible_existing_lesson(db: Session, game: Game, fen: str) -> PersistedLess
         source_position_id=position.id,
         player_id=game.owner_player_id,
         lesson_spec={
-            "schema_version": "1.0",
+            "schema_version": "0.2.0",
             "lesson_id": str(position.id),
             "source": {"kind": "custom", "fen": fen},
             "diagnosis": {

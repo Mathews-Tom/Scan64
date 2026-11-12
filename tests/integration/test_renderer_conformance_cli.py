@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from chess_lesson_spec.fixtures import fixture_paths
+
 FIXTURES_DIR = Path(__file__).parents[1] / "fixtures"
 
 
@@ -10,7 +12,9 @@ def test_reference_renderer_conforms() -> None:
     result = _run_renderer("reference_renderer_stub")
 
     assert result.returncode == 0
-    assert result.stdout == "Conformance passed: 3 fixtures, 15 visualization commands.\n"
+    assert result.stdout == (
+        f"Conformance passed: {len(fixture_paths())} fixtures, 15 visualization commands.\n"
+    )
     assert result.stderr == ""
 
 
