@@ -31,8 +31,12 @@ def main() -> None:
         help="Nodes per move; defaults to the production bot budget.",
     )
 
-    serve_parser = subparsers.add_parser("serve", help="Serve the built web client and API together.")
-    serve_parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1).")
+    serve_parser = subparsers.add_parser(
+        "serve", help="Serve the built web client and API together."
+    )
+    serve_parser.add_argument(
+        "--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)."
+    )
     serve_parser.add_argument("--port", type=int, default=8001, help="Port (default: 8001).")
     serve_parser.add_argument("--no-browser", action="store_true", help="Do not open a browser.")
 
