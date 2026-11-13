@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { ApiClient } from '../api/client';
 import type { PatternsReport } from '../api/types';
 
-export function PatternCard({ report, owner = true, onNavigate }: {
+export function PatternCard({ report, owner = true, onNavigate, children }: {
   report: PatternsReport;
   owner?: boolean;
   onNavigate?: (path: string) => void;
+  children?: ReactNode;
 }) {
   const pattern = report.recurring_diagnoses[0];
   const [pending, setPending] = useState(false);
@@ -62,6 +64,7 @@ export function PatternCard({ report, owner = true, onNavigate }: {
             <p>Try eligible same-pattern Your mistakes first, then related unrated Theme practice. Themes do not measure diagnosis mastery; existing attempt limits apply.</p>
             {message ? <p role="status">{message}</p> : null}
             {dailyFallback ? <a href="/puzzles">Daily puzzles — may be unrelated</a> : null}
+            {children}
           </> : null}
         </>}
     <p className="muted">Only trusted, visible retained lessons count. Retention limits and missing scores leave gaps: this is not all errors, a causal explanation, statistical significance, or proof of a habit or cure. Missing loss is unavailable, not zero. Review explanations and retries are limited to eligible key moments.</p>

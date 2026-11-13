@@ -25,6 +25,7 @@ from scan64.content.puzzle_modes import (
 from scan64.content.puzzle_practice import daily_set, daily_summary, finish_practice, slots_for
 from scan64.content.puzzle_practice_models import PuzzleDailySlot
 from scan64.content.puzzle_runs import PuzzleRun
+from scan64.learning.habit import ensure_policy, record_puzzle_credit
 from scan64.learning.insights import InsightStep
 from scan64.learning.verification.verifier import verify_lesson
 from scan64.persistence.database import get_session
@@ -252,6 +253,7 @@ def start_puzzle_run(
     # Hold one reservation transaction through set creation, selection and insertion.
     # The day is computed after acquiring the lock, including across UTC midnight.
     puzzle_practice.lock_puzzle_player(player_id, session)
+    ensure_policy(player_id, session)
     day = daily_set(player_id, session, commit_new=False)
     active = _active_run(player_id, session)
     if active is not None:
@@ -381,6 +383,8 @@ def _update_run(
     state: str,
     hint_steps: dict[str, int],
 ) -> PuzzleRunRead:
+    # Also cover a pre-deployment active run; never backdate the policy to its slot.
+    ensure_policy(run.player_id, session)
     completed_at = puzzle_practice.utc_now() if state != "active" else None
     changed = session.execute(
         update(PuzzleRun)
@@ -426,6 +430,11 @@ def _update_run(
             session.add(study)
         if not finish_practice(run, state, hint_steps, completed_at, session):
             _conflict(run, session)
+        # The UPDATE above bypasses the identity map. Reload the terminal server
+        # state only after the matching ContentAttempt has been flushed.
+        session.flush()
+        session.refresh(run)
+        record_puzzle_credit(run, session)
     session.commit()
     session.refresh(run)
     return _safe_run(run, session)

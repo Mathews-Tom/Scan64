@@ -32,6 +32,7 @@ from scan64.learning.evaluation.transfer_measurement import (
 )
 from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.exercises.sound_moves import analyze_lesson_source
+from scan64.learning.habit import ensure_policy, record_lesson_credit
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
 from scan64.learning.scheduling.composer import SessionComposer
@@ -412,6 +413,9 @@ def record_lesson_attempt(
         spec = reverified_spec
     if attempt_in.submitted_move is None:
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
+    # Serialize first-attempt admission with every other outcome for this owner.
+    # Policy initialization precedes the server completion timestamp.
+    ensure_policy(study_session.player_id, db)
     attempt_count = db.exec(
         select(func.count())
         .where(LessonAttempt.player_id == study_session.player_id)
@@ -472,6 +476,7 @@ def record_lesson_attempt(
         completed_at=observed_at,
     )
     db.add(attempt)
+    record_lesson_credit(attempt, db)
     db.commit()
     db.refresh(attempt)
     return LessonAttemptRead(

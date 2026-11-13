@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PatternCard } from './PatternCard';
+import { HabitPanel } from './HabitPanel';
 import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
 import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
 import { OnboardingCard } from './OnboardingCard';
@@ -93,7 +93,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
             <p>{data.weekly.games_played} {data.weekly.games_played === 1 ? 'game' : 'games'} played in the last 7 days.</p>
             <p>{data.weekly.active_concepts_observed} {data.weekly.active_concepts_observed === 1 ? 'skill' : 'skills'} observed.</p>
           </section>
-          <PatternCard report={data.patterns} onNavigate={onNavigate} />
+          <HabitPanel playerId={getActivePlayerId()} patterns={data.patterns} onNavigate={onNavigate} />
         </div>
       )}
     </section>

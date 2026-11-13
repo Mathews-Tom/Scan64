@@ -18,6 +18,14 @@ vi.mock('../api/client', async (importOriginal) => {
       updatePlayerOnboarding: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
+      getPlayerHabit: vi.fn().mockResolvedValue({
+        utc_day: '2026-11-13', goal: 3, qualifying_solves: 0, remaining: 3,
+        pending_goal: null, pending_effective_day: null, current_streak: 0, best_streak: 0,
+        reset_at: '2026-11-14T00:00:00Z', day_status: 'in_progress', days: [], targets: [],
+        supply: { remaining_daily_slots: 0, eligible_lesson_retries: 0, extra_modes_available: false },
+        evidence_limits: 'Server-unhinted puzzles; app-reported lesson hints.',
+      }),
+      getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),
     },
     getActivePlayerId: () => 'profile-player',
   };

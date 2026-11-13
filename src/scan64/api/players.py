@@ -20,6 +20,7 @@ from scan64.api.models import (
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.learning.habit_models import HabitPolicy
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["players"])
@@ -70,6 +71,7 @@ def create_player(
     session.add(profile)
     session.add(credential)
     session.add(PlayerOnboarding(player_id=player.id))
+    session.add(HabitPolicy(player_id=player.id))
     session.commit()
 
     return PlayerCreateResponse(

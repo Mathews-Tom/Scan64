@@ -83,8 +83,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [refreshSessionId, setRefreshSessionId] = useState<string | null>(null);
+  const [requestedSessionId] = useState(() => new URLSearchParams(window.location.search).get('session'));
   const [resuming, setResuming] = useState(
-    () => !initialSession && localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) !== null,
+    () => !initialSession && (requestedSessionId !== null || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) !== null),
   );
   const currentSessionId = session?.id;
   const currentSessionStatus = session?.status;
@@ -399,7 +400,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       return;
     }
 
-    const activeSessionId = localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
+    const activeSessionId = requestedSessionId || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
     if (!activeSessionId) {
       setResuming(false);
       return;
@@ -478,7 +479,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return () => {
       cancelled = true;
     };
-  }, [initialSession, synchronizeQueuedSession, updateBoard]);
+  }, [initialSession, requestedSessionId, synchronizeQueuedSession, updateBoard]);
 
   useEffect(() => {
     if (!currentSessionId || !currentSessionStatus) return;

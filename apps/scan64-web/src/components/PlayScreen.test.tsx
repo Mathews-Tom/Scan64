@@ -148,6 +148,28 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
   });
 
+  it('resumes the explicitly linked unfinished session instead of a different stored session', async () => {
+    window.history.replaceState(null, '', '/play?session=blocked-session');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'different-session');
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'blocked-session', player_id: 'test-player', game_id: 'blocked-game',
+      opponent_config: {}, status: 'active', coach_mode: false,
+    });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'blocked-game', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    try {
+      render(<PlayScreen />);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith('blocked-session');
+      expect(ApiClient.getPlaySession).not.toHaveBeenCalledWith('different-session');
+      expect(ApiClient.getGame).toHaveBeenCalledWith('blocked-game');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
   it.each([
     { manual: 8, suggestion: 2, expected: '8' },
     { manual: null, suggestion: 8, expected: '8' },

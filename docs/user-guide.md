@@ -180,6 +180,103 @@ Each supporting link opens your owned Review at that move. The pattern supplies 
 
 Pattern practice tries available same-code **Your mistakes** retries, then a mapped **Theme run** as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says **may be unrelated**. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.
 
+## Daily goals and tracked pattern evidence
+
+Today and Profile show a **daily qualifying-solve goal**, default **three**, on the
+server's UTC calendar. **Qualifying solves per day** accepts a positive whole number;
+**Save next-day goal** schedules every edit for the next UTC day. Today's goal and
+past day goals do not change. Supply shows unplayed daily slots, eligible lesson
+retries and whether extra puzzle modes are available. This is not a promise that
+every retry will qualify: a prior attempt or repeated source can exclude it. Short
+or exhausted supply never silently lowers the goal, grants a solve or buys a streak.
+Use **Refresh habit record** after practice to fetch current server evidence.
+
+A puzzle counts only after a terminal, server-unhinted success with its matching
+persisted attempt. A lesson counts only when it is your visible, trusted,
+non-retired `persisted_opportunity`, the server grades the opportunity's **first
+recorded attempt** as successful, and that attempt reports zero hints. An earlier
+wrong or hinted attempt disqualifies a later retry for this goal, even if the retry
+is correct. Lesson hint usage is **app-reported**; lesson answers and hint data are
+available to the app. This is not server-proven independent lesson solving and
+cannot establish absence of external assistance. Existing hinted skill-credit
+rules are unchanged.
+
+The same puzzle or canonical source position (EPD, without move counters) counts
+at most once across modes in a UTC day. Replaying an already credited result does
+not create another credit. Wrong answers, starts, time spent, hint requests,
+foreign or exhausted sources, ungraded attempts, transfer practice and opening
+attempts do not qualify. A puzzle reserved yesterday but finished today counts
+on the **server completion day's UTC date**, not the slot date, browser date or PGN
+date. This habit record grants **no mastery, puzzle-rating or other rating bonus**.
+
+The calendar-day streak is separate from Puzzles' consecutive **solve streak**.
+Today stays **in progress until the displayed UTC reset boundary**, including after
+reaching its goal. A missed day breaks the calendar streak only after that day
+ends. Stored day goals, qualifying source keys and trust-at-award snapshots make
+historical met days immutable. Later source withdrawal or retirement is annotated
+in the day history, but does not un-meet a day or break its historical streak.
+Ownership deletion is the exception: it removes that player's snapshots.
+
+Habit evidence uses versioned policy **`habit-v1`** with a persisted effective
+timestamp (cutover). Results before cutover receive no retroactive credit. Player
+archives preserve policy/version/cutover, scheduled goals, daily source/trust
+snapshots, targets, practice/window references, invalidity reasons and awards. Each
+award keeps exactly five ordered game/analysis-job references with their server
+timestamps, plus any separate analysis barrier that released the award. Restore
+validates that saved evidence against the archive; it does not reconstruct a new
+window from today's game ordering. Missing or inconsistent award evidence is
+rejected. Restore rejects repeated game, position, engine-analysis, analysis-job,
+lesson-opportunity, lesson-attempt and evidence IDs before writing, even without
+positive-move credits. Restore uses the archived cutover, not the destination's
+migration time, and never replays rewards or recalculates Elo. Keep both a player
+archive and a stopped-server
+database copy before migration or rollback; retain legitimate learning and rating
+history rather than trying to subtract habit rewards.
+
+### Track a pattern without claiming a cure
+
+On a qualifying recurring-pattern card, choose **Track practice target**. The server
+saves the pattern and tracking start; a different top-ranked pattern never switches
+that target. Previously tracked patterns remain visible with their saved support,
+coverage and position links. Tracking begins with **three qualifying,
+first-recorded-attempt, same-code lesson successes at distinct source EPDs across
+at least two games**, all after tracking starts. App-reported zero hints remain a
+limitation. Theme runs, Beta priors and related puzzle activity cannot substitute;
+too few eligible retries means **insufficient evidence**, not completion.
+
+After the third success, the window considers five subsequent games in server
+`Game.created_at`/id order. Only owned Scan64 play-session games with a known owner
+colour, terminal win/draw/loss result, completed analysis, every owner move scored,
+and at least **20 owner moves** qualify. Imported games and their self-reported PGN
+dates do not count. Any visible retained target diagnosis **or uncapped non-retired
+ProfileObservation** restarts the window; capped-out or verification-dropped
+diagnoses still reset it. An earlier owned active or nonterminal play session
+pauses the chronological scan, even before it reaches 20 owner moves; later
+completed games cannot silently replace it. The target identifies the unfinished
+game with **Resume or resign game**. Finish or resign it, then let analysis
+complete; a completed game below 20 owner moves is excluded. The award
+is minted in the analysis-completion transaction that resolves the last required
+evidence, including an earlier pending game. If that game contains a recurrence,
+the window restarts after it and five already-analysed clean games can qualify in
+that same transaction. Incomplete or partially scored evidence never earns an
+award. A page read or refresh never mints it.
+
+The card says **Pattern practice target met**, separately from **not observed in
+the last five eligible games**. Inspect its practice count, game count, window
+coverage and saved evidence. The award's five-game evidence remains the same after
+export and restore. Absence is bounded by the chosen games and the
+**≥150cp fast-pass diagnosis swing threshold**; smaller or undetected errors can
+remain. It is not a permanent cure, cleared weakness, strength estimate, causal
+improvement result or mastery measurement.
+
+Reading Today/Profile only projects current evidence and invalidity; it does not
+persist invalidation, grade practice or mint awards. **Refresh tracked evidence**
+is an explicit authenticated write that saves any current invalidity reason; the
+next target write does so too. Withdrawn pattern evidence marks current status
+invalid, while the award remains labelled historical and met calendar days stay
+unchanged. These records belong to the player and are covered by owned
+export/restore/deletion; shared catalogs are not removed with a player.
+
 ## Use coach mode
 
 Coach mode is an explicit practice option, not an always-on analysis engine.

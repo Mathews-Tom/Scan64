@@ -6,6 +6,7 @@ import type {
   CoachDashboard,
   EvidenceReport,
   FamousGameRead,
+  HabitSummaryRead,
   GameCreate,
   GameAnalysisStatusRead,
   GameRead,
@@ -532,6 +533,42 @@ export class ApiClient {
 
   static getPlayerStrength(playerId: string): Promise<StrengthRead> {
     return this.getPlayerResource<StrengthRead>(playerId, 'strength');
+  }
+
+  private static async habitRequest(
+    playerId: string,
+    path: string,
+    method: 'GET' | 'POST',
+    data?: { goal: number } | { code: string } | Record<string, never>,
+  ): Promise<HabitSummaryRead> {
+    const response = await fetch(`${API_BASE}/players/${encodeURIComponent(playerId)}/habit${path}`, {
+      method,
+      headers: { ...getPlayerAuthorizationHeader(playerId), ...(data ? { 'Content-Type': 'application/json' } : {}) },
+      ...(data ? { body: JSON.stringify(data) } : {}),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Habit request failed: ${detail}`, response.status);
+    }
+    return await response.json() as HabitSummaryRead;
+  }
+
+  static getPlayerHabit(playerId: string): Promise<HabitSummaryRead> {
+    return this.habitRequest(playerId, '', 'GET');
+  }
+
+  static updateHabitGoal(playerId: string, goal: number): Promise<HabitSummaryRead> {
+    return this.habitRequest(playerId, '/goal', 'POST', { goal });
+  }
+
+  static startHabitTarget(playerId: string, code: string): Promise<HabitSummaryRead> {
+    return this.habitRequest(playerId, '/targets', 'POST', { code });
+  }
+
+  static refreshHabitTarget(playerId: string, targetId: string): Promise<HabitSummaryRead> {
+    return this.habitRequest(playerId, `/targets/${encodeURIComponent(targetId)}/refresh`, 'POST', {});
   }
 
   private static async updatePlayerChoice(

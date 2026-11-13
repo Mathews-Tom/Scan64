@@ -10,6 +10,7 @@ from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.games import router as games_router
+from scan64.api.habit import router as habit_router
 from scan64.api.insights import router as insights_router
 from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
@@ -87,6 +88,7 @@ app.include_router(data_lifecycle_router)
 app.include_router(onboarding_router)
 app.include_router(strength_router)
 app.include_router(reports_router)
+app.include_router(habit_router)
 
 
 @app.get("/health")
