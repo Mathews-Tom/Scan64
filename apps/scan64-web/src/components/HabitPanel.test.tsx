@@ -131,7 +131,7 @@ describe('HabitPanel', () => {
     expect(ApiClient.updateHabitGoal).toHaveBeenCalledTimes(1);
     expect(ApiClient.updateHabitGoal).toHaveBeenCalledWith('owner', 5);
     expect(screen.getByText(/1\/3 qualifying solves · 2 remaining/)).toBeInTheDocument();
-    expect(screen.getByText('Goal saved for the next UTC day. Today’s goal is unchanged.')).toHaveFocus();
+    await waitFor(() => expect(screen.getByText('Goal saved for the next UTC day. Today’s goal is unchanged.')).toHaveFocus());
   });
 
   it.each(['0', '-1', '1.5'])('rejects invalid goal %s without an API write and focuses the alert', async value => {
@@ -141,7 +141,8 @@ describe('HabitPanel', () => {
     const form = input.closest('form');
     if (!form) throw new Error('Goal form missing');
     fireEvent.submit(form);
-    expect(await screen.findByRole('alert')).toHaveFocus();
+    await screen.findByRole('alert');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     expect(screen.getByText(/Enter a positive whole-number goal/)).toBeInTheDocument();
     expect(ApiClient.updateHabitGoal).not.toHaveBeenCalled();
   });
@@ -228,7 +229,8 @@ describe('HabitPanel', () => {
     vi.mocked(ApiClient.updateHabitGoal).mockRejectedValue(new Error('Connection lost'));
     render(<HabitPanel playerId="owner" patterns={patterns} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Save next-day goal' }));
-    expect(await screen.findByRole('alert')).toHaveFocus();
+    await screen.findByRole('alert');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     expect(screen.getByText(/Habit change could not be saved: Connection lost/)).toBeInTheDocument();
     expect(screen.getByText(/1\/3 qualifying solves · 2 remaining/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save next-day goal' })).toBeEnabled();
@@ -237,7 +239,8 @@ describe('HabitPanel', () => {
   it('focuses a failed read and retries without starting practice or awarding evidence', async () => {
     vi.mocked(ApiClient.getPlayerHabit).mockRejectedValueOnce(new Error('Offline')).mockResolvedValue(summary);
     render(<HabitPanel playerId="owner" patterns={patterns} />);
-    expect(await screen.findByRole('alert')).toHaveFocus();
+    await screen.findByRole('alert');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     fireEvent.click(screen.getByRole('button', { name: 'Retry habit record' }));
     expect(await screen.findByRole('spinbutton', { name: 'Qualifying solves per day' })).toBeInTheDocument();
     expect(ApiClient.getPlayerHabit).toHaveBeenCalledTimes(2);
@@ -249,7 +252,8 @@ describe('HabitPanel', () => {
     vi.mocked(ApiClient.getPuzzleModes).mockRejectedValue(new Error('Mode service unavailable'));
     render(<HabitPanel playerId="owner" patterns={patterns} />);
     await screen.findByRole('spinbutton', { name: 'Qualifying solves per day' });
-    expect(await screen.findByRole('alert')).toHaveFocus();
+    await screen.findByRole('alert');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     expect(screen.getByText(/Puzzle solve streak unavailable: Mode service unavailable/)).toBeInTheDocument();
     expect(screen.getByText(/1\/3 qualifying solves · 2 remaining/)).toBeInTheDocument();
   });
