@@ -48,6 +48,7 @@ describe('owned move-by-move review', () => {
     expect(screen.queryByTestId('review-credit-2')).not.toBeInTheDocument();
     fireEvent.click(within(credits).getByRole('button', { name: /Credited move at ply 1/ }));
     expect(screen.getByTestId('review-move-1')).toHaveAttribute('aria-current', 'step');
+    await waitFor(() => expect(boards.get('review-board')).toBeDefined());
     expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: review.moves[0].fen }));
   });
 
@@ -56,6 +57,7 @@ describe('owned move-by-move review', () => {
     render(<AnalysisScreen gameId="game-1" />);
     const point = await screen.findByTestId('review-graph-ply-0');
     point.focus();
+    await waitFor(() => expect(boards.get('review-board')).toBeDefined());
     for (const move of review.moves) {
       fireEvent.keyDown(point, { key: 'ArrowRight' });
       expect(screen.getByTestId(`review-graph-ply-${move.ply}`)).toHaveAttribute('aria-pressed', 'true');
@@ -76,6 +78,7 @@ describe('owned move-by-move review', () => {
     render(<AnalysisScreen gameId="game-1" />);
     await screen.findByTestId('review-move-list');
     expect(screen.getByTestId('review-selected-position')).toHaveTextContent('Initial position');
+    await waitFor(() => expect(boards.get('review-board')).toBeDefined());
     expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: review.initial_fen, lastMove: [] }));
     for (const move of review.moves) {
       fireEvent.click(screen.getByTestId(`review-move-${move.ply}`));
@@ -89,6 +92,7 @@ describe('owned move-by-move review', () => {
     expect(screen.getByTestId('review-graph-ply-3')).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByTestId('review-graph-ply-4'));
     expect(screen.getByTestId('review-move-4')).toHaveAttribute('aria-current', 'step');
+    await waitFor(() => expect(boards.get('review-board')).toBeDefined());
     expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: review.moves[3].fen }));
     fireEvent.keyDown(screen.getByTestId('review-graph-ply-0'), { key: 'Enter' });
     expect(screen.getByTestId('review-selected-position')).toHaveTextContent('Initial position');
