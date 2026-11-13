@@ -131,6 +131,7 @@ def run_window(instance: InstanceLock, listener: socket.socket) -> None:
     tk.Button(root, text="Quit Scan64", command=quit_app).pack(padx=20, pady=(5, 20))
     root.protocol("WM_DELETE_WINDOW", quit_app)
     root.createcommand("::tk::mac::Quit", quit_app)
+    root.createcommand("::tk::mac::ReopenApplication", open_browser)
     signal.signal(signal.SIGTERM, lambda *_: quit_app())
     signal.signal(signal.SIGINT, lambda *_: quit_app())
     worker = threading.Thread(target=serve, name="scan64-server")

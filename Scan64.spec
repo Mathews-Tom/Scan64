@@ -1,5 +1,4 @@
 # Build only through scripts/build-macos-app.sh (macOS arm64).
-from importlib.metadata import distributions
 from pathlib import Path
 import sysconfig
 
@@ -9,14 +8,16 @@ root = Path(SPECPATH)
 stage = root / "build" / "macos-inputs"
 datas = collect_data_files("scan64", include_py_files=True)
 datas += [(str(root / "apps/scan64-web/dist"), "web")]
-datas += [(str(stage / "stockfish"), "notices/stockfish")]
+datas += [(str(stage / "stockfish/stockfish-sf_18.tar.gz"), "notices/stockfish")]
+datas += [(str(stage / "stockfish/Copying.txt"), "notices/stockfish")]
+datas += [(str(network), "bin") for network in (stage / "stockfish").glob("*.nnue")]
 datas += [(str(root / "LICENSE"), "notices/scan64")]
 datas += [(str(root / "THIRD_PARTY_NOTICES.md"), "notices/scan64")]
 datas += [(str(Path(sysconfig.get_path("stdlib")) / "LICENSE.txt"), "notices/python")]
 datas += [(str(stage / "tcl-tk"), "notices/tcl-tk")]
-# Preserve dependency metadata and upstream license files, not just importable code.
-for distribution in distributions():
-    datas += copy_metadata(distribution.metadata["Name"])
+# Retain runtime dependency licenses, plus the bootloader distribution exception.
+datas += copy_metadata("scan64", recursive=True)
+datas += copy_metadata("pyinstaller")
 
 analysis = Analysis(
     [str(root / "src/scan64/desktop.py")],
