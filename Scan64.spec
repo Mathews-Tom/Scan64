@@ -14,7 +14,7 @@ datas += [(str(network), "bin") for network in (stage / "stockfish").glob("*.nnu
 datas += [(str(root / "LICENSE"), "notices/scan64")]
 datas += [(str(root / "THIRD_PARTY_NOTICES.md"), "notices/scan64")]
 datas += [(str(Path(sysconfig.get_path("stdlib")) / "LICENSE.txt"), "notices/python")]
-datas += [(str(stage / "tcl-tk"), "notices/tcl-tk")]
+datas += [(str(stage / "python-licenses"), "notices/python/components")]
 # Retain runtime dependency licenses, plus the bootloader distribution exception.
 datas += copy_metadata("scan64", recursive=True)
 datas += copy_metadata("pyinstaller")

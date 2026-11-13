@@ -76,3 +76,16 @@ def test_instance_lock_rejects_symlink(tmp_path: Path) -> None:
     with pytest.raises(OSError):
         InstanceLock(tmp_path)
     assert target.read_text() == "keep"
+
+
+def test_port_can_be_reused_immediately_after_connection_shutdown() -> None:
+    with reserve_port() as listener:
+        port = listener.getsockname()[1]
+        listener.listen()
+        with socket.create_connection(("127.0.0.1", port)) as client:
+            connection, _ = listener.accept()
+            with connection:
+                connection.shutdown(socket.SHUT_RDWR)
+            assert client.recv(1) == b""
+    with reserve_port(port) as replacement:
+        assert replacement.getsockname()[1] == port

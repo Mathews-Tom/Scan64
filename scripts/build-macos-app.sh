@@ -19,12 +19,58 @@ root.destroy()
 PY
 stage="$PWD/build/macos-inputs"
 mkdir -p "$stage/stockfish" "$stage/bin" "$stage/source"
-mkdir -p "$stage/tcl-tk"
-for project in tcl tk; do
-  curl --fail --location --retry 3 \
-    "https://raw.githubusercontent.com/tcltk/$project/core-9-0-4/license.terms" \
-    --output "$stage/tcl-tk/$project-license.terms"
-done
+# The install-only managed Python omits notices for statically linked libraries.
+# Recover them from its exact standalone full build, verifying GitHub's asset digest.
+uv run --no-sync python - "$stage" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tarfile
+import urllib.request
+
+import zstandard
+
+stage = Path(sys.argv[1])
+build = (Path(sys.base_prefix) / "BUILD").read_text().strip()
+version = ".".join(str(value) for value in sys.version_info[:3])
+name = f"cpython-{version}+{build}-aarch64-apple-darwin-pgo+lto-full.tar.zst"
+with urllib.request.urlopen(
+    f"https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/{build}"
+) as response:
+    release = json.load(response)
+asset = next(item for item in release["assets"] if item["name"] == name)
+expected = asset["digest"].removeprefix("sha256:")
+archive_path = stage / "python-full.tar.zst"
+subprocess.run(
+    ["curl", "--fail", "--location", "--retry", "3",
+     asset["browser_download_url"], "--output", str(archive_path)], check=True,
+)
+with archive_path.open("rb") as source:
+    actual = hashlib.file_digest(source, "sha256").hexdigest()
+if actual != expected:
+    raise SystemExit("Python full archive SHA-256 mismatch")
+output = stage / "python-licenses"
+output.mkdir(exist_ok=True)
+count = 0
+with archive_path.open("rb") as source, zstandard.ZstdDecompressor().stream_reader(source) as stream:
+    with tarfile.open(fileobj=stream, mode="r|") as archive:
+        for member in archive:
+            if member.isfile() and member.name.startswith("python/licenses/"):
+                relative = Path(member.name).relative_to("python/licenses")
+                if ".." in relative.parts:
+                    raise SystemExit("Unsafe Python license archive path")
+                content = archive.extractfile(member)
+                assert content is not None
+                destination = output / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content.read())
+                count += 1
+if not count:
+    raise SystemExit("Python full archive did not include component licenses")
+print(f"Python {version}+{build} component licenses: {count}; archive SHA-256 {actual}")
+PY
 # Read the existing container pins so these distribution paths cannot silently drift.
 uv run --no-sync python - "$stage/stockfish" <<'PY'
 import pathlib

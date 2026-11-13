@@ -35,6 +35,7 @@ def reserve_port(start: int = 8001) -> socket.socket:
     """Keep the selected loopback socket bound until uvicorn takes ownership."""
     for port in range(start, 65536):
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             listener.bind(("127.0.0.1", port))
         except OSError:
@@ -167,6 +168,7 @@ def main() -> None:
     configure_environment(resources, data)
     # Windowed PyInstaller apps have no stdout/stderr. Retain startup diagnostics.
     with (data / "desktop.log").open("a", buffering=1) as log:
+        previous_stdout, previous_stderr = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = log, log
         instance = InstanceLock(data)
         listener: socket.socket | None = None
@@ -180,6 +182,7 @@ def main() -> None:
             if listener is not None:
                 listener.close()
             instance.close()
+            sys.stdout, sys.stderr = previous_stdout, previous_stderr
 
 
 if __name__ == "__main__":
