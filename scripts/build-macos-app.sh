@@ -19,6 +19,12 @@ root.destroy()
 PY
 stage="$PWD/build/macos-inputs"
 mkdir -p "$stage/stockfish" "$stage/bin" "$stage/source"
+mkdir -p "$stage/tcl-tk"
+for project in tcl tk; do
+  curl --fail --location --retry 3 \
+    "https://raw.githubusercontent.com/tcltk/$project/core-9-0-4/license.terms" \
+    --output "$stage/tcl-tk/$project-license.terms"
+done
 # Read the existing container pins so these distribution paths cannot silently drift.
 uv run --no-sync python - "$stage/stockfish" <<'PY'
 import pathlib
