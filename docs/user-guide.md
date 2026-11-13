@@ -1,14 +1,31 @@
 # Using Scan64
 
-Scan64 is a local-first chess practice and learning application. It records games you play or import, analyses them with Stockfish, turns diagnosed positions into owned lessons, and updates your profile from server-verified practice and supported tactical evidence.
+Scan64 is a local-first chess practice and learning application. It records games you play or import, analyses them with Stockfish, turns diagnosed positions into owned lessons, and updates your profile from server-graded practice and supported tactical evidence. Lesson hint usage is app-reported; a recorded unhinted answer does not prove independent solving.
+
+## Contents
+
+- [Start the application](#start-the-application)
+- [Choose a starting point](#choose-a-starting-point) and [read your strength record](#read-your-strength-record)
+- [Keyboard, touch and screen readers](#keyboard-touch-and-screen-readers)
+- [Play a game](#play-a-game) and [use hints](#hints-during-play)
+- [Import and analyse a PGN](#import-and-analyse-a-pgn) and [review every move](#move-by-move-game-review)
+- [Train from diagnosed positions](#train-from-diagnosed-positions) and [inspect patterns](#the-pattern-with-its-evidence)
+- [Daily goals and tracked pattern evidence](#daily-goals-and-tracked-pattern-evidence)
+- [Use coach mode](#use-coach-mode) and [transfer measurement](#transfer-measurement)
+- [Import a puzzle catalog](#import-a-puzzle-catalog) and [practise puzzles](#practise-imported-puzzles)
+- [Data and privacy](#data-and-privacy) and [manual acceptance](#manual-acceptance-walkthrough)
 
 ## Start the application
 
-Follow the [root quickstart](../README.md#run-locally-on-one-port) for the source or container single-port application. The [unsigned macOS Apple silicon app](../README.md#macos-app-apple-silicon) needs no developer tools: unzip the release asset, move Scan64.app to Applications, attempt to open it, and use **System Settings → Privacy & Security → Open Anyway → Open** if Gatekeeper blocks it. Verify the download origin and checksum first; the app is not signed/notarized.
+Follow the [root quickstart](../README.md) for the source, Docker or unsigned macOS Apple silicon app. For the macOS app, unzip the release asset, move Scan64.app to Applications, attempt to open it, and use **System Settings → Privacy & Security → Open Anyway → Open** if Gatekeeper blocks it. Verify the download origin and checksum first; the app needs no developer tools and is not signed/notarized.
 
 The app opens your browser at the first available loopback port from 8001. Its status window offers **Open Scan64** and **Quit Scan64**; closing that window, Dock Quit or ⌘Q also shuts down the server and engines. A second launch reopens the existing browser page without starting another server. Games survive relaunch in `~/Library/Application Support/Scan64/scan64.db`; puzzle data and `desktop.log` live in that directory too. Keep browser local storage to retain your player token. If another app occupies the original port, close it and relaunch Scan64 on that original browser origin to regain the saved browser identity.
 
+The macOS app does not bundle a command-line entry point or offer a puzzle-import control. An app-only installation therefore cannot populate an empty puzzle catalog; the Puzzles screen's `uv run scan64-cli puzzles import …` instruction requires a separate source checkout and uv. If you have those, use the [macOS database import workaround](#import-a-puzzle-catalog) below.
+
 The development-only `scripts/run.sh` instead uses the API on port 8001 and Vite on 5173.
+
+The one-port source command is `uv run scan64-cli serve` after building the web client. It serves the UI, API and API reference at `http://127.0.0.1:8001`; use `--port PORT` to choose another port and `--no-browser` to suppress browser launch. Docker serves the same application on container port 8001 and keeps its database in `/data/scan64.db`; retain the `/data` volume. Source operation defaults to `database.db` in the working directory unless `SCAN64_DATABASE_URL` is set. Browser identity is tied to the exact browser origin, so changing hostname or port does not carry the stored token across.
 
 On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
 
@@ -31,8 +48,8 @@ introduction's original start time or erase a manual bot choice.
 After declaring, **Start/resume daily puzzles** opens the existing Puzzles screen:
 resume the active run or use its Daily **Start** action. The introduction counts the
 first five daily-slot-bound runs started after the server's introduction start time,
-not a separate placement set. Pre-opt-in active runs and slots reserved before opting
-in do not count. Each qualifying run closes once, whether solved (with or without hints),
+not a separate placement set. A run already active before opting in does not count;
+a previously reserved daily slot can count if its run starts after opting in. Each qualifying run closes once, whether solved (with or without hints),
 failed or abandoned. The displayed count comes from server evidence, carries into later days,
 and does not estimate playing strength. A short or empty daily catalog never blocks
 **Play now**; practise another day rather than rerolling or manufacturing slots.
@@ -316,8 +333,16 @@ uv run scan64-cli puzzles import --download --json
 docker exec <container> scan64-cli puzzles import --download --json
 ```
 
-`--download` saves the **entire** compressed Lichess CC0 database, roughly **310 MB**
-and growing, before importing any rows. It is not a small filtered download. Allow space for
+For the macOS app, there is no in-app importer or bundled CLI. If you also have a source checkout and its Python dependencies, quit Scan64 and run this from the repository root to target the app's actual database rather than creating a separate `database.db`:
+
+```sh
+SCAN64_DATABASE_URL="sqlite:///$HOME/Library/Application Support/Scan64/scan64.db" \
+  uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json
+```
+
+Replace the input path with your complete local file, or replace that argument with `--download` for an explicit full download. Relaunch the app after import. Without a source environment, the released app currently has no supported puzzle-import path; playing, game review and lessons generated from your games do not need that catalog.
+
+`--download` saves the **entire** compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
 the complete file and a temporary replacement when downloading again. Interrupted downloads
 do not replace a previously saved file. The default destination is
 `lichess_db_puzzle.csv.zst` beside the SQLite database (or `./data` for other databases);
@@ -355,7 +380,7 @@ onboarding as other screens. An empty or exhausted catalog shows the server's me
 and an explicit local import command; the screen never downloads a catalog.
 
 The board starts after the opponent's setup move, with your solving side facing you.
-Play the complete source continuation, including choosing the exact promotion piece.
+Play the complete source continuation, including choosing the exact promotion piece; a legal alternative checkmate is also accepted on the final solution move.
 After each accepted move the server plays the next opponent move automatically. A
 wrong move leaves the position unchanged. There are **three wrong submissions total
 per run**, not three per turn; only the server changes this count.
@@ -461,7 +486,7 @@ historical awards under new policy or refreshed catalog ratings.
 
 ### Move-by-move game review
 
-The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.
+The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position; **Copy FEN** and **Download PGN** export the selected position or replay. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.
 
 Scan64 scores only your stored owner-colour moves. Let `p_before` and `p_after` be the fast-pass win probabilities for the side to move before and after your move. The side to move switches, so your loss is:
 
@@ -490,7 +515,7 @@ All player-reachable game, play-session, position, analysis-job, and lesson-atte
 
 The API supports player-scoped export, import, and deletion. Treat deletion as destructive. Use a disposable player and database before testing it.
 
-The generated API reference at `http://127.0.0.1:8001/docs` documents the live request and response schemas. `http://127.0.0.1:8001/openapi.json` is the machine-readable contract.
+The generated API reference at `http://127.0.0.1:8001/docs` documents the live request and response schemas. `http://127.0.0.1:8001/openapi.json` is the machine-readable contract. Substitute your chosen port, or the port shown by the macOS app.
 
 ## Manual acceptance walkthrough
 

@@ -8,7 +8,7 @@ The v1 Maia checkpoint licence and redistribution terms remain unresolved. Read 
 
 ## Validated macOS setup
 
-This procedure was verified on Apple silicon macOS with Homebrew, Lc0 0.32.1, Stockfish 18, and the official Maia v1.0 `maia-1500.pb.gz` asset. Other platforms require an operator-provided Lc0 and Stockfish binary; Scan64 requires absolute paths and fails closed when either binary or the selected checkpoint is missing.
+The previously recorded operator setup used Apple silicon macOS with Homebrew, Lc0 0.32.1, Stockfish 18, and the official Maia v1.0 `maia-1500.pb.gz` asset. These are validation versions, not pins in the Homebrew command. Other platforms require operator-provided Lc0 and Stockfish binaries. Maia configuration, Lc0 and checkpoint paths must be absolute; a missing selected checkpoint or Lc0 binary fails closed. Ordinary Stockfish operation instead resolves `stockfish` on `PATH`.
 
 Install the required engine binaries:
 
@@ -23,7 +23,7 @@ command -v lc0
 command -v stockfish
 ```
 
-The verified Homebrew paths are `/opt/homebrew/bin/lc0` and `/opt/homebrew/bin/stockfish`.
+The recorded Homebrew paths were `/opt/homebrew/bin/lc0` and `/opt/homebrew/bin/stockfish`; use the paths reported on your machine.
 
 ## Obtain an operator-owned checkpoint
 
@@ -64,16 +64,18 @@ Replace `/Users/replace-with-your-user` with the operator's absolute home path. 
 Prepare the Scan64 environment from the repository root:
 
 ```text
-uv sync
+uv sync --locked
+pnpm --dir apps/scan64-web install --frozen-lockfile
+pnpm --dir apps/scan64-web build
 ```
 
 Start the complete local application with the configuration:
 
 ```text
-SCAN64_MAIA_CONFIG="$HOME/.config/scan64/maia.toml" scripts/run.sh
+SCAN64_MAIA_CONFIG="$HOME/.config/scan64/maia.toml" uv run scan64-cli serve --no-browser
 ```
 
-Create a play session with `opponent_config.provider = "maia"` and a numeric `opponent_config.strength`. Scan64 selects the nearest configured checkpoint. A request that differs from the selected checkpoint persists an approximate-100-Elo granularity disclosure; requests below or above configured coverage also persist the coverage-gap disclosure. Use `provider = "stockfish"` explicitly for conventional engine play.
+Open `http://127.0.0.1:8001` manually, or use the API reference at `/docs`. The Play screen currently creates Stockfish sessions only; there is no Maia picker. To play Maia, first open the app once so it creates your player, then copy that player's ID (`scan64_player_id`) and bearer token (`scan64_player_token:<id>`) from the browser's local storage for this origin. Send `POST /v1/play-sessions` with header `Authorization: Bearer <token>` and body `{"player_id": "<id>", "opponent_config": {"provider": "maia", "strength": "1500"}}`, then open `/play?session=<returned id>` in the same browser so the session loads under that identity. Treat the token like a password. Scan64 selects the nearest configured checkpoint. A request that differs from the selected checkpoint persists an approximate-100-Elo granularity disclosure; requests below or above configured coverage instead persist the coverage-gap disclosure. Use `provider = "stockfish"` with `bot_level` for the relative Stockfish ladder; Maia's checkpoint rating is not a Stockfish bot-level conversion.
 
 ## Verify
 
