@@ -213,30 +213,35 @@ def _validate_habit_archive(
         )
     policy = _habit_records(HabitPolicy, [archive.habit_policy], player_id)[0]
     effective = utc(policy.effective_at)
-    games = {str(row["id"]): Game.model_validate(row) for row in archive.games}
-    positions = {str(row["id"]): Position.model_validate(row) for row in archive.positions}
+    # Key and join on parsed identities: raw strings miss alternate UUID
+    # spellings that typed import accepts, so a lookup could fail open.
+    games = {str(row.id): row for row in map(Game.model_validate, archive.games)}
+    positions = {str(row.id): row for row in map(Position.model_validate, archive.positions)}
     analyses = {
-        str(row["id"]): EngineAnalysis.model_validate(row) for row in archive.engine_analyses
+        str(row.id): row for row in map(EngineAnalysis.model_validate, archive.engine_analyses)
     }
     opportunities = {
-        str(row["id"]): PersistedLessonOpportunity.model_validate(row)
-        for row in archive.lesson_opportunities
+        str(row.id): row
+        for row in map(PersistedLessonOpportunity.model_validate, archive.lesson_opportunities)
     }
     attempts = {
-        str(row["id"]): LessonAttempt.model_validate(row) for row in archive.lesson_attempts
+        str(row.id): row for row in map(LessonAttempt.model_validate, archive.lesson_attempts)
     }
-    evidence = {str(row["evidence_id"]): Evidence.model_validate(row) for row in archive.evidence}
+    evidence = {
+        str(row.evidence_id): row for row in map(Evidence.model_validate, archive.evidence)
+    }
     schedules = {str(row["item_id"]): row for row in archive.review_schedules}
     jobs = [AnalysisJob.model_validate(row) for row in archive.analysis_jobs]
     reviews = [GameMoveReview.model_validate(row) for row in archive.review_moves]
-    runs = {str(row["id"]): PuzzleRun.model_validate(row) for row in archive.puzzle_runs}
+    runs = {str(row.id): row for row in map(PuzzleRun.model_validate, archive.puzzle_runs)}
     content_attempts = {
-        str(row["id"]): ContentAttempt.model_validate(row) for row in archive.content_attempts
+        str(row.id): row for row in map(ContentAttempt.model_validate, archive.content_attempts)
     }
     items = {
-        str(row["id"]): ContentItem.model_validate(row) for row in archive.puzzle_content_items
+        str(row.id): row for row in map(ContentItem.model_validate, archive.puzzle_content_items)
     }
     studies = {str(row["id"]): row for row in archive.study_sessions}
+    play_sessions = [PlaySession.model_validate(row) for row in archive.play_sessions]
     # These inputs may otherwise be retained rather than overwritten on restore.
     # Never validate against one source and persist a conflicting shared source.
     if credits or targets or awards:
@@ -254,10 +259,7 @@ def _validate_habit_archive(
         sources.extend((award, award.id) for award in awards)
         sources.extend((proof, proof.id) for proof in award_evidence)
         sources.extend((attempt, attempt.id) for attempt in attempts.values())
-        sources.extend(
-            (play, play.id)
-            for play in (PlaySession.model_validate(row) for row in archive.play_sessions)
-        )
+        sources.extend((play, play.id) for play in play_sessions)
         for source_row, key in sources:
             existing = session.get(type(source_row), key)
             if existing is not None and existing.model_dump(mode="json") != source_row.model_dump(
@@ -465,12 +467,12 @@ def _validate_habit_archive(
             game.owner_player_id != player_id or game.owner_color not in {"white", "black"}
             or game.result not in {"1-0", "0-1", "1/2-1/2"} or utc(game.created_at) <= after
             or not any(
-                row.get("game_id") == str(game.id) and row.get("player_id") == player_id
-                and row.get("status") == "completed" for row in archive.play_sessions
+                play.game_id == game.id and play.player_id == player_id
+                and play.status == "completed" for play in play_sessions
             )
             or any(
-                row.get("game_id") == str(game.id) and row.get("player_id") == player_id
-                and row.get("status") != "completed" for row in archive.play_sessions
+                play.game_id == game.id and play.player_id == player_id
+                and play.status != "completed" for play in play_sessions
             )
             or not any(
                 job.game_id == game.id and job.status == "completed"
@@ -789,13 +791,13 @@ def _validate_habit_archive(
             if not order[0] <= (utc(game.created_at), str(game.id)) <= order[-1]:
                 continue
             plays = [
-                row for row in archive.play_sessions
-                if row.get("game_id") == str(game.id) and row.get("player_id") == player_id
+                play for play in play_sessions
+                if play.game_id == game.id and play.player_id == player_id
             ]
             if game.owner_player_id == player_id and plays:
                 if (
                     game.result not in {"1-0", "0-1", "1/2-1/2"}
-                    or any(row.get("status") != "completed" for row in plays)
+                    or any(play.status != "completed" for play in plays)
                     or not any(
                         job.game_id == game.id and job.status == "completed"
                         and job.completed_at is not None
@@ -821,14 +823,14 @@ def _validate_habit_archive(
                 or job.completed_at is None
                 or not utc(barrier.created_at) <= utc(job.completed_at) <= at
                 or not any(
-                    row.get("game_id") == str(barrier.id)
-                    and row.get("player_id") == player_id and row.get("status") == "completed"
-                    for row in archive.play_sessions
+                    play.game_id == barrier.id
+                    and play.player_id == player_id and play.status == "completed"
+                    for play in play_sessions
                 )
                 or any(
-                    row.get("game_id") == str(barrier.id)
-                    and row.get("player_id") == player_id and row.get("status") != "completed"
-                    for row in archive.play_sessions
+                    play.game_id == barrier.id
+                    and play.player_id == player_id and play.status != "completed"
+                    for play in play_sessions
                 )
             ):
                 raise ValueError("Invalid persisted pattern award barrier")

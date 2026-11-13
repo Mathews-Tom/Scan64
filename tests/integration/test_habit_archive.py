@@ -128,16 +128,22 @@ def _seed_archive(
             duplicate_ref = f"duplicate-{original_ref}"
             session.add(Evidence(**{**proof.model_dump(), "evidence_id": duplicate_ref}))
             spec["diagnosis"]["evidence_refs"] = [duplicate_ref]
-            duplicate = PersistedLessonOpportunity(**{
-                **opportunity.model_dump(), "id": uuid4(), "lesson_spec": spec,
-            })
+            duplicate = PersistedLessonOpportunity(
+                **{
+                    **opportunity.model_dump(),
+                    "id": uuid4(),
+                    "lesson_spec": spec,
+                }
+            )
             session.add(duplicate)
-            session.add(ReviewSchedule(
-                player_id=PLAYER,
-                item_id=str(duplicate.id),
-                skill_id=SKILL,
-                next_review_at=start,
-            ))
+            session.add(
+                ReviewSchedule(
+                    player_id=PLAYER,
+                    item_id=str(duplicate.id),
+                    skill_id=SKILL,
+                    next_review_at=start,
+                )
+            )
     if not reviewed_sources:
         for row in session.exec(select(GameMoveReview)).all():
             session.delete(row)
@@ -264,15 +270,17 @@ def _seed_archive(
         session.add(earned_award)
         session.flush()
         for ordinal, job in enumerate(window_jobs, 1):
-            session.add(PatternAwardEvidence(
-                player_id=PLAYER,
-                award_id=earned_award.id,
-                ordinal=ordinal,
-                game_id=job.game_id,
-                analysis_job_id=job.id,
-                game_created_at=job.created_at,
-                job_completed_at=job.completed_at,
-            ))
+            session.add(
+                PatternAwardEvidence(
+                    player_id=PLAYER,
+                    award_id=earned_award.id,
+                    ordinal=ordinal,
+                    game_id=job.game_id,
+                    analysis_job_id=job.id,
+                    game_created_at=job.created_at,
+                    job_completed_at=job.completed_at,
+                )
+            )
     else:
         session.add(target)
     session.commit()
@@ -339,7 +347,12 @@ def test_habit_archive_restores_cutover_ledgers_and_award_without_replay(
     assert all(newest.affected_rows[field] == counts[field] for field in HABIT_FIELDS)
     db_session.expire_all()
     for model in (
-        HabitPolicy, HabitGoal, HabitDay, HabitCredit, PatternTarget, PatternAward,
+        HabitPolicy,
+        HabitGoal,
+        HabitDay,
+        HabitCredit,
+        PatternTarget,
+        PatternAward,
         PatternAwardEvidence,
     ):
         assert db_session.exec(select(model).where(model.player_id == PLAYER)).all() == []
@@ -405,8 +418,12 @@ def test_habit_archive_duplicate_lessons_keep_only_selected_occurrence_refs(
 @pytest.mark.parametrize(
     "tamper",
     [
-        "boolean_loss", "negative_loss", "excess_loss", "changed_loss",
-        "scored_count", "observed_total",
+        "boolean_loss",
+        "negative_loss",
+        "excess_loss",
+        "changed_loss",
+        "scored_count",
+        "observed_total",
     ],
 )
 def test_habit_archive_rejects_invalid_scored_snapshot(
@@ -423,8 +440,10 @@ def test_habit_archive_rejects_invalid_scored_snapshot(
         snapshot["observed_loss"] += 0.1
     else:
         move["loss"] = {
-            "boolean_loss": True, "negative_loss": -0.1,
-            "excess_loss": 1.1, "changed_loss": 0.99,
+            "boolean_loss": True,
+            "negative_loss": -0.1,
+            "excess_loss": 1.1,
+            "changed_loss": 0.99,
         }[tamper]
         snapshot["observed_loss"] = sum(row["loss"] for row in snapshot["supporting_moves"])
     response = client.post("/v1/imports", json=archive, headers=headers)
@@ -629,8 +648,13 @@ def test_habit_award_archive_rejects_conflicting_first_duplicate_game_before_wri
 @pytest.mark.parametrize(
     "collection",
     [
-        "games", "positions", "engine_analyses", "analysis_jobs",
-        "lesson_opportunities", "lesson_attempts", "evidence",
+        "games",
+        "positions",
+        "engine_analyses",
+        "analysis_jobs",
+        "lesson_opportunities",
+        "lesson_attempts",
+        "evidence",
     ],
 )
 def test_habit_award_archive_rejects_duplicate_source_ids_without_positive_credits(
@@ -1059,13 +1083,30 @@ def test_active_barrier_finished_short_after_freeze_remains_restorable(
 @pytest.mark.parametrize(
     "tamper",
     [
-        "missing_row", "missing_collection", "swapped_games", "swapped_jobs",
-        "unfinished_job", "missing_job", "out_of_order", "duplicate_ordinal",
-        "boolean_ordinal", "string_ordinal", "extra_field", "missing_field",
-        "game_timestamp", "job_timestamp", "numeric_timestamp", "orphan_award",
-        "missing_barrier_job", "missing_barrier_game", "foreign_barrier",
-        "mismatched_barrier_job", "unfinished_barrier_job", "barrier_after_award",
-        "barrier_before_practice", "barrier_after_window",
+        "missing_row",
+        "missing_collection",
+        "swapped_games",
+        "swapped_jobs",
+        "unfinished_job",
+        "missing_job",
+        "out_of_order",
+        "duplicate_ordinal",
+        "boolean_ordinal",
+        "string_ordinal",
+        "extra_field",
+        "missing_field",
+        "game_timestamp",
+        "job_timestamp",
+        "numeric_timestamp",
+        "orphan_award",
+        "missing_barrier_job",
+        "missing_barrier_game",
+        "foreign_barrier",
+        "mismatched_barrier_job",
+        "unfinished_barrier_job",
+        "barrier_after_award",
+        "barrier_before_practice",
+        "barrier_after_window",
     ],
 )
 def test_habit_archive_rejects_tampered_persisted_award_evidence(
@@ -1085,7 +1126,8 @@ def test_habit_archive_rejects_tampered_persisted_award_evidence(
         first["game_id"], proofs[1]["game_id"] = proofs[1]["game_id"], first["game_id"]
     elif tamper == "swapped_jobs":
         first["analysis_job_id"], proofs[1]["analysis_job_id"] = (
-            proofs[1]["analysis_job_id"], first["analysis_job_id"],
+            proofs[1]["analysis_job_id"],
+            first["analysis_job_id"],
         )
     elif tamper == "unfinished_job":
         next(row for row in archive["analysis_jobs"] if row["id"] == first["analysis_job_id"])[
@@ -1181,7 +1223,8 @@ def test_short_barrier_releases_five_clean_games_and_award_roundtrips(
     target = db_session.exec(select(PatternTarget)).one()
     assert target.practice_completed_at is not None
     barrier_job = fixtures._scored_game(
-        db_session, target.practice_completed_at + timedelta(hours=1),
+        db_session,
+        target.practice_completed_at + timedelta(hours=1),
     )
     barrier = db_session.get(Game, barrier_job.game_id)
     assert barrier is not None
@@ -1193,7 +1236,8 @@ def test_short_barrier_releases_five_clean_games_and_award_roundtrips(
         db_session.delete(review)
     clean_jobs = [
         fixtures._scored_game(
-            db_session, target.practice_completed_at + timedelta(hours=index + 2),
+            db_session,
+            target.practice_completed_at + timedelta(hours=index + 2),
         )
         for index in range(5)
     ]
@@ -1266,12 +1310,14 @@ def test_habit_archive_partial_window_does_not_reconstruct_unrecorded_games(
     assert restored["pattern_award_evidence"] == []
 
 
+@pytest.mark.parametrize("spelling", ["canonical", "position_hex", "analysis_hex"])
 @pytest.mark.parametrize("retirement", ["active", "after_award", "before_award"])
 def test_habit_archive_checks_unrecorded_recurrence_inside_persisted_span(
     client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
     retirement: str,
+    spelling: str,
 ) -> None:
     import tests.unit.test_habit as fixtures
 
@@ -1288,35 +1334,58 @@ def test_habit_archive_checks_unrecorded_recurrence_inside_persisted_span(
     source = db_session.exec(select(Position).where(Position.game_id == job.game_id)).first()
     assert source is not None
     retired_at = (
-        award.awarded_at + timedelta(days=1) if retirement == "after_award"
-        else award.awarded_at - timedelta(seconds=1) if retirement == "before_award"
+        award.awarded_at + timedelta(days=1)
+        if retirement == "after_award"
+        else award.awarded_at - timedelta(seconds=1)
+        if retirement == "before_award"
         else None
     )
-    db_session.add(ProfileObservation(
-        player_id=PLAYER,
-        game_id=str(job.game_id),
-        position_id=str(source.id),
-        skill_id=SKILL,
-        observed_at=created,
-        retired_at=retired_at,
-    ))
+    db_session.add(
+        ProfileObservation(
+            player_id=PLAYER,
+            game_id=str(job.game_id),
+            position_id=str(source.id),
+            skill_id=SKILL,
+            observed_at=created,
+            retired_at=retired_at,
+        )
+    )
     db_session.commit()
     exported = _export(client, headers)
+    # Typed import accepts hex ids; validator lookups must still find them.
+    game_positions = {
+        row["id"] for row in exported["positions"] if row["game_id"] == str(job.game_id)
+    }
+    for row in exported["positions" if spelling == "position_hex" else "engine_analyses"]:
+        if spelling != "canonical" and (
+            row["id"] in game_positions or row.get("position_id") in game_positions
+        ):
+            row["id"] = UUID(row["id"]).hex
     _delete(client, headers)
     response = client.post("/v1/imports", json=exported, headers=headers)
     assert response.status_code == (200 if retirement == "before_award" else 400), response.text
 
 
+@pytest.mark.parametrize("game_ref", ["canonical", "hex"])
 @pytest.mark.parametrize("move_count", [0, 2, 40])
 @pytest.mark.parametrize(
     "state",
-    ["active", "nonterminal", "pending", "running", "failed", "missing_analysis",
-     "late_analysis", "completed"],
+    [
+        "active",
+        "nonterminal",
+        "pending",
+        "running",
+        "failed",
+        "missing_analysis",
+        "late_analysis",
+        "completed",
+    ],
 )
 def test_habit_archive_checks_unresolved_games_inside_persisted_span_before_length_filter(
     client: TestClient,
     db_session: Session,
     move_count: int,
+    game_ref: str,
     state: str,
 ) -> None:
     archive, headers = _seed_archive(client, db_session)
@@ -1337,7 +1406,11 @@ def test_habit_archive_checks_unresolved_games_inside_persisted_span_before_leng
         status="active" if state == "active" else "completed",
     )
     archive["games"].append(game.model_dump(mode="json"))
-    archive["play_sessions"].append(play.model_dump(mode="json"))
+    play_row = play.model_dump(mode="json")
+    if game_ref == "hex":
+        # Typed import accepts this spelling; validation must still join it.
+        play_row["game_id"] = game.id.hex
+    archive["play_sessions"].append(play_row)
     if move_count == 40:
         positions: dict[str, Position] = {}
         analyses: dict[UUID, EngineAnalysis] = {}
@@ -1355,7 +1428,8 @@ def test_habit_archive_checks_unresolved_games_inside_persisted_span_before_leng
         job_status = state if state in {"pending", "running", "failed"} else "completed"
         completed_at = (
             datetime.fromisoformat(award["awarded_at"]) + timedelta(seconds=1)
-            if state == "late_analysis" else created + timedelta(minutes=10)
+            if state == "late_analysis"
+            else created + timedelta(minutes=10)
         )
         job = AnalysisJob(
             game_id=game.id,
