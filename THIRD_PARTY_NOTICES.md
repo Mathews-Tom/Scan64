@@ -30,6 +30,15 @@ This project uses the following third-party software:
 - **Built web client**: Chessground (above), React/React DOM (MIT), chess.js (BSD-2-Clause), idb-keyval (Apache-2.0) and Workbox service-worker libraries (MIT). The Vite build emits bundled dependency licenses in `/app/web/THIRD_PARTY_LICENSES.md`; service-worker bundles also retain Workbox license comments. The exact dependency versions are recorded in `pnpm-lock.yaml`.
 - Node, pnpm, uv and the Stockfish compiler are build tools only, not installed into the runtime image. No Maia model weights are bundled.
 
+## Other software in the macOS Apple silicon app
+
+- **Stockfish 18**: the same unmodified `sf_18` source and SHA-256-verified networks as the container, built with `make -C src -j2 build ARCH=apple-silicon COMP=clang`. The executable is bundled under `Contents/Frameworks/bin/`; corresponding `stockfish-sf_18.tar.gz`, upstream `Copying.txt`, and both original NNUE networks accompany it under `Contents/Resources/notices/stockfish/` (PyInstaller may link matching Frameworks/Resources paths). To rebuild, extract the archive, copy both networks into `src/`, and run that make command with Xcode Command Line Tools. The networks are also embedded in the executable.
+- **Scan64**: GPL-3.0-or-later; `LICENSE` and these notices accompany the app under `Contents/Resources/notices/scan64/`.
+- **Python and Tcl/Tk**: uv-managed Python, PSF license and bundled third-party notices under `Contents/Resources/notices/python/LICENSE.txt`; Tcl/Tk is bundled for the status window. Python's license file includes the Tcl/Tk license notices from its standalone distribution.
+- **Python dependencies**: versions come from `uv.lock`; installed distribution metadata and upstream licenses are retained in the app's Resources. The Zstandard BSD notice below also applies.
+- **Built web client**: the same dependencies as the container, with generated `THIRD_PARTY_LICENSES.md` under `Contents/Resources/web/`.
+- **PyInstaller**: GPL-2.0-or-later with its bootloader distribution exception; its metadata/license accompanies the bundle. uv, pnpm, Node, Xcode and make are build tools only. No Maia weights are included.
+
 ## Lichess real-game diagnosis reference
 - **License**: CC0 (public-domain dedication).
 - **Source**: https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst
