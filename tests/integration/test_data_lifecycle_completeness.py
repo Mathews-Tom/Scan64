@@ -46,6 +46,15 @@ from scan64.learning.evaluation.transfer_measurement import (
 )
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferKind, TransferPosition
+from scan64.learning.habit_models import (
+    HabitCredit,
+    HabitDay,
+    HabitGoal,
+    HabitPolicy,
+    PatternAward,
+    PatternAwardEvidence,
+    PatternTarget,
+)
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
@@ -80,6 +89,13 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         LessonAttempt.__tablename__,
         TransferMeasurement.__tablename__,
         CoachStudentLink.__tablename__,
+        HabitPolicy.__tablename__,
+        HabitGoal.__tablename__,
+        HabitDay.__tablename__,
+        HabitCredit.__tablename__,
+        PatternTarget.__tablename__,
+        PatternAward.__tablename__,
+        PatternAwardEvidence.__tablename__,
     }
 )
 
@@ -123,6 +139,13 @@ ARCHIVE_FIELDS = {
     TransferMeasurement.__tablename__: "transfer_measurements",
     TransferPosition.__tablename__: "transfer_positions",
     CoachStudentLink.__tablename__: "coach_student_links",
+    HabitPolicy.__tablename__: "habit_policy",
+    HabitGoal.__tablename__: "habit_goals",
+    HabitDay.__tablename__: "habit_days",
+    HabitCredit.__tablename__: "habit_credits",
+    PatternTarget.__tablename__: "pattern_targets",
+    PatternAward.__tablename__: "pattern_awards",
+    PatternAwardEvidence.__tablename__: "pattern_award_evidence",
 }
 
 
@@ -472,6 +495,13 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "player_credentials": 1,
         "profile": 1,
         "onboarding": 1,
+        "habit_policy": 1,
+        "habit_goals": 0,
+        "habit_days": 0,
+        "habit_credits": 0,
+        "pattern_targets": 0,
+        "pattern_awards": 0,
+        "pattern_award_evidence": 0,
         "play_sessions": 1,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,

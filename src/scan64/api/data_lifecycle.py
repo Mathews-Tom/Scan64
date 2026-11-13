@@ -12,7 +12,7 @@ from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import update
-from sqlmodel import Session, col, delete, select
+from sqlmodel import Session, SQLModel, col, delete, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.middleware import IdempotencyRecord
@@ -50,13 +50,24 @@ from scan64.content.puzzle_practice_models import (
     PuzzleRatingEvent,
     elo_after,
 )
-from scan64.content.puzzle_runs import PuzzleRun
+from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.content.validate import validate_solution_line
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferPosition
+from scan64.learning.habit_models import (
+    HABIT_POLICY_VERSION,
+    HabitCredit,
+    HabitDay,
+    HabitGoal,
+    HabitPolicy,
+    PatternAward,
+    PatternAwardEvidence,
+    PatternTarget,
+)
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.tolerance import review_loss, review_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
 
@@ -97,7 +108,738 @@ class ExportArchive(BaseModel):
     puzzle_daily_sets: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_daily_slots: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_rating_events: list[dict[str, Any]] = Field(default_factory=list)
+    habit_policy: dict[str, Any] | None = None
+    habit_goals: list[dict[str, Any]] = Field(default_factory=list)
+    habit_days: list[dict[str, Any]] = Field(default_factory=list)
+    habit_credits: list[dict[str, Any]] = Field(default_factory=list)
+    pattern_targets: list[dict[str, Any]] = Field(default_factory=list)
+    pattern_awards: list[dict[str, Any]] = Field(default_factory=list)
+    pattern_award_evidence: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
+
+_HABIT_V1_CODES = frozenset({
+    "board_awareness.hanging_piece",
+    "threat_processing.missed_check",
+    "threat_processing.missed_capture",
+    "threat_processing.missed_direct_threat",
+})
+_HABIT_INVALIDATION_REASONS = frozenset({
+    "The target uses an unsupported habit policy.",
+    "The tracked diagnosis is no longer trusted.",
+    "The target's supporting lesson evidence is missing.",
+    "The target's supporting lesson evidence is invalid.",
+    "A supporting lesson was removed or its ownership changed.",
+    "A supporting lesson is withdrawn, retired, untrusted, or no longer owned.",
+    "A supporting lesson no longer proves the tracked diagnosis.",
+})
+
+
+def _habit_time(value: Any) -> datetime:
+    if type(value) is not str or "T" not in value:
+        raise ValueError("Invalid habit timestamp")
+    parsed = datetime.fromisoformat(value)
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
+def _habit_day(value: Any) -> str:
+    if type(value) is not str or date.fromisoformat(value).isoformat() != value:
+        raise ValueError("Invalid habit UTC day")
+    return value
+
+
+def _habit_records[HabitRow: SQLModel](
+    model: type[HabitRow], records: list[dict[str, Any]], player_id: str,
+) -> list[HabitRow]:
+    result = []
+    for data in records:
+        if set(data) != set(model.model_fields) or data.get("player_id") != player_id:
+            raise ValueError("Invalid habit fields or owner")
+        for name, value in data.items():
+            if name in {"goal", "ordinal"}:
+                if type(value) is not int or value < 1 or name == "ordinal" and value > 5:
+                    raise ValueError("Invalid habit goal or evidence ordinal")
+            elif name in {"trust_snapshot", "pattern_snapshot"}:
+                if type(value) is not dict:
+                    raise ValueError("Invalid habit snapshot")
+            elif name in {"practice", "window_game_ids", "game_ids"}:
+                if type(value) is not list:
+                    raise ValueError("Invalid habit evidence list")
+            elif name.endswith("_at"):
+                if value is not None:
+                    if _habit_time(value) > datetime.now(UTC):
+                        raise ValueError("Habit timestamp is in the future")
+                elif name not in {"met_at", "practice_completed_at", "invalidated_at"}:
+                    raise ValueError("Missing habit timestamp")
+            elif name in {"utc_day", "effective_day"}:
+                _habit_day(value)
+            elif value is None and name == "invalidation_reason":
+                pass
+            elif value is None and name in {"barrier_game_id", "barrier_analysis_job_id"}:
+                pass
+            elif type(value) is not str or not value:
+                raise ValueError("Invalid habit scalar")
+        if "policy_version" in data and data["policy_version"] != HABIT_POLICY_VERSION:
+            raise ValueError("Unknown habit policy")
+        result.append(model.model_validate(data))
+    return result
+
+
+def _validate_habit_archive(
+    session: Session, archive: ExportArchive, player_id: str,
+) -> tuple[
+    HabitPolicy, list[HabitGoal], list[HabitDay], list[HabitCredit],
+    list[PatternTarget], list[PatternAward], list[PatternAwardEvidence],
+]:
+    """Restore immutable ledgers, never run qualification/reward mutation hooks.
+
+    Historical trust is the stored snapshot, not today's allowlist/retirement.
+    References, grading, game replay and historical recurrence remain checkable.
+    """
+    goals = _habit_records(HabitGoal, archive.habit_goals, player_id)
+    days = _habit_records(HabitDay, archive.habit_days, player_id)
+    credits = _habit_records(HabitCredit, archive.habit_credits, player_id)
+    targets = _habit_records(PatternTarget, archive.pattern_targets, player_id)
+    awards = _habit_records(PatternAward, archive.pattern_awards, player_id)
+    award_evidence = _habit_records(
+        PatternAwardEvidence, archive.pattern_award_evidence, player_id,
+    )
+    if archive.habit_policy is None:
+        if goals or days or credits or targets or awards or award_evidence:
+            raise ValueError("Habit evidence requires its archived cutover")
+        # Legacy archives have no earned habit ledger. A fresh cutover prevents
+        # pre-M69 attempts from becoming rewards on their next write.
+        return (
+            HabitPolicy(player_id=player_id), goals, days, credits, targets, awards, award_evidence,
+        )
+    policy = _habit_records(HabitPolicy, [archive.habit_policy], player_id)[0]
+    effective = utc(policy.effective_at)
+    # Key and join on parsed identities: raw strings miss alternate UUID
+    # spellings that typed import accepts, so a lookup could fail open.
+    games = {str(row.id): row for row in map(Game.model_validate, archive.games)}
+    positions = {str(row.id): row for row in map(Position.model_validate, archive.positions)}
+    analyses = {
+        str(row.id): row for row in map(EngineAnalysis.model_validate, archive.engine_analyses)
+    }
+    opportunities = {
+        str(row.id): row
+        for row in map(PersistedLessonOpportunity.model_validate, archive.lesson_opportunities)
+    }
+    attempts = {
+        str(row.id): row for row in map(LessonAttempt.model_validate, archive.lesson_attempts)
+    }
+    evidence = {
+        str(row.evidence_id): row for row in map(Evidence.model_validate, archive.evidence)
+    }
+    schedules = {str(row["item_id"]): row for row in archive.review_schedules}
+    jobs = [AnalysisJob.model_validate(row) for row in archive.analysis_jobs]
+    reviews = [GameMoveReview.model_validate(row) for row in archive.review_moves]
+    runs = {str(row.id): row for row in map(PuzzleRun.model_validate, archive.puzzle_runs)}
+    content_attempts = {
+        str(row.id): row for row in map(ContentAttempt.model_validate, archive.content_attempts)
+    }
+    items = {
+        str(row.id): row for row in map(ContentItem.model_validate, archive.puzzle_content_items)
+    }
+    studies = {str(row["id"]): row for row in archive.study_sessions}
+    play_sessions = [PlaySession.model_validate(row) for row in archive.play_sessions]
+    # These inputs may otherwise be retained rather than overwritten on restore.
+    # Never validate against one source and persist a conflicting shared source.
+    if credits or targets or awards:
+        sources: list[tuple[SQLModel, Any]] = [
+            (game, game.id) for game in games.values()
+        ]
+        sources.extend((position, position.id) for position in positions.values())
+        sources.extend((analysis, analysis.id) for analysis in analyses.values())
+        sources.extend((opportunity, opportunity.id) for opportunity in opportunities.values())
+        sources.extend((proof, proof.evidence_id) for proof in evidence.values())
+        sources.extend((job, job.id) for job in jobs)
+        sources.extend((review, review.id) for review in reviews)
+        sources.extend((credit, credit.id) for credit in credits)
+        sources.extend((target, target.id) for target in targets)
+        sources.extend((award, award.id) for award in awards)
+        sources.extend((proof, proof.id) for proof in award_evidence)
+        sources.extend((attempt, attempt.id) for attempt in attempts.values())
+        sources.extend((play, play.id) for play in play_sessions)
+        for source_row, key in sources:
+            existing = session.get(type(source_row), key)
+            if existing is not None and existing.model_dump(mode="json") != source_row.model_dump(
+                mode="json"
+            ):
+                raise ValueError("Conflicting habit source")
+
+    def lesson_source(
+        attempt_id: str, snapshot: dict[str, Any] | None = None,
+    ) -> tuple[LessonAttempt, PersistedLessonOpportunity, str, str]:
+        attempt = attempts.get(attempt_id)
+        raw_attempt = next(
+            (row for row in archive.lesson_attempts if row.get("id") == attempt_id), {},
+        )
+        if (
+            attempt is None or attempt.player_id != player_id
+            or attempt.source_kind != "persisted_opportunity"
+            or attempt.success is not True or attempt.grading_status != "verified"
+            or attempt.hints_used != 0 or attempt.opportunity_id is None
+            or type(raw_attempt.get("hints_used")) is not int
+            or type(raw_attempt.get("elapsed_ms")) is not int
+            or set(raw_attempt) != set(LessonAttempt.model_fields)
+            or type(raw_attempt.get("success")) is not bool
+            or attempt.lesson_id != str(attempt.opportunity_id)
+            or attempt.session_id not in studies
+            or studies[attempt.session_id]["player_id"] != player_id
+            or utc(attempt.completed_at) < effective
+            or _habit_time(raw_attempt.get("completed_at")) != utc(attempt.completed_at)
+            or any(
+                other.opportunity_id == attempt.opportunity_id and other.id != attempt.id
+                and utc(other.completed_at) <= utc(attempt.completed_at)
+                for other in attempts.values()
+            )
+        ):
+            raise ValueError("Habit lesson is not the first unhinted server-graded success")
+        opportunity = opportunities.get(str(attempt.opportunity_id))
+        if opportunity is None or opportunity.player_id != player_id:
+            raise ValueError("Invalid habit lesson opportunity")
+        position = positions.get(str(opportunity.source_position_id))
+        game = games.get(str(opportunity.game_id))
+        spec = LessonSpec.model_validate(opportunity.lesson_spec)
+        schedule = schedules.get(str(opportunity.id))
+        if (
+            position is None or game is None or game.owner_player_id != player_id
+            or position.game_id != game.id or spec.source.fen != position.fen
+            or utc(opportunity.created_at) > utc(attempt.completed_at)
+            or spec.diagnosis is None or spec.diagnosis.primary not in _HABIT_V1_CODES
+            or opportunity.verification_analysis_id is None
+            or schedule is None
+            or schedule.get("retired_at") is not None
+            and _habit_time(schedule["retired_at"]) <= utc(attempt.completed_at)
+            or _habit_time(studies[attempt.session_id]["started_at"]) > utc(attempt.completed_at)
+            or any(
+                row.get("concept_code") == spec.diagnosis.primary
+                and row.get("retired_at") is not None
+                and _habit_time(row["retired_at"]) <= utc(attempt.completed_at)
+                for row in archive.skill_states
+            )
+        ):
+            raise ValueError("Invalid habit lesson source")
+        analysis = analyses.get(str(opportunity.verification_analysis_id))
+        board = chess.Board(position.fen)
+        move = chess.Move.from_uci(attempt.submitted_move or "")
+        if (
+            analysis is None or analysis.position_id != position.id
+            or move not in board.legal_moves
+            or board.san(move) not in {entry.san for entry in spec.interaction.accepted_moves}
+            or not spec.diagnosis.evidence_refs
+        ):
+            raise ValueError("Invalid habit server grade or source EPD")
+        source_board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        source_found = False
+        for move_uci in game.moves:
+            if source_board.fen() == position.fen and (
+                "white" if source_board.turn else "black"
+            ) == game.owner_color:
+                source_found = True
+            source_board.push_uci(move_uci)
+        if not source_found:
+            raise ValueError("Habit source is not an owned game occurrence")
+        for reference in spec.diagnosis.evidence_refs:
+            proof = evidence.get(reference)
+            if (
+                proof is None or proof.position_id != str(position.id)
+                or proof.engine_analysis_id not in analyses
+                or analyses[proof.engine_analysis_id].position_id != position.id
+            ):
+                raise ValueError("Forged habit evidence reference")
+        expected = {
+            "opportunity_id": str(opportunity.id), "game_id": str(game.id),
+            "position_id": str(position.id), "code": spec.diagnosis.primary,
+            "verification_analysis_id": str(analysis.id),
+            "evidence_references": list(spec.diagnosis.evidence_refs),
+            "hints_authority": "app_reported", "hints_used": 0,
+        }
+        if snapshot is not None and (
+            snapshot != expected or type(snapshot.get("hints_used")) is not int
+        ):
+            raise ValueError("Forged habit trust snapshot")
+        return attempt, opportunity, board.epd(), spec.diagnosis.primary
+
+    goal_days: set[str] = set()
+    for goal in goals:
+        if (
+            goal.effective_day in goal_days or utc(goal.created_at) < effective
+            or date.fromisoformat(goal.effective_day)
+            != date.fromordinal(utc(goal.created_at).date().toordinal() + 1)
+        ):
+            raise ValueError("Invalid habit next-day goal")
+        goal_days.add(goal.effective_day)
+    by_day = {day.utc_day: day for day in days}
+    if len(by_day) != len(days):
+        raise ValueError("Duplicate habit days")
+    credit_keys: set[tuple[str, str]] = set()
+    epd_keys: set[tuple[str, str]] = set()
+    source_ids: set[tuple[str, str]] = set()
+    credit_ids: set[str] = set()
+    completed_by_day: dict[str, list[datetime]] = {}
+    for credit in credits:
+        completed = utc(credit.completed_at)
+        if (
+            credit.id in credit_ids or credit.utc_day not in by_day
+            or completed < effective or credit.utc_day != completed.date().isoformat()
+            or (credit.utc_day, credit.source_key) in credit_keys
+            or (credit.utc_day, credit.source_epd) in epd_keys
+            or (credit.source_kind, credit.source_id) in source_ids
+        ):
+            raise ValueError("Duplicate or pre-cutover habit credit")
+        credit_ids.add(credit.id)
+        credit_keys.add((credit.utc_day, credit.source_key))
+        epd_keys.add((credit.utc_day, credit.source_epd))
+        source_ids.add((credit.source_kind, credit.source_id))
+        completed_by_day.setdefault(credit.utc_day, []).append(completed)
+        if credit.source_kind == "lesson":
+            attempt, opportunity, epd, _ = lesson_source(credit.source_id, credit.trust_snapshot)
+            if (
+                credit.source_key != f"lesson:{opportunity.id}" or credit.source_epd != epd
+                or completed != utc(attempt.completed_at)
+            ):
+                raise ValueError("Invalid habit lesson credit provenance")
+        elif credit.source_kind == "puzzle":
+            run = runs.get(credit.source_id)
+            attempt_row = content_attempts.get(credit.source_id)
+            item = items.get(run.item_id) if run is not None else None
+            raw_run = next(
+                (row for row in archive.puzzle_runs if row.get("id") == credit.source_id), {},
+            )
+            raw_content_attempt = next(
+                (row for row in archive.content_attempts if row.get("id") == credit.source_id), {},
+            )
+            if (
+                run is None or attempt_row is None or item is None
+                or run.player_id != player_id or run.state != "solved" or run.hint_steps
+                or run.completed_at is None or completed != utc(run.completed_at)
+                or _habit_time(raw_run.get("completed_at")) != completed
+                or _habit_time(raw_content_attempt.get("completed_at")) != completed
+                or type(raw_content_attempt.get("success")) is not bool
+                or type(raw_content_attempt.get("hint_assisted")) is not bool
+                or set(raw_run) != set(PuzzleRun.model_fields)
+                or set(raw_content_attempt) != set(ContentAttempt.model_fields)
+                or attempt_row.player_id != player_id or attempt_row.item_id != run.item_id
+                or attempt_row.session_id != run.session_id or attempt_row.success is not True
+                or attempt_row.hint_assisted or attempt_row.completed_at is None
+                or completed != utc(attempt_row.completed_at)
+                or attempt_row.response_payload.get("run_id") != run.id
+                or credit.source_key != f"puzzle:{item.id}"
+                or credit.source_epd != chess.Board(_puzzle_spec(item).source.fen).epd()
+                or credit.trust_snapshot != {
+                    "item_id": item.id, "run_id": run.id, "content_attempt_id": attempt_row.id,
+                    "hints_authority": "server", "hint_steps": {},
+                }
+            ):
+                raise ValueError("Invalid habit puzzle credit provenance")
+            spec = _puzzle_spec(item)
+            board = chess.Board(spec.source.fen)
+            for move_uci in run.played_moves:
+                board.push_uci(move_uci)
+            if (
+                run.cursor != len(run.played_moves) or run.cursor % 2 != 1
+                or run.fen != board.fen()
+                or not matches_completed_solution(
+                    run.played_moves, spec.interaction.solution, board,
+                )
+            ):
+                raise ValueError("Invalid habit puzzle completion")
+        else:
+            raise ValueError("Unknown habit credit source")
+    for day in days:
+        applicable = sorted(
+            (goal for goal in goals if goal.effective_day <= day.utc_day),
+            key=lambda goal: goal.effective_day,
+        )
+        times = sorted(completed_by_day.get(day.utc_day, []))
+        expected_met = times[day.goal - 1] if len(times) >= day.goal else None
+        if (
+            day.utc_day < effective.date().isoformat()
+            or day.utc_day > datetime.now(UTC).date().isoformat()
+            or day.goal != (applicable[-1].goal if applicable else 3)
+            or (utc(day.met_at) if day.met_at is not None else None) != expected_met
+        ):
+            raise ValueError("Invalid immutable habit goal/met-day snapshot")
+
+    def game_eligible(game: Game, after: datetime, at: datetime) -> bool:
+        if (
+            game.owner_player_id != player_id or game.owner_color not in {"white", "black"}
+            or game.result not in {"1-0", "0-1", "1/2-1/2"} or utc(game.created_at) <= after
+            or not any(
+                play.game_id == game.id and play.player_id == player_id
+                and play.status == "completed" for play in play_sessions
+            )
+            or any(
+                play.game_id == game.id and play.player_id == player_id
+                and play.status != "completed" for play in play_sessions
+            )
+            or not any(
+                job.game_id == game.id and job.status == "completed"
+                and job.completed_at is not None
+                and utc(game.created_at) <= utc(job.completed_at) <= at for job in jobs
+            )
+        ):
+            return False
+        board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        if not board.is_valid():
+            return False
+        rows = {row.ply: row for row in reviews if row.game_id == game.id}
+        owner_moves = 0
+        for ply, move_uci in enumerate(game.moves, 1):
+            if ("white" if board.turn else "black") != game.owner_color:
+                board.push_uci(move_uci)
+                continue
+            owner_moves += 1
+            row = rows.get(ply)
+            if row is None or row.mover != game.owner_color or row.move_uci != move_uci:
+                return False
+            source = positions.get(str(row.source_position_id))
+            reached = positions.get(str(row.reached_position_id))
+            before_analysis = analyses.get(str(row.before_analysis_id))
+            after_analysis = analyses.get(str(row.after_analysis_id))
+            if (
+                source is None or reached is None
+                or before_analysis is None or after_analysis is None
+                or source.game_id != game.id or reached.game_id != game.id
+                or source.fen != board.fen() or before_analysis.position_id != source.id
+                or after_analysis.position_id != reached.id
+            ):
+                return False
+            before_probability, before_terminal = review_probability(
+                board, before_analysis.raw_result[0] if before_analysis.raw_result else {},
+            )
+            board.push_uci(move_uci)
+            after_probability, after_terminal = review_probability(
+                board, after_analysis.raw_result[0] if after_analysis.raw_result else {},
+            )
+            if (
+                reached.fen != board.fen()
+                or before_probability is None or after_probability is None
+                or not isfinite(before_probability) or not isfinite(after_probability)
+                or row.before_probability != before_probability
+                or row.after_probability != after_probability
+                or row.before_terminal != before_terminal or row.after_terminal != after_terminal
+            ):
+                return False
+        return owner_moves >= 20
+
+    def recurrence(game_id: str, code: str, at: datetime) -> bool:
+        for row in archive.profile_observations:
+            if (
+                row["player_id"] == player_id
+                and row["game_id"] == game_id and row["skill_id"] == code
+                and _habit_time(row["observed_at"]) <= at
+                and (row.get("retired_at") is None or _habit_time(row["retired_at"]) > at)
+            ):
+                return True
+        for opportunity in opportunities.values():
+            diagnosis = opportunity.lesson_spec.get("diagnosis", {})
+            schedule = schedules.get(str(opportunity.id))
+            if (
+                opportunity.player_id == player_id
+                and str(opportunity.game_id) == game_id and diagnosis.get("primary") == code
+                and utc(opportunity.created_at) <= at and schedule is not None
+                and (schedule.get("retired_at") is None or _habit_time(schedule["retired_at"]) > at)
+                and opportunity.verification_analysis_id is not None
+                and diagnosis.get("evidence_refs")
+            ):
+                return True
+        return False
+
+    target_ids: set[str] = set()
+    target_codes: set[str] = set()
+    for target in targets:
+        started = utc(target.started_at)
+        if (
+            target.id in target_ids or target.code in target_codes or started < effective
+            or target.code not in _HABIT_V1_CODES
+            or (target.invalidated_at is None) != (target.invalidation_reason is None)
+            or target.invalidated_at is not None and (
+                utc(target.invalidated_at) < started
+                or target.invalidation_reason not in _HABIT_INVALIDATION_REASONS
+            )
+        ):
+            raise ValueError("Invalid pattern target policy or invalidation")
+        target_ids.add(target.id)
+        target_codes.add(target.code)
+        snapshot = target.pattern_snapshot
+        fields = {
+            "diagnosis", "name", "template", "occurrence_count", "game_ids",
+            "evidence_references", "total_occurrences", "scored_occurrences",
+            "observed_loss", "supporting_moves", "practice_themes",
+        }
+        if set(snapshot) != fields or snapshot["diagnosis"] != target.code:
+            raise ValueError("Invalid pattern source snapshot")
+        for name in ("game_ids", "evidence_references", "supporting_moves", "practice_themes"):
+            if type(snapshot[name]) is not list:
+                raise ValueError("Invalid pattern snapshot list")
+        for name in ("name", "template"):
+            if type(snapshot[name]) is not str or not snapshot[name]:
+                raise ValueError("Invalid pattern snapshot description")
+        for name in ("occurrence_count", "total_occurrences", "scored_occurrences"):
+            if type(snapshot[name]) is not int or snapshot[name] < 0:
+                raise ValueError("Invalid pattern snapshot count")
+        supporting_keys: set[tuple[str, int]] = set()
+        source_games: set[str] = set()
+        source_refs: set[str] = set()
+        losses = []
+        for move in snapshot["supporting_moves"]:
+            if (
+                type(move) is not dict or set(move) != {"game_id", "ply", "lesson_id", "loss"}
+                or type(move["ply"]) is not int or type(move["game_id"]) is not str
+                or type(move["lesson_id"]) is not str
+            ):
+                raise ValueError("Invalid pattern occurrence")
+            candidate_opportunity = opportunities.get(move["lesson_id"])
+            game = games.get(move["game_id"])
+            if candidate_opportunity is None or game is None:
+                raise ValueError("Missing pattern occurrence source")
+            opportunity = candidate_opportunity
+            position = positions.get(str(opportunity.source_position_id))
+            diagnosis = opportunity.lesson_spec.get("diagnosis", {})
+            verification = analyses.get(str(opportunity.verification_analysis_id))
+            schedule = schedules.get(str(opportunity.id))
+            if (
+                opportunity.player_id != player_id or opportunity.game_id != game.id
+                or game.owner_player_id != player_id or position is None
+                or position.game_id != game.id or diagnosis.get("primary") != target.code
+                or utc(opportunity.created_at) > started or utc(game.created_at) > started
+                or opportunity.lesson_spec.get("source", {}).get("fen") != position.fen
+                or verification is None or verification.position_id != position.id
+                or schedule is None
+                or schedule.get("retired_at") is not None
+                and _habit_time(schedule["retired_at"]) <= started
+                or any(
+                    row.get("concept_code") == target.code and row.get("retired_at") is not None
+                    and _habit_time(row["retired_at"]) <= started for row in archive.skill_states
+                )
+                or not any(
+                    job.game_id == game.id and job.status == "completed"
+                    and job.completed_at is not None and utc(job.completed_at) <= started
+                    for job in jobs
+                )
+                or not 1 <= move["ply"] <= len(game.moves)
+                or (move["game_id"], move["ply"]) in supporting_keys
+            ):
+                raise ValueError("Forged pattern occurrence provenance")
+            board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+            for move_uci in game.moves[:move["ply"] - 1]:
+                board.push_uci(move_uci)
+            if board.fen() != position.fen or (
+                "white" if board.turn else "black"
+            ) != game.owner_color:
+                raise ValueError("Pattern occurrence is not an owner move")
+            supporting_keys.add((move["game_id"], move["ply"]))
+            source_games.add(move["game_id"])
+            refs = diagnosis.get("evidence_refs")
+            if type(refs) is not list or not refs:
+                raise ValueError("Pattern occurrence lacks evidence")
+            for reference in refs:
+                proof = evidence.get(reference)
+                if (
+                    proof is None or proof.position_id != str(position.id)
+                    or proof.engine_analysis_id not in analyses
+                    or analyses[proof.engine_analysis_id].position_id != position.id
+                ):
+                    raise ValueError("Forged pattern evidence")
+                source_refs.add(reference)
+            loss = move["loss"]
+            matching_review = next((
+                row for row in reviews if row.game_id == game.id and row.ply == move["ply"]
+                and row.source_position_id == position.id and row.mover == game.owner_color
+                and row.move_uci == game.moves[move["ply"] - 1]
+            ), None)
+            expected_loss = (
+                review_loss(matching_review.before_probability, matching_review.after_probability)
+                if matching_review is not None else None
+            )
+            # This immutable snapshot predates any later review backfill.
+            # An unscored occurrence remains honest even if it is scored now.
+            if loss is not None:
+                if (
+                    type(loss) not in (int, float) or not isfinite(loss) or not 0 <= loss <= 1
+                    or expected_loss is None or not isclose(loss, expected_loss, abs_tol=1e-9)
+                ):
+                    raise ValueError("Invalid pattern occurrence loss")
+                losses.append(loss)
+        if (
+            len(source_games) < 3 or snapshot["game_ids"] != sorted(source_games)
+            or snapshot["occurrence_count"] != len(source_games)
+            or snapshot["total_occurrences"] != len(supporting_keys)
+            or snapshot["scored_occurrences"] != len(losses)
+            or snapshot["observed_loss"] is not None
+            and type(snapshot["observed_loss"]) not in (int, float)
+            or snapshot["evidence_references"] != sorted(source_refs)
+            or snapshot["observed_loss"] != (sum(losses) if losses else None)
+            or any(type(theme) is not str for theme in snapshot["practice_themes"])
+        ):
+            raise ValueError("Inconsistent pattern snapshot evidence")
+        practice_ids: set[str] = set()
+        practice_epds: set[str] = set()
+        practice_games: set[str] = set()
+        practice_times: list[datetime] = []
+        for entry in target.practice:
+            if len(practice_epds) >= 3 and len(practice_games) >= 2:
+                raise ValueError("Pattern practice continued after its immutable completion")
+            if type(entry) is not dict or set(entry) != {
+                "attempt_id", "opportunity_id", "game_id", "source_epd", "completed_at",
+            } or any(type(value) is not str for value in entry.values()):
+                raise ValueError("Invalid pattern practice shape")
+            attempt, opportunity, epd, code = lesson_source(entry["attempt_id"])
+            completed = utc(attempt.completed_at)
+            if (
+                entry["attempt_id"] in practice_ids or epd in practice_epds or completed < started
+                or entry["opportunity_id"] != str(opportunity.id)
+                or entry["game_id"] != str(opportunity.game_id) or entry["source_epd"] != epd
+                or _habit_time(entry["completed_at"]) != completed or code != target.code
+                or practice_times and completed < practice_times[-1]
+                or target.invalidated_at is not None and completed > utc(target.invalidated_at)
+            ):
+                raise ValueError("Invalid pattern practice provenance")
+            practice_ids.add(entry["attempt_id"])
+            practice_epds.add(epd)
+            practice_games.add(entry["game_id"])
+            practice_times.append(completed)
+        completed_practice = (
+            practice_times[-1] if len(practice_epds) >= 3 and len(practice_games) >= 2 else None
+        )
+        if (
+            (utc(target.practice_completed_at) if target.practice_completed_at else None)
+            != completed_practice
+            or len(set(target.window_game_ids)) != len(target.window_game_ids)
+            or len(target.window_game_ids) > 5
+            or any(type(game_id) is not str for game_id in target.window_game_ids)
+            or completed_practice is None and target.window_game_ids
+        ):
+            raise ValueError("Inconsistent pattern practice/window")
+        if completed_practice is not None:
+            window_games = [games.get(game_id) for game_id in target.window_game_ids]
+            if any(
+                game is None or not game_eligible(game, completed_practice, datetime.now(UTC))
+                for game in window_games
+            ):
+                raise ValueError("Invalid pattern window game")
+            order = [
+                (utc(games[game_id].created_at), game_id) for game_id in target.window_game_ids
+            ]
+            if order != sorted(order):
+                raise ValueError("Unordered pattern observation window")
+    evidence_by_award: dict[str, list[PatternAwardEvidence]] = {}
+    evidence_ids: set[str] = set()
+    for award_record in award_evidence:
+        if award_record.id in evidence_ids:
+            raise ValueError("Duplicate pattern award evidence")
+        evidence_ids.add(award_record.id)
+        evidence_by_award.setdefault(award_record.award_id, []).append(award_record)
+    jobs_by_id = {str(job.id): job for job in jobs}
+    awards_by_key: set[tuple[str, str, str]] = set()
+    award_ids: set[str] = set()
+    awarded_targets: set[str] = set()
+    targets_by_id = {target.id: target for target in targets}
+    for award in awards:
+        candidate_target = targets_by_id.get(award.target_id)
+        if candidate_target is None:
+            raise ValueError("Missing pattern award target")
+        target = candidate_target
+        at = utc(award.awarded_at)
+        key = (award.code, award.policy_version, award.window_start)
+        if (
+            award.id in award_ids or key in awards_by_key
+            or award.code != target.code or award.policy_version != target.policy_version
+            or award.target_id in awarded_targets
+            or target.practice_completed_at is None or at < utc(target.practice_completed_at)
+            or target.invalidated_at is not None and at > utc(target.invalidated_at)
+            or len(award.game_ids) != 5 or len(set(award.game_ids)) != 5
+            or any(type(game_id) is not str for game_id in award.game_ids)
+            or award.window_start != award.game_ids[0]
+        ):
+            raise ValueError("Invalid pattern award identity/window")
+        award_ids.add(award.id)
+        awards_by_key.add(key)
+        awarded_targets.add(award.target_id)
+        after = utc(target.practice_completed_at)
+        proofs = sorted(evidence_by_award.get(award.id, []), key=lambda proof: proof.ordinal)
+        if (
+            len(proofs) != 5 or [proof.ordinal for proof in proofs] != list(range(1, 6))
+            or [str(proof.game_id) for proof in proofs] != award.game_ids
+            or target.window_game_ids != award.game_ids
+        ):
+            raise ValueError("Award disagrees with persisted five-game evidence")
+        completed_times: list[datetime] = []
+        for award_record in proofs:
+            game = games.get(str(award_record.game_id))
+            job = jobs_by_id.get(str(award_record.analysis_job_id))
+            if (
+                game is None or job is None or job.game_id != game.id
+                or job.status != "completed" or job.completed_at is None
+                or utc(award_record.game_created_at) != utc(game.created_at)
+                or utc(award_record.job_completed_at) != utc(job.completed_at)
+                or not game_eligible(game, after, at)
+                or not utc(game.created_at) <= utc(job.completed_at) <= at
+                or recurrence(str(game.id), award.code, at)
+            ):
+                raise ValueError("Invalid persisted pattern award evidence")
+            completed_times.append(utc(job.completed_at))
+        order = [(utc(proof.game_created_at), str(proof.game_id)) for proof in proofs]
+        if order != sorted(order):
+            raise ValueError("Unordered persisted pattern award evidence")
+        # Validate only this recorded span, never rebuild a first-ever window.
+        # An unresolved owned play-session game blocks even when too short to
+        # become an eligible observation; skip short games only after analysis.
+        for game in games.values():
+            if not order[0] <= (utc(game.created_at), str(game.id)) <= order[-1]:
+                continue
+            plays = [
+                play for play in play_sessions
+                if play.game_id == game.id and play.player_id == player_id
+            ]
+            if game.owner_player_id == player_id and plays:
+                if (
+                    game.result not in {"1-0", "0-1", "1/2-1/2"}
+                    or any(play.status != "completed" for play in plays)
+                    or not any(
+                        job.game_id == game.id and job.status == "completed"
+                        and job.completed_at is not None
+                        and utc(game.created_at) <= utc(job.completed_at) <= at
+                        for job in jobs
+                    )
+                ):
+                    raise ValueError("Unresolved game inside persisted pattern award span")
+            if game_eligible(game, after, at) and recurrence(str(game.id), award.code, at):
+                raise ValueError("Recurrence inside persisted pattern award span")
+        if (award.barrier_game_id is None) != (award.barrier_analysis_job_id is None):
+            raise ValueError("Incomplete pattern award barrier")
+        if award.barrier_game_id is not None:
+            barrier = games.get(str(award.barrier_game_id))
+            job = jobs_by_id.get(str(award.barrier_analysis_job_id))
+            if (
+                barrier is None or barrier.owner_player_id != player_id
+                or barrier.owner_color not in {"white", "black"}
+                or barrier.result not in {"1-0", "0-1", "1/2-1/2"}
+                or not after < utc(barrier.created_at)
+                or (utc(barrier.created_at), str(barrier.id)) > order[-1]
+                or job is None or job.game_id != barrier.id or job.status != "completed"
+                or job.completed_at is None
+                or not utc(barrier.created_at) <= utc(job.completed_at) <= at
+                or not any(
+                    play.game_id == barrier.id
+                    and play.player_id == player_id and play.status == "completed"
+                    for play in play_sessions
+                )
+                or any(
+                    play.game_id == barrier.id
+                    and play.player_id == player_id and play.status != "completed"
+                    for play in play_sessions
+                )
+            ):
+                raise ValueError("Invalid persisted pattern award barrier")
+            completed_times.append(utc(job.completed_at))
+        if at < max(completed_times):
+            raise ValueError("Pattern award precedes its required analyses")
+    if set(evidence_by_award) != award_ids:
+        raise ValueError("Orphaned or missing pattern award evidence")
+    return policy, goals, days, credits, targets, awards, award_evidence
 
 
 def _validate_onboarding_archive(
@@ -618,12 +1360,6 @@ def _validate_credit_archive(
     reviews_by_key = {(item.game_id, item.ply): item for item in reviews}
     if len(sessions_by_id) != len(play_sessions):
         raise ValueError("Duplicate play sessions")
-    if credits and (
-        len(games_by_id) != len(games)
-        or len(positions_by_id) != len(positions)
-        or len(analyses_by_id) != len(analyses)
-    ):
-        raise ValueError("Ambiguous positive credit references")
     for item in play_sessions:
         if item.player_id != player_id or session.get(PlaySession, item.id) is not None:
             raise ValueError("Conflicting play session owner")
@@ -972,6 +1708,36 @@ def export_player_data(
         puzzle_rating=puzzle_rating.model_dump(mode="json") if puzzle_rating else None,
         puzzle_daily_sets=[daily.model_dump(mode="json") for daily in puzzle_daily_sets],
         puzzle_daily_slots=[slot.model_dump(mode="json") for slot in puzzle_daily_slots],
+        habit_policy=(
+            policy.model_dump(mode="json")
+            if (policy := session.get(HabitPolicy, player_id)) is not None else None
+        ),
+        habit_goals=[
+            row.model_dump(mode="json") for row in
+            session.exec(select(HabitGoal).where(HabitGoal.player_id == player_id)).all()
+        ],
+        habit_days=[
+            row.model_dump(mode="json") for row in
+            session.exec(select(HabitDay).where(HabitDay.player_id == player_id)).all()
+        ],
+        habit_credits=[
+            row.model_dump(mode="json") for row in
+            session.exec(select(HabitCredit).where(HabitCredit.player_id == player_id)).all()
+        ],
+        pattern_targets=[
+            row.model_dump(mode="json") for row in
+            session.exec(select(PatternTarget).where(PatternTarget.player_id == player_id)).all()
+        ],
+        pattern_awards=[
+            row.model_dump(mode="json") for row in
+            session.exec(select(PatternAward).where(PatternAward.player_id == player_id)).all()
+        ],
+        pattern_award_evidence=[
+            row.model_dump(mode="json") for row in session.exec(
+                select(PatternAwardEvidence).where(PatternAwardEvidence.player_id == player_id)
+                .order_by(col(PatternAwardEvidence.award_id), col(PatternAwardEvidence.ordinal))
+            ).all()
+        ],
         puzzle_rating_events=[event.model_dump(mode="json") for event in puzzle_rating_events],
         credential_hash=credential_hash,
     )
@@ -1044,6 +1810,22 @@ def import_player_data(
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
     except ValidationError as error:
         raise HTTPException(status_code=400, detail="Invalid archive: malformed records") from error
+
+    # Validation and first-write-wins persistence must resolve the same source.
+    # Use parsed database identities so alternate UUID spellings cannot bypass this.
+    for identity_records, identity_field in (
+        (games, "id"),
+        (positions, "id"),
+        (engine_analyses, "id"),
+        (analysis_jobs, "id"),
+        (lesson_opportunities, "id"),
+        (lesson_attempts, "id"),
+        (evidence, "evidence_id"),
+    ):
+        if len({getattr(record, identity_field) for record in identity_records}) != len(
+            identity_records
+        ):
+            raise HTTPException(status_code=400, detail="Invalid archive: duplicate source IDs")
 
     try:
         for data in archive.puzzle_content_items:
@@ -1309,6 +2091,16 @@ def import_player_data(
         raise HTTPException(
             status_code=400, detail="Invalid archive: malformed assistance or credit provenance"
         ) from error
+    try:
+        (
+            habit_policy, habit_goals, habit_days, habit_credits,
+            pattern_targets, pattern_awards, pattern_award_evidence,
+        ) = _validate_habit_archive(session, archive, player_id)
+    except (ValueError, TypeError, AttributeError, KeyError, OverflowError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed habit provenance",
+        ) from error
+
 
     # Puzzle dependencies are the explicit global-catalog restore exception.
     # Existing rows (including metadata) are never overwritten.
@@ -1403,6 +2195,21 @@ def import_player_data(
 
     for lesson_attempt in lesson_attempts:
         session.add(lesson_attempt)
+    # Restore snapshots/cutover verbatim, without result or reward hooks.
+    session.add(habit_policy)
+    for habit_goal in habit_goals:
+        session.add(habit_goal)
+    for habit_day in habit_days:
+        session.add(habit_day)
+    for habit_credit in habit_credits:
+        session.add(habit_credit)
+    for pattern_target in pattern_targets:
+        session.add(pattern_target)
+    session.flush()
+    for pattern_award in pattern_awards:
+        session.add(pattern_award)
+    session.flush()
+    session.add_all(pattern_award_evidence)
 
     session.commit()
     return {"status": "imported"}
@@ -1537,6 +2344,25 @@ def delete_player_data(
         "evidence": len(evidence),
         "profile_observations": len(profile_observations),
         "lesson_attempts": len(lesson_attempts),
+        "habit_policy": int(session.get(HabitPolicy, player_id) is not None),
+        "habit_goals": len(
+            session.exec(select(HabitGoal).where(HabitGoal.player_id == player_id)).all()
+        ),
+        "habit_days": len(
+            session.exec(select(HabitDay).where(HabitDay.player_id == player_id)).all()
+        ),
+        "habit_credits": len(
+            session.exec(select(HabitCredit).where(HabitCredit.player_id == player_id)).all()
+        ),
+        "pattern_targets": len(
+            session.exec(select(PatternTarget).where(PatternTarget.player_id == player_id)).all()
+        ),
+        "pattern_awards": len(
+            session.exec(select(PatternAward).where(PatternAward.player_id == player_id)).all()
+        ),
+        "pattern_award_evidence": len(session.exec(
+            select(PatternAwardEvidence).where(PatternAwardEvidence.player_id == player_id)
+        ).all()),
         "transfer_measurements": len(transfer_measurements),
         "skill_states": len(
             session.exec(select(SkillState).where(col(SkillState.player_id) == player_id)).all()
@@ -1593,6 +2419,15 @@ def delete_player_data(
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
 
+    session.exec(
+        delete(PatternAwardEvidence).where(col(PatternAwardEvidence.player_id) == player_id)
+    )
+    session.exec(delete(PatternAward).where(col(PatternAward.player_id) == player_id))
+    session.exec(delete(PatternTarget).where(col(PatternTarget.player_id) == player_id))
+    session.exec(delete(HabitCredit).where(col(HabitCredit.player_id) == player_id))
+    session.exec(delete(HabitDay).where(col(HabitDay.player_id) == player_id))
+    session.exec(delete(HabitGoal).where(col(HabitGoal.player_id) == player_id))
+    session.exec(delete(HabitPolicy).where(col(HabitPolicy.player_id) == player_id))
     session.exec(delete(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id))
     session.exec(delete(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id))
     session.exec(delete(PuzzleModeBinding).where(col(PuzzleModeBinding.player_id) == player_id))

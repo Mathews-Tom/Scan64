@@ -517,6 +517,48 @@ export interface PatternsReport {
   recurring_diagnoses: DiagnosisPatternRead[];
 }
 
+export interface HabitDayRead {
+  utc_day: string;
+  goal: number;
+  qualifying_solves: number;
+  met: boolean;
+  withdrawn_sources: number;
+}
+
+export interface HabitTargetRead {
+  id: string;
+  code: string;
+  status: string;
+  practice_count: number;
+  practice_game_count: number;
+  eligible_window_count: number;
+  blocking_game: { game_id: string; session_id: string; reason: 'unfinished' | 'analysis' } | null;
+  invalidity_reason: string | null;
+  award: Record<string, unknown> | null;
+  pattern_snapshot: DiagnosisPatternRead;
+}
+
+export interface HabitSummaryRead {
+  utc_day: string;
+  goal: number;
+  qualifying_solves: number;
+  remaining: number;
+  pending_goal: number | null;
+  pending_effective_day: string | null;
+  current_streak: number;
+  best_streak: number;
+  reset_at: string;
+  day_status: 'in_progress';
+  days: HabitDayRead[];
+  supply: {
+    remaining_daily_slots: number;
+    eligible_lesson_retries: number;
+    extra_modes_available: boolean;
+  };
+  targets: HabitTargetRead[];
+  evidence_limits: string;
+}
+
 export interface EvidenceItemRead {
   evidence_id: string;
   kind: string;

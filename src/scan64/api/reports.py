@@ -270,7 +270,7 @@ def read_player_patterns(player_id: str, session: Session) -> PatternsReport:
                     occurrences[code][key] = PatternMoveRead(
                         game_id=str(game.id), ply=ply, lesson_id=str(row.id), loss=loss
                     )
-                evidence[code].update(spec.diagnosis.evidence_refs)
+                    evidence[code].update(spec.diagnosis.evidence_refs)
 
     recurring_diagnoses = []
     for code, values in occurrences.items():

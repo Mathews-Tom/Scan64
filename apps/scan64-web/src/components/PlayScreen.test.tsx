@@ -129,6 +129,7 @@ vi.mock('../api/client', () => ({
 
 describe('PlayScreen', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/play');
     vi.resetAllMocks();
     vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
     vi.mocked(ApiClient.setPlayerBotChoice).mockImplementation(async (_playerId, botLevel) => ({
@@ -146,6 +147,86 @@ describe('PlayScreen', () => {
     chessgroundMock.destroy.mockReset();
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [] });
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
+  });
+
+  it('resumes the explicitly linked unfinished session instead of a different stored session', async () => {
+    window.history.replaceState(null, '', '/play?session=blocked-session');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'different-session');
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'blocked-session', player_id: 'test-player', game_id: 'blocked-game',
+      opponent_config: {}, status: 'active', coach_mode: false,
+    });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'blocked-game', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    try {
+      render(<PlayScreen />);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith('blocked-session');
+      expect(ApiClient.getPlaySession).not.toHaveBeenCalledWith('different-session');
+      expect(ApiClient.getGame).toHaveBeenCalledWith('blocked-game');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it.each(['ended', '404', '422'])('consumes a stale %s query and recovers a different stored game', async reason => {
+    window.history.replaceState(null, '', '/play?session=stale&mode=study#board');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'stored-a');
+    const active: PlaySessionRead = { id: 'stored-a', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    if (reason === 'ended') vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce({ ...active, id: 'stale', status: 'completed' });
+    else vi.mocked(ApiClient.getPlaySession).mockRejectedValueOnce(new ApiRequestError('Unavailable', Number(reason)));
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
+    const view = render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(ApiClient.getPlaySession).toHaveBeenCalledWith('stored-a');
+    expect(window.location.search).toBe('?mode=study');
+    expect(window.location.hash).toBe('#board');
+    view.unmount();
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('stored-a');
+  });
+
+  it('allows a new game and reload after consuming an unavailable query', async () => {
+    window.history.replaceState(null, '', '/play?session=missing&mode=study');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.getPlaySession).mockRejectedValueOnce(new ApiRequestError('Missing', 404));
+    const active: PlaySessionRead = { id: 'new-game', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue(active);
+    const view = render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('start-btn'));
+    await screen.findByTestId('session-info');
+    expect(window.location.search).toBe('?mode=study');
+    view.unmount();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('new-game');
+  });
+
+  it('keeps stored A reachable when explicit B is resumed and then resigned', async () => {
+    window.history.replaceState(null, '', '/play?session=explicit-b&mode=study');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'stored-a');
+    const b: PlaySessionRead = { id: 'explicit-b', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(b);
+    vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...b, status: 'completed' });
+    const view = render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe('stored-a');
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    await waitFor(() => expect(window.location.search).toBe('?mode=study'));
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe('stored-a');
+    view.unmount();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...b, id: 'stored-a' });
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('stored-a');
   });
 
   it.each([

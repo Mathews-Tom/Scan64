@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiClient, getActivePlayerId } from '../api/client';
 import { OnboardingCard } from './OnboardingCard';
 import { StrengthSummary } from './StrengthSummary';
-import { PatternCard } from './PatternCard';
+import { HabitPanel } from './HabitPanel';
 import type {
   EvidenceReport,
   PatternsReport,
@@ -94,7 +94,7 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
         </ul>
       </section>
 
-      <PatternCard report={patterns} />
+      <HabitPanel playerId={playerId} patterns={patterns} onNavigate={onNavigate} />
     </div>
   );
 }

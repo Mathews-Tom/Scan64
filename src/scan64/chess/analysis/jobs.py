@@ -43,6 +43,7 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.exercises.sound_moves import analyze_lesson_source, sound_moves
+from scan64.learning.habit import advance_targets
 from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -487,6 +488,10 @@ async def _execute_analysis_job_async(
             session.defer_commit = False
             job.status = "completed"
             job.completed_at = datetime.now(UTC)
+            session.add(job)
+            session.flush()
+            if game.owner_player_id is not None:
+                advance_targets(game.owner_player_id, session)
         except Exception as error:
             session.defer_commit = False
             session.rollback()
