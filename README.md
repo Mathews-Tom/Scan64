@@ -31,7 +31,7 @@ Most chess tools can tell you that a move was bad. Scan64 tries to help you see 
 - **Your games are the curriculum.** Lessons, reviews and patterns come from the games you play or import, checked by Stockfish.
 - **Hints that teach, not tell.** Hints come in three steps: a nudge, then the idea, then the move with arrows and a reason. You decide how much help you need.
 - **Honest about what it knows.** Scan64 shows you the evidence behind every pattern and goal. It does not claim to raise your rating.
-- **Private by default.** Everything runs locally. Your games and progress stay in a database on your machine, and you can export or delete them at any time.
+- **Private by default.** Everything runs locally. Your games and progress stay in a database on your machine, and you can export them or delete your player data whenever you like.
 
 ## See it in action
 
