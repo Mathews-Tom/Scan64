@@ -19,12 +19,15 @@ def test_environment_uses_bundle_and_user_data(
         monkeypatch.setenv(key, "wrong")
     data = data_directory(tmp_path)
     resources = tmp_path / "bundle"
+    (resources / "bin").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
     configure_environment(resources, data)
     assert data.is_dir()
     assert os.environ["SCAN64_DATABASE_URL"] == f"sqlite:///{data / 'scan64.db'}"
     assert os.environ["SCAN64_DATA_DIR"] == str(data)
     assert os.environ["SCAN64_WEB_DIST"] == str(resources / "web")
     assert os.environ["PATH"] == f"{resources / 'bin'}:/usr/bin:/bin:/usr/sbin:/sbin"
+    assert Path.cwd() == resources / "bin"
 
 
 def test_reserved_port_skips_occupied_port() -> None:

@@ -29,6 +29,9 @@ def configure_environment(resources: Path, data: Path) -> None:
         + os.pathsep
         + os.environ.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
     )
+    # PATH lookup leaves argv[0] as "stockfish", so sf_18 searches the working
+    # directory for external NNUE files. All writable paths remain absolute.
+    os.chdir(resources / "bin")
 
 
 def reserve_port(start: int = 8001) -> socket.socket:
