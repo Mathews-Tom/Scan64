@@ -9,6 +9,7 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player, PlayerOnboarding
+from scan64.content import puzzle_practice
 from scan64.content.puzzle_practice_models import PuzzleDailySet, PuzzleDailySlot
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.persistence.database import get_session
@@ -143,14 +144,14 @@ def update_onboarding(
         row.declared_level = update.declared_level
         row.suggested_bot_level = LEVEL_MAPPING[update.declared_level]
         row.mapping_version = MAPPING_VERSION
-        row.intro_started_at = row.intro_started_at or datetime.now(UTC)
+        row.intro_started_at = row.intro_started_at or puzzle_practice.utc_now()
         row.status = "completed" if row.completed_at is not None else "in_progress"
         row.skipped_at = None
     elif update.declared_level is not None:
         raise HTTPException(status_code=422, detail="Only declare accepts a level")
     elif update.action == "skip":
         row.status = "skipped"
-        row.skipped_at = datetime.now(UTC)
+        row.skipped_at = puzzle_practice.utc_now()
     session.add(row)
     result = read_onboarding(player, session)
     session.commit()
