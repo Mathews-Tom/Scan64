@@ -180,7 +180,8 @@ def build_game_review(
         band = review_band(loss) if is_owner else None
         credit, credit_exclusion = (
             credit_projection.get(ply, (None, "missing source analysis"))
-            if is_owner else (None, None)
+            if is_owner
+            else (None, None)
         )
         if is_owner:
             total_owner_moves += 1

@@ -54,6 +54,7 @@ def validate_generated_explanation(
         claims=list(generated.claims),
     )
 
+
 async def attach_validated_explanation(
     lesson: LessonSpec,
     provider: LLMExplanationProvider,

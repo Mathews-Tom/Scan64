@@ -86,4 +86,3 @@ class FamousGameDefinition(BaseModel):
             skill_mapping=self.skill_mapping,
             difficulty_estimate=self.difficulty_estimate,
         )
-

@@ -30,6 +30,7 @@ def database_url_from_environment() -> str:
         raise ValueError("SCAN64_DATABASE_URL must not be blank")
     return database_url
 
+
 sqlite_url: str = database_url_from_environment()
 
 connect_args = {"check_same_thread": False}
@@ -57,9 +58,7 @@ def migrate_database(database_engine: Engine) -> None:
     with database_engine.begin() as connection:
         config = _migration_config(database_engine)
         config.attributes["connection"] = connection
-        if not inspect(connection).has_table("alembic_version") and _has_user_tables(
-            connection
-        ):
+        if not inspect(connection).has_table("alembic_version") and _has_user_tables(connection):
             command.stamp(config, "20260727_01")
         command.upgrade(config, "head")
 

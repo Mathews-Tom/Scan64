@@ -53,13 +53,9 @@ def load_player_session_state(
     now = now or datetime.now(UTC)
 
     skills = db.exec(select(SkillState).where(SkillState.player_id == player_id)).all()
-    skills_by_concept = {
-        skill.concept_code: skill for skill in skills if skill.retired_at is None
-    }
+    skills_by_concept = {skill.concept_code: skill for skill in skills if skill.retired_at is None}
 
-    schedules = db.exec(
-        select(ReviewSchedule).where(ReviewSchedule.player_id == player_id)
-    ).all()
+    schedules = db.exec(select(ReviewSchedule).where(ReviewSchedule.player_id == player_id)).all()
     active_reviews = {
         schedule.item_id: schedule for schedule in schedules if schedule.retired_at is None
     }

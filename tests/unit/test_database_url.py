@@ -26,6 +26,7 @@ def test_database_url_uses_configured_location(
 
     assert database_url_from_environment() == expected_url
 
+
 def test_database_url_relocates_the_database(tmp_path: Path) -> None:
     database_path = tmp_path / "configured.db"
     database_url = f"sqlite:///{database_path}"

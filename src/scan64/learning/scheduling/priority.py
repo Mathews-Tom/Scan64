@@ -117,9 +117,7 @@ def classify_priority_bucket(
 RECENT_ATTEMPT_VOLUME_CAP = 20
 
 
-def compute_recent_session_fatigue(
-    recent_attempt_count: int, recent_error_rate: float
-) -> float:
+def compute_recent_session_fatigue(recent_attempt_count: int, recent_error_rate: float) -> float:
     """
     Session fatigue from recent attempt VOLUME and server-verified ACCURACY
     only (M38 / G16): response-time degradation (`compute_session_fatigue`

@@ -88,9 +88,7 @@ async def stockfish_policy(engine: chess.engine.Protocol, fen: str) -> dict[str,
     if not scores:
         raise RuntimeError("Stockfish did not return root move scores")
     highest_score = max(scores.values())
-    weights = {
-        move: math.exp((score - highest_score) / 100) for move, score in scores.items()
-    }
+    weights = {move: math.exp((score - highest_score) / 100) for move, score in scores.items()}
     total = sum(weights.values())
     return {move: weight / total for move, weight in weights.items()}
 

@@ -740,11 +740,11 @@ def test_award_evidence_selects_latest_completed_owned_game_job(session: Session
         select(PatternAwardEvidence).order_by(PatternAwardEvidence.ordinal)
     ).all()
     assert [row.analysis_job_id for row in evidence] == [
-        replacement.id, *(job.id for job in jobs[1:])
+        replacement.id,
+        *(job.id for job in jobs[1:]),
     ]
-    assert (
-        evidence[0].job_completed_at.replace(tzinfo=UTC)
-        == replacement.completed_at.replace(tzinfo=UTC)
+    assert evidence[0].job_completed_at.replace(tzinfo=UTC) == replacement.completed_at.replace(
+        tzinfo=UTC
     )
     assert all(
         row.job_completed_at.replace(tzinfo=UTC) <= award.awarded_at.replace(tzinfo=UTC)

@@ -41,7 +41,8 @@ async def test_engine_pool_isolation():
 
 @pytest.mark.parametrize("quota", [0, 1])
 def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
-    monkeypatch: pytest.MonkeyPatch, quota: int,
+    monkeypatch: pytest.MonkeyPatch,
+    quota: int,
 ) -> None:
     from fastapi.testclient import TestClient
     from sqlalchemy.pool import StaticPool

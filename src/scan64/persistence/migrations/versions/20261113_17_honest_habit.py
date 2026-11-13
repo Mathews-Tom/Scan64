@@ -1,4 +1,5 @@
 """Prospective habit evidence; downgrade never changes learning or ratings."""
+
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
@@ -66,7 +67,10 @@ def upgrade() -> None:
             sa.UniqueConstraint("player_id", "source_kind", "source_id"),
         )
     op.create_index(
-        "ix_habitcredit_player_id", "habitcredit", ["player_id"], if_not_exists=True,
+        "ix_habitcredit_player_id",
+        "habitcredit",
+        ["player_id"],
+        if_not_exists=True,
     )
     if "patterntarget" not in existing:
         op.create_table(
@@ -85,7 +89,10 @@ def upgrade() -> None:
             sa.UniqueConstraint("player_id", "code", "policy_version"),
         )
     op.create_index(
-        "ix_patterntarget_player_id", "patterntarget", ["player_id"], if_not_exists=True,
+        "ix_patterntarget_player_id",
+        "patterntarget",
+        ["player_id"],
+        if_not_exists=True,
     )
     if "patternaward" not in existing:
         op.create_table(
@@ -100,16 +107,25 @@ def upgrade() -> None:
             sa.Column("awarded_at", sa.DateTime(), nullable=False),
             sa.Column("barrier_game_id", sa.Uuid(), sa.ForeignKey("game.id"), nullable=True),
             sa.Column(
-                "barrier_analysis_job_id", sa.Uuid(), sa.ForeignKey("analysisjob.id"), nullable=True,
+                "barrier_analysis_job_id",
+                sa.Uuid(),
+                sa.ForeignKey("analysisjob.id"),
+                nullable=True,
             ),
             sa.UniqueConstraint("player_id", "code", "policy_version", "window_start"),
             sa.UniqueConstraint("target_id"),
         )
     op.create_index(
-        "ix_patternaward_player_id", "patternaward", ["player_id"], if_not_exists=True,
+        "ix_patternaward_player_id",
+        "patternaward",
+        ["player_id"],
+        if_not_exists=True,
     )
     op.create_index(
-        "ix_patternaward_target_id", "patternaward", ["target_id"], if_not_exists=True,
+        "ix_patternaward_target_id",
+        "patternaward",
+        ["target_id"],
+        if_not_exists=True,
     )
     if "patternawardevidence" not in existing:
         op.create_table(
@@ -119,7 +135,9 @@ def upgrade() -> None:
             sa.Column("award_id", sa.String(), sa.ForeignKey("patternaward.id"), nullable=False),
             sa.Column("ordinal", sa.Integer(), nullable=False),
             sa.Column("game_id", sa.Uuid(), sa.ForeignKey("game.id"), nullable=False),
-            sa.Column("analysis_job_id", sa.Uuid(), sa.ForeignKey("analysisjob.id"), nullable=False),
+            sa.Column(
+                "analysis_job_id", sa.Uuid(), sa.ForeignKey("analysisjob.id"), nullable=False
+            ),
             sa.Column("game_created_at", sa.DateTime(), nullable=False),
             sa.Column("job_completed_at", sa.DateTime(), nullable=False),
             sa.UniqueConstraint("award_id", "ordinal"),
@@ -127,15 +145,27 @@ def upgrade() -> None:
             sa.CheckConstraint("ordinal >= 1 AND ordinal <= 5"),
         )
     op.create_index(
-        "ix_patternawardevidence_player_id", "patternawardevidence", ["player_id"],
+        "ix_patternawardevidence_player_id",
+        "patternawardevidence",
+        ["player_id"],
         if_not_exists=True,
     )
     op.create_index(
-        "ix_patternawardevidence_award_id", "patternawardevidence", ["award_id"],
+        "ix_patternawardevidence_award_id",
+        "patternawardevidence",
+        ["award_id"],
         if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    for table in ("patternawardevidence", "patternaward", "patterntarget", "habitcredit", "habitday", "habitgoal", "habitpolicy"):
+    for table in (
+        "patternawardevidence",
+        "patternaward",
+        "patterntarget",
+        "habitcredit",
+        "habitday",
+        "habitgoal",
+        "habitpolicy",
+    ):
         op.drop_table(table)

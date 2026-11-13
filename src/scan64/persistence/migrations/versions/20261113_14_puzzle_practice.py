@@ -12,9 +12,15 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    if all(sa.inspect(op.get_bind()).has_table(table) for table in (
-        "puzzlerating", "puzzledailyset", "puzzledailyslot", "puzzleratingevent",
-    )):
+    if all(
+        sa.inspect(op.get_bind()).has_table(table)
+        for table in (
+            "puzzlerating",
+            "puzzledailyset",
+            "puzzledailyslot",
+            "puzzleratingevent",
+        )
+    ):
         return
     op.create_table(
         "puzzlerating",

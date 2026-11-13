@@ -38,9 +38,7 @@ def test_minimum_evidence_gate_surfaces_only_supported_context_claims(outcomes):
     claim = model.surfaced_claim(CONTEXT)
 
     assert claim.opportunities == len(outcomes)
-    assert claim.is_context_conditioned == (
-        len(outcomes) >= DEFAULT_MINIMUM_CONTEXT_OPPORTUNITIES
-    )
+    assert claim.is_context_conditioned == (len(outcomes) >= DEFAULT_MINIMUM_CONTEXT_OPPORTUNITIES)
     if len(outcomes) < DEFAULT_MINIMUM_CONTEXT_OPPORTUNITIES:
         assert claim.mastery == pytest.approx(global_skill.expected_mastery)
     else:

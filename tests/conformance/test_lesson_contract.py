@@ -154,9 +154,7 @@ SOURCE_CLAIMS: list[tuple[str, object]] = [
 
 
 @pytest.mark.parametrize(("field", "value"), SOURCE_CLAIMS)
-def test_source_verification_rejects_unproved_claims_in_contract(
-    field: str, value: object
-) -> None:
+def test_source_verification_rejects_unproved_claims_in_contract(field: str, value: object) -> None:
     data = LessonSpec.model_validate(fixture("valid_external.json")).model_dump(mode="json")
     if field == "accepted_moves":
         data["interaction"][field] = value

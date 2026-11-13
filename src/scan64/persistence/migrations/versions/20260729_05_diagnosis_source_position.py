@@ -11,9 +11,7 @@ down_revision: str | Sequence[str] | None = "20260728_04"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_SOURCE_POSITION_FOREIGN_KEY = (
-    "fk_persistedlessonopportunity_source_position_id_position"
-)
+_SOURCE_POSITION_FOREIGN_KEY = "fk_persistedlessonopportunity_source_position_id_position"
 _SOURCE_POSITION_INDEX = "ix_persistedlessonopportunity_source_position_id"
 
 
@@ -26,14 +24,10 @@ def _source_fen(lesson_spec: object, opportunity_id: object) -> str:
         )
     source = lesson_spec.get("source")
     if not isinstance(source, dict):
-        raise RuntimeError(
-            f"Persisted lesson opportunity {opportunity_id} has no source FEN"
-        )
+        raise RuntimeError(f"Persisted lesson opportunity {opportunity_id} has no source FEN")
     fen = source.get("fen")
     if not isinstance(fen, str):
-        raise RuntimeError(
-            f"Persisted lesson opportunity {opportunity_id} has no source FEN"
-        )
+        raise RuntimeError(f"Persisted lesson opportunity {opportunity_id} has no source FEN")
     return fen
 
 
@@ -51,17 +45,18 @@ def upgrade() -> None:
 
     connection = op.get_bind()
     opportunities = connection.execute(
-        sa.text(
-            "SELECT id, game_id, lesson_spec FROM persistedlessonopportunity "
-            "ORDER BY id"
-        )
+        sa.text("SELECT id, game_id, lesson_spec FROM persistedlessonopportunity ORDER BY id")
     ).mappings()
     for opportunity in opportunities:
         source_fen = _source_fen(opportunity["lesson_spec"], opportunity["id"])
-        position_ids = connection.execute(
-            sa.text("SELECT id FROM position WHERE game_id = :game_id AND fen = :fen"),
-            {"game_id": opportunity["game_id"], "fen": source_fen},
-        ).scalars().all()
+        position_ids = (
+            connection.execute(
+                sa.text("SELECT id FROM position WHERE game_id = :game_id AND fen = :fen"),
+                {"game_id": opportunity["game_id"], "fen": source_fen},
+            )
+            .scalars()
+            .all()
+        )
         if len(position_ids) != 1:
             raise RuntimeError(
                 "Persisted lesson opportunity "
@@ -80,9 +75,7 @@ def upgrade() -> None:
         foreign_key["name"]
         for foreign_key in inspector.get_foreign_keys("persistedlessonopportunity")
     }
-    index_names = {
-        index["name"] for index in inspector.get_indexes("persistedlessonopportunity")
-    }
+    index_names = {index["name"] for index in inspector.get_indexes("persistedlessonopportunity")}
     with op.batch_alter_table("persistedlessonopportunity") as batch:
         if _SOURCE_POSITION_FOREIGN_KEY not in foreign_key_names:
             batch.create_foreign_key(
@@ -104,9 +97,7 @@ def downgrade() -> None:
     inspector = sa.inspect(op.get_bind())
     if not inspector.has_table("persistedlessonopportunity"):
         return
-    columns = {
-        column["name"] for column in inspector.get_columns("persistedlessonopportunity")
-    }
+    columns = {column["name"] for column in inspector.get_columns("persistedlessonopportunity")}
     if "source_position_id" not in columns:
         return
 
@@ -114,9 +105,7 @@ def downgrade() -> None:
         foreign_key["name"]
         for foreign_key in inspector.get_foreign_keys("persistedlessonopportunity")
     }
-    index_names = {
-        index["name"] for index in inspector.get_indexes("persistedlessonopportunity")
-    }
+    index_names = {index["name"] for index in inspector.get_indexes("persistedlessonopportunity")}
     with op.batch_alter_table("persistedlessonopportunity") as batch:
         if _SOURCE_POSITION_INDEX in index_names:
             batch.drop_index(_SOURCE_POSITION_INDEX)

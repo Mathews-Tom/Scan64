@@ -121,9 +121,7 @@ def test_nudge_does_not_highlight_another_candidates_origin():
 
 def test_quiet_nudge_prioritizes_the_most_valuable_legally_attacked_opponent_piece():
     board = chess.Board("7k/8/8/r3q3/8/8/R3R3/7K w - - 0 1")
-    insight = position_insight(
-        board, EngineAnalysis(raw_result=[{"pv": ["h1g1"], "score_cp": 0}])
-    )
+    insight = position_insight(board, EngineAnalysis(raw_result=[{"pv": ["h1g1"], "score_cp": 0}]))
     assert insight.candidates[0].fallback
     nudge = insight_step(board, insight, 1)
     assert highlighted_squares(nudge.visualizations) == {"e5"}
@@ -134,9 +132,7 @@ def test_quiet_nudge_uses_the_last_opponent_move_when_history_is_known():
     board = chess.Board()
     board.push_uci("e2e4")
     board.push_uci("e7e5")
-    insight = position_insight(
-        board, EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}])
-    )
+    insight = position_insight(board, EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
     nudge = insight_step(board, insight, 1)
     assert highlighted_squares(nudge.visualizations) == {"e5"}
     assert nudge.text == "What changed when your opponent moved this pawn?"
@@ -144,9 +140,7 @@ def test_quiet_nudge_uses_the_last_opponent_move_when_history_is_known():
 
 def test_quiet_nudge_uses_the_opponent_king_when_no_attacked_piece_or_history_exists():
     board = chess.Board()
-    insight = position_insight(
-        board, EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}])
-    )
+    insight = position_insight(board, EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}]))
     nudge = insight_step(board, insight, 1)
     assert highlighted_squares(nudge.visualizations) == {"e8"}
     assert nudge.text == "What can you notice about the opposing king's safety?"

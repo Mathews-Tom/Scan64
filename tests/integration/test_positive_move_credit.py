@@ -43,18 +43,23 @@ def _stage(
     recorded_game = next(game for game in CORPUS["games"] if game["id"] == case["source_game"])
     board = chess.Board()
     moves = []
-    for san in recorded_game["moves"][:case["source_ply"] - 1]:
+    for san in recorded_game["moves"][: case["source_ply"] - 1]:
         move = board.parse_san(san)
         moves.append(move.uci())
         board.push(move)
     assert board.fen() == case["fen"]
     objective = board.parse_uci(case["raw_result"][0]["pv"][0])
     game = Game(
-        pgn="", owner_player_id="credit-owner", owner_color="white" if board.turn else "black",
-        moves=[*moves, objective.uci()], result="1-0",
+        pgn="",
+        owner_player_id="credit-owner",
+        owner_color="white" if board.turn else "black",
+        moves=[*moves, objective.uci()],
+        result="1-0",
     )
     play = PlaySession(
-        player_id="credit-owner", game_id=game.id, status="completed",
+        player_id="credit-owner",
+        game_id=game.id,
+        status="completed",
         assistance_tracking_version=1,
         opponent_config={"initial_ply": "0", "custom_start": "false"},
     )
@@ -71,21 +76,34 @@ def _stage(
     # A8 probabilities are controlled here to isolate persistence, not claim
     # another recorded engine search of the resulting position.
     row = GameMoveReview(
-        game_id=game.id, ply=case["source_ply"], source_position_id=source.id,
-        reached_position_id=reached.id, before_analysis_id=before.id,
-        after_analysis_id=after.id, move_uci=objective.uci(), san=san,
-        mover=game.owner_color, before_probability=probability, after_probability=1 - probability,
+        game_id=game.id,
+        ply=case["source_ply"],
+        source_position_id=source.id,
+        reached_position_id=reached.id,
+        before_analysis_id=before.id,
+        after_analysis_id=after.id,
+        move_uci=objective.uci(),
+        san=san,
+        mover=game.owner_color,
+        before_probability=probability,
+        after_probability=1 - probability,
     )
     previous_board = chess.Board(predecessor.fen)
     previous_move = previous_board.parse_uci(case["preceding_move_uci"])
     previous = GameMoveReview(
-        game_id=game.id, ply=row.ply - 1, source_position_id=predecessor.id,
-        reached_position_id=source.id, before_analysis_id=prior_analysis.id,
-        after_analysis_id=before.id, move_uci=previous_move.uci(),
-        san=previous_board.san(previous_move), mover="white" if previous_board.turn else "black",
+        game_id=game.id,
+        ply=row.ply - 1,
+        source_position_id=predecessor.id,
+        reached_position_id=source.id,
+        before_analysis_id=prior_analysis.id,
+        after_analysis_id=before.id,
+        move_uci=previous_move.uci(),
+        san=previous_board.san(previous_move),
+        mover="white" if previous_board.turn else "black",
     )
-    session.add_all([game, play, source, predecessor, reached, before, after, prior_analysis,
-                     row, previous])
+    session.add_all(
+        [game, play, source, predecessor, reached, before, after, prior_analysis, row, previous]
+    )
     session.commit()
     return game, play, row, source
 
@@ -103,7 +121,9 @@ def test_credit_and_alpha_commit_once_per_source_and_skill(db_session: Session, 
     assert len(ledger) == 1
     credit = ledger[0]
     assert (credit.game_id, credit.canonical_id, credit.ply) == (
-        game.id, source.canonical_id, row.ply,
+        game.id,
+        source.canonical_id,
+        row.ply,
     )
     skill = db_session.get(SkillState, (play.player_id, credit.skill_id))
     assert skill is not None and skill.alpha == skill.prior_alpha + 1
@@ -139,8 +159,10 @@ def test_credit_and_mastery_roll_back_with_full_analysis_transaction(db_session:
     [
         ({"assistance_tracking_version": None}, "unknown assistance (session was not tracked)"),
         ({"coach_mode": True}, "coach mode"),
-        ({"opponent_config": {"custom_start": "true", "initial_ply": "0"}},
-         "started from a studied position"),
+        (
+            {"opponent_config": {"custom_start": "true", "initial_ply": "0"}},
+            "started from a studied position",
+        ),
         ({"status": "active"}, BEFORE_END),
     ],
 )
@@ -196,17 +218,25 @@ def test_hint_on_canonical_revisit_excludes_despite_different_fen_counters(
     hinted_board.halfmove_clock += 8
     hinted_board.fullmove_number += 4
     assert hinted_board.fen() != source.fen
-    db_session.add(SessionHintReveal(
-        session_id=play.id, player_id=play.player_id, prefix_hash="earlier-takeback-prefix",
-        canonical_id=hinted_board.epd(), ply=row.ply + 8, initial_fen=chess.STARTING_FEN,
-        moves=["e2e4"], highest_step=1,
-    ))
+    db_session.add(
+        SessionHintReveal(
+            session_id=play.id,
+            player_id=play.player_id,
+            prefix_hash="earlier-takeback-prefix",
+            canonical_id=hinted_board.epd(),
+            ply=row.ply + 8,
+            initial_fen=chess.STARTING_FEN,
+            moves=["e2e4"],
+            highest_step=1,
+        )
+    )
     db_session.commit()
     apply_positive_move_credits(game, db_session, rating=1500)
     db_session.commit()
     assert _credits(db_session) == []
     assert project_move_credits(game, db_session)[row.ply] == (
-        None, "in-app hint revealed at this position"
+        None,
+        "in-app hint revealed at this position",
     )
 
 
@@ -217,11 +247,15 @@ def test_staged_and_stored_failures_map_reached_position_to_its_source(
     game, play, row, _ = _stage(db_session)
     observations = [(row.reached_position_id, CAPTURE_SKILL)]
     if persisted:
-        db_session.add(ProfileObservation(
-            player_id=play.player_id, game_id=str(game.id),
-            position_id=str(row.reached_position_id),
-            skill_id=CAPTURE_SKILL, observed_at=datetime.now(UTC),
-        ))
+        db_session.add(
+            ProfileObservation(
+                player_id=play.player_id,
+                game_id=str(game.id),
+                position_id=str(row.reached_position_id),
+                skill_id=CAPTURE_SKILL,
+                observed_at=datetime.now(UTC),
+            )
+        )
         db_session.commit()
         observations = []
     apply_positive_move_credits(game, db_session, rating=1500, staged_observations=observations)
@@ -235,7 +269,8 @@ def test_same_source_lesson_or_attempt_excludes_credit(
 ) -> None:
     game, play, _, source = _stage(db_session)
     lesson = PersistedLessonOpportunity(
-        game_id=game.id, source_position_id=source.id,
+        game_id=game.id,
+        source_position_id=source.id,
         player_id=None if attempted_legacy else play.player_id,
         lesson_spec={"diagnosis": {"primary": CAPTURE_SKILL}},
     )
@@ -244,11 +279,20 @@ def test_same_source_lesson_or_attempt_excludes_credit(
         study = StudySession(player_id=play.player_id, domain="game_analysis")
         db_session.add(study)
         db_session.flush()
-        db_session.add(LessonAttempt(
-            session_id=study.id, player_id=play.player_id, lesson_id=str(lesson.id),
-            source_kind="game_analysis", opportunity_id=lesson.id, elapsed_ms=1, hints_used=0,
-            grading_status="accepted", profile_update_result="applied", success=True,
-        ))
+        db_session.add(
+            LessonAttempt(
+                session_id=study.id,
+                player_id=play.player_id,
+                lesson_id=str(lesson.id),
+                source_kind="game_analysis",
+                opportunity_id=lesson.id,
+                elapsed_ms=1,
+                hints_used=0,
+                grading_status="accepted",
+                profile_update_result="applied",
+                success=True,
+            )
+        )
     db_session.commit()
     apply_positive_move_credits(game, db_session, rating=1500)
     db_session.commit()
@@ -259,10 +303,14 @@ def test_other_source_lesson_does_not_suppress_a_legitimate_success(db_session: 
     game, play, _, _ = _stage(db_session)
     other = ingest_fen(chess.STARTING_FEN, game.id)
     db_session.add(other)
-    db_session.add(PersistedLessonOpportunity(
-        game_id=game.id, source_position_id=other.id, player_id=play.player_id,
-        lesson_spec={"diagnosis": {"primary": CAPTURE_SKILL}},
-    ))
+    db_session.add(
+        PersistedLessonOpportunity(
+            game_id=game.id,
+            source_position_id=other.id,
+            player_id=play.player_id,
+            lesson_spec={"diagnosis": {"primary": CAPTURE_SKILL}},
+        )
+    )
     db_session.commit()
     apply_positive_move_credits(game, db_session, rating=1500)
     db_session.commit()
@@ -315,10 +363,13 @@ async def test_review_backfill_does_not_award_or_change_the_analysis_marker(
     game, play, _, _ = _stage(db_session)
 
     async def recorded_pass(*args: object, **kwargs: object) -> FastPassResult:
-        return FastPassResult(candidates=[], evaluations=[
-            EngineAnalysis(position_id=uuid4(), raw_result=[{"score_cp": 0, "pv": []}])
-            for _ in range(len(game.moves) + 1)
-        ])
+        return FastPassResult(
+            candidates=[],
+            evaluations=[
+                EngineAnalysis(position_id=uuid4(), raw_result=[{"score_cp": 0, "pv": []}])
+                for _ in range(len(game.moves) + 1)
+            ],
+        )
 
     monkeypatch.setattr(jobs.FastPassOrchestrator, "run_fast_pass", recorded_pass)
     await jobs.backfill_game_review(game, db_session)
@@ -335,8 +386,10 @@ async def test_full_analysis_integrates_positive_credit_in_its_transaction(
     case = RECORDING["cases"]["hung_white"]
 
     async def recorded_pass(*args: object, **kwargs: object) -> FastPassResult:
-        evaluations = [EngineAnalysis(position_id=uuid4(), raw_result=[{"score_cp": 0, "pv": []}])
-                       for _ in range(len(game.moves) + 1)]
+        evaluations = [
+            EngineAnalysis(position_id=uuid4(), raw_result=[{"score_cp": 0, "pv": []}])
+            for _ in range(len(game.moves) + 1)
+        ]
         evaluations[row.ply - 1].raw_result = copy.deepcopy(case["raw_result"])
         return FastPassResult(candidates=[], evaluations=evaluations)
 
@@ -369,10 +422,17 @@ def test_repeated_legal_source_with_different_counters_earns_one_credit(
     reached = ingest_fen(board.fen(), game.id)
     after = EngineAnalysis(position_id=reached.id)
     second = GameMoveReview(
-        game_id=game.id, ply=first.ply + 4, source_position_id=repeated.id,
-        reached_position_id=reached.id, before_analysis_id=before.id,
-        after_analysis_id=after.id, move_uci=objective.uci(), san=san,
-        mover=first.mover, before_probability=1.0, after_probability=0.0,
+        game_id=game.id,
+        ply=first.ply + 4,
+        source_position_id=repeated.id,
+        reached_position_id=reached.id,
+        before_analysis_id=before.id,
+        after_analysis_id=after.id,
+        move_uci=objective.uci(),
+        san=san,
+        mover=first.mover,
+        before_probability=1.0,
+        after_probability=0.0,
     )
     game.moves = [*game.moves, *cycle[1:], first.move_uci]
     db_session.add_all([game, repeated, before, reached, after, second])
@@ -385,5 +445,6 @@ def test_repeated_legal_source_with_different_counters_earns_one_credit(
     skill = db_session.get(SkillState, (play.player_id, credits[0].skill_id))
     assert skill is not None and skill.alpha == skill.prior_alpha + 1
     assert project_move_credits(game, db_session)[second.ply] == (
-        None, f"same position and skill already credited at ply {first.ply}"
+        None,
+        f"same position and skill already credited at ply {first.ply}",
     )

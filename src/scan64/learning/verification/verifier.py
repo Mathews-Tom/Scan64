@@ -77,9 +77,7 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis | None = 
                     "an engine-confirmed sound move"
                 )
 
-    if spec.source.kind == "player_game" and (
-        spec.diagnosis is None or not spec.diagnosis.primary
-    ):
+    if spec.source.kind == "player_game" and (spec.diagnosis is None or not spec.diagnosis.primary):
         raise LessonVerificationError("Lesson must retain source FEN and primary diagnosis")
 
     # 5. Overlay square validity

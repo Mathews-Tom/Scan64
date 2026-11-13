@@ -7,7 +7,7 @@ from chess_lesson_spec.conformance import RendererLoadError, run_conformance
 
 
 def test_runner_invokes_renderer_for_every_fixture_visualization(tmp_path: Path) -> None:
-    renderer_source = '''
+    renderer_source = """
 from pathlib import Path
 
 
@@ -15,7 +15,7 @@ def render_visualization(command: dict[str, object]) -> None:
     command_name = str(command["command"])
     with (Path(__file__).parent / "commands.txt").open("a", encoding="utf-8") as output:
         output.write(f"{command_name}\\n")
-'''
+"""
     (tmp_path / "renderer.py").write_text(renderer_source, encoding="utf-8")
 
     report = run_conformance(tmp_path)

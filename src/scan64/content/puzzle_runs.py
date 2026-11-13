@@ -9,12 +9,17 @@ from sqlmodel import Field, SQLModel
 
 
 def matches_completed_solution(
-    played_moves: list[str], solution: list[str], board: chess.Board,
+    played_moves: list[str],
+    solution: list[str],
+    board: chess.Board,
 ) -> bool:
     """Accept the stored line, or an alternative mating move at its final ply."""
-    return bool(solution) and len(played_moves) == len(solution) and (
-        played_moves == solution
-        or played_moves[:-1] == solution[:-1] and board.is_checkmate()
+    return (
+        bool(solution)
+        and len(played_moves) == len(solution)
+        and (
+            played_moves == solution or played_moves[:-1] == solution[:-1] and board.is_checkmate()
+        )
     )
 
 
