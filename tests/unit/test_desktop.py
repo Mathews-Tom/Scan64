@@ -1,9 +1,11 @@
 import os
 import socket
+import sys
 from pathlib import Path
 
 import pytest
 
+import scan64.desktop as desktop
 from scan64.desktop import InstanceLock, configure_environment, data_directory, reserve_port
 
 
@@ -92,3 +94,38 @@ def test_port_can_be_reused_immediately_after_connection_shutdown() -> None:
             assert client.recv(1) == b""
     with reserve_port(port) as replacement:
         assert replacement.getsockname()[1] == port
+
+
+def test_second_launch_opens_existing_instance_without_server(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    resources = tmp_path / "bundle"
+    (resources / "bin").mkdir(parents=True)
+    data = data_directory(tmp_path)
+    data.mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "_MEIPASS", resources, raising=False)
+    monkeypatch.setattr(desktop, "data_directory", lambda: data)
+    for key in ("PATH", "SCAN64_DATABASE_URL", "SCAN64_DATA_DIR", "SCAN64_WEB_DIST"):
+        monkeypatch.setenv(key, os.environ.get(key, ""))
+    opened: list[str] = []
+
+    def open_browser(url: str) -> bool:
+        opened.append(url)
+        return True
+
+    def unexpected_server() -> socket.socket:
+        pytest.fail("A second launch must not reserve another server socket")
+
+    monkeypatch.setattr(desktop.webbrowser, "open", open_browser)
+    monkeypatch.setattr(desktop, "reserve_port", unexpected_server)
+    primary = InstanceLock(data)
+    try:
+        assert primary.acquire()
+        primary.publish(8009)
+        original_stdout, original_stderr = sys.stdout, sys.stderr
+        desktop.main()
+        assert opened == ["http://127.0.0.1:8009"]
+        assert (sys.stdout, sys.stderr) == (original_stdout, original_stderr)
+    finally:
+        primary.close()
