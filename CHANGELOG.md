@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
+### Added
+
+- A Scan64 app for Apple silicon Macs (unsigned and not notarized; ad-hoc signature only), with bundled Python and Stockfish 18, a status window with Open and Quit, single-instance launch, and data stored in `~/Library/Application Support/Scan64`.
+- `scripts/build-macos-app.sh` to build the app from source, compiling Stockfish 18 from its pinned, hash-checked source and including its source, licence and networks.
+
 ## [0.3.0] - 2026-11-13
 
 ### Added

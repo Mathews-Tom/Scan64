@@ -33,7 +33,7 @@ Chess workflows provide labelled strict UCI/canonical English SAN entry, readabl
 
 ## Distribution and support
 
-Scan64 supports a source-install local application and a Dockerfile for building a local image. An unsigned Apple silicon desktop bundle can also be built from this repository; download availability depends on an owner-named release. No published image, signed/notarized desktop application or hosted service is provided. Run Scan64 only on a machine you operate.
+Scan64 supports a source-install local application and a Dockerfile for building a local image. An unsigned Apple silicon app is attached to GitHub Releases from 0.4.0 and can also be built from this repository. No published image, signed/notarized desktop application or hosted service is provided. Run Scan64 only on a machine you operate.
 
 
 ## Run locally on one port
