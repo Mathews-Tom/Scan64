@@ -20,6 +20,8 @@ Daily Training composes eligible lessons from active mastery, due review, verifi
 - Review persisted evaluations and diagnosis markers at their source positions.
 - Train from Daily Training and game-review lessons on an interactive board oriented to the solver.
 - Track active mastery, evidence, recurring diagnoses, scheduled review, and transfer measurements.
+- Solve imported puzzles with daily sets, puzzle ratings, theme practice and solve streaks.
+- Review evidence-linked recurring patterns and track verified daily learning goals.
 - Use opt-in coach-mode interruptions during practice.
 - Export, import, and delete player-derived data.
 
