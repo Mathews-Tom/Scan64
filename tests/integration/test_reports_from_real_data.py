@@ -490,10 +490,14 @@ def test_patterns_count_repeated_epd_owner_plies_once_per_game_ply_code(
     assert {(move["game_id"], move["ply"]) for move in pattern["supporting_moves"]} == expected
     assert len(pattern["supporting_moves"]) == 6
     assert all(move["loss"] == pytest.approx(0.5) for move in pattern["supporting_moves"])
+    selected_refs = set()
     for move in pattern["supporting_moves"]:
         lesson = db_session.get(PersistedLessonOpportunity, UUID(move["lesson_id"]))
         assert lesson is not None
         assert str(lesson.game_id) == move["game_id"]
+        selected_refs.update(lesson.lesson_spec["diagnosis"]["evidence_refs"])
+    assert pattern["evidence_references"] == sorted(selected_refs)
+    assert len(selected_refs) == 6
 
 
 @pytest.mark.parametrize(

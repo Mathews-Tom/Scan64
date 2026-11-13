@@ -9,6 +9,7 @@ from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import ContentAttempt
+from scan64.content.puzzle_runs import matches_completed_solution
 from scan64.learning.habit_models import HabitCredit
 from tests.integration.test_habit_api import _owner
 from tests.integration.test_lesson_attempts import create_persisted_lesson, create_study_session
@@ -145,6 +146,71 @@ def test_terminal_puzzle_credits_inside_outcome_transaction_and_replay_does_not(
     assert len(db_session.exec(select(HabitCredit)).all()) == 1
     assert client.post(path, headers=headers, json=body).status_code == 409
     assert len(db_session.exec(select(HabitCredit)).all()) == 1
+
+
+@pytest.mark.parametrize("hinted", [False, True])
+def test_alternative_final_checkmate_credits_and_roundtrips_without_weakening_hint_rules(
+    client: TestClient, db_session: Session, hinted: bool,
+) -> None:
+    headers = _owner(client)
+    item = puzzle_item()
+    initial = chess.Board("8/5K1k/6Q1/8/8/8/8/8 b - - 0 1")
+    source = initial.copy()
+    source.push_uci("h7h8")
+    payload = deepcopy(item.payload)
+    payload.update(fen=initial.fen(), setup="h7h8", moves=["h7h8", "g6g7"])
+    payload["lesson"]["source"]["fen"] = source.fen()
+    payload["lesson"]["interaction"]["solution"] = ["g6g7"]
+    item.payload = payload
+    db_session.add(item)
+    db_session.commit()
+    run = seed_puzzle_run(db_session, "habit-api-owner")
+    if hinted:
+        hint = client.post(
+            f"/v1/puzzles/runs/{run.id}/hints", headers=headers,
+            json={"expected_cursor": 0, "expected_revision": 0, "step": 1},
+        )
+        assert hint.status_code == 200, hint.text
+    solved = client.post(
+        f"/v1/puzzles/runs/{run.id}/moves", headers=headers,
+        json={"move": "g6h6", "expected_cursor": 0, "expected_revision": int(hinted)},
+    )
+    assert solved.status_code == 200, solved.text
+    assert solved.json()["state"] == "solved"
+    assert solved.json()["played_moves"] == ["g6h6"]
+    assert chess.Board(solved.json()["fen"]).is_checkmate()
+    expected_credits = 0 if hinted else 1
+    assert len(db_session.exec(select(HabitCredit)).all()) == expected_credits
+    exported = client.post("/v1/exports", headers=headers, json={"player_id": "habit-api-owner"})
+    assert exported.status_code == 200, exported.text
+    deleted = client.request(
+        "DELETE", "/v1/players/habit-api-owner/data", headers=headers,
+        json={"dry_run": False, "confirmation": "delete-habit-api-owner"},
+    )
+    assert deleted.status_code == 200, deleted.text
+    restored = client.post("/v1/imports", headers=headers, json=exported.json())
+    assert restored.status_code == 200, restored.text
+    assert len(db_session.exec(select(HabitCredit)).all()) == expected_credits
+
+
+@pytest.mark.parametrize(
+    "played,solution,expected",
+    [
+        (["g6g7"], ["g6g7"], True),
+        (["g6h6"], ["g6g7"], True),
+        (["g6g5"], ["g6g7"], False),
+        (["g6h6"], ["g6g5", "h8h7", "g5h6"], False),
+        (["g6g5", "h8h7", "g5h5"], ["g6g5", "h8h7", "g5h4"], True),
+        (["g6g5", "h8h7", "g5h5"], ["g6g4", "h8h7", "g4h4"], False),
+    ],
+)
+def test_puzzle_completion_requires_the_exact_prefix_and_only_allows_final_mate(
+    played: list[str], solution: list[str], expected: bool,
+) -> None:
+    board = chess.Board("7k/5K2/6Q1/8/8/8/8/8 w - - 1 2")
+    for move in played:
+        board.push_uci(move)
+    assert matches_completed_solution(played, solution, board) is expected
 
 
 def test_server_revealed_puzzle_hint_excludes_even_if_client_claims_unhinted(

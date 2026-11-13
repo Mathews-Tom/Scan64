@@ -12,11 +12,17 @@ from sqlmodel import Session, select
 
 from scan64.api.data_lifecycle import ExportArchive, _validate_habit_archive
 from scan64.api.reports import read_player_patterns
-from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, GameMoveReview
+from scan64.chess.analysis.models import (
+    AnalysisJob,
+    EngineAnalysis,
+    GameMoveReview,
+    PersistedLessonOpportunity,
+)
 from scan64.chess.analysis.review import stage_game_review
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.learning.evidence.models import Evidence
 from scan64.learning.habit_models import (
     HABIT_POLICY_VERSION,
     HabitCredit,
@@ -29,8 +35,11 @@ from scan64.learning.habit_models import (
 )
 from scan64.learning.profiling.models import ProfileObservation
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.providers.stockfish.adapter import StockfishAdapter
+from scan64.providers.stockfish.pool import PoolBoundAdapter
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 from tests.integration.test_puzzle_mistakes import SKILL, _lesson
+from tests.integration.test_puzzle_runs import _action, _seed, _start
 
 PLAYER = "habit-archive-owner"
 HABIT_FIELDS = (
@@ -72,6 +81,8 @@ def _seed_archive(
     session: Session,
     *,
     award: bool = True,
+    reviewed_sources: bool = True,
+    duplicate_lessons: bool = False,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     headers = _register(client)
     start = (datetime.now(UTC) - timedelta(days=14)).replace(
@@ -109,6 +120,27 @@ def _seed_archive(
             )
         )
         opportunities.append(opportunity)
+        if duplicate_lessons:
+            spec = deepcopy(opportunity.lesson_spec)
+            original_ref = spec["diagnosis"]["evidence_refs"][0]
+            proof = session.get(Evidence, original_ref)
+            assert proof is not None
+            duplicate_ref = f"duplicate-{original_ref}"
+            session.add(Evidence(**{**proof.model_dump(), "evidence_id": duplicate_ref}))
+            spec["diagnosis"]["evidence_refs"] = [duplicate_ref]
+            duplicate = PersistedLessonOpportunity(**{
+                **opportunity.model_dump(), "id": uuid4(), "lesson_spec": spec,
+            })
+            session.add(duplicate)
+            session.add(ReviewSchedule(
+                player_id=PLAYER,
+                item_id=str(duplicate.id),
+                skill_id=SKILL,
+                next_review_at=start,
+            ))
+    if not reviewed_sources:
+        for row in session.exec(select(GameMoveReview)).all():
+            session.delete(row)
     session.commit()
     pattern = read_player_patterns(PLAYER, session).recurring_diagnoses[0].model_dump(mode="json")
     target = PatternTarget(player_id=PLAYER, code=SKILL, started_at=start, pattern_snapshot=pattern)
@@ -311,6 +343,93 @@ def test_habit_archive_restores_cutover_ledgers_and_award_without_replay(
         PatternAwardEvidence,
     ):
         assert db_session.exec(select(model).where(model.player_id == PLAYER)).all() == []
+
+
+def test_habit_archive_keeps_unscored_snapshot_after_review_backfill(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive, headers = _seed_archive(client, db_session, award=False, reviewed_sources=False)
+    snapshot = deepcopy(archive["pattern_targets"][0]["pattern_snapshot"])
+    assert snapshot["scored_occurrences"] == 0
+    assert snapshot["observed_loss"] is None
+    assert all(move["loss"] is None for move in snapshot["supporting_moves"])
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    assert response.status_code == 200, response.text
+
+    async def analyze(_self: object, _fen: str, **limits: Any) -> EngineAnalysis:
+        return EngineAnalysis(raw_result=[{"score_cp": 200}], config=limits)
+
+    monkeypatch.setattr(StockfishAdapter, "analyze_position", analyze)
+    monkeypatch.setattr(PoolBoundAdapter, "analyze_position", analyze)
+    for game_id in snapshot["game_ids"]:
+        response = client.post(f"/v1/games/{game_id}/review/backfill", headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json()["backfill_required"] is False
+    current = read_player_patterns(PLAYER, db_session).recurring_diagnoses[0]
+    assert current.scored_occurrences == snapshot["total_occurrences"]
+    assert current.observed_loss is not None
+    backfilled = _export(client, headers)
+    assert backfilled["pattern_targets"][0]["pattern_snapshot"] == snapshot
+    _delete(client, headers)
+    restored = client.post("/v1/imports", json=backfilled, headers=headers)
+    assert restored.status_code == 200, restored.text
+    assert _export(client, headers)["pattern_targets"] == backfilled["pattern_targets"]
+
+
+def test_habit_archive_duplicate_lessons_keep_only_selected_occurrence_refs(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    archive, headers = _seed_archive(client, db_session, duplicate_lessons=True)
+    snapshot = archive["pattern_targets"][0]["pattern_snapshot"]
+    lessons = {row["id"]: row for row in archive["lesson_opportunities"]}
+    assert len(lessons) == 6
+    assert snapshot["total_occurrences"] == 3
+    selected_refs = {
+        reference
+        for move in snapshot["supporting_moves"]
+        for reference in lessons[move["lesson_id"]]["lesson_spec"]["diagnosis"]["evidence_refs"]
+    }
+    assert snapshot["evidence_references"] == sorted(selected_refs)
+    assert len(selected_refs) == 3
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    assert response.status_code == 200, response.text
+    restored = _export(client, headers)
+    assert restored["pattern_targets"] == archive["pattern_targets"]
+    assert len(restored["lesson_opportunities"]) == 6
+    assert len(restored["evidence"]) == 6
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "boolean_loss", "negative_loss", "excess_loss", "changed_loss",
+        "scored_count", "observed_total",
+    ],
+)
+def test_habit_archive_rejects_invalid_scored_snapshot(
+    client: TestClient,
+    db_session: Session,
+    tamper: str,
+) -> None:
+    archive, headers = _seed_archive(client, db_session, award=False)
+    snapshot = archive["pattern_targets"][0]["pattern_snapshot"]
+    move = snapshot["supporting_moves"][0]
+    if tamper == "scored_count":
+        snapshot["scored_occurrences"] -= 1
+    elif tamper == "observed_total":
+        snapshot["observed_loss"] += 0.1
+    else:
+        move["loss"] = {
+            "boolean_loss": True, "negative_loss": -0.1,
+            "excess_loss": 1.1, "changed_loss": 0.99,
+        }[tamper]
+        snapshot["observed_loss"] = sum(row["loss"] for row in snapshot["supporting_moves"])
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    assert response.status_code == 400, response.text
+    assert db_session.get(HabitPolicy, PLAYER) is None
 
 
 @pytest.mark.parametrize("field", HABIT_FIELDS)
@@ -1186,3 +1305,102 @@ def test_habit_archive_checks_unrecorded_recurrence_inside_persisted_span(
     _delete(client, headers)
     response = client.post("/v1/imports", json=exported, headers=headers)
     assert response.status_code == (200 if retirement == "before_award" else 400), response.text
+
+
+@pytest.mark.parametrize("move_count", [0, 2, 40])
+@pytest.mark.parametrize(
+    "state",
+    ["active", "nonterminal", "pending", "running", "failed", "missing_analysis",
+     "late_analysis", "completed"],
+)
+def test_habit_archive_checks_unresolved_games_inside_persisted_span_before_length_filter(
+    client: TestClient,
+    db_session: Session,
+    move_count: int,
+    state: str,
+) -> None:
+    archive, headers = _seed_archive(client, db_session)
+    award = archive["pattern_awards"][0]
+    first = archive["pattern_award_evidence"][0]
+    created = datetime.fromisoformat(first["game_created_at"]) + timedelta(minutes=30)
+    game = Game(
+        pgn="",
+        moves=(["g1f3", "g8f6", "f3g1", "f6g8"] * 10)[:move_count],
+        owner_player_id=PLAYER,
+        owner_color="white",
+        result="*" if state == "nonterminal" else "1/2-1/2",
+        created_at=created,
+    )
+    play = PlaySession(
+        player_id=PLAYER,
+        game_id=game.id,
+        status="active" if state == "active" else "completed",
+    )
+    archive["games"].append(game.model_dump(mode="json"))
+    archive["play_sessions"].append(play.model_dump(mode="json"))
+    if move_count == 40:
+        positions: dict[str, Position] = {}
+        analyses: dict[UUID, EngineAnalysis] = {}
+        rows = stage_game_review(
+            game,
+            [EngineAnalysis(raw_result=[{"score_cp": 0}]) for _ in range(41)],
+            positions,
+            analyses,
+            set(),
+        )
+        archive["positions"].extend(row.model_dump(mode="json") for row in positions.values())
+        archive["engine_analyses"].extend(row.model_dump(mode="json") for row in analyses.values())
+        archive["review_moves"].extend(row.model_dump(mode="json") for row in rows)
+    if state != "missing_analysis":
+        job_status = state if state in {"pending", "running", "failed"} else "completed"
+        completed_at = (
+            datetime.fromisoformat(award["awarded_at"]) + timedelta(seconds=1)
+            if state == "late_analysis" else created + timedelta(minutes=10)
+        )
+        job = AnalysisJob(
+            game_id=game.id,
+            status=job_status,
+            created_at=created,
+            completed_at=completed_at if job_status == "completed" else None,
+        )
+        archive["analysis_jobs"].append(job.model_dump(mode="json"))
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    if state == "completed":
+        assert response.status_code == 200, response.text
+        restored = _export(client, headers)
+        assert restored["pattern_awards"] == archive["pattern_awards"]
+        assert restored["pattern_award_evidence"] == archive["pattern_award_evidence"]
+    else:
+        assert response.status_code == 400, response.text
+        assert db_session.get(HabitPolicy, PLAYER) is None
+        assert db_session.exec(select(PatternAwardEvidence)).all() == []
+
+
+def test_habit_archive_restores_credit_for_alternative_final_mate(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers = _register(client)
+    item = _seed(
+        db_session,
+        puzzle_id="habit-alternative-mate",
+        original_fen="8/5K1k/6Q1/8/8/8/8/8 b - - 0 1",
+        moves=["h7h8", "g6g7"],
+    )
+    run = _start(client, headers)
+    response = _action(client, headers, run, "moves", move="g6h6")
+    assert response.status_code == 200, response.text
+    solved = response.json()
+    assert solved["state"] == "solved"
+    assert solved["played_moves"] == ["g6h6"]
+    assert chess.Board(solved["fen"]).is_checkmate()
+    archive = _export(client, headers)
+    credit = next(row for row in archive["habit_credits"] if row["source_kind"] == "puzzle")
+    assert credit["source_key"] == f"puzzle:{item.id}"
+    assert credit["source_id"] == solved["run_id"]
+    _delete(client, headers)
+    restored = client.post("/v1/imports", json=archive, headers=headers)
+    assert restored.status_code == 200, restored.text
+    exported = _export(client, headers)
+    assert exported["habit_credits"] == archive["habit_credits"]
+    assert exported["puzzle_runs"] == archive["puzzle_runs"]

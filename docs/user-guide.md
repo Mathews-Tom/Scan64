@@ -93,6 +93,11 @@ unplaced and opt-in.
 6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
 7. Select **Resign**, or finish by checkmate or a draw. The result appears immediately. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move creates no empty game and has no review link.
 
+A tracked-pattern link can open a different unfinished game without replacing the
+browser's previously stored game. Return to **Play** without a `session` query to
+resume that stored game. Ended or missing session links are consumed automatically
+and fall back to the stored game when one exists.
+
 Play offers eight server-defined levels from `GET /v1/bots`; Analysis Board's play-from-here and Famous Games' continue action default to level 1. The API takes `opponent_config: {"bot_level": "1"}` for Stockfish and optional `player_color` (`white`, `black` or `random`). Omitted colour uses the position's side to move. All eight levels use the same session-seeded MultiPV candidate policy with decreasing error budgets. They are calibrated relative to each other, **not Elo-anchored**, and show no Elo figure. Stockfish's native reduced-strength move generator has no seed control, so it is not used for these levels. Maia's rating-based `strength` is unchanged. Stored older Stockfish sessions still resume using their original native skill setting.
 
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
@@ -189,10 +194,13 @@ past day goals do not change. Supply shows unplayed daily slots, eligible lesson
 retries and whether extra puzzle modes are available. This is not a promise that
 every retry will qualify: a prior attempt or repeated source can exclude it. Short
 or exhausted supply never silently lowers the goal, grants a solve or buys a streak.
+The panel refreshes at the server's UTC reset and when returning to a visible tab.
 Use **Refresh habit record** after practice to fetch current server evidence.
 
 A puzzle counts only after a terminal, server-unhinted success with its matching
-persisted attempt. A lesson counts only when it is your visible, trusted,
+persisted attempt. A legal alternative checkmate on the final solution move counts
+too; earlier solution moves must still match. A lesson counts only when it is your
+visible, trusted,
 non-retired `persisted_opportunity`, the server grades the opportunity's **first
 recorded attempt** as successful, and that attempt reports zero hints. An earlier
 wrong or hinted attempt disqualifies a later retry for this goal, even if the retry
@@ -212,10 +220,13 @@ date. This habit record grants **no mastery, puzzle-rating or other rating bonus
 The calendar-day streak is separate from Puzzles' consecutive **solve streak**.
 Today stays **in progress until the displayed UTC reset boundary**, including after
 reaching its goal. A missed day breaks the calendar streak only after that day
-ends. Stored day goals, qualifying source keys and trust-at-award snapshots make
+ends. Stored day goals, qualifying source keys and point-in-time trust-at-award
+snapshots make
 historical met days immutable. Later source withdrawal or retirement is annotated
 in the day history, but does not un-meet a day or break its historical streak.
 Ownership deletion is the exception: it removes that player's snapshots.
+Later review backfills do not rewrite a snapshot's original grading loss or create
+new historical credit.
 
 Habit evidence uses versioned policy **`habit-v1`** with a persisted effective
 timestamp (cutover). Results before cutover receive no retroactive credit. Player

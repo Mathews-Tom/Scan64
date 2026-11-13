@@ -50,7 +50,7 @@ from scan64.content.puzzle_practice_models import (
     PuzzleRatingEvent,
     elo_after,
 )
-from scan64.content.puzzle_runs import PuzzleRun
+from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.content.validate import validate_solution_line
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
@@ -431,6 +431,18 @@ def _validate_habit_archive(
                 }
             ):
                 raise ValueError("Invalid habit puzzle credit provenance")
+            spec = _puzzle_spec(item)
+            board = chess.Board(spec.source.fen)
+            for move_uci in run.played_moves:
+                board.push_uci(move_uci)
+            if (
+                run.cursor != len(run.played_moves) or run.cursor % 2 != 1
+                or run.fen != board.fen()
+                or not matches_completed_solution(
+                    run.played_moves, spec.interaction.solution, board,
+                )
+            ):
+                raise ValueError("Invalid habit puzzle completion")
         else:
             raise ValueError("Unknown habit credit source")
     for day in days:
@@ -640,15 +652,14 @@ def _validate_habit_archive(
                 review_loss(matching_review.before_probability, matching_review.after_probability)
                 if matching_review is not None else None
             )
-            if loss is None:
-                if expected_loss is not None:
-                    raise ValueError("Pattern snapshot hides a scored occurrence")
-            elif (
-                type(loss) not in (int, float) or not isfinite(loss)
-                or expected_loss is None or not isclose(loss, expected_loss, abs_tol=1e-9)
-            ):
-                raise ValueError("Invalid pattern occurrence loss")
-            else:
+            # This immutable snapshot predates any later review backfill.
+            # An unscored occurrence remains honest even if it is scored now.
+            if loss is not None:
+                if (
+                    type(loss) not in (int, float) or not isfinite(loss) or not 0 <= loss <= 1
+                    or expected_loss is None or not isclose(loss, expected_loss, abs_tol=1e-9)
+                ):
+                    raise ValueError("Invalid pattern occurrence loss")
                 losses.append(loss)
         if (
             len(source_games) < 3 or snapshot["game_ids"] != sorted(source_games)
@@ -771,13 +782,29 @@ def _validate_habit_archive(
         order = [(utc(proof.game_created_at), str(proof.game_id)) for proof in proofs]
         if order != sorted(order):
             raise ValueError("Unordered persisted pattern award evidence")
-        # Check all eligible archived games inside this recorded span, not a
-        # reconstructed first-ever window or a capped current profile report.
+        # Validate only this recorded span, never rebuild a first-ever window.
+        # An unresolved owned play-session game blocks even when too short to
+        # become an eligible observation; skip short games only after analysis.
         for game in games.values():
-            if (
-                order[0] <= (utc(game.created_at), str(game.id)) <= order[-1]
-                and game_eligible(game, after, at) and recurrence(str(game.id), award.code, at)
-            ):
+            if not order[0] <= (utc(game.created_at), str(game.id)) <= order[-1]:
+                continue
+            plays = [
+                row for row in archive.play_sessions
+                if row.get("game_id") == str(game.id) and row.get("player_id") == player_id
+            ]
+            if game.owner_player_id == player_id and plays:
+                if (
+                    game.result not in {"1-0", "0-1", "1/2-1/2"}
+                    or any(row.get("status") != "completed" for row in plays)
+                    or not any(
+                        job.game_id == game.id and job.status == "completed"
+                        and job.completed_at is not None
+                        and utc(game.created_at) <= utc(job.completed_at) <= at
+                        for job in jobs
+                    )
+                ):
+                    raise ValueError("Unresolved game inside persisted pattern award span")
+            if game_eligible(game, after, at) and recurrence(str(game.id), award.code, at):
                 raise ValueError("Recurrence inside persisted pattern award span")
         if (award.barrier_game_id is None) != (award.barrier_analysis_job_id is None):
             raise ValueError("Incomplete pattern award barrier")

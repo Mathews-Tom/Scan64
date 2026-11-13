@@ -1,10 +1,11 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from shutil import copy2
 
+import pytest
 from alembic import command
 from sqlalchemy import inspect, text
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from scan64.api.models import Player, PlayerProfile
 from scan64.chess.analysis.models import AnalysisJob
@@ -19,6 +20,11 @@ from scan64.learning.habit_models import (
 )
 from scan64.learning.profiling.models import SkillState
 from scan64.persistence.database import _migration_config
+
+HABIT_TABLES = (
+    "habitpolicy", "habitgoal", "habitday", "habitcredit",
+    "patterntarget", "patternaward", "patternawardevidence",
+)
 
 
 def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospectively(
@@ -55,15 +61,7 @@ def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospecti
     copy2(original, copied)
     engine = create_engine(f"sqlite:///{copied}")
     config = _migration_config(engine)
-    habit_tables = {
-        "habitpolicy",
-        "habitgoal",
-        "habitday",
-        "habitcredit",
-        "patterntarget",
-        "patternaward",
-        "patternawardevidence",
-    }
+    habit_tables = set(HABIT_TABLES)
     for cycle in range(2):
         before = datetime.now(UTC)
         command.upgrade(config, "head")
@@ -157,4 +155,57 @@ def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospecti
             == "20261113_16"
         )
     source.dispose()
+    engine.dispose()
+
+
+@pytest.mark.parametrize("existing_count", range(1, len(HABIT_TABLES) + 1))
+def test_habit_migration_retry_completes_partial_schema_without_changing_cutover(
+    tmp_path: Path, existing_count: int,
+) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'partial.db'}")
+    config = _migration_config(engine)
+    command.upgrade(config, "20261113_16")
+    with Session(engine) as session:
+        session.add_all([Player(id="existing-cutover"), Player(id="missing-cutover")])
+        session.commit()
+    for name in HABIT_TABLES[:existing_count]:
+        SQLModel.metadata.tables[name].create(engine)
+    preserved = datetime.now(UTC) - timedelta(days=2)
+    with Session(engine) as session:
+        session.add(HabitPolicy(player_id="existing-cutover", effective_at=preserved))
+        if existing_count >= 3:
+            session.add(HabitDay(
+                player_id="existing-cutover", utc_day=preserved.date().isoformat(), goal=7,
+            ))
+        session.commit()
+    if existing_count >= 4:
+        # A failed index DDL must not be hidden by the table's presence either.
+        with engine.begin() as connection:
+            connection.execute(text("DROP INDEX ix_habitcredit_player_id"))
+    before = datetime.now(UTC)
+    command.upgrade(config, "head")
+    assert set(HABIT_TABLES) <= set(inspect(engine).get_table_names())
+    assert "ix_habitcredit_player_id" in {
+        row["name"] for row in inspect(engine).get_indexes("habitcredit")
+    }
+    with Session(engine) as session:
+        existing = session.get(HabitPolicy, "existing-cutover")
+        missing = session.get(HabitPolicy, "missing-cutover")
+        assert existing is not None and missing is not None
+        assert existing.effective_at.replace(tzinfo=UTC) == preserved
+        added_cutover = missing.effective_at.replace(tzinfo=UTC)
+        assert added_cutover >= before
+        if existing_count >= 3:
+            day = session.get(HabitDay, ("existing-cutover", preserved.date().isoformat()))
+            assert day is not None and day.goal == 7
+    # All DDL may have succeeded before a failed revision-marker commit.
+    command.stamp(config, "20261113_16")
+    command.upgrade(config, "head")
+    with Session(engine) as session:
+        existing = session.get(HabitPolicy, "existing-cutover")
+        missing = session.get(HabitPolicy, "missing-cutover")
+        assert existing is not None and missing is not None
+        assert existing.effective_at.replace(tzinfo=UTC) == preserved
+        assert missing.effective_at.replace(tzinfo=UTC) == added_cutover
+        assert session.exec(text("SELECT COUNT(*) FROM habitpolicy")).scalar_one() == 2
     engine.dispose()

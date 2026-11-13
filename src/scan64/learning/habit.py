@@ -31,7 +31,7 @@ from scan64.chess.positions.models import Position
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
 from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.content.puzzle_practice_models import PuzzleDailySet, PuzzleDailySlot
-from scan64.content.puzzle_runs import PuzzleRun
+from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.habit_models import (
@@ -430,12 +430,13 @@ def record_puzzle_credit(run: PuzzleRun, session: Session) -> None:
             or not spec.interaction.solution
             or len(spec.interaction.solution) % 2 != 1
             or run.cursor != len(spec.interaction.solution)
-            or run.played_moves != spec.interaction.solution
         ):
             return
         for move in run.played_moves:
             source.push_uci(move)
-        if source.fen() != run.fen:
+        if source.fen() != run.fen or not matches_completed_solution(
+            run.played_moves, spec.interaction.solution, source,
+        ):
             return
     except (KeyError, TypeError, ValidationError, ValueError):
         return

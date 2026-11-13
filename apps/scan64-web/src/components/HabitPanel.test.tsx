@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from '../api/client';
 import type { DiagnosisPatternRead, HabitSummaryRead, HabitTargetRead, PatternsReport } from '../api/types';
@@ -29,15 +29,72 @@ const summary: HabitSummaryRead = {
 };
 
 beforeEach(() => {
+  vi.setSystemTime(new Date('2026-11-13T12:00:00Z'));
   vi.spyOn(ApiClient, 'getPlayerHabit').mockResolvedValue(summary);
   vi.spyOn(ApiClient, 'getPuzzleModes').mockResolvedValue({ themes: [], streak: { current: 7, best: 9, reset_reason: null } });
   vi.spyOn(ApiClient, 'updateHabitGoal');
   vi.spyOn(ApiClient, 'startHabitTarget');
   vi.spyOn(ApiClient, 'refreshHabitTarget');
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('HabitPanel', () => {
+  it('refreshes once at the server UTC reset and removes its timer on unmount', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-13T23:59:59Z'));
+    const next = { ...summary, utc_day: '2026-11-14', reset_at: '2026-11-15T00:00:00Z', qualifying_solves: 0 };
+    vi.mocked(ApiClient.getPlayerHabit).mockResolvedValueOnce(summary).mockResolvedValue(next);
+    const view = render(<HabitPanel playerId="owner" patterns={patterns} />);
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(ApiClient.getPlayerHabit).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/0\/3 qualifying solves/)).toBeInTheDocument();
+    fireEvent(document, new Event('visibilitychange'));
+    expect(ApiClient.getPlayerHabit).toHaveBeenCalledTimes(2);
+    view.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('checks reset on visible resume and ignores an old owner’s delayed read', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-13T23:59:59Z'));
+    const delayed = Promise.withResolvers<HabitSummaryRead>();
+    vi.mocked(ApiClient.getPlayerHabit).mockResolvedValueOnce(summary).mockReturnValueOnce(delayed.promise)
+      .mockResolvedValue({ ...summary, goal: 8, reset_at: '2026-11-15T00:00:00Z' });
+    const view = render(<HabitPanel playerId="owner" patterns={patterns} />);
+    await act(async () => {});
+    vi.setSystemTime(new Date('2026-11-14T00:01:00Z'));
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    fireEvent(document, new Event('visibilitychange'));
+    fireEvent(document, new Event('visibilitychange'));
+    await act(async () => {});
+    expect(ApiClient.getPlayerHabit).toHaveBeenCalledTimes(2);
+    view.rerender(<HabitPanel playerId="other" patterns={patterns} />);
+    await act(async () => {});
+    await act(async () => { delayed.resolve(summary); });
+    expect(screen.getByRole('spinbutton')).toHaveValue(8);
+    view.unmount();
+  });
+
+  it('clears only goal feedback on edit and retry while retaining a streak read failure', async () => {
+    vi.mocked(ApiClient.getPuzzleModes).mockRejectedValue(new Error('Modes offline'));
+    vi.mocked(ApiClient.updateHabitGoal).mockRejectedValueOnce(new Error('Save offline')).mockResolvedValue(summary);
+    render(<HabitPanel playerId="owner" patterns={patterns} />);
+    const input = await screen.findByRole('spinbutton');
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(screen.getByText(/Enter a positive whole-number goal/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(screen.queryByText(/Enter a positive whole-number goal/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Puzzle solve streak unavailable/)).toBeInTheDocument();
+    fireEvent.submit(input.closest('form')!);
+    expect(await screen.findByText(/Save offline/)).toBeInTheDocument();
+    fireEvent.submit(input.closest('form')!);
+    await screen.findByText(/Goal saved for the next UTC day/);
+    expect(screen.queryByText(/Save offline/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Puzzle solve streak unavailable/)).toBeInTheDocument();
+  });
+
   it('identifies an unfinished blocking game with an explicit resume-or-resign link', async () => {
     vi.mocked(ApiClient.getPlayerHabit).mockResolvedValue({ ...summary, targets: [{
       ...target, status: 'observing', blocking_game: {

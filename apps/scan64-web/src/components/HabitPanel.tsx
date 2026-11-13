@@ -54,6 +54,9 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
   const [streak, setStreak] = useState<PuzzleStreakRead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streakError, setStreakError] = useState<string | null>(null);
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const [changeError, setChangeError] = useState<string | null>(null);
+  const refreshedReset = useRef<string | null>(null);
   const [goalInput, setGoalInput] = useState('3');
   const [pending, setPending] = useState(false);
   const [request, setRequest] = useState(0);
@@ -68,6 +71,8 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
     const current = ++generation.current;
     setError(null);
     setStreakError(null);
+    setGoalError(null);
+    setChangeError(null);
     setPending(false);
     setMessage('');
     setSummary(null);
@@ -87,13 +92,32 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
     return () => { generation.current += 1; };
   }, [playerId, request]);
 
-  useEffect(() => { if (error || streakError) errorRef.current?.focus(); }, [error, streakError]);
+  useEffect(() => {
+    if (!summary || pending) return;
+    const reset = Date.parse(summary.reset_at);
+    if (!Number.isFinite(reset)) return;
+    const refreshIfDue = () => {
+      if (Date.now() < reset || refreshedReset.current === `${playerId}:${summary.reset_at}`) return;
+      refreshedReset.current = `${playerId}:${summary.reset_at}`;
+      setRequest(value => value + 1);
+    };
+    const timer = window.setTimeout(refreshIfDue, Math.max(0, reset - Date.now()));
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfDue(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [summary, pending, playerId]);
+
+  useEffect(() => { if (error || streakError || goalError || changeError) errorRef.current?.focus(); }, [error, streakError, goalError, changeError]);
   useEffect(() => { if (message) messageRef.current?.focus(); }, [message]);
 
-  async function act(action: () => Promise<HabitSummaryRead>, success: string) {
+  async function act(action: () => Promise<HabitSummaryRead>, success: string, isGoal = false) {
     const current = generation.current;
     setPending(true);
-    setError(null);
+    if (isGoal) setGoalError(null);
+    else setChangeError(null);
     setMessage('');
     try {
       const result = await action();
@@ -102,7 +126,9 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
       setGoalInput(String(result.pending_goal ?? result.goal));
       setMessage(success);
     } catch (cause: unknown) {
-      if (generation.current === current) setError(`Habit change could not be saved: ${cause instanceof Error ? cause.message : 'Please try again.'}`);
+      if (generation.current === current) {
+        (isGoal ? setGoalError : setChangeError)(`Habit change could not be saved: ${cause instanceof Error ? cause.message : 'Please try again.'}`);
+      }
     } finally {
       if (generation.current === current) setPending(false);
     }
@@ -115,10 +141,12 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
   return <div className="habit-panels">
     <section className="study-panel habit-daily" aria-label="Daily qualifying-solve goal">
       <h2>Your daily qualifying solves</h2>
-      {(error || streakError) ? <div role="alert" tabIndex={-1} ref={errorRef}>
+      {(error || streakError || goalError || changeError) ? <div role="alert" tabIndex={-1} ref={errorRef}>
         {error ? <p>{error}</p> : null}
         {streakError ? <p>{streakError}</p> : null}
-        <button disabled={pending} onClick={() => setRequest(value => value + 1)}>Retry habit record</button>
+        {goalError ? <p>{goalError}</p> : null}
+        {changeError ? <p>{changeError}</p> : null}
+        {(error || streakError) ? <button disabled={pending} onClick={() => setRequest(value => value + 1)}>Retry habit record</button> : null}
       </div> : null}
       {message ? <p role="status" tabIndex={-1} ref={messageRef}>{message}</p> : null}
       {!summary && !error ? <p role="status">Loading daily goal…</p> : null}
@@ -132,14 +160,15 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
           event.preventDefault();
           const goal = Number(goalInput);
           if (!Number.isSafeInteger(goal) || goal < 1) {
-            setError('Enter a positive whole-number goal. Today’s goal will not change.');
+            setGoalError('Enter a positive whole-number goal. Today’s goal will not change.');
             return;
           }
-          void act(() => ApiClient.updateHabitGoal(playerId, goal), 'Goal saved for the next UTC day. Today’s goal is unchanged.');
+          void act(() => ApiClient.updateHabitGoal(playerId, goal), 'Goal saved for the next UTC day. Today’s goal is unchanged.', true);
         }}>
           <label htmlFor={goalId}>Qualifying solves per day</label>
           <input id={goalId} type="number" min="1" step="1" required value={goalInput} disabled={pending}
-            aria-describedby={helpId} onChange={event => setGoalInput(event.target.value)} />
+            aria-describedby={helpId} aria-invalid={goalError ? true : undefined}
+            onChange={event => { setGoalInput(event.target.value); setGoalError(null); }} />
           <p id={helpId}>Positive whole numbers only. Every goal edit takes effect next UTC day, not today.</p>
           <button type="submit" disabled={pending}>{pending ? 'Saving habit change…' : 'Save next-day goal'}</button>
         </form>
