@@ -12,6 +12,9 @@ uv run pytest -m "not real_model"
 echo "== python: ruff =="
 uv run ruff check src tests scripts benchmarks
 
+echo "== python: ruff format =="
+uv run ruff format --check .
+
 echo "== python: mypy --strict =="
 uv run mypy --strict src/
 
