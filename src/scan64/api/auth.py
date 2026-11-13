@@ -19,6 +19,7 @@ def require_bearer_token(request: Request) -> str:
         )
     return token
 
+
 def require_authenticated_player(request: Request, session: Session) -> str:
     token_hash = player_token_hash(require_bearer_token(request))
     credential = session.exec(
@@ -31,6 +32,7 @@ def require_authenticated_player(request: Request, session: Session) -> str:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return credential.player_id
+
 
 def require_player_token(
     request: Request,

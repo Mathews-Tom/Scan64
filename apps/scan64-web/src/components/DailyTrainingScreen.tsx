@@ -94,6 +94,7 @@ export const DailyTrainingScreen: React.FC = () => {
   return <div className="daily-training-screen">
     <h2 ref={heading} tabIndex={-1}>Daily Training</h2><p role="status" aria-label="Lesson progress">Lesson {currentIndex + 1} of {sessionLessons.length}</p>
     <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
+      orientation={lesson.source.fen.split(' ')[1] === 'b' ? 'black' : 'white'}
       resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
       visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
       onMove={submitMove} />

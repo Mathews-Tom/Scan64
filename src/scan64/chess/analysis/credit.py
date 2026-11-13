@@ -75,8 +75,7 @@ def positive_move_proof(
         return None, "missing source analysis"
     probabilities = (row.before_probability, row.after_probability)
     if any(
-        value is None or not math.isfinite(value) or not 0 <= value <= 1
-        for value in probabilities
+        value is None or not math.isfinite(value) or not 0 <= value <= 1 for value in probabilities
     ):
         return None, "unscored move"
     if review_band(review_loss(*probabilities)) != "sound":
@@ -189,11 +188,7 @@ def positive_move_proof(
         )
     elif board.gives_check(move):
         mate = first.get("score_mate")
-        winning_mate = (
-            isinstance(mate, int)
-            and not isinstance(mate, bool)
-            and mate > 0
-        )
+        winning_mate = isinstance(mate, int) and not isinstance(mate, bool) and mate > 0
         if not winning_mate and gain < 1:
             return None, "check does not prove mate or a material gain"
         proof.update(
@@ -392,11 +387,10 @@ def project_move_credits(
     # Choose across every eligible source before the first alpha update; input
     # order must not consume the budget before a stronger later tactic is seen.
     counts = Counter(credit.skill_id for credit in credits.values())
-    sources = {
-        (credit.canonical_id, credit.skill_id): credit.ply for credit in credits.values()
-    }
+    sources = {(credit.canonical_id, credit.skill_id): credit.ply for credit in credits.values()}
     candidates = [
-        (ply, proof) for ply, (proof, _) in result.items()
+        (ply, proof)
+        for ply, (proof, _) in result.items()
         if proof is not None and not proof.get("credited")
     ]
     for ply, proof in sorted(
@@ -408,9 +402,7 @@ def project_move_credits(
         skill_id = proof["skill_id"]
         key = (proof["canonical_id"], skill_id)
         if key in sources:
-            result[ply] = (
-                None, f"same position and skill already credited at ply {sources[key]}"
-            )
+            result[ply] = (None, f"same position and skill already credited at ply {sources[key]}")
         elif counts[skill_id] >= MAX_POSITIVE_CREDITS_PER_GAME_SKILL:
             result[ply] = (None, PER_GAME_CREDIT_CAP_REACHED)
         elif _for_award:

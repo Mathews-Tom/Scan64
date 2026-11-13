@@ -55,9 +55,7 @@ def create_report_game(
     )
     db_session.add(game)
     db_session.flush()
-    db_session.add(
-        AnalysisJob(game_id=game.id, status="completed", completed_at=datetime.now(UTC))
-    )
+    db_session.add(AnalysisJob(game_id=game.id, status="completed", completed_at=datetime.now(UTC)))
     return game
 
 
@@ -737,9 +735,7 @@ def test_coach_patterns_keep_cost_support_coverage_but_not_owner_actions(
     assert link.status_code == 201
     for _ in range(3):
         game = create_report_game(db_session, player_id)
-        create_report_lesson(
-            db_session, game, "threat_processing.missed_capture", with_review=True
-        )
+        create_report_lesson(db_session, game, "threat_processing.missed_capture", with_review=True)
     db_session.commit()
     owner = client.get(
         f"/v1/players/{player_id}/patterns",
@@ -783,9 +779,7 @@ def test_pattern_and_weekly_gets_do_not_write_reverify_or_search(
     token = create_player_token(client, player_id)
     for _ in range(3):
         game = create_report_game(db_session, player_id)
-        create_report_lesson(
-            db_session, game, "threat_processing.missed_capture", with_review=True
-        )
+        create_report_lesson(db_session, game, "threat_processing.missed_capture", with_review=True)
     db_session.commit()
 
     def forbidden(*args: Any, **kwargs: Any) -> None:
@@ -844,22 +838,21 @@ def test_patterns_never_score_a_review_from_the_wrong_game_or_source(
     foreign = create_report_game(db_session, "foreign-review-owner")
     for _ in range(3):
         game = create_report_game(db_session, player_id)
-        create_report_lesson(
-            db_session, game, "threat_processing.missed_capture", with_review=True
-        )
-        row = db_session.exec(
-            select(GameMoveReview).where(GameMoveReview.game_id == game.id)
-        ).one()
+        create_report_lesson(db_session, game, "threat_processing.missed_capture", with_review=True)
+        row = db_session.exec(select(GameMoveReview).where(GameMoveReview.game_id == game.id)).one()
         if wrong_join == "source":
             row.source_position_id = row.reached_position_id
         else:
             # Give every foreign occurrence a distinct ply to preserve the table key.
             row.game_id = foreign.id
-            row.ply = len(
-                db_session.exec(
-                    select(GameMoveReview).where(GameMoveReview.game_id == foreign.id)
-                ).all()
-            ) + 1
+            row.ply = (
+                len(
+                    db_session.exec(
+                        select(GameMoveReview).where(GameMoveReview.game_id == foreign.id)
+                    ).all()
+                )
+                + 1
+            )
     db_session.commit()
 
     response = client.get(

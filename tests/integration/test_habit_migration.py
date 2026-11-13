@@ -22,8 +22,13 @@ from scan64.learning.profiling.models import SkillState
 from scan64.persistence.database import _migration_config
 
 HABIT_TABLES = (
-    "habitpolicy", "habitgoal", "habitday", "habitcredit",
-    "patterntarget", "patternaward", "patternawardevidence",
+    "habitpolicy",
+    "habitgoal",
+    "habitday",
+    "habitcredit",
+    "patterntarget",
+    "patternaward",
+    "patternawardevidence",
 )
 
 
@@ -134,9 +139,10 @@ def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospecti
             session.commit()
         with engine.connect() as connection:
             assert connection.execute(text("SELECT COUNT(*) FROM habitcredit")).scalar_one() == 0
-            assert connection.execute(
-                text("SELECT COUNT(*) FROM patternawardevidence")
-            ).scalar_one() == 5
+            assert (
+                connection.execute(text("SELECT COUNT(*) FROM patternawardevidence")).scalar_one()
+                == 5
+            )
             assert connection.execute(text("SELECT COUNT(*) FROM game")).scalar_one() == 5
             assert connection.execute(text("PRAGMA foreign_key_check")).all() == []
         if cycle == 0:
@@ -144,9 +150,9 @@ def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospecti
             assert not habit_tables & set(inspect(engine).get_table_names())
             with engine.connect() as connection:
                 assert connection.execute(text("SELECT COUNT(*) FROM game")).scalar_one() == 5
-                assert connection.execute(
-                    text("SELECT COUNT(*) FROM analysisjob")
-                ).scalar_one() == 5
+                assert (
+                    connection.execute(text("SELECT COUNT(*) FROM analysisjob")).scalar_one() == 5
+                )
     source = create_engine(f"sqlite:///{original}")
     assert not habit_tables & set(inspect(source).get_table_names())
     with source.connect() as connection:
@@ -160,7 +166,8 @@ def test_habit_populated_copy_up_down_up_preserves_learning_and_starts_prospecti
 
 @pytest.mark.parametrize("existing_count", range(1, len(HABIT_TABLES) + 1))
 def test_habit_migration_retry_completes_partial_schema_without_changing_cutover(
-    tmp_path: Path, existing_count: int,
+    tmp_path: Path,
+    existing_count: int,
 ) -> None:
     engine = create_engine(f"sqlite:///{tmp_path / 'partial.db'}")
     config = _migration_config(engine)
@@ -174,9 +181,13 @@ def test_habit_migration_retry_completes_partial_schema_without_changing_cutover
     with Session(engine) as session:
         session.add(HabitPolicy(player_id="existing-cutover", effective_at=preserved))
         if existing_count >= 3:
-            session.add(HabitDay(
-                player_id="existing-cutover", utc_day=preserved.date().isoformat(), goal=7,
-            ))
+            session.add(
+                HabitDay(
+                    player_id="existing-cutover",
+                    utc_day=preserved.date().isoformat(),
+                    goal=7,
+                )
+            )
         session.commit()
     if existing_count >= 4:
         # A failed index DDL must not be hidden by the table's presence either.

@@ -3,7 +3,6 @@ import os
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -56,6 +55,9 @@ class AdmissionController:
         # Background worker task
         self._worker_task: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
+        self._running_tasks: set[asyncio.Task[None]] = set()
+        self._pending: set[asyncio.Future[Any]] = set()
+        self._stopping = False
 
     def _get_current_date(self) -> str:
         return time.strftime("%Y-%m-%d")
@@ -82,20 +84,31 @@ class AdmissionController:
     def submit(
         self, player_id: str, task_func: Callable[[], Awaitable[Any]]
     ) -> asyncio.Future[Any]:
+        if self._stopping:
+            raise RuntimeError("Analysis admission is shutting down")
         future: asyncio.Future[Any] = asyncio.Future()
+        self._pending.add(future)
+        future.add_done_callback(self._pending.discard)
 
         async def wrapped_task() -> None:
             try:
                 result = await task_func()
-                future.set_result(result)
+                if not future.done():
+                    future.set_result(result)
+            except asyncio.CancelledError:
+                future.cancel()
+                raise
             except Exception as e:
-                future.set_exception(e)
+                if not future.done():
+                    future.set_exception(e)
 
         usage = self._get_usage(player_id)
         if usage < self.config.daily_quota_games:
             # Within quota: execute "immediately" (meaning, schedule it on the event loop now)
             self._increment_usage(player_id)
-            asyncio.create_task(wrapped_task())
+            task = asyncio.create_task(wrapped_task())
+            self._running_tasks.add(task)
+            task.add_done_callback(self._running_tasks.discard)
         else:
             # Over quota: add to fair-share queue
             if player_id not in self.active_players:
@@ -134,13 +147,24 @@ class AdmissionController:
                 self.active_players.append(player_id)
 
     async def stop(self) -> None:
+        self._stopping = True
         self._stop_event.set()
-        worker = self._worker_task
-        if worker is not None:
-            worker.cancel()
-            with suppress(asyncio.CancelledError):
-                await worker
+        tasks = set(self._running_tasks)
+        if self._worker_task is not None:
+            tasks.add(self._worker_task)
+        try:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            for future in self._pending:
+                future.cancel()
+            self._pending.clear()
+            self._running_tasks.clear()
+            self.queues.clear()
+            self.active_players.clear()
             self._worker_task = None
+        finally:
+            self._stopping = False
 
 
 admission_controller = AdmissionController(

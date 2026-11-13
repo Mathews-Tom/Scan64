@@ -48,9 +48,7 @@ async def test_llm_config_selects_ollama_adapter_with_the_supplied_client(
 ) -> None:
     config_path = _write_toml(
         tmp_path,
-        '[llm]\nprovider = "ollama"\n'
-        'model = "llama3"\n'
-        'base_url = "http://localhost:11434"\n',
+        '[llm]\nprovider = "ollama"\nmodel = "llama3"\nbase_url = "http://localhost:11434"\n',
     )
     async with httpx.AsyncClient() as client:
         provider = load_configured_llm_provider(
@@ -86,9 +84,7 @@ async def test_llm_config_selects_hosted_adapter_with_the_supplied_client(
 async def test_llm_config_enabled_without_a_client_is_rejected(tmp_path: Path) -> None:
     config_path = _write_toml(
         tmp_path,
-        '[llm]\nprovider = "ollama"\n'
-        'model = "llama3"\n'
-        'base_url = "http://localhost:11434"\n',
+        '[llm]\nprovider = "ollama"\nmodel = "llama3"\nbase_url = "http://localhost:11434"\n',
     )
     with pytest.raises(LLMConfigurationError, match="HTTP client is required"):
         load_configured_llm_provider(environment={"SCAN64_LLM_CONFIG": str(config_path)})

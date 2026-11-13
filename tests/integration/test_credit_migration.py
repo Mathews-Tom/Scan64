@@ -28,16 +28,24 @@ def test_copy_migration_preserves_unknown_sessions_and_downgrade_keeps_alpha(
     old_session_id = uuid4()
     with Session(engine) as session:
         session.add(Player(id=player_id, preferences={"preserved": True}))
-        session.add(SkillState(
-            player_id=player_id, concept_code="tactics.hanging_piece", alpha=4.25, beta=2.75,
-        ))
+        session.add(
+            SkillState(
+                player_id=player_id,
+                concept_code="tactics.hanging_piece",
+                alpha=4.25,
+                beta=2.75,
+            )
+        )
         session.commit()
     with engine.begin() as connection:
-        connection.execute(text(
-            "INSERT INTO playsession "
-            "(id, player_id, game_id, opponent_config, clock_config, coach_mode, status) "
-            "VALUES (:id, :player, NULL, '{}', NULL, 0, 'active')"
-        ), {"id": old_session_id.hex, "player": player_id})
+        connection.execute(
+            text(
+                "INSERT INTO playsession "
+                "(id, player_id, game_id, opponent_config, clock_config, coach_mode, status) "
+                "VALUES (:id, :player, NULL, '{}', NULL, 0, 'active')"
+            ),
+            {"id": old_session_id.hex, "player": player_id},
+        )
     engine.dispose()
     copy2(original, working)
     engine = create_engine(f"sqlite:///{working}")
@@ -48,10 +56,14 @@ def test_copy_migration_preserves_unknown_sessions_and_downgrade_keeps_alpha(
     assert columns["assistance_tracking_version"]["nullable"] is True
     assert columns["credit_analysis_status"]["nullable"] is True
     assert set(inspector.get_pk_constraint("sessionhintreveal")["constrained_columns"]) == {
-        "session_id", "prefix_hash",
+        "session_id",
+        "prefix_hash",
     }
     assert set(inspector.get_pk_constraint("positivemovecredit")["constrained_columns"]) == {
-        "player_id", "game_id", "canonical_id", "skill_id",
+        "player_id",
+        "game_id",
+        "canonical_id",
+        "skill_id",
     }
     assert len(inspector.get_foreign_keys("sessionhintreveal")) == 1
     assert len(inspector.get_foreign_keys("positivemovecredit")) == 3
@@ -87,9 +99,14 @@ def test_copy_migration_preserves_unknown_sessions_and_downgrade_keeps_alpha(
     with engine.connect() as connection:
         assert connection.execute(text("SELECT COUNT(*) FROM positivemovecredit")).scalar_one() == 0
         assert connection.execute(text("SELECT COUNT(*) FROM sessionhintreveal")).scalar_one() == 0
-        assert connection.execute(text(
-            "SELECT COUNT(*) FROM playsession WHERE assistance_tracking_version IS NOT NULL"
-        )).scalar_one() == 0
+        assert (
+            connection.execute(
+                text(
+                    "SELECT COUNT(*) FROM playsession WHERE assistance_tracking_version IS NOT NULL"
+                )
+            ).scalar_one()
+            == 0
+        )
     backup_engine = create_engine(f"sqlite:///{original}")
     with backup_engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (

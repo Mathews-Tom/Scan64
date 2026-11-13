@@ -23,12 +23,17 @@ def _king_escapes(board: chess.Board, color: chess.Color) -> set[chess.Square]:
     }
 
 
-def _back_rank_mate_threat(board: chess.Board, color: chess.Color) -> bool:
+def _back_rank_mate_threat(
+    board: chess.Board, color: chess.Color, *, ignore_check: bool = False
+) -> bool:
     probe = board.copy(stack=False)
     probe.turn = not color
     probe.ep_square = None
     home_rank = 0 if color else 7
-    for move in list(probe.legal_moves):
+    # After a checking candidate, test the latent mating pattern too: having
+    # to answer check does not prove the newly opened square defeats that mate.
+    moves = probe.pseudo_legal_moves if ignore_check and probe.is_check() else probe.legal_moves
+    for move in list(moves):
         if (
             probe.piece_type_at(move.from_square) not in (chess.ROOK, chess.QUEEN)
             or chess.square_rank(move.to_square) != home_rank
@@ -125,7 +130,7 @@ def principle_facts(
         and (escapes := _king_escapes(after, color))
         and move.from_square in escapes
         and _back_rank_mate_threat(board, color)
-        and not _back_rank_mate_threat(after, color)
+        and not _back_rank_mate_threat(after, color, ignore_check=True)
     ):
         facts.append(
             (

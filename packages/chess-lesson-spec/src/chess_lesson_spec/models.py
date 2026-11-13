@@ -208,9 +208,7 @@ class LessonSpec(BaseModel):
             "allOf": [
                 {
                     "if": {
-                        "properties": {
-                            "source": {"properties": {"kind": {"const": "player_game"}}}
-                        }
+                        "properties": {"source": {"properties": {"kind": {"const": "player_game"}}}}
                     },
                     "then": {
                         "required": ["diagnosis"],

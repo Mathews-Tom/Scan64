@@ -94,10 +94,13 @@ def test_plugin_registration_accepts_a_conforming_plugin() -> None:
         plugin=detector,
     )
 
-    assert registry.get(
-        kind=PluginKind.PATTERN_DETECTOR,
-        name="third_party.example_detector",
-    ) is detector
+    assert (
+        registry.get(
+            kind=PluginKind.PATTERN_DETECTOR,
+            name="third_party.example_detector",
+        )
+        is detector
+    )
     assert registry.names(kind=PluginKind.PATTERN_DETECTOR) == ("third_party.example_detector",)
 
 
@@ -271,9 +274,7 @@ async def test_lifespan_binds_and_clears_the_seeded_detector_registry(
 
     async with app_module.lifespan(app_module.app):
         assert app_module.app.state.plugin_registry is get_host_registry()
-        assert get_host_registry().names(kind=PluginKind.PATTERN_DETECTOR) == tuple(
-            SEED_CODES
-        )
+        assert get_host_registry().names(kind=PluginKind.PATTERN_DETECTOR) == tuple(SEED_CODES)
 
     with pytest.raises(RuntimeError, match="not initialized"):
         get_host_registry()

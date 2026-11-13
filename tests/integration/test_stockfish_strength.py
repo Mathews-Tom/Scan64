@@ -72,11 +72,17 @@ def test_stockfish_accepts_named_levels(
 
 @pytest.mark.parametrize("config", [{}, {"provider": "stockfish"}])
 def test_stockfish_resolves_default_from_owned_state(
-    client: TestClient, db_session: Session, config: dict[str, str],
+    client: TestClient,
+    db_session: Session,
+    config: dict[str, str],
 ) -> None:
-    assert "bot_level" not in PlaySessionCreate(
-        player_id="player", opponent_config=config,
-    ).opponent_config
+    assert (
+        "bot_level"
+        not in PlaySessionCreate(
+            player_id="player",
+            opponent_config=config,
+        ).opponent_config
+    )
     authorize(client, db_session)
     response = client.post(
         "/v1/play-sessions",
@@ -366,9 +372,10 @@ def test_takeback_conflicts_when_resign_commits_after_read(
     app.dependency_overrides[get_opponent_provider] = lambda: opponent
     created = client.post("/v1/play-sessions", json={"player_id": "skill-player"}).json()
     session_id = created["id"]
-    assert client.post(
-        f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}
-    ).status_code == 200
+    assert (
+        client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}).status_code
+        == 200
+    )
     original_build = service_module.build_pgn
     injected = False
 
@@ -404,12 +411,11 @@ def test_move_conflicts_when_takeback_commits_during_engine_wait(
     opponent = AsyncMock()
     opponent.choose_move.return_value = MoveDecision(uci_move="e7e5")
     app.dependency_overrides[get_opponent_provider] = lambda: opponent
-    session_id = client.post(
-        "/v1/play-sessions", json={"player_id": "skill-player"}
-    ).json()["id"]
-    assert client.post(
-        f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}
-    ).status_code == 200
+    session_id = client.post("/v1/play-sessions", json={"player_id": "skill-player"}).json()["id"]
+    assert (
+        client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}).status_code
+        == 200
+    )
 
     async def takeback_before_reply(*args: object) -> MoveDecision:
         with Session(db_module.engine) as concurrent:
@@ -417,9 +423,7 @@ def test_move_conflicts_when_takeback_commits_during_engine_wait(
         return MoveDecision(uci_move="b8c6")
 
     opponent.choose_move.side_effect = takeback_before_reply
-    response = client.post(
-        f"/v1/play-sessions/{session_id}/moves", json={"move": "g1f3"}
-    )
+    response = client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "g1f3"})
     assert response.status_code == 409, response.text
     db_session.expire_all()
     play = db_session.get(PlaySession, UUID(session_id))
@@ -442,13 +446,12 @@ def test_resign_pgn_reflects_takeback_committed_after_resign_read(
         MoveDecision(uci_move="b8c6"),
     ]
     app.dependency_overrides[get_opponent_provider] = lambda: opponent
-    session_id = client.post(
-        "/v1/play-sessions", json={"player_id": "skill-player"}
-    ).json()["id"]
+    session_id = client.post("/v1/play-sessions", json={"player_id": "skill-player"}).json()["id"]
     for move in ("e2e4", "g1f3"):
-        assert client.post(
-            f"/v1/play-sessions/{session_id}/moves", json={"move": move}
-        ).status_code == 200
+        assert (
+            client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": move}).status_code
+            == 200
+        )
     original_human_color = PlaySessionService.human_color
     injected = False
 

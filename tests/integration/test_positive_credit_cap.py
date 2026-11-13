@@ -36,12 +36,15 @@ RECORDING = json.loads(
 def _stage(session: Session) -> tuple[Game, PlaySession]:
     game = Game.model_validate(RECORDING["game"])
     play = PlaySession.model_validate(RECORDING["play_session"])
-    session.add_all([
-        game, play,
-        *(Position.model_validate(row) for row in RECORDING["positions"]),
-        *(EngineAnalysis.model_validate(row) for row in RECORDING["engine_analyses"]),
-        *(GameMoveReview.model_validate(row) for row in RECORDING["review_moves"]),
-    ])
+    session.add_all(
+        [
+            game,
+            play,
+            *(Position.model_validate(row) for row in RECORDING["positions"]),
+            *(EngineAnalysis.model_validate(row) for row in RECORDING["engine_analyses"]),
+            *(GameMoveReview.model_validate(row) for row in RECORDING["review_moves"]),
+        ]
+    )
     session.commit()
     return game, play
 
@@ -61,8 +64,7 @@ def test_strongest_two_captures_and_earliest_two_mates_are_credited(
     review = build_game_review(game, db_session, include_key_moments=False)
     assert {move.ply for move in review.moves if move.credit} == {5, 11, 13, 15}
     assert {
-        move.ply for move in review.moves
-        if move.credit_exclusion == PER_GAME_CREDIT_CAP_REACHED
+        move.ply for move in review.moves if move.credit_exclusion == PER_GAME_CREDIT_CAP_REACHED
     } == {3, 19}
     skills = db_session.exec(select(SkillState)).all()
     assert len(skills) == 2
@@ -101,11 +103,15 @@ def test_recorded_mating_capture_precedes_higher_gain_non_mating_captures() -> N
         before = chess.Board(case["predecessor_fen"])
         game_id = uuid4()
         source = Position(
-            game_id=game_id, fen=board.fen(), canonical_id=board.epd(),
+            game_id=game_id,
+            fen=board.fen(),
+            canonical_id=board.epd(),
             side_to_move="w" if board.turn else "b",
         )
         predecessor = Position(
-            game_id=game_id, fen=before.fen(), canonical_id=before.epd(),
+            game_id=game_id,
+            fen=before.fen(),
+            canonical_id=before.epd(),
             side_to_move="w" if before.turn else "b",
         )
         analysis = EngineAnalysis(position_id=source.id, raw_result=case["raw_result"])
@@ -113,14 +119,23 @@ def test_recorded_mating_capture_precedes_higher_gain_non_mating_captures() -> N
         probability = win_probability(case["raw_result"][0])
         assert probability is not None
         row = GameMoveReview(
-            game_id=game_id, ply=case["source_ply"], source_position_id=source.id,
-            reached_position_id=uuid4(), before_analysis_id=analysis.id,
-            after_analysis_id=uuid4(), move_uci=move.uci(), san=board.san(move),
-            mover="white" if board.turn else "black", before_probability=probability,
+            game_id=game_id,
+            ply=case["source_ply"],
+            source_position_id=source.id,
+            reached_position_id=uuid4(),
+            before_analysis_id=analysis.id,
+            after_analysis_id=uuid4(),
+            move_uci=move.uci(),
+            san=board.san(move),
+            mover="white" if board.turn else "black",
+            before_probability=probability,
             after_probability=1 - probability,
         )
         proof, reason = positive_move_proof(
-            row, source, analysis, predecessor=predecessor,
+            row,
+            source,
+            analysis,
+            predecessor=predecessor,
             preceding_move_uci=case["preceding_move_uci"],
         )
         assert reason is None and proof is not None
@@ -134,7 +149,9 @@ def test_recorded_mating_capture_precedes_higher_gain_non_mating_captures() -> N
 
 @pytest.mark.parametrize("over_cap", [False, True])
 def test_archive_enforces_two_per_game_skill_before_any_restore_writes(
-    client: TestClient, db_session: Session, over_cap: bool,
+    client: TestClient,
+    db_session: Session,
+    over_cap: bool,
 ) -> None:
     registered = client.post("/v1/players", json={"id": "cap-owner"})
     assert registered.status_code == 200
@@ -146,29 +163,45 @@ def test_archive_enforces_two_per_game_skill_before_any_restore_writes(
     assert exported.status_code == 200
     archive = exported.json()
     if over_cap:
-        row = db_session.exec(select(GameMoveReview).where(
-            GameMoveReview.game_id == game.id, GameMoveReview.ply == 3,
-        )).one()
-        previous = db_session.exec(select(GameMoveReview).where(
-            GameMoveReview.game_id == game.id, GameMoveReview.ply == 2,
-        )).one()
+        row = db_session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == game.id,
+                GameMoveReview.ply == 3,
+            )
+        ).one()
+        previous = db_session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == game.id,
+                GameMoveReview.ply == 2,
+            )
+        ).one()
         source = db_session.get(Position, row.source_position_id)
         analysis = db_session.get(EngineAnalysis, row.before_analysis_id)
         predecessor = db_session.get(Position, previous.source_position_id)
         assert source is not None and analysis is not None
         proof, reason = positive_move_proof(
-            row, source, analysis, predecessor=predecessor,
+            row,
+            source,
+            analysis,
+            predecessor=predecessor,
             preceding_move_uci=previous.move_uci,
         )
         assert proof is not None and reason is None
         extra = PositiveMoveCredit(
-            player_id="cap-owner", game_id=game.id, canonical_id=source.canonical_id,
-            skill_id=CAPTURE_SKILL, ply=3, source_analysis_id=analysis.id,
-            reached_analysis_id=row.after_analysis_id, proof=proof,
+            player_id="cap-owner",
+            game_id=game.id,
+            canonical_id=source.canonical_id,
+            skill_id=CAPTURE_SKILL,
+            ply=3,
+            source_analysis_id=analysis.id,
+            reached_analysis_id=row.after_analysis_id,
+            proof=proof,
         )
         archive["positive_move_credits"].append(extra.model_dump(mode="json"))
     deleted = client.request(
-        "DELETE", "/v1/players/cap-owner/data", headers=headers,
+        "DELETE",
+        "/v1/players/cap-owner/data",
+        headers=headers,
         json={"dry_run": False, "confirmation": "delete-cap-owner"},
     )
     assert deleted.status_code == 200

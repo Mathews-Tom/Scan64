@@ -138,7 +138,10 @@ class PlaySessionService:
         return decision.uci_move
 
     def persist_moves(
-        self, play_session: PlaySession, game: Game, moves_before: list[str],
+        self,
+        play_session: PlaySession,
+        game: Game,
+        moves_before: list[str],
         snapshot: PlaySnapshot,
     ) -> None:
         """Publish a move edit only while its active-session snapshot still matches."""
@@ -148,7 +151,8 @@ class PlaySessionService:
         except StalePlaySnapshot as error:
             raise PlaySessionNotActive(str(error)) from error
         play_session.opponent_config = {
-            **config, "assistance_generation": claimed_config["assistance_generation"]
+            **config,
+            "assistance_generation": claimed_config["assistance_generation"],
         }
         pgn = build_pgn(game)
         with self.db.no_autoflush:

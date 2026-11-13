@@ -118,9 +118,7 @@ def _ordered_family_ids(
         if family_id not in {required_family_id, familiar_family_id}
     )
     ordered_family_ids = [
-        family_id
-        for family_id in (required_family_id, familiar_family_id)
-        if family_id is not None
+        family_id for family_id in (required_family_id, familiar_family_id) if family_id is not None
     ]
     return tuple(ordered_family_ids + remaining_family_ids)
 

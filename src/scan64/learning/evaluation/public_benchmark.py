@@ -95,9 +95,7 @@ def gate_public_benchmark_records(
         _require_identifier("game_id", record.game_id)
         if record.provenance_tag is None:
             refused.append(
-                RefusedBenchmarkRecord(
-                    game_id=record.game_id, reason=MISSING_PROVENANCE_TAG_REASON
-                )
+                RefusedBenchmarkRecord(game_id=record.game_id, reason=MISSING_PROVENANCE_TAG_REASON)
             )
             continue
         included.append(record)

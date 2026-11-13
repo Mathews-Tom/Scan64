@@ -68,9 +68,7 @@ def test_dry_run_defaults_true_and_is_propagated_as_metadata() -> None:
     default_report = gate_public_benchmark_records([_record("g1", ProvenanceTag.CC0)])
     assert default_report.dry_run is True
 
-    live_report = gate_public_benchmark_records(
-        [_record("g2", ProvenanceTag.CC0)], dry_run=False
-    )
+    live_report = gate_public_benchmark_records([_record("g2", ProvenanceTag.CC0)], dry_run=False)
     assert live_report.dry_run is False
     # dry_run only annotates the report; gating behavior is identical either way.
     assert live_report.included_count == 1

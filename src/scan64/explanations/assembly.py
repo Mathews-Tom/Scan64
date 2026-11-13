@@ -150,9 +150,7 @@ async def resolve_explanation(
         )
 
     async with httpx.AsyncClient() as owned_client:
-        provider = create_llm_provider(
-            config, client=owned_client, environment=environment_values
-        )
+        provider = create_llm_provider(config, client=owned_client, environment=environment_values)
         if provider is None:
             return template_explanation
         return await _attempt_grounded_generation(

@@ -39,8 +39,10 @@ async def test_engine_pool_isolation():
         await manager.close()
 
 
+@pytest.mark.parametrize("quota", [0, 1])
 def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
     monkeypatch: pytest.MonkeyPatch,
+    quota: int,
 ) -> None:
     from fastapi.testclient import TestClient
     from sqlalchemy.pool import StaticPool
@@ -51,13 +53,15 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
     from scan64.chess.analysis.admission import AdmissionConfig, AdmissionController
 
     shutdown_events: list[str] = []
-    controller = AdmissionController(AdmissionConfig(daily_quota_games=0))
+    controller = AdmissionController(AdmissionConfig(daily_quota_games=quota))
     monkeypatch.setattr("scan64.api.app.admission_controller", controller)
     close = EnginePoolManager.close
 
     async def record_close(manager: EnginePoolManager) -> None:
         assert shutdown_events == ["worker-stopped"]
         assert controller._worker_task is None
+        assert not controller._running_tasks
+        assert not controller._pending
         shutdown_events.append("close")
         await close(manager)
 

@@ -47,9 +47,13 @@ class PlaySnapshot:
     @classmethod
     def capture(cls, play: PlaySession, game: Game | None) -> "PlaySnapshot":
         return cls(
-            play.id, play.player_id, play.game_id, dict(play.opponent_config),
+            play.id,
+            play.player_id,
+            play.game_id,
+            dict(play.opponent_config),
             game.headers.get("FEN", chess.STARTING_FEN) if game else chess.STARTING_FEN,
-            dict(game.headers) if game else {}, list(game.moves) if game else [],
+            dict(game.headers) if game else {},
+            list(game.moves) if game else [],
         )
 
 
@@ -82,9 +86,9 @@ def claim_snapshot(session: Session, snapshot: PlaySnapshot) -> dict[str, str]:
             )
         )
     with session.no_autoflush:
-        changed = session.exec(statement.values(opponent_config=config).execution_options(
-            synchronize_session=False
-        ))
+        changed = session.exec(
+            statement.values(opponent_config=config).execution_options(synchronize_session=False)
+        )
     if changed.rowcount != 1:
         session.rollback()
         raise StalePlaySnapshot("PlaySession changed while generating the hint or move")
@@ -103,9 +107,14 @@ def persist_hint_reveal(
     reveal = session.get(SessionHintReveal, (snapshot.session_id, digest))
     if reveal is None:
         reveal = SessionHintReveal(
-            session_id=snapshot.session_id, player_id=snapshot.player_id,
-            prefix_hash=digest, canonical_id=board.epd(), ply=len(snapshot.moves) + 1,
-            initial_fen=snapshot.initial_fen, moves=snapshot.moves, highest_step=step,
+            session_id=snapshot.session_id,
+            player_id=snapshot.player_id,
+            prefix_hash=digest,
+            canonical_id=board.epd(),
+            ply=len(snapshot.moves) + 1,
+            initial_fen=snapshot.initial_fen,
+            moves=snapshot.moves,
+            highest_step=step,
         )
     else:
         reveal.highest_step = max(reveal.highest_step, step)

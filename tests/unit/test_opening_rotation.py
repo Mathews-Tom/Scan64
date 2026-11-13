@@ -93,11 +93,7 @@ def test_rotation_property_schedules_contrast_within_one_session(
     )
 
     assert len(session) == 1
-    assert (
-        family_by_id[session[0]["id"]].structure
-        != family_by_id[familiar_family_id].structure
-    )
-
+    assert family_by_id[session[0]["id"]].structure != family_by_id[familiar_family_id].structure
 
 
 def test_session_composer_limits_required_items_to_session_size() -> None:

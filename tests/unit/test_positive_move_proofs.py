@@ -33,10 +33,16 @@ def _inputs(name: str) -> tuple[GameMoveReview, Position, EngineAnalysis, Positi
     # Isolate the proof policy with exactly sound, scored A8 inputs. The
     # tactical PV/score itself is the unchanged recorded engine output.
     row = GameMoveReview(
-        game_id=uuid4(), ply=case["source_ply"], source_position_id=source.id,
-        reached_position_id=uuid4(), before_analysis_id=analysis.id,
-        after_analysis_id=uuid4(), move_uci=move.uci(), san=board.san(move),
-        mover="white" if board.turn else "black", before_probability=probability,
+        game_id=uuid4(),
+        ply=case["source_ply"],
+        source_position_id=source.id,
+        reached_position_id=uuid4(),
+        before_analysis_id=analysis.id,
+        after_analysis_id=uuid4(),
+        move_uci=move.uci(),
+        san=board.san(move),
+        mover="white" if board.turn else "black",
+        before_probability=probability,
         after_probability=1.0 - probability,
     )
     return row, source, analysis, predecessor
@@ -47,7 +53,10 @@ def test_recorded_conservative_tactical_proofs(name: str) -> None:
     row, source, analysis, predecessor = _inputs(name)
     case = CASES[name]
     proof, exclusion = credit.positive_move_proof(
-        row, source, analysis, predecessor=predecessor,
+        row,
+        source,
+        analysis,
+        predecessor=predecessor,
         preceding_move_uci=case["preceding_move_uci"],
     )
     if "exclusion" in case:
@@ -110,11 +119,13 @@ def test_missing_score_or_unscored_a8_is_not_credit() -> None:
     row, source, analysis, predecessor = _inputs("hung_white")
     row.after_probability = None
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "unscored move"
+        None,
+        "unscored move",
     )
     row.after_probability = 1.0
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "move is not A8 sound"
+        None,
+        "move is not A8 sound",
     )
 
 
@@ -123,7 +134,8 @@ def test_a_legal_alternative_is_not_the_exact_first_pv_move() -> None:
     row.move_uci = "a8a7"
     assert chess.Move.from_uci(row.move_uci) in chess.Board(source.fen).legal_moves
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "not the first source PV move"
+        None,
+        "not the first source PV move",
     )
 
 
@@ -132,7 +144,8 @@ def test_negative_owner_mate_score_is_not_a_winning_check() -> None:
     analysis.raw_result[0]["score_mate"] = -3
     row.before_probability, row.after_probability = 0.0, 1.0
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "check does not prove mate or a material gain"
+        None,
+        "check does not prove mate or a material gain",
     )
 
 
@@ -152,7 +165,10 @@ def test_epd_identity_ignores_counters_without_reusing_position_ids() -> None:
     row.source_position_id = repeated.id
     analysis.position_id = repeated.id
     proof, exclusion = credit.positive_move_proof(
-        row, repeated, analysis, predecessor=repeated_predecessor,
+        row,
+        repeated,
+        analysis,
+        predecessor=repeated_predecessor,
         preceding_move_uci=CASES["hung_white"]["preceding_move_uci"],
     )
     assert exclusion is None
@@ -180,28 +196,36 @@ def test_failed_observation_uses_reached_occurrences_then_canonical_sources() ->
     board.halfmove_clock += 4
     board.fullmove_number += 2
     repeated = ingest_fen(board.fen())
-    second = row.model_copy(update={
-        "id": uuid4(), "source_position_id": repeated.id, "reached_position_id": uuid4(),
-        "ply": row.ply + 4,
-    })
+    second = row.model_copy(
+        update={
+            "id": uuid4(),
+            "source_position_id": repeated.id,
+            "reached_position_id": uuid4(),
+            "ply": row.ply + 4,
+        }
+    )
     blocked = credit._failed_sources(
-        [row, second], {source.id: source, repeated.id: repeated},
+        [row, second],
+        {source.id: source, repeated.id: repeated},
         [(str(second.reached_position_id), credit.CAPTURE_SKILL)],
     )
     assert blocked == {(source.canonical_id, credit.CAPTURE_SKILL)}
-    assert credit._failed_sources(
-        [row], {source.id: source}, [(str(source.id), credit.CAPTURE_SKILL)]
-    ) == set()
+    assert (
+        credit._failed_sources([row], {source.id: source}, [(str(source.id), credit.CAPTURE_SKILL)])
+        == set()
+    )
 
 
 def test_source_score_and_notation_must_match_the_review_occurrence() -> None:
     row, source, analysis, predecessor = _inputs("hung_white")
     row.before_probability = 0.5
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "source score does not match review"
+        None,
+        "source score does not match review",
     )
     row, source, analysis, predecessor = _inputs("hung_white")
     row.san = "fake"
     assert credit.positive_move_proof(row, source, analysis, predecessor=predecessor) == (
-        None, "invalid move notation"
+        None,
+        "invalid move notation",
     )

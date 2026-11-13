@@ -74,8 +74,7 @@ def test_retrieval_selects_matching_motif_and_difficulty(session: Session) -> No
 
 def test_retrieval_respects_result_limit(session: Session) -> None:
     positions = [
-        make_position("tactics.pin", difficulty)
-        for difficulty in (1400, 1450, 1650, 1700)
+        make_position("tactics.pin", difficulty) for difficulty in (1400, 1450, 1650, 1700)
     ]
     session.add_all(positions)
     session.commit()

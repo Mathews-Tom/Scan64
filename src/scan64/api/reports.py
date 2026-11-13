@@ -91,6 +91,7 @@ class PatternsReport(BaseModel):
     status: Literal["insufficient_data", "no_recurring_diagnosis", "recurring_diagnosis"]
     recurring_diagnoses: list[DiagnosisPatternRead]
 
+
 def _skill_name(code: str) -> str:
     definition = SEED_CODES.get(code)
     return definition.name if definition is not None else "Unclassified skill"
@@ -436,9 +437,7 @@ def read_weekly_report(player_id: str, session: Session) -> WeeklyReport:
             for skill in sorted(active_skills, key=lambda skill: skill.concept_code)
         ],
         top_recurring_diagnosis=(
-            patterns.recurring_diagnoses[0]
-            if patterns.recurring_diagnoses
-            else None
+            patterns.recurring_diagnoses[0] if patterns.recurring_diagnoses else None
         ),
     )
 

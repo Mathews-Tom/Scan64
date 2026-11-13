@@ -158,7 +158,13 @@ def insight_step(
                 HighlightSquareCommand(square=square, description="Inspect this square.")
             ],
         )
-    motif = reason.kind.replace("_", " ") if reason else "engine preference"
+    # Even tactical reasons for a castle can identify it ("check with your king").
+    # Project the move class, not the first reason, and omit its tactical targets.
+    if board.is_castling(move):
+        motif = "king safety"
+        targets = []
+    else:
+        motif = reason.kind.replace("_", " ") if reason else "engine preference"
     text = f"Look for {motif} with your {piece}."
     return IdeaInsight(
         text=text,

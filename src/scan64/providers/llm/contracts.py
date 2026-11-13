@@ -15,8 +15,6 @@ class LLMMessage(BaseModel):
     content: str = Field(min_length=1)
 
 
-
-
 class GeneratedExplanation(BaseModel):
     """Schema-constrained explanation output before grounding validation."""
 

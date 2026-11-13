@@ -110,9 +110,7 @@ class SessionComposer:
         session: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         selected_object_ids = {id(item) for item in session}
-        remaining_items = [
-            item for item in pool if id(item) not in selected_object_ids
-        ]
+        remaining_items = [item for item in pool if id(item) not in selected_object_ids]
         remaining_items.sort(
             key=lambda item: (
                 item.get("priority", 0.0),
@@ -144,10 +142,12 @@ class SessionComposer:
             (item for item in optional_items if item.get("type") == "exploration"),
             key=lambda item: item.get("priority", 0.0),
             reverse=True,
-        )[:min(additional_exploration_needed, available_exploration_slots)]
+        )[: min(additional_exploration_needed, available_exploration_slots)]
         secured_object_ids = {id(item) for item in required_items + exploration_items}
         remaining_items = cls._remaining_items(optional_items, exploration_items)
         slots_left = max(session_size - len(required_items) - len(exploration_items), 0)
-        return required_items + exploration_items + [
-            item for item in remaining_items if id(item) not in secured_object_ids
-        ][:slots_left]
+        return (
+            required_items
+            + exploration_items
+            + [item for item in remaining_items if id(item) not in secured_object_ids][:slots_left]
+        )

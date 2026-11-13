@@ -27,25 +27,37 @@ from tests.integration.test_data_lifecycle_completeness import _authorization, _
 def _seed_credit_records(session: Session, player_id: str) -> None:
     moves = ["f2f3", "e7e5", "g2g4", "d8h4"]
     game = Game(
-        owner_player_id=player_id, owner_color="black", result="0-1",
-        moves=moves, pgn="1. f3 e5 2. g4 Qh4# 0-1",
+        owner_player_id=player_id,
+        owner_color="black",
+        result="0-1",
+        moves=moves,
+        pgn="1. f3 e5 2. g4 Qh4# 0-1",
     )
     session.add(game)
     session.flush()
     play = PlaySession(
-        player_id=player_id, game_id=game.id, status="completed",
-        assistance_tracking_version=1, credit_analysis_status="completed",
+        player_id=player_id,
+        game_id=game.id,
+        status="completed",
+        assistance_tracking_version=1,
+        credit_analysis_status="completed",
         opponent_config={"player_color": "black"},
     )
     board = chess.Board()
     for move in moves[:-1]:
         board.push_uci(move)
     source = Position(
-        game_id=game.id, fen=board.fen(), canonical_id=board.epd(), side_to_move="b",
+        game_id=game.id,
+        fen=board.fen(),
+        canonical_id=board.epd(),
+        side_to_move="b",
     )
     board.push_uci(moves[-1])
     reached = Position(
-        game_id=game.id, fen=board.fen(), canonical_id=board.epd(), side_to_move="w",
+        game_id=game.id,
+        fen=board.fen(),
+        canonical_id=board.epd(),
+        side_to_move="w",
     )
     session.add_all([play, source, reached])
     session.flush()
@@ -54,9 +66,17 @@ def _seed_credit_records(session: Session, player_id: str) -> None:
     session.add_all([before, after])
     session.flush()
     row = GameMoveReview(
-        game_id=game.id, ply=4, source_position_id=source.id, reached_position_id=reached.id,
-        before_analysis_id=before.id, after_analysis_id=after.id, move_uci="d8h4",
-        san="Qh4#", mover="black", before_probability=1.0, after_probability=0.0,
+        game_id=game.id,
+        ply=4,
+        source_position_id=source.id,
+        reached_position_id=reached.id,
+        before_analysis_id=before.id,
+        after_analysis_id=after.id,
+        move_uci="d8h4",
+        san="Qh4#",
+        mover="black",
+        before_probability=1.0,
+        after_probability=0.0,
     )
     proof, reason = positive_move_proof(row, source, before)
     assert reason is None and proof is not None
@@ -66,20 +86,32 @@ def _seed_credit_records(session: Session, player_id: str) -> None:
     hint_board = chess.Board()
     for move in hint_moves:
         hint_board.push_uci(move)
-    session.add_all([
-        row,
-        PositiveMoveCredit(
-            player_id=player_id, game_id=game.id, canonical_id=source.canonical_id,
-            skill_id=CHECK_SKILL, ply=4, source_analysis_id=before.id,
-            reached_analysis_id=after.id, proof=proof,
-        ),
-        SessionHintReveal(
-            session_id=play.id, player_id=player_id, initial_fen=chess.STARTING_FEN,
-            moves=hint_moves, prefix_hash=prefix_hash(chess.STARTING_FEN, hint_moves),
-            canonical_id=hint_board.epd(), ply=3, highest_step=3,
-        ),
-        SkillState(player_id=player_id, concept_code=CHECK_SKILL, alpha=3.0, beta=2.0),
-    ])
+    session.add_all(
+        [
+            row,
+            PositiveMoveCredit(
+                player_id=player_id,
+                game_id=game.id,
+                canonical_id=source.canonical_id,
+                skill_id=CHECK_SKILL,
+                ply=4,
+                source_analysis_id=before.id,
+                reached_analysis_id=after.id,
+                proof=proof,
+            ),
+            SessionHintReveal(
+                session_id=play.id,
+                player_id=player_id,
+                initial_fen=chess.STARTING_FEN,
+                moves=hint_moves,
+                prefix_hash=prefix_hash(chess.STARTING_FEN, hint_moves),
+                canonical_id=hint_board.epd(),
+                ply=3,
+                highest_step=3,
+            ),
+            SkillState(player_id=player_id, concept_code=CHECK_SKILL, alpha=3.0, beta=2.0),
+        ]
+    )
     session.commit()
 
 
@@ -89,12 +121,16 @@ def credit_archive(client: TestClient, db_session: Session) -> tuple[dict[str, A
     token = _create_player_token(client, player_id)
     _seed_credit_records(db_session, player_id)
     response = client.post(
-        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token),
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=_authorization(token),
     )
     assert response.status_code == 200
     archive: dict[str, Any] = response.json()
     dry_run = client.request(
-        "DELETE", f"/v1/players/{player_id}/data", json={"dry_run": True},
+        "DELETE",
+        f"/v1/players/{player_id}/data",
+        json={"dry_run": True},
         headers=_authorization(token),
     )
     assert dry_run.status_code == 200
@@ -102,7 +138,8 @@ def credit_archive(client: TestClient, db_session: Session) -> tuple[dict[str, A
     assert dry_run.json()["affected_rows"]["positive_move_credits"] == 1
     assert len(db_session.exec(select(PositiveMoveCredit)).all()) == 1
     deletion = client.request(
-        "DELETE", f"/v1/players/{player_id}/data",
+        "DELETE",
+        f"/v1/players/{player_id}/data",
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
         headers=_authorization(token),
     )
@@ -114,20 +151,27 @@ def credit_archive(client: TestClient, db_session: Session) -> tuple[dict[str, A
 
 
 def test_credit_restore_preserves_evidence_without_reapplying_alpha(
-    client: TestClient, db_session: Session, credit_archive: tuple[dict[str, Any], str],
+    client: TestClient,
+    db_session: Session,
+    credit_archive: tuple[dict[str, Any], str],
 ) -> None:
     archive, token = credit_archive
     player_id = archive["player"]["id"]
     global_item = ContentItem(
-        id="unchanged-reference", domain="tactics", licence="CC0-1.0",
-        provenance="curated", payload={"immutable": True},
+        id="unchanged-reference",
+        domain="tactics",
+        licence="CC0-1.0",
+        provenance="curated",
+        payload={"immutable": True},
     )
     db_session.add(global_item)
     db_session.commit()
     response = client.post("/v1/imports", json=archive, headers=_authorization(token))
     assert response.status_code == 200
     restored = client.post(
-        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token),
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=_authorization(token),
     )
     assert restored.status_code == 200
     for field in ("positive_move_credits", "session_hint_reveals", "play_sessions", "skill_states"):
@@ -142,7 +186,9 @@ def test_credit_restore_preserves_evidence_without_reapplying_alpha(
 
 
 def test_old_archive_restores_unknown_assistance(
-    client: TestClient, db_session: Session, credit_archive: tuple[dict[str, Any], str],
+    client: TestClient,
+    db_session: Session,
+    credit_archive: tuple[dict[str, Any], str],
 ) -> None:
     archive, token = credit_archive
     archive.pop("positive_move_credits")
@@ -159,11 +205,22 @@ def test_old_archive_restores_unknown_assistance(
     assert db_session.exec(select(PositiveMoveCredit)).all() == []
 
 
-@pytest.mark.parametrize("field", [
-    "player_id", "game_id", "canonical_id", "skill_id", "source_analysis_id", "reached_analysis_id",
-])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "player_id",
+        "game_id",
+        "canonical_id",
+        "skill_id",
+        "source_analysis_id",
+        "reached_analysis_id",
+    ],
+)
 def test_credit_import_rejects_foreign_or_unbound_provenance(
-    client: TestClient, db_session: Session, credit_archive: tuple[dict[str, Any], str], field: str,
+    client: TestClient,
+    db_session: Session,
+    credit_archive: tuple[dict[str, Any], str],
+    field: str,
 ) -> None:
     archive, token = credit_archive
     archive["positive_move_credits"][0][field] = str(uuid4())
@@ -173,13 +230,33 @@ def test_credit_import_rejects_foreign_or_unbound_provenance(
     assert db_session.exec(select(PositiveMoveCredit)).all() == []
 
 
-@pytest.mark.parametrize("mutation", [
-    "proof", "duplicate_credit", "duplicate_reveal", "hinted_source", "unknown", "active",
-    "coach", "custom_start", "early_analysis", "false_version", "wrong_ply", "forged_history",
-    "hint_owner", "hint_session", "hint_hash", "hint_canonical", "hint_illegal_line", "hint_step",
-])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "proof",
+        "duplicate_credit",
+        "duplicate_reveal",
+        "hinted_source",
+        "unknown",
+        "active",
+        "coach",
+        "custom_start",
+        "early_analysis",
+        "false_version",
+        "wrong_ply",
+        "forged_history",
+        "hint_owner",
+        "hint_session",
+        "hint_hash",
+        "hint_canonical",
+        "hint_illegal_line",
+        "hint_step",
+    ],
+)
 def test_credit_import_preflights_entire_graph_before_writing(
-    client: TestClient, db_session: Session, credit_archive: tuple[dict[str, Any], str],
+    client: TestClient,
+    db_session: Session,
+    credit_archive: tuple[dict[str, Any], str],
     mutation: str,
 ) -> None:
     archive, token = credit_archive
@@ -233,7 +310,9 @@ def test_credit_import_preflights_entire_graph_before_writing(
 
 
 def test_archive_cannot_attach_hints_to_another_players_session(
-    client: TestClient, db_session: Session, credit_archive: tuple[dict[str, Any], str],
+    client: TestClient,
+    db_session: Session,
+    credit_archive: tuple[dict[str, Any], str],
 ) -> None:
     archive, token = credit_archive
     foreign_id = "foreign-session-owner"
@@ -249,7 +328,9 @@ def test_archive_cannot_attach_hints_to_another_players_session(
 
 @pytest.mark.parametrize("legacy", [False, True])
 def test_credit_archive_restores_into_a_fresh_database(
-    tmp_path: Path, credit_archive: tuple[dict[str, Any], str], legacy: bool,
+    tmp_path: Path,
+    credit_archive: tuple[dict[str, Any], str],
+    legacy: bool,
 ) -> None:
     archive, token = credit_archive
     if legacy:
@@ -260,12 +341,17 @@ def test_credit_archive_restores_into_a_fresh_database(
             play.pop("credit_analysis_status")
     engine = create_engine(f"sqlite:///{tmp_path / 'fresh-restore.db'}")
     SQLModel.metadata.create_all(engine)
-    request = Request({
-        "type": "http", "headers": [(b"authorization", f"Bearer {token}".encode("ascii"))],
-    })
+    request = Request(
+        {
+            "type": "http",
+            "headers": [(b"authorization", f"Bearer {token}".encode("ascii"))],
+        }
+    )
     with Session(engine) as session:
         assert import_player_data(
-            request, ExportArchive.model_validate(archive), session=session,
+            request,
+            ExportArchive.model_validate(archive),
+            session=session,
         ) == {"status": "imported"}
         assert len(session.exec(select(PositiveMoveCredit)).all()) == (0 if legacy else 1)
         assert len(session.exec(select(SessionHintReveal)).all()) == (0 if legacy else 1)
@@ -278,28 +364,39 @@ def test_credit_archive_restores_into_a_fresh_database(
 
 
 def test_no_game_first_hint_roundtrips(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     player_id = "first-hint-archive-owner"
     token = _create_player_token(client, player_id)
     play = PlaySession(player_id=player_id, assistance_tracking_version=1)
     db_session.add(play)
     db_session.flush()
-    db_session.add(SessionHintReveal(
-        session_id=play.id, player_id=player_id, initial_fen=chess.STARTING_FEN,
-        moves=[], prefix_hash=prefix_hash(chess.STARTING_FEN, []),
-        canonical_id=chess.Board().epd(), ply=1, highest_step=2,
-    ))
+    db_session.add(
+        SessionHintReveal(
+            session_id=play.id,
+            player_id=player_id,
+            initial_fen=chess.STARTING_FEN,
+            moves=[],
+            prefix_hash=prefix_hash(chess.STARTING_FEN, []),
+            canonical_id=chess.Board().epd(),
+            ply=1,
+            highest_step=2,
+        )
+    )
     db_session.commit()
     exported = client.post(
-        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token),
+        "/v1/exports",
+        json={"player_id": player_id},
+        headers=_authorization(token),
     )
     assert exported.status_code == 200
     archive = exported.json()
     assert archive["games"] == []
     assert archive["positive_move_credits"] == []
     deleted = client.request(
-        "DELETE", f"/v1/players/{player_id}/data",
+        "DELETE",
+        f"/v1/players/{player_id}/data",
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
         headers=_authorization(token),
     )

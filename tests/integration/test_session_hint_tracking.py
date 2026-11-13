@@ -19,6 +19,7 @@ from scan64.chess.games.assistance import (
     prefix_hash,
 )
 from scan64.chess.games.models import Game, PlaySession
+from scan64.providers.stockfish.pool import PooledStockfishAdapter
 
 
 def _register(session: Session) -> dict[str, str]:
@@ -41,7 +42,8 @@ def test_api_tracking_and_custom_start_are_server_owned(
 ) -> None:
     headers = _register(db_session)
     response = client.post(
-        "/v1/play-sessions", headers=headers,
+        "/v1/play-sessions",
+        headers=headers,
         json={
             "player_id": "hint-tracking-owner",
             "initial_fen": chess.STARTING_FEN if custom else None,
@@ -65,14 +67,19 @@ def test_first_hint_persists_without_creating_game(
     )
     assert created.status_code == 200
     monkeypatch.setattr(
-        app.state.engine_pool_manager, "analyze_hint",
+        app.state.engine_pool_manager,
+        "analyze_hint",
         AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}])),
     )
     for step in [1, 3, 2]:
         response = client.post(
-            "/v1/insights/position", headers=headers,
-            json={"player_id": "hint-tracking-owner", "play_session_id": created.json()["id"],
-                  "step": step},
+            "/v1/insights/position",
+            headers=headers,
+            json={
+                "player_id": "hint-tracking-owner",
+                "play_session_id": created.json()["id"],
+                "step": step,
+            },
         )
         assert response.status_code == 200, response.text
     reveal = db_session.exec(select(SessionHintReveal)).one()
@@ -88,9 +95,7 @@ def test_first_hint_persists_without_creating_game(
 
 
 @pytest.mark.parametrize("change", ["completion", "link_game", "moves", "initial_fen", "aba"])
-def test_stale_hint_snapshot_cannot_disclose_or_write(
-    db_session: Session, change: str
-) -> None:
+def test_stale_hint_snapshot_cannot_disclose_or_write(db_session: Session, change: str) -> None:
     game = None if change == "link_game" else Game(pgn="*")
     if game is not None:
         db_session.add(game)
@@ -171,7 +176,8 @@ def test_engine_work_race_returns_409_without_hint_data(
         db_session.add(game)
         db_session.flush()
     play = PlaySession(
-        player_id="hint-tracking-owner", game_id=game.id if game else None,
+        player_id="hint-tracking-owner",
+        game_id=game.id if game else None,
         assistance_tracking_version=1,
     )
     db_session.add(play)
@@ -189,17 +195,55 @@ def test_engine_work_race_returns_409_without_hint_data(
             claim_snapshot(db_session, PlaySnapshot.capture(play, game))
         else:
             assert game is not None
-            game.moves = (
-                [*game.moves, "e2e4", "e7e5"] if mutation == "move" else []
-            )
+            game.moves = [*game.moves, "e2e4", "e7e5"] if mutation == "move" else []
         db_session.commit()
         return EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}])
 
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", concurrent_change)
     response = client.post(
-        "/v1/insights/position", headers=headers,
+        "/v1/insights/position",
+        headers=headers,
         json={"player_id": "hint-tracking-owner", "play_session_id": str(play.id), "step": 3},
     )
     assert response.status_code == 409, response.text
     assert set(response.json()) == {"detail"}
     assert db_session.exec(select(SessionHintReveal)).all() == []
+
+
+def test_cached_insight_keeps_authorization_projection_and_provenance_per_request(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = _register(db_session)
+    token, hashed = issue_player_token()
+    db_session.add(Player(id="other-hint-owner"))
+    db_session.add(PlayerCredential(player_id="other-hint-owner", token_hash=hashed))
+    db_session.commit()
+    other_headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr(PooledStockfishAdapter, "ensure_started", AsyncMock())
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    created = client.post(
+        "/v1/play-sessions", headers=headers, json={"player_id": "hint-tracking-owner"}
+    )
+    assert created.status_code == 200
+    body = {"player_id": "hint-tracking-owner", "play_session_id": created.json()["id"], "step": 1}
+    first = client.post("/v1/insights/position", headers=headers, json=body)
+    second = client.post("/v1/insights/position", headers=headers, json={**body, "step": 3})
+    assert first.status_code == second.status_code == 200
+    assert first.json()["step"] == 1
+    assert "candidates" not in first.json()
+    assert second.json()["step"] == 3
+    assert analyze.await_count == 1
+    assert db_session.exec(select(SessionHintReveal)).one().highest_step == 3
+
+    forbidden = client.post("/v1/insights/position", headers=other_headers, json=body)
+    assert forbidden.status_code == 404
+    other = client.post(
+        "/v1/insights/position",
+        headers=other_headers,
+        json={"player_id": "other-hint-owner", "fen": chess.STARTING_FEN, "step": 1},
+    )
+    assert other.status_code == 200
+    assert "candidates" not in other.json()
+    assert analyze.await_count == 1
+    assert len(db_session.exec(select(SessionHintReveal)).all()) == 1

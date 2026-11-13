@@ -17,7 +17,9 @@ def upgrade() -> None:
         columns = {column["name"] for column in inspector.get_columns("playsession")}
         with op.batch_alter_table("playsession") as batch_op:
             if "assistance_tracking_version" not in columns:
-                batch_op.add_column(sa.Column("assistance_tracking_version", sa.Integer(), nullable=True))
+                batch_op.add_column(
+                    sa.Column("assistance_tracking_version", sa.Integer(), nullable=True)
+                )
             if "credit_analysis_status" not in columns:
                 batch_op.add_column(sa.Column("credit_analysis_status", sa.String(), nullable=True))
 

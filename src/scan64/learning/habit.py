@@ -435,7 +435,9 @@ def record_puzzle_credit(run: PuzzleRun, session: Session) -> None:
         for move in run.played_moves:
             source.push_uci(move)
         if source.fen() != run.fen or not matches_completed_solution(
-            run.played_moves, spec.interaction.solution, source,
+            run.played_moves,
+            spec.interaction.solution,
+            source,
         ):
             return
     except (KeyError, TypeError, ValidationError, ValueError):

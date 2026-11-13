@@ -26,15 +26,20 @@ from tests.integration.test_puzzle_lifecycle import puzzle_item
 
 PLAYER_ID = "practice-archive-owner"
 PRACTICE_FIELDS = (
-    "puzzle_rating", "puzzle_daily_sets", "puzzle_daily_slots", "puzzle_rating_events",
+    "puzzle_rating",
+    "puzzle_daily_sets",
+    "puzzle_daily_slots",
+    "puzzle_rating_events",
 )
 
 
 def _practice_archive(
-    client: TestClient, session: Session,
+    client: TestClient,
+    session: Session,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     registration = client.post(
-        "/v1/players", json={"id": PLAYER_ID, "display_name": "Practice owner"},
+        "/v1/players",
+        json={"id": PLAYER_ID, "display_name": "Practice owner"},
     )
     assert registration.status_code == 200
     headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
@@ -53,8 +58,14 @@ def _practice_archive(
         session.add(item)
         session.flush()
         slot = PuzzleDailySlot(
-            player_id=PLAYER_ID, set_id=daily.id, position=index, item_id=item.id,
-            item_rating=1500.0, reason="exploration", widening="400", first_exposure=True,
+            player_id=PLAYER_ID,
+            set_id=daily.id,
+            position=index,
+            item_id=item.id,
+            item_rating=1500.0,
+            reason="exploration",
+            widening="400",
+            first_exposure=True,
         )
         if outcome == "unplayed":
             session.add(slot)
@@ -69,13 +80,18 @@ def _practice_archive(
         started = now + timedelta(seconds=index * 2)
         completed = started + timedelta(seconds=1)
         run = PuzzleRun(
-            player_id=PLAYER_ID, item_id=item.id, session_id=study.id,
-            state="solved" if solved else outcome, fen=board.fen(),
-            cursor=int(solved), played_moves=["e7e5"] if solved else [],
+            player_id=PLAYER_ID,
+            item_id=item.id,
+            session_id=study.id,
+            state="solved" if solved else outcome,
+            fen=board.fen(),
+            cursor=int(solved),
+            played_moves=["e7e5"] if solved else [],
             wrong_attempts=3 if outcome == "failed" else 0,
             hint_steps={"0": 1} if outcome == "hinted" else {},
             revision=3 if outcome == "failed" else 2 if outcome == "hinted" else 1,
-            started_at=started, completed_at=completed,
+            started_at=started,
+            completed_at=completed,
         )
         session.add(run)
         session.flush()
@@ -84,18 +100,34 @@ def _practice_archive(
         session.add(slot)
         session.flush()
         if outcome != "abandoned":
-            session.add(ContentAttempt(
-                id=run.id, item_id=item.id, player_id=PLAYER_ID, session_id=study.id,
-                success=solved, hint_assisted=outcome == "hinted", completed_at=completed,
-                response_payload={"run_id": run.id},
-            ))
+            session.add(
+                ContentAttempt(
+                    id=run.id,
+                    item_id=item.id,
+                    player_id=PLAYER_ID,
+                    session_id=study.id,
+                    success=solved,
+                    hint_assisted=outcome == "hinted",
+                    completed_at=completed,
+                    response_payload={"run_id": run.id},
+                )
+            )
         score = int(outcome == "solved")
         after = elo_after(before, slot.item_rating, score)
-        session.add(PuzzleRatingEvent(
-            run_id=run.id, slot_id=slot.id, player_id=PLAYER_ID, item_id=item.id,
-            sequence=index + 1, item_rating=slot.item_rating, before=before, after=after,
-            score=score, created_at=completed,
-        ))
+        session.add(
+            PuzzleRatingEvent(
+                run_id=run.id,
+                slot_id=slot.id,
+                player_id=PLAYER_ID,
+                item_id=item.id,
+                sequence=index + 1,
+                item_rating=slot.item_rating,
+                before=before,
+                after=after,
+                score=score,
+                created_at=completed,
+            )
+        )
         before = after
     session.add(PuzzleRating(player_id=PLAYER_ID, rating=before, rated_count=4))
     session.commit()
@@ -103,16 +135,23 @@ def _practice_archive(
     assert exported.status_code == 200
     archive = exported.json()
     dry_run = client.request(
-        "DELETE", f"/v1/players/{PLAYER_ID}/data", headers=headers, json={"dry_run": True},
+        "DELETE",
+        f"/v1/players/{PLAYER_ID}/data",
+        headers=headers,
+        json={"dry_run": True},
     )
     assert dry_run.status_code == 200
     counts = dry_run.json()["affected_rows"]
     assert {field: counts[field] for field in PRACTICE_FIELDS} == {
-        "puzzle_rating": 1, "puzzle_daily_sets": 1,
-        "puzzle_daily_slots": 5, "puzzle_rating_events": 4,
+        "puzzle_rating": 1,
+        "puzzle_daily_sets": 1,
+        "puzzle_daily_slots": 5,
+        "puzzle_rating_events": 4,
     }
     deleted = client.request(
-        "DELETE", f"/v1/players/{PLAYER_ID}/data", headers=headers,
+        "DELETE",
+        f"/v1/players/{PLAYER_ID}/data",
+        headers=headers,
         json={"dry_run": False, "confirmation": f"delete-{PLAYER_ID}"},
     )
     assert deleted.status_code == 200
@@ -121,10 +160,14 @@ def _practice_archive(
 
 
 def _reject(
-    client: TestClient, session: Session, archive: dict[str, Any], headers: dict[str, str],
+    client: TestClient,
+    session: Session,
+    archive: dict[str, Any],
+    headers: dict[str, str],
 ) -> None:
     response = client.post(
-        "/v1/imports", content=json.dumps(archive),
+        "/v1/imports",
+        content=json.dumps(archive),
         headers={**headers, "Content-Type": "application/json"},
     )
     assert response.status_code == 400, response.text
@@ -135,7 +178,8 @@ def _reject(
 
 
 def test_practice_restore_preserves_ledger_and_unplayed_dependencies_without_awards(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     assert len(archive["puzzle_content_items"]) == 5
@@ -159,7 +203,8 @@ def test_practice_restore_preserves_ledger_and_unplayed_dependencies_without_awa
 
 
 def test_old_puzzle_archive_imports_without_inventing_rating_history(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     for field in PRACTICE_FIELDS:
@@ -175,43 +220,50 @@ def test_old_puzzle_archive_imports_without_inventing_rating_history(
     assert len(db_session.exec(select(PuzzleRun)).all()) == 4
 
 
-@pytest.mark.parametrize("collection,field,value", [
-    ("puzzle_rating_events", "before", 1201.0),
-    ("puzzle_rating_events", "after", 1300.0),
-    ("puzzle_rating_events", "sequence", 2),
-    ("puzzle_rating_events", "score", 0),
-    ("puzzle_rating_events", "score", True),
-    ("puzzle_rating_events", "item_rating", 1499.0),
-    ("puzzle_rating_events", "policy_version", "future-policy"),
-    ("puzzle_rating_events", "slot_id", "missing"),
-    ("puzzle_rating_events", "run_id", "missing"),
-    ("puzzle_rating_events", "item_id", "lichess:practice-1"),
-    ("puzzle_rating_events", "player_id", "foreign"),
-    ("puzzle_rating_events", "after", float("nan")),
-    ("puzzle_daily_sets", "player_id", "foreign"),
-    ("puzzle_daily_sets", "utc_day", "2026-11-12"),
-    ("puzzle_daily_sets", "policy_version", "future-policy"),
-    ("puzzle_daily_sets", "theme_map_version", "future-map"),
-    ("puzzle_daily_sets", "player_rating", float("inf")),
-    ("puzzle_daily_slots", "player_id", "foreign"),
-    ("puzzle_daily_slots", "set_id", "missing"),
-    ("puzzle_daily_slots", "item_id", "lichess:practice-1"),
-    ("puzzle_daily_slots", "run_id", "missing"),
-    ("puzzle_daily_slots", "closed_at", None),
-    ("puzzle_daily_slots", "first_exposure", False),
-    ("puzzle_daily_slots", "first_exposure", "true"),
-    ("puzzle_daily_slots", "position", 2),
-    ("puzzle_daily_slots", "reason", "unknown"),
-    ("puzzle_daily_slots", "widening", "unknown"),
-    ("puzzle_daily_slots", "item_rating", float("inf")),
-    ("content_attempts", "success", False),
-    ("content_attempts", "hint_assisted", True),
-    ("content_attempts", "item_id", "lichess:practice-1"),
-    ("content_attempts", "player_id", "foreign"),
-    ("content_attempts", "session_id", "missing"),
-])
+@pytest.mark.parametrize(
+    "collection,field,value",
+    [
+        ("puzzle_rating_events", "before", 1201.0),
+        ("puzzle_rating_events", "after", 1300.0),
+        ("puzzle_rating_events", "sequence", 2),
+        ("puzzle_rating_events", "score", 0),
+        ("puzzle_rating_events", "score", True),
+        ("puzzle_rating_events", "item_rating", 1499.0),
+        ("puzzle_rating_events", "policy_version", "future-policy"),
+        ("puzzle_rating_events", "slot_id", "missing"),
+        ("puzzle_rating_events", "run_id", "missing"),
+        ("puzzle_rating_events", "item_id", "lichess:practice-1"),
+        ("puzzle_rating_events", "player_id", "foreign"),
+        ("puzzle_rating_events", "after", float("nan")),
+        ("puzzle_daily_sets", "player_id", "foreign"),
+        ("puzzle_daily_sets", "utc_day", "2026-11-12"),
+        ("puzzle_daily_sets", "policy_version", "future-policy"),
+        ("puzzle_daily_sets", "theme_map_version", "future-map"),
+        ("puzzle_daily_sets", "player_rating", float("inf")),
+        ("puzzle_daily_slots", "player_id", "foreign"),
+        ("puzzle_daily_slots", "set_id", "missing"),
+        ("puzzle_daily_slots", "item_id", "lichess:practice-1"),
+        ("puzzle_daily_slots", "run_id", "missing"),
+        ("puzzle_daily_slots", "closed_at", None),
+        ("puzzle_daily_slots", "first_exposure", False),
+        ("puzzle_daily_slots", "first_exposure", "true"),
+        ("puzzle_daily_slots", "position", 2),
+        ("puzzle_daily_slots", "reason", "unknown"),
+        ("puzzle_daily_slots", "widening", "unknown"),
+        ("puzzle_daily_slots", "item_rating", float("inf")),
+        ("content_attempts", "success", False),
+        ("content_attempts", "hint_assisted", True),
+        ("content_attempts", "item_id", "lichess:practice-1"),
+        ("content_attempts", "player_id", "foreign"),
+        ("content_attempts", "session_id", "missing"),
+    ],
+)
 def test_tampered_practice_provenance_is_rejected_atomically(
-    client: TestClient, db_session: Session, collection: str, field: str, value: Any,
+    client: TestClient,
+    db_session: Session,
+    collection: str,
+    field: str,
+    value: Any,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     # Export order need not equal slot/run/attempt order.
@@ -225,26 +277,54 @@ def test_tampered_practice_provenance_is_rejected_atomically(
     _reject(client, db_session, archive, headers)
 
 
-@pytest.mark.parametrize("field,value", [
-    ("rating", 1200), ("rated_count", 3), ("rated_count", True),
-    ("player_id", "foreign"), ("rating", float("inf")),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("rating", 1200),
+        ("rated_count", 3),
+        ("rated_count", True),
+        ("player_id", "foreign"),
+        ("rating", float("inf")),
+    ],
+)
 def test_rating_must_match_complete_ordered_chain(
-    client: TestClient, db_session: Session, field: str, value: Any,
+    client: TestClient,
+    db_session: Session,
+    field: str,
+    value: Any,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     archive["puzzle_rating"][field] = value
     _reject(client, db_session, archive, headers)
 
 
-@pytest.mark.parametrize("tampering", [
-    "missing_event", "missing_attempt", "abandoned_attempt", "missing_slot_dependency",
-    "duplicate_event", "duplicate_slot", "duplicate_puzzle", "duplicate_run_binding",
-    "legacy_event", "nonterminal_event", "repeat_event", "due_event", "hinted_win",
-    "failed_win", "abandoned_win", "broken_chain", "too_many_slots", "closed_unplayed",
-])
+@pytest.mark.parametrize(
+    "tampering",
+    [
+        "missing_event",
+        "missing_attempt",
+        "abandoned_attempt",
+        "missing_slot_dependency",
+        "duplicate_event",
+        "duplicate_slot",
+        "duplicate_puzzle",
+        "duplicate_run_binding",
+        "legacy_event",
+        "nonterminal_event",
+        "repeat_event",
+        "due_event",
+        "hinted_win",
+        "failed_win",
+        "abandoned_win",
+        "broken_chain",
+        "too_many_slots",
+        "closed_unplayed",
+    ],
+)
 def test_forged_rating_eligibility_and_membership_are_rejected(
-    client: TestClient, db_session: Session, tampering: str,
+    client: TestClient,
+    db_session: Session,
+    tampering: str,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     events = archive["puzzle_rating_events"]
@@ -286,15 +366,20 @@ def test_forged_rating_eligibility_and_membership_are_rejected(
         slots[3]["closed_at"] = None
     elif tampering == "repeat_event":
         run = deepcopy(runs[events[0]["run_id"]])
-        study = deepcopy(next(
-            row for row in archive["study_sessions"] if row["id"] == run["session_id"]
-        ))
+        study = deepcopy(
+            next(row for row in archive["study_sessions"] if row["id"] == run["session_id"])
+        )
         study["id"] = "legacy-study"
         archive["study_sessions"].append(study)
         board = chess.Board(puzzle_item().payload["lesson"]["source"]["fen"])
         run.update(
-            id="legacy-run", session_id=study["id"], state="abandoned", fen=board.fen(),
-            cursor=0, played_moves=[], started_at="2026-11-12T12:00:00",
+            id="legacy-run",
+            session_id=study["id"],
+            state="abandoned",
+            fen=board.fen(),
+            cursor=0,
+            played_moves=[],
+            started_at="2026-11-12T12:00:00",
             completed_at="2026-11-12T12:00:01",
         )
         archive["puzzle_runs"].append(run)
@@ -322,7 +407,8 @@ def test_forged_rating_eligibility_and_membership_are_rejected(
 
 
 def test_pending_first_exposure_restores_without_fabricating_terminal_award(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     pending = archive["puzzle_rating_events"].pop()
@@ -342,7 +428,8 @@ def test_pending_first_exposure_restores_without_fabricating_terminal_award(
 
 
 def test_restore_does_not_compare_source_snapshot_to_mutable_catalog_rating(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     item = db_session.get(ContentItem, "lichess:practice-0")
@@ -360,7 +447,8 @@ def test_restore_does_not_compare_source_snapshot_to_mutable_catalog_rating(
 
 
 def test_deletion_keeps_other_players_practice_and_global_catalog(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     registration = client.post(
@@ -372,16 +460,23 @@ def test_deletion_keeps_other_players_practice_and_global_catalog(
     db_session.add(PuzzleRating(player_id="other-practice"))
     db_session.flush()
     slot = PuzzleDailySlot(
-        player_id="other-practice", set_id=daily.id, position=0,
-        item_id="lichess:practice-4", item_rating=1500, reason="exploration",
-        widening="400", first_exposure=True,
+        player_id="other-practice",
+        set_id=daily.id,
+        position=0,
+        item_id="lichess:practice-4",
+        item_rating=1500,
+        reason="exploration",
+        widening="400",
+        first_exposure=True,
     )
     db_session.add(slot)
     db_session.commit()
     daily_id, slot_id = daily.id, slot.id
     assert client.post("/v1/imports", json=archive, headers=headers).status_code == 200
     deleted = client.request(
-        "DELETE", f"/v1/players/{PLAYER_ID}/data", headers=headers,
+        "DELETE",
+        f"/v1/players/{PLAYER_ID}/data",
+        headers=headers,
         json={"dry_run": False, "confirmation": f"delete-{PLAYER_ID}"},
     )
     assert deleted.status_code == 200
@@ -404,43 +499,56 @@ def test_deletion_keeps_other_players_practice_and_global_catalog(
 
 
 def test_due_repeat_restores_unrated_without_replaying_first_exposure(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     source = archive["puzzle_rating_events"][0]
     original = next(row for row in archive["puzzle_runs"] if row["id"] == source["run_id"])
-    study = deepcopy(next(
-        row for row in archive["study_sessions"] if row["id"] == original["session_id"]
-    ))
+    study = deepcopy(
+        next(row for row in archive["study_sessions"] if row["id"] == original["session_id"])
+    )
     study["id"] = "review-study"
     archive["study_sessions"].append(study)
     run = deepcopy(original)
     run.update(
-        id="review-run", session_id=study["id"], started_at="2026-11-14T12:00:00",
+        id="review-run",
+        session_id=study["id"],
+        started_at="2026-11-14T12:00:00",
         completed_at="2026-11-14T12:00:01",
     )
     archive["puzzle_runs"].append(run)
-    attempt = deepcopy(next(
-        row for row in archive["content_attempts"] if row["id"] == original["id"]
-    ))
+    attempt = deepcopy(
+        next(row for row in archive["content_attempts"] if row["id"] == original["id"])
+    )
     attempt.update(
-        id=run["id"], session_id=study["id"], completed_at=run["completed_at"],
+        id=run["id"],
+        session_id=study["id"],
+        completed_at=run["completed_at"],
         started_at=run["started_at"],
         response_payload={"run_id": run["id"]},
     )
     archive["content_attempts"].append(attempt)
     daily = deepcopy(archive["puzzle_daily_sets"][0])
     daily.update(
-        id="review-set", utc_day="2026-11-14", created_at="2026-11-14T00:00:00",
+        id="review-set",
+        utc_day="2026-11-14",
+        created_at="2026-11-14T00:00:00",
         player_rating=archive["puzzle_rating"]["rating"],
     )
     archive["puzzle_daily_sets"].append(daily)
-    slot = deepcopy(next(
-        row for row in archive["puzzle_daily_slots"] if row["id"] == source["slot_id"]
-    ))
+    slot = deepcopy(
+        next(row for row in archive["puzzle_daily_slots"] if row["id"] == source["slot_id"])
+    )
     slot.update(
-        id="review-slot", set_id=daily["id"], position=0, first_exposure=False,
-        reason="due", widening="due", run_id=run["id"], closed_at=run["completed_at"],
+        id="review-slot",
+        set_id=daily["id"],
+        position=0,
+        first_exposure=False,
+        reason="due",
+        widening="due",
+        run_id=run["id"],
+        closed_at=run["completed_at"],
     )
     archive["puzzle_daily_slots"].append(slot)
     response = client.post("/v1/imports", json=archive, headers=headers)
@@ -452,7 +560,8 @@ def test_due_repeat_restores_unrated_without_replaying_first_exposure(
 
 
 def test_mathematically_valid_chain_cannot_start_above_initial_rating(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     before = 1250.0
@@ -464,24 +573,41 @@ def test_mathematically_valid_chain_cannot_start_above_initial_rating(
     _reject(client, db_session, archive, headers)
 
 
-@pytest.mark.parametrize("field,value", [
-    ("rating", "not-a-rating"), ("rating", "1500"), ("rating", None),
-    ("rating", True), ("rating", []), ("rating", {}), ("rating", 10**400),
-    ("rating", float("nan")), ("rating", float("inf")),
-    ("difficulty_estimate", "not-a-rating"), ("difficulty_estimate", "1500"),
-    ("difficulty_estimate", None), ("difficulty_estimate", True),
-    ("difficulty_estimate", float("nan")), ("difficulty_estimate", float("inf")),
-    ("themes", None), ("themes", "mateIn1"), ("themes", {"mateIn1": True}),
-    ("themes", [{}]), ("themes", [["mateIn1"]]), ("themes", [1]),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("rating", "not-a-rating"),
+        ("rating", "1500"),
+        ("rating", None),
+        ("rating", True),
+        ("rating", []),
+        ("rating", {}),
+        ("rating", 10**400),
+        ("rating", float("nan")),
+        ("rating", float("inf")),
+        ("difficulty_estimate", "not-a-rating"),
+        ("difficulty_estimate", "1500"),
+        ("difficulty_estimate", None),
+        ("difficulty_estimate", True),
+        ("difficulty_estimate", float("nan")),
+        ("difficulty_estimate", float("inf")),
+        ("themes", None),
+        ("themes", "mateIn1"),
+        ("themes", {"mateIn1": True}),
+        ("themes", [{}]),
+        ("themes", [["mateIn1"]]),
+        ("themes", [1]),
+    ],
+)
 def test_unplayed_dependency_cannot_poison_other_players_practice(
-    client: TestClient, db_session: Session, field: str, value: Any,
+    client: TestClient,
+    db_session: Session,
+    field: str,
+    value: Any,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     poisoned_id = "lichess:practice-4"
-    dependency = next(
-        row for row in archive["puzzle_content_items"] if row["id"] == poisoned_id
-    )
+    dependency = next(row for row in archive["puzzle_content_items"] if row["id"] == poisoned_id)
     if field == "difficulty_estimate":
         dependency[field] = value
     else:
@@ -501,14 +627,16 @@ def test_unplayed_dependency_cannot_poison_other_players_practice(
     daily = client.get("/v1/puzzles/daily", headers=other_headers)
     assert daily.status_code == 200, daily.text
     assert all(
-        slot.item_id != poisoned_id for slot in db_session.exec(
+        slot.item_id != poisoned_id
+        for slot in db_session.exec(
             select(PuzzleDailySlot).where(PuzzleDailySlot.player_id == "poisoning-bystander")
         ).all()
     )
 
 
 def test_legacy_dependency_rating_uses_validated_difficulty_fallback(
-    client: TestClient, db_session: Session,
+    client: TestClient,
+    db_session: Session,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     for dependency in archive["puzzle_content_items"]:
@@ -536,7 +664,9 @@ def test_legacy_dependency_rating_uses_validated_difficulty_fallback(
 
 @pytest.mark.parametrize("difficulty", [None, True, "1500", float("inf"), 10**400])
 def test_legacy_dependency_fallback_must_be_finite_numeric(
-    client: TestClient, db_session: Session, difficulty: Any,
+    client: TestClient,
+    db_session: Session,
+    difficulty: Any,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     dependency = next(
@@ -552,16 +682,20 @@ def test_legacy_dependency_fallback_must_be_finite_numeric(
 
 @pytest.mark.parametrize("completed_at", [None, "2026-11-12T12:00:01"])
 def test_earlier_legacy_attempt_without_run_cannot_be_rated_as_first_exposure(
-    client: TestClient, db_session: Session, completed_at: str | None,
+    client: TestClient,
+    db_session: Session,
+    completed_at: str | None,
 ) -> None:
     archive, headers = _practice_archive(client, db_session)
     event = archive["puzzle_rating_events"][0]
-    attempt = deepcopy(next(
-        row for row in archive["content_attempts"] if row["id"] == event["run_id"]
-    ))
+    attempt = deepcopy(
+        next(row for row in archive["content_attempts"] if row["id"] == event["run_id"])
+    )
     attempt.update(
-        id="earlier-legacy-attempt", started_at="2026-11-12T12:00:00",
-        completed_at=completed_at, response_payload={},
+        id="earlier-legacy-attempt",
+        started_at="2026-11-12T12:00:00",
+        completed_at=completed_at,
+        response_payload={},
     )
     archive["content_attempts"].append(attempt)
     _reject(client, db_session, archive, headers)

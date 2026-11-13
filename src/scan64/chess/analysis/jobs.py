@@ -360,9 +360,7 @@ async def run_analysis_for_game(
             )
         )
 
-    apply_positive_move_credits(
-        game, session, rating=rating, staged_observations=observations
-    )
+    apply_positive_move_credits(game, session, rating=rating, staged_observations=observations)
 
     session.commit()
 

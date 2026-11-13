@@ -39,9 +39,7 @@ class PluginRegistry:
     """Explicit registry for host-selected plugin implementations."""
 
     def __init__(self) -> None:
-        self._plugins: dict[PluginKind, dict[str, object]] = {
-            kind: {} for kind in PluginKind
-        }
+        self._plugins: dict[PluginKind, dict[str, object]] = {kind: {} for kind in PluginKind}
 
     def register(self, *, kind: PluginKind, name: str, plugin: object) -> None:
         normalized_name = name.strip()

@@ -150,7 +150,9 @@ def test_terminal_puzzle_credits_inside_outcome_transaction_and_replay_does_not(
 
 @pytest.mark.parametrize("hinted", [False, True])
 def test_alternative_final_checkmate_credits_and_roundtrips_without_weakening_hint_rules(
-    client: TestClient, db_session: Session, hinted: bool,
+    client: TestClient,
+    db_session: Session,
+    hinted: bool,
 ) -> None:
     headers = _owner(client)
     item = puzzle_item()
@@ -167,12 +169,14 @@ def test_alternative_final_checkmate_credits_and_roundtrips_without_weakening_hi
     run = seed_puzzle_run(db_session, "habit-api-owner")
     if hinted:
         hint = client.post(
-            f"/v1/puzzles/runs/{run.id}/hints", headers=headers,
+            f"/v1/puzzles/runs/{run.id}/hints",
+            headers=headers,
             json={"expected_cursor": 0, "expected_revision": 0, "step": 1},
         )
         assert hint.status_code == 200, hint.text
     solved = client.post(
-        f"/v1/puzzles/runs/{run.id}/moves", headers=headers,
+        f"/v1/puzzles/runs/{run.id}/moves",
+        headers=headers,
         json={"move": "g6h6", "expected_cursor": 0, "expected_revision": int(hinted)},
     )
     assert solved.status_code == 200, solved.text
@@ -184,7 +188,9 @@ def test_alternative_final_checkmate_credits_and_roundtrips_without_weakening_hi
     exported = client.post("/v1/exports", headers=headers, json={"player_id": "habit-api-owner"})
     assert exported.status_code == 200, exported.text
     deleted = client.request(
-        "DELETE", "/v1/players/habit-api-owner/data", headers=headers,
+        "DELETE",
+        "/v1/players/habit-api-owner/data",
+        headers=headers,
         json={"dry_run": False, "confirmation": "delete-habit-api-owner"},
     )
     assert deleted.status_code == 200, deleted.text
@@ -205,7 +211,9 @@ def test_alternative_final_checkmate_credits_and_roundtrips_without_weakening_hi
     ],
 )
 def test_puzzle_completion_requires_the_exact_prefix_and_only_allows_final_mate(
-    played: list[str], solution: list[str], expected: bool,
+    played: list[str],
+    solution: list[str],
+    expected: bool,
 ) -> None:
     board = chess.Board("7k/5K2/6Q1/8/8/8/8/8 w - - 1 2")
     for move in played:

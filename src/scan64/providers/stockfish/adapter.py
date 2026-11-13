@@ -23,6 +23,7 @@ class EngineAdapter(Protocol):
         multipv: int = 1,
     ) -> EngineAnalysis: ...
 
+
 @dataclass
 class StockfishConfig:
     binary_path: str = "stockfish"
