@@ -4,7 +4,11 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md#run-locally). It starts the API at `http://127.0.0.1:8001` and the web application at `http://127.0.0.1:5173`.
+Follow the [root quickstart](../README.md#run-locally-on-one-port) for the source or container single-port application. The [unsigned macOS Apple silicon app](../README.md#macos-app-apple-silicon) needs no developer tools: unzip the release asset, move Scan64.app to Applications, attempt to open it, and use **System Settings → Privacy & Security → Open Anyway → Open** if Gatekeeper blocks it. Verify the download origin and checksum first; the app is not signed/notarized.
+
+The app opens your browser at the first available loopback port from 8001. Its status window offers **Open Scan64** and **Quit Scan64**; closing that window, Dock Quit or ⌘Q also shuts down the server and engines. A second launch reopens the existing browser page without starting another server. Games survive relaunch in `~/Library/Application Support/Scan64/scan64.db`; puzzle data and `desktop.log` live in that directory too. Keep browser local storage to retain your player token. If another app occupies the original port, close it and relaunch Scan64 on that original browser origin to regain the saved browser identity.
+
+The development-only `scripts/run.sh` instead uses the API on port 8001 and Vite on 5173.
 
 On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
 

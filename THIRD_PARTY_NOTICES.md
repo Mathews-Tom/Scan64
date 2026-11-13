@@ -30,6 +30,15 @@ This project uses the following third-party software:
 - **Built web client**: Chessground (above), React/React DOM (MIT), chess.js (BSD-2-Clause), idb-keyval (Apache-2.0) and Workbox service-worker libraries (MIT). The Vite build emits bundled dependency licenses in `/app/web/THIRD_PARTY_LICENSES.md`; service-worker bundles also retain Workbox license comments. The exact dependency versions are recorded in `pnpm-lock.yaml`.
 - Node, pnpm, uv and the Stockfish compiler are build tools only, not installed into the runtime image. No Maia model weights are bundled.
 
+## Other software in the macOS Apple silicon app
+
+- **Stockfish 18**: the same unmodified `sf_18` source and SHA-256-verified networks as the container, built with `make -C src -j2 build ARCH=apple-silicon COMP=clang`. The executable and both original NNUE networks are bundled together under `Contents/Frameworks/bin/` (PyInstaller links matching Frameworks/Resources paths). External networks are retained alongside the executable so Stockfish can resolve them independently of the working directory. Corresponding `stockfish-sf_18.tar.gz` and upstream `Copying.txt` accompany it under `Contents/Resources/notices/stockfish/`. To rebuild, extract the archive, copy both networks into `src/`, and run that make command with Xcode Command Line Tools.
+- **Scan64**: GPL-3.0-or-later; `LICENSE` and these notices accompany the app under `Contents/Resources/notices/scan64/`.
+- **Python and Tcl/Tk**: uv-managed Python's PSF license is under `Contents/Resources/notices/python/LICENSE.txt`. Notices for statically linked OpenSSL, mpdecimal, libffi, bzip2, expat and other standalone components, including Tcl/Tk for the status window, are retained under `notices/python/components/`. The build reads the managed interpreter's `BUILD` marker, fetches that exact version's python-build-standalone full archive, verifies its published SHA-256, and copies its `python/licenses/` files.
+- **Python dependencies**: versions come from `uv.lock`; installed distribution metadata and upstream licenses are retained in the app's Resources. The Zstandard BSD notice below also applies.
+- **Built web client**: the same dependencies as the container, with generated `THIRD_PARTY_LICENSES.md` under `Contents/Resources/web/`.
+- **PyInstaller**: GPL-2.0-or-later with its bootloader distribution exception; its metadata/license accompanies the bundle. uv, pnpm, Node, Xcode and make are build tools only. No Maia weights are included.
+
 ## Lichess real-game diagnosis reference
 - **License**: CC0 (public-domain dedication).
 - **Source**: https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst

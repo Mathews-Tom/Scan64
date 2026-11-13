@@ -33,10 +33,26 @@ Chess workflows provide labelled strict UCI/canonical English SAN entry, readabl
 
 ## Distribution and support
 
-Scan64 ships as a source-install local application, with a Dockerfile for building a local image. The repository and its release tags are the supported distribution; no published image, signed desktop application, hosted service, or end-user installer is provided. Run Scan64 only on a machine you operate.
+Scan64 supports a source-install local application and a Dockerfile for building a local image. An unsigned Apple silicon desktop bundle can also be built from this repository; download availability depends on an owner-named release. No published image, signed/notarized desktop application or hosted service is provided. Run Scan64 only on a machine you operate.
 
 
 ## Run locally on one port
+
+### macOS app (Apple silicon)
+
+When a release includes `Scan64-<version>-macos-arm64.zip`, download it from this repository's GitHub Releases, unzip it, and drag **Scan64.app** to Applications. Python, uv, Node and Stockfish are included or unnecessary at runtime.
+
+The app is **unsigned and not notarized** (its build has only an ad-hoc signature). On first launch macOS Gatekeeper may block it: attempt to open Scan64, then go to **System Settings → Privacy & Security → Open Anyway**, confirm **Open**, and authenticate if prompted. Only bypass the warning for a download whose origin and SHA-256 you have verified. Do not disable Gatekeeper globally.
+
+Scan64 opens your default browser and a small status window. **Open Scan64** reopens the browser; **Quit Scan64**, closing the status window, or **⌘Q / Dock → Quit** stops the server and chess engines. Opening the app again while it runs only opens the existing server. It uses the first free loopback port from 8001 and saves its database and puzzle data under `~/Library/Application Support/Scan64`; replacing the app does not remove these files. Keep browser local storage (player tokens); a different port is a different browser origin, so free the original port to return to that identity, or use an exported archive to move it.
+
+Build locally on macOS arm64 with Xcode Command Line Tools, uv, pnpm and the source prerequisites below:
+
+```sh
+scripts/build-macos-app.sh
+```
+
+The script verifies the Dockerfile's Stockfish source/network pins, builds Stockfish 18 and the client, freezes a one-folder `.app` with managed Python/Tk, and prints the zip path, SHA-256 and size under `dist/`. It does not publish or attach the zip to a release. Corresponding engine source, networks and licenses are inside the app; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### With Docker
 

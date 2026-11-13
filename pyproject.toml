@@ -56,6 +56,9 @@ warn_return_any = true
 warn_unused_configs = true
 
 [dependency-groups]
+build = [
+    "pyinstaller>=6.20,<7",
+]
 dev = [
     "hypothesis>=6.156.6",
     "mypy>=2.2.0",
