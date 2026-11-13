@@ -2,9 +2,42 @@
 
 All notable changes to Scan64 are documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The package version in `pyproject.toml` is authoritative. Published release notes are moved from `[Unreleased]` to their matching versioned section only when an authorized publication creates the corresponding annotated tag.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The package version in `pyproject.toml` is authoritative. Versioned sections are prepared in release pull requests; publication requires a separately authorized annotated tag and GitHub Release.
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-11-13
+
+### Added
+
+- A Today dashboard, guided first-run setup, level-based bot suggestions, and separate puzzle and bot-strength trends.
+- Eight computer-opponent levels, player colour selection, take-back, promotion choices, resignation, and durable game results.
+- One-port source and container operation, with built-in web serving and `scan64-cli serve`.
+- Three-step position hints with tactical explanations and board-grounded positional principles.
+- Owned per-move game reviews with accuracy, coverage, evaluation graphs, key moments, and mistake retries.
+- Explicit Lichess puzzle import, resumable multi-move puzzle solving, and source-verified LessonSpec 0.2.0 support.
+- Puzzle ratings, stable daily puzzle sets, theme practice, solve streaks, and owned mistake practice.
+- Evidence-linked recurring patterns, verified daily goals, calendar streaks, and tracked-pattern practice targets.
+- Keyboard move entry, readable positions and legal choices, keyboard replay, and narrow-screen board controls.
+- Positive profile credit for engine-supported, unassisted tactics found in owned games.
+
+### Changed
+
+- Game imports require the player's colour; lessons and profile observations use only that side's moves.
+- Game lessons focus on at most five distinct costly mistakes and accept all engine-discovered sound alternatives.
+- Diagnoses teach one trusted cause, with precision measured against recorded real amateur games.
+- Learning streaks distinguish server-tracked puzzle hints from app-reported lesson hints; neither represents measured chess improvement.
+
+### Fixed
+
+- Pending and running analyses recover after restart without duplicating completed learning records.
+- Reconnected games remain locked until canonical synchronization completes, and completed sessions no longer reappear as playable.
+- New games use explicit opponent levels instead of misleading strength labels.
+- Castling hints avoid premature answer reveals; repeated position hints reuse bounded engine results with orderly shutdown.
+
+### Security
+
+- Famous-game attempts require the submitted player's bearer token before changing attempts or mastery.
 
 ## [0.2.1] - 2026-08-10
 
