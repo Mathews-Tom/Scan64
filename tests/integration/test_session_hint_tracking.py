@@ -19,6 +19,7 @@ from scan64.chess.games.assistance import (
     prefix_hash,
 )
 from scan64.chess.games.models import Game, PlaySession
+from scan64.providers.stockfish.pool import PooledStockfishAdapter
 
 
 def _register(session: Session) -> dict[str, str]:
@@ -203,3 +204,41 @@ def test_engine_work_race_returns_409_without_hint_data(
     assert response.status_code == 409, response.text
     assert set(response.json()) == {"detail"}
     assert db_session.exec(select(SessionHintReveal)).all() == []
+
+
+def test_cached_insight_keeps_authorization_projection_and_provenance_per_request(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = _register(db_session)
+    token, hashed = issue_player_token()
+    db_session.add(Player(id="other-hint-owner"))
+    db_session.add(PlayerCredential(player_id="other-hint-owner", token_hash=hashed))
+    db_session.commit()
+    other_headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr(PooledStockfishAdapter, "ensure_started", AsyncMock())
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["g1f3"], "score_cp": 0}]))
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    created = client.post(
+        "/v1/play-sessions", headers=headers, json={"player_id": "hint-tracking-owner"}
+    )
+    assert created.status_code == 200
+    body = {"player_id": "hint-tracking-owner", "play_session_id": created.json()["id"], "step": 1}
+    first = client.post("/v1/insights/position", headers=headers, json=body)
+    second = client.post("/v1/insights/position", headers=headers, json={**body, "step": 3})
+    assert first.status_code == second.status_code == 200
+    assert first.json()["step"] == 1
+    assert "candidates" not in first.json()
+    assert second.json()["step"] == 3
+    assert analyze.await_count == 1
+    assert db_session.exec(select(SessionHintReveal)).one().highest_step == 3
+
+    forbidden = client.post("/v1/insights/position", headers=other_headers, json=body)
+    assert forbidden.status_code == 404
+    other = client.post(
+        "/v1/insights/position", headers=other_headers,
+        json={"player_id": "other-hint-owner", "fen": chess.STARTING_FEN, "step": 1},
+    )
+    assert other.status_code == 200
+    assert "candidates" not in other.json()
+    assert analyze.await_count == 1
+    assert len(db_session.exec(select(SessionHintReveal)).all()) == 1

@@ -16,14 +16,17 @@ vi.mock('./CoachBoard', () => ({
     disabled,
     onMove,
     visualizations,
+    orientation,
   }: {
     disabled: boolean;
     onMove: (move: string) => void;
     visualizations?: unknown[];
+    orientation?: 'white' | 'black';
   }) => (
     <button
       data-testid="submit-daily-move"
       data-visualizations={JSON.stringify(visualizations ?? [])}
+      data-orientation={orientation ?? 'white'}
       disabled={disabled}
       onClick={() => onMove('e2e4')}
     >
@@ -106,6 +109,20 @@ describe('DailyTrainingScreen', () => {
     expect(screen.getByRole('heading', { name: 'Training Complete!' })).toHaveFocus();
 
     expect(screen.getByTestId('session-complete')).toBeInTheDocument();
+  });
+
+  it('orients each lesson to its solver, including Black', async () => {
+    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValueOnce({
+      session_id: 'orientation-session',
+      lessons: [
+        { ...mockLesson, source: { ...mockLesson.source, fen: mockLesson.source.fen.replace(' w ', ' b ') } },
+        { ...mockLesson, lesson_id: 'white-lesson' },
+      ],
+    });
+    render(<DailyTrainingScreen />);
+    expect(await screen.findByTestId('submit-daily-move')).toHaveAttribute('data-orientation', 'black');
+    fireEvent.click(screen.getByTestId('next-lesson-button'));
+    expect(screen.getByTestId('submit-daily-move')).toHaveAttribute('data-orientation', 'white');
   });
 
   it('shows an explicit no-eligible-lessons state', async () => {

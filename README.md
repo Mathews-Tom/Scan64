@@ -18,10 +18,12 @@ Daily Training composes eligible lessons from active mastery, due review, verifi
 - Import PGNs and analyse completed games.
 - Browse player-owned game history and deep-link directly to an analysis board.
 - Review persisted evaluations and diagnosis markers at their source positions.
-- Train from Daily Training and game-review lessons on an interactive board.
+- Train from Daily Training and game-review lessons on an interactive board oriented to the solver.
 - Track active mastery, evidence, recurring diagnoses, scheduled review, and transfer measurements.
 - Use opt-in coach-mode interruptions during practice.
 - Export, import, and delete player-derived data.
+
+Position hints keep move reveals until step 3, including castling. Repeated hints reuse a bounded, 128-position in-process engine-result cache keyed by the full FEN, search limits and engine configuration. Only public analysis is shared; authorization, hint levels and session provenance are checked on every request. The cache is discarded on shutdown, after background analysis tasks have been cancelled and awaited and engine pools closed.
 
 Scan64 does **not** yet establish that it improves over-the-board chess performance. It also does not currently provide calibrated behavioural-habit detection, context-conditioned profiling, hosted deployment, or PostgreSQL production verification.
 

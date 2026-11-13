@@ -1,5 +1,6 @@
 import asyncio
 import os
+from collections import OrderedDict
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -14,6 +15,11 @@ from scan64.providers.stockfish.adapter import StockfishConfig
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
 DEFAULT_BATCH_CONCURRENCY = 2
+HINT_CACHE_SIZE = 128
+HINT_NODES = 200_000
+HINT_TIME_MS = 1500
+HINT_MULTIPV = 4
+HintCacheKey = tuple[str, str, int, int, int, int, int]
 
 
 def _positive_int_from_env(env_var: str, default: int) -> int:
@@ -242,6 +248,9 @@ class EnginePoolManager:
         self.config = config
         self.interactive_pool = EnginePool(config, interactive_concurrency)
         self.batch_pool = EnginePool(config, batch_concurrency)
+        # Only public engine inputs/results; never player IDs, hint steps,
+        # session snapshots or history-dependent nudge projections.
+        self._hint_cache: OrderedDict[HintCacheKey, EngineAnalysis] = OrderedDict()
 
     @classmethod
     def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
@@ -268,6 +277,7 @@ class EnginePoolManager:
     async def close(self) -> None:
         await self.interactive_pool.close()
         await self.batch_pool.close()
+        self._hint_cache.clear()
 
     async def analyze_interactive(
         self,
@@ -316,6 +326,19 @@ class EnginePoolManager:
         Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
         with a three-second wall deadline (including lazy engine startup).
         """
+        key = (
+            fen,
+            self.config.binary_path,
+            self.config.threads,
+            self.config.hash_size,
+            HINT_NODES,
+            HINT_TIME_MS,
+            HINT_MULTIPV,
+        )
+        cached = self._hint_cache.get(key)
+        if cached is not None:
+            self._hint_cache.move_to_end(key)
+            return cached.model_copy(deep=True)
         if self.interactive_pool.concurrency < 2 or self._hint_in_progress:
             raise TimeoutError("Hint capacity is busy")
         self._hint_in_progress = True
@@ -326,9 +349,13 @@ class EnginePoolManager:
                 async with asyncio.timeout(0.25):
                     adapter = await lease.__aenter__()
                 try:
-                    return await adapter.analyze_position(
-                        fen, nodes=200_000, time_ms=1500, multipv=4
+                    analysis = await adapter.analyze_position(
+                        fen, nodes=HINT_NODES, time_ms=HINT_TIME_MS, multipv=HINT_MULTIPV
                     )
+                    self._hint_cache[key] = analysis.model_copy(deep=True)
+                    if len(self._hint_cache) > HINT_CACHE_SIZE:
+                        self._hint_cache.popitem(last=False)
+                    return analysis
                 finally:
                     await lease.__aexit__(None, None, None)
         finally:
