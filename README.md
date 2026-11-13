@@ -72,8 +72,8 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 | --- | --- | --- |
 | Eight bot levels, either colour, take-backs and resignation | Three-step hints with tactical reasons and positional principles | Today dashboard with daily goals and a calendar streak |
 | Import your own PGN games | Per-move game review with key moments and retries | Your costliest recurring pattern, with the positions behind it |
-| Keyboard move entry and narrow-screen play | Lessons from your mistakes that accept every sound move | Separate puzzle rating and bot-level trends |
-| Optional human-like opponents with [Maia](docs/maia.md) | Daily puzzle sets, theme practice, solve streaks | Export, import or delete all of your data |
+| Keyboard move entry and narrow-screen play | Lessons from your mistakes that accept the sound alternatives the engine verifies | Separate puzzle rating and bot-level trends |
+| Optional human-like opponents with [Maia](docs/maia.md) | Daily puzzle sets, theme practice, solve streaks | Player-scoped [export, import and deletion](docs/user-guide.md#data-and-privacy) |
 
 ## How it works
 
@@ -99,7 +99,7 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 Scan64 opens your browser and a small status window. **Open Scan64** reopens the browser. **Quit Scan64**, closing the window, or **⌘Q** stops the server and engines. Opening the app again while it runs just opens the existing server.
 
-The app uses the first free loopback port from 8001 and stores its data under `~/Library/Application Support/Scan64`, which survives app updates. Your player identity lives in the browser's local storage for that port, so keep it, or use an exported archive to move it. You can also build the app yourself with `scripts/build-macos-app.sh`; see the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+The app uses the first free loopback port from 8001 and stores its data under `~/Library/Application Support/Scan64`, which survives app updates. Your player identity is a token kept in the browser's local storage for that exact address, so keep that storage and, if another program takes port 8001, free it and relaunch so Scan64 returns to the same port. An exported archive backs up your data but cannot replace that token. You can also build the app yourself with `scripts/build-macos-app.sh`; see the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### Docker
 
@@ -161,7 +161,7 @@ The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#i
 
 ### Development
 
-`scripts/run.sh` starts the hot-reload setup: the API on `http://127.0.0.1:8001` and the Vite client on `http://127.0.0.1:5173`. `scripts/check.sh` runs the full local gate (Ruff, mypy, pytest, the web build and tests, and Playwright); it needs `stockfish` on `PATH` and port 5173 free.
+`scripts/run.sh` starts the development setup: the API on `http://127.0.0.1:8001` and the hot-reloading Vite client on `http://127.0.0.1:5173`. The API does not reload, so restart the script after Python changes. `scripts/check.sh` runs the full local gate (Ruff, mypy, pytest, the web build and tests, and Playwright); it needs `stockfish` on `PATH` and port 5173 free.
 
 ### Optional extras
 

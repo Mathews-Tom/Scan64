@@ -8,7 +8,7 @@ The normal source entry point, `uv run scan64-cli serve`, serves the built React
 
 The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume. The unsigned Apple silicon macOS app bundles Python, the client and Stockfish, chooses the first free loopback port from 8001, and stores data and logs in `~/Library/Application Support/Scan64`. Its status window owns server shutdown, and a second launch reuses the running instance. `scripts/build-macos-app.sh` and `Scan64.spec` build that app; neither signing with a distribution identity nor notarization is delivered.
 
-For hot-reload development, `scripts/run.sh` starts two local processes:
+For development, `scripts/run.sh` starts two local processes. Only the Vite client hot-reloads; the API runs without `--reload`, so restart the script after Python changes:
 
 ```text
 FastAPI API:  http://127.0.0.1:8001
