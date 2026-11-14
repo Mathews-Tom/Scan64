@@ -2,7 +2,7 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlmodel import Session
 
 import scan64.persistence.database as database
@@ -102,6 +102,15 @@ def app_info() -> dict[str, str]:
     return {
         "distribution": "desktop" if os.getenv("SCAN64_DISTRIBUTION") == "desktop" else "source"
     }
+
+
+@app.get("/v1/app/update")
+def app_update() -> dict[str, object]:
+    if os.getenv("SCAN64_DISTRIBUTION") != "desktop":
+        raise HTTPException(status_code=404, detail="Not found")
+    from scan64.desktop_update import get_update_state
+
+    return get_update_state()
 
 
 # Registered last: known API routes retain their own methods and responses.

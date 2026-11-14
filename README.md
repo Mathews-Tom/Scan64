@@ -99,6 +99,8 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 Scan64 opens your browser and a small status window. **Open Scan64** reopens the browser. **Quit Scan64**, closing the window, or **⌘Q** stops the server and engines. Opening the app again while it runs just opens the existing server.
 
+From v0.5.0, the desktop window manages daily automatic update downloads (optional) and restart-to-install; v0.4.0 users must [upgrade manually once](docs/user-guide.md#desktop-app-updates).
+
 The app uses the first free loopback port from 8001 and stores its data under `~/Library/Application Support/Scan64`, which survives app updates. Your player identity is a token kept in the browser's local storage for that exact address, so keep that storage and, if another program takes port 8001, free it and relaunch so Scan64 returns to the same port. An exported archive backs up your data but cannot replace that token. You can also build the app yourself with `scripts/build-macos-app.sh`; see the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### Docker

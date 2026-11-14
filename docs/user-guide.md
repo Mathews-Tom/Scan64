@@ -512,7 +512,17 @@ When an active skill reaches the implemented mastery threshold, Scan64 can assig
 
 This measures the product's transfer signal. It does not prove Scan64 improves over-the-board chess performance; that requires real learner studies.
 
+## Desktop app updates
+
+**v0.4.0 → v0.5.0 requires one manual upgrade:** quit Scan64, download v0.5.0 from the official [GitHub releases](https://github.com/Mathews-Tom/Scan64/releases), verify its checksum, and replace Scan64.app in Applications. Keep your Application Support directory and browser local storage. v0.4.0 cannot bootstrap the updater itself.
+
+From v0.5.0, automatic updates are enabled by default: the desktop app checks daily and downloads an available update. Use the automatic-update setting in the Scan64 window to opt out, or check manually there. When ready, finish your game and restart from the Scan64 window. The browser banner is only a notification; it cannot check, install or restart the app.
+
+Update metadata and archives are checked using release signatures before installation. These update signatures are not Apple code signing or notarization: the app remains unsigned/ad-hoc signed and macOS may still require **Open Anyway**. Never disable Gatekeeper globally. Installation preserves the previous app as `.previous` and backs up the database before replacement; keep your own exported backup too. If installation fails, retain the backup and previous app rather than deleting your player data.
+
 ## Data and privacy
+
+Desktop update checks contact GitHub's release API, and downloads contact GitHub's asset hosting. GitHub receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. Disable automatic updates in the Scan64 window to stop scheduled checks/downloads; a manual check still contacts GitHub.
 
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
