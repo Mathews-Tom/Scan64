@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
+### Added
+
+- Moves that allow a forced checkmate are diagnosed as **Allowed checkmate**, with the engine's mating line and a lesson to find a move that does not allow mate. The diagnosis became trusted only after a pre-registered test on fresh real games.
+- An evaluation report comparing Scan64's diagnoses with Lichess puzzle themes, reproducible offline.
+
+### Changed
+
+- Moves that allow checkmate are no longer described as a hanging piece or a missed direct threat.
+- Game analysis and coach interruptions skip a lesson whose accepted answers would include the move being diagnosed as the mistake.
+
+### Fixed
+
+- `scan64-cli analyse` reports a rejected candidate and continues when one source search fails, instead of stopping the run.
+
 ## [0.5.1] - 2026-11-14
 
 ### Fixed
