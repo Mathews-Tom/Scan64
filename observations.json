@@ -1,0 +1,562 @@
+[
+  {
+    "width": 1440,
+    "appearance": "light",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 1440,
+    "appearance": "dark",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 1440,
+          "document": 1440,
+          "main": 1232,
+          "available": 1232
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 1024,
+    "appearance": "light",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 1024,
+    "appearance": "dark",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 1024,
+          "document": 1024,
+          "main": 816,
+          "available": 816
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 768,
+    "appearance": "light",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 768,
+    "appearance": "dark",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 768,
+          "document": 768,
+          "main": 696,
+          "available": 696
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 390,
+    "appearance": "light",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  },
+  {
+    "width": 390,
+    "appearance": "dark",
+    "screens": [
+      {
+        "name": "today",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "settings",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "play",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "review",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "puzzles",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      },
+      {
+        "name": "profile",
+        "layout": {
+          "viewport": 390,
+          "document": 390,
+          "main": 390,
+          "available": 390
+        }
+      }
+    ],
+    "foreignHosts": [],
+    "bundledFontsLoaded": [
+      true,
+      true
+    ],
+    "playerCreated": true,
+    "appearancePersisted": true,
+    "botReplyAndHint": true,
+    "reviewedGame": true,
+    "puzzleSolved": true
+  }
+]
