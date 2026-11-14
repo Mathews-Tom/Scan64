@@ -490,9 +490,12 @@ async def test_historical_replay_is_isolated_from_future_production_trust(
         None,
     )
     frozen = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
+    baseline = [
+        Outcome("a", frozenset({"mate"}), "untrusted_only", "positional.king_safety_neglect")
+    ]
     assert score(frozen, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
     assert "M48 allowed-mate trust decision: **not trusted**" in render_v2_results(
-        frozen, frozen, provenance(), "hash"
+        frozen, baseline, provenance(), "hash"
     )
 
 
@@ -533,10 +536,17 @@ async def test_v3_untrusted_mate_suppresses_material_but_historical_versions_do_
     puzzle, record, source, _ = mate_example()
     board = chess.Board(puzzle.fen)
     board.remove_piece_at(chess.D1)
+    board.remove_piece_at(chess.C1)
+    board.set_piece_at(chess.D1, chess.Piece(chess.BISHOP, chess.WHITE))
     board.set_piece_at(chess.H4, chess.Piece(chess.QUEEN, chess.WHITE))
     puzzle = replace(puzzle, fen=board.fen())
     source.source_fen = board.fen()
     source.analysis_id = source_analysis_id(puzzle)
+    after = board.copy()
+    after.push_uci(puzzle.blunder)
+    for uci in record.after[0].pv:
+        after.push_uci(uci)
+    assert after.is_checkmate()
     assert await diagnose(puzzle, record, registry(), version="v1") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v2") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
