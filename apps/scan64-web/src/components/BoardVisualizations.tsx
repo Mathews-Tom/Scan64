@@ -9,7 +9,7 @@ function annotationKind(visualization: Visualization, game: Chess, arrow: number
   return (visualization.label ? visualization.label !== '1' : arrow > 1) ? 'alternative' : 'best';
 }
 
-const annotationNames = { best: 'Best move', threat: 'Threat', alternative: 'Alternative' } as const;
+const annotationNames = { best: 'Main move', threat: 'Threat', alternative: 'Alternative' } as const;
 
 function defenders(fen: string, target: string): string[] {
     const game = new Chess(fen);

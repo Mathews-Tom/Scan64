@@ -2,17 +2,21 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PuzzlesScreen } from './PuzzlesScreen';
 import { ApiClient, PuzzleConflictError } from '../api/client';
-import type { PuzzleDailyRead, PuzzleRunRead, PuzzleStartRead } from '../api/types';
+import type { PuzzleDailyRead, PuzzleRunRead, PuzzleStartRead, Visualization } from '../api/types';
 import type * as ClientModule from '../api/client';
+import { VisualizationDescriptions } from './BoardVisualizations';
 
 import { reviewLesson } from './review.test-fixtures';
 const board = vi.hoisted(() => ({ props: null as null | {
   fen: string; orientation: string; disabled: boolean; resetAfterAttempt: boolean;
+  visualizations?: Visualization[];
   onMove: (move: string) => void | Promise<void>;
 } }));
 vi.mock('./CoachBoard', () => ({ CoachBoard: (props: NonNullable<typeof board.props> & { testId: string }) => {
   board.props = props;
-  return <div data-testid={props.testId} data-fen={props.fen} data-orientation={props.orientation} data-disabled={String(props.disabled)} />;
+  return <div data-testid={props.testId} data-fen={props.fen} data-orientation={props.orientation} data-disabled={String(props.disabled)}>
+    <VisualizationDescriptions fen={props.fen} visualizations={props.visualizations ?? []} />
+  </div>;
 } }));
 vi.mock('../api/client', async importOriginal => {
   const actual = await importOriginal<typeof ClientModule>();
@@ -188,6 +192,19 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     await move();
     expect(screen.queryByText(first.text)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show hint' })).toBeEnabled();
+  });
+
+  it('keeps hint-three source annotations free of engine-quality claims', async () => {
+    const visualizations = [{ command: 'draw_arrow', description: 'Source continuation: e5.', origin: 'e7', target: 'e5' }];
+    await mount(run({ hint_step: 3, hints: [{
+      step: 3, fen: SETUP,
+      candidates: [{ number: 1, move: 'e7e5', san: 'e5', line: ['e7e5', 'g1f3'], reasons: [], fallback: false, visualizations }],
+      visualizations,
+    }] }));
+    const annotations = screen.getByRole('list', { name: 'Board annotations' });
+    expect(annotations).toHaveTextContent('Source continuation: e5.');
+    expect(annotations).not.toHaveTextContent(/best|engine.quality/i);
+    expect(screen.getByText(/not an engine judgement of move quality/)).toBeInTheDocument();
   });
 
   it('disables Next puzzle while requesting another run and does not double-start', async () => {

@@ -51,7 +51,7 @@ describe('Board annotation alternatives', () => {
       <VisualizationDescriptions fen={start} visualizations={visualizations} />
     </>);
     const annotations = screen.getByRole('list', { name: 'Board annotations' });
-    expect(annotations).toHaveTextContent('Best move: 1. Nf3 (g1 to f3)');
+    expect(annotations).toHaveTextContent('Main move: 1. Nf3 (g1 to f3)');
     expect(annotations).toHaveTextContent('Alternative: 2. Nc3 (b1 to c3)');
     expect(annotations).toHaveTextContent('Threat: 3. Nf6 (g8 to f6)');
     expect(annotations).not.toHaveTextContent('1. 1.');

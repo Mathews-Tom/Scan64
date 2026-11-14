@@ -80,7 +80,7 @@ describe('board visualizations', () => {
     const expected = new Chess(); expected.move('e4');
     await waitFor(() => expect(ground.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: expected.fen() })));
     expect(container.querySelector('.board-visualizations line')).toHaveAttribute('stroke', 'var(--annotation-best)');
-    expect(screen.getByRole('list', { name: 'Board annotations' })).toHaveTextContent('Best move: 1. Nf3');
+    expect(screen.getByRole('list', { name: 'Board annotations' })).toHaveTextContent('Main move: 1. Nf3');
     fireEvent.click(screen.getByText('Show full line')); expected.move('e5');
     await waitFor(() => expect(ground.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: expected.fen() })));
     fireEvent.click(screen.getByText('Return to original position'));
