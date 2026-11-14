@@ -5,6 +5,7 @@ import hashlib
 import inspect
 import json
 from pathlib import Path
+from typing import Any
 
 import chess
 import chess.pgn
@@ -103,6 +104,77 @@ def test_reference_king_safety_requires_mate_in_the_line() -> None:
     assert "positional.king_safety_neglect" in reference_labels(
         before, after, [{"pv": ["e2e4"], "score_cp": 0}], [{"pv": ["d8h4"], "score_mate": 1}]
     )
+
+
+@pytest.mark.parametrize("mirror", [False, True])
+@pytest.mark.parametrize("source_mate", [None, 1, 3])
+def test_allowed_mate_reference_uses_deep_side_to_move_scores(
+    mirror: bool, source_mate: int | None
+) -> None:
+    before = chess.Board()
+    before.push_san("f3")
+    before.push_san("e5")
+    after = before.copy()
+    after.push_san("g4")
+    source: list[dict[str, Any]] = [{"pv": ["e2e4"], "score_cp": 0}]
+    reply: list[dict[str, Any]] = [{"pv": ["d8h4"], "score_mate": 1, "allowed_mate": False}]
+    if source_mate is not None:
+        source[0]["score_mate"] = source_mate
+    if mirror:
+        before = before.mirror()
+        after = after.mirror()
+        source[0]["pv"] = ["e7e5"]
+        reply[0]["pv"] = ["d1h5"]
+    assert "threat_processing.allowed_mate" in reference_labels(before, after, source, reply)
+
+
+@pytest.mark.parametrize("source_mate", [0, -1, -3])
+def test_allowed_mate_reference_excludes_preexisting_forced_mate(source_mate: int) -> None:
+    before = chess.Board()
+    before.push_san("f3")
+    before.push_san("e5")
+    after = before.copy()
+    after.push_san("g4")
+    assert "threat_processing.allowed_mate" not in reference_labels(
+        before,
+        after,
+        [{"pv": ["e2e4"], "score_mate": source_mate}],
+        [{"pv": ["d8h4"], "score_mate": 1}],
+    )
+
+
+@pytest.mark.parametrize("reply_mate", [None, 0, -1, 4])
+def test_allowed_mate_reference_requires_short_positive_reply_mate(
+    reply_mate: int | None,
+) -> None:
+    before = chess.Board()
+    before.push_san("f3")
+    before.push_san("e5")
+    after = before.copy()
+    after.push_san("g4")
+    reply: list[dict[str, Any]] = [{"pv": ["d8h4"]}]
+    if reply_mate is not None:
+        reply[0]["score_mate"] = reply_mate
+    assert "threat_processing.allowed_mate" not in reference_labels(
+        before, after, [{"pv": ["e2e4"], "score_cp": 0}], reply
+    )
+
+
+def test_allowed_mate_reference_requires_source_recording_and_terminal_legal_pv() -> None:
+    before = chess.Board()
+    before.push_san("f3")
+    before.push_san("e5")
+    after = before.copy()
+    after.push_san("g4")
+    source = [{"pv": ["e2e4"], "score_cp": 0}]
+    assert "threat_processing.allowed_mate" not in reference_labels(
+        before, after, [], [{"pv": ["d8h4"], "score_mate": 1}]
+    )
+    assert "threat_processing.allowed_mate" not in reference_labels(
+        before, after, source, [{"pv": ["b8c6"], "score_mate": 1}]
+    )
+    with pytest.raises(ValueError, match="Illegal recorded"):
+        reference_labels(before, after, source, [{"pv": ["d8h5"], "score_mate": 1}])
 
 
 def test_reference_development_is_based_on_engine_move_and_home_pieces() -> None:
