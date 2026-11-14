@@ -2,6 +2,8 @@
 
 import hashlib
 import importlib.util
+import shutil
+import tarfile
 from pathlib import Path
 from types import ModuleType
 
@@ -69,3 +71,81 @@ def test_download_publishes_only_verified_complete_file(
     builder.download("https://example.com/source", target, hashlib.sha256(b"verified").hexdigest())
     assert target.read_bytes() == b"verified"
     assert not target.with_suffix(".gz.part").exists()
+
+
+def test_web_notices_are_required_before_building(
+    builder: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(builder, "ROOT", tmp_path)
+    monkeypatch.setattr(builder.sys, "platform", "darwin")
+    monkeypatch.setattr(builder.platform, "machine", lambda: "arm64")
+    monkeypatch.setattr(builder, "run", lambda *args: pytest.fail("Build started before preflight"))
+    with pytest.raises(SystemExit, match="Build the web client first"):
+        builder.main()
+    assert not (tmp_path / "build").exists()
+
+
+def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
+    builder: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dockerfile = (builder.ROOT / "Dockerfile").read_text()
+    inputs = builder.pinned_engine_files(dockerfile)
+    networks = {name for name, _, _ in inputs if name.endswith(".nnue")}
+    root = tmp_path / "checkout"
+    root.mkdir()
+    (root / "Dockerfile").write_text(dockerfile)
+    for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+        (root / name).write_text(name)
+    web = root / "apps" / "scan64-web" / "dist"
+    web.mkdir(parents=True)
+    (web / "THIRD_PARTY_LICENSES.md").write_text("web notices")
+    source_tree = tmp_path / "fixture" / "Stockfish-sf_18"
+    (source_tree / "src").mkdir(parents=True)
+    (source_tree / "Copying.txt").write_text("GPL")
+    source_archive = tmp_path / "source.tar.gz"
+    with tarfile.open(source_archive, "w:gz") as archive:
+        archive.add(source_tree, arcname=source_tree.name)
+    stage = tmp_path / "cache"
+    cached_engine = stage / "stockfish"
+    cached_engine.mkdir(parents=True)
+    resources = tmp_path / "resources"
+    (resources / "stockfish").mkdir(parents=True)
+    for name in ("old.nnue", "network.nnue.part", "unexpected.txt"):
+        (cached_engine / name).write_text("unverified cached input")
+        (resources / "stockfish" / name).write_text("previous staged input")
+
+    def fetch(url: str, destination: Path, digest: str) -> None:
+        if destination.name == "stockfish-sf_18.tar.gz":
+            shutil.copy2(source_archive, destination)
+        else:
+            destination.write_text(destination.name)
+
+    def build(*args: str) -> None:
+        if args[0] == "make":
+            source = Path(args[2])
+            assert {item.name for item in source.iterdir()} == networks
+            (source / "stockfish").write_text("newly built engine")
+        elif "PyInstaller" in args:
+            frozen = root / "dist" / "scan64-server"
+            frozen.mkdir(parents=True)
+            (frozen / "scan64-server").write_text("frozen server")
+        else:
+            assert args == ("xcode-select", "-p")
+
+    monkeypatch.setattr(builder, "ROOT", root)
+    monkeypatch.setattr(builder, "STAGE", stage)
+    monkeypatch.setattr(builder, "RESOURCES", resources)
+    monkeypatch.setattr(builder.sys, "platform", "darwin")
+    monkeypatch.setattr(builder.platform, "machine", lambda: "arm64")
+    monkeypatch.setattr(builder.shutil, "which", lambda tool: tool)
+    monkeypatch.setattr(builder, "download", fetch)
+    monkeypatch.setattr(builder, "python_notices", lambda: None)
+    monkeypatch.setattr(builder, "run", build)
+    builder.main()
+    assert {item.name for item in (resources / "stockfish").iterdir()} == {
+        *(name for name, _, _ in inputs),
+        "stockfish",
+        "Copying.txt",
+    }
+    assert (resources / "stockfish" / "stockfish").read_text() == "newly built engine"
+    assert (resources / "notices" / "WEB_THIRD_PARTY_LICENSES.md").read_text() == "web notices"

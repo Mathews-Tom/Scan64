@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Stage the frozen server and redistributable resources for Tauri (macOS arm64).
 
-Run with ``uv run --group build python scripts/build-server.py`` before the
-Tauri build command in README (with ``src-tauri/tauri.bundle.conf.json``).
+Run ``uv sync --locked --group build --python-preference only-managed``, build
+the web client, then ``uv run --no-sync python scripts/build-server.py`` before
+the Tauri build command in README (with ``src-tauri/tauri.bundle.conf.json``).
 Windows/Linux packaging is deliberately not implemented until M83.
 """
 
@@ -119,6 +120,9 @@ def main() -> None:
         raise SystemExit(
             "Server packaging currently requires macOS arm64; Windows/Linux arrive in M83"
         )
+    web = ROOT / "apps" / "scan64-web" / "dist" / "THIRD_PARTY_LICENSES.md"
+    if not web.is_file():
+        raise SystemExit("Build the web client first to include THIRD_PARTY_LICENSES.md")
     for tool in ("curl", "make", "clang", "xcode-select"):
         if shutil.which(tool) is None:
             raise SystemExit(f"Required build tool missing: {tool}")
@@ -126,7 +130,8 @@ def main() -> None:
     STAGE.mkdir(parents=True, exist_ok=True)
     engine = STAGE / "stockfish"
     engine.mkdir(exist_ok=True)
-    for name, url, digest in pinned_engine_files((ROOT / "Dockerfile").read_text()):
+    inputs = pinned_engine_files((ROOT / "Dockerfile").read_text())
+    for name, url, digest in inputs:
         download(url, engine / name, digest)
     source = STAGE / "source"
     shutil.rmtree(source, ignore_errors=True)
@@ -134,8 +139,9 @@ def main() -> None:
     with tarfile.open(engine / "stockfish-sf_18.tar.gz", "r:gz") as archive:
         archive.extractall(source, filter="data")
     tree = source / "Stockfish-sf_18"
-    for network in engine.glob("*.nnue"):
-        shutil.copy2(network, tree / "src" / network.name)
+    for name, _, _ in inputs:
+        if name.endswith(".nnue"):
+            shutil.copy2(engine / name, tree / "src" / name)
     run("make", "-C", str(tree / "src"), "-j2", "build", "ARCH=apple-silicon", "COMP=clang")
     shutil.copy2(tree / "src" / "stockfish", engine / "stockfish")
     shutil.copy2(tree / "Copying.txt", engine / "Copying.txt")
@@ -146,14 +152,14 @@ def main() -> None:
     for name in ("scan64-server", "stockfish", "notices"):
         shutil.rmtree(RESOURCES / name, ignore_errors=True)
     shutil.copytree(ROOT / "dist" / "scan64-server", RESOURCES / "scan64-server")
-    shutil.copytree(engine, RESOURCES / "stockfish")
+    engine_resources = RESOURCES / "stockfish"
+    engine_resources.mkdir()
+    for name in [item[0] for item in inputs] + ["stockfish", "Copying.txt"]:
+        shutil.copy2(engine / name, engine_resources / name)
     notices = RESOURCES / "notices"
     notices.mkdir()
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, notices / name)
-    web = ROOT / "apps" / "scan64-web" / "dist" / "THIRD_PARTY_LICENSES.md"
-    if not web.is_file():
-        raise SystemExit("Build the web client first to include THIRD_PARTY_LICENSES.md")
     shutil.copy2(web, notices / "WEB_THIRD_PARTY_LICENSES.md")
     print(f"Tauri resources ready: {RESOURCES}", flush=True)
 

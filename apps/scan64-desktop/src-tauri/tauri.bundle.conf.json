@@ -3,6 +3,11 @@
   "bundle": {
     "active": true,
     "targets": ["app"],
+    "icon": [
+      "../../scan64-web/public/pwa-512x512.png",
+      "icons/icon.ico",
+      "../../../assets/Scan64.icns"
+    ],
     "resources": {
       "../resources/": ""
     },

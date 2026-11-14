@@ -8,7 +8,6 @@ for (const width of [1440, 1024, 768, 390]) {
         localStorage.clear();
         localStorage.setItem('scan64-appearance', value);
       }, appearance);
-      await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
       const externalRequests: string[] = [];
       page.on('request', request => {
         if (new URL(request.url()).hostname !== 'localhost') externalRequests.push(request.url());
@@ -43,7 +42,6 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 
   test(`navigation remains reachable at ${viewport.width} × ${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.addInitScript(() => localStorage.clear());
-    await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
     await page.goto('/');
     const headerBounds = await page.getByRole('banner').boundingBox();
     const today = page.getByRole('button', { name: 'Today', exact: true });
@@ -72,7 +70,6 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 
 }
 
 test('System appearance follows the device until explicitly overridden', async ({ page }) => {
-  await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/settings');
   await expect(page.getByRole('radio', { name: 'System', exact: true })).toBeChecked();
