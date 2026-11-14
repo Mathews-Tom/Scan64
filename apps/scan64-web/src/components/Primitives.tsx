@@ -102,10 +102,10 @@ export function ProgressBar({ label, value, max = 100, valueText }: ProgressBarP
   return (
     <div className="ui-progress">
       <div className="ui-progress__label">
-        <label htmlFor={id}>{label}</label>
+        <label id={`${id}-label`} htmlFor={id}>{label}</label>
         <span aria-hidden="true">{description}</span>
       </div>
-      <progress id={id} max={limit} value={current} aria-valuetext={description}>{description}</progress>
+      <progress id={id} aria-labelledby={`${id}-label`} max={limit} value={current} aria-valuetext={description}>{description}</progress>
     </div>
   );
 }

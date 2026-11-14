@@ -2,7 +2,7 @@ import { PatternCard } from './PatternCard';
 import { useEffect, useState } from 'react';
 import { ApiClient, getOrCreatePlayerId } from '../api/client';
 import type { CoachDashboard } from '../api/types';
-import './CoachDashboardScreen.css';
+import { EmptyState, Panel } from './Primitives';
 import { StrengthSummary } from './StrengthSummary';
 
 
@@ -38,11 +38,11 @@ export function CoachDashboardScreen() {
 
   if (error) {
     return (
-      <section className="coach-dashboard coach-dashboard--error" role="alert">
-        <p className="coach-dashboard__eyebrow">Coach workspace</p>
-        <h2>Dashboard unavailable</h2>
+      <Panel className="coach-dashboard--error" role="alert">
+        <p className="meta">Coach workspace</p>
+        <h1>Dashboard unavailable</h1>
         <p>{error}</p>
-      </section>
+      </Panel>
     );
   }
 
@@ -51,40 +51,38 @@ export function CoachDashboardScreen() {
   }
 
   return (
-    <section className="coach-dashboard" data-testid="coach-dashboard">
+    <section className="coach-dashboard working-screen" data-testid="coach-dashboard">
       <header className="coach-dashboard__header">
         <div>
-          <p className="coach-dashboard__eyebrow">Coach workspace</p>
-          <h2>Pattern ledger</h2>
+          <p className="meta">Coach workspace</p>
+          <h1>Pattern ledger</h1>
           <p>Evidence-backed observations from students who chose to share their study record.</p>
         </div>
-        <p className="coach-dashboard__identity">Coach {dashboard.coach_id}</p>
       </header>
 
       {dashboard.students.length === 0 ? (
-        <div className="coach-dashboard__empty">
-          <h3>No linked students</h3>
+        <EmptyState title="No linked students">
           <p>Students appear here after they explicitly link their account to this coach.</p>
-        </div>
+        </EmptyState>
       ) : (
         <div className="coach-dashboard__students">
           {dashboard.students.map((student) => (
-            <article className="coach-student" key={student.student_id}>
+            <Panel className="coach-student" key={student.student_id}>
               <header className="coach-student__header">
                 <div>
-                  <p className="coach-dashboard__eyebrow">Student dossier</p>
-                  <h3>{student.profile.display_name ?? student.student_id}</h3>
+                  <p className="meta">Student dossier</p>
+                  <h2>{student.profile.display_name ?? 'Unnamed student'}</h2>
                 </div>
               </header>
               <StrengthSummary strength={student.strength} />
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-patterns`}>
-                <h4 id={`${student.student_id}-patterns`}>Recurring diagnoses</h4>
+                <h3 id={`${student.student_id}-patterns`}>Recurring diagnoses</h3>
                 <PatternCard report={student.patterns} owner={false} />
               </section>
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-evidence`}>
-                <h4 id={`${student.student_id}-evidence`}>Evidence trail</h4>
+                <h3 id={`${student.student_id}-evidence`}>Evidence trail</h3>
                 {student.evidence.evidence_items.length === 0 ? (
                   <p className="coach-student__muted">No verified evidence has been recorded yet.</p>
                 ) : (
@@ -96,7 +94,6 @@ export function CoachDashboardScreen() {
                           <p>{item.claim}</p>
                           <div>
                             <span>{item.kind}</span>
-                            <span>Position {item.position_id}</span>
                             {source ? <span>{source}</span> : null}
                           </div>
                         </li>
@@ -105,7 +102,7 @@ export function CoachDashboardScreen() {
                   </ul>
                 )}
               </section>
-            </article>
+            </Panel>
           ))}
         </div>
       )}

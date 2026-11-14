@@ -20,8 +20,24 @@ describe('PatternCard', () => {
     expect(screen.getByText(/75.0 percentage points/)).toBeInTheDocument();
     expect(screen.getByText(/Support: 3 distinct games · Coverage: 3\/4/)).toBeInTheDocument();
     expect(screen.getByText('Two targets attacked.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Game one, ply 7' })).toHaveAttribute('href', '/games/one/analysis?ply=7');
+    expect(screen.getByRole('link', { name: 'Review supporting move 1 at ply 7' })).toHaveAttribute('href', '/games/one/analysis?ply=7');
     expect(screen.getByText(/not all errors/)).toBeInTheDocument();
+  });
+  it('distinguishes supporting links at the same ply without exposing record IDs', () => {
+    const pattern = report.recurring_diagnoses[0];
+    render(<PatternCard report={{ ...report, recurring_diagnoses: [{
+      ...pattern,
+      supporting_moves: [
+        { game_id: 'private-first', ply: 7, lesson_id: 'first-lesson', loss: 0.25 },
+        { game_id: 'private-second', ply: 7, lesson_id: 'second-lesson', loss: 0.25 },
+      ],
+    }] }} />);
+    const links = screen.getAllByRole('link');
+    expect(new Set(links.map(link => link.textContent)).size).toBe(2);
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/games/private-first/analysis?ply=7', '/games/private-second/analysis?ply=7',
+    ]);
+    expect(screen.queryByText(/private-first|private-second/)).not.toBeInTheDocument();
   });
   it('withholds every review and practice action from coaches', () => {
     render(<PatternCard report={report} owner={false} />);

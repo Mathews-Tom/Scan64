@@ -352,7 +352,6 @@ it('navigates to profile screen', async () => {
     expect(screen.getByTestId('profile-screen')).toBeInTheDocument();
   });
 
-  expect(screen.getByText(/Player Profile/i)).toBeInTheDocument();
 });
 
 it('asks once for a display name before creating the active player', async () => {

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import type { HabitSummaryRead, HabitTargetRead, PatternsReport, PuzzleStreakRead } from '../api/types';
 import { PatternCard } from './PatternCard';
+import { Panel } from './Primitives';
 import './HabitPanel.css';
 
 const TARGET_STATUSES: Record<string, string> = {
@@ -29,8 +30,8 @@ function TargetEvidence({ target, pending, onRefresh }: {
     <p>Practice evidence: {target.practice_count}/3 qualifying first-attempt successes at distinct source positions, across {target.practice_game_count}/2 required games.</p>
     <p>Absence evidence: {target.eligible_window_count}/5 subsequent eligible games in the current window.</p>
     {target.blocking_game ? <p>
-      {target.blocking_game.reason === 'unfinished' ? <>Waiting for this unfinished game: <a href={`/play?session=${encodeURIComponent(target.blocking_game.session_id)}`}>Resume or resign game {target.blocking_game.game_id}</a>.</> :
-        <>Waiting for an earlier game’s analysis: <a href={`/games/${encodeURIComponent(target.blocking_game.game_id)}/analysis`}>Review game {target.blocking_game.game_id}</a>.</>}
+      {target.blocking_game.reason === 'unfinished' ? <>Waiting for this unfinished game: <a href={`/play?session=${encodeURIComponent(target.blocking_game.session_id)}`}>Resume or resign this game</a>.</> :
+        <>Waiting for an earlier game’s analysis: <a href={`/games/${encodeURIComponent(target.blocking_game.game_id)}/analysis`}>Review the game awaiting analysis</a>.</>}
     </p> : null}
     <p>Only terminal, fully analysed Scan64 play-session games with known owner colour, every owner move scored and at least 20 owner moves qualify. Imports do not count. A retained target diagnosis or an uncapped non-retired observation restarts the window.</p>
     <p>Lesson hints are app-reported, not server-proven independence. Diagnosis uses a ≥150cp fast-pass swing threshold; smaller or undetected errors can remain. This is bounded evidence, not a cure or permanent mastery.</p>
@@ -139,7 +140,7 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
   const otherTargets = summary?.targets.filter(target => target.code !== top?.diagnosis) ?? [];
 
   return <div className="habit-panels">
-    <section className="study-panel habit-daily" aria-label="Daily qualifying-solve goal">
+    <Panel className="habit-daily" aria-label="Daily qualifying-solve goal">
       <h2>Your daily qualifying solves</h2>
       {(error || streakError || goalError || changeError) ? <div role="alert" tabIndex={-1} ref={errorRef}>
         {error ? <p>{error}</p> : null}
@@ -189,7 +190,7 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
       {streak ? <p>{streak.current} current · {streak.best} best consecutive qualifying puzzle solves.{streak.reset_reason ? ` Reset reason: ${streak.reset_reason}.` : ''}</p>
         : !streakError ? <p role="status">Loading puzzle solve streak…</p> : null}
       <p>This is the puzzle mode’s solve streak, not a calendar-day streak.</p>
-    </section>
+    </Panel>
     <PatternCard report={patterns} onNavigate={onNavigate}>
       {topTarget ? <TargetEvidence target={topTarget} pending={pending} onRefresh={() => void act(
         () => ApiClient.refreshHabitTarget(playerId, topTarget.id), 'Tracked evidence refreshed. Historical awards and met days are preserved.',
@@ -202,17 +203,17 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
           <p>Lesson hints are app-reported. Diagnosis uses a ≥150cp threshold. Tracking is not a mastery or cure claim.</p>
         </div> : null}
     </PatternCard>
-    {otherTargets.map(target => <section className="study-panel" aria-label={`Tracked pattern: ${target.pattern_snapshot.name}`} key={target.id}>
+    {otherTargets.map(target => <Panel aria-label={`Tracked pattern: ${target.pattern_snapshot.name}`} key={target.id}>
       <h2>Tracked pattern: {target.pattern_snapshot.name}</h2>
       <p>This target stays tracked even when the top recurring pattern changes. The following coverage was saved when tracking began.</p>
       <p>{target.pattern_snapshot.template}</p>
       <p>Support at start: {target.pattern_snapshot.occurrence_count} distinct games · Coverage at start: {target.pattern_snapshot.scored_occurrences}/{target.pattern_snapshot.total_occurrences} scored retained moments.</p>
-      <ul>{target.pattern_snapshot.supporting_moves?.map(move => <li key={`${move.game_id}-${move.ply}`}>
-        <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Game {move.game_id}, ply {move.ply}</a>
+      <ul>{target.pattern_snapshot.supporting_moves?.map((move, index) => <li key={`${move.game_id}-${move.ply}`}>
+        <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move {index + 1} at ply {move.ply}</a>
       </li>)}</ul>
       <TargetEvidence target={target} pending={pending} onRefresh={() => void act(
         () => ApiClient.refreshHabitTarget(playerId, target.id), 'Tracked evidence refreshed. Historical awards and met days are preserved.',
       )} />
-    </section>)}
+    </Panel>)}
   </div>;
 }

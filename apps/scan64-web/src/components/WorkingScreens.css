@@ -64,3 +64,65 @@
   background: var(--surface);
   box-shadow: inset 3px 0 var(--accent);
 }
+
+.profile-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.coach-dashboard__students,
+.coach-student__evidence,
+.import-controls {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.coach-student__header,
+.coach-student__section {
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.coach-student__section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.coach-student__evidence {
+  padding: 0;
+  list-style: none;
+}
+
+.coach-student__evidence li {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.coach-student__evidence div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-size: var(--type-label);
+}
+
+.import-controls > button {
+  justify-self: start;
+}
+
+.pgn-import [data-testid='lessons-list'] li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+@media (max-width: 899px) {
+  .profile-records {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

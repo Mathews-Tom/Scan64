@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { PlayerGameRead } from '../api/types';
+import { latestGameLabel } from './gameLabel';
+import { Button, EmptyState, ListRow } from './Primitives';
 
 interface GamesListScreenProps {
   onOpenGame: (gameId: string) => void;
@@ -34,18 +36,18 @@ export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
   }, []);
 
   return (
-    <section data-testid="games-list-screen">
+    <section className="working-screen" data-testid="games-list-screen">
       <h1>Your games</h1>
       {loading && <p role="status">Loading games...</p>}
       {error && <div className="error" role="alert">{error}</div>}
-      {!loading && !error && games.length === 0 && <p>No games yet.</p>}
-      <ul>
+      {!loading && !error && games.length === 0 && <EmptyState title="No games yet"><p>Play a game or import a PGN to start your review record.</p></EmptyState>}
+      <ul className="working-list">
         {games.map((game) => (
-          <li key={game.id}>
-            <button onClick={() => onOpenGame(game.id)}>
-              {game.white} vs {game.black} — {game.result} — {game.date} — {game.diagnosis_count} diagnoses
-            </button>
-          </li>
+          <ListRow key={game.id}
+            label={<Button onClick={() => onOpenGame(game.id)}>
+              {latestGameLabel(game, getOrCreatePlayerId(), true)} — {game.result} — {game.diagnosis_count} diagnoses
+            </Button>}
+          />
         ))}
       </ul>
       {nextCursor && (

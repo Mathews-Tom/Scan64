@@ -21,15 +21,12 @@
 .identity-screen label { color: var(--ink); font-weight: 500; }
 .today-heading { padding-block: var(--space-4) var(--space-6); }
 .today-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-bottom: var(--space-8); }
-.today-actions button { text-align: left; padding: var(--space-6); border-radius: var(--radius-panel); }
+.today-actions button { text-align: left; padding: var(--space-6); }
 .today-actions strong { display: block; color: var(--ink); font-size: 24px; margin-bottom: var(--space-2); }
 .today-actions span { color: var(--ink); font-size: var(--type-body); }
-.today-actions button.button-primary strong, .today-actions button.button-primary span { color: inherit; }
+.today-actions .btn--primary strong, .today-actions .btn--primary span { color: inherit; }
 .today-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
-.study-panel { padding: var(--space-6); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); }
-.study-panel h2 { font-size: 24px; }
-.study-panel ul { padding-left: var(--space-6); margin-bottom: 0; }
-.library-links { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-6); }
+.library-links { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .report-error { border-left: 4px solid var(--ink); padding: var(--space-4); background: var(--surface); }
 .desktop-update-banner { margin-left: 208px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) var(--space-6); background: var(--surface); border-bottom: 1px solid var(--border); }
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -53,7 +50,7 @@
   .app-shell main { margin-left: 0; padding: var(--space-6) var(--space-4) calc(var(--shell-clearance) + var(--space-4)); }
   .desktop-update-banner { margin-left: 0; }
   .today-actions, .today-panels { grid-template-columns: 1fr; gap: var(--space-3); }
-  .today-actions button, .study-panel { padding: var(--space-4); }
+  .today-actions button { padding: var(--space-4); }
   .today-actions strong { font-size: 24px; margin-bottom: 0; }
   .identity-screen { margin-block: var(--space-6); }
 }

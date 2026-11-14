@@ -16,6 +16,8 @@ import { TodayScreen } from './components/TodayScreen';
 import { PuzzlesScreen } from './components/PuzzlesScreen';
 import { SettingsScreen, initializeAppearance } from './components/SettingsScreen';
 import { NavigationIcon } from './components/NavigationIcon';
+import { Button, Panel } from './components/Primitives';
+import './components/WorkingScreens.css';
 
 function decodeRouteSegment(value: string): string | null {
   try {
@@ -162,14 +164,16 @@ function App() {
       break;
     case '/library':
       screen = (
-        <section className="library-screen">
+        <section className="library-screen working-screen">
           <h1>Library</h1>
           <p>Explore an opening, study a master game, or bring your own game to review.</p>
-          <div className="library-links">
-            <button onClick={() => navigate('/explorer')}>Opening Explorer</button>
-            <button onClick={() => navigate('/famous')}>Famous Games</button>
-            <button onClick={() => navigate('/import')}>Import PGN</button>
-          </div>
+          <Panel title="Choose a study path">
+            <div className="library-links">
+              <Button variant="primary" onClick={() => navigate('/explorer')}>Opening Explorer</Button>
+              <Button onClick={() => navigate('/famous')}>Famous Games</Button>
+              <Button onClick={() => navigate('/import')}>Import PGN</Button>
+            </div>
+          </Panel>
         </section>
       );
       break;
@@ -226,9 +230,9 @@ function App() {
             }}>
               <label htmlFor="display-name">Display name</label>
               <input id="display-name" autoComplete="nickname" required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-              <button className="button-primary" type="submit" disabled={creatingPlayer || !displayName.trim()}>
+              <Button variant="primary" type="submit" disabled={creatingPlayer || !displayName.trim()}>
                 {creatingPlayer ? 'Creating player…' : 'Start learning'}
-              </button>
+              </Button>
               {identityError ? <p role="alert">{identityError}. Please try again.</p> : null}
             </form>
             <p className="muted">Your player identity stays in this browser. No account or email needed.</p>

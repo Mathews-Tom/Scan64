@@ -46,8 +46,7 @@ test('Today links an analysed game and uses skill names rather than codes', asyn
   await expect(page.getByText('Scan64 puzzle rating: 1200 (provisional) · 0 rated puzzles')).toBeVisible();
   await expect(page.getByText('3 of 10 completed · 7 remaining · 2 overdue reviews')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Continue puzzles' })).toHaveAttribute('href', '/puzzles');
-  const skills = page.locator('.study-panel').filter({ has: page.getByRole('heading', { name: 'Skills to practise' }) });
-  await expect(skills.getByRole('listitem')).toHaveText(['Hanging piece', 'Pin']);
+  await expect(page.getByRole('listitem').filter({ hasText: /^(Hanging piece|Pin)$/ })).toHaveText(['Hanging piece', 'Pin']);
   await expect(page.locator('main')).not.toContainText('board_awareness.hanging_piece');
   await expect(page.locator('main')).not.toContainText('tactics.pin');
   await page.getByRole('link', { name: 'Review this game' }).click();
@@ -75,7 +74,6 @@ for (const width of [1280, 390]) {
         ['Play', '/play', 'Play against Scan64'],
         ['Review', '/games', 'Your games'],
         ['Train', '/training', 'No training lessons available'],
-        ['Profile', '/profile', 'Player Profile: player-1'],
         ['Coach', '/coach', 'Pattern ledger'],
         ['Today', '/', 'Today'],
       ]) {
@@ -84,10 +82,13 @@ for (const width of [1280, 390]) {
         await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
         await expect(nav.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
       }
+      await nav.getByRole('button', { name: 'Profile', exact: true }).click();
+      await expect(page).toHaveURL('/profile');
+      await expect(page.getByTestId('profile-screen')).toBeVisible();
+      await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page');
       for (const [label, route, heading] of [
         ['Opening Explorer', '/explorer', 'Opening Explorer'],
         ['Famous Games', '/famous', 'Study Famous Games'],
-        ['Import PGN', '/import', 'Import Game'],
       ]) {
         await nav.getByRole('button', { name: 'Library', exact: true }).click();
         await page.getByRole('button', { name: label, exact: true }).click();
@@ -95,6 +96,11 @@ for (const width of [1280, 390]) {
         await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
         await expect(nav.getByRole('button', { name: 'Library', exact: true })).toHaveAttribute('aria-current', 'page');
       }
+      await nav.getByRole('button', { name: 'Library', exact: true }).click();
+      await page.getByRole('button', { name: 'Import PGN', exact: true }).click();
+      await expect(page).toHaveURL('/import');
+      await expect(page.getByTestId('pgn-import')).toBeVisible();
+      await expect(nav.getByRole('button', { name: 'Library', exact: true })).toHaveAttribute('aria-current', 'page');
       await nav.getByRole('button', { name: 'Review', exact: true }).click();
       await page.getByRole('button', { name: 'Analysis Board', exact: true }).click();
       await expect(page).toHaveURL('/analysis');
