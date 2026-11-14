@@ -35,9 +35,16 @@ try {
         state.screens.push({ name, layout });
       }
       await page.goto(origin);
+      state.bundledFontsLoaded = await page.evaluate(async () => Promise.all(['--sans', '--mono'].map(async token => {
+        const family = getComputedStyle(document.documentElement).getPropertyValue(token).split(',')[0].trim();
+        const faces = await document.fonts.load(`16px ${family}`);
+        return faces.length > 0 && faces.every(face => face.status === 'loaded');
+      })));
+      expect(state.bundledFontsLoaded).toEqual([true, true]);
       await page.getByLabel('Display name', { exact: true }).fill(`M81 ${width} ${appearance}`);
       await page.getByRole('button', { name: 'Start learning', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Your puzzle practice', exact: true })).toBeVisible();
       state.playerCreated = true;
       await capture('today');
       await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Settings', exact: true }).click();
@@ -57,9 +64,11 @@ try {
       await move.fill('e2e4');
       await page.getByRole('button', { name: 'Make move', exact: true }).click();
       await expect(page.getByTestId('chessground-board-san-move-list')).toContainText('e4');
+      await expect(page.getByTestId('chessground-board-san-move-list').locator('li')).toHaveCount(2);
       await expect(page.getByRole('button', { name: 'Hint', exact: true })).toBeEnabled();
       await page.getByRole('button', { name: 'Hint', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Close hints', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Hint details', exact: true })).toBeVisible();
       state.botReplyAndHint = true;
       await capture('play');
       await page.getByRole('button', { name: 'Close hints', exact: true }).click();

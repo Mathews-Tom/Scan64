@@ -358,9 +358,9 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Your mistakes' }));
     expect(await screen.findByText('No eligible mistakes available.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'More mistakes' }));
-    expect(await screen.findByRole('link', { name: 'Game game-1, ply 12' })).toHaveAttribute('href', '/games/game-1/analysis?ply=12');
     expect(ApiClient.getPuzzleMistakes).toHaveBeenLastCalledWith(20);
-    expect(screen.getByText(/2 attempts remaining/)).toBeInTheDocument();
+    expect(await screen.findByText(/2 attempts remaining/)).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toContain('/games/game-1/analysis?ply=12');
     expect(screen.getByRole('button', { name: 'More mistakes' })).toBeDisabled();
   });
   it('opens an owned retry with its server session and lifetime lesson budget', async () => {

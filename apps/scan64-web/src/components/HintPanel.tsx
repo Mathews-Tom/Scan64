@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { linePosition } from './linePosition';
 import { ApiClient } from '../api/client';
 import type { MoveInsight, PositionInsight, Visualization } from '../api/types';
+import { Panel } from './Primitives';
 
 export interface HintPreview { sourceFen: string; fen: string; visualizations: Visualization[] }
 
@@ -75,10 +76,10 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
       onPreview({ sourceFen: fen, fen: previewFen, visualizations: step ? item.visualizations.filter(v => v.command !== 'draw_arrow') : arrows(result) });
     } catch { setError('This candidate line cannot be previewed.'); }
   };
-  return <section aria-label="Position hints" onKeyDown={event => {
+  return <Panel className="hint-panel" aria-label="Position hints" onKeyDown={event => {
     if (event.key === 'Escape' && result) { event.preventDefault(); close(); }
   }}>
-    <button ref={hintButton} type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
+    <button className={disabled ? 'btn btn--secondary' : 'btn btn--primary'} ref={hintButton} type="button" disabled={disabled || busy || result?.step === 3} onClick={() => void request()}>{busy ? 'Finding hints…' : 'Hint'}</button>
     {error && <p role="alert">{error}</p>}
     {sessionId && <p>Any hint step is recorded for this position, including after takeback or reload, and excludes good-move skill credit.</p>}
     <div role="status" aria-atomic="true">{result && !disabled ? <>
@@ -103,5 +104,5 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
       </>}
       <button type="button" onClick={close}>Close hints</button>
     </div>}
-  </section>;
+  </Panel>;
 }

@@ -17,6 +17,7 @@ import { CoachBoard } from './CoachBoard';
 import { HintPanel, type HintPreview } from './HintPanel';
 import { Chess } from 'chess.js';
 
+import { Panel } from './Primitives';
 const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
 
 
@@ -566,19 +567,20 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     <div className="play-screen" data-testid="play-screen">
       <h1 ref={heading} tabIndex={-1}>Play against Scan64</h1>
       {resuming ? <div role="status" data-testid="resuming-game">Resuming game...</div> : null}
+      <div className="board-workspace">
+      <div className="board-workspace__side">
       {!session && !resuming && (
-        <div className="player-setup">
-          <label htmlFor="play-player-id">Player ID</label>
+        <Panel className="player-setup" title="Your opponent">
+          {!getStoredPlayerId() && <><label htmlFor="play-player-id">Player ID</label>
           <input 
             type="text" 
             id="play-player-id"
             placeholder="Player ID" 
             value={playerId} 
             disabled={botChoicePending}
-            readOnly={getStoredPlayerId() !== null}
             onChange={e => setPlayerId(e.target.value)} 
             data-testid="player-id-input"
-          />
+          /></>}
           <label htmlFor="play-display-name">Display name (optional)</label>
           <input 
             type="text" 
@@ -613,8 +615,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
               <option value="white">White</option><option value="black">Black</option><option value="random">Random</option>
             </select>
           </label>
-          <button onClick={startGame} disabled={!botChoiceReady || botChoicePending} data-testid="start-btn">Start Game</button>
-        </div>
+          <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending} data-testid="start-btn">Start Game</button>
+        </Panel>
       )}
       {error && <div className="error" role="alert">{error}</div>}
       {syncRetrySessionId ? (
@@ -635,6 +637,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           Retry game refresh
         </button>
       ) : null}
+      </div>
+      <div className="board-workspace__board">
       <CoachBoard
         {...boardPosition}
         {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
@@ -648,6 +652,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           queuedMoveNeedsRefreshRef.current.has(session.id)}
         onMove={handleMove}
       />
+      </div>
+      <div className="board-workspace__side">
+      {session && <Panel title="Current game">
+        <p>You play {sessionPlayerColor(session) ?? 'your chosen side'} against Scan64.</p>
+        <p data-testid="session-info">Status: {session.status}</p>
+      </Panel>}
       {session?.status === 'active' && <HintPanel playerId={playerId} sessionId={session.id}
         fen={boardPosition.fen} onPreview={setHintPreview}
         disabled={movePending || resigning || takingBack || criticalInterruption !== null ||
@@ -676,6 +686,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             onNavigate(`/games/${encodeURIComponent(session.game_id)}/analysis`);
           }}>Review game</a></>}
       </div>}
+      </div>
+      </div>
       {criticalInterruption ? (
         <div ref={interruptionPanel} tabIndex={-1} role="region" aria-label="Coach review">
         <CriticalMomentReview
@@ -686,11 +698,6 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         />
         </div>
       ) : null}
-      {session && (
-        <div data-testid="session-info">
-          Status: {session.status}
-        </div>
-      )}
     </div>
   );
 }

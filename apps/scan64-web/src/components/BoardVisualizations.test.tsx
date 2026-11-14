@@ -26,6 +26,19 @@ describe('Board annotation alternatives', () => {
     expect(screen.getAllByText(/Advance the pawn/)).toHaveLength(1);
   });
 
+  it('numbers only arrows when highlights precede or separate them', () => {
+    render(<VisualizationDescriptions fen={fen} visualizations={[
+      { command: 'highlight_piece', description: 'Inspect the pawn', square: 'e2' },
+      { command: 'draw_arrow', description: 'Advance the pawn', origin: 'e2', target: 'e4' },
+      { command: 'highlight_square', description: 'Inspect the centre', square: 'e4' },
+      { command: 'draw_arrow', description: 'Prepare the pawn', origin: 'e2', target: 'e3' },
+    ]} />);
+    const annotations = screen.getByRole('list', { name: 'Board annotations' });
+    expect(annotations).toHaveTextContent('1. Advance the pawn (e2 to e4)');
+    expect(annotations).toHaveTextContent('2. Prepare the pawn (e2 to e3)');
+    expect(annotations).not.toHaveTextContent('1. Inspect the pawn');
+  });
+
   it('does not repeat non-graphical descriptions or expose unrevealed annotations', () => {
     const { rerender } = render(<VisualizationDescriptions fen={fen} visualizations={[]} />);
     expect(screen.queryByRole('list')).not.toBeInTheDocument();

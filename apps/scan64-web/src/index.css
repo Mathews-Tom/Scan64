@@ -20,6 +20,7 @@ a { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; 
 button, input, select, textarea { font: inherit; }
 button {
   min-height: 44px;
+  min-width: 44px;
   padding: var(--space-2) var(--space-4);
   color: var(--ink);
   background: var(--ground);
@@ -54,6 +55,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 fieldset { margin-inline: 0; }
 label { overflow-wrap: anywhere; }
 input[type='checkbox'], input[type='radio'] { min-width: 24px; min-height: 24px; vertical-align: middle; }
+label:has(input[type='checkbox']), label:has(input[type='radio']) { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; }
 .board-annotation-text { padding-inline-start: var(--space-6); }
 .coach-board .cg-wrap coords.files { left: 0; }
 .player-setup { display: flex; flex-direction: column; align-items: start; gap: var(--space-3); }

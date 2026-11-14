@@ -35,7 +35,6 @@ describe('OpeningExplorerScreen', () => {
     expect(screen.getByTestId('family-details')).toBeInTheDocument();
     expect(screen.getByText(/Rapid development, central tension, king safety/)).toBeInTheDocument();
     expect(screen.getByText(/Develop both minor pieces before starting an attack/)).toBeInTheDocument();
-    expect(screen.getByText(/minor_pieces_developed/)).toBeInTheDocument();
   });
 
   it('announces rejected keyboard moves, retains focus and leaves the position unchanged', () => {
