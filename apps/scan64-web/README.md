@@ -71,6 +71,8 @@ Play, Review/Analysis, Puzzles, Daily Training, Famous Games and Explorer share 
 
 Today, Profile, Coach, Library, game history, PGN import and onboarding use the same panel and action recipes. Ordinary headings and supporting-game links use readable labels instead of stored record IDs; ownership references remain in requests and link destinations. The old Coach card stylesheet, starter artwork and temporary palette aliases have been removed.
 
+The optional `scripts/m81-live-evidence.mjs` records six screens at four widths in both grades against the real disposable local server, without API interception. Set `SCAN64_EVIDENCE_DIR` to an external output directory and import the disclosed legal opening-line fixture first. The script handles automatic post-game analysis as well as an offered Analyse action, and waits for completed analysis before recording the review. The deterministic fixture exercises move entry; it is not a puzzle-quality or chess-improvement measurement.
+
 ## User documentation
 
 Use the [root README](../../README.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.

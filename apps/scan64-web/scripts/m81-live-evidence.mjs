@@ -75,10 +75,16 @@ try {
       await page.getByRole('button', { name: 'Resign', exact: true }).click();
       await expect(page.getByTestId('game-result')).toBeVisible();
       await page.getByRole('link', { name: 'Review game', exact: true }).click();
-      await expect(page.getByTestId('start-analysis')).toBeVisible();
-      await page.getByTestId('start-analysis').click();
+      await expect(page.getByRole('button', { name: 'Refresh review', exact: true })).toBeVisible();
+      if (await page.getByTestId('start-analysis').isVisible()) await page.getByTestId('start-analysis').click();
       await expect(async () => {
-        if (await page.getByRole('button', { name: 'Refresh review', exact: true }).isEnabled()) await page.getByRole('button', { name: 'Refresh review', exact: true }).click();
+        const refresh = page.getByRole('button', { name: 'Refresh review', exact: true });
+        await expect(refresh).toBeEnabled();
+        await refresh.click();
+        await expect(refresh).toBeEnabled();
+        await expect(page.getByTestId('analysis-not-analysed')).toHaveCount(0);
+        await expect(page.getByTestId('analysis-in-progress')).toHaveCount(0);
+        await expect(page.getByTestId('analysis-failed')).toHaveCount(0);
         await expect(page.getByTestId('review-board')).toBeVisible();
       }).toPass({ timeout: 120000, intervals: [1000, 2000, 4000] });
       await page.getByRole('button', { name: 'Last', exact: true }).click();
