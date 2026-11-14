@@ -93,7 +93,7 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
       await page.goto('/import');
       await page.getByTestId('pgn-textarea').fill('[White "player-1"]\n\n1. e4 *');
       await page.getByTestId('import-btn').click();
-      await expect(page.getByText(/Learning Opportunities/)).toBeVisible();
+      await expect(page.getByTestId('lessons-list').getByRole('button', { name: 'Review', exact: true })).toBeVisible();
       await capture(page, info, 'import-opportunities');
     });
   });

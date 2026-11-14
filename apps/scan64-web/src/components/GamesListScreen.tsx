@@ -45,7 +45,7 @@ export function GamesListScreen({ onOpenGame }: GamesListScreenProps) {
         {games.map((game) => (
           <ListRow key={game.id}
             label={<Button onClick={() => onOpenGame(game.id)}>
-              {latestGameLabel(game, getOrCreatePlayerId())} — {game.result} — {game.diagnosis_count} diagnoses
+              {latestGameLabel(game, getOrCreatePlayerId(), true)} — {game.result} — {game.diagnosis_count} diagnoses
             </Button>}
           />
         ))}

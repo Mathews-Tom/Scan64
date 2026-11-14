@@ -26,6 +26,7 @@ describe('GamesListScreen', () => {
     render(<GamesListScreen onOpenGame={onOpenGame} />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /Alice vs Bob/ })).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Alice vs Bob/ })).toHaveTextContent('2026');
     expect(ApiClient.getPlayerGames).toHaveBeenCalledWith('player-1');
     fireEvent.click(screen.getByRole('button', { name: /Alice vs Bob/ }));
     expect(onOpenGame).toHaveBeenCalledWith('game-1');

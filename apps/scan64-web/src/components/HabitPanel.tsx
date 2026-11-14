@@ -208,8 +208,8 @@ export function HabitPanel({ playerId, patterns, onNavigate }: {
       <p>This target stays tracked even when the top recurring pattern changes. The following coverage was saved when tracking began.</p>
       <p>{target.pattern_snapshot.template}</p>
       <p>Support at start: {target.pattern_snapshot.occurrence_count} distinct games · Coverage at start: {target.pattern_snapshot.scored_occurrences}/{target.pattern_snapshot.total_occurrences} scored retained moments.</p>
-      <ul>{target.pattern_snapshot.supporting_moves?.map(move => <li key={`${move.game_id}-${move.ply}`}>
-        <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move at ply {move.ply}</a>
+      <ul>{target.pattern_snapshot.supporting_moves?.map((move, index) => <li key={`${move.game_id}-${move.ply}`}>
+        <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move {index + 1} at ply {move.ply}</a>
       </li>)}</ul>
       <TargetEvidence target={target} pending={pending} onRefresh={() => void act(
         () => ApiClient.refreshHabitTarget(playerId, target.id), 'Tracked evidence refreshed. Historical awards and met days are preserved.',

@@ -57,8 +57,8 @@ export function PatternCard({ report, owner = true, onNavigate, children }: {
             : `Highest observed loss among scored retained moments: ${(pattern.observed_loss * 100).toFixed(1)} percentage points of summed win-probability loss.`}</p>
           <p>Support: {pattern.occurrence_count} distinct games · Coverage: {pattern.scored_occurrences}/{pattern.total_occurrences} scored retained moments.</p>
           {owner ? <>
-            <ul>{pattern.supporting_moves?.map(move => <li key={`${move.game_id}-${move.ply}`}>
-              <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move at ply {move.ply}</a>
+            <ul>{pattern.supporting_moves?.map((move, index) => <li key={`${move.game_id}-${move.ply}`}>
+              <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move {index + 1} at ply {move.ply}</a>
               {move.loss === null ? ' · unscored' : ` · ${(move.loss * 100).toFixed(1)} percentage points loss`}
             </li>)}</ul>
             <button disabled={pending} onClick={() => void practice()}>{pending ? 'Finding related practice…' : 'Start pattern practice'}</button>
