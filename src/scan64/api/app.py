@@ -1,6 +1,8 @@
+import asyncio
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from sqlmodel import Session
@@ -56,10 +58,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.engine_pool_manager = (
         EnginePoolManager.from_env(StockfishConfig()) if engine_pool_enabled() else None
     )
+    if shell_token is not None:
+        from scan64.puzzle_import_job import PuzzleImportJob
+
+        app.state.puzzle_import_job = PuzzleImportJob(
+            database.engine, Path(os.environ["SCAN64_DATA_DIR"])
+        )
     try:
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
+        if shell_token is not None:
+            await asyncio.to_thread(app.state.puzzle_import_job.close)
+            del app.state.puzzle_import_job
         await admission_controller.stop()
         if app.state.engine_pool_manager is not None:
             await app.state.engine_pool_manager.close()
@@ -94,6 +105,10 @@ app.include_router(habit_router)
 
 shell_token = os.environ.get("SCAN64_SHELL_TOKEN")
 add_desktop_security(app, shell_token)
+if shell_token is not None:
+    from scan64.api.puzzle_import import router as puzzle_import_router
+
+    app.include_router(puzzle_import_router)
 
 
 @app.get("/health")

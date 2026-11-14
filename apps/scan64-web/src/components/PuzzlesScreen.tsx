@@ -1,3 +1,4 @@
+import { PuzzleLibraryControls, usePuzzleImport } from './PuzzleImport';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient, PuzzleConflictError } from '../api/client';
 import type { PuzzleMode, PuzzleModesRead, PuzzleMistakesRead, PuzzleMistakeStartRead, PuzzleRunCreate, PuzzleRunRead, PuzzleStartRead } from '../api/types';
@@ -10,6 +11,7 @@ import './WorkingScreens.css';
 const IMPORT_COMMAND = 'uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json';
 
 export function PuzzlesScreen() {
+  const puzzleImport = usePuzzleImport();
   const [distribution, setDistribution] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -268,10 +270,9 @@ export function PuzzlesScreen() {
         {!active && mode !== 'mistakes' && !run && catalog && (catalog.status === 'empty' || catalog.status === 'exhausted') ? <section className="working-controls__section">
           <p>{catalog.status === 'empty' ? 'No imported puzzles are available.' : mode === 'daily' ? 'No more puzzles are available in today’s set. The next daily set resets at UTC midnight.' : 'This practice mode is exhausted. No unseen eligible puzzles remain.'}</p>
           {catalog.status === 'empty' ? <>
-            <PuzzleImportInstructions distribution={distribution} />
-            <p>Nothing downloads automatically.</p>
+            {puzzleImport?.desktop ? <PuzzleLibraryControls /> : <><PuzzleImportInstructions distribution={distribution} /><p>Nothing downloads automatically.</p></>}
           </> : null}
-          <Button variant="primary" disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</Button>
+          {!(catalog.status === 'empty' && puzzleImport?.desktop) ? <Button variant="primary" disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</Button> : null}
         </section> : null}
         {run && (active || mode === run.mode) ? <section className="working-controls__section">
           <h2 ref={puzzleHeading} tabIndex={-1}>Source puzzle</h2>
