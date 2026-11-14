@@ -4,21 +4,21 @@
 .review-summary h3 { margin: 0 0 var(--space-2); }
 .review-summary p { margin: 0; }
 .review-band-counts { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: 0; }
-.review-band-counts dd { margin: 0; font-weight: 700; color: var(--text-h); }
+.review-band-counts dd { margin: 0; font-weight: 700; color: var(--ink); }
 .review-probability-graph { margin: 0; max-width: 900px; }
-.review-probability-graph figcaption { font-weight: 700; color: var(--text-h); }
+.review-probability-graph figcaption { font-weight: 700; color: var(--ink); }
 .review-probability-graph svg { display: block; width: 100%; overflow: visible; }
 .review-probability-graph text { fill: var(--muted); font-size: var(--type-label); }
 .review-gridline { stroke: var(--border); stroke-width: 1; }
 .review-probability-line { stroke: var(--ink); stroke-width: 2; fill: none; }
-.review-selection-line { stroke: var(--text-h); stroke-width: 1; stroke-dasharray: 3 3; }
+.review-selection-line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
 .review-graph-point { cursor: pointer; fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
 .review-graph-point .review-point-hit-area { fill: var(--transparent); stroke: none; }
 .review-graph-point.is-unscored > circle:last-of-type { stroke-dasharray: 2 2; }
-.review-graph-point[aria-pressed='true'] > circle:last-of-type { fill: var(--accent); stroke: var(--text-h); stroke-width: 3; }
-.review-graph-point.is-key-moment > circle:last-of-type { stroke: var(--text-h); }
+.review-graph-point[aria-pressed='true'] > circle:last-of-type { fill: var(--accent); stroke: var(--ink); stroke-width: 3; }
+.review-graph-point.is-key-moment > circle:last-of-type { stroke: var(--ink); }
 .review-graph-point:focus { outline: none; }
-.review-graph-point:focus-visible > circle:last-of-type { stroke: var(--text-h); stroke-width: 5; }
+.review-graph-point:focus-visible > circle:last-of-type { stroke: var(--ink); stroke-width: 5; }
 .review-graph-point text { stroke: none; fill: var(--ink); font-size: var(--type-body); }
 /* The annotated list replaces CoachBoard's plain replay list on this screen only. */
 .owned-review-board > .coach-board > ol { display: none; }

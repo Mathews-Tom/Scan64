@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ApiClient } from '../api/client';
 import type { PatternsReport } from '../api/types';
+import { Panel } from './Primitives';
 
 export function PatternCard({ report, owner = true, onNavigate, children }: {
   report: PatternsReport;
@@ -44,7 +45,7 @@ export function PatternCard({ report, owner = true, onNavigate, children }: {
       setDailyFallback(true);
     } finally { setPending(false); }
   };
-  return <section className="study-panel" aria-label="Recurring pattern">
+  return <Panel aria-label="Recurring pattern">
     <h2>Recurring pattern</h2>
     <p>{report.eligible_game_count} eligible analysed games · recurrence requires {report.minimum_occurrences} distinct games.</p>
     {report.status === 'insufficient_data' ? <p>More eligible analysed games are needed before recurrence can be assessed.</p>
@@ -57,7 +58,7 @@ export function PatternCard({ report, owner = true, onNavigate, children }: {
           <p>Support: {pattern.occurrence_count} distinct games · Coverage: {pattern.scored_occurrences}/{pattern.total_occurrences} scored retained moments.</p>
           {owner ? <>
             <ul>{pattern.supporting_moves?.map(move => <li key={`${move.game_id}-${move.ply}`}>
-              <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Game {move.game_id}, ply {move.ply}</a>
+              <a href={`/games/${encodeURIComponent(move.game_id)}/analysis?ply=${move.ply}`}>Review supporting move at ply {move.ply}</a>
               {move.loss === null ? ' · unscored' : ` · ${(move.loss * 100).toFixed(1)} percentage points loss`}
             </li>)}</ul>
             <button disabled={pending} onClick={() => void practice()}>{pending ? 'Finding related practice…' : 'Start pattern practice'}</button>
@@ -68,5 +69,5 @@ export function PatternCard({ report, owner = true, onNavigate, children }: {
           </> : null}
         </>}
     <p className="muted">Only trusted, visible retained lessons count. Retention limits and missing scores leave gaps: this is not all errors, a causal explanation, statistical significance, or proof of a habit or cure. Missing loss is unavailable, not zero. Review explanations and retries are limited to eligible key moments.</p>
-  </section>;
+  </Panel>;
 }

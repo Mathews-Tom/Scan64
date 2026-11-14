@@ -3,6 +3,7 @@ import { ApiClient, getActivePlayerId } from '../api/client';
 import { OnboardingCard } from './OnboardingCard';
 import { StrengthSummary } from './StrengthSummary';
 import { HabitPanel } from './HabitPanel';
+import { Panel } from './Primitives';
 import type {
   EvidenceReport,
   PatternsReport,
@@ -65,14 +66,16 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
   }
 
   return (
-    <div className="profile-screen" data-testid="profile-screen">
-      <h2>Player Profile: {playerId}</h2>
+    <div className="profile-screen working-screen" data-testid="profile-screen">
+      <h1>Profile</h1>
       <OnboardingCard onNavigate={onNavigate} onChange={refreshStrength} />
-      {strengthError ? <div role="alert"><p>{strengthError}</p><button onClick={refreshStrength}>Retry strength report</button></div>
-        : strength ? <StrengthSummary strength={strength} /> : <p role="status">Loading strength report…</p>}
+      <Panel title="Your strength record">
+        {strengthError ? <div role="alert"><p>{strengthError}</p><button onClick={refreshStrength}>Retry strength report</button></div>
+          : strength ? <StrengthSummary strength={strength} /> : <p role="status">Loading strength report…</p>}
+      </Panel>
 
-      <section>
-        <h3>Strengths & Weaknesses</h3>
+      <div className="profile-records">
+      <Panel title="Strengths and weaknesses">
         <p>Skills include verified practice and eligible completed-game tactical successes. Review a game to inspect good-move proof and exclusions; “no in-app hint” does not establish absence of external help.</p>
         <p>New skills begin with a provisional (3, 2) seed, not a measurement of your ability. Observed evidence updates those priors; the internal profile rating is not a playing-strength estimate.</p>
         <ul>
@@ -82,17 +85,17 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
             </li>
           ))}
         </ul>
-      </section>
+      </Panel>
 
-      <section>
-        <h3>Evidence</h3>
+      <Panel title="Evidence">
         <ul>
           {evidence.evidence_items.length === 0 ? <li>No evidence collected yet.</li> : null}
           {evidence.evidence_items.map((item) => (
             <li key={item.evidence_id}>{item.kind}: {item.claim}</li>
           ))}
         </ul>
-      </section>
+      </Panel>
+      </div>
 
       <HabitPanel playerId={playerId} patterns={patterns} onNavigate={onNavigate} />
     </div>

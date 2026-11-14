@@ -5,7 +5,6 @@
 .onboarding-choice input { width: auto; flex: 0 0 auto; }
 .strength-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block: var(--space-4); }
 .strength-actions button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
-.onboarding-card progress { display: block; width: 100%; margin-block: var(--space-2); accent-color: var(--accent); }
 .onboarding-card > a { display: inline-block; margin-top: var(--space-4); }
 .strength-summary { min-width: 0; overflow-wrap: anywhere; }
 .strength-summary section { margin-block: var(--space-6); }

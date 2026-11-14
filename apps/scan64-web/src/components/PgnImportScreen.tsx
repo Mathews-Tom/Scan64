@@ -3,6 +3,7 @@ import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPla
 import type { LessonSpec } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import { diagnosisName } from './diagnosisName';
+import { Button, Panel } from './Primitives';
 
 interface PgnImportScreenProps {
   onExploreAnalysis?: (gameId: string) => void;
@@ -145,8 +146,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   }
 
   return (
-    <div className="pgn-import" data-testid="pgn-import">
-      <h2>Import Game</h2>
+    <section className="pgn-import working-screen" data-testid="pgn-import">
+      <h1>Import game</h1>
+      <Panel className="import-controls" aria-label="Import your game">
       <label>Your side
         <select aria-label="Your side" value={ownerColor} onChange={e => { sideChosenManually.current = true; setOwnerColor(e.target.value as 'white' | 'black'); }}>
           <option value="white">White</option>
@@ -163,10 +165,9 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
         cols={50}
         data-testid="pgn-textarea"
       />
-      <br />
-      <button onClick={handleImport} disabled={loading || !pgn.trim()} data-testid="import-btn">
+      <Button variant={analyzedGameId ? 'secondary' : 'primary'} onClick={handleImport} disabled={loading || !pgn.trim()} data-testid="import-btn">
         {loading ? 'Importing...' : 'Import PGN'}
-      </button>
+      </Button>
       
       {statusText && <div className="status" role="status" data-testid="import-status">{statusText}</div>}
 
@@ -174,16 +175,17 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
 
 
       {analyzedGameId && onExploreAnalysis && (
-        <button
+        <Button variant="primary"
           data-testid="explore-analysis-btn"
           onClick={() => onExploreAnalysis(analyzedGameId)}
         >
           Explore analysis board
-        </button>
+        </Button>
       )}
+      </Panel>
       {lessons.length > 0 && (
-        <div data-testid="lessons-list">
-          <h3>Learning Opportunities Found</h3>
+        <Panel data-testid="lessons-list">
+          <h2>Learning opportunities found</h2>
           <ul>
             {lessons.map(lesson => (
               <li key={lesson.lesson_id}>
@@ -205,8 +207,8 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
               </li>
             ))}
           </ul>
-        </div>
+        </Panel>
       )}
-    </div>
+    </section>
   );
 }

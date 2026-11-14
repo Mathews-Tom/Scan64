@@ -69,6 +69,8 @@ On short screens, navigation scrolls below the fixed brand rather than underneat
 
 Play, Review/Analysis, Puzzles, Daily Training, Famous Games and Explorer share the ivory/sage board, mint selection and last-move highlights, and a board-first workspace. Controls sit beside the board from 900px and stack below it on narrower screens. Main-move, threat and alternative annotations name their kind in the written description and number each candidate once. The neutral main-move label does not claim a source puzzle continuation is engine-best. Their kind stays tied to the original position while previewing a line; colour is never the only cue. The board also fits the usable viewport above mobile navigation, including short landscape screens.
 
+Today, Profile, Coach, Library, game history, PGN import and onboarding use the same panel and action recipes. Ordinary headings and supporting-game links use readable labels instead of stored record IDs; ownership references remain in requests and link destinations. The old Coach card stylesheet, starter artwork and temporary palette aliases have been removed.
+
 ## User documentation
 
 Use the [root README](../../README.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.

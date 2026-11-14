@@ -64,15 +64,6 @@
   --motion-out: 120ms;
   --motion-press: 90ms;
   --ease: cubic-bezier(.2,.8,.2,1);
-  --text: var(--ink);
-  --text-h: var(--ink);
-  --bg: var(--ground);
-  --code-bg: var(--surface);
-  --accent-bg: var(--surface);
-  --accent-border: var(--ink);
-  --social-bg: var(--surface);
-  --board-gold: var(--ink);
-  --shadow: none;
 }
 :root[data-appearance='dark'] {
   color-scheme: dark;

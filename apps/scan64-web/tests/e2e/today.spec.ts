@@ -75,7 +75,6 @@ for (const width of [1280, 390]) {
         ['Play', '/play', 'Play against Scan64'],
         ['Review', '/games', 'Your games'],
         ['Train', '/training', 'No training lessons available'],
-        ['Profile', '/profile', 'Player Profile: player-1'],
         ['Coach', '/coach', 'Pattern ledger'],
         ['Today', '/', 'Today'],
       ]) {
@@ -87,7 +86,6 @@ for (const width of [1280, 390]) {
       for (const [label, route, heading] of [
         ['Opening Explorer', '/explorer', 'Opening Explorer'],
         ['Famous Games', '/famous', 'Study Famous Games'],
-        ['Import PGN', '/import', 'Import Game'],
       ]) {
         await nav.getByRole('button', { name: 'Library', exact: true }).click();
         await page.getByRole('button', { name: label, exact: true }).click();

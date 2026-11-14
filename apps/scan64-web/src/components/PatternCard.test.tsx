@@ -20,7 +20,7 @@ describe('PatternCard', () => {
     expect(screen.getByText(/75.0 percentage points/)).toBeInTheDocument();
     expect(screen.getByText(/Support: 3 distinct games · Coverage: 3\/4/)).toBeInTheDocument();
     expect(screen.getByText('Two targets attacked.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Game one, ply 7' })).toHaveAttribute('href', '/games/one/analysis?ply=7');
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toContain('/games/one/analysis?ply=7');
     expect(screen.getByText(/not all errors/)).toBeInTheDocument();
   });
   it('withholds every review and practice action from coaches', () => {

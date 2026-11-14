@@ -4,6 +4,7 @@ import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/
 import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
 import { OnboardingCard } from './OnboardingCard';
 import { latestGameLabel } from './gameLabel';
+import { Button, Panel } from './Primitives';
 
 interface TodayData {
   games: PlayerGamesPage;
@@ -45,9 +46,9 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
         <p>A game to play. A moment to understand. A skill to practise.</p>
       </header>
       <div className="today-actions" role="group" aria-label="Choose your next step">
-        <button className="button-primary" onClick={() => onNavigate('/play')}><strong>Play</strong><span>Put your ideas on the board</span></button>
-        <button onClick={() => onNavigate('/training')}><strong>Train</strong><span>Practise with a daily lesson</span></button>
-        <button onClick={() => onNavigate('/games')}><strong>Review</strong><span>Learn from your own games</span></button>
+        <Button variant="primary" onClick={() => onNavigate('/play')}><strong>Play</strong><span>Put your ideas on the board</span></Button>
+        <Button onClick={() => onNavigate('/training')}><strong>Train</strong><span>Practise with a daily lesson</span></Button>
+        <Button onClick={() => onNavigate('/games')}><strong>Review</strong><span>Learn from your own games</span></Button>
       </div>
       <OnboardingCard onNavigate={onNavigate} />
       {error ? (
@@ -57,7 +58,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
         </div>
       ) : !data ? <p role="status">Loading your study table…</p> : (
         <div className="today-panels">
-          <section className="study-panel">
+          <Panel>
             <h2>Your puzzle practice</h2>
             <p>Scan64 puzzle rating: {data.puzzles.rating}{data.puzzles.provisional ? ' (provisional)' : ''} · {data.puzzles.rated_count} rated puzzles</p>
             <p>{data.puzzles.completed} of {data.puzzles.total} completed · {data.puzzles.remaining} remaining · {data.puzzles.overdue_count} overdue reviews</p>
@@ -68,8 +69,8 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
               event.preventDefault();
               onNavigate('/puzzles');
             }}>Continue puzzles</a>
-          </section>
-          <section className="study-panel">
+          </Panel>
+          <Panel>
             <h2>Your latest analysed game</h2>
             {latestGame ? (
               <>
@@ -82,18 +83,18 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
                 }}>Review this game</a>
               </>
             ) : <p>No reviewed mistakes to show yet. Analyse a game from Review, or play or import a game.</p>}
-          </section>
-          <section className="study-panel">
+          </Panel>
+          <Panel>
             <h2>Skills to practise</h2>
             {weakestSkills.length ? (
               <ul>{weakestSkills.map(skill => <li key={skill.concept_code}>{skill.name}</li>)}</ul>
             ) : <p>Analyse a game to discover which skills need attention.</p>}
-          </section>
-          <section className="study-panel">
+          </Panel>
+          <Panel>
             <h2>This week</h2>
             <p>{data.weekly.games_played} {data.weekly.games_played === 1 ? 'game' : 'games'} played in the last 7 days.</p>
             <p>{data.weekly.active_concepts_observed} {data.weekly.active_concepts_observed === 1 ? 'skill' : 'skills'} observed.</p>
-          </section>
+          </Panel>
           <HabitPanel playerId={getActivePlayerId()} patterns={data.patterns} onNavigate={onNavigate} />
         </div>
       )}
