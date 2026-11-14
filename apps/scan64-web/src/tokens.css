@@ -1,0 +1,100 @@
+@font-face {
+  font-family: 'Host Grotesk';
+  src: url('/fonts/host-grotesk-latin-ext.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Host Grotesk';
+  src: url('/fonts/host-grotesk-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+}
+/* Scan64's single source of colour, typography and radius values. */
+:root {
+  color-scheme: light;
+  --ground: #ffffff;
+  --surface: #f3f3f3;
+  --ink: #232323;
+  --muted: #686868;
+  --accent: #a1ffcb;
+  --border: #686868;
+  --primary: #232323;
+  --primary-ink: #ffffff;
+  --mark-ink: #232323;
+  --board-light: #edeee6;
+  --board-dark: #86a694;
+  --board-selection: #a1ffcb;
+  --annotation-best: #176246;
+  --annotation-threat: #a63732;
+  --annotation-alternative: #245f9e;
+  --transparent: transparent;
+  --sans: 'Host Grotesk', sans-serif;
+  --heading: var(--sans);
+  --mono: 'JetBrains Mono', monospace;
+  --radius-sm: 8px;
+  --radius-panel: 12px;
+  --radius-dialog: 20px;
+  --radius-none: 0;
+  --radius-round: 50%;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --type-label: 13px;
+  --type-small: 16px;
+  --type-body: 16px;
+  --type-title: clamp(28px, 3vw, 40px);
+  --motion-in: 150ms;
+  --motion-out: 120ms;
+  --motion-press: 90ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --text: var(--ink);
+  --text-h: var(--ink);
+  --bg: var(--ground);
+  --code-bg: var(--surface);
+  --accent-bg: var(--surface);
+  --accent-border: var(--ink);
+  --social-bg: var(--surface);
+  --board-gold: var(--ink);
+  --shadow: none;
+}
+:root[data-appearance='dark'] {
+  color-scheme: dark;
+  --ground: #232323;
+  --surface: #303030;
+  --ink: #ffffff;
+  --muted: #a4a4a4;
+  --border: #a4a4a4;
+  --primary: #a1ffcb;
+  --primary-ink: #232323;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']):not([data-appearance='dark']) {
+    color-scheme: dark;
+    --ground: #232323;
+    --surface: #303030;
+    --ink: #ffffff;
+    --muted: #a4a4a4;
+    --border: #a4a4a4;
+    --primary: #a1ffcb;
+    --primary-ink: #232323;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-in: 0ms; --motion-out: 0ms; --motion-press: 0ms; }
+}

@@ -16,6 +16,47 @@ This project uses the following third-party software:
 - **License**: GPL-3.0-or-later
 - **Usage**: Frontend chessboard component.
 
+## Host Grotesk
+- **License**: SIL Open Font License 1.1 (OFL-1.1).
+- **Copyright**: The Host Grotesk Project Authors; see the unmodified upstream notice in `apps/scan64-web/public/fonts/host-grotesk-OFL.txt`.
+- **Source**: https://github.com/Element-Type/HostGrotesk (release 1.002); Google Fonts distribution https://fonts.google.com/specimen/Host+Grotesk.
+- **Bundled files**: `apps/scan64-web/public/fonts/host-grotesk-latin.woff2` and `host-grotesk-latin-ext.woff2`, unmodified Google Fonts v5 variable WOFF2 subsets, upright weights 300–800. Downloaded from `https://fonts.gstatic.com/s/hostgrotesk/v5/co3BmWBnlCJ3U42vbbfdwMjZpFjm.woff2` and `https://fonts.gstatic.com/s/hostgrotesk/v5/co3BmWBnlCJ3U42vbbfdwMjZqljm0U0.woff2`.
+- **Original license source**: https://github.com/google/fonts/blob/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/hostgrotesk/OFL.txt.
+- **Usage**: Bundled interface typography, served locally and precached for offline use. No runtime requests to Google Fonts.
+
+## JetBrains Mono
+- **License**: SIL Open Font License 1.1 (OFL-1.1).
+- **Copyright**: The JetBrains Mono Project Authors; see the unmodified upstream notice in `apps/scan64-web/public/fonts/jetbrains-mono-OFL.txt`.
+- **Source**: https://github.com/JetBrains/JetBrainsMono/tree/19371302b95d218af43299bce79ddbddd0bc364d.
+- **Bundled file**: `apps/scan64-web/public/fonts/jetbrains-mono.woff2`, the unmodified upstream `fonts/webfonts/JetBrainsMono[wght].woff2`, upright variable weights 100–800.
+- **Original license source**: https://github.com/JetBrains/JetBrainsMono/blob/19371302b95d218af43299bce79ddbddd0bc364d/OFL.txt.
+- **Usage**: Bundled notation, evaluations, ratings and clocks; served locally and precached for offline use.
+
+## Lucide interface icons
+- **License**: ISC; Feather-derived icons additionally retain the MIT notice.
+- **Copyright**: (c) 2022 Lucide Contributors. The bundled upstream licence also retains its current (c) 2026 Lucide Icons and Contributors notice and the Feather (c) 2013-present Cole Bemis notice.
+- **Source**: https://lucide.dev/license and https://github.com/lucide-icons/lucide.
+- **Usage**: Inline interface paths in the web client's navigation; no package or runtime network dependency.
+- **Full original notices**: `apps/scan64-web/public/lucide-LICENSE.txt`, served locally and linked from `licenses.html`.
+
+```text
+ISC License
+
+Copyright (c) 2022 Lucide Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
+
 ## Syzygy 3-piece tablebase data
 - **Source**: `http://tablebase.sesse.net/syzygy/3-4-5/`, downloaded 2026-07-14.
 - **Usage**: Offline WDL/DTZ verification of the initial curated endgame catalog.

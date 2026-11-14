@@ -22,14 +22,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,txt,md}'],
         navigateFallbackDenylist: [/^\/(?:v1|health|docs|openapi\.json|redoc)(?:[/?#]|$)/],
       },
-      includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.svg', 'logo.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png', 'apple-touch-icon.png', 'licenses.html'],
       manifest: {
         name: 'Scan64',
         short_name: 'Scan64',
         description: 'Offline-capable chess training application',
         theme_color: '#ffffff',
+        background_color: '#ffffff',
         icons: [
           {
             src: 'favicon.svg',
@@ -47,10 +49,10 @@ export default defineConfig({
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable'
           }
         ]
       }

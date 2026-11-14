@@ -45,7 +45,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
         <p>A game to play. A moment to understand. A skill to practise.</p>
       </header>
       <div className="today-actions" role="group" aria-label="Choose your next step">
-        <button onClick={() => onNavigate('/play')}><strong>Play</strong><span>Put your ideas on the board</span></button>
+        <button className="button-primary" onClick={() => onNavigate('/play')}><strong>Play</strong><span>Put your ideas on the board</span></button>
         <button onClick={() => onNavigate('/training')}><strong>Train</strong><span>Practise with a daily lesson</span></button>
         <button onClick={() => onNavigate('/games')}><strong>Review</strong><span>Learn from your own games</span></button>
       </div>

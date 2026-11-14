@@ -1,13 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t">
-  <title id="t">Scan64 logo</title>
-  <rect width="256" height="256" rx="56" fill="#142234"/>
-  <rect x="48" y="48" width="160" height="160" rx="10" fill="#f3e2bd"/>
-  <g fill="#c99a4e">
-    <rect x="88" y="48" width="40" height="40"/><rect x="168" y="48" width="40" height="40"/>
-    <rect x="48" y="88" width="40" height="40"/><rect x="128" y="88" width="40" height="40"/>
-    <rect x="88" y="128" width="40" height="40"/><rect x="168" y="128" width="40" height="40"/>
-    <rect x="48" y="168" width="40" height="40"/><rect x="128" y="168" width="40" height="40"/>
-  </g>
-  <path d="M68 188 L178 78" stroke="#2fa36b" stroke-width="16" stroke-linecap="round"/>
-  <path d="M150 70 L194 62 L186 106 z" fill="#2fa36b"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="256" height="256" role="img" aria-labelledby="title desc">
+  <title id="title">Scan64</title>
+  <desc id="desc">An ink square crossed by one rising mint scan stroke.</desc>
+  <rect x="1" y="1" width="14" height="14" rx="3" fill="#232323"/>
+  <path d="M5 11 11 5" fill="none" stroke="#a1ffcb" stroke-width="2" stroke-linecap="round"/>
 </svg>

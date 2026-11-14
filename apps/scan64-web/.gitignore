@@ -26,3 +26,4 @@ dist-ssr
 # Playwright local artifacts
 playwright-report/
 test-results/
+artifacts/m81/
