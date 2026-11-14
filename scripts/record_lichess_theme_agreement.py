@@ -44,7 +44,9 @@ DEST = FIXTURES / "recorded.json"
 
 
 def save(recording: Recording | SourceRecording, destination: Path) -> None:
-    payload = json.dumps(recording.model_dump(exclude_none=True), separators=(",", ":")) + "\n"
+    payload = json.dumps(
+        recording.model_dump(mode="json", exclude_none=True), separators=(",", ":")
+    ) + "\n"
     if len(payload.encode()) > 10_000_000:
         raise ValueError("Recording exceeds 10 MB size budget")
     with destination.open("x") as stream:

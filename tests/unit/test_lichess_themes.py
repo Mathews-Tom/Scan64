@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import runpy
 from dataclasses import replace
+from pathlib import Path
 
 import chess
 import pytest
@@ -13,6 +15,7 @@ from scan64.learning.evaluation.lichess_themes import (
     ALLOWED_MATE,
     CODE_THEMES,
     ORIGINAL_RECORDING_SHA256,
+    ROOT,
     V1_SEED_CODES,
     V2_CODE_THEMES,
     V3_PREREGISTRATION,
@@ -575,3 +578,15 @@ def test_source_analysis_configuration_is_strict_and_actual_engine_must_match() 
     sources.provenance.engine = "different"
     with pytest.raises(ValueError, match="engine"):
         validate_source_recording([puzzle], original, sources)
+
+
+def test_source_save_serializes_stable_uuid_and_refuses_overwrite(tmp_path: Path) -> None:
+    _, _, source, recording = mate_example()
+    save = runpy.run_path(str(ROOT / "scripts/record_lichess_theme_agreement.py"))["save"]
+    destination = tmp_path / "source.json"
+    save(recording, destination)
+    restored = SourceRecording.model_validate_json(destination.read_bytes())
+    assert restored.puzzles[0].analysis_id == source.analysis_id
+    assert restored == recording
+    with pytest.raises(FileExistsError):
+        save(recording, destination)
