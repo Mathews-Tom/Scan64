@@ -50,7 +50,7 @@ Update existing user and architecture documentation when behavior changes, and d
 
 ## macOS release automation
 
-`Release macOS` builds the unsigned Apple silicon app on `macos-14` when a GitHub
+`Release macOS` builds the unsigned Apple silicon app on `macos-15` when a GitHub
 Release is published. It does not sign or notarize the app with Apple: Ed25519
 signatures authenticate the update manifest only. The existing CI workflow is
 unchanged.

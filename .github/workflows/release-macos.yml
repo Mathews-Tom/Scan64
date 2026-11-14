@@ -27,7 +27,7 @@ env:
 jobs:
   build:
     name: Build macOS arm64 archive
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     outputs:
       tag: ${{ steps.version.outputs.tag }}
