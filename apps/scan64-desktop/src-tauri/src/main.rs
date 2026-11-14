@@ -112,6 +112,15 @@ fn valid_smoke(origin: &str, path: &str, status: u16) -> bool {
     origin == expected && path.starts_with("/v1/") && (200..300).contains(&status)
 }
 
+fn stop_on_exit(state: &Mutex<Server>) {
+    // Startup/restart may hold this lock for the readiness deadline. Never block
+    // the GUI's exit on that worker: process exit closes stdin, and the server's
+    // independent EOF watchdog bounds shutdown even while startup is stuck.
+    if let Ok(mut server) = state.try_lock() {
+        server.stop();
+    }
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -136,7 +145,6 @@ fn main() {
                 None
             }
             .unwrap_or(app.path().app_data_dir()?);
-            fs::create_dir_all(&data_dir)?;
             app.manage(Arc::new(Mutex::new(Server::new(
                 data_dir,
                 app.path().resource_dir()?,
@@ -162,9 +170,7 @@ fn main() {
     app.run(|app, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             if let Some(state) = app.try_state::<SharedServer>() {
-                if let Ok(mut server) = state.lock() {
-                    server.stop();
-                }
+                stop_on_exit(state.inner());
             }
         }
     });
@@ -173,6 +179,23 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn quit_does_not_wait_for_an_in_progress_server_operation() {
+        let state = Arc::new(Mutex::new(Server::new("data".into(), "resources".into())));
+        let startup = state.lock().unwrap();
+        let worker_state = state.clone();
+        let (sent, received) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            stop_on_exit(&worker_state);
+            sent.send(()).unwrap();
+        });
+        let result = received.recv_timeout(Duration::from_millis(500));
+        drop(startup);
+        worker.join().unwrap();
+        assert!(result.is_ok(), "Quit waited for the startup/restart lock");
+    }
 
     #[test]
     fn smoke_requires_shell_origin_success_and_api_path() {

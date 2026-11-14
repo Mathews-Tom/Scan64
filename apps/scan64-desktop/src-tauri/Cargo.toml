@@ -16,6 +16,9 @@ tauri = { version = "=2.12.5", features = [] }
 tauri-plugin-single-instance = "=2.5.5"
 tauri-plugin-window-state = "=2.5.0"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

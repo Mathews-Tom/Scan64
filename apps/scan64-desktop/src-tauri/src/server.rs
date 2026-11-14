@@ -80,8 +80,9 @@ impl Server {
     }
 
     fn start_inner(&mut self) -> Result<Connection, String> {
-        fs::create_dir_all(self.log_path.parent().expect("log parent"))
-            .map_err(|_| self.error("Cannot create the log directory"))?;
+        private_directory(&self.data_dir)
+            .and_then(|()| private_directory(self.log_path.parent().expect("log parent")))
+            .map_err(|_| self.error("Cannot create the private log directory"))?;
         // Retry early exits (including a bind race) with a fresh ephemeral port.
         let deadline = Instant::now() + Duration::from_secs(30);
         for _ in 0..=3 {
@@ -205,6 +206,14 @@ impl Server {
                 }
                 thread::sleep(Duration::from_millis(25));
             }
+            #[cfg(unix)]
+            {
+                // SAFETY: the live server owns its session/group (pgid == pid).
+                // Kill that whole group if its EOF watchdog cannot run.
+                unsafe {
+                    libc::killpg(child.id() as libc::pid_t, libc::SIGKILL);
+                }
+            }
             let _ = child.kill();
             let _ = child.wait();
         }
@@ -215,6 +224,23 @@ impl Drop for Server {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+fn private_directory(path: &Path) -> std::io::Result<()> {
+    let mut directory = fs::DirBuilder::new();
+    directory.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        directory.mode(0o700);
+    }
+    directory.create(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
 }
 
 pub fn smoke_file() -> Option<PathBuf> {
@@ -282,5 +308,96 @@ mod tests {
     fn failure_identifies_log_without_credentials() {
         let server = Server::new(PathBuf::from("data"), PathBuf::from("resources"));
         assert!(server.error("Stopped").contains("server.log"));
+    }
+
+    #[test]
+    fn data_directory_failure_is_reported_and_can_be_retried() {
+        let data_dir = env::temp_dir().join(new_token().unwrap());
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&data_dir)
+            .unwrap();
+        drop(file);
+        let mut server = Server::new(data_dir.clone(), PathBuf::from("resources"));
+        let initial = server.connection().err().expect("A file cannot hold logs");
+        let retry = server
+            .restart()
+            .err()
+            .expect("Restart must report the failure");
+        fs::remove_file(data_dir).unwrap();
+        assert!(initial.contains("Cannot create the private log directory"));
+        assert!(initial.contains("server.log"));
+        assert_eq!(initial, retry);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn data_and_log_directories_are_owner_only_even_if_they_already_exist() {
+        use std::os::unix::fs::PermissionsExt;
+        let data_dir = env::temp_dir().join(new_token().unwrap());
+        let logs = data_dir.join("logs");
+        fs::create_dir_all(&logs).unwrap();
+        fs::set_permissions(&data_dir, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(&logs, fs::Permissions::from_mode(0o755)).unwrap();
+        private_directory(&data_dir).unwrap();
+        private_directory(&logs).unwrap();
+        let data_mode = fs::metadata(&data_dir).unwrap().permissions().mode() & 0o777;
+        let logs_mode = fs::metadata(&logs).unwrap().permissions().mode() & 0o777;
+        fs::remove_dir_all(data_dir).unwrap();
+        assert_eq!(data_mode, 0o700);
+        assert_eq!(logs_mode, 0o700);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hard_stop_kills_the_group_when_the_server_does_not_read_eof() {
+        use std::io::{BufRead, BufReader};
+        use std::os::unix::process::CommandExt;
+
+        let mut server = Server::new("unused".into(), "unused".into());
+        server.child = Some(
+            Command::new("sh")
+                .args(["-c", "sleep 60 & echo $!; wait"])
+                .process_group(0)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        let group = server.pid().unwrap();
+        let stdout = server.child.as_mut().unwrap().stdout.take().unwrap();
+        let mut pid = String::new();
+        BufReader::new(stdout).read_line(&mut pid).unwrap();
+        let pid = pid.trim();
+        assert!(pid.parse::<u32>().unwrap() > 0);
+        server.stop();
+
+        let deadline = Instant::now() + Duration::from_millis(500);
+        let stopped = loop {
+            let state = Command::new("ps")
+                .args(["-o", "stat=", "-p", pid])
+                .output()
+                .unwrap();
+            let state = String::from_utf8_lossy(&state.stdout);
+            // An exited orphan may briefly remain a zombie until init reaps it.
+            if state.trim().is_empty() || state.trim_start().starts_with('Z') {
+                break true;
+            }
+            if Instant::now() >= deadline {
+                break false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !stopped {
+            // SAFETY: this test created and still owns this isolated group.
+            unsafe {
+                libc::killpg(group as libc::pid_t, libc::SIGKILL);
+            }
+        }
+        assert!(
+            stopped,
+            "The server's uncooperative descendant survived stop"
+        );
     }
 }

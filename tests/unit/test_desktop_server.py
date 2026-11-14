@@ -54,15 +54,22 @@ def test_invalid_tokens_fail_without_logging_their_value(tmp_path: Path, token: 
         desktop_server.configuration_from_environment(values)
 
 
+@pytest.mark.parametrize("already_exists", [False, True])
 def test_environment_is_configured_before_database_import(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, already_exists: bool
 ) -> None:
     values = environment(tmp_path)
     for name in [*values, "SCAN64_DATABASE_URL", "SCAN64_DISTRIBUTION"]:
         monkeypatch.setenv(name, "inherited-value")
     configuration = desktop_server.configuration_from_environment(values)
+    if already_exists:
+        configuration.data_dir.mkdir()
+        if sys.platform != "win32":
+            configuration.data_dir.chmod(0o755)
     desktop_server.configure_environment(configuration)
     assert configuration.data_dir.is_dir()
+    if sys.platform != "win32":
+        assert configuration.data_dir.stat().st_mode & 0o777 == 0o700
     database_path = (configuration.data_dir / "scan64.db").as_posix()
     assert os.environ["SCAN64_DATABASE_URL"] == f"sqlite:///{database_path}"
     assert os.environ["SCAN64_DATA_DIR"] == str(configuration.data_dir)
@@ -220,7 +227,9 @@ def test_main_configures_only_loopback_with_no_access_log(
     monkeypatch.setattr(desktop_server, "_exit_process_tree", exit_tree)
     monkeypatch.setattr(desktop_server.threading, "Thread", Mock())
     monkeypatch.setattr(
-        desktop_server, "sys", SimpleNamespace(stdin=io.TextIOWrapper(io.BytesIO()))
+        desktop_server,
+        "sys",
+        SimpleNamespace(stdin=io.TextIOWrapper(io.BytesIO()), platform=sys.platform),
     )
     configuration = Mock(return_value="uvicorn-configuration")
     server = SimpleNamespace(started=True, run=Mock())

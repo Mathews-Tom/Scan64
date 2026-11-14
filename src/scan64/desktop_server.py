@@ -50,6 +50,8 @@ def configuration_from_environment(environment: Mapping[str, str]) -> DesktopCon
 
 def configure_environment(configuration: DesktopConfiguration) -> None:
     configuration.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if sys.platform != "win32":
+        configuration.data_dir.chmod(0o700)
     os.environ["SCAN64_DATA_DIR"] = str(configuration.data_dir)
     # Set this before the application's first import: the database engine is
     # constructed at import time. Never inherit a browser installation's DB URL.
