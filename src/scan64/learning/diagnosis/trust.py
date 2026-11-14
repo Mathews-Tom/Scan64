@@ -17,3 +17,15 @@ TRUSTED_CODES: frozenset[str] = frozenset(
         "threat_processing.allowed_mate",
     }
 )
+
+# Archive validation checks eligibility at award, not the current product policy.
+# Never shrink this history on demotion: persisted awards/credits are immutable.
+HISTORICALLY_TRUSTED_CODES: frozenset[str] = frozenset(
+    {
+        "board_awareness.hanging_piece",
+        "threat_processing.missed_check",
+        "threat_processing.missed_capture",
+        "threat_processing.missed_direct_threat",
+        "threat_processing.allowed_mate",
+    }
+)

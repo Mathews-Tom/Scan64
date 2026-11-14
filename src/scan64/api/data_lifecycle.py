@@ -52,7 +52,7 @@ from scan64.content.puzzle_practice_models import (
 )
 from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.content.validate import validate_solution_line
-from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.diagnosis.trust import HISTORICALLY_TRUSTED_CODES
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferPosition
@@ -327,7 +327,7 @@ def _validate_habit_archive(
             or spec.source.fen != position.fen
             or utc(opportunity.created_at) > utc(attempt.completed_at)
             or spec.diagnosis is None
-            or spec.diagnosis.primary not in TRUSTED_CODES
+            or spec.diagnosis.primary not in HISTORICALLY_TRUSTED_CODES
             or opportunity.verification_analysis_id is None
             or schedule is None
             or schedule.get("retired_at") is not None
@@ -623,7 +623,7 @@ def _validate_habit_archive(
             target.id in target_ids
             or target.code in target_codes
             or started < effective
-            or target.code not in TRUSTED_CODES
+            or target.code not in HISTORICALLY_TRUSTED_CODES
             or (target.invalidated_at is None) != (target.invalidation_reason is None)
             or target.invalidated_at is not None
             and (

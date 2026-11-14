@@ -132,8 +132,10 @@ the reference: it could call a profitable deep first capture "missed" when that
 was the move played. M78 development game `0wav2qbp`, ply 17 (`exf6`) demonstrates
 a trust-favouring false TP: the fast capture differs, but the deep capture was
 played. Also, excluding played fast captures removed one previous TP as well as
-the three I false positives. The corrected detector's M78 development count is
-**84 TP / 24 FP = 0.778, support 108**, not 85/109.
+the three I false positives. Under the unchanged historical reference, the corrected
+detector's M78 development count is **84 TP / 24 FP = 0.778, support 108**,
+versus **85 TP / 27 FP = 0.759, support 112** pre-fix. M79 uses the amended
+reference below instead; these historical development counts do not decide trust.
 
 Amend the M79 reference only: withhold `missed_capture` if legally replaying the
 deep first move produces the actual after-position. All other labels remain
@@ -150,6 +152,23 @@ Post-selection-preregistration evaluation support also pins M79's gate and freez
 M77 v3 trust independently of the live product allowlist; these offline-only edits
 were made during recording, before measurement. They do not alter recorded searches,
 the production identity fix, or any frozen M77 fixture/report bytes.
+
+### Historical trust and immutable evidence
+
+Before measurement, archive validation was separated from current trust: the
+bounded `HISTORICALLY_TRUSTED_CODES` history retains all five previously trusted
+codes, including missed capture, even if active trust later shrinks. Only archive
+validation uses that history. New lessons, observations, positive credit, puzzle
+weakness targeting, patterns and habit qualification still use current trust.
+Never-trusted codes cannot manufacture historical habit eligibility.
+
+An integration test constructs a genuine pre-demotion missed-capture archive,
+then restores it under simulated active demotion. Lesson/skill records, credits,
+trust snapshots, pattern snapshots, awards and their five supporting games restore
+unchanged. Current patterns disappear and the old target reports "The tracked
+diagnosis is no longer trusted.", while its earned award remains visible. Reads
+do not rewrite the export. A never-trusted pin substituted into the same archive
+is rejected. This is a read-time policy change, not a retrospective reward rewrite.
 
 ## M78 source-depth correction: fresh80 preregistration
 
