@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-14
+
+### Added
+
+- In-app updates for the macOS app: an optional daily background check and a **Check for updates** button, Ed25519-signed release verification, and **Restart to update**, which backs up the database, keeps the previous app and rolls back on failure. The browser shows a notice when an update is ready.
+- **Import puzzles…** in the macOS app window, from a downloaded Lichess puzzle file or an explicit full download, with progress and cancellation.
+- Release builds of the macOS app are produced and signed by GitHub Actions and attached to each release with a signed update manifest.
+
+### Changed
+
+- The browser tab, installed web app and macOS app use the Scan64 logo.
+- Today names the latest game by its players and date instead of an internal identifier.
+- The README now has a banner, demos and screenshots, and the user, system and contributor guides describe the current app.
+
+### Upgrade notes
+
+- Version 0.4.0 has no updater: install 0.5.0 manually once. Later versions can be installed from the app.
+
 ## [0.4.0] - 2026-11-13
 
 ### Added
