@@ -159,6 +159,31 @@ describe('Puzzle import', () => {
     expect(screen.getByRole('button', { name: 'Start puzzles' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+  it.each(['controls', 'body', 'elsewhere'] as const)('respects %s focus when an import finishes', async location => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    const cancel = screen.getByRole('button', { name: 'Cancel download' });
+    const elsewhere = screen.getByRole('button', { name: 'Navigate' });
+    if (location === 'body') cancel.blur();
+    else if (location === 'elsewhere') elsewhere.focus();
+    else cancel.focus();
+    state = { ...state, status: 'succeeded', summary: { accepted: 1, inserted: 1, existing: 0, read: 1 } };
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(document.activeElement).toBe(location === 'elsewhere' ? elsewhere : screen.getByRole('button', { name: 'Start puzzles' }));
+  });
+  it.each(['controls', 'body', 'elsewhere'] as const)('respects %s focus when polling fails', async location => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    const cancel = screen.getByRole('button', { name: 'Cancel download' });
+    const elsewhere = screen.getByRole('button', { name: 'Navigate' });
+    if (location === 'body') cancel.blur();
+    else if (location === 'elsewhere') elsewhere.focus();
+    else cancel.focus();
+    vi.mocked(apiFetch).mockRejectedValueOnce(new Error('Import status is unavailable.'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Import status is unavailable.');
+    expect(document.activeElement).toBe(location === 'elsewhere' ? elsewhere : screen.getByRole('alert'));
+  });
   it('keeps CLI instructions and makes no desktop requests in browser installs', async () => {
     vi.mocked(isDesktop).mockReturnValue(false);
     render(<Harness />); await settle();

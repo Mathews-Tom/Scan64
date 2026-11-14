@@ -107,6 +107,7 @@ export function PuzzleImportFoot() {
 }
 export function PuzzleLibraryControls() {
   const controller = usePuzzleImport();
+  const controlsRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
@@ -117,17 +118,20 @@ export function PuzzleLibraryControls() {
   useEffect(() => {
     if (previousStatus.current === status) return;
     previousStatus.current = status;
+    if (document.activeElement !== document.body && !controlsRef.current?.contains(document.activeElement)) return;
     if (status === 'running') cancelRef.current?.focus();
     else if (status === 'succeeded' && accepted > 0) startRef.current?.focus();
     else if (status === 'cancelled' || status === 'failed' || status === 'succeeded') statusRef.current?.focus();
   }, [status, accepted]);
   const requestError = controller?.error;
-  useEffect(() => { if (requestError) errorRef.current?.focus(); }, [requestError]);
+  useEffect(() => {
+    if (requestError && (document.activeElement === document.body || controlsRef.current?.contains(document.activeElement))) errorRef.current?.focus();
+  }, [requestError]);
   if (!controller?.desktop) return <><p>Ask the operator to import puzzles into the application database:</p><code>uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json</code></>;
   const { state, pending, error } = controller;
   const active = activeJob(state);
   const ready = state.status === 'succeeded' && accepted > 0;
-  return <div>
+  return <div ref={controlsRef}>
     <p>Download the compressed puzzle database from database.lichess.org (about 270 MB; the size changes as the database grows). Keep 50,000 puzzles rated 600–1800. Nothing downloads automatically.</p>
     {active ? <>
       <p>Download → Read → Import → Save</p>

@@ -418,3 +418,26 @@ def test_constructor_never_follows_stale_download_symlink(engine: Engine, tmp_pa
     PuzzleImportJob(engine, data)
     assert not link.is_symlink()
     assert (external / "keep.txt").read_text() == "keep"
+
+
+def test_unremovable_stale_entry_does_not_block_startup_or_other_cleanup(
+    engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = tmp_path / "imports"
+    blocked = data / "puzzle-import-blocked"
+    blocked.mkdir(parents=True)
+    (blocked / ".puzzles.csv.zst.part").write_bytes(b"held by another process")
+    removable = data / "puzzle-import-removable"
+    removable.mkdir()
+    original_remove = job_module.shutil.rmtree
+
+    def remove(path: Path) -> None:
+        if path == blocked:
+            raise PermissionError("simulated Windows sharing violation")
+        original_remove(path)
+
+    monkeypatch.setattr(job_module.shutil, "rmtree", remove)
+    job = PuzzleImportJob(engine, data)
+    assert job.state().status == "idle"
+    assert blocked.is_dir()
+    assert not removable.exists()

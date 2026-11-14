@@ -115,10 +115,15 @@ class PuzzleImportJob:
         # One desktop server owns this data directory. Recover only its temporary
         # download directories; never follow a link out to a user-selected file.
         for stale in data_dir.glob("puzzle-import-*"):
-            if stale.is_symlink():
-                stale.unlink()
-            elif stale.is_dir():
-                shutil.rmtree(stale)
+            try:
+                if stale.is_symlink():
+                    stale.unlink()
+                elif stale.is_dir():
+                    shutil.rmtree(stale)
+            except OSError:
+                # An antivirus scanner or another Windows file handle may still
+                # hold an old partial file. Retry next launch; do not block startup.
+                continue
 
     def state(self) -> ImportJobState:
         with self._lock:
