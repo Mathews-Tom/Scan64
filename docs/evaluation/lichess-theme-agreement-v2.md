@@ -75,3 +75,86 @@ concepts and single-winner arbitration. Wilson intervals quantify binomial
 sampling uncertainty, not label quality or systematic bias. Broad `mate` makes
 the proxy insensitive to mate distance and prior forced mate. This is a mapped
 label agreement experiment, not independent chess truth or a learning outcome.
+
+## Execution gate
+
+V2 replay began only after the core owner confirmed detector/composer/arbitration
+stability and the independent M48 decision was available. M48 registration
+`334f70a`, results `4a1ad4f` ([real-game report](real-game-diagnosis.md)) measured
+allowed_mate TP11, FP4, FN0, support15, precision 0.733: **not trusted**.
+Support was >=10, so no extension was triggered. The four existing codes remain
+trusted. The v2 sample did not tune core behavior or affect that decision.
+
+## Results
+
+Informational theme agreement only; no coach validation or efficacy claim.
+Blind independent coach review remains **PENDING**.
+
+V2 pre-registration commit: `66eb859`.
+M48 allowed-mate trust decision: **not trusted**.
+Trust comes solely from the separate M48 isolation report, never these labels.
+Frozen owner-side sample: **2,000**. Fast-pass flagged: **1,842**.
+Trusted emissions: **614**; abstentions: **1,386**.
+
+### Per-code agreement
+
+| Code | Emitted support | Theme-positive rows | Matches | Precision | Precision Wilson 95% CI | Recall | Recall Wilson 95% CI |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| `board_awareness.hanging_piece` | 225 | 63 | 55 | 0.2444 | [0.1929, 0.3046] | 0.8730 | [0.7689, 0.9342] |
+| `threat_processing.missed_capture` | 88 | N/A | N/A | N/A | N/A | N/A | N/A |
+| `threat_processing.missed_check` | 67 | N/A | N/A | N/A | N/A | N/A | N/A |
+| `threat_processing.missed_direct_threat` | 234 | 63 | 0 | 0.0000 | [0.0000, 0.0162] | 0.0000 | [0.0000, 0.0575] |
+| `threat_processing.allowed_mate` | 0 | 769 | 0 | N/A | N/A | 0.0000 | [0.0000, 0.0050] |
+
+N/A is undefined/unmapped, not a measured zero. An untrusted allowed-mate
+eligible-only winner is reported below, not counted as a trusted emission.
+
+### V2 minus v1: unchanged old-code mappings
+
+| Code | Support delta | Matches delta | Precision delta | Recall delta |
+| --- | ---: | ---: | ---: | ---: |
+| `board_awareness.hanging_piece` | +0 | +0 | +0.0000 | +0.0000 |
+| `threat_processing.missed_capture` | +0 | N/A | N/A | N/A |
+| `threat_processing.missed_check` | +0 | N/A | N/A | N/A |
+| `threat_processing.missed_direct_threat` | +0 | +0 | +0.0000 | +0.0000 |
+
+### Disposition and eligible-only distribution
+
+| Disposition | Count | Rate over full sample |
+| --- | ---: | ---: |
+| `board_awareness.hanging_piece` | 225 | 11.25% |
+| `threat_processing.missed_capture` | 88 | 4.40% |
+| `threat_processing.missed_check` | 67 | 3.35% |
+| `threat_processing.missed_direct_threat` | 234 | 11.70% |
+| `threat_processing.allowed_mate` | 0 | 0.00% |
+| `not_flagged` | 158 | 7.90% |
+| `no_eligible_diagnosis` | 117 | 5.85% |
+| `untrusted_only` | 1111 | 55.55% |
+
+| Non-trusted eligible-only winner | Count | Rate over full sample |
+| --- | ---: | ---: |
+| `tactics.fork.knight` | 1 | 0.05% |
+| `tactics.pin` | 18 | 0.90% |
+| `tactics.overloaded_defender` | 39 | 1.95% |
+| `calculation.stopped_too_early` | 193 | 9.65% |
+| `opening.delayed_development` | 0 | 0.00% |
+| `positional.king_safety_neglect` | 465 | 23.25% |
+| `threat_processing.allowed_mate` | 395 | 19.75% |
+
+### Frozen evidence and reproduction
+
+- Original recording pre-registration: `8c02417`.
+- Engine: Stockfish 19; Threads 1, Hash 16 MiB; ucinewgame before every request.
+- Fast nodes 10000; focused nodes 1000000, MultiPV 4. No new engine requests.
+- Sample SHA256: `fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35`.
+- Recording SHA256: `9a13d33ef51ea906f833e0d51092850652c59e988708d35225ccef79fbab71af`.
+
+```sh
+uv run python -m scan64.learning.evaluation.lichess_themes --version v1 --check
+uv run python -m scan64.learning.evaluation.lichess_themes --version v2 --check
+```
+
+Both checks are offline and reproduce their respective Results suffixes.
+All pre-registered limitations above and in v1 apply. Mate tags do not prove
+the absence of prior forced mate or the detector's three-move bound.
+No core tuning, label remapping or sample selection followed these results.
