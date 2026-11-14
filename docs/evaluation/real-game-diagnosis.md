@@ -1,5 +1,30 @@
 # Real-game diagnosis measurement
 
+## M78 source-depth correction: fresh80 preregistration
+
+The original40 measurements below are **development, pre-fix** results, retained
+unchanged. They must never support a new allowed-mate trust decision.
+
+Before recording or measuring the corrected detector, freeze a separate holdout:
+exactly the next 80 qualifying games after the original first 40, from the same
+January 2013 compressed archive, in unchanged source order. Qualification remains
+error-free parsing, both Elo ratings 600–1600 inclusive, and at least 20 plies.
+Verify the recorder's published compressed-source SHA256 before selection. Preserve
+the original corpus and PGN bytes; store fresh80 in separate recording and PGN files.
+No hand-selection, outcome filtering, stopping early, or extension is permitted.
+
+Use the same engine identity, 10,000-node fast pass, and independent 1,000,000-node
+MultiPV-4 source and reply reference, with the same per-position reset policy.
+Corrected composer callers supply the deep source analysis. The existing independent
+deep reference definition is unchanged. Record every code's TP, FP, FN, support,
+precision, and gate status, plus suppression checks and the combined `--check` result.
+
+Allowed mate is promoted **only** if precision >= 0.80 and support >= 10 on fresh80
+alone. Insufficient support or precision means untrusted, with no corpus extension.
+The four existing trusted codes retain their original40 gate. Original40 pre-fix
+measurements remain historical, not a new post-fix trust sample. No detector tuning,
+M77 data, or threshold changes are permitted.
+
 ## M78 preregistration
 
 The existing method is described in `docs/user-guide.md` under **Measure diagnosis
