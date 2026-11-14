@@ -330,9 +330,9 @@ async def test_v1_never_requests_appended_detectors(monkeypatch: pytest.MonkeyPa
 def test_v2_untrusted_mate_is_an_abstention_not_an_emission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from scan64.learning.evaluation import lichess_themes
+    from scan64.learning.diagnosis import arbitration
 
-    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", frozenset(CODE_THEMES))
+    monkeypatch.setattr(arbitration, "TRUSTED_CODES", frozenset(CODE_THEMES))
     outcomes = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
     assert score(outcomes, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
     output = render_v2_results(
@@ -467,15 +467,16 @@ async def test_v3_requires_deep_source_and_excludes_prior_forced_mate() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "future_trust",
+    [frozenset({*CODE_THEMES, ALLOWED_MATE}), frozenset(CODE_THEMES) - {CAPTURE}, frozenset()],
+)
 async def test_historical_replay_is_isolated_from_future_production_trust(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, future_trust: frozenset[str]
 ) -> None:
     from scan64.learning.diagnosis import arbitration
-    from scan64.learning.evaluation import lichess_themes
 
-    future_trust = frozenset({*CODE_THEMES, ALLOWED_MATE})
     monkeypatch.setattr(arbitration, "TRUSTED_CODES", future_trust)
-    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", future_trust)
     puzzle, record, source, _ = mate_example()
     assert await diagnose(puzzle, record, registry(), version="v1") == (
         "untrusted_only",
@@ -525,14 +526,12 @@ def test_v3_render_keeps_same_mapping_intervals_and_both_historical_comparisons(
 
 
 @pytest.mark.asyncio
-async def test_v3_untrusted_mate_suppresses_material_but_historical_versions_do_not(
+async def test_v3_frozen_trust_suppresses_material_but_prior_mate_does_not(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from scan64.learning.diagnosis import arbitration
-    from scan64.learning.evaluation import lichess_themes
 
     monkeypatch.setattr(arbitration, "TRUSTED_CODES", frozenset(CODE_THEMES))
-    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", frozenset(CODE_THEMES))
     puzzle, record, source, _ = mate_example()
     board = chess.Board(puzzle.fen)
     board.remove_piece_at(chess.D1)
@@ -550,8 +549,8 @@ async def test_v3_untrusted_mate_suppresses_material_but_historical_versions_do_
     assert await diagnose(puzzle, record, registry(), version="v1") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v2") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        "untrusted_only",
         ALLOWED_MATE,
+        None,
     )
     source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (

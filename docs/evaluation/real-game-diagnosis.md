@@ -83,9 +83,9 @@ label mechanisms, not invented coach judgements.
 **Principled fix:** never emit missed-capture evidence when the played legal move
 equals the proposed capture. The three I cases are unequivocal definition defects:
 a shallow score swing flagged the very move being recommended. Regression tests
-cover all three, with alternative-move positive controls. No other detector,
-threshold, A8 band, fast-pass selection, reference label, or recorded engine result
-changes. In particular, we do not force agreement with the deep first PV: that
+cover all three, with alternative-move positive controls. The production fix changes
+no other detector, threshold, A8 band, fast-pass selection, historical reference label,
+or recorded engine result. In particular, we do not force agreement with the deep first PV: that
 would share the oracle's source conclusion, discard untested alternative captures,
 and conceal rather than resolve the R/L ambiguity. The E cases illustrate genuine
 shallow exchange artifacts; no arbitrary depth or material cutoff is fitted to
@@ -123,6 +123,33 @@ Report all codes' TP/FP/FN/support/precision/gate and material-suppression check
 No detector fix or threshold change is allowed after any new-set numbers are seen.
 If another fix is needed, disclose it and stop rather than tuning this holdout.
 Record chronology, restarts, preregistration/results SHAs and fixture checksums.
+
+### Premeasurement reference amendment
+
+A fresh-context method review, while raw recording was in progress and **before
+any M79 metrics were computed or inspected**, found the same identity error in
+the reference: it could call a profitable deep first capture "missed" when that
+was the move played. M78 development game `0wav2qbp`, ply 17 (`exf6`) demonstrates
+a trust-favouring false TP: the fast capture differs, but the deep capture was
+played. Also, excluding played fast captures removed one previous TP as well as
+the three I false positives. The corrected detector's M78 development count is
+**84 TP / 24 FP = 0.778, support 108**, not 85/109.
+
+Amend the M79 reference only: withhold `missed_capture` if legally replaying the
+deep first move produces the actual after-position. All other labels remain
+identical; the original `reference_labels` and both older corpus reports retain
+their frozen definitions. This independently implemented omission condition lives
+in `m79_reference_labels`; it does not call the composer or detector. The same
+>=0.80 precision / >=10 support decision rule now applies to that definition-faithful
+M79 label. Regression tests cover the development false TP and both played/omitted
+capture controls. This amendment is committed before any new-set measurement.
+It cannot influence selection or raw engine output, so recording is not restarted.
+No new-set numbers were available to motivate it.
+
+Post-selection-preregistration evaluation support also pins M79's gate and freezes
+M77 v3 trust independently of the live product allowlist; these offline-only edits
+were made during recording, before measurement. They do not alter recorded searches,
+the production identity fix, or any frozen M77 fixture/report bytes.
 
 ## M78 source-depth correction: fresh80 preregistration
 
