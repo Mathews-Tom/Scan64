@@ -170,6 +170,13 @@ diagnosis is no longer trusted.", while its earned award remains visible. Reads
 do not rewrite the export. A never-trusted pin substituted into the same archive
 is rejected. This is a read-time policy change, not a retrospective reward rewrite.
 
+Also before measurement, the read-time visibility policy gained the same identity
+exclusion for old capture evidence that records the proposed and played moves.
+Even if capture remains trusted, an old lesson cannot recommend the very move
+the player made. The comparison does not modify stored lesson/evidence bytes.
+A taken-capture regression and an omitted-capture control cover that read path.
+This read-time extension does not change recording or detector measurement.
+
 ## M78 source-depth correction: fresh80 preregistration
 
 The original40 measurements below are **development, pre-fix** results, retained
