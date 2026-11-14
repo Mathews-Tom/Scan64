@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -162,7 +162,7 @@ def test_intro_excludes_pre_opt_in_and_unstarted_then_continues_next_day(
         seed(db_session, f"intro-{index}", sequence=index)
     old = _start(client, auth)
     old_row = db_session.get(PuzzleRun, old["run_id"])
-    old_row.started_at = datetime.now(UTC) - timedelta(days=1)
+    old_row.started_at = NOW - timedelta(days=1)
     db_session.add(old_row)
     db_session.commit()
     declared = declare(client, auth, "developing")
