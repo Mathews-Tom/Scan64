@@ -182,6 +182,8 @@ The committed `tests/fixtures/m48/real_games.pgn` contains the first 40 qualifyi
 
 To reproduce recordings, download the compressed source named in provenance and run `uv run python scripts/record_diagnosis_reference.py SOURCE.pgn.zst` with Stockfish and `zstd` on PATH. The recorder verifies the published archive SHA256 before streaming decompression. `--augment-before` preserves existing output and records only missing deep source positions.
 
+M78 adds a separate, preregistered fresh sample: the next 80 qualifying games in source order, not a selection of mate examples. The original 40 games are development evidence for this change, not its new trust test. **Allowed checkmate** (`threat_processing.allowed_mate`) requires a legal engine mating line in at most three moves after the mistake and a 1,000,000-node source search that does not find an already forced mate against the mover. This source-depth confirmation is the exception to the older fast-only detector policy above. The trust threshold remains precision ≥0.80 and support ≥10; the fresh sample alone decides promotion, and insufficient support does not trigger more games in this PR. See [the implementation and limits](evaluation/allowed-mate.md) and [the measurement report](evaluation/real-game-diagnosis.md).
+
 
 ## Train from diagnosed positions
 
@@ -189,6 +191,7 @@ Open **Train** (Daily Training) after one or more owned games have generated eli
 
 - A lesson is served only with durable player-owned opportunity and study-session context.
 - Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
+- An **Allowed checkmate** lesson additionally rejects any engine-scored forced-mate loss, even if its probability is within 0.08 of the best. The objective is to find a sound move that prevents mate, not merely delay an already lost mate.
 - A verified attempt advances only its matching review schedule and active skill state.
 - Lessons have three attempts. A first wrong answer draws the nudge and a second draws the idea. **Next hint** reveals the next step at any time without spending an attempt, so you can see the moves before your final try. Hint usage is recorded with each answer; a hinted success keeps half credit. A third wrong answer ends the lesson with its explanation and drawings. Critical-moment review uses the same ladder, including for older lessons upgraded on read from their existing source-position analysis (at most one bounded engine fallback per read).
 - Opening Explorer missions are recorded separately and do not change this profile path.
@@ -504,6 +507,8 @@ These are coarse **10,000-node fast-pass** estimates, not Elo estimates, Lichess
 For an older completed analysis without move-review rows, select **Backfill review scores** explicitly. Merely opening the review never searches the engine. Backfill runs one same-budget review-only pass and writes only review rows and position/analysis provenance: no extra learning writes to evidence, diagnoses, observations, lessons or skill state. The subsequent review read may reverify lessons from stored analysis and create an owned retry study session, without an engine search or new lessons.
 
 Up to three key moments explain one trusted cause each, rather than diagnosing every scored error. **Retry this moment** restores the position before that move and uses the same lesson attempt endpoint and three-step hint ladder as Daily Training. The displayed attempts used/remaining are lifetime counts shared with training; reopening a retry does not reset them. Hinted success keeps half credit. Exhausted moments show the explanation and accepted moves, with no further retry.
+
+A confirmed move allowing mate is never relabelled as a hanging piece, missed direct material threat or missed capture. If **Allowed checkmate** has not cleared its measured trust gate, that move remains scored but the trusted diagnosis pipeline abstains. If it is trusted and selected, its explanation shows the legally replayed engine mating line and its lesson starts before the mistake. Ignoring an avoidable existing mate threat qualifies; playing on when mate was already forced does not.
 
 
 ## Transfer measurement

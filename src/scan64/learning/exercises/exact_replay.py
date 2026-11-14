@@ -24,7 +24,14 @@ async def generate_exact_replay_exercise(
         hints = []
 
     source = Source(kind="player_game", fen=fen)
-    objective = Objective(type="exact_replay", instruction="Find a sound move.")
+    objective = Objective(
+        type="exact_replay",
+        instruction=(
+            "Find a sound move that does not allow mate."
+            if diagnosis.primary == "threat_processing.allowed_mate"
+            else "Find a sound move."
+        ),
+    )
     accepted_moves = [
         AcceptedMove(san=san, reason="Within the engine soundness tolerance")
         for san in accepted_moves_san

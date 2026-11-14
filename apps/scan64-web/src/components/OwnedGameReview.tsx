@@ -5,6 +5,7 @@ import type { GameAnalysisStatusRead, GameReviewRead, PlaySessionRead, ReviewBan
 import { CoachBoard } from './CoachBoard';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import { ReviewProbabilityGraph } from './ReviewProbabilityGraph';
+import { diagnosisName } from './diagnosisName';
 import './OwnedGameReview.css';
 
 interface Props {
@@ -225,7 +226,7 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
         {review.key_moments.length === 0 && <p>No trusted key moments are available. A scored mistake does not always have a verified lesson.</p>}
         {review.key_moments.map(moment => <article key={moment.lesson_id} data-testid={`review-key-moment-${moment.ply}`}>
           <button type="button" aria-current={selectedPly === moment.ply ? 'step' : undefined} onClick={() => setSelectedPly(moment.ply)}>Key moment at ply {moment.ply}</button>
-          {moment.lesson.diagnosis && <h4>{moment.lesson.diagnosis.primary.replaceAll('_', ' ').replaceAll('.', ' / ')}</h4>}
+          {moment.lesson.diagnosis && <h4>{diagnosisName(moment.lesson.diagnosis.primary)}</h4>}
           {moment.lesson.explanation && <p>{moment.lesson.explanation.text}</p>}
           <p>{moment.attempts_used} lifetime attempts used; {moment.attempts_remaining} remaining.</p>
           {moment.attempts_remaining === 0 ? <>

@@ -101,11 +101,11 @@ async def augment_before(source: Path) -> None:
     save_recording(data)
 
 
-async def record(source: Path) -> None:
+async def record(source: Path, *, fresh80: bool = False) -> None:
     DEST.mkdir(exist_ok=True)
     selected = []
     with verified_pgn(source) as stream:
-        while len(selected) < 40:
+        while len(selected) < (120 if fresh80 else 40):
             game = chess.pgn.read_game(stream)
             if game is None:
                 raise ValueError("Not enough qualifying games")
@@ -116,6 +116,13 @@ async def record(source: Path) -> None:
             if not game.errors and all(600 <= elo <= 1600 for elo in ratings):
                 if sum(1 for _ in game.mainline_moves()) >= 20:
                     selected.append(game)
+    if fresh80:
+        original = json.loads((DEST / "recorded.json").read_text())
+        if [game.headers.get("Site") for game in selected[:40]] != [
+            game["id"] for game in original["games"][:40]
+        ]:
+            raise ValueError("Verified archive prefix differs from original40")
+        selected = selected[40:120]
     pgn = (
         "\n\n".join(
             game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
@@ -123,16 +130,23 @@ async def record(source: Path) -> None:
         )
         + "\n"
     )
-    (DEST / "real_games.pgn").write_text(pgn)
-    with (ROOT / "tests/fixtures/reference_amateur_game.pgn").open() as stream:
-        reference = chess.pgn.read_game(stream)
-    assert reference is not None
+    (DEST / ("fresh80_real_games.pgn" if fresh80 else "real_games.pgn")).write_text(pgn)
+    reference = None
+    if not fresh80:
+        with (ROOT / "tests/fixtures/reference_amateur_game.pgn").open() as stream:
+            reference = chess.pgn.read_game(stream)
+        assert reference is not None
     config = StockfishConfig()
     adapter = PooledStockfishAdapter(config)
     records: list[dict[str, Any]] = []
     engine_name = ""
+    original_engine = (
+        json.loads((DEST / "recorded.json").read_text())["provenance"]["engine"]
+        if fresh80
+        else None
+    )
     try:
-        for index, game in enumerate([*selected, reference]):
+        for index, game in enumerate(selected if fresh80 else [*selected, reference]):
             moves = list(game.mainline_moves())
             board = game.board()
             sans = []
@@ -147,6 +161,8 @@ async def record(source: Path) -> None:
                 analysis = await adapter.analyze_position(fen, nodes=10_000)
                 fast.append(analysis.raw_result)
                 engine_name = str(analysis.config["engine_name"])
+                if fresh80 and engine_name != original_engine:
+                    raise ValueError("Fresh recording engine differs from original engine")
 
             # Use the production candidate calculation, backed by the recorded fast pass.
             class Replay:
@@ -155,9 +171,10 @@ async def record(source: Path) -> None:
 
                     return EngineAnalysis(config={}, raw_result=fast[fens.index(fen)])
 
-            candidates = await FastPassOrchestrator(
+            fast_pass = await FastPassOrchestrator(
                 Replay(), FastPassConfig(nodes=10_000, swing_threshold_cp=150)
             ).run_fast_pass(sans, game.headers.get("FEN"))
+            candidates = fast_pass.candidates
             focused = {}
             deep_before = {}
             sources = {}
@@ -194,7 +211,8 @@ async def record(source: Path) -> None:
                 }
             )
             print(
-                f"Recorded {index + 1}/41: {len(moves)} plies, {len(candidates)} candidates",
+                f"Recorded {index + 1}/{len(selected)}: "
+                f"{len(moves)} plies, {len(candidates)} candidates",
                 flush=True,
             )
     finally:
@@ -205,11 +223,13 @@ async def record(source: Path) -> None:
             "source_sha256": SHA256,
             "checksum_url": "https://database.lichess.org/standard/sha256sums.txt",
             "license": "CC0",
-            "game_count": 40,
+            "game_count": len(selected),
             "selection": (
-                "First 40 error-free games in source order with both Elo ratings 600..1600 "
-                "inclusive and at least 20 plies; no selection by detector or label."
+                "Next 80 qualifying games after original40; qualifying ordinal 41..120."
+                if fresh80
+                else "First 40 qualifying games."
             ),
+            "preregistration_commit": "c4490fa" if fresh80 else None,
             "engine": engine_name,
             "threads": config.threads,
             "hash_mb": config.hash_size,
@@ -223,12 +243,23 @@ async def record(source: Path) -> None:
         },
         "games": records,
     }
-    save_recording(data)
+    if fresh80:
+        output = json.dumps(data, separators=(",", ":")) + "\n"
+        if len(output.encode()) > 8_000_000:
+            raise ValueError("Fresh80 recording exceeds 8 MB")
+        (DEST / "fresh80_recorded.json").write_text(output)
+    else:
+        save_recording(data)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("--augment-before", action="store_true")
+    parser.add_argument("--fresh80", action="store_true")
     args = parser.parse_args()
-    asyncio.run(augment_before(args.source) if args.augment_before else record(args.source))
+    asyncio.run(
+        augment_before(args.source)
+        if args.augment_before
+        else record(args.source, fresh80=args.fresh80)
+    )

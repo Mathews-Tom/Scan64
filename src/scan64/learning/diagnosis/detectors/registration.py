@@ -8,6 +8,7 @@ from scan64.learning.diagnosis.detectors.tactics import (
     PinDetector,
 )
 from scan64.learning.diagnosis.detectors.threat_processing import (
+    AllowedMateDetector,
     MissedCaptureDetector,
     MissedCheckDetector,
     MissedDirectThreatDetector,
@@ -28,6 +29,7 @@ def register_seeded_detectors(registry: PluginRegistry) -> None:
         "calculation.stopped_too_early": StoppedCalculationEarlyDetector(),
         "opening.delayed_development": DelayedDevelopmentDetector(),
         "positional.king_safety_neglect": KingSafetyNeglectDetector(),
+        "threat_processing.allowed_mate": AllowedMateDetector(),
     }
     if tuple(detectors) != tuple(SEED_CODES):
         raise RuntimeError("Seeded detector registration diverges from the taxonomy")

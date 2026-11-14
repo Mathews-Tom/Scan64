@@ -133,6 +133,27 @@ SEED_CODES: dict[str, SkillDefinition] = {
         incompatible_diagnoses=[],
         minimum_engine_evidence="Eval drop due to incoming mate threat or heavy attack.",
     ),
+    "threat_processing.allowed_mate": SkillDefinition(
+        skill_id="threat_processing.allowed_mate",
+        name="Allowed checkmate",
+        parent_id="threat_processing",
+        tier=SkillTier.EVENT,
+        detection_requirements=(
+            "After the move the opponent has a forced mate in at most three moves "
+            "(engine mate score); before it the mover was not already facing a forced mate. "
+            "Includes ignoring an existing avoidable mate threat."
+        ),
+        positive_examples=[],
+        counterexamples=["The mover was already facing a forced mate before the move."],
+        confidence_calculation="1.0 with before/after engine scores and a legal mating PV.",
+        compatible_exercise_templates=["exact_replay"],
+        incompatible_diagnoses=[
+            "board_awareness.hanging_piece",
+            "threat_processing.missed_direct_threat",
+            "threat_processing.missed_capture",
+        ],
+        minimum_engine_evidence="New opponent forced mate in <=3 with a legal mating PV.",
+    ),
 }
 
 # Fix parent IDs

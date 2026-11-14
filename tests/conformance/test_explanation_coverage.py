@@ -152,6 +152,20 @@ _FIXTURE_PAYLOADS: dict[str, dict[str, Any]] = {
         "focused_line": [],
         "swing_cp": 150,
     },
+    "threat_processing.allowed_mate": {
+        "blunder_type": "allowed_mate",
+        "played_move": "Rh1",
+        "before_score_cp": 0,
+        "before_score_mate": None,
+        "after_score_mate": 1,
+        "mate_in": 1,
+        "mating_line": ["b3b2"],
+        "after_fen": "8/8/8/8/8/1qk5/8/K6R b - - 1 1",
+        "mate_source_analysis_id": "source_11",
+        "mate_source_config": {"nodes": 1_000_000, "multipv": 4},
+        "focused_analysis_id": "foc_11",
+        "focused_multipv": [],
+    },
 }
 
 # The concrete, literal fact each code's explanation must name, drawn straight
@@ -167,6 +181,7 @@ _REQUIRED_LITERAL: dict[str, str] = {
     "calculation.stopped_too_early": "d2d7 e8d7 c3d5",
     "opening.delayed_development": "2.5",
     "positional.king_safety_neglect": "d8h4",
+    "threat_processing.allowed_mate": "Qb2#",
 }
 
 

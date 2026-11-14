@@ -76,6 +76,19 @@ def reference_labels(
     owner = before.turn
     gain = material(attack[-1], owner) - material(before, owner)
     loss = material(after, owner) - material(defence[-1], owner)
+    # Mate scores belong to the side to move, not a fixed White perspective.
+    # A non-positive source mate score means this mover was already forced-mated.
+    source_mate = deep_before[0].get("score_mate") if deep_before else None
+    reply_mate = deep_after[0].get("score_mate") if deep_after else None
+    if (
+        deep_before
+        and reply_mate is not None
+        and 1 <= reply_mate <= 3
+        and (source_mate is None or source_mate > 0)
+        and defence[-1].is_checkmate()
+        and defence[-1].turn == owner
+    ):
+        labels.add("threat_processing.allowed_mate")
     if len(defence) > 1:
         reply = defence[1].peek()
         victim = after.piece_at(reply.to_square)

@@ -20,10 +20,11 @@ from scan64.explanations.assembly import resolve_explanation
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
-from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.evidence.composer import compose_candidate_evidence, needs_mate_source
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.exercises.hints import fill_lesson_hints
+from scan64.learning.exercises.sound_moves import sound_moves
 from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
@@ -60,8 +61,11 @@ class PreparedCoachInterruption:
     opportunity: PersistedLessonOpportunity
     schedule: ReviewSchedule
     study_session: StudySession
+    mate_source_analysis: EngineAnalysis | None = None
 
     def add_to(self, session: Session) -> None:
+        if self.mate_source_analysis is not None:
+            session.add(self.mate_source_analysis)
         for row in (
             self.source_position,
             self.result_position,
@@ -208,6 +212,12 @@ async def _prepare_coach_interruption(
     result_position = resolve_position(session, after_board.fen(), game.id)
     before_analysis.position_id = source_position.id
     after_analysis.position_id = result_position.id
+    mate_source_analysis = None
+    if needs_mate_source(after_analysis):
+        mate_source_analysis = await pool_manager.analyze_interactive(
+            before_board.fen(), nodes=1_000_000, multipv=4
+        )
+        mate_source_analysis.position_id = source_position.id
     evidence = compose_candidate_evidence(
         before_board=before_board,
         after_board=after_board,
@@ -217,6 +227,7 @@ async def _prepare_coach_interruption(
         fast_analysis=before_analysis,
         reply_analysis=after_analysis,
         focused_analysis=after_analysis,
+        mate_source_analysis=mate_source_analysis,
         analysis_depth="interactive",
         played_move=played_move,
         swing_cp=swing_cp,
@@ -240,8 +251,18 @@ async def _prepare_coach_interruption(
     if selection is None:
         return None
     primary, secondary = selection
-    objective_move = _principal_variation_move(before_analysis, before_board)
-    if objective_move is None:
+    objective_analysis = mate_source_analysis or before_analysis
+    if primary.skill_id == "threat_processing.allowed_mate":
+        try:
+            accepted = sound_moves(before_board, objective_analysis, avoid_mate=True)
+        except ValueError:
+            return None
+    else:
+        objective_move = _principal_variation_move(objective_analysis, before_board)
+        if objective_move is None:
+            return None
+        accepted = [objective_move]
+    if before_board.parse_san(played_move) in accepted:
         return None
 
     opportunity_id = uuid4()
@@ -255,12 +276,12 @@ async def _prepare_coach_interruption(
         diagnosis=diagnosis,
         fen=before_board.fen(),
         lesson_id=str(opportunity_id),
-        accepted_moves_san=[before_board.san(objective_move)],
+        accepted_moves_san=[before_board.san(move) for move in accepted],
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
     try:
-        fill_lesson_hints(lesson, before_analysis)
-        verify_lesson(lesson, before_analysis)
+        fill_lesson_hints(lesson, objective_analysis)
+        verify_lesson(lesson, objective_analysis)
     except (LessonVerificationError, ValueError):
         return None
 
@@ -272,7 +293,7 @@ async def _prepare_coach_interruption(
         player_id=player_id,
         lesson_spec=lesson.model_dump(mode="json"),
         verification_status=lesson.verification.status,
-        verification_analysis_id=before_analysis.id,
+        verification_analysis_id=objective_analysis.id,
     )
     schedule = ReviewSchedule(
         player_id=player_id,
@@ -299,6 +320,7 @@ async def _prepare_coach_interruption(
         result_position=result_position,
         before_analysis=before_analysis,
         after_analysis=after_analysis,
+        mate_source_analysis=mate_source_analysis,
         evidence=tuple(evidence),
         opportunity=opportunity,
         schedule=schedule,

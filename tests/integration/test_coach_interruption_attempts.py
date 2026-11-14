@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -16,6 +17,7 @@ from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
+from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -393,3 +395,47 @@ def test_coach_diagnostic_failure_preserves_the_legal_move(
     assert db_session.exec(select(PersistedLessonOpportunity)).all() == []
     assert db_session.exec(select(EngineAnalysis)).all() == []
     assert db_session.exec(select(Position)).all() == []
+
+
+@pytest.mark.parametrize(
+    "primary", ["threat_processing.allowed_mate", "board_awareness.hanging_piece"]
+)
+def test_coach_rejects_a_played_move_in_the_source_sound_set(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    primary: str,
+) -> None:
+    auth = _register(db_session)
+    play_session = _coach_session(db_session, coach_mode=True)
+    _install_deterministic_diagnostic(monkeypatch)
+    before = _analysis_for(COACH_FEN)
+    # Isolate the caller boundary when source analysis contradicts the fast cause.
+    before.raw_result = [
+        {"pv": ["e1d1"], "score_cp": 0},
+        {"pv": ["e2e3"], "score_cp": 0},
+    ]
+    if primary != "threat_processing.allowed_mate":
+        before.raw_result.reverse()
+    monkeypatch.setattr(
+        EnginePoolManager,
+        "analyze_interactive",
+        AsyncMock(side_effect=[before, _analysis_for("after")]),
+    )
+    selected = DiagnosisCandidate(skill_id=primary, confidence=1.0, evidence_ids=[])
+    monkeypatch.setattr(coach_interruption, "arbitrate_diagnoses", lambda *args: (selected, []))
+    generated = AsyncMock(wraps=coach_interruption.generate_exact_replay_exercise)
+    monkeypatch.setattr(coach_interruption, "generate_exact_replay_exercise", generated)
+
+    response = client.post(
+        f"/v1/play-sessions/{play_session.id}/moves",
+        json={"move": "e2e3"},
+        headers=auth,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["critical_interruption"] is None
+    generated.assert_not_awaited()
+    assert db_session.exec(select(PersistedLessonOpportunity)).all() == []
+    assert db_session.exec(select(ProfileObservation)).all() == []
+    assert db_session.exec(select(ReviewSchedule)).all() == []

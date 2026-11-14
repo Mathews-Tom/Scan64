@@ -103,6 +103,7 @@ def test_deep_output_cannot_change_fast_detector_signals() -> None:
         "position_id": "position",
         "fast_analysis": source,
         "reply_analysis": winning_reply,
+        "mate_source_analysis": None,
         "played_move": "Qe4",
         "swing_cp": 300,
     }

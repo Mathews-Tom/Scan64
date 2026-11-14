@@ -26,11 +26,13 @@ from scan64.learning.diagnosis.detectors.registration import register_seeded_det
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evaluation.deep_reference import reference_labels
-from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.evidence.composer import allowed_mate_line, compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 
 CORPUS = Path(__file__).resolve().parents[4] / "tests/fixtures/m48/recorded.json"
+FRESH_CORPUS = CORPUS.with_name("fresh80_recorded.json")
+ALLOWED_MATE = "threat_processing.allowed_mate"
 
 
 class RecordedAdapter:
@@ -90,6 +92,12 @@ def check_scores(scores: dict[str, Score], trusted: frozenset[str]) -> bool:
 
 async def measure(path: Path = CORPUS) -> dict[str, Score]:
     corpus = json.loads(path.read_text())
+    if path == FRESH_CORPUS and (
+        corpus["provenance"]["game_count"] != 80
+        or len(corpus["games"]) != 80
+        or corpus["provenance"].get("preregistration_commit") != "c4490fa"
+    ):
+        raise ValueError("Fresh holdout must contain exactly the preregistered next80")
     registry = PluginRegistry()
     register_seeded_detectors(registry)
     scores = {code: Score() for code in SEED_CODES}
@@ -113,6 +121,10 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 position_id="recorded",
                 fast_analysis=candidate.before_analysis,
                 reply_analysis=candidate.after_analysis,
+                mate_source_analysis=EngineAnalysis(
+                    config={"nodes": 1_000_000, "multipv": 4},
+                    raw_result=game["deep_before"][str(candidate.move_index)],
+                ),
                 focused_analysis=focused,
                 played_move=game["moves"][candidate.move_index],
                 swing_cp=candidate.swing_cp,
@@ -135,11 +147,38 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                     opportunity, evidence, PlayerContext(player_id="recorded")
                 )
                 predicted = arbitrate_diagnoses(detected, evidence, trusted_only=False) is not None
+                if any(allowed_mate_line(item.payload) is not None for item in evidence):
+                    if (
+                        code
+                        in {
+                            "board_awareness.hanging_piece",
+                            "threat_processing.missed_direct_threat",
+                            "threat_processing.missed_capture",
+                        }
+                        and predicted
+                    ):
+                        raise AssertionError("Confirmed mate was emitted as a material diagnosis")
                 if predicted:
                     if code in labels:
                         score.tp += 1
                     else:
                         score.fp += 1
+                        if code == ALLOWED_MATE:
+                            print(
+                                json.dumps(
+                                    {
+                                        "allowed_mate_false_positive": game["id"],
+                                        "move_index": candidate.move_index,
+                                        "before_fen": before.fen(),
+                                        "deep_before": game["deep_before"][
+                                            str(candidate.move_index)
+                                        ][0],
+                                        "deep_reply": focused.raw_result[0],
+                                        "fast_reply": candidate.after_analysis.raw_result[0],
+                                    },
+                                    sort_keys=True,
+                                )
+                            )
                 elif code in labels:
                     score.fn += 1
     return scores
@@ -150,17 +189,26 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     scores = asyncio.run(measure())
-    print("skill code                              precision support TP FP FN trusted")
-    for code, score in scores.items():
-        print(
-            f"{code:40} {score.precision:.3f} {score.support:7} "
-            f"{score.tp:3} {score.fp:3} {score.fn:3} {'yes' if score.trusted else 'no'}"
-        )
+    fresh_scores = asyncio.run(measure(FRESH_CORPUS))
+    for name, measured in (
+        ("original40 development post-fix", scores),
+        ("fresh80 holdout", fresh_scores),
+    ):
+        print(name)
+        print("skill code                              precision support TP FP FN trusted")
+        for code, score in measured.items():
+            print(
+                f"{code:40} {score.precision:.3f} {score.support:7} "
+                f"{score.tp:3} {score.fp:3} {score.fn:3} {'yes' if score.trusted else 'no'}"
+            )
     if args.check:
         from scan64.learning.diagnosis.trust import TRUSTED_CODES
 
-        if not check_scores(scores, TRUSTED_CODES):
-            raise SystemExit("Trusted-code precision/support regression (requires >=0.80 and >=10)")
+        if not check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE}):
+            raise SystemExit("Original trusted-code precision/support regression")
+        if ALLOWED_MATE in TRUSTED_CODES and not fresh_scores[ALLOWED_MATE].trusted:
+            raise SystemExit("Fresh80 allowed-mate precision/support regression")
+        print("PASS: declared trust gates and confirmed-mate material suppression")
 
 
 if __name__ == "__main__":

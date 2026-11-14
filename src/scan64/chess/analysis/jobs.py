@@ -38,7 +38,7 @@ from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
 from scan64.learning.diagnosis.visibility import visible_game_lesson
-from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.evidence.composer import compose_candidate_evidence, needs_mate_source
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.exact_replay import generate_exact_replay_exercise
 from scan64.learning.exercises.hints import fill_lesson_hints
@@ -156,6 +156,7 @@ async def run_analysis_for_game(
     all_evidence: list[Evidence] = []
     observations: list[tuple[UUID, str]] = []
     lesson_candidates: list[_LessonCandidate] = []
+    mate_sources: dict[str, EngineAnalysis] = {}
     for candidate, focused_analysis in zip(candidates, focused_analyses, strict=True):
         fen_before = fens_before[candidate.move_index]
         existing_position = positions_by_fen.get(fen_before)
@@ -168,6 +169,15 @@ async def run_analysis_for_game(
             game, candidate.fen, candidate.after_analysis, positions_by_fen, analyses
         )
         stage_position_analysis(game, candidate.fen, focused_analysis, positions_by_fen, analyses)
+        mate_source_analysis = None
+        if needs_mate_source(candidate.after_analysis):
+            mate_source_analysis = await adapter.analyze_position(
+                fen_before, nodes=1_000_000, multipv=4
+            )
+            mate_sources[fen_before] = mate_source_analysis
+            stage_position_analysis(
+                game, fen_before, mate_source_analysis, positions_by_fen, analyses
+            )
         evidence = compose_candidate_evidence(
             before_board=board_from(fen_before),
             after_board=board_from(candidate.fen),
@@ -177,6 +187,7 @@ async def run_analysis_for_game(
             fast_analysis=candidate.before_analysis,
             reply_analysis=candidate.after_analysis,
             focused_analysis=focused_analysis,
+            mate_source_analysis=mate_source_analysis,
             played_move=san_moves[candidate.move_index],
             swing_cp=candidate.swing_cp,
         )
@@ -270,8 +281,14 @@ async def run_analysis_for_game(
         fen_before = source_position.fen
         board_before = chess.Board(fen_before)
         try:
-            source_analysis = await analyze_lesson_source(adapter, fen_before)
-            accepted = sound_moves(board_before, source_analysis)
+            source_analysis = await analyze_lesson_source(
+                adapter, fen_before, initial_analysis=mate_sources.get(fen_before)
+            )
+            accepted = sound_moves(
+                board_before,
+                source_analysis,
+                avoid_mate=item.diagnosis.skill_id == "threat_processing.allowed_mate",
+            )
         except ValueError:
             continue
         if item.played_move in accepted:

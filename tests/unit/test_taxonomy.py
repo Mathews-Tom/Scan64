@@ -48,8 +48,8 @@ def test_skill_definition_requires_fields() -> None:
 
 def test_seed_codes_are_valid() -> None:
     # SEED_CODES instantiation already triggered Pydantic validation,
-    # but we can do a sanity check to ensure all 10 are present.
-    assert len(SEED_CODES) == 10
+    # The frozen seed set includes M78's mate-prevention event.
+    assert len(SEED_CODES) == 11
 
     for code_id, code in SEED_CODES.items():
         assert code.skill_id == code_id
