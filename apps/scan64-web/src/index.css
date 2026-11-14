@@ -30,7 +30,7 @@ button {
 }
 button:active:not(:disabled) { transform: translateY(1px) scale(.985); transition-duration: var(--motion-press); }
 button:disabled { opacity: .55; cursor: not-allowed; }
-.button-primary, .btn--primary, button[type='submit'] { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.button-primary, .btn--primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
 .btn--secondary { background: var(--ground); color: var(--ink); border-color: var(--border); }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 input, select, textarea {

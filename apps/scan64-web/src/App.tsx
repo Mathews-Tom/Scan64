@@ -226,7 +226,7 @@ function App() {
             }}>
               <label htmlFor="display-name">Display name</label>
               <input id="display-name" autoComplete="nickname" required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-              <button type="submit" disabled={creatingPlayer || !displayName.trim()}>
+              <button className="button-primary" type="submit" disabled={creatingPlayer || !displayName.trim()}>
                 {creatingPlayer ? 'Creating player…' : 'Start learning'}
               </button>
               {identityError ? <p role="alert">{identityError}. Please try again.</p> : null}

@@ -40,6 +40,9 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 
     await page.addInitScript(() => localStorage.clear());
     await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
     await page.goto('/');
+    const headerBounds = await page.getByRole('banner').boundingBox();
+    const todayBounds = await page.getByRole('button', { name: 'Today', exact: true }).boundingBox();
+    expect(todayBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
     const settings = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Settings', exact: true });
     await settings.focus();
     await expect(settings).toBeInViewport();

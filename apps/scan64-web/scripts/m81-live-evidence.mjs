@@ -1,11 +1,14 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Run against scripts/run.sh on a disposable database seeded with the documented
 // legal opening-line puzzle fixture. No API interception or test-only move hooks.
 const origin = process.env.SCAN64_EVIDENCE_ORIGIN ?? 'http://127.0.0.1:5173';
-const directory = path.resolve(process.env.SCAN64_EVIDENCE_DIR ?? 'artifacts/m81');
+const directory = process.env.SCAN64_EVIDENCE_DIR
+  ? path.resolve(process.env.SCAN64_EVIDENCE_DIR)
+  : fileURLToPath(new URL('../artifacts/m81/', import.meta.url));
 await mkdir(directory, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const observations = [];

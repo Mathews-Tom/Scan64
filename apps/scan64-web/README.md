@@ -65,6 +65,8 @@ Shared boards also expose readable coordinates, pieces, side to move and legal c
 
 Settings → Appearance selects System, Light or Dark and remembers the choice in this browser. Navigation uses a 208px sidebar at 1024px, an icon rail at 768px and a two-row bottom tab bar on smaller screens; every destination retains its existing name and route. Settings is available before creating a player.
 
+On short screens, navigation scrolls below the fixed brand rather than underneath it. Filled-primary actions are explicit; being a form submit button does not assign visual priority. Generated live-run images in `artifacts/m81/` are ignored and belong on the separate evidence branch, not in the client source.
+
 ## User documentation
 
 Use the [root README](../../README.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.
