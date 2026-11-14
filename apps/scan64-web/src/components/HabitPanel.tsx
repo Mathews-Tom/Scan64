@@ -31,7 +31,7 @@ function TargetEvidence({ target, pending, onRefresh }: {
     <p>Absence evidence: {target.eligible_window_count}/5 subsequent eligible games in the current window.</p>
     {target.blocking_game ? <p>
       {target.blocking_game.reason === 'unfinished' ? <>Waiting for this unfinished game: <a href={`/play?session=${encodeURIComponent(target.blocking_game.session_id)}`}>Resume or resign this game</a>.</> :
-        <>Waiting for an earlier game’s analysis: <a href={`/games/${encodeURIComponent(target.blocking_game.game_id)}/analysis`}>Review this game</a>.</>}
+        <>Waiting for an earlier game’s analysis: <a href={`/games/${encodeURIComponent(target.blocking_game.game_id)}/analysis`}>Review the game awaiting analysis</a>.</>}
     </p> : null}
     <p>Only terminal, fully analysed Scan64 play-session games with known owner colour, every owner move scored and at least 20 owner moves qualify. Imports do not count. A retained target diagnosis or an uncapped non-retired observation restarts the window.</p>
     <p>Lesson hints are app-reported, not server-proven independence. Diagnosis uses a ≥150cp fast-pass swing threshold; smaller or undetected errors can remain. This is bounded evidence, not a cure or permanent mastery.</p>

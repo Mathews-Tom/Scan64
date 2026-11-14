@@ -103,8 +103,8 @@ describe('HabitPanel', () => {
     }] });
     render(<HabitPanel playerId="owner" patterns={patterns} />);
     expect(await screen.findByText(/Waiting for this unfinished game/)).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.getAttribute('href')))
-      .toContain('/play?session=blocked-session');
+    expect(screen.getByRole('link', { name: 'Resume or resign this game' }))
+      .toHaveAttribute('href', '/play?session=blocked-session');
   });
 
   it('shows the server UTC goal, short supply and separate calendar and solve streaks without writes', async () => {
@@ -190,7 +190,7 @@ describe('HabitPanel', () => {
     rerender(<HabitPanel playerId="owner" patterns={{ ...patterns, recurring_diagnoses: [next] }} />);
     const tracked = screen.getByRole('region', { name: 'Tracked pattern: Hanging piece' });
     expect(within(tracked).getByText(/Coverage at start: 3\/4/)).toBeInTheDocument();
-    expect(within(tracked).getAllByRole('link').map(link => link.getAttribute('href'))).toContain('/games/one/analysis?ply=7');
+    expect(within(tracked).getByRole('link', { name: 'Review supporting move 1 at ply 7' })).toHaveAttribute('href', '/games/one/analysis?ply=7');
     expect(screen.getByRole('button', { name: 'Track practice target for Knight fork' })).toBeInTheDocument();
     rerender(<HabitPanel playerId="owner" patterns={{ ...patterns, status: 'no_recurring_diagnosis', recurring_diagnoses: [] }} />);
     expect(screen.getByRole('region', { name: 'Tracked pattern: Hanging piece' })).toBeInTheDocument();

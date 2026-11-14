@@ -77,12 +77,12 @@ export function CoachDashboardScreen() {
               <StrengthSummary strength={student.strength} />
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-patterns`}>
-                <h4 id={`${student.student_id}-patterns`}>Recurring diagnoses</h4>
+                <h3 id={`${student.student_id}-patterns`}>Recurring diagnoses</h3>
                 <PatternCard report={student.patterns} owner={false} />
               </section>
 
               <section className="coach-student__section" aria-labelledby={`${student.student_id}-evidence`}>
-                <h4 id={`${student.student_id}-evidence`}>Evidence trail</h4>
+                <h3 id={`${student.student_id}-evidence`}>Evidence trail</h3>
                 {student.evidence.evidence_items.length === 0 ? (
                   <p className="coach-student__muted">No verified evidence has been recorded yet.</p>
                 ) : (

@@ -305,7 +305,7 @@ ProfileObservation** restarts the window; capped-out or verification-dropped
 diagnoses still reset it. An earlier owned active or nonterminal play session
 pauses the chronological scan, even before it reaches 20 owner moves; later
 completed games cannot silently replace it. The target identifies the unfinished
-game with **Resume or resign game**. Finish or resign it, then let analysis
+game with **Resume or resign this game**. Finish or resign it, then let analysis
 complete; a completed game below 20 owner moves is excluded. The award
 is minted in the analysis-completion transaction that resolves the last required
 evidence, including an earlier pending game. If that game contains a recurrence,

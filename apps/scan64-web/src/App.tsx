@@ -230,9 +230,9 @@ function App() {
             }}>
               <label htmlFor="display-name">Display name</label>
               <input id="display-name" autoComplete="nickname" required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-              <button className="button-primary" type="submit" disabled={creatingPlayer || !displayName.trim()}>
+              <Button variant="primary" type="submit" disabled={creatingPlayer || !displayName.trim()}>
                 {creatingPlayer ? 'Creating player…' : 'Start learning'}
-              </button>
+              </Button>
               {identityError ? <p role="alert">{identityError}. Please try again.</p> : null}
             </form>
             <p className="muted">Your player identity stays in this browser. No account or email needed.</p>
