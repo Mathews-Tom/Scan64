@@ -26,8 +26,12 @@ from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
-from scan64.learning.diagnosis.trust import TRUSTED_CODES
-from scan64.learning.evidence.composer import compose_candidate_evidence, mating_line_san
+from scan64.learning.evidence.composer import (
+    compose_candidate_evidence,
+    exchange_material_gain,
+    line_material_gain,
+    mating_line_san,
+)
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -52,6 +56,7 @@ V3_PREREGISTRATION = "597627f"
 ORIGINAL_RECORDING_SHA256 = "9a13d33ef51ea906f833e0d51092850652c59e988708d35225ccef79fbab71af"
 SOURCE_RECORDING_NAME = "recorded-source-v3.json"
 HISTORICAL_TRUSTED_CODES = frozenset(CODE_THEMES)
+V3_TRUSTED_CODES = HISTORICAL_TRUSTED_CODES | {ALLOWED_MATE}
 MATERIAL_CODES = frozenset(
     {
         "board_awareness.hanging_piece",
@@ -329,6 +334,42 @@ class RecordedPuzzleAdapter:
         raise ValueError(f"Unrecorded request: {fen}, nodes={nodes}, multipv={multipv}")
 
 
+def _historical_played_capture(
+    before: chess.Board, san: str, fast: EngineAnalysis, base: Evidence
+) -> Evidence | None:
+    """Restore M77's frozen pre-M79 identity defect in offline replay only."""
+    line = fast.raw_result[0].get("pv", []) if fast.raw_result else []
+    played = before.parse_san(san)
+    if not line or line[0] != played.uci() or not before.is_capture(played):
+        return None
+    gain = line_material_gain(before, line)
+    local_gain = exchange_material_gain(before, line)
+    if base.payload["swing_cp"] < 200 or gain is None or gain < 1:
+        return None
+    if local_gain is None or local_gain < 1:
+        return None
+    square = played.to_square
+    if before.is_en_passant(played):
+        square += -8 if before.turn else 8
+    victim = before.piece_at(square)
+    return Evidence(
+        evidence_id=f"m77-pre-m79-capture:{base.position_id}",
+        kind="missed_opportunity",
+        position_id=base.position_id,
+        engine_analysis_id=base.engine_analysis_id,
+        claim="historical pre-M79 capture identity rule (offline replay only)",
+        payload={
+            **base.payload,
+            "missed_type": "capture",
+            "best_move": played.uci(),
+            "captured_square": chess.square_name(square),
+            "captured_piece": victim.symbol() if victim is not None else None,
+            "exchange_gain": local_gain,
+            "material_gain": gain,
+        },
+    )
+
+
 def _legacy_allowed_mate_evidence(
     puzzle: Puzzle,
     fast: EngineAnalysis,
@@ -448,6 +489,11 @@ async def diagnose(
         played_move=san,
         swing_cp=candidate.swing_cp,
     )
+    historical_capture = _historical_played_capture(
+        before, san, candidate.before_analysis, evidence[0]
+    )
+    if historical_capture is not None:
+        evidence.append(historical_capture)
     if version != "v3":
         evidence = [item for item in evidence if item.payload.get("blunder_type") != "allowed_mate"]
         if version == "v2":
@@ -472,7 +518,11 @@ async def diagnose(
             await detector.detect(opportunity, evidence, PlayerContext(player_id="m77-owner"))
         )
     winner = (
-        arbitrate_diagnoses(candidates, evidence)
+        arbitrate_diagnoses(
+            [item for item in candidates if item.skill_id in V3_TRUSTED_CODES],
+            evidence,
+            trusted_only=False,
+        )
         if version == "v3"
         else _historical_arbitrate(candidates, evidence, trusted_only=True)
     )
@@ -494,7 +544,7 @@ def score(outcomes: list[Outcome], *, version: Version = "v1") -> dict[str, Code
     mapping = code_themes(version)
     dispositions = (*mapping, *ABSTENTIONS)
     seeds = V1_SEED_CODES if version == "v1" else SEED_CODES
-    trusted = TRUSTED_CODES if version == "v3" else HISTORICAL_TRUSTED_CODES
+    trusted = V3_TRUSTED_CODES if version == "v3" else HISTORICAL_TRUSTED_CODES
     if len({outcome.puzzle_id for outcome in outcomes}) != len(outcomes):
         raise ValueError("Duplicate outcome ID")
     if any(outcome.disposition not in dispositions for outcome in outcomes):
@@ -822,7 +872,7 @@ def render_v3_results(
         outcome.untrusted_code for outcome in outcomes if outcome.untrusted_code is not None
     )
     n = len(outcomes)
-    trusted = ALLOWED_MATE in TRUSTED_CODES
+    trusted = ALLOWED_MATE in V3_TRUSTED_CODES
     lines = [
         "## Results",
         "",
@@ -910,7 +960,7 @@ def render_v3_results(
         ]
     )
     for code in SEED_CODES:
-        if code not in TRUSTED_CODES:
+        if code not in V3_TRUSTED_CODES:
             lines.append(f"| `{code}` | {untrusted[code]} | {untrusted[code] / n:.2%} |")
     lines.extend(
         [

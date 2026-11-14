@@ -287,7 +287,7 @@ async def test_report_runs_real_detectors_without_a_live_engine(
 
     from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
     from scan64.learning.diagnosis.trust import TRUSTED_CODES
-    from scan64.learning.evaluation.real_games import measure
+    from scan64.learning.evaluation.real_games import M79_CORPUS, MISSED_CAPTURE, measure
 
     async def forbidden_engine(*args: object, **kwargs: object) -> None:
         raise AssertionError("The recorded report must not launch an engine")
@@ -296,10 +296,12 @@ async def test_report_runs_real_detectors_without_a_live_engine(
     scores = await measure()
     assert set(scores) == set(SEED_CODES)
     assert sum(score.support for score in scores.values()) > 0
-    assert check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE})
+    assert check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE, MISSED_CAPTURE})
     fresh = await measure(FRESH_CORPUS)
     if ALLOWED_MATE in TRUSTED_CODES:
         assert fresh[ALLOWED_MATE].trusted
+    m79 = await measure(M79_CORPUS)
+    assert (MISSED_CAPTURE in TRUSTED_CODES) is m79[MISSED_CAPTURE].trusted
     assert len(TRUSTED_CODES) >= 3
     assert "board_awareness.hanging_piece" in TRUSTED_CODES
 

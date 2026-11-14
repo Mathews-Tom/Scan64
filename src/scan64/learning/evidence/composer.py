@@ -450,7 +450,10 @@ def compose_candidate_evidence(
             )
         if (
             before_board.is_capture(best_move)
+            # A shallow score swing can flag even the move the fast PV recommends.
+            # Taking that very piece is not a missed capture.
             and swing_cp >= 200
+            and best_move != before_board.parse_san(played_move)
             and fast_gain is not None
             and fast_gain >= 1
             and fast_exchange_gain is not None

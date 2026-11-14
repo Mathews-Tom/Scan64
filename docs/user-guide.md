@@ -184,6 +184,23 @@ To reproduce recordings, download the compressed source named in provenance and 
 
 M78 adds a separate, preregistered fresh sample: the next 80 qualifying games in source order, not a selection of mate examples. The original 40 games are development evidence for this change, not its new trust test. **Allowed checkmate** (`threat_processing.allowed_mate`) requires a legal engine mating line in at most three moves after the mistake and a 1,000,000-node source search that does not find an already forced mate against the mover. This source-depth confirmation is the exception to the older fast-only detector policy above. The trust threshold remains precision ≥0.80 and support ≥10; the fresh sample alone decides promotion, and insufficient support does not trigger more games in this PR. See [the implementation and limits](evaluation/allowed-mate.md) and [the measurement report](evaluation/real-game-diagnosis.md).
 
+M79 re-tests **Missed capture** on a third, separate corpus: qualifying ordinals
+121–200 from that same archive, with unchanged filters and engine budgets.
+The earlier 120 games are development data for this code. Only the new 80 decide
+whether it remains trusted, using precision ≥0.80 and support ≥10; other codes
+retain their earlier gates. Neither detector evidence nor the new reference may
+call a capture "missed" when its proposed move is the move actually played.
+The source-depth/reference-label limitations and committed preregistration are
+documented in [real-game diagnosis](evaluation/real-game-diagnosis.md).
+`--m79-fresh80` records this separate corpus and refuses to overwrite it.
+Historical habit credits and pattern awards restore using the bounded history of
+trust at award, not today's allowlist. Current pattern/training eligibility still
+uses current trust; withdrawal does not delete or rewrite earned evidence.
+The preregistered M79 result is **78 TP / 15 FP, precision 0.839, support 93**
+(29 missed reference labels), so **Missed capture remains trusted**. Its puzzle
+practice mapping, pattern and habit eligibility remain active; no other code's
+trust decision changes. This is engine-derived agreement, not coach validation.
+
 
 ## Train from diagnosed positions
 

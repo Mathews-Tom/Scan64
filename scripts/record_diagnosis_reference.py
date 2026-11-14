@@ -101,11 +101,22 @@ async def augment_before(source: Path) -> None:
     save_recording(data)
 
 
-async def record(source: Path, *, fresh80: bool = False) -> None:
+async def record(source: Path, *, fresh80: bool = False, m79_fresh80: bool = False) -> None:
     DEST.mkdir(exist_ok=True)
+    fresh80 = fresh80 or m79_fresh80
+    prefix = "m79_fresh80" if m79_fresh80 else "fresh80"
+    preregistration = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        if m79_fresh80
+        else "c4490fa"
+    )
+    if m79_fresh80 and any(
+        (DEST / f"{prefix}_{suffix}").exists() for suffix in ("recorded.json", "real_games.pgn")
+    ):
+        raise ValueError("Refusing to overwrite M79 holdout")
     selected = []
     with verified_pgn(source) as stream:
-        while len(selected) < (120 if fresh80 else 40):
+        while len(selected) < (200 if m79_fresh80 else 120 if fresh80 else 40):
             game = chess.pgn.read_game(stream)
             if game is None:
                 raise ValueError("Not enough qualifying games")
@@ -122,7 +133,13 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
             game["id"] for game in original["games"][:40]
         ]:
             raise ValueError("Verified archive prefix differs from original40")
-        selected = selected[40:120]
+        if m79_fresh80:
+            previous = json.loads((DEST / "fresh80_recorded.json").read_text())
+            if [game.headers.get("Site") for game in selected[40:120]] != [
+                game["id"] for game in previous["games"]
+            ]:
+                raise ValueError("Verified archive prefix differs from M78 fresh80")
+        selected = selected[120:200] if m79_fresh80 else selected[40:120]
     pgn = (
         "\n\n".join(
             game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
@@ -130,7 +147,7 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
         )
         + "\n"
     )
-    (DEST / ("fresh80_real_games.pgn" if fresh80 else "real_games.pgn")).write_text(pgn)
+    (DEST / (f"{prefix}_real_games.pgn" if fresh80 else "real_games.pgn")).write_text(pgn)
     reference = None
     if not fresh80:
         with (ROOT / "tests/fixtures/reference_amateur_game.pgn").open() as stream:
@@ -225,11 +242,13 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
             "license": "CC0",
             "game_count": len(selected),
             "selection": (
-                "Next 80 qualifying games after original40; qualifying ordinal 41..120."
+                "Next 80 qualifying games after original40 and M78 fresh80; ordinal 121..200."
+                if m79_fresh80
+                else "Next 80 qualifying games after original40; qualifying ordinal 41..120."
                 if fresh80
                 else "First 40 qualifying games."
             ),
-            "preregistration_commit": "c4490fa" if fresh80 else None,
+            "preregistration_commit": preregistration if fresh80 else None,
             "engine": engine_name,
             "threads": config.threads,
             "hash_mb": config.hash_size,
@@ -247,7 +266,7 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
         output = json.dumps(data, separators=(",", ":")) + "\n"
         if len(output.encode()) > 8_000_000:
             raise ValueError("Fresh80 recording exceeds 8 MB")
-        (DEST / "fresh80_recorded.json").write_text(output)
+        (DEST / f"{prefix}_recorded.json").write_text(output)
     else:
         save_recording(data)
 
@@ -255,11 +274,13 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("--augment-before", action="store_true")
-    parser.add_argument("--fresh80", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--augment-before", action="store_true")
+    mode.add_argument("--fresh80", action="store_true")
+    mode.add_argument("--m79-fresh80", action="store_true")
     args = parser.parse_args()
     asyncio.run(
         augment_before(args.source)
         if args.augment_before
-        else record(args.source, fresh80=args.fresh80)
+        else record(args.source, fresh80=args.fresh80, m79_fresh80=args.m79_fresh80)
     )

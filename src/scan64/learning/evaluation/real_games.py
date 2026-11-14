@@ -25,7 +25,7 @@ from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
-from scan64.learning.evaluation.deep_reference import reference_labels
+from scan64.learning.evaluation.deep_reference import m79_reference_labels, reference_labels
 from scan64.learning.evidence.composer import allowed_mate_line, compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -33,6 +33,9 @@ from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 CORPUS = Path(__file__).resolve().parents[4] / "tests/fixtures/m48/recorded.json"
 FRESH_CORPUS = CORPUS.with_name("fresh80_recorded.json")
 ALLOWED_MATE = "threat_processing.allowed_mate"
+MISSED_CAPTURE = "threat_processing.missed_capture"
+M79_CORPUS = CORPUS.with_name("m79_fresh80_recorded.json")
+M79_PREREGISTRATION = "4afbe47d09138606ecd7d3dbabc4659e1ef2c6ed"
 
 
 class RecordedAdapter:
@@ -98,6 +101,14 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
         or corpus["provenance"].get("preregistration_commit") != "c4490fa"
     ):
         raise ValueError("Fresh holdout must contain exactly the preregistered next80")
+    if path == M79_CORPUS and (
+        corpus["provenance"]["game_count"] != 80
+        or len(corpus["games"]) != 80
+        or corpus["provenance"].get("preregistration_commit") != M79_PREREGISTRATION
+        or corpus["provenance"].get("selection")
+        != "Next 80 qualifying games after original40 and M78 fresh80; ordinal 121..200."
+    ):
+        raise ValueError("M79 holdout must contain exactly preregistered ordinals 121..200")
     registry = PluginRegistry()
     register_seeded_detectors(registry)
     scores = {code: Score() for code in SEED_CODES}
@@ -129,7 +140,8 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 played_move=game["moves"][candidate.move_index],
                 swing_cp=candidate.swing_cp,
             )
-            labels = reference_labels(
+            labeller = m79_reference_labels if path == M79_CORPUS else reference_labels
+            labels = labeller(
                 before, after, game["deep_before"][str(candidate.move_index)], focused.raw_result
             )
             opportunity = LearningOpportunity(
@@ -190,9 +202,11 @@ def main() -> None:
     args = parser.parse_args()
     scores = asyncio.run(measure())
     fresh_scores = asyncio.run(measure(FRESH_CORPUS))
+    m79_scores = asyncio.run(measure(M79_CORPUS))
     for name, measured in (
         ("original40 development post-fix", scores),
-        ("fresh80 holdout", fresh_scores),
+        ("M78 fresh80 development for missed capture", fresh_scores),
+        ("M79 fresh80 missed-capture holdout", m79_scores),
     ):
         print(name)
         print("skill code                              precision support TP FP FN trusted")
@@ -204,10 +218,12 @@ def main() -> None:
     if args.check:
         from scan64.learning.diagnosis.trust import TRUSTED_CODES
 
-        if not check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE}):
+        if not check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE, MISSED_CAPTURE}):
             raise SystemExit("Original trusted-code precision/support regression")
         if ALLOWED_MATE in TRUSTED_CODES and not fresh_scores[ALLOWED_MATE].trusted:
             raise SystemExit("Fresh80 allowed-mate precision/support regression")
+        if MISSED_CAPTURE in TRUSTED_CODES and not m79_scores[MISSED_CAPTURE].trusted:
+            raise SystemExit("M79 fresh80 missed-capture precision/support regression")
         print("PASS: declared trust gates and confirmed-mate material suppression")
 
 

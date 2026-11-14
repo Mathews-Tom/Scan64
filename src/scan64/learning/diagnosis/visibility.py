@@ -39,6 +39,16 @@ def visible_game_lesson(
     spec = LessonSpec.model_validate(opportunity.lesson_spec)
     if spec.diagnosis is None:
         return None
+    if primary == "threat_processing.missed_capture":
+        for evidence in proof_evidence:
+            played = evidence.payload.get("played_move")
+            best = evidence.payload.get("best_move")
+            if isinstance(played, str) and isinstance(best, str):
+                try:
+                    if chess.Board(spec.source.fen).parse_san(played).uci() == best:
+                        return None
+                except ValueError:
+                    return None
     if primary == "board_awareness.hanging_piece":
         for evidence in proof_evidence:
             payload = evidence.payload

@@ -180,3 +180,19 @@ def reference_labels(
             if gain >= 1 and len(guarded) >= 2 and lost_targets >= 2:
                 labels.add("tactics.overloaded_defender")
     return labels
+
+
+def m79_reference_labels(
+    before: chess.Board,
+    after: chess.Board,
+    deep_before: list[dict[str, Any]],
+    deep_after: list[dict[str, Any]],
+) -> set[str]:
+    """Require an omitted capture on M79; retain M48's frozen historical oracle."""
+    labels = reference_labels(before, after, deep_before, deep_after)
+    if "threat_processing.missed_capture" in labels:
+        recommended = before.copy()
+        recommended.push_uci(deep_before[0]["pv"][0])
+        if recommended.fen() == after.fen():
+            labels.remove("threat_processing.missed_capture")
+    return labels
