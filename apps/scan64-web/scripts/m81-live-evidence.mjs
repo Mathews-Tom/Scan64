@@ -24,7 +24,10 @@ try {
       });
       const state = { width, appearance, screens: [], foreignHosts: [] };
       async function capture(name) {
+        await expect(page.getByRole('status').filter({ hasText: /\bLoading\b/i })).toHaveCount(0);
+        await expect(page.getByRole('alert')).toHaveCount(0);
         await page.evaluate(() => document.fonts.ready);
+        await page.evaluate(() => window.scrollTo(0, 0));
         const layout = await page.evaluate(() => {
           const main = document.querySelector('main');
           return { viewport: innerWidth, document: document.documentElement.scrollWidth, main: main.scrollWidth, available: main.clientWidth };
@@ -86,6 +89,7 @@ try {
         await expect(page.getByTestId('analysis-in-progress')).toHaveCount(0);
         await expect(page.getByTestId('analysis-failed')).toHaveCount(0);
         await expect(page.getByTestId('review-board')).toBeVisible();
+        await expect(page.getByTestId('review-accuracy')).toHaveText(/^\d+(?:\.\d+)?%$/);
       }).toPass({ timeout: 120000, intervals: [1000, 2000, 4000] });
       await page.getByRole('button', { name: 'Last', exact: true }).click();
       state.reviewedGame = true;
