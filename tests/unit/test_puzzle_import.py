@@ -443,6 +443,7 @@ def test_cli_text_underfill(
         ["file.csv.zst", "--download"],
         ["--download", "--limit", "0"],
         ["file.csv.zst", "--output", "other.csv.zst"],
+        ["file.csv.zst", "--url", "http://[x/a"],
     ],
 )
 def test_cli_invalid_inputs(
@@ -730,8 +731,8 @@ def test_terminal_progress_redraws_one_line_per_phase() -> None:
         "Connecting to database.lichess.org…",
         "Downloading  0.0 MB",
         "Downloading  2.0 MB  2.0 MB/s",
-        # Throttled within 0.1 s, then drawn when the phase ends: no update is lost.
-        "Downloading  2.5 MB  1.4 MB/s",
+        # Throttled within 0.1 s, then drawn as of its arrival when the phase ends.
+        "Downloading  2.5 MB  2.4 MB/s",
         "Importing    0 / 50,000 puzzles kept  ·  0 rows read",
     ]
 

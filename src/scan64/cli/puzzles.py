@@ -82,7 +82,7 @@ class ProgressRenderer:
         self._phase: str | None = None
         self._phase_started = 0.0
         self._last_write: float | None = None
-        self._pending: ImportProgress | None = None
+        self._pending: tuple[ImportProgress, float] | None = None
         self._line_open = False
 
     def __call__(self, progress: ImportProgress) -> None:
@@ -96,7 +96,7 @@ class ProgressRenderer:
                 return
         if self._terminal:
             if self._last_write is not None and now - self._last_write < _TERMINAL_REDRAW_SECONDS:
-                self._pending = progress
+                self._pending = (progress, now)
                 return
             self._draw(progress, now)
         elif self._last_write is None or now - self._last_write >= _PIPED_LINE_SECONDS:
@@ -120,7 +120,7 @@ class ProgressRenderer:
 
     def _end_line(self) -> None:
         if self._pending is not None:
-            self._draw(self._pending, self._clock())
+            self._draw(*self._pending)
         if self._line_open:
             self._stream.write("\n")
             self._stream.flush()
@@ -154,10 +154,10 @@ def add_puzzle_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def puzzles_command(args: argparse.Namespace) -> int:
-    progress = (
-        None if args.quiet else ProgressRenderer(sys.stderr, source=urlsplit(args.url).hostname)
-    )
+    progress: ProgressRenderer | None = None
     try:
+        if not args.quiet:
+            progress = ProgressRenderer(sys.stderr, source=urlsplit(args.url).hostname)
         try:
             summary, filters = _run_import(args, progress)
         finally:
