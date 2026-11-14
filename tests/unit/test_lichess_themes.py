@@ -12,20 +12,31 @@ from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evaluation.lichess_themes import (
     ALLOWED_MATE,
     CODE_THEMES,
+    ORIGINAL_RECORDING_SHA256,
     V1_SEED_CODES,
     V2_CODE_THEMES,
+    V3_PREREGISTRATION,
     CodeScore,
     Outcome,
     Puzzle,
     PuzzleRecording,
     RecordedLine,
     RecordedPuzzleAdapter,
+    Recording,
     RecordingProvenance,
+    SourceAnalysisConfig,
+    SourcePuzzleRecording,
+    SourceRecording,
+    SourceRecordingProvenance,
     code_themes,
     diagnose,
+    needs_source_recording,
     render_results,
     render_v2_results,
+    render_v3_results,
     score,
+    source_analysis_id,
+    validate_source_recording,
     wilson,
 )
 from scan64.learning.plugins.registry import PluginRegistry
@@ -249,15 +260,14 @@ def test_recording_scores_and_settings_cannot_silently_change() -> None:
 def test_v2_mapping_only_adds_verified_mate_tags() -> None:
     assert code_themes("v1") == CODE_THEMES
     assert code_themes("v2") == V2_CODE_THEMES
+    assert code_themes("v3") == V2_CODE_THEMES
     assert {code: tags for code, tags in V2_CODE_THEMES.items() if code != ALLOWED_MATE} == (
         CODE_THEMES
     )
-    assert V2_CODE_THEMES[ALLOWED_MATE] == {
-        "mate", "mateIn1", "mateIn2", "mateIn3", "backRankMate"
-    }
+    assert V2_CODE_THEMES[ALLOWED_MATE] == {"mate", "mateIn1", "mateIn2", "mateIn3", "backRankMate"}
     assert ALLOWED_MATE not in V1_SEED_CODES
     with pytest.raises(ValueError, match="version"):
-        code_themes("v3")  # type: ignore[arg-type]
+        code_themes("v4")  # type: ignore[arg-type]
 
 
 def test_v1_render_seed_distribution_excludes_new_detector() -> None:
@@ -279,8 +289,7 @@ def test_v2_render_reports_both_wilson_intervals_and_old_code_deltas() -> None:
     output = render_v2_results(outcomes, baseline, provenance(), "hash")
     assert "Recall Wilson 95% CI" in output
     assert (
-        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | "
-        "0.5000 | [0.0945, 0.9055] |"
+        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | 0.5000 | [0.0945, 0.9055] |"
     ) in output
     assert f"| `{HANGING}` | -1 | -1 | +0.0000 | -0.5000 |" in output
     assert f"| `{CHECK}` | +0 | N/A | N/A | N/A |" in output
@@ -324,9 +333,245 @@ def test_v2_untrusted_mate_is_an_abstention_not_an_emission(
     outcomes = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
     assert score(outcomes, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
     output = render_v2_results(
-        outcomes, [replace(outcomes[0], disposition="not_flagged", untrusted_code=None)],
-        provenance(), "hash",
+        outcomes,
+        [replace(outcomes[0], disposition="not_flagged", untrusted_code=None)],
+        provenance(),
+        "hash",
     )
     assert "M48 allowed-mate trust decision: **not trusted**" in output
     assert f"| `{ALLOWED_MATE}` | 1 | 100.00% |" in output
     assert "Trusted emissions: **0**; abstentions: **1**." in output
+
+
+def mate_example() -> tuple[Puzzle, PuzzleRecording, SourcePuzzleRecording, SourceRecording]:
+    board = chess.Board()
+    board.push_uci("f2f3")
+    board.push_uci("e7e5")
+    puzzle = Puzzle("unit-mate", board.fen(), "g2g4", frozenset({"mateIn1"}))
+    record = PuzzleRecording(
+        puzzle_id=puzzle.puzzle_id,
+        before=[RecordedLine(pv=["b1c3"], score_cp=0)],
+        after=[RecordedLine(pv=["d8h4"], score_mate=1)],
+        focused=[
+            RecordedLine(pv=["d8h4"], score_mate=1),
+            *[RecordedLine(pv=[uci], score_cp=0) for uci in ("b8c6", "g8f6", "a7a6")],
+        ],
+    )
+    source = SourcePuzzleRecording(
+        puzzle_id=puzzle.puzzle_id,
+        source_fen=board.fen(),
+        analysis_id=source_analysis_id(puzzle),
+        config=SourceAnalysisConfig(
+            engine_name=provenance().engine,
+            engine_version="unknown",
+            nodes=1000000,
+            multipv=4,
+        ),
+        lines=[
+            RecordedLine(pv=[uci], score_cp=0) for uci in ("b1c3", "g1h3", "a2a3", "h2h3")
+        ],
+    )
+    sources = SourceRecording(
+        provenance=SourceRecordingProvenance(
+            sample_sha256=provenance().sample_sha256,
+            original_recording_sha256=ORIGINAL_RECORDING_SHA256,
+            preregistration_commit=V3_PREREGISTRATION,
+            engine=provenance().engine,
+            threads=1,
+            hash_mb=16,
+            source_nodes=1000000,
+            source_multipv=4,
+            reset="ucinewgame before every request",
+            eligibility="fast-pass candidate with positive reply mate in 1-3",
+        ),
+        puzzles=[source],
+    )
+    return puzzle, record, source, sources
+
+
+def test_source_recording_checks_exact_coverage_ids_fen_engine_and_pvs() -> None:
+    puzzle, record, source, sources = mate_example()
+    original = Recording(provenance=provenance(), puzzles=[record])
+    assert validate_source_recording([puzzle], original, sources) == {puzzle.puzzle_id: source}
+    assert needs_source_recording(record)
+    for altered in (
+        sources.model_copy(update={"puzzles": []}),
+        sources.model_copy(update={"puzzles": [source, source]}),
+        sources.model_copy(
+            update={"puzzles": [source.model_copy(update={"source_fen": chess.STARTING_FEN})]}
+        ),
+        sources.model_copy(
+            update={"puzzles": [source.model_copy(update={"analysis_id": source_analysis_id(
+                replace(puzzle, puzzle_id="different")
+            )})]}
+        ),
+    ):
+        with pytest.raises(ValueError):
+            validate_source_recording([puzzle], original, altered)
+    source.lines[0].pv = ["a1a8"]
+    with pytest.raises(ValueError, match="illegal"):
+        validate_source_recording([puzzle], original, sources)
+    source.lines[0].pv = list(source.lines[1].pv)
+    with pytest.raises(ValueError, match="duplicate root"):
+        validate_source_recording([puzzle], original, sources)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("preregistration_commit", "wrong"),
+        ("original_recording_sha256", "wrong"),
+        ("source_nodes", 10000),
+        ("source_multipv", 1),
+        ("threads", 2),
+        ("unexpected", True),
+    ],
+)
+def test_source_provenance_fails_closed(field: str, value: object) -> None:
+    _, _, _, sources = mate_example()
+    metadata = sources.provenance.model_dump()
+    metadata[field] = value
+    with pytest.raises(ValidationError):
+        SourceRecordingProvenance.model_validate(metadata)
+
+
+@pytest.mark.asyncio
+async def test_v3_requires_deep_source_and_excludes_prior_forced_mate() -> None:
+    puzzle, record, source, _ = mate_example()
+    with pytest.raises(ValueError, match="Missing or unexpected"):
+        await diagnose(puzzle, record, registry(), version="v3")
+    source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
+    assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
+        "no_eligible_diagnosis", None
+    )
+    # Pre-fix replay deliberately keeps the frozen, genuinely shallow source rule.
+    assert await diagnose(puzzle, record, registry(), version="v2") == (
+        "untrusted_only", ALLOWED_MATE
+    )
+    with pytest.raises(ValueError, match="Historical"):
+        await diagnose(puzzle, record, registry(), version="v2", source=source)
+    ordinary, ordinary_record = example()
+    with pytest.raises(ValueError, match="unexpected"):
+        await diagnose(ordinary, ordinary_record, registry(), version="v3", source=source)
+
+
+@pytest.mark.asyncio
+async def test_historical_replay_is_isolated_from_future_production_trust(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scan64.learning.diagnosis import arbitration
+    from scan64.learning.evaluation import lichess_themes
+
+    future_trust = frozenset({*CODE_THEMES, ALLOWED_MATE})
+    monkeypatch.setattr(arbitration, "TRUSTED_CODES", future_trust)
+    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", future_trust)
+    puzzle, record, source, _ = mate_example()
+    assert await diagnose(puzzle, record, registry(), version="v1") == (
+        "no_eligible_diagnosis", None
+    )
+    assert await diagnose(puzzle, record, registry(), version="v2") == (
+        "untrusted_only", ALLOWED_MATE
+    )
+    assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
+        ALLOWED_MATE, None
+    )
+    frozen = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
+    assert score(frozen, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
+    assert "M48 allowed-mate trust decision: **not trusted**" in render_v2_results(
+        frozen, frozen, provenance(), "hash"
+    )
+
+
+def test_v3_render_keeps_same_mapping_intervals_and_both_historical_comparisons() -> None:
+    _, _, _, sources = mate_example()
+    baseline = [
+        Outcome("a", frozenset({"hangingPiece", "mate"}), HANGING),
+        Outcome("b", frozenset({"hangingPiece"}), HANGING),
+        Outcome("c", frozenset({"mateIn2"}), "not_flagged"),
+    ]
+    outcomes = [replace(baseline[0], disposition=ALLOWED_MATE), *baseline[1:]]
+    output = render_v3_results(outcomes, baseline, baseline, provenance(), sources, "source-hash")
+    assert "Recall Wilson 95% CI" in output
+    assert "### V3 minus v1" in output
+    assert "### V3 minus v2 (pre-fix)" in output
+    assert f"| `{ALLOWED_MATE}` | N/A | N/A | N/A | N/A |" in output
+    assert f"| `{HANGING}` | -1 | -1 | +0.0000 | -0.5000 |" in output
+    assert (
+        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | "
+        "0.5000 | [0.0945, 0.9055] |"
+    ) in output
+    assert output == render_v3_results(
+        list(reversed(outcomes)), baseline, baseline, provenance(), sources, "source-hash"
+    )
+    assert "source-hash" in output
+    with pytest.raises(ValueError, match="same nonempty"):
+        render_v3_results(outcomes, baseline[:-1], baseline, provenance(), sources, "hash")
+
+
+@pytest.mark.asyncio
+async def test_v3_untrusted_mate_suppresses_material_but_historical_versions_do_not(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scan64.learning.diagnosis import arbitration
+    from scan64.learning.evaluation import lichess_themes
+
+    monkeypatch.setattr(arbitration, "TRUSTED_CODES", frozenset(CODE_THEMES))
+    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", frozenset(CODE_THEMES))
+    puzzle, record, source, _ = mate_example()
+    board = chess.Board(puzzle.fen)
+    board.remove_piece_at(chess.D1)
+    board.set_piece_at(chess.H4, chess.Piece(chess.QUEEN, chess.WHITE))
+    puzzle = replace(puzzle, fen=board.fen())
+    source.source_fen = board.fen()
+    source.analysis_id = source_analysis_id(puzzle)
+    assert await diagnose(puzzle, record, registry(), version="v1") == (HANGING, None)
+    assert await diagnose(puzzle, record, registry(), version="v2") == (HANGING, None)
+    assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
+        "untrusted_only", ALLOWED_MATE
+    )
+    source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
+    assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
+        HANGING, None
+    )
+
+
+@pytest.mark.asyncio
+async def test_historical_composer_calls_use_none_without_fake_source_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scan64.learning.evaluation import lichess_themes
+
+    original_compose = lichess_themes.compose_candidate_evidence
+    observed = []
+
+    def capture(**kwargs):
+        assert "mate_source_analysis" in kwargs
+        observed.append(kwargs["mate_source_analysis"])
+        return original_compose(**kwargs)
+
+    monkeypatch.setattr(lichess_themes, "compose_candidate_evidence", capture)
+    puzzle, record, source, _ = mate_example()
+    await diagnose(puzzle, record, registry(), version="v1")
+    await diagnose(puzzle, record, registry(), version="v2")
+    await diagnose(puzzle, record, registry(), version="v3", source=source)
+    assert observed[:2] == [None, None]
+    assert observed[2].id == source.analysis_id
+    assert observed[2].config["nodes"] == 1000000
+    assert observed[2].config["multipv"] == 4
+
+
+def test_source_analysis_configuration_is_strict_and_actual_engine_must_match() -> None:
+    puzzle, record, source, sources = mate_example()
+    original = Recording(provenance=provenance(), puzzles=[record])
+    for field, value in (("nodes", 10000), ("multipv", 1), ("time_ms", 1000)):
+        config = source.config.model_dump()
+        config[field] = value
+        with pytest.raises(ValidationError):
+            SourceAnalysisConfig.model_validate(config)
+    source.config.engine_name = "different"
+    with pytest.raises(ValueError, match="engine"):
+        validate_source_recording([puzzle], original, sources)
+    source.config.engine_name = provenance().engine
+    sources.provenance.engine = "different"
+    with pytest.raises(ValueError, match="engine"):
+        validate_source_recording([puzzle], original, sources)
