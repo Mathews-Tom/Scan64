@@ -1252,7 +1252,7 @@ describe('PlayScreen', () => {
     fireEvent.click(screen.getByTestId('start-btn'));
     await screen.findByTestId('session-info');
     expect(ApiClient.createPlaySession).toHaveBeenCalledWith(expect.objectContaining({ player_color: 'random' }));
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black' }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black' })));
   });
 
   it('reloads persisted Black orientation and permits only human moves and resignation', async () => {
