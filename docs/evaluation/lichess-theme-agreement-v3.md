@@ -99,6 +99,15 @@ The source-depth correction addresses an observed engine-horizon bug, not label
 agreement optimization. No claim of independent chess truth or improved learning
 outcomes follows from these proxy numbers.
 
+## Post-registration clarification — 2026-11-14
+
+The frozen wording above describes an operational engine judgment, not proof of
+absence. A 1,000,000-node source search that does not find a forced mate does
+**not** prove that none exists; a deeper or different search may find one. “No
+prior forced mate” means none was found under the recorded engine configuration
+and budget. This dated clarification changes no frozen preregistration text,
+pipeline, mapping or results.
+
 ## Source recording execution
 
 Signed preregistration: `597627f`; versioned evaluator/recorder: `f1de5fa`.

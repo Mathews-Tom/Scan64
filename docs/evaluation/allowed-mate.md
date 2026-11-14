@@ -12,6 +12,8 @@ A confirmed allowed-mate event suppresses `board_awareness.hanging_piece`, `thre
 
 The deterministic template independently revalidates the source-depth proof and legally replays the mating PV, showing it in SAN through `#`. Its lesson asks for a sound move from the pre-move position that does not allow mate. M47's probability tolerance is unchanged, but a negative-mate alternative cannot satisfy this additional objective, even when both win probabilities are close to zero. Generation and re-verification apply the same filter. UI review/import labels name it **Allowed checkmate**; profile/report names come from its taxonomy seed. Archive habit checks use the same canonical trusted-code allowlist as runtime habit creation.
 
+Coach and CLI callers reject a diagnosis/lesson when the played move is itself in the source search's accepted sound-move set, matching game analysis. The CLI reports a source-analysis or sound-move `ValueError` for that candidate and continues to later candidates instead of aborting the run.
+
 ## Why the source-depth correction is necessary
 
 The initial development measurement on the original 40 M48 games emitted 15 allowed-mate events: 11 true positives and 4 false positives (precision 0.733). Every false positive had a pre-existing forced mate discovered by the million-node source reference but missed by the 10,000-node source search. Exact game IDs, plies, scores and lines are preserved in [the M48 report](real-game-diagnosis.md).

@@ -122,14 +122,21 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             best, _secondary = selection
 
             board_before = chess.Board(fen_before)
-            source_analysis = await analyze_lesson_source(
-                adapter, fen_before, initial_analysis=mate_source_analysis
-            )
-            accepted = sound_moves(
-                board_before,
-                source_analysis,
-                avoid_mate=best.skill_id == "threat_processing.allowed_mate",
-            )
+            try:
+                source_analysis = await analyze_lesson_source(
+                    adapter, fen_before, initial_analysis=mate_source_analysis
+                )
+                accepted = sound_moves(
+                    board_before,
+                    source_analysis,
+                    avoid_mate=best.skill_id == "threat_processing.allowed_mate",
+                )
+            except ValueError as exc:
+                print(f"Rejected lesson from {file_path.name}: {exc}")
+                continue
+            if board_before.parse_san(san_moves[candidate.move_index]) in accepted:
+                print(f"Rejected lesson from {file_path.name}: played move is sound")
+                continue
 
             diagnosis = Diagnosis(
                 primary=best.skill_id,

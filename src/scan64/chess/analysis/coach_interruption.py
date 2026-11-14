@@ -262,6 +262,8 @@ async def _prepare_coach_interruption(
         if objective_move is None:
             return None
         accepted = [objective_move]
+    if before_board.parse_san(played_move) in accepted:
+        return None
 
     opportunity_id = uuid4()
     diagnosis = Diagnosis(

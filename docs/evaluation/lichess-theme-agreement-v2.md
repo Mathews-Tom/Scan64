@@ -76,6 +76,14 @@ sampling uncertainty, not label quality or systematic bias. Broad `mate` makes
 the proxy insensitive to mate distance and prior forced mate. This is a mapped
 label agreement experiment, not independent chess truth or a learning outcome.
 
+## Post-registration clarification — 2026-11-14
+
+The frozen wording above describes an operational engine judgment, not proof of
+absence. In particular, a 1,000,000-node source search that does not find a forced
+mate does **not** prove that none exists; a deeper or different search may find
+one. The same limitation applies to v2's shallower source search. This dated
+clarification changes no frozen preregistration text, pipeline, mapping or results.
+
 ## Execution gate
 
 V2 replay began only after the core owner confirmed detector/composer/arbitration
