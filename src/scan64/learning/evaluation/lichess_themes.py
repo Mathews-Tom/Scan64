@@ -10,7 +10,6 @@ import argparse
 import asyncio
 import csv
 import hashlib
-import json
 import math
 from collections import Counter
 from dataclasses import dataclass

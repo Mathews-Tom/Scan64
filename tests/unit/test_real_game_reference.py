@@ -14,9 +14,9 @@ import pytest
 from scan64.learning.evaluation import deep_reference
 from scan64.learning.evaluation.deep_reference import exchange_gain, reference_labels, replay_line
 from scan64.learning.evaluation.real_games import (
+    ALLOWED_MATE,
     CORPUS,
     FRESH_CORPUS,
-    ALLOWED_MATE,
     Score,
     check_scores,
 )

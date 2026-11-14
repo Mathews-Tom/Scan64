@@ -211,7 +211,8 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
                 }
             )
             print(
-                f"Recorded {index + 1}/{len(selected)}: {len(moves)} plies, {len(candidates)} candidates",
+                f"Recorded {index + 1}/{len(selected)}: "
+                f"{len(moves)} plies, {len(candidates)} candidates",
                 flush=True,
             )
     finally:

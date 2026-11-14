@@ -9,13 +9,13 @@ import chess
 import pytest
 from chess_lesson_spec import AcceptedMove, Diagnosis
 
+import scan64.learning.diagnosis.arbitration as arbitration
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.templates.provider import (
     ExplanationTemplateError,
     TemplateExplanationProvider,
     _allowed_mate_text,
 )
-import scan64.learning.diagnosis.arbitration as arbitration
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
