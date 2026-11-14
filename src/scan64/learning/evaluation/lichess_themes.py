@@ -863,7 +863,11 @@ def render_v3_results(
             "an eligible-only winner is not a trusted product emission.",
         ]
     )
-    for version, baseline in (("v1", baseline_v1), ("v2", baseline_v2)):
+    comparisons: tuple[tuple[Version, list[Outcome]], ...] = (
+        ("v1", baseline_v1),
+        ("v2", baseline_v2),
+    )
+    for version, baseline in comparisons:
         previous = score(baseline, version=version)
         lines.extend(
             [
