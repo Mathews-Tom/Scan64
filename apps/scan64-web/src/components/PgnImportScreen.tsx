@@ -187,9 +187,14 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
           <ul>
             {lessons.map(lesson => (
               <li key={lesson.lesson_id}>
-                {lesson.diagnosis
-                  ? `${diagnosisName(lesson.diagnosis.primary)} (confidence: ${lesson.diagnosis.confidence})`
-                  : lesson.objective.instruction}
+                {lesson.diagnosis ? (
+                  <>
+                    {lesson.diagnosis.primary === 'threat_processing.allowed_mate'
+                      ? diagnosisName(lesson.diagnosis.primary)
+                      : lesson.diagnosis.primary}
+                    {` (confidence: ${lesson.diagnosis.confidence})`}
+                  </>
+                ) : lesson.objective.instruction}
                 <button 
                   ref={button => { if (button) reviewButtons.current.set(lesson.lesson_id, button); else reviewButtons.current.delete(lesson.lesson_id); }}
                   data-testid={`review-btn-${lesson.lesson_id}`}

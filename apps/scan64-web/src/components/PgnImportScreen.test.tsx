@@ -91,7 +91,10 @@ describe('PgnImportScreen', () => {
     expect(screen.getByTestId('import-btn')).toBeTruthy();
   });
 
-  it('imports PGN and displays learning opportunities', async () => {
+  it.each([
+    ['tactics.fork', 'tactics.fork'],
+    ['threat_processing.allowed_mate', 'Allowed checkmate'],
+  ])('imports PGN and displays %s without renaming other codes', async (primary, label) => {
     const onExploreAnalysis = vi.fn();
     vi.mocked(ApiClient.createGame).mockResolvedValueOnce({
       id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*'
@@ -108,7 +111,7 @@ describe('PgnImportScreen', () => {
         {
           schema_version: '0.2.0', lesson_id: 'les-1',
           source: { kind: 'player_game', fen: 'fen' },
-          diagnosis: { primary: 'tactics.fork', secondary: [], confidence: 0.9, evidence_refs: [] },
+          diagnosis: { primary, secondary: [], confidence: 0.9, evidence_refs: [] },
           objective: { type: 'play', instruction: 'win' },
           interaction: { input: 'move', maximum_attempts: 1, accepted_moves: [] },
           hints: [], explanation: { text: 'exp' },
@@ -130,7 +133,7 @@ describe('PgnImportScreen', () => {
       expect(ApiClient.createAnalysisJob).toHaveBeenCalledWith('game-1');
       expect(ApiClient.getAnalysisJob).toHaveBeenCalledWith('job-1');
       expect(ApiClient.getLearningOpportunities).toHaveBeenCalledWith('game-1');
-      expect(screen.getByTestId('lessons-list').textContent).toContain('tactics.fork');
+      expect(screen.getByTestId('lessons-list').textContent).toContain(label);
     }, { timeout: 3000 });
 
     fireEvent.click(screen.getByTestId('explore-analysis-btn'));
