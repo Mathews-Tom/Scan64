@@ -17,7 +17,7 @@ def test_environment_uses_bundle_and_user_data(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("PATH", raising=False)
-    for key in ("SCAN64_DATABASE_URL", "SCAN64_DATA_DIR", "SCAN64_WEB_DIST"):
+    for key in ("SCAN64_DATABASE_URL", "SCAN64_DATA_DIR", "SCAN64_WEB_DIST", "SCAN64_DISTRIBUTION"):
         monkeypatch.setenv(key, "wrong")
     data = data_directory(tmp_path)
     resources = tmp_path / "bundle"
@@ -28,6 +28,7 @@ def test_environment_uses_bundle_and_user_data(
     assert os.environ["SCAN64_DATABASE_URL"] == f"sqlite:///{data / 'scan64.db'}"
     assert os.environ["SCAN64_DATA_DIR"] == str(data)
     assert os.environ["SCAN64_WEB_DIST"] == str(resources / "web")
+    assert os.environ["SCAN64_DISTRIBUTION"] == "desktop"
     assert os.environ["PATH"] == f"{resources / 'bin'}:/usr/bin:/bin:/usr/sbin:/sbin"
     assert Path.cwd() == resources / "bin"
 
@@ -106,7 +107,13 @@ def test_second_launch_opens_existing_instance_without_server(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "_MEIPASS", resources, raising=False)
     monkeypatch.setattr(desktop, "data_directory", lambda: data)
-    for key in ("PATH", "SCAN64_DATABASE_URL", "SCAN64_DATA_DIR", "SCAN64_WEB_DIST"):
+    for key in (
+        "PATH",
+        "SCAN64_DATABASE_URL",
+        "SCAN64_DATA_DIR",
+        "SCAN64_WEB_DIST",
+        "SCAN64_DISTRIBUTION",
+    ):
         monkeypatch.setenv(key, os.environ.get(key, ""))
     opened: list[str] = []
 

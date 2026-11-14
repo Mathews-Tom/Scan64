@@ -48,6 +48,7 @@ collection = COLLECT(exe, analysis.binaries, analysis.datas, name="Scan64")
 app = BUNDLE(
     collection,
     name="Scan64.app",
+    icon="assets/Scan64.icns",
     bundle_identifier="org.scan64.desktop",
     info_plist={
         "CFBundleShortVersionString": __import__("importlib.metadata").metadata.version("scan64"),

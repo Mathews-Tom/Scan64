@@ -3,6 +3,7 @@ import { HabitPanel } from './HabitPanel';
 import { ApiClient, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
 import type { PatternsReport, PlayerGamesPage, PuzzleDailyRead, WeeklyReport } from '../api/types';
 import { OnboardingCard } from './OnboardingCard';
+import { latestGameLabel } from './gameLabel';
 
 interface TodayData {
   games: PlayerGamesPage;
@@ -72,7 +73,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
             <h2>Your latest analysed game</h2>
             {latestGame ? (
               <>
-                <p>{latestGame.white} vs {latestGame.black}</p>
+                <p>{latestGameLabel(latestGame, getActivePlayerId())}</p>
                 <p className="muted">{latestGame.result} · {latestGame.diagnosis_count} {latestGame.diagnosis_count === 1 ? 'lesson' : 'lessons'}</p>
                 <a href={`/games/${encodeURIComponent(latestGame.id)}/analysis`} onClick={(event) => {
                   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

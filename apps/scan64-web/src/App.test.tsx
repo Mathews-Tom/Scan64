@@ -43,6 +43,7 @@ vi.mock('./api/client', async (importOriginal) => {
       createGame: vi.fn(),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
+      getAppInfo: vi.fn().mockResolvedValue({ distribution: 'source' }),
       getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),
       getActivePuzzleRun: vi.fn().mockResolvedValue({
         status: 'empty', run: null, message: 'Import puzzles to begin.',
