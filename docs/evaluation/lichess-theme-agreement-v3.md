@@ -98,3 +98,136 @@ binomial sampling uncertainty, not label quality or systematic sampling bias.
 The source-depth correction addresses an observed engine-horizon bug, not label
 agreement optimization. No claim of independent chess truth or improved learning
 outcomes follows from these proxy numbers.
+
+## Source recording execution
+
+Signed preregistration: `597627f`; versioned evaluator/recorder: `f1de5fa`.
+The separate source fixture, committed as `c5db4bf`, contains exactly **635**
+eligible source analyses, each requested at 1,000,000 nodes and MultiPV 4.
+Its SHA256 is
+`f691f24a1865a0b8ed5317fc9020684a58e9597e3291f3bbec923ca386fad64e`.
+The recorder validated exact eligible-ID coverage/order, stable analysis UUIDs,
+source FENs, engine/configuration identity, legal PVs and unique MultiPV roots
+before writing. No original before/after/focused analysis was regenerated.
+
+The initial capture completed its engine requests but failed before writing any
+fixture because Python-mode Pydantic output retained UUID objects that JSON
+cannot serialize. Commit `d56b35d` changed persistence to JSON-mode serialization
+and added a regression test. The complete source capture was then repeated with
+the same preregistered inputs/settings, producing the sole persisted fixture.
+No v3 diagnosis execution, agreement calculation, label-based selection or core
+tuning occurred during this recording retry.
+
+## Execution gate
+
+V3 was calculated only after the core owner explicitly confirmed the corrected
+composer/arbitration was stable and the separate fresh M48 decision was settled.
+Fresh-80 M48 preregistration `c4490fa`, results `4d1ea6f`
+([real-game report](real-game-diagnosis.md)): exactly 80 games, 5,116 plies and
+866 fast-pass candidates; allowed mate TP42, FP0, FN0, emitted support42,
+precision1.000. This passes the preregistered precision >=0.80/support >=10 gate,
+so allowed mate is **trusted**. The four prior trusted codes remain trusted.
+The corrected original-40 run is development-only and did not authorize trust.
+The M48 report's shared 1M-node source-analysis limitation remains applicable;
+this is not blind coach validation or independent chess truth.
+
+The first fresh-80 recording hit its tool deadline before final persistence.
+Its unchanged preregistered sample/settings were retried without a deadline;
+only the complete fresh-80 result authorized this v3 execution. No theme
+agreement numbers were calculated before that decision, and none affected it.
+
+## Results
+
+Informational theme agreement only; no coach validation or efficacy claim.
+Blind independent coach review remains **PENDING**.
+
+V3 pre-registration commit: `597627f`.
+Fresh M48 allowed-mate trust decision: **trusted**.
+Trust comes solely from the separate post-fix M48 measurement, never these labels.
+V1 and v2 below are frozen historical results; v2 is explicitly **pre-fix**.
+Frozen owner-side sample: **2,000**. Fast-pass flagged: **1,842**.
+Trusted emissions: **1,010**; abstentions: **990**.
+Additional deep source recordings: **635**.
+
+### Per-code agreement
+
+| Code | Emitted support | Theme-positive rows | Matches | Precision | Precision Wilson 95% CI | Recall | Recall Wilson 95% CI |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| `board_awareness.hanging_piece` | 185 | 63 | 36 | 0.1946 | [0.1440, 0.2576] | 0.5714 | [0.4486, 0.6860] |
+| `threat_processing.missed_capture` | 62 | N/A | N/A | N/A | N/A | N/A | N/A |
+| `threat_processing.missed_check` | 37 | N/A | N/A | N/A | N/A | N/A | N/A |
+| `threat_processing.missed_direct_threat` | 107 | 63 | 0 | 0.0000 | [0.0000, 0.0347] | 0.0000 | [0.0000, 0.0575] |
+| `threat_processing.allowed_mate` | 619 | 769 | 618 | 0.9984 | [0.9909, 0.9997] | 0.8036 | [0.7741, 0.8302] |
+
+N/A is undefined/unmapped, not a measured zero. Confirmed allowed-mate
+evidence suppresses material diagnoses even if allowed mate is untrusted;
+an eligible-only winner is not a trusted product emission.
+
+### V3 minus v1
+
+| Code | Support delta | Matches delta | Precision delta | Recall delta |
+| --- | ---: | ---: | ---: | ---: |
+| `board_awareness.hanging_piece` | -40 | -19 | -0.0498 | -0.3016 |
+| `threat_processing.missed_capture` | -26 | N/A | N/A | N/A |
+| `threat_processing.missed_check` | -30 | N/A | N/A | N/A |
+| `threat_processing.missed_direct_threat` | -127 | +0 | +0.0000 | +0.0000 |
+| `threat_processing.allowed_mate` | N/A | N/A | N/A | N/A |
+
+### V3 minus v2 (pre-fix)
+
+| Code | Support delta | Matches delta | Precision delta | Recall delta |
+| --- | ---: | ---: | ---: | ---: |
+| `board_awareness.hanging_piece` | -40 | -19 | -0.0498 | -0.3016 |
+| `threat_processing.missed_capture` | -26 | N/A | N/A | N/A |
+| `threat_processing.missed_check` | -30 | N/A | N/A | N/A |
+| `threat_processing.missed_direct_threat` | -127 | +0 | +0.0000 | +0.0000 |
+| `threat_processing.allowed_mate` | +619 | +618 | N/A | +0.8036 |
+
+### Disposition and eligible-only distribution
+
+| Disposition | Count | Rate over full sample |
+| --- | ---: | ---: |
+| `board_awareness.hanging_piece` | 185 | 9.25% |
+| `threat_processing.missed_capture` | 62 | 3.10% |
+| `threat_processing.missed_check` | 37 | 1.85% |
+| `threat_processing.missed_direct_threat` | 107 | 5.35% |
+| `threat_processing.allowed_mate` | 619 | 30.95% |
+| `not_flagged` | 158 | 7.90% |
+| `no_eligible_diagnosis` | 117 | 5.85% |
+| `untrusted_only` | 715 | 35.75% |
+
+| Non-trusted eligible-only winner | Count | Rate over full sample |
+| --- | ---: | ---: |
+| `tactics.fork.knight` | 1 | 0.05% |
+| `tactics.pin` | 10 | 0.50% |
+| `tactics.overloaded_defender` | 34 | 1.70% |
+| `calculation.stopped_too_early` | 193 | 9.65% |
+| `opening.delayed_development` | 0 | 0.00% |
+| `positional.king_safety_neglect` | 477 | 23.85% |
+
+### Frozen evidence and reproduction
+
+- Original recording pre-registration: `8c02417`.
+- Source recording pre-registration: `597627f`.
+- Engine: Stockfish 19; Threads 1, Hash 16 MiB; ucinewgame before every request.
+- Original fast before/after and focused reply requests are unchanged.
+- Added source: 1,000,000 nodes, MultiPV 4, only eligible fast mate replies.
+- Sample SHA256: `fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35`.
+- Original recording SHA256: `9a13d33ef51ea906f833e0d51092850652c59e988708d35225ccef79fbab71af`.
+- `recorded-source-v3.json` SHA256: `f691f24a1865a0b8ed5317fc9020684a58e9597e3291f3bbec923ca386fad64e`.
+
+```sh
+uv run python -m scan64.learning.evaluation.lichess_themes --version v1 --check
+uv run python -m scan64.learning.evaluation.lichess_themes --version v2 --check
+uv run python -m scan64.learning.evaluation.lichess_themes --version v3 --check
+```
+
+All three commands reproduce their complete Results suffixes offline,
+without network, database or live engine access. The separate explicit
+recording command is `uv run python scripts/record_lichess_theme_agreement.py
+--version v3`; it refuses overwrite and never regenerates original analyses.
+
+All pre-registered v1/v2/v3 limitations apply. Mate tags cannot establish
+the absence of prior forced mate or the three-move bound. These proxy
+numbers neither change product trust nor validate instructional efficacy.
+No core tuning, mapping expansion or sample changes followed these results.
