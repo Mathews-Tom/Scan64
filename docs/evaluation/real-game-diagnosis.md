@@ -25,6 +25,86 @@ The four existing trusted codes retain their original40 gate. Original40 pre-fix
 measurements remain historical, not a new post-fix trust sample. No detector tuning,
 M77 data, or threshold changes are permitted.
 
+Original corpus preservation checksums (SHA256, before fresh recording):
+`recorded.json`: `c7dc5fd62964b3401bccba6087703154ae9872182b3c0c9f49af0e90f68b255d`;
+`real_games.pgn`: `746f4daa743872e697b8780b3ff8681f51f4b06b730c8498cc3d6b33dd88ef05`.
+
+### Corrected original40 development replay (not trust evidence)
+
+After source-depth correction, recorded-only replay reports allowed mate TP 11,
+FP 0, FN 0 (precision 1.000, support 11). This is development evidence only and
+does not promote the code. All four existing trusted codes retain their gates:
+hanging piece 69/77; missed check 26/30; missed capture 56/65; missed direct threat
+106/118. Confirmed-mate material suppression assertions pass during this replay.
+The historical pre-fix table and four deep-source false-positive reasons below
+remain unchanged.
+
+**Shared-source limitation:** corrected detector evidence and the M48 reference
+share the same recorded 1,000,000-node source search. Fresh80 precision therefore
+cannot reveal source-side forced-mate search errors, including the mechanism behind
+the original four false positives. It measures reply-side agreement under that
+shared-source operational definition, not independent source-proof correctness.
+The reference does not call the composer or detector, but its source search is not
+independent evidence of the detector's source-side conclusion.
+
+**Recording chronology:** no fresh80 diagnosis metrics, including partial-corpus
+metrics, were computed or inspected before the final recording attempt. The first
+attempt exposed an existing recorder API mismatch (`FastPassResult` is not iterable);
+the recorder was corrected to use `.candidates`, without changing analysis or selection.
+The subsequent capture reached 63/80 games before a tool-imposed 3,600-second cutoff,
+before its final recording write. It reported game/ply/candidate progress counts only,
+not allowed-mate detections or reference labels. The identical capture was restarted
+without a tool deadline: same eighty games, source/filter, nodes, resets, and detector.
+No detector changes or fresh-result-driven tuning occurred between attempts.
+
+## M78 fresh80 measured result and trust decision
+
+Preregistration: `c4490fa` (DCO signed), before fresh recording or measurement.
+The checksum-verified official archive yielded exactly qualifying ordinals 41–120:
+80 games, 5,116 plies, 866 candidate moves. No extension or early stopping occurred.
+Stockfish 19 used one thread, 16 MB hash, 10,000-node fast searches and separate
+1,000,000-node MultiPV-4 source/reply searches, reset before each position.
+
+Separate fixtures: `tests/fixtures/m48/fresh80_recorded.json` and
+`tests/fixtures/m48/fresh80_real_games.pgn`. Recording SHA256:
+`3bb73c22eca1906da3570a27f119e3948254987af53ec7328d5cfd30792a3539`;
+selected PGN SHA256:
+`858de447e6494b2618711953c77f5319a05246f4c26629de203c454b8c20eb8b`.
+Original fixtures were not rewritten.
+
+| Code | Precision | Support | TP | FP | FN | Meets numeric gate |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `board_awareness.hanging_piece` | 0.914 | 140 | 128 | 12 | 27 | yes |
+| `threat_processing.missed_check` | 0.907 | 75 | 68 | 7 | 21 | yes |
+| `threat_processing.missed_capture` | 0.759 | 112 | 85 | 27 | 45 | no |
+| `threat_processing.missed_direct_threat` | 0.871 | 225 | 196 | 29 | 55 | yes |
+| `tactics.fork.knight` | 0.857 | 7 | 6 | 1 | 6 | no |
+| `tactics.pin` | 0.036 | 84 | 3 | 81 | 0 | no |
+| `tactics.overloaded_defender` | 0.000 | 140 | 0 | 140 | 0 | no |
+| `calculation.stopped_too_early` | 0.309 | 459 | 142 | 317 | 74 | no |
+| `opening.delayed_development` | 0.167 | 84 | 14 | 70 | 0 | no |
+| `positional.king_safety_neglect` | 0.466 | 189 | 88 | 101 | 36 | no |
+| `threat_processing.allowed_mate` | **1.000** | **42** | **42** | **0** | **0** | **yes** |
+
+**Decision: promote allowed mate**, based exclusively on fresh80 precision 42/42
+and support 42. No fresh allowed-mate false positives exist to attribute.
+The original four false positives remain documented below: their 10,000-node
+source searches missed forced mates found at 1,000,000 nodes (-4, -8, -6, -6).
+The corrected source exclusion removes those development disagreements; that does
+not remove the shared-source limitation stated above.
+
+The other fresh80 code rows are descriptive, not new trust samples. In particular,
+missed capture's 0.759 fresh80 precision is disclosed, not hidden or used to shrink
+the existing four-code allowlist; the preregistered gate for those four is original40.
+No other code is promoted.
+
+`BROWSER=/usr/bin/true uv run python -m scan64.learning.evaluation.real_games --check`
+completed with exit status **0**, including after promotion: the original four
+declared codes pass their original40 gates; allowed mate passes its fresh80 gate;
+confirmed-mate material suppression assertions pass across both corpora.
+The report is recorded-only; no live engine runs during measurement. Unit tests,
+builds, linters, and formatters were not run by this worker.
+
 ## M78 preregistration
 
 The existing method is described in `docs/user-guide.md` under **Measure diagnosis
@@ -70,7 +150,7 @@ extension requires it. If the verified source or matching engine is unavailable,
 report that concrete blocker rather than substitute a curated source. Do not tune
 the detector on these measurements or on tests, fixtures, or M77 data.
 
-## M78 measured result
+## M78 original40 development result (pre-fix, historical)
 
 Preregistration commit: `334f70a` (DCO signed).
 

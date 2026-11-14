@@ -15,6 +15,8 @@ from scan64.learning.evaluation import deep_reference
 from scan64.learning.evaluation.deep_reference import exchange_gain, reference_labels, replay_line
 from scan64.learning.evaluation.real_games import (
     CORPUS,
+    FRESH_CORPUS,
+    ALLOWED_MATE,
     Score,
     check_scores,
 )
@@ -26,6 +28,52 @@ def test_trust_gate_does_not_silently_drop_regressed_codes() -> None:
     assert not check_scores({"measured": Score(tp=7, fp=3)}, trusted)
     assert not check_scores({"measured": Score(tp=8, fp=1)}, trusted)
     assert not check_scores({}, trusted)
+
+
+@pytest.mark.parametrize("fresh_passes", [False, True])
+def test_check_uses_fresh80_not_development_for_allowed_mate(
+    monkeypatch: pytest.MonkeyPatch, fresh_passes: bool
+) -> None:
+    from scan64.learning.diagnosis import trust
+    from scan64.learning.evaluation import real_games
+
+    async def recorded_measure(path: Path = CORPUS) -> dict[str, Score]:
+        if path == FRESH_CORPUS:
+            return {ALLOWED_MATE: Score(tp=10 if fresh_passes else 9)}
+        return {"legacy": Score(tp=10), ALLOWED_MATE: Score(tp=10 if not fresh_passes else 0)}
+
+    monkeypatch.setattr(real_games, "measure", recorded_measure)
+    monkeypatch.setattr(trust, "TRUSTED_CODES", frozenset({"legacy", ALLOWED_MATE}))
+    monkeypatch.setattr("sys.argv", ["real_games", "--check"])
+    if fresh_passes:
+        real_games.main()
+    else:
+        with pytest.raises(SystemExit, match="Fresh80"):
+            real_games.main()
+
+
+def test_fresh80_is_separate_fixed_holdout() -> None:
+    original = json.loads(CORPUS.read_text())
+    fresh = json.loads(FRESH_CORPUS.read_text())
+    assert fresh["provenance"]["game_count"] == len(fresh["games"]) == 80
+    assert hashlib.sha256(CORPUS.read_bytes()).hexdigest() == (
+        "c7dc5fd62964b3401bccba6087703154ae9872182b3c0c9f49af0e90f68b255d"
+    )
+    assert hashlib.sha256(CORPUS.with_name("real_games.pgn").read_bytes()).hexdigest() == (
+        "746f4daa743872e697b8780b3ff8681f51f4b06b730c8498cc3d6b33dd88ef05"
+    )
+    assert original["provenance"]["game_count"] == 40
+    assert fresh["provenance"]["preregistration_commit"] == "c4490fa"
+    assert fresh["provenance"]["engine"] == original["provenance"]["engine"]
+    assert fresh["provenance"]["source_sha256"] == original["provenance"]["source_sha256"]
+    assert not {game["id"] for game in original["games"]} & {
+        game["id"] for game in fresh["games"]
+    }
+    pgn = FRESH_CORPUS.with_name("fresh80_real_games.pgn")
+    assert hashlib.sha256(pgn.read_bytes()).hexdigest() == fresh["provenance"]["pgn_sha256"]
+    assert FRESH_CORPUS.stat().st_size <= 8_000_000
+    for game in fresh["games"]:
+        assert set(game["deep_before"]) == set(game["focused"])
 
 
 def test_capture_recapture_is_not_hanging_or_a_direct_material_loss() -> None:
@@ -250,7 +298,10 @@ async def test_report_runs_real_detectors_without_a_live_engine(
     scores = await measure()
     assert set(scores) == set(SEED_CODES)
     assert sum(score.support for score in scores.values()) > 0
-    assert {code for code, score in scores.items() if score.trusted} == TRUSTED_CODES
+    assert check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE})
+    fresh = await measure(FRESH_CORPUS)
+    if ALLOWED_MATE in TRUSTED_CODES:
+        assert fresh[ALLOWED_MATE].trusted
     assert len(TRUSTED_CODES) >= 3
     assert "board_awareness.hanging_piece" in TRUSTED_CODES
 
