@@ -1,5 +1,4 @@
 import { PuzzleImportProvider, PuzzleImportFoot } from './components/PuzzleImport';
-import { DesktopUpdateBanner } from './components/DesktopUpdateBanner';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import { PlayScreen } from './components/PlayScreen';
@@ -185,7 +184,6 @@ function App() {
     <PuzzleImportProvider onStartPuzzles={() => { setPuzzleLibraryRevision(value => value + 1); navigate('/puzzles'); }}>
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <DesktopUpdateBanner />
       <header className="app-header">
         <div className="app-brand"><img src="/logo.svg" alt="" /><span className="app-brand-name">Scan64</span></div>
         <p>Your chess study table</p>

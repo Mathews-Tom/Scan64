@@ -91,17 +91,26 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 ## Get started
 
-### macOS app (Apple silicon)
+### Build the macOS app (Apple silicon)
 
-1. Download `Scan64-<version>-macos-arm64.zip` from the [latest release](https://github.com/Mathews-Tom/Scan64/releases/latest) and check it against the published `.sha256` file.
-2. Unzip it and drag **Scan64.app** to Applications. Python, Stockfish and everything else it needs are included.
-3. The app is **unsigned and not notarized** (ad-hoc signature only). If macOS blocks the first launch, open **System Settings → Privacy & Security**, choose **Open Anyway**, then **Open**. Only do this for a download whose origin and SHA-256 you have checked, and do not disable Gatekeeper globally.
+The unified desktop app is currently a **local build**, not a downloadable installer.
+It opens one window with the whole client, not a browser tab or a status window.
+You need Xcode Command Line Tools, Rust, uv with managed Python 3.12+, Node.js 24+ and pnpm 10.33.3:
 
-Scan64 opens your browser and a small status window. **Open Scan64** reopens the browser. **Quit Scan64**, closing the window, or **⌘Q** stops the server and engines. Opening the app again while it runs just opens the existing server.
+```sh
+uv sync --locked --group build --python-preference only-managed
+pnpm install --frozen-lockfile
+pnpm --dir apps/scan64-web build
+uv run --no-sync python scripts/build-server.py
+pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app
+open apps/scan64-desktop/src-tauri/target/release/bundle/macos/Scan64.app
+```
 
-From v0.5.1, the desktop window manages daily automatic update downloads (optional) and restart-to-install; users of v0.4.0 or v0.5.0 must [upgrade manually once](docs/user-guide.md#desktop-app-updates).
+The build bundles Python, Stockfish 18, both networks and their licences/source; runtime needs no developer tools or system Stockfish. It is **unsigned and not notarized** (ad-hoc signing only). If macOS blocks a trusted build, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 
-The app uses the first free loopback port from 8001 and stores its data under `~/Library/Application Support/Scan64`, which survives app updates. Your player identity is a token kept in the browser's local storage for that exact address, so keep that storage and, if another program takes port 8001, free it and relaunch so Scan64 returns to the same port. An exported archive backs up your data but cannot replace that token. You can also build the app yourself with `scripts/build-macos-app.sh`; see the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Quit with **⌘Q**, the application menu or by closing the window; another launch focuses the existing window. Data and logs live in `~/Library/Application Support/org.scan64.desktop`. The fixed shell origin keeps your player signed in even when the loopback server port changes; retain the app's local storage as well as its database. Older desktop data is not migrated.
+
+Use **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**. Windows/Linux installers arrive in M83 and in-app updates in M84; neither is delivered here. Browser and container installation below is unchanged. See the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### Docker
 
@@ -143,7 +152,7 @@ Puzzles need a one-time import of the free [Lichess puzzle database](https://dat
 uv run scan64-cli puzzles import --download --json
 ```
 
-The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the macOS app, use **Import puzzles…** in the Scan64 status window to choose a local `.csv.zst` file.
+The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the macOS app, choose **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**.
 
 ## What Scan64 does not claim
 

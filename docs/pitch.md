@@ -34,7 +34,7 @@ Keyboard move entry (strict UCI or canonical English SAN), readable chess positi
 
 ## Use and evaluate it
 
-Run locally with the [README quickstart](../README.md): a one-port source application, a locally built Docker image, or the unsigned Apple silicon macOS app. No hosted service, published container image or signed/notarized app is provided. Follow the [user guide](user-guide.md) to complete the play-to-training workflow. The local quality gate is:
+Run locally with the [README quickstart](../README.md): a one-port source application, a locally built Docker image, or a locally built unsigned Apple silicon macOS app. The desktop app uses one window and offers puzzle download/import; Windows/Linux installers arrive in M83 and updates in M84. No hosted service, published container image or signed/notarized app is provided. Follow the [user guide](user-guide.md) to complete the play-to-training workflow. The local quality gate is:
 
 ```sh
 scripts/check.sh

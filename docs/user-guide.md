@@ -17,11 +17,11 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md) for the source, Docker or unsigned macOS Apple silicon app. For the macOS app, unzip the release asset, move Scan64.app to Applications, attempt to open it, and use **System Settings → Privacy & Security → Open Anyway → Open** if Gatekeeper blocks it. Verify the download origin and checksum first; the app needs no developer tools and is not signed/notarized.
+Follow the [root quickstart](../README.md) for source, Docker or a **locally built** macOS Apple silicon app. The desktop build needs the listed developer tools; the resulting app bundles its runtime. It is unsigned/ad-hoc signed and not notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 
-The app opens your browser at the first available loopback port from 8001. Its status window offers **Open Scan64**, **Import puzzles…**, **Cancel import** and **Quit Scan64**; closing that window, Dock Quit or ⌘Q also shuts down the server and engines. A second launch reopens the existing browser page without starting another server. Games survive relaunch in `~/Library/Application Support/Scan64/scan64.db`; puzzle data and `desktop.log` live in that directory too. Keep browser local storage to retain your player token. If another app occupies the original port, close it and relaunch Scan64 on that original browser origin to regain the saved browser identity.
+The macOS app opens one window containing Scan64, not a browser tab. Closing it, Dock Quit or ⌘Q stops its server and engines. A second launch focuses the existing window. Games survive relaunch in `~/Library/Application Support/org.scan64.desktop/scan64.db`; downloads and `logs/server.log` live under the same app-data directory. Keep the app's local storage to retain your player token. The shell uses a fixed origin, so a different server port does not sign you out. Data from the older desktop app is not migrated.
 
-Use **Import puzzles…** to select a local Lichess `.csv.zst` file without a terminal. The window shows progress and the result; **Cancel import** leaves the catalog unchanged. See [Import a puzzle catalog](#import-a-puzzle-catalog) for details.
+Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Nothing downloads without a click. Windows/Linux installers arrive in M83; in-app updates arrive in M84.
 
 The development-only `scripts/run.sh` instead uses the API on port 8001 and Vite on 5173.
 
@@ -353,17 +353,20 @@ uv run scan64-cli puzzles import --download --json
 docker exec <container> scan64-cli puzzles import --download --json
 ```
 
-For the macOS app, download the complete Lichess CC0 puzzle database from
-<https://database.lichess.org/lichess_db_puzzle.csv.zst> using your browser.
-This is a large download (about 310 MB, changing over time), not a filtered sample.
-Keep the file compressed. Choose **Import puzzles…** in the Scan64 status window
-and select that local `.csv.zst` file. No source checkout or terminal is required.
-The import runs in the background against the app's database with the default
-filters below; the button stays disabled until it finishes. The window shows batch
-progress and inserted/already-present counts. **Cancel import**, quitting, or a
-failed import rolls back all catalog changes from that import, including metadata
-refreshes. After success, return to Puzzles and choose **Start** (or reload the page).
-Nothing downloads automatically and the app does not offer filter controls.
+In the desktop app, choose **Download puzzles** in Puzzles or **Settings → Puzzle library**.
+It downloads the complete Lichess CC0 database (roughly 310 MB, changing over time)
+and retains up to 50,000 puzzles with the default filters below. The four phases
+are **Download → Read → Import → Save**, with byte/row counts, percentage when a
+total is known, and download speed/time remaining. A server without a length
+shows bytes and speed rather than a made-up percentage.
+
+**Choose a file…** instead opens a native picker for a local `.csv.zst` file;
+keep it compressed. One job runs at a time. The sidebar shows its status when
+you leave the screen. Cancel, quit or failure leaves the catalog unchanged and
+removes temporary downloads. Success deletes the downloaded file and offers
+**Start puzzles**. A selected local file is never deleted. There are no app filter
+controls. Browser/container users keep using the CLI commands above; the
+desktop import endpoints are not exposed there.
 
 `--download` saves the **entire** compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
 the complete file and a temporary replacement when downloading again. Interrupted downloads
@@ -538,21 +541,20 @@ This measures the product's transfer signal. It does not prove Scan64 improves o
 
 ## Desktop app updates
 
-**v0.4.0 or v0.5.0 → v0.5.1 requires one manual upgrade:** quit Scan64, download v0.5.1 from the official [GitHub releases](https://github.com/Mathews-Tom/Scan64/releases), verify its checksum, and replace Scan64.app in Applications. Keep your Application Support directory and browser local storage. v0.4.0 has no updater, and the v0.5.0 updater cannot read GitHub release information.
-
-From v0.5.1, automatic updates are enabled by default: the desktop app checks daily and downloads an available update. A check interrupted by a network error is retried a few seconds later, and again within the hour if the connection is still failing; a rejected update (bad signature, checksum or version) is not retried. Use the automatic-update setting in the Scan64 window to opt out, or check manually there. When ready, finish your game and restart from the Scan64 window. The browser banner is only a notification; it cannot check, install or restart the app.
-
-Update metadata and archives are checked using release signatures before installation. These update signatures are not Apple code signing or notarization: the app remains unsigned/ad-hoc signed and macOS may still require **Open Anyway**. Never disable Gatekeeper globally. Installation preserves the previous app as `.previous` and backs up the database before replacement; keep your own exported backup too. If installation fails, retain the backup and previous app rather than deleting your player data.
+In-app updates are not available in this local-build milestone; they arrive in
+M84. Rebuild and replace the app manually, preserving its app-data directory and
+local storage. Windows/Linux installers arrive in M83. No migration from the
+older desktop app is provided.
 
 ## Data and privacy
 
-Desktop update checks contact GitHub's release API, and downloads contact GitHub's asset hosting. GitHub receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. Disable automatic updates in the Scan64 window to stop scheduled checks/downloads; a manual check still contacts GitHub.
+Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. There are no scheduled update checks in this build.
 
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
 The API supports player-scoped export, import, and deletion. Treat deletion as destructive. Use a disposable player and database before testing it.
 
-The generated API reference at `http://127.0.0.1:8001/docs` documents the live request and response schemas. `http://127.0.0.1:8001/openapi.json` is the machine-readable contract. Substitute your chosen port, or the port shown by the macOS app.
+The generated API reference at `http://127.0.0.1:8001/docs` documents browser/source request and response schemas; `/openapi.json` is the machine-readable contract. Substitute your chosen browser-server port. The desktop server additionally requires its private per-launch shell token, which must not be copied into logs or shared.
 
 ## Manual acceptance walkthrough
 

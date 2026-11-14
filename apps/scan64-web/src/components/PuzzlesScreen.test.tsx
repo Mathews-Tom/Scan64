@@ -23,7 +23,6 @@ vi.mock('../api/client', async importOriginal => {
   return { ...actual, ApiClient: { ...actual.ApiClient,
     startPuzzleRun: vi.fn(), getPuzzleRun: vi.fn(), submitPuzzleMove: vi.fn(),
     getActivePuzzleRun: vi.fn(),
-    getAppInfo: vi.fn(),
     revealPuzzleHint: vi.fn(), abandonPuzzleRun: vi.fn(),
     getPuzzleModes: vi.fn(), getPuzzleMistakes: vi.fn(), startPuzzleMistake: vi.fn(),
   } };
@@ -62,20 +61,18 @@ function expectBoard(fen: string, disabled = false) {
 }
 beforeEach(() => {
   vi.resetAllMocks(); board.props = null;
-  vi.mocked(ApiClient.getAppInfo).mockResolvedValue({ distribution: 'source' });
   vi.mocked(ApiClient.getPuzzleModes).mockResolvedValue({ themes: ['fork', 'pin'], streak });
 });
 afterEach(cleanup);
 
 describe('PuzzlesScreen server-authoritative practice', () => {
-  it('shows the desktop import control for an empty desktop catalog', async () => {
-    vi.mocked(ApiClient.getAppInfo).mockResolvedValue({ distribution: 'desktop' });
+  it('shows operator import instructions for an empty browser catalog', async () => {
     vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({
       status: 'empty', run: null, message: '', daily, streak,
     });
     render(<PuzzlesScreen />);
-    expect(await screen.findByText('Use Import puzzles… in the Scan64 window.')).toBeVisible();
-    expect(screen.queryByText(/uv run/)).toBeNull();
+    expect(await screen.findByText(/uv run scan64-cli puzzles import/)).toBeVisible();
+    expect(screen.queryByText(/Scan64 window/)).toBeNull();
   });
   it('clears loading speech when initial puzzle loading fails', async () => {
     vi.mocked(ApiClient.getActivePuzzleRun).mockRejectedValue(new Error('Puzzle service unavailable'));

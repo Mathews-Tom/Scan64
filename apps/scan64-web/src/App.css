@@ -29,14 +29,13 @@
 .today-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
 .library-links { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .report-error { border-left: 4px solid var(--ink); padding: var(--space-4); background: var(--surface); }
-.desktop-update-banner { margin-left: 208px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) var(--space-6); background: var(--surface); border-bottom: 1px solid var(--border); }
 @media (min-width: 768px) and (max-width: 1023px) {
   .app-header, .app-nav { width: 72px; }
   .app-header { height: 96px; padding: var(--space-6) var(--space-4); }
   .app-brand-name, .app-header p, .app-nav button span { display: none; }
   .app-nav { inset-block-start: 96px; padding: var(--space-2) var(--space-2) var(--space-4); }
   .app-nav button { justify-content: center; padding-inline: var(--space-2); }
-  .app-shell main, .desktop-update-banner { margin-left: 72px; }
+  .app-shell main { margin-left: 72px; }
 }
 @media (max-width: 767px) {
   :root { --shell-clearance: calc(128px + env(safe-area-inset-bottom)); }
@@ -49,7 +48,6 @@
   .app-nav button span { display: none; }
   .app-nav .settings-link { margin-top: 0; }
   .app-shell main { margin-left: 0; padding: var(--space-6) var(--space-4) calc(var(--shell-clearance) + var(--space-4)); }
-  .desktop-update-banner { margin-left: 0; }
   .today-actions, .today-panels { grid-template-columns: 1fr; gap: var(--space-3); }
   .today-actions button { padding: var(--space-4); }
   .today-actions strong { font-size: 24px; margin-bottom: 0; }

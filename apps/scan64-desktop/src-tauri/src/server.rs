@@ -118,6 +118,23 @@ impl Server {
                 .env("SCAN64_SHELL_TOKEN", &token)
                 .env("PYTHONUTF8", "1")
                 .stdin(Stdio::piped());
+            if cfg!(debug_assertions) {
+                if let Some(url) = env::var_os("SCAN64_DEBUG_PUZZLE_URL") {
+                    command.env("SCAN64_DEBUG_PUZZLE_URL", url);
+                }
+            }
+            let engine_dir = self.resource_dir.join("stockfish");
+            if engine_dir.is_dir() {
+                let inherited = env::var_os("PATH").unwrap_or_default();
+                let paths = std::iter::once(engine_dir.clone()).chain(env::split_paths(&inherited));
+                command.env(
+                    "PATH",
+                    env::join_paths(paths)
+                        .map_err(|_| self.error("Invalid engine resource path"))?,
+                );
+                // Stockfish's PATH argv[0] cannot locate external NNUE files.
+                command.current_dir(engine_dir);
+            }
             let log = OpenOptions::new()
                 .create(true)
                 .append(true)
