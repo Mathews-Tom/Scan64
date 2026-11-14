@@ -184,6 +184,12 @@ export class ApiClient {
     return response.json() as Promise<{ distribution: string }>;
   }
 
+  static async getAppUpdate(): Promise<{ status: string; version: string | null }> {
+    const response = await fetch(`${API_BASE}/app/update`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Application update information unavailable');
+    return response.json() as Promise<{ status: string; version: string | null }>;
+  }
+
   private static async puzzleRequest<T>(path: string, method: 'GET' | 'POST', data?: object): Promise<T> {
     const response = await fetch(`${API_BASE}/puzzles${path}`, {
       method,

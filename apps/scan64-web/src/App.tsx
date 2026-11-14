@@ -1,3 +1,4 @@
+import { DesktopUpdateBanner } from './components/DesktopUpdateBanner';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import { PlayScreen } from './components/PlayScreen';
@@ -171,6 +172,7 @@ function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
+      <DesktopUpdateBanner />
       <header className="app-header">
         <div className="app-brand"><span aria-hidden="true">♞</span> Scan64</div>
         <p>Your chess study table</p>

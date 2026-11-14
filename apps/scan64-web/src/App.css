@@ -25,6 +25,7 @@
 .study-panel ul { padding-left: var(--space-6); margin-bottom: 0; }
 .library-links { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-6); }
 .report-error { border-left: 4px solid var(--board-gold); padding: var(--space-4); background: var(--surface); }
+.desktop-update-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3) var(--space-6); background: var(--surface); border-bottom: 1px solid var(--board-gold); font-size: 0.875rem; }
 @media (max-width: 600px) {
   .app-header { padding: var(--space-4); gap: var(--space-2); flex-wrap: wrap; }
   .app-header p { width: 100%; }

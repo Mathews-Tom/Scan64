@@ -8,6 +8,7 @@ root = Path(SPECPATH)
 stage = root / "build" / "macos-inputs"
 datas = collect_data_files("scan64", include_py_files=True)
 datas += [(str(root / "apps/scan64-web/dist"), "web")]
+datas += [(str(root / "src/scan64/release_signing_key.pub"), "scan64")]
 datas += [(str(stage / "stockfish/stockfish-sf_18.tar.gz"), "notices/stockfish")]
 datas += [(str(stage / "stockfish/Copying.txt"), "notices/stockfish")]
 datas += [(str(network), "bin") for network in (stage / "stockfish").glob("*.nnue")]

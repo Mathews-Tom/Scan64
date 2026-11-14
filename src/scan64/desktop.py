@@ -11,8 +11,18 @@ import sys
 import threading
 import time
 import webbrowser
+from importlib.metadata import version
 from pathlib import Path
 from typing import IO
+
+from scan64.desktop_update import (
+    ReleaseClient,
+    UpdateController,
+    app_bundle,
+    bundle_version,
+    set_update_controller,
+    unavailable_reason,
+)
 
 
 def data_directory(home: Path | None = None) -> Path:
@@ -99,6 +109,7 @@ def run_window(
     *,
     no_browser: bool = False,
     import_path: Path | None = None,
+    updates: UpdateController | None = None,
 ) -> None:
     # Import the application only after the persistent paths are configured.
     import tkinter as tk
@@ -172,11 +183,58 @@ def run_window(
     def quit_app() -> None:
         nonlocal quitting
         quitting = True
+        restart_button.config(state="disabled")
+        check_button.config(state="disabled")
+        if updates is not None:
+            updates.stop()
         import_cancel.set()
         label.config(text="Stopping server and chess engines…")
         server.should_exit = True
         if not worker.is_alive():
             root.destroy()
+
+    def restart_update() -> None:
+        if updates is None:
+            return
+        try:
+            updates.restart()
+        except Exception as error:
+            update_status.config(text=f"Update failed: {error}")
+            return
+        quit_app()
+
+    tk.Label(root, text=f"Scan64 {version('scan64')}").pack(padx=20, pady=5)
+    update_status = tk.Label(root, text="", padx=20, pady=5, wraplength=440)
+    update_status.pack()
+    check_button = tk.Button(
+        root, text="Check for updates", command=updates.check_background if updates else ""
+    )
+    check_button.pack(padx=20, pady=5)
+    restart_button = tk.Button(
+        root, text="Restart to update", command=restart_update, state="disabled"
+    )
+    restart_button.pack(padx=20, pady=5)
+    automatic = tk.BooleanVar(value=updates.snapshot()["automatic_updates"] if updates else True)
+
+    def set_automatic() -> None:
+        if updates is not None:
+            try:
+                updates.set_automatic(automatic.get())
+            except OSError as error:
+                automatic.set(updates.snapshot()["automatic_updates"])
+                update_status.config(text=f"Could not save update settings: {error}")
+
+    tk.Checkbutton(root, text="Automatic updates", variable=automatic, command=set_automatic).pack(
+        padx=20, pady=5
+    )
+    if updates is not None and updates.disabled_reason:
+        tk.Button(
+            root,
+            text="Download from GitHub",
+            command=lambda: (
+                webbrowser.open(updates.snapshot()["release_url"]) if not no_browser else None
+            ),
+        ).pack(padx=20, pady=5)
 
     tk.Button(root, text="Open Scan64", command=open_browser).pack(padx=20, pady=5)
     import_button = tk.Button(root, text="Import puzzles…", command=import_file)
@@ -198,6 +256,19 @@ def run_window(
 
     def poll() -> None:
         nonlocal opened
+        if updates is not None:
+            state = updates.snapshot()
+            update_status.config(text=state["message"])
+            check_button.config(
+                state="normal"
+                if not quitting
+                and state["available"]
+                and state["status"] not in {"checking", "downloading", "ready", "installing"}
+                else "disabled"
+            )
+            restart_button.config(
+                state="normal" if not quitting and state["status"] == "ready" else "disabled"
+            )
         try:
             while True:
                 import_status.config(text=import_messages.get_nowait())
@@ -226,11 +297,99 @@ def run_window(
     try:
         root.mainloop()
     finally:
+        if updates is not None:
+            updates.stop()
         server.should_exit = True
         worker.join()
         import_cancel.set()
         if importer is not None:
             importer.join()
+
+
+def _temporary_path(path: Path) -> Path:
+    resolved = path.resolve()
+    if not resolved.is_relative_to(Path("/tmp").resolve()):
+        raise ValueError("Update test paths must be below /tmp")
+    return resolved
+
+
+def run_update_test(config_path: Path) -> None:
+    """Explicit disposable-app seam; impossible to target the real app or data.
+
+    No environment trust override exists. Both the frozen executable's bundle
+    and HOME must resolve below /tmp, and relaunch is a direct temporary binary.
+    Production GUI/API entry points always use only the committed public key.
+    """
+    import json
+
+    bundle = app_bundle()
+    if not getattr(sys, "frozen", False) or bundle is None:
+        raise ValueError("Update e2e requires a frozen disposable app")
+    bundle = _temporary_path(bundle)
+    home = _temporary_path(Path.home())
+    config = json.loads(_temporary_path(config_path).read_text())
+    result = _temporary_path(Path(config["result_path"]))
+    command = config.get("relaunch_command")
+    if command is not None:
+        if (
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(item, str) for item in command)
+        ):
+            raise ValueError("Invalid test relaunch command")
+        if not Path(command[0]).is_absolute():
+            raise ValueError("Test relaunch executable must be absolute")
+        _temporary_path(Path(command[0]))
+    os.environ["BROWSER"] = "/usr/bin/true"
+    data = _temporary_path(data_directory(home))
+    data.mkdir(parents=True, exist_ok=True, mode=0o700)
+    action = config.get("action")
+    if action == "probe":
+        resources = Path(getattr(sys, "_MEIPASS"))
+        configure_environment(resources, data)
+        from sqlmodel import Session, select
+
+        from scan64.api.app import app, lifespan
+        from scan64.chess.games.models import Game, PlaySession
+        from scan64.persistence.database import engine
+
+        async def probe() -> dict[str, object]:
+            async with lifespan(app):
+                with Session(engine) as session:
+                    return {
+                        "status": "relaunched",
+                        "startup": "ok",
+                        "played_games": len(
+                            session.exec(select(Game).where(Game.result == "0-1")).all()
+                        ),
+                        "completed_sessions": len(
+                            session.exec(
+                                select(PlaySession).where(PlaySession.status == "completed")
+                            ).all()
+                        ),
+                    }
+
+        state = asyncio.run(probe())
+        engine.dispose()
+    elif action in {"check", "restart"}:
+        updates = UpdateController(
+            data,
+            version("scan64"),
+            bundle,
+            public_key=config["public_key"],
+            release_url=config["release_url"],
+            client=ReleaseClient(test_loopback=True),
+            relaunch_command=command,
+            disabled_reason=unavailable_reason(bundle),
+        )
+        updates.check()
+        state = updates.snapshot()
+        if action == "restart" and state["status"] == "ready":
+            updates.restart()
+    else:
+        raise ValueError("Invalid update test action")
+    state.update(current_version=version("scan64"), bundle_version=bundle_version(bundle))
+    result.write_text(json.dumps(state))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -241,7 +400,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--import-puzzles", type=Path, help="Select a local file for the window importer"
     )
+    parser.add_argument("--update-test-config", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv if argv is not None else [])
+    if args.update_test_config is not None:
+        run_update_test(args.update_test_config)
+        return
     data = data_directory()
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     configure_environment(resources, data)
@@ -257,13 +420,24 @@ def main(argv: list[str] | None = None) -> None:
                     webbrowser.open(instance.existing_url())
                 return
             listener = reserve_port()
+            bundle = app_bundle()
+            updates = UpdateController(
+                data, version("scan64"), bundle, disabled_reason=unavailable_reason(bundle)
+            )
+            set_update_controller(updates)
+            updates.start()
             run_window(
-                instance, listener, no_browser=args.no_browser, import_path=args.import_puzzles
+                instance,
+                listener,
+                no_browser=args.no_browser,
+                import_path=args.import_puzzles,
+                updates=updates,
             )
         finally:
             if listener is not None:
                 listener.close()
             instance.close()
+            set_update_controller(None)
             sys.stdout, sys.stderr = previous_stdout, previous_stderr
 
 
