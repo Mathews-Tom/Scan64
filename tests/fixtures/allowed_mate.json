@@ -1,10 +1,10 @@
 {
   "provenance": {
-    "engine": "Stockfish 18",
+    "engine": "Stockfish; source/focused searches identify Stockfish 19 in their configs; fast-search version was not separately captured",
     "threads": 1,
     "hash_mb": 16,
     "fast_nodes": 10000,
-    "reset": "ucinewgame before every request",
+    "reset": "ucinewgame before standalone requests; mate_in_1 focused_after was captured from the disposable pooled live server, whose cache reset is not asserted",
     "source_nodes": 1000000,
     "source_multipv": "M47 widening 2,4,8",
     "mate_source_nodes": 1000000,

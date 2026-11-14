@@ -26,4 +26,20 @@ No `THEME_SKILLS` entry is added. Existing mate puzzle themes describe deliverin
 
 ## Recorded hand-built tests
 
-`tests/fixtures/allowed_mate.json` records Stockfish 18, one thread, 16 MiB hash, reset before each request. It contains hand-built positions allowing mate in 1/2/3, an already forced mate, a parried threat, and a material-only loss; source-depth searches are recorded separately from fast searches and M47 source searches. Tests cover both player colours, complete legal mating claims, precedence, untrusted abstention, the template, and sound-move lesson generation/re-verification. Deliberately conflicting shallow test input checks that a recorded deep forced-mate score cannot be overruled by a shallow non-mate score.
+`tests/fixtures/allowed_mate.json` contains hand-built positions allowing mate in 1/2/3, an already forced mate, a parried threat, and a material-only loss. Source-depth searches are recorded separately from fast searches and M47 source searches. Per-search source/focused configs identify Stockfish 19; the fast-search version was not separately captured. Standalone searches used one thread, 16 MiB hash, and reset before requests. The mate-in-1 focused reply was captured from the disposable pooled live server; its cache reset is not asserted. Tests cover both player colours, complete legal mating claims, precedence, untrusted abstention, the template, and sound-move lesson generation/re-verification. Deliberately conflicting shallow test input checks that a recorded deep forced-mate score cannot be overruled by a shallow non-mate score.
+
+## Fresh trust decision
+
+The preregistration commit `c4490fa` precedes results `4d1ea6f`. Exactly the next 80 qualifying games (5,116 plies, 866 candidates) gave allowed mate **42 TP, 0 FP, 0 FN; precision 1.000, support 42**. The code is therefore trusted under the unchanged fresh-only rule. The original four codes retain their preregistered original-40 gates; their fresh descriptive results include missed capture at 0.759, not a new validation claim. Detector and reference share their million-node source search, so the perfect allowed-mate agreement does not independently validate source-side mate exclusion.
+
+No fresh diagnosis numbers, including partial-corpus metrics, were computed before recording restarts. A recorder API mismatch failed before capture; the following attempt hit a 3,600-second tool deadline at 63/80 game progress counts before writing a fixture. The identical eighty-game capture was restarted without that deadline. There were no detector, threshold, sample or reference changes driven by fresh results. Full chronology, tables and checksums are in [the measurement report](real-game-diagnosis.md).
+
+## Disposable live review
+
+The corrected, trusted pipeline was exercised through the real API with a fresh SQLite database under `/tmp`, a server on port 8078 with `--no-browser`, and headless Playwright Chromium. The imported White game starts at `8/8/8/8/8/1qk5/8/KR6 w - - 0 1` and continues `1. Rh1 Qb2# 0-1`.
+
+The analysis job completed. Review retained its 10,000-node scoring inputs: one owner move, scored as a blunder. It returned exactly one key moment and one verified lesson, with primary code `threat_processing.allowed_mate`, the explanation's legal line `Qb2#`, and accepted sound move `Rxb3+`. Stored mate evidence references a 1,000,000-node MultiPV-4 source analysis. Headless review displayed **Allowed checkmate**, the mating line, and the opened retry lesson with objective “Find a sound move that does not allow mate.” No page errors were observed.
+
+[Full-page headless screenshot](evidence/m78-live-review.png).
+
+The disposable server and Chromium were stopped after capture; browser credentials were kept outside the repository and removed. The user's browser and port 8000 were not used.
