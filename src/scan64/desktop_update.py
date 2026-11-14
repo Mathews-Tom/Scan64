@@ -182,7 +182,9 @@ class ReleaseClient:
             timeout=20,
             follow_redirects=True,
             trust_env=False,
-            headers={"User-Agent": "Scan64-desktop-updater", "Accept": "application/octet-stream"},
+            # GitHub's REST API answers 415 to an octet-stream Accept on JSON
+            # endpoints; browser_download_url assets ignore Accept entirely.
+            headers={"User-Agent": "Scan64-desktop-updater"},
             event_hooks={"request": [self.validate_request]},
         )
 
