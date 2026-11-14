@@ -243,6 +243,47 @@ language. Passing the preregistered point-estimate gate does not remove those
 limitations. The new omission reference prevents the specific played-capture
 false-TP mechanism without making the detector share its deep source conclusion.
 
+### M79 final verification
+
+Results/fixture commit: `d728843f443871b41b492db1ac9c2166e023070c`.
+`BROWSER=/usr/bin/true bash scripts/check.sh` completed with exit status **0**
+in 309.70 seconds: **1,815 Python tests passed** (2 real-model tests deselected),
+ruff and format checks passed (355 files), strict mypy passed (179 source files),
+M48's three-corpus gate/suppression check passed, dependency licenses passed,
+frontend build/lint passed, **370 frontend unit tests** and **58 headless e2e
+tests** passed. Port 5173 was checked free before launch; no listener was killed.
+The run emitted deprecation/lint warnings and mocked-e2e proxy connection-refused
+noise for the absent port-8001 API, but no gate failed. Final tail:
+
+```text
+  58 passed (33.9s)
+All checks passed.
+```
+
+All three M77 commands, `lichess_themes --version v1 --check`, `--version v2
+--check` and `--version v3 --check`, exited **0** and reproduced their frozen
+Results suffixes. A scoped gitleaks scan of the five implementation/results
+commits reported no leaks.
+
+**Live retained-trust check:** a real API on port 8019 served the built frontend
+against a fresh disposable SQLite database. A new player imported the position
+before original40 game [6x5nq6qd](https://lichess.org/6x5nq6qd), ply 26, as Black,
+and played `13...b5` instead of `bxc5`. Real Stockfish analysis completed.
+Headless Chromium rendered **Your move · Blunder**, coverage **1/1**, accuracy
+**42.1%**, and **one trusted key moment** headed
+`threat processing / missed capture`. Its explanation was:
+"You played b5, but the engine's principal line begins with b6c5, capturing the
+queen on c5." The retry control showed three attempts remaining. No skill credit
+was claimed for this imported game's unknown assistance. The browser and API
+were stopped after acceptance; the owner's real browser and port 8000 were not used.
+
+**Fresh-context review:** one reviewer verified all 36 development FP attributions,
+selection against the checksum-verified archive, fixture/provenance checksums,
+the complete M79 table, unchanged frozen artifacts, and the keep-trust decision.
+Its initial reference-identity P2 was fixed and re-reviewed before measurement.
+Changed-only reviews of the persistence safeguards and final results found
+**no P1/P2 issues**. No detector or reference was tuned after fresh numbers.
+
 ## M78 source-depth correction: fresh80 preregistration
 
 The original40 measurements below are **development, pre-fix** results, retained
