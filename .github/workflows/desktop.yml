@@ -1,0 +1,84 @@
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - 'apps/scan64-desktop/**'
+      - 'apps/scan64-web/**'
+      - 'src/scan64/**'
+      - 'scripts/build-server.py'
+      - 'scripts/desktop-smoke.py'
+      - 'pnpm-lock.yaml'
+      - 'uv.lock'
+      - '.github/workflows/desktop.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest, ubuntu-22.04]
+    defaults:
+      run:
+        shell: bash
+    env:
+      BROWSER: /usr/bin/true
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: 1.99.1
+      - name: Install Linux webview and virtual display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/scan64-desktop/src-tauri
+      - name: Install source server and frontend dependencies
+        run: |
+          uv sync --frozen --all-groups
+          pnpm install --frozen-lockfile
+      - name: Verify token boundary and uncooperative engine-child teardown
+        run: uv run pytest tests/unit/test_desktop_server.py tests/unit/test_desktop_security.py tests/integration/test_desktop_server.py -q
+      - name: Build bundled-origin debug shell (no installer)
+        run: pnpm --dir apps/scan64-desktop tauri build --debug --no-bundle
+      - name: Prove tokened request and process lifetime
+        run: |
+          binary=apps/scan64-desktop/src-tauri/target/debug/scan64-desktop
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a uv run python scripts/desktop-smoke.py "$binary" desktop-smoke.json
+          else
+            uv run python scripts/desktop-smoke.py "$binary" desktop-smoke.json
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: desktop-smoke-${{ matrix.os }}
+          path: desktop-smoke.json
+          if-no-files-found: warn

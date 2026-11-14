@@ -61,6 +61,8 @@ input[type='checkbox'], input[type='radio'] { min-width: 24px; min-height: 24px;
 .player-setup { display: flex; flex-direction: column; align-items: start; gap: var(--space-3); }
 .player-setup label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.desktop-failure { max-width: 760px; margin-inline: auto; padding: var(--space-6); }
+.desktop-failure pre { font-size: var(--type-small); }
 @media (hover: hover) and (pointer: fine) {
   button:hover:not(:disabled) { transform: translateY(-1px); transition-duration: var(--motion-in); }
 }

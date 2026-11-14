@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Scan64",
+  "version": "0.0.0",
+  "identifier": "org.scan64.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm --dir ../scan64-web build",
+    "beforeBuildCommand": "pnpm --dir ../scan64-web build",
+    "frontendDist": "../../scan64-web/dist"
+  },
+  "app": {
+    "windows": [{
+      "label": "main",
+      "title": "Scan64",
+      "width": 1200,
+      "height": 820,
+      "minWidth": 720,
+      "minHeight": 560,
+      "titleBarStyle": "Overlay",
+      "hiddenTitle": true
+    }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["../../scan64-web/public/pwa-512x512.png", "icons/icon.ico"]
+  }
+}
