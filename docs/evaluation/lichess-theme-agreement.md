@@ -155,7 +155,121 @@ will be the entire `## Results` suffix committed below, byte-for-byte;
 on fixture/report inconsistency, **never** on informational A4 outcomes. It
 must not run Stockfish, download data, contact a model or access a database.
 
-## Results: pending
+## Results
 
-Awaiting owner approval of the frozen mapping and N before any engine recording
-or agreement computation.
+Informational theme agreement only; no coach validation or efficacy claim.
+Blind independent coach review remains **PENDING**.
+
+Frozen sample: **2,000** owner-side human setup moves. Fast-pass flagged:
+**1,842**. Trusted emissions: **614**; abstentions:
+**1,386/2,000 (69.30%)** (includes untrusted-only rows).
+
+### Per-code agreement
+
+| Code | Emitted support | Theme-positive rows | Matches | Precision | Wilson 95% CI | Recall | A4 (informational) |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| `board_awareness.hanging_piece` | 225 | 63 | 55 | 0.2444 | [0.1929, 0.3046] | 0.8730 | below 0.80 |
+| `threat_processing.missed_capture` | 88 | N/A | N/A | N/A | N/A | N/A | unmapped |
+| `threat_processing.missed_check` | 67 | N/A | N/A | N/A | N/A | N/A | unmapped |
+| `threat_processing.missed_direct_threat` | 234 | 63 | 0 | 0.0000 | [0.0000, 0.0162] | 0.0000 | below 0.80 |
+
+N/A for unmapped codes is not a measured zero. A4 does not change product
+trust and does not determine the CLI exit code.
+
+### Disposition and abstention
+
+| Disposition | Count | Rate over full sample |
+| --- | ---: | ---: |
+| `board_awareness.hanging_piece` | 225 | 11.25% |
+| `threat_processing.missed_capture` | 88 | 4.40% |
+| `threat_processing.missed_check` | 67 | 3.35% |
+| `threat_processing.missed_direct_threat` | 234 | 11.70% |
+| `not_flagged` | 158 | 7.90% |
+| `no_eligible_diagnosis` | 117 | 5.85% |
+| `untrusted_only` | 1111 | 55.55% |
+
+### Emitted-code distribution (including non-trusted eligible-only winners)
+
+Trusted rows use the normal joint winner. Non-trusted rows below are
+measurement-only winners when the normal trusted pipeline abstains, not
+product emissions. All no-diagnosis cases are shown above; no rows disappear.
+
+| Code | Status | Count | Rate over full sample |
+| --- | --- | ---: | ---: |
+| `board_awareness.hanging_piece` | trusted emission | 225 | 11.25% |
+| `threat_processing.missed_check` | trusted emission | 67 | 3.35% |
+| `threat_processing.missed_capture` | trusted emission | 88 | 4.40% |
+| `threat_processing.missed_direct_threat` | trusted emission | 234 | 11.70% |
+| `tactics.fork.knight` | non-trusted eligible-only | 1 | 0.05% |
+| `tactics.pin` | non-trusted eligible-only | 18 | 0.90% |
+| `tactics.overloaded_defender` | non-trusted eligible-only | 39 | 1.95% |
+| `calculation.stopped_too_early` | non-trusted eligible-only | 197 | 9.85% |
+| `opening.delayed_development` | non-trusted eligible-only | 0 | 0.00% |
+| `positional.king_safety_neglect` | non-trusted eligible-only | 856 | 42.80% |
+
+### Codes × top themes (co-occurrence, not exclusive classes)
+
+Unmapped-code rows show raw theme co-occurrence as descriptive context
+only, never precision, recall or confirmation of those codes.
+
+| Disposition | short | endgame | middlegame | mate | crushing | advantage | long | mateIn2 | mateIn1 | oneMove |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| All sample rows | 1119 | 1003 | 900 | 769 | 685 | 526 | 451 | 350 | 340 | 340 |
+| `board_awareness.hanging_piece` | 138 | 71 | 142 | 42 | 74 | 109 | 59 | 16 | 25 | 25 |
+| `threat_processing.missed_capture` | 51 | 43 | 42 | 28 | 33 | 27 | 17 | 12 | 11 | 11 |
+| `threat_processing.missed_check` | 35 | 49 | 16 | 30 | 18 | 15 | 15 | 19 | 9 | 9 |
+| `threat_processing.missed_direct_threat` | 114 | 93 | 123 | 129 | 66 | 38 | 36 | 45 | 79 | 79 |
+| `not_flagged` | 61 | 84 | 70 | 128 | 20 | 10 | 18 | 45 | 76 | 76 |
+| `no_eligible_diagnosis` | 58 | 79 | 33 | 0 | 70 | 44 | 41 | 0 | 0 | 0 |
+| `untrusted_only` | 662 | 584 | 474 | 412 | 404 | 283 | 265 | 213 | 140 | 140 |
+
+### Recording provenance and reproduction
+
+- Pre-registration commit: `8c02417`.
+- Engine: **Stockfish 19**, Threads 1, Hash 16 MiB; reset: ucinewgame before every request.
+- Fast: 10,000 nodes, single PV before/after each setup.
+- Focused: 1,000,000 nodes, MultiPV 4 after flagged setups only.
+- Sample sha256: `fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35`.
+- `tests/fixtures/m77/recorded.json` sha256: `9a13d33ef51ea906f833e0d51092850652c59e988708d35225ccef79fbab71af`.
+- Source URL, compressed prefix byte range/checksum and HTTP metadata are
+  frozen above and in `tests/fixtures/m77/provenance.json` (CC0 subset).
+
+```sh
+uv run python -m scan64.learning.evaluation.lichess_themes
+uv run python -m scan64.learning.evaluation.lichess_themes --check
+```
+
+The first command reproduces this entire Results suffix byte-for-byte.
+The second checks it offline without launching an engine or accessing the
+network/database. Engine regeneration is an explicit separate operation:
+`uv run python scripts/record_lichess_theme_agreement.py`.
+It refuses to overwrite the committed recording; regeneration with another
+engine is a new experiment, not a way to improve these numbers.
+
+### Limits
+
+Themes are not a coach's judgement: the Lichess tagger seeds them
+algorithmically, and hangingPiece is vote-refinable. The CSV does not reveal
+which individual labels were changed by humans. Scan64 and Lichess both
+use Stockfish-derived information, so this is not independent chess truth.
+
+This prefix-ordered, filtered puzzle subset is enriched for tactical
+punishments; it is not a random sample of players, mistakes or ordinary
+games. Puzzle ratings are not the blunderers' playing ratings. Wilson
+intervals treat rows as independent Bernoulli trials; shared players/games
+can violate independence, and the intervals do not measure label quality
+or systematic sampling bias.
+
+The owner is the setup blunderer, opposite the puzzle solver. Opponent
+continuation themes cannot validate the owner's missed checks/captures.
+hangingPiece is only an overlapping proxy for the two mapped codes:
+it does not prove a pre-existing threat and can exclude captures/exchanges
+that Scan64 diagnoses. Joint arbitration permits only one winner even
+when mapped concepts overlap. Theme absence is proxy disagreement, not
+necessarily a false diagnosis. A narrow mapping caps the measurable recall
+coverage of the wider diagnosis concept; numerical recall concerns only
+the mapped-theme subset. missed_direct_threat cases where the attacked
+piece was defended but lost to a cheaper attacker will be counted as
+disagreement when hangingPiece is absent. No mapping or sample was
+adjusted to fit these results. This report neither validates instructional
+efficacy nor replaces the still-pending blind coach review.

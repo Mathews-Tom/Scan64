@@ -22,7 +22,16 @@ DEST = ROOT / "tests/fixtures/m77"
 SOURCE_URL = "https://database.lichess.org/lichess_db_puzzle.csv.zst"
 SOURCE_SHA256 = "b58e19f817b7a8889cd713654a59e8914c3e92f11987b0273e74fb30e7d38b96"
 SAMPLE_SIZE = 2000
-COLUMNS = ["PuzzleId", "FEN", "Blunder", "Rating", "RatingDeviation", "Popularity", "NbPlays", "Themes"]
+COLUMNS = [
+    "PuzzleId",
+    "FEN",
+    "Blunder",
+    "Rating",
+    "RatingDeviation",
+    "Popularity",
+    "NbPlays",
+    "Themes",
+]
 
 
 def select(source: Path) -> None:
@@ -74,7 +83,7 @@ def select(source: Path) -> None:
         "prefix_sha256": SOURCE_SHA256,
         "http_content_range": "bytes 0-8388607/309751173",
         "http_last_modified": "Sun, 01 Nov 2026 07:57:40 GMT",
-        "http_etag": "\"6ae6f0f4-12766d85\"",
+        "http_etag": '"6ae6f0f4-12766d85"',
         "sample_size": SAMPLE_SIZE,
         "source_rows_scanned": scanned,
         "selection": (

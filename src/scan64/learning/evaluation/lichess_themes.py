@@ -1,0 +1,483 @@
+"""Offline Lichess-theme agreement proxy; never coach validation or a trust gate.
+
+Run: uv run python -m scan64.learning.evaluation.lichess_themes [--check]
+Stdout is the report's complete Results section. No engine or network is used.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import csv
+import hashlib
+import json
+import math
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+import chess
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
+from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
+from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
+from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.evidence.composer import compose_candidate_evidence
+from scan64.learning.plugins.interfaces import PatternDetector
+from scan64.learning.plugins.registry import PluginKind, PluginRegistry
+
+ROOT = Path(__file__).resolve().parents[4]
+FIXTURES = ROOT / "tests/fixtures/m77"
+REPORT = ROOT / "docs/evaluation/lichess-theme-agreement.md"
+SAMPLE_SHA256 = "fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35"
+CODE_THEMES: dict[str, frozenset[str]] = {
+    "board_awareness.hanging_piece": frozenset({"hangingPiece"}),
+    "threat_processing.missed_capture": frozenset(),
+    "threat_processing.missed_check": frozenset(),
+    "threat_processing.missed_direct_threat": frozenset({"hangingPiece"}),
+}
+ABSTENTIONS = ("not_flagged", "no_eligible_diagnosis", "untrusted_only")
+DISPOSITIONS = (*CODE_THEMES, *ABSTENTIONS)
+
+
+class RecordedLine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    pv: list[str]
+    score_cp: int | None = None
+    score_mate: int | None = None
+
+    @model_validator(mode="after")
+    def require_score(self) -> RecordedLine:
+        if (self.score_cp is None) == (self.score_mate is None):
+            raise ValueError("A recorded PV must have exactly one cp or mate score")
+        return self
+
+
+class PuzzleRecording(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    puzzle_id: str
+    before: list[RecordedLine]
+    after: list[RecordedLine]
+    focused: list[RecordedLine] | None = None
+
+
+class RecordingProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sample_sha256: Literal["fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35"]
+    preregistration_commit: str
+    engine: str
+    threads: Literal[1]
+    hash_mb: Literal[16]
+    fast_nodes: Literal[10000]
+    focused_nodes: Literal[1000000]
+    focused_multipv: Literal[4]
+    reset: Literal["ucinewgame before every request"]
+
+
+class Recording(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provenance: RecordingProvenance
+    puzzles: list[PuzzleRecording]
+
+
+@dataclass(frozen=True)
+class Puzzle:
+    puzzle_id: str
+    fen: str
+    blunder: str
+    themes: frozenset[str]
+
+    def boards_and_san(self) -> tuple[chess.Board, chess.Board, str]:
+        before = chess.Board(self.fen)
+        move = chess.Move.from_uci(self.blunder)
+        san = before.san(move)
+        after = before.copy()
+        after.push(move)
+        return before, after, san
+
+
+@dataclass(frozen=True)
+class Outcome:
+    puzzle_id: str
+    themes: frozenset[str]
+    disposition: str
+    untrusted_code: str | None = None
+
+
+@dataclass(frozen=True)
+class CodeScore:
+    support: int
+    theme_positive: int
+    overlap: int
+
+    @property
+    def precision(self) -> float | None:
+        return self.overlap / self.support if self.support else None
+
+    @property
+    def recall(self) -> float | None:
+        return self.overlap / self.theme_positive if self.theme_positive else None
+
+
+def wilson(successes: int, total: int) -> tuple[float, float] | None:
+    """Two-sided Wilson 95% interval, undefined when no code was emitted."""
+    if total < 0 or not 0 <= successes <= total:
+        raise ValueError("Expected 0 <= successes <= total")
+    if total == 0:
+        return None
+    z = 1.959963984540054
+    p = successes / total
+    divisor = 1 + z * z / total
+    centre = (p + z * z / (2 * total)) / divisor
+    radius = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / divisor
+    return max(0.0, centre - radius), min(1.0, centre + radius)
+
+
+def load_sample(directory: Path = FIXTURES) -> list[Puzzle]:
+    path = directory / "puzzles.csv"
+    if hashlib.sha256(path.read_bytes()).hexdigest() != SAMPLE_SHA256:
+        raise ValueError("Frozen sample checksum mismatch")
+    with path.open(newline="") as stream:
+        puzzles = [
+            Puzzle(row["PuzzleId"], row["FEN"], row["Blunder"], frozenset(row["Themes"].split()))
+            for row in csv.DictReader(stream)
+        ]
+    if len(puzzles) != 2000 or len({p.puzzle_id for p in puzzles}) != len(puzzles):
+        raise ValueError("Frozen sample count or unique IDs differ")
+    return puzzles
+
+
+def _analysis(lines: list[RecordedLine]) -> EngineAnalysis:
+    return EngineAnalysis(raw_result=[line.model_dump(exclude_none=True) for line in lines])
+
+
+class RecordedPuzzleAdapter:
+    """Exact FEN/config replay; no fallback or live engine is permitted."""
+
+    def __init__(self, puzzle: Puzzle, record: PuzzleRecording) -> None:
+        if puzzle.puzzle_id != record.puzzle_id:
+            raise ValueError("Puzzle/recording ID mismatch")
+        before, after, _ = puzzle.boards_and_san()
+        self.before_fen, self.after_fen = before.fen(), after.fen()
+        self.record = record
+        self._validate_lines(before, record.before, expected=1)
+        self._validate_lines(after, record.after, expected=1)
+        if record.focused is not None:
+            self._validate_lines(
+                after, record.focused, expected=max(1, min(4, after.legal_moves.count()))
+            )
+
+    @staticmethod
+    def _validate_lines(board: chess.Board, lines: list[RecordedLine], *, expected: int) -> None:
+        if len(lines) != expected:
+            raise ValueError("Recorded MultiPV cardinality differs from requested legal moves")
+        for line in lines:
+            replay = board.copy()
+            if not line.pv and not board.is_game_over():
+                raise ValueError("Nonterminal recorded analysis has an empty PV")
+            for uci in line.pv:
+                move = chess.Move.from_uci(uci)
+                if move not in replay.legal_moves:
+                    raise ValueError("Recorded PV contains an illegal move")
+                replay.push(move)
+
+    async def analyze_position(
+        self,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis:
+        if depth is None and time_ms is None:
+            if nodes == 10000 and multipv == 1:
+                if fen == self.before_fen:
+                    return _analysis(self.record.before)
+                if fen == self.after_fen:
+                    return _analysis(self.record.after)
+            if (
+                nodes == 1000000
+                and multipv == 4
+                and fen == self.after_fen
+                and self.record.focused is not None
+            ):
+                return _analysis(self.record.focused)
+        raise ValueError(f"Unrecorded request: {fen}, nodes={nodes}, multipv={multipv}")
+
+
+async def diagnose(
+    puzzle: Puzzle, record: PuzzleRecording, registry: PluginRegistry
+) -> tuple[str, str | None]:
+    """Diagnose the setup mover; puzzle themes never enter the evidence pipeline."""
+    adapter = RecordedPuzzleAdapter(puzzle, record)
+    before, after, san = puzzle.boards_and_san()
+    fast = await FastPassOrchestrator(adapter, FastPassConfig(nodes=10000)).run_fast_pass(
+        [san], puzzle.fen
+    )
+    if not fast.candidates:
+        if record.focused is not None:
+            raise ValueError("Unexpected focused recording for an unflagged setup")
+        return "not_flagged", None
+    candidate = fast.candidates[0]
+    focused = await adapter.analyze_position(after.fen(), nodes=1000000, multipv=4)
+    evidence = compose_candidate_evidence(
+        before_board=before,
+        after_board=after,
+        history_san=[san],
+        initial_fen=puzzle.fen,
+        position_id=puzzle.puzzle_id,
+        fast_analysis=candidate.before_analysis,
+        reply_analysis=candidate.after_analysis,
+        focused_analysis=focused,
+        played_move=san,
+        swing_cp=candidate.swing_cp,
+    )
+    opportunity = LearningOpportunity(
+        opportunity_id=puzzle.puzzle_id,
+        position_id=puzzle.puzzle_id,
+        player_id="m77-owner",
+        played_move=san,
+        engine_eval_before=0,
+        engine_eval_after=-candidate.swing_cp / 100,
+    )
+    candidates: list[DiagnosisCandidate] = []
+    for code in SEED_CODES:
+        detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
+        assert isinstance(detector, PatternDetector)
+        candidates.extend(
+            await detector.detect(opportunity, evidence, PlayerContext(player_id="m77-owner"))
+        )
+    winner = arbitrate_diagnoses(candidates, evidence)
+    if winner is not None:
+        if winner[0].skill_id not in CODE_THEMES:
+            raise ValueError("Trusted code set changed since pre-registration")
+        return winner[0].skill_id, None
+    untrusted = arbitrate_diagnoses(candidates, evidence, trusted_only=False)
+    if untrusted is not None:
+        return "untrusted_only", untrusted[0].skill_id
+    return "no_eligible_diagnosis", None
+
+
+def score(outcomes: list[Outcome]) -> dict[str, CodeScore]:
+    if len({outcome.puzzle_id for outcome in outcomes}) != len(outcomes):
+        raise ValueError("Duplicate outcome ID")
+    if any(outcome.disposition not in DISPOSITIONS for outcome in outcomes):
+        raise ValueError("Unknown outcome disposition")
+    for outcome in outcomes:
+        if outcome.disposition == "untrusted_only":
+            if outcome.untrusted_code not in SEED_CODES or outcome.untrusted_code in CODE_THEMES:
+                raise ValueError("Untrusted-only outcome must identify a non-trusted code")
+        elif outcome.untrusted_code is not None:
+            raise ValueError("Only untrusted-only outcomes may carry a non-trusted code")
+    return {
+        code: CodeScore(
+            support=sum(o.disposition == code for o in outcomes),
+            theme_positive=sum(bool(o.themes & themes) for o in outcomes),
+            overlap=sum(o.disposition == code and bool(o.themes & themes) for o in outcomes),
+        )
+        for code, themes in CODE_THEMES.items()
+    }
+
+
+def _ratio(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:.4f}"
+
+
+def render_results(
+    outcomes: list[Outcome], provenance: RecordingProvenance, recording_sha256: str
+) -> str:
+    scores = score(outcomes)
+    counts = Counter(o.disposition for o in outcomes)
+    n = len(outcomes)
+    if not n:
+        raise ValueError("An empty sample has no agreement report")
+    abstained = sum(counts[key] for key in ABSTENTIONS)
+    flagged = n - counts["not_flagged"]
+    lines = [
+        "## Results",
+        "",
+        "Informational theme agreement only; no coach validation or efficacy claim.",
+        "Blind independent coach review remains **PENDING**.",
+        "",
+        f"Frozen sample: **{n:,}** owner-side human setup moves. Fast-pass flagged:",
+        f"**{flagged:,}**. Trusted emissions: **{n - abstained:,}**; abstentions:",
+        f"**{abstained:,}/{n:,} ({abstained / n:.2%})** (includes untrusted-only rows).",
+        "",
+        "### Per-code agreement",
+        "",
+        "| Code | Emitted support | Theme-positive rows | Matches | Precision | "
+        "Wilson 95% CI | Recall | A4 (informational) |",
+        "| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |",
+    ]
+    for code, themes in CODE_THEMES.items():
+        result = scores[code]
+        if not themes:
+            values = f"{result.support} | N/A | N/A | N/A | N/A | N/A | unmapped"
+        else:
+            interval = wilson(result.overlap, result.support)
+            ci = "N/A" if interval is None else f"[{interval[0]:.4f}, {interval[1]:.4f}]"
+            interpretation = (
+                "low support (<10)"
+                if result.support < 10
+                else "pass"
+                if result.precision is not None and result.precision >= 0.80
+                else "below 0.80"
+            )
+            values = (
+                f"{result.support} | {result.theme_positive} | {result.overlap} | "
+                f"{_ratio(result.precision)} | {ci} | {_ratio(result.recall)} | {interpretation}"
+            )
+        lines.append(f"| `{code}` | {values} |")
+    lines.extend(
+        [
+            "",
+            "N/A for unmapped codes is not a measured zero. A4 does not change product",
+            "trust and does not determine the CLI exit code.",
+            "",
+            "### Disposition and abstention",
+            "",
+            "| Disposition | Count | Rate over full sample |",
+            "| --- | ---: | ---: |",
+        ]
+    )
+    for disposition in DISPOSITIONS:
+        lines.append(f"| `{disposition}` | {counts[disposition]} | {counts[disposition] / n:.2%} |")
+    untrusted_counts = Counter(o.untrusted_code for o in outcomes if o.untrusted_code is not None)
+    lines.extend(
+        [
+            "",
+            "### Emitted-code distribution (including non-trusted eligible-only winners)",
+            "",
+            "Trusted rows use the normal joint winner. Non-trusted rows below are",
+            "measurement-only winners when the normal trusted pipeline abstains, not",
+            "product emissions. All no-diagnosis cases are shown above; no rows disappear.",
+            "",
+            "| Code | Status | Count | Rate over full sample |",
+            "| --- | --- | ---: | ---: |",
+        ]
+    )
+    for code in SEED_CODES:
+        trusted = code in CODE_THEMES
+        count = counts[code] if trusted else untrusted_counts[code]
+        status = "trusted emission" if trusted else "non-trusted eligible-only"
+        lines.append(f"| `{code}` | {status} | {count} | {count / n:.2%} |")
+    totals = Counter(theme for o in outcomes for theme in o.themes)
+    top_themes = sorted(totals, key=lambda theme: (-totals[theme], theme))[:10]
+    lines.extend(
+        [
+            "",
+            "### Codes × top themes (co-occurrence, not exclusive classes)",
+            "",
+            "Unmapped-code rows show raw theme co-occurrence as descriptive context",
+            "only, never precision, recall or confirmation of those codes.",
+            "",
+            "| Disposition | " + " | ".join(top_themes) + " |",
+            "| --- | " + " | ".join("---:" for _ in top_themes) + " |",
+            "| All sample rows | " + " | ".join(str(totals[t]) for t in top_themes) + " |",
+        ]
+    )
+    for disposition in DISPOSITIONS:
+        cells = [
+            str(sum(o.disposition == disposition and theme in o.themes for o in outcomes))
+            for theme in top_themes
+        ]
+        lines.append(f"| `{disposition}` | " + " | ".join(cells) + " |")
+    lines.extend(
+        [
+            "",
+            "### Recording provenance and reproduction",
+            "",
+            f"- Pre-registration commit: `{provenance.preregistration_commit}`.",
+            f"- Engine: **{provenance.engine}**, Threads {provenance.threads}, "
+            f"Hash {provenance.hash_mb} MiB; reset: {provenance.reset}.",
+            f"- Fast: {provenance.fast_nodes:,} nodes, single PV before/after each setup.",
+            f"- Focused: {provenance.focused_nodes:,} nodes, "
+            f"MultiPV {provenance.focused_multipv} after flagged setups only.",
+            f"- Sample sha256: `{provenance.sample_sha256}`.",
+            f"- `tests/fixtures/m77/recorded.json` sha256: `{recording_sha256}`.",
+            "- Source URL, compressed prefix byte range/checksum and HTTP metadata are",
+            "  frozen above and in `tests/fixtures/m77/provenance.json` (CC0 subset).",
+            "",
+            "```sh",
+            "uv run python -m scan64.learning.evaluation.lichess_themes",
+            "uv run python -m scan64.learning.evaluation.lichess_themes --check",
+            "```",
+            "",
+            "The first command reproduces this entire Results suffix byte-for-byte.",
+            "The second checks it offline without launching an engine or accessing the",
+            "network/database. Engine regeneration is an explicit separate operation:",
+            "`uv run python scripts/record_lichess_theme_agreement.py`.",
+            "It refuses to overwrite the committed recording; regeneration with another",
+            "engine is a new experiment, not a way to improve these numbers.",
+            "",
+            "### Limits",
+            "",
+            "Themes are not a coach's judgement: the Lichess tagger seeds them",
+            "algorithmically, and hangingPiece is vote-refinable. The CSV does not reveal",
+            "which individual labels were changed by humans. Scan64 and Lichess both",
+            "use Stockfish-derived information, so this is not independent chess truth.",
+            "",
+            "This prefix-ordered, filtered puzzle subset is enriched for tactical",
+            "punishments; it is not a random sample of players, mistakes or ordinary",
+            "games. Puzzle ratings are not the blunderers' playing ratings. Wilson",
+            "intervals treat rows as independent Bernoulli trials; shared players/games",
+            "can violate independence, and the intervals do not measure label quality",
+            "or systematic sampling bias.",
+            "",
+            "The owner is the setup blunderer, opposite the puzzle solver. Opponent",
+            "continuation themes cannot validate the owner's missed checks/captures.",
+            "hangingPiece is only an overlapping proxy for the two mapped codes:",
+            "it does not prove a pre-existing threat and can exclude captures/exchanges",
+            "that Scan64 diagnoses. Joint arbitration permits only one winner even",
+            "when mapped concepts overlap. Theme absence is proxy disagreement, not",
+            "necessarily a false diagnosis. A narrow mapping caps the measurable recall",
+            "coverage of the wider diagnosis concept; numerical recall concerns only",
+            "the mapped-theme subset. missed_direct_threat cases where the attacked",
+            "piece was defended but lost to a cheaper attacker will be counted as",
+            "disagreement when hangingPiece is absent. No mapping or sample was",
+            "adjusted to fit these results. This report neither validates instructional",
+            "efficacy nor replaces the still-pending blind coach review.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+async def reproduce(directory: Path = FIXTURES) -> str:
+    puzzles = load_sample(directory)
+    recording_path = directory / "recorded.json"
+    payload = recording_path.read_bytes()
+    recording = Recording.model_validate(json.loads(payload))
+    if [r.puzzle_id for r in recording.puzzles] != [p.puzzle_id for p in puzzles]:
+        raise ValueError("Recording must cover every sample ID exactly once, in source order")
+    registry = PluginRegistry()
+    register_seeded_detectors(registry)
+    outcomes = []
+    for puzzle, record in zip(puzzles, recording.puzzles, strict=True):
+        disposition, untrusted_code = await diagnose(puzzle, record, registry)
+        outcomes.append(Outcome(puzzle.puzzle_id, puzzle.themes, disposition, untrusted_code))
+    return render_results(outcomes, recording.provenance, hashlib.sha256(payload).hexdigest())
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="Verify the committed Results suffix")
+    args = parser.parse_args()
+    try:
+        result = asyncio.run(reproduce())
+        if args.check:
+            document = REPORT.read_text()
+            marker = "## Results\n"
+            if marker not in document or document[document.index(marker) :] != result:
+                raise ValueError("Committed Results differ from offline reproduction")
+        print(result, end="")
+    except (ValueError, OSError, KeyError) as error:
+        parser.exit(1, f"Theme-agreement reproduction failed: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
