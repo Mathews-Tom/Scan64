@@ -14,6 +14,8 @@ import { GamesListScreen } from './components/GamesListScreen';
 import { createActivePlayer, getStoredPlayerId } from './api/client';
 import { TodayScreen } from './components/TodayScreen';
 import { PuzzlesScreen } from './components/PuzzlesScreen';
+import { SettingsScreen, initializeAppearance } from './components/SettingsScreen';
+import { NavigationIcon } from './components/NavigationIcon';
 
 function decodeRouteSegment(value: string): string | null {
   try {
@@ -26,6 +28,7 @@ function decodeRouteSegment(value: string): string | null {
   }
 }
 function App() {
+  useState(initializeAppearance);
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
   const [activeAnalysisGameId, setActiveAnalysisGameId] = useState<string | undefined>();
@@ -40,9 +43,9 @@ function App() {
       '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
       '/training': 'Daily Training', '/puzzles': 'Puzzles', '/profile': 'Profile',
       '/coach': 'Coach', '/library': 'Library', '/import': 'Import PGN',
-      '/famous': 'Famous Games', '/explorer': 'Opening Explorer',
+      '/famous': 'Famous Games', '/explorer': 'Opening Explorer', '/settings': 'Settings',
     };
-    document.title = `${!hasIdentity ? 'Welcome' : titles[pathname] ?? (pathname.startsWith('/games/') ? 'Game review' : 'Page not found')} · Scan64`;
+    document.title = `${!hasIdentity && pathname !== '/settings' ? 'Welcome' : titles[pathname] ?? (pathname.startsWith('/games/') ? 'Game review' : 'Page not found')} · Scan64`;
     if (previousScreen.current.pathname !== pathname || previousScreen.current.hasIdentity !== hasIdentity) {
       mainRef.current?.focus();
     }
@@ -76,7 +79,7 @@ function App() {
   let screen = <div data-testid="not-found">Page not found</div>;
   const isKnownPath = gameAnalysisId !== null || [
     '/', '/play', '/import', '/famous', '/analysis', '/games',
-    '/explorer', '/training', '/puzzles', '/profile', '/coach', '/library',
+    '/explorer', '/training', '/puzzles', '/profile', '/coach', '/library', '/settings',
   ].includes(pathname);
   if (gameAnalysisId !== null) {
     screen = (
@@ -154,6 +157,9 @@ function App() {
     case '/coach':
       screen = <CoachDashboardScreen />;
       break;
+    case '/settings':
+      screen = <SettingsScreen />;
+      break;
     case '/library':
       screen = (
         <section className="library-screen">
@@ -174,14 +180,14 @@ function App() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <DesktopUpdateBanner />
       <header className="app-header">
-        <div className="app-brand"><span aria-hidden="true">♞</span> Scan64</div>
+        <div className="app-brand"><img src="/logo.svg" alt="" /><span className="app-brand-name">Scan64</span></div>
         <p>Your chess study table</p>
       </header>
       <nav className="app-nav" aria-label="Main navigation">
         {[
           ['Today', '/'], ['Play', '/play'], ['Review', '/games'],
           ['Train', '/training'], ['Puzzles', '/puzzles'], ['Profile', '/profile'],
-          ['Library', '/library'], ['Coach', '/coach'],
+          ['Library', '/library'], ['Coach', '/coach'], ['Settings', '/settings'],
         ].map(([label, path]) => {
           const selected = pathname === path
             || (path === '/games' && (pathname.startsWith('/games/') || pathname === '/analysis'))
@@ -190,14 +196,17 @@ function App() {
             <button
               key={path}
               aria-current={selected ? 'page' : undefined}
-              disabled={!hasIdentity && isKnownPath}
+              aria-label={label}
+              title={label}
+              className={path === '/settings' ? 'settings-link' : undefined}
+              disabled={!hasIdentity && isKnownPath && path !== '/' && path !== '/settings'}
               onClick={() => navigate(path)}
-            >{label}</button>
+            ><NavigationIcon name={label} /><span>{label}</span></button>
           );
         })}
       </nav>
       <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content">
-        {!hasIdentity && isKnownPath ? (
+        {!hasIdentity && isKnownPath && pathname !== '/settings' ? (
           <section className="identity-screen" aria-labelledby="welcome-title">
             <h1 id="welcome-title">Welcome to Scan64</h1>
             <p>Play, revisit your games, and practise what matters. What should we call you?</p>

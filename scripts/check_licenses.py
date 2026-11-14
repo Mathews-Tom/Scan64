@@ -2,7 +2,13 @@
 import os
 import sys
 
-REQUIRED_ENTRIES = ["python-chess", "Stockfish", "Chessground"]
+REQUIRED_ENTRIES = [
+    "python-chess",
+    "Stockfish",
+    "Chessground",
+    "Host Grotesk",
+    "JetBrains Mono",
+]
 
 
 def check_licenses() -> int:

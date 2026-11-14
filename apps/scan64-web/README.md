@@ -59,6 +59,12 @@ Playwright tests use real pointer input for board moves and lessons. Do not repl
 
 Shared boards also expose readable coordinates, pieces, side to move and legal choices, strict UCI/canonical English SAN entry, and explicit promotion choices. Preserve keyboard, focus, live-announcement, reduced-motion and narrow-screen behavior when changing controls. Human Safari/VoiceOver acceptance remains pending owner observation; automated role/name and touch-emulation checks do not establish assistive-technology conformance.
 
+## Identity system
+
+`src/tokens.css` is the single source of palette, typography, radius and motion values. Host Grotesk and JetBrains Mono are bundled under `public/fonts` with their Open Font License texts; the client never requests a font CDN. Reading copy uses ink rather than the quieter metadata colour. Board annotations retain written descriptions alongside their visual cues.
+
+Settings → Appearance selects System, Light or Dark and remembers the choice in this browser. Navigation uses a 208px sidebar at 1024px, an icon rail at 768px and a two-row bottom tab bar on smaller screens; every destination retains its existing name and route. Settings is available before creating a player.
+
 ## User documentation
 
 Use the [root README](../../README.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.
