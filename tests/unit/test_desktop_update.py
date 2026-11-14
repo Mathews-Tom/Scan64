@@ -260,6 +260,28 @@ def test_metadata_cap_and_transport() -> None:
         )
 
 
+class GitHubLikeClient(update.ReleaseClient):
+    """Mimics api.github.com, which rejects an octet-stream Accept on JSON endpoints."""
+
+    def client(self) -> httpx.Client:
+        def handle(request: httpx.Request) -> httpx.Response:
+            if "application/octet-stream" in request.headers.get("accept", ""):
+                return httpx.Response(415, request=request)
+            return httpx.Response(200, json={"tag_name": "v0.5.0", "assets": []})
+
+        base = super().client()
+        return httpx.Client(
+            transport=httpx.MockTransport(handle),
+            headers=base.headers,
+            event_hooks=base.event_hooks,
+        )
+
+
+def test_release_metadata_request_is_accepted_by_github() -> None:
+    body = GitHubLikeClient().fetch(update.LATEST_URL, 1024)
+    assert json.loads(body)["tag_name"] == "v0.5.0"
+
+
 @pytest.mark.parametrize(
     "value",
     [
