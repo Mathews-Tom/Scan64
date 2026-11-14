@@ -33,6 +33,7 @@ from packaging.version import InvalidVersion, Version
 
 LATEST_URL = "https://api.github.com/repos/Mathews-Tom/Scan64/releases/latest"
 RELEASE_URL = "https://github.com/Mathews-Tom/Scan64/releases/latest"
+STOP_TIMEOUT_SECONDS = 2.0
 LOGGER = logging.getLogger(__name__)
 
 
@@ -527,12 +528,14 @@ class UpdateController:
         self._scheduler.start()
 
     def stop(self) -> None:
+        # Both threads are daemons and staging lives only in memory, so an
+        # unfinished download is simply repeated next launch. Never let a
+        # stalled socket freeze the Tk thread during quit.
         self._stop.set()
         self._wake.set()
-        if self._scheduler:
-            self._scheduler.join()
-        if self._worker:
-            self._worker.join()
+        for thread in (self._scheduler, self._worker):
+            if thread:
+                thread.join(timeout=STOP_TIMEOUT_SECONDS)
 
     def restart(self) -> None:
         with self._lock:

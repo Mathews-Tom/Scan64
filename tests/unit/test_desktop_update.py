@@ -9,6 +9,7 @@ import plistlib
 import subprocess
 import sys
 import threading
+import time
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -502,3 +503,29 @@ def test_restart_is_one_shot_and_retryable_on_launch_failure(
     with pytest.raises(update.UpdateError, match="verified"):
         controller.restart()
     assert calls == ["launched"]
+
+
+class StalledClient(update.ReleaseClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def fetch(self, url: str, cap: int) -> bytes:
+        self.entered.set()
+        self.release.wait(30)
+        raise update.UpdateError("stalled")
+
+
+def test_stop_does_not_wait_for_a_stalled_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(update, "STOP_TIMEOUT_SECONDS", 0.2)
+    client = StalledClient()
+    controller = update.UpdateController(tmp_path, "0.4.0", tmp_path / "Scan64.app", client=client)
+    controller.check_background()
+    assert client.entered.wait(5)
+    started = time.monotonic()
+    controller.stop()
+    assert time.monotonic() - started < 2
+    client.release.set()
