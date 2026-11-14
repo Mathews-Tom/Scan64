@@ -72,3 +72,21 @@ class MissedDirectThreatDetector:
                         )
                     )
         return candidates
+
+
+class AllowedMateDetector:
+    async def detect(
+        self,
+        opportunity: LearningOpportunity,
+        evidence: list[Evidence],
+        player_context: PlayerContext,
+    ) -> list[DiagnosisCandidate]:
+        return [
+            DiagnosisCandidate(
+                skill_id="threat_processing.allowed_mate",
+                confidence=1.0,
+                evidence_ids=[ev.evidence_id],
+            )
+            for ev in evidence
+            if ev.kind == "blunder_analysis" and ev.payload.get("blunder_type") == "allowed_mate"
+        ]

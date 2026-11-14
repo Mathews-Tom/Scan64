@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -58,6 +59,64 @@ def _pv_line(analysis: EngineAnalysis) -> list[str]:
     if not isinstance(pv, list) or not all(isinstance(move, str) for move in pv):
         return []
     return pv
+
+
+def mating_line_san(board: Board, line: object, mate_in: object) -> list[str] | None:
+    """Validate the engine's complete mating PV, not a claim from an attack map."""
+    if (
+        not isinstance(mate_in, int)
+        or isinstance(mate_in, bool)
+        or not 1 <= mate_in <= 3
+        or not isinstance(line, list)
+        or len(line) != 2 * mate_in - 1
+    ):
+        return None
+    replay = board.copy(stack=False)
+    san = []
+    for uci in line:
+        if not isinstance(uci, str):
+            return None
+        try:
+            move = Move.from_uci(uci)
+        except ValueError:
+            return None
+        if move not in replay.legal_moves:
+            return None
+        san.append(replay.san(move))
+        replay.push(move)
+    return san if replay.is_checkmate() else None
+
+def needs_mate_source(analysis: EngineAnalysis) -> bool:
+    """Only mate-range replies need the additional million-node source search."""
+    mate = analysis.raw_result[0].get("score_mate") if analysis.raw_result else None
+    return isinstance(mate, int) and not isinstance(mate, bool) and 1 <= mate <= 3
+
+
+def allowed_mate_line(payload: Mapping[str, Any]) -> list[str] | None:
+    """Revalidate the scored source-depth evidence and the complete mating PV."""
+    before_mate = payload.get("before_score_mate")
+    source_config = payload.get("mate_source_config")
+    if (
+        payload.get("blunder_type") != "allowed_mate"
+        or not isinstance(source_config, dict)
+        or source_config.get("nodes") != 1_000_000
+        or not isinstance(payload.get("mate_source_analysis_id"), str)
+        or not (
+            isinstance(before_mate, int) and before_mate > 0
+            or before_mate is None and isinstance(payload.get("before_score_cp"), int)
+        )
+        or payload.get("after_score_mate") != payload.get("mate_in")
+    ):
+        return None
+    fen = payload.get("after_fen")
+    if not isinstance(fen, str):
+        return None
+    try:
+        board = Board(fen)
+    except ValueError:
+        return None
+    return mating_line_san(board, payload.get("mating_line"), payload.get("mate_in"))
+
 
 
 def _piece_value(piece: Piece) -> int:
@@ -276,11 +335,12 @@ def compose_candidate_evidence(
     fast_analysis: EngineAnalysis,
     reply_analysis: EngineAnalysis,
     focused_analysis: EngineAnalysis,
+    mate_source_analysis: EngineAnalysis | None,
     played_move: str,
     swing_cp: int,
     analysis_depth: Literal["deep", "interactive"] = "deep",
 ) -> list[Evidence]:
-    """Use fast source/reply signals; retain focused output only as provenance."""
+    """Use fast local signals; confirm newly allowed mates with a deep source search."""
     analysis_label = "deep MultiPV" if analysis_depth == "deep" else "bounded interactive"
     focused_line = _pv_line(focused_analysis)
     reply_line = _pv_line(reply_analysis)
@@ -314,6 +374,47 @@ def compose_candidate_evidence(
         )
     ]
     mover = before_board.turn
+    before_score = (
+        mate_source_analysis.raw_result[0]
+        if mate_source_analysis is not None and mate_source_analysis.raw_result
+        else {}
+    )
+    after_score = reply_analysis.raw_result[0] if reply_analysis.raw_result else {}
+    before_mate = before_score.get("score_mate")
+    after_mate = after_score.get("score_mate")
+    before_not_mated = (
+        isinstance(before_mate, int)
+        and before_mate > 0
+        or before_mate is None
+        and isinstance(before_score.get("score_cp"), int)
+    )
+    if (
+        mate_source_analysis is not None
+        and mate_source_analysis.config.get("nodes") == 1_000_000
+        and before_not_mated
+        and mating_line_san(after_board, reply_line, after_mate) is not None
+    ):
+        evidence.append(
+            _evidence(
+                kind="blunder_analysis",
+                position_id=position_id,
+                engine_analysis_id=engine_analysis_id,
+                claim="the move newly allows the opponent's engine-proved mate in at most three",
+                payload={
+                    **provenance,
+                    "blunder_type": "allowed_mate",
+                    "mate_rule_version": "m78-focused-source-v1",
+                    "mate_source_analysis_id": str(mate_source_analysis.id),
+                    "mate_source_config": mate_source_analysis.config,
+                    "mate_source_multipv": mate_source_analysis.raw_result,
+                    "before_score_mate": before_mate,
+                    "before_score_cp": before_score.get("score_cp"),
+                    "after_score_mate": after_mate,
+                    "mate_in": after_mate,
+                    "mating_line": reply_line,
+                },
+            )
+        )
     hanging_piece = hanging_piece_proof(after_board, mover, reply_line)
     if hanging_piece is not None and swing_cp >= 200:
         evidence.append(

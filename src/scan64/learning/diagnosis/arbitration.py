@@ -6,6 +6,7 @@ from typing import Any
 from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
+from scan64.learning.evidence.composer import allowed_mate_line
 from scan64.learning.evidence.models import Evidence
 
 
@@ -56,6 +57,8 @@ def _meets_declared_minimum_engine_evidence(
         )
     if requirement == "Blunder causing immediate loss of material.":
         return any(payload.get("opponent_executed_threat") is True for payload in payloads)
+    if requirement == "New opponent forced mate in <=3 with a legal mating PV.":
+        return any(allowed_mate_line(payload) is not None for payload in payloads)
     if requirement == "Sequence involves 3+ plies, eval swings sharply at the end.":
         return any(
             isinstance(payload.get("sequence_plies"), int)
@@ -81,6 +84,14 @@ def arbitrate_diagnoses(
 ) -> tuple[DiagnosisCandidate, tuple[DiagnosisCandidate, ...]] | None:
     """Choose exactly one trusted cause; measurement can inspect all detections."""
     evidence_by_id = {item.evidence_id: item for item in evidence}
+    has_allowed_mate = any(
+        item.kind == "blunder_analysis" and allowed_mate_line(item.payload) is not None
+        for item in evidence_by_id.values()
+    )
+    if has_allowed_mate and trusted_only and "threat_processing.allowed_mate" not in TRUSTED_CODES:
+        # A confirmed mate-allowing move must not become a material diagnosis
+        # just because its accurate cause has not cleared the precision gate.
+        return None
     best_by_skill: dict[str, DiagnosisCandidate] = {}
     for candidate in candidates:
         if candidate.skill_id not in SEED_CODES:
@@ -88,6 +99,12 @@ def arbitrate_diagnoses(
                 f"Diagnosis candidate has an unknown taxonomy code: {candidate.skill_id!r}"
             )
         if trusted_only and candidate.skill_id not in TRUSTED_CODES:
+            continue
+        if has_allowed_mate and candidate.skill_id in {
+            "board_awareness.hanging_piece",
+            "threat_processing.missed_direct_threat",
+            "threat_processing.missed_capture",
+        }:
             continue
         payloads = _candidate_payloads(candidate, evidence_by_id)
         if not _meets_declared_minimum_engine_evidence(candidate, payloads):

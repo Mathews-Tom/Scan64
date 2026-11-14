@@ -7,7 +7,7 @@ import chess
 from chess_lesson_spec import Diagnosis, Explanation
 
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
-from scan64.learning.evidence.composer import hanging_piece_proof
+from scan64.learning.evidence.composer import allowed_mate_line, hanging_piece_proof
 from scan64.learning.evidence.models import Evidence
 
 
@@ -94,6 +94,19 @@ def _missed_direct_threat_text(payload: Mapping[str, Any], code: str) -> str:
     )
 
 
+def _allowed_mate_text(payload: Mapping[str, Any], code: str) -> str:
+    played_move = _field(payload, "played_move", code)
+    mate_in = _field(payload, "mate_in", code)
+    line = allowed_mate_line(payload)
+    if line is None:
+        raise ExplanationTemplateError("The engine line does not prove the claimed checkmate")
+    return (
+        f"After {played_move}, you allow the opponent a forced mate in {mate_in}. "
+        f"The engine's mating line is: {' '.join(line)}. "
+        "Before moving, check the opponent's mating threats and find a move that prevents mate."
+    )
+
+
 def _knight_fork_text(payload: Mapping[str, Any], code: str) -> str:
     played_move = _field(payload, "played_move", code)
     best_move = _field(payload, "best_move", code)
@@ -172,6 +185,7 @@ _TEMPLATES: dict[str, Callable[[Mapping[str, Any], str], str]] = {
     "calculation.stopped_too_early": _stopped_calculation_early_text,
     "opening.delayed_development": _delayed_development_text,
     "positional.king_safety_neglect": _king_safety_neglect_text,
+    "threat_processing.allowed_mate": _allowed_mate_text,
 }
 
 

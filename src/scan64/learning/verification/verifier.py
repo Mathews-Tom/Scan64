@@ -61,7 +61,14 @@ def verify_lesson(spec: LessonSpec, objective_analysis: EngineAnalysis | None = 
         if not spec.interaction.accepted_moves:
             raise LessonVerificationError("Lesson must define at least one accepted move")
         try:
-            objective_moves = sound_moves(board, objective_analysis)
+            objective_moves = sound_moves(
+                board,
+                objective_analysis,
+                avoid_mate=(
+                    spec.diagnosis is not None
+                    and spec.diagnosis.primary == "threat_processing.allowed_mate"
+                ),
+            )
         except ValueError as error:
             raise LessonVerificationError(str(error)) from error
         for accepted_move in spec.interaction.accepted_moves:
