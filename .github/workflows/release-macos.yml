@@ -1,0 +1,191 @@
+name: Release macOS
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (v + pyproject.toml version)
+        required: true
+        type: string
+      dry_run:
+        description: Build and verify without uploading to the GitHub Release
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-macos-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  BROWSER: /usr/bin/true
+
+jobs:
+  build:
+    name: Build macOS arm64 archive
+    runs-on: macos-14
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - name: Require Apple silicon runner
+        run: test "$(uname -m)" = arm64
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: 0.13.6
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Validate release tag against package version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          set +x
+          uv run --no-project --python "$(cat .python-version)" python - <<'PY'
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import tomllib
+          tag = os.environ["RELEASE_TAG"]
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.+-]*", version):
+              raise SystemExit("Unsupported package version")
+          if tag != f"v{version}":
+              raise SystemExit("Release tag does not match pyproject.toml version")
+          commit = subprocess.check_output(["git", "rev-parse", f"refs/tags/{tag}^{{commit}}"])
+          if commit != subprocess.check_output(["git", "rev-parse", "HEAD"]):
+              raise SystemExit("Checkout is not the requested tag")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"tag={tag}\nversion={version}\ncommit={commit.decode().strip()}\n")
+          PY
+      - name: Build unsigned macOS app
+        run: scripts/build-macos-app.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-macos-release-archive
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/Scan64-${{ steps.version.outputs.version }}-macos-arm64.zip
+
+  sign:
+    name: Authenticate release on an isolated runner
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # Bind the trust anchor and signing code to the exact build commit, not a movable tag.
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: 0.13.6
+          # Do not restore wheels from CI jobs that executed build/development code.
+          enable-cache: false
+      - name: Install locked signing dependencies only
+        run: uv sync --locked --no-dev
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: unsigned-macos-release-archive
+          path: dist
+      - name: Write checksum and canonical update manifest
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          set +x
+          cd dist
+          shasum -a 256 "Scan64-${VERSION}-macos-arm64.zip" > "Scan64-${VERSION}-macos-arm64.zip.sha256"
+          cd ..
+          uv run --no-sync python scripts/sign-release.py manifest "dist/Scan64-${VERSION}-macos-arm64.zip" "$VERSION"
+      - name: Sign and verify update manifest
+        env:
+          SCAN64_RELEASE_SIGNING_KEY: ${{ secrets.SCAN64_RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          set +x
+          uv run --no-sync python scripts/sign-release.py sign dist/update.json
+          if [[ -f src/scan64/release_signing_key.pub ]]; then
+            uv run --no-sync python scripts/sign-release.py verify dist/update.json --public-key src/scan64/release_signing_key.pub
+            echo 'Signature verified against the committed public key.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            uv run --no-sync python - <<'PY'
+          import base64
+          from pathlib import Path
+          import runpy
+          signer = runpy.run_path("scripts/sign-release.py")
+          public_key = signer["signing_key"]().public_key().public_bytes_raw()
+          signer["verify_manifest"](
+              Path("dist/update.json"), Path("dist/update.json.sig"),
+              base64.b64encode(public_key).decode("ascii"),
+          )
+          PY
+            echo 'Bootstrap only: committed public key absent; verified in-process against the signing seed-derived public key. Install the matching M75 trust anchor before distributing in-app updates.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Summarize verified release assets
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          set +x
+          {
+            printf '### macOS arm64 release: %s\n\n' "$TAG"
+            printf 'Dry run: %s (no Apple signing/notarization).\n\n' "$DRY_RUN"
+            cat dist/update.json
+            printf '\n\n'
+            cat dist/Scan64-*.zip.sha256
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-release-assets
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/Scan64-${{ needs.build.outputs.version }}-macos-arm64.zip
+            dist/Scan64-${{ needs.build.outputs.version }}-macos-arm64.zip.sha256
+            dist/update.json
+            dist/update.json.sig
+
+  upload:
+    name: Attach verified assets to GitHub Release
+    needs: [build, sign]
+    if: github.event_name == 'release' || !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: macos-release-assets
+          path: assets
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          set +x
+          gh release upload "$RELEASE_TAG" assets/* --clobber
+          printf 'Attached all four verified macOS arm64 assets to %s.\n' "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
