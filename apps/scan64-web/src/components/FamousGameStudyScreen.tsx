@@ -5,6 +5,8 @@ import { DEFAULT_BOT_LEVEL } from '../api/opponent';
 import type { FamousGameDecision, FamousGameRead, PlaySessionRead } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { resolveMove } from './moveEntry';
+import { Button, Field, Panel } from './Primitives';
+import './WorkingScreens.css';
 
 export interface FamousGameStudyScreenProps {
   onPlayFromHere: (session: PlaySessionRead, fen: string) => void;
@@ -198,27 +200,32 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
 
   if (!selectedGame) {
     return (
-      <section className="famous-games-list" data-testid="famous-games-catalogue">
-        <h2 ref={catalogueHeading} tabIndex={-1}>Study Famous Games</h2>
-        {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
-        <ul>
-          {games.map((game) => (
-            <li key={game.id}>
-              <button type="button" onClick={() => selectGame(game)}>
-                {game.payload.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <section className="famous-games-list working-screen" data-testid="famous-games-catalogue">
+          <h2 ref={catalogueHeading} tabIndex={-1}>Study Famous Games</h2>
+          {authorizationError && <div role="alert">Predictions and engine play unavailable: {authorizationError}</div>}
+          <Panel aria-label="Famous games">
+            <ul className="working-list">
+              {games.map((game) => (
+                <li key={game.id}>
+                  <Button onClick={() => selectGame(game)}>
+                    {game.payload.title}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </section>
     );
   }
 
   return (
-    <section className="famous-game-study" data-testid="famous-game-study">
-      <CoachBoard fen={currentFen} disabled testId="famous-game-board" />
-      <div className="controls-section">
-        <h2 ref={studyHeading} tabIndex={-1}>{selectedGame.payload.title}</h2>
+    <section className="famous-game-study working-screen" data-testid="famous-game-study">
+      <h2 ref={studyHeading} tabIndex={-1}>{selectedGame.payload.title}</h2>
+      <div className="board-workspace">
+        <div className="board-workspace__board">
+          <CoachBoard fen={currentFen} disabled testId="famous-game-board" />
+        </div>
+        <Panel className="board-workspace__side working-controls" aria-label="Famous game controls">
         <p>{selectedGame.payload.historical_context}</p>
         <p>{selectedGame.payload.strategic_context}</p>
         {error && <div role="alert">{error}</div>}
@@ -233,8 +240,7 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
           }}>
             <h3>Predict the next move</h3>
             <p>{currentDecision.prompt}</p>
-            <label htmlFor="predict-input">Your move</label>
-            <input
+            <Field label="Your move"
               id="predict-input"
               ref={predictionField}
               aria-describedby={predictionError ? 'prediction-help prediction-error' : 'prediction-help'}
@@ -252,22 +258,25 @@ export function FamousGameStudyScreen({ onPlayFromHere }: FamousGameStudyScreenP
             />
             <p id="prediction-help">Enter strict UCI (e2e4, e7e8q) or canonical English SAN (Nf3, O-O). Include the promotion piece.</p>
             {predictionError && <p id="prediction-error" role="alert">{predictionError}</p>}
-            <button type="submit" disabled={!playerId || submitting || !prediction.trim()}>
-              Submit
-            </button>
-            <button type="button" disabled={submitting} onClick={showHint}>Show Hint</button>
-            <button type="button" disabled={submitting} onClick={showMove}>Show Move</button>
-            <button type="button" disabled={!playerId || submitting} onClick={() => void continueFromHere()}>
-              Continue from here against engine
-            </button>
-            <button type="button" disabled={submitting} onClick={advanceDecision}>
-              {decisionIndex + 1 < selectedGame.payload.decisions.length ? 'Next decision' : 'Complete study'}
-            </button>
+            <div className="working-actions">
+              <Button variant="primary" type="submit" disabled={!playerId || submitting || !prediction.trim()}>
+                Submit
+              </Button>
+              <Button disabled={submitting} onClick={showHint}>Show Hint</Button>
+              <Button disabled={submitting} onClick={showMove}>Show Move</Button>
+              <Button disabled={!playerId || submitting} onClick={() => void continueFromHere()}>
+                Continue from here against engine
+              </Button>
+              <Button disabled={submitting} onClick={advanceDecision}>
+                {decisionIndex + 1 < selectedGame.payload.decisions.length ? 'Next decision' : 'Complete study'}
+              </Button>
+            </div>
           </form>
         )}
 
         {studyComplete && <h3>Game Completed</h3>}
-        <button type="button" disabled={submitting} onClick={() => setSelectedGame(null)}>Back to Games</button>
+        <Button disabled={submitting} onClick={() => setSelectedGame(null)}>Back to Games</Button>
+        </Panel>
       </div>
     </section>
   );

@@ -3,6 +3,8 @@ import { Chess } from 'chess.js';
 import { ApiClient } from '../api/client';
 import { CoachBoard } from './CoachBoard';
 import { resolveMove } from './moveEntry';
+import { Button, Panel } from './Primitives';
+import './WorkingScreens.css';
 
 interface OpeningMission {
   id: string;
@@ -127,39 +129,43 @@ export function OpeningExplorerScreen() {
   };
 
   return (
-    <div className="opening-explorer" data-testid="opening-explorer">
+    <div className="opening-explorer working-screen" data-testid="opening-explorer">
       <h2>Opening Explorer</h2>
       {error && <p role="alert">{error}</p>}
       <p role="status">{status}</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-        <div>
-          <h3>Families</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {SEED_FAMILIES.map(family => (
-              <li key={family.name}>
-                <button onClick={() => loadFamily(family)}>{family.name}</button>
-              </li>
-            ))}
-          </ul>
+      <div className="board-workspace">
+        <div className="board-workspace__board">
+          <CoachBoard fen={fen} pgn={chessRef.current.pgn()} onMove={handleMove} testId="chessground-board" />
         </div>
-        <CoachBoard fen={fen} pgn={chessRef.current.pgn()} onMove={handleMove} testId="chessground-board" />
-        {selectedFamily && (
-          <div data-testid="family-details">
-            <h3>{selectedFamily.name}</h3>
-            <p><strong>Instructional Purpose:</strong> {selectedFamily.instructional_purpose}</p>
-            <h4>Missions</h4>
-            <ul>
-              {selectedFamily.missions.map(mission => (
-                <li key={mission.id}>
-                  <strong>{mission.invariant_type}:</strong> {mission.description}
-                  <button onClick={() => void recordMission(mission)} disabled={sessionId === null}>
-                    {recordedMissionId === mission.id ? 'Recorded' : 'Record mission'}
-                  </button>
+        <Panel className="board-workspace__side working-controls" aria-label="Opening study controls">
+          <section className="working-controls__section">
+            <h3>Families</h3>
+            <ul className="working-list">
+              {SEED_FAMILIES.map(family => (
+                <li key={family.name}>
+                  <Button aria-pressed={selectedFamily?.name === family.name} onClick={() => loadFamily(family)}>{family.name}</Button>
                 </li>
               ))}
             </ul>
-          </div>
-        )}
+          </section>
+          {selectedFamily && (
+            <section className="working-controls__section" data-testid="family-details">
+              <h3>{selectedFamily.name}</h3>
+              <p><strong>Instructional purpose:</strong> {selectedFamily.instructional_purpose}</p>
+              <h4>Missions</h4>
+              <ul className="working-list">
+                {selectedFamily.missions.map(mission => (
+                  <li key={mission.id}>
+                    <p>{mission.description}</p>
+                    <Button onClick={() => void recordMission(mission)} disabled={sessionId === null}>
+                      {recordedMissionId === mission.id ? 'Recorded' : 'Record mission'}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </Panel>
       </div>
     </div>
   );

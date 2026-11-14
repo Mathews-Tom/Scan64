@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import { CoachBoard } from './CoachBoard';
 import type { LessonSpec } from '../api/types';
+import { Panel } from './Primitives';
 
 interface Props {
   lesson: LessonSpec;
@@ -103,7 +104,7 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
   };
 
   return (
-    <div className="critical-moment-review" data-testid="critical-moment-review">
+    <Panel className="critical-moment-review" data-testid="critical-moment-review">
       <h2 ref={heading} tabIndex={-1}>Critical Moment Review</h2>
       <div className="objective">
         <strong>Objective:</strong> {lesson.objective.instruction}
@@ -183,25 +184,25 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         <button type="button" data-testid="request-next-hint" onClick={requestHint}
           disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}>Next hint</button>
         {step < 3 && (
-          <button onClick={handleNextStep} data-testid="next-step-btn">
+          <button className="btn btn--primary" onClick={handleNextStep} data-testid="next-step-btn">
             Continue
           </button>
         )}
         {step === 3 && (
-          <button onClick={handleNextStep} data-testid="request-cue-btn">Request Cue</button>
+          <button className="btn btn--primary" onClick={handleNextStep} data-testid="request-cue-btn">Request Cue</button>
         )}
         {step >= 4 && step <= 5 && (
-          <button onClick={handleNextStep} data-testid="request-assist-btn">
+          <button className="btn btn--primary" onClick={handleNextStep} data-testid="request-assist-btn">
             {hintIndex < lesson.hints.length - 2 ? 'Request Assistance' : 'Show Answer'}
           </button>
         )}
         {step === 6 && (
-          <button onClick={handleNextStep} data-testid="replay-btn">Replay</button>
+          <button className="btn btn--primary" onClick={handleNextStep} data-testid="replay-btn">Replay</button>
         )}
         {step === 7 && (
-          <button onClick={onComplete} data-testid="complete-btn">Finish Review</button>
+          <button className="btn btn--primary" onClick={onComplete} data-testid="complete-btn">Finish Review</button>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }

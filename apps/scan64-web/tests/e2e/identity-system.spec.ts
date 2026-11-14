@@ -19,6 +19,11 @@ for (const width of [1440, 1024, 768, 390]) {
       await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
       await page.evaluate(() => document.fonts.ready);
+      expect(await page.evaluate(async () => Promise.all(['--sans', '--mono'].map(async token => {
+        const family = getComputedStyle(document.documentElement).getPropertyValue(token).split(',')[0].trim();
+        const faces = await document.fonts.load(`16px ${family}`);
+        return faces.length > 0 && faces.every(face => face.status === 'loaded');
+      })))).toEqual([true, true]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       for (const button of await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button').all()) {
         const bounds = await button.boundingBox();
@@ -65,3 +70,17 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 
     await expect(page.getByRole('heading', { name: 'Welcome to Scan64', exact: true })).toBeVisible();
   });
 }
+
+test('System appearance follows the device until explicitly overridden', async ({ page }) => {
+  await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/settings');
+  await expect(page.getByRole('radio', { name: 'System', exact: true })).toBeChecked();
+  expect(await page.locator('html').evaluate(element => getComputedStyle(element).colorScheme)).toBe('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  expect(await page.locator('html').evaluate(element => getComputedStyle(element).colorScheme)).toBe('light');
+  await page.getByRole('radio', { name: 'Dark', exact: true }).check();
+  expect(await page.locator('html').evaluate(element => getComputedStyle(element).colorScheme)).toBe('dark');
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+});

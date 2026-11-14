@@ -7,6 +7,8 @@ import { CriticalMomentReview } from './CriticalMomentReview';
 import { ReviewProbabilityGraph } from './ReviewProbabilityGraph';
 import { diagnosisName } from './diagnosisName';
 import './OwnedGameReview.css';
+import { Panel } from './Primitives';
+import './WorkingScreens.css';
 
 interface Props {
   gameId: string;
@@ -124,21 +126,70 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
   };
 
   const lastPly = review?.moves.at(-1)?.ply ?? 0;
-  return <div className="analysis-screen owned-game-review">
+  return <div className="analysis-screen owned-game-review working-screen">
     <h2 ref={reviewHeading} tabIndex={-1}>Analysis Board</h2>
     {error && <p role="alert">{error}</p>}
     {busy === 'load' && <p role="status">Loading...</p>}
     {busy !== 'load' && <button type="button" onClick={refresh} disabled={busy !== null}>Refresh review</button>}
     {status?.status === 'not_analysed' && <>
       <p data-testid="analysis-not-analysed">This game has not been analysed yet.</p>
-      {(review === null || review.owner_color !== null) && <button type="button" data-testid="start-analysis" onClick={startAnalysis} disabled={busy !== null}>Analyse game</button>}
+      {(review === null || review.owner_color !== null) && <button className="btn btn--primary" type="button" data-testid="start-analysis" onClick={startAnalysis} disabled={busy !== null}>Analyse game</button>}
     </>}
     {(status?.status === 'pending' || status?.status === 'running') && <p data-testid="analysis-in-progress">Analysis is in progress. Refresh review when it completes.</p>}
     {status?.status === 'failed' && <>
       <p data-testid="analysis-failed">Analysis failed.</p>
-      <button type="button" data-testid="retry-analysis" onClick={startAnalysis} disabled={busy !== null}>Retry analysis</button>
+      <button className="btn btn--primary" type="button" data-testid="retry-analysis" onClick={startAnalysis} disabled={busy !== null}>Retry analysis</button>
     </>}
     {review && <>
+      <div className="board-workspace">
+        <section className="board-workspace__board owned-review-board" aria-label="Selected game position">
+          <CoachBoard fen={review.initial_fen} pgn={pgn} selectedPly={selectedPly}
+            onSelectedPlyChange={setSelectedPly} orientation={review.owner_color ?? 'white'} disabled testId="review-board" />
+          <p data-testid="review-selected-position">{selectedPly === 0 ? 'Initial position'
+            : `Ply ${selectedPly}: ${selectedMove?.san}${selectedPly === lastPly ? ' (final position)' : ''}`}</p>
+      <ReviewProbabilityGraph review={review} selectedPly={selectedPly} onSelectedPlyChange={setSelectedPly} />
+        </section>
+        <Panel className="board-workspace__side working-controls" aria-label="Review controls">
+          <nav className="review-controls" aria-label="Replay controls">
+            <button type="button" onClick={() => setSelectedPly(0)} disabled={selectedPly === 0}>First</button>
+            <button type="button" onClick={() => setSelectedPly(ply => ply - 1)} disabled={selectedPly === 0}>Previous</button>
+            <button type="button" onClick={() => setSelectedPly(ply => ply + 1)} disabled={selectedPly === lastPly}>Next</button>
+            <button type="button" onClick={() => setSelectedPly(lastPly)} disabled={selectedPly === lastPly}>Last</button>
+          </nav>
+          <div className="review-controls">
+            <button className={status?.status === 'not_analysed' || status?.status === 'failed' || retryLessonId !== null ? 'btn btn--secondary' : 'btn btn--primary'} type="button" data-testid="play-from-here" disabled={busy !== null || !onPlayFromHere} onClick={playFromHere}>{busy === 'play' ? 'Starting...' : 'Play from here'}</button>
+            <button type="button" onClick={() => navigator.clipboard.writeText(selectedFen!)}>Copy FEN</button>
+            <button type="button" onClick={() => {
+              const url = URL.createObjectURL(new Blob([pgn], { type: 'text/plain' }));
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'analysis.pgn';
+              link.click();
+              URL.revokeObjectURL(url);
+            }}>Download PGN</button>
+          </div>
+          <section aria-label="Every game move" className="review-moves">
+          <h3>Move by move</h3>
+          <p className="muted">Select any move, not just a lesson. ★ marks a trusted key moment.</p>
+          <button type="button" aria-current={selectedPly === 0 ? 'step' : undefined} onClick={() => setSelectedPly(0)}>Initial position</button>
+          <ol data-testid="review-move-list">
+            {review.moves.map(move => <li key={move.ply}>
+              <button type="button" data-testid={`review-move-${move.ply}`} data-band={move.is_owner_move ? move.band ?? 'unscored' : undefined}
+                aria-current={selectedPly === move.ply ? 'step' : undefined} onClick={() => setSelectedPly(move.ply)}>
+                <span>{move.source_fen.split(' ')[5]}{move.mover === 'white' ? '.' : '...'} {move.san}</span>
+                <span>{review.owner_color === null ? `${move.mover === 'white' ? 'White' : 'Black'} · owner unknown`
+                  : move.is_owner_move ? `Your move · ${BAND_LABELS[move.band ?? 'unscored']}` : 'Opponent move'}</span>
+                {review.key_moments.some(moment => moment.ply === move.ply) && <span aria-label="Key moment">★</span>}
+              </button>
+              {move.is_owner_move && <p data-testid={`review-credit-${move.ply}`}>
+                {move.credit ? 'Skill credit · no in-app hint'
+                  : `No skill credit: ${move.credit_exclusion ?? 'credit history unavailable'}`}
+              </p>}
+            </li>)}
+          </ol>
+        </section>
+        </Panel>
+      </div>
       {review.owner_color === null ? <p className="review-notice" data-testid="review-unknown-owner">
         Your side is unknown for this game. Replay and White-perspective scores remain available; owner bands, accuracy and learning attribution are unavailable. Scan64 does not infer or repair your colour.
       </p> : <p>You played {review.owner_color === 'white' ? 'White' : 'Black'}. Bands and accuracy include only your moves.</p>}
@@ -173,53 +224,6 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
           <p>{typeof move.credit?.explanation === 'string' ? move.credit.explanation : 'Stored tactical proof is available for this credited move.'}</p>
         </li>)}</ul>
       </section>
-      <ReviewProbabilityGraph review={review} selectedPly={selectedPly} onSelectedPlyChange={setSelectedPly} />
-      <div className="review-replay-layout">
-        <section className="owned-review-board" aria-label="Selected game position">
-          <CoachBoard fen={review.initial_fen} pgn={pgn} selectedPly={selectedPly}
-            onSelectedPlyChange={setSelectedPly} orientation={review.owner_color ?? 'white'} disabled testId="review-board" />
-          <p data-testid="review-selected-position">{selectedPly === 0 ? 'Initial position'
-            : `Ply ${selectedPly}: ${selectedMove?.san}${selectedPly === lastPly ? ' (final position)' : ''}`}</p>
-          <nav className="review-controls" aria-label="Replay controls">
-            <button type="button" onClick={() => setSelectedPly(0)} disabled={selectedPly === 0}>First</button>
-            <button type="button" onClick={() => setSelectedPly(ply => ply - 1)} disabled={selectedPly === 0}>Previous</button>
-            <button type="button" onClick={() => setSelectedPly(ply => ply + 1)} disabled={selectedPly === lastPly}>Next</button>
-            <button type="button" onClick={() => setSelectedPly(lastPly)} disabled={selectedPly === lastPly}>Last</button>
-          </nav>
-          <div className="review-controls">
-            <button type="button" data-testid="play-from-here" disabled={busy !== null || !onPlayFromHere} onClick={playFromHere}>{busy === 'play' ? 'Starting...' : 'Play from here'}</button>
-            <button type="button" onClick={() => navigator.clipboard.writeText(selectedFen!)}>Copy FEN</button>
-            <button type="button" onClick={() => {
-              const url = URL.createObjectURL(new Blob([pgn], { type: 'text/plain' }));
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = 'analysis.pgn';
-              link.click();
-              URL.revokeObjectURL(url);
-            }}>Download PGN</button>
-          </div>
-        </section>
-        <section aria-label="Every game move" className="review-moves">
-          <h3>Move by move</h3>
-          <p className="muted">Select any move, not just a lesson. ★ marks a trusted key moment.</p>
-          <button type="button" aria-current={selectedPly === 0 ? 'step' : undefined} onClick={() => setSelectedPly(0)}>Initial position</button>
-          <ol data-testid="review-move-list">
-            {review.moves.map(move => <li key={move.ply}>
-              <button type="button" data-testid={`review-move-${move.ply}`} data-band={move.is_owner_move ? move.band ?? 'unscored' : undefined}
-                aria-current={selectedPly === move.ply ? 'step' : undefined} onClick={() => setSelectedPly(move.ply)}>
-                <span>{move.source_fen.split(' ')[5]}{move.mover === 'white' ? '.' : '...'} {move.san}</span>
-                <span>{review.owner_color === null ? `${move.mover === 'white' ? 'White' : 'Black'} · owner unknown`
-                  : move.is_owner_move ? `Your move · ${BAND_LABELS[move.band ?? 'unscored']}` : 'Opponent move'}</span>
-                {review.key_moments.some(moment => moment.ply === move.ply) && <span aria-label="Key moment">★</span>}
-              </button>
-              {move.is_owner_move && <p data-testid={`review-credit-${move.ply}`}>
-                {move.credit ? 'Skill credit · no in-app hint'
-                  : `No skill credit: ${move.credit_exclusion ?? 'credit history unavailable'}`}
-              </p>}
-            </li>)}
-          </ol>
-        </section>
-      </div>
       <section className="review-key-moments" aria-label="Trusted key moments">
         <h3>Key moments</h3>
         <p className="muted">Up to three stored, reverified lessons explain one trusted cause each. Retry starts before the selected move and shares Daily Training's lifetime attempt cap and hinted half credit.</p>

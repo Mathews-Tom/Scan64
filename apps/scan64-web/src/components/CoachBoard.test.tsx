@@ -34,7 +34,7 @@ describe('CoachBoard', () => {
     expect(loadPgn).not.toHaveBeenCalled();
   });
 
-  it('scopes SAN lists to each board and displays move numbers without list markers', () => {
+  it('scopes SAN lists to each board and displays move numbers', () => {
     const chess = new Chess();
     chess.move('e4'); chess.move('e5');
     render(<>
@@ -44,7 +44,6 @@ describe('CoachBoard', () => {
     const list = screen.getByTestId('play-board-san-move-list');
     expect(list).toHaveTextContent('1. e4');
     expect(list).toHaveTextContent('1... e5');
-    expect(list).toHaveStyle({ listStyle: 'none', padding: '0px' });
     expect(screen.getByTestId('lesson-board-san-move-list')).toBeEmptyDOMElement();
   });
 

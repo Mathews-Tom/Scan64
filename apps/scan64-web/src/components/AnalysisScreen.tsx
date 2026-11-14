@@ -6,6 +6,8 @@ import type { PlaySessionRead } from '../api/types';
 import { OwnedGameReview } from './OwnedGameReview';
 import { CoachBoard } from './CoachBoard';
 import { resolveMove } from './moveEntry';
+import { Button, Field, Panel } from './Primitives';
+import './WorkingScreens.css';
 
 interface AnalysisScreenProps {
   gameId?: string;
@@ -76,41 +78,44 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     } finally { setLoading(false); }
   };
 
-  return <div className="analysis-screen">
+  return <div className="analysis-screen working-screen">
     <h2>Analysis Board</h2>
     {error && <p role="alert">{error}</p>}
     <p role="status">{loading ? 'Loading...' : status}</p>
-    <div className="review-replay-layout">
-      <CoachBoard fen={fen} pgn={chess.pgn()} onMove={handleMove} disabled={loading} testId="free-analysis-board" />
-      <div className="analysis-sidebar">
-        <button type="button" onClick={playFromHere} disabled={loading || !onPlayFromHere} data-testid="play-from-here">{loading ? 'Starting...' : 'Play from here'}</button>
-        <div className="fen-setup">
-          <h3>FEN Setup</h3>
-          <label htmlFor="analysis-fen">FEN</label>
-          <input ref={fenField} id="analysis-fen" type="text" value={fenInput} onChange={event => setFenInput(event.target.value)} placeholder="Paste FEN here" style={{ width: '100%' }} />
-          <button type="button" onClick={handleLoadFen}>Load FEN</button>
-        </div>
-        <div className="pgn-export">
-          <h3>Export</h3>
-          <button type="button" onClick={() => {
-            const url = URL.createObjectURL(new Blob([chess.pgn()], { type: 'text/plain' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'analysis.pgn';
-            link.click();
-            URL.revokeObjectURL(url);
-          }}>Download PGN</button>
-          <button type="button" onClick={() => {
-            void navigator.clipboard.writeText(chess.fen())
-              .then(() => setStatus('FEN copied.'))
-              .catch(() => setError('Could not copy FEN.'));
-          }}>Copy FEN</button>
-        </div>
-        <div className="multipv-container" data-testid="multipv-lines">
-          <h3>Engine Evaluation</h3>
-          <p>No engine analysis available for this position.</p>
-        </div>
+    <div className="board-workspace">
+      <div className="board-workspace__board">
+        <CoachBoard fen={fen} pgn={chess.pgn()} onMove={handleMove} disabled={loading} testId="free-analysis-board" />
       </div>
+      <Panel className="board-workspace__side working-controls" aria-label="Analysis controls">
+        <Button variant="primary" onClick={playFromHere} disabled={loading || !onPlayFromHere} data-testid="play-from-here">{loading ? 'Starting...' : 'Play from here'}</Button>
+        <section className="working-controls__section">
+          <h3>FEN setup</h3>
+          <Field ref={fenField} label="FEN" id="analysis-fen" type="text" value={fenInput} onChange={event => setFenInput(event.target.value)} placeholder="Paste FEN here" />
+          <Button onClick={handleLoadFen}>Load FEN</Button>
+        </section>
+        <section className="working-controls__section">
+          <h3>Export</h3>
+          <div className="working-actions">
+            <Button onClick={() => {
+              const url = URL.createObjectURL(new Blob([chess.pgn()], { type: 'text/plain' }));
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'analysis.pgn';
+              link.click();
+              URL.revokeObjectURL(url);
+            }}>Download PGN</Button>
+            <Button onClick={() => {
+              void navigator.clipboard.writeText(chess.fen())
+                .then(() => setStatus('FEN copied.'))
+                .catch(() => setError('Could not copy FEN.'));
+            }}>Copy FEN</Button>
+          </div>
+        </section>
+        <section className="working-controls__section" data-testid="multipv-lines">
+          <h3>Engine evaluation</h3>
+          <p>No engine analysis available for this position.</p>
+        </section>
+      </Panel>
     </div>
   </div>;
 }

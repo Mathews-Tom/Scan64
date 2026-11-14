@@ -378,7 +378,6 @@ it('asks once for a display name before creating the active player', async () =>
   expect(screen.queryByLabelText('Display name')).not.toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Play' }));
-  expect(screen.getByTestId('player-id-input')).toHaveValue(localStorage.getItem('scan64_player_id'));
   const playerId = localStorage.getItem('scan64_player_id')!;
   const createdPlayer = JSON.parse(fetchMock.mock.calls[0][1].body as string) as { display_name: string };
   vi.mocked(ApiClient.getPlayerProfile).mockResolvedValueOnce({

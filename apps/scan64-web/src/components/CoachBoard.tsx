@@ -9,7 +9,7 @@ import { linePosition } from './linePosition';
 import { resolveMove } from './moveEntry';
 
 import 'chessground/assets/chessground.base.css';
-import 'chessground/assets/chessground.brown.css';
+import './Board.css';
 import 'chessground/assets/chessground.cburnett.css';
 
 type Promotion = 'q' | 'r' | 'b' | 'n';
@@ -192,6 +192,12 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     board.current = Chessground(element.current, {
       fen: chess.current.fen(), orientation: latest.current.orientation,
       animation: { enabled: !motion?.matches },
+      drawable: { brushes: {
+        green: { key: 'green', color: 'var(--annotation-best)', opacity: 0.8, lineWidth: 10 },
+        red: { key: 'red', color: 'var(--annotation-threat)', opacity: 0.8, lineWidth: 10 },
+        blue: { key: 'blue', color: 'var(--annotation-alternative)', opacity: 0.8, lineWidth: 10 },
+        yellow: { key: 'yellow', color: 'var(--annotation-alternative)', opacity: 0.8, lineWidth: 10 },
+      } },
       movable: {
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',
         free: false,
@@ -217,14 +223,14 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   const names = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' } as const;
 
   return <div className="coach-board">
-    <div style={{ position: 'relative', width: 'min(400px, 100%)', aspectRatio: '1' }}>
+    <div className="coach-board__frame">
       <div ref={element} data-testid={testId}
         aria-hidden="true"
         aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
-        style={{ width: '100%', height: '100%' }} />
-      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={animationFen ?? chess.current.fen()} />
+        className="coach-board__ground" />
+      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={chess.current.fen()} />
     </div>
-    <VisualizationDescriptions visualizations={visualizations} fen={animationFen ?? chess.current.fen()} />
+    <VisualizationDescriptions visualizations={visualizations} fen={chess.current.fen()} />
     <p role="status" aria-atomic="true">{moving.current ? 'Submitting move.' : <>
       {animationFen || preview ? 'Line preview. ' : controlled ? `Review position ${selectedPly}. ` : ''}
       {!controlled && !animationFen && !preview && announcement ? `${announcement} ` : ''}{result}
@@ -259,7 +265,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
         aria-describedby={`${entryId}-help`} aria-invalid={entryError ? true : undefined}
         onChange={event => { setMoveText(event.target.value); setEntryError(''); }} />
       <p id={`${entryId}-help`}>For example e2e4 or Nf3. Tap two squares or enter a move; dragging is optional.</p>
-      <button type="submit" disabled={blocked}>Make move</button>
+      <button className="btn btn--secondary" type="submit" disabled={blocked}>Make move</button>
     </form>}
     {entryError && <p role="alert">{entryError}</p>}
     {visualizations.filter(visualization => visualization.command === 'animate_line'
@@ -290,8 +296,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       }}>Promote to {piece === 'q' ? 'queen' : piece === 'r' ? 'rook' : piece === 'b' ? 'bishop' : 'knight'}</button>)}
       <button type="button" onClick={cancelPromotion}>Cancel promotion</button>
     </div>}
-    <ol aria-label="Moves" data-testid={`${testId}-san-move-list`}
-      style={{ listStyle: 'none', padding: 0, maxHeight: '12rem', overflowY: 'auto' }}>
+    <ol aria-label="Moves" data-testid={`${testId}-san-move-list`} className="coach-board__moves">
       {controlled && <li><button type="button" aria-current={selectedPly === 0 ? 'step' : undefined}
         disabled={onSelectedPlyChange === undefined} onClick={() => onSelectedPlyChange?.(0)}>Initial position</button></li>}
       {moves.map((move, index) => <li key={index}>

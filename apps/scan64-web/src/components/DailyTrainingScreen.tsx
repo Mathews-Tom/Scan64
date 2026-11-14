@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import type { LessonSpec } from '../api/types';
 import { CoachBoard } from './CoachBoard';
+import { Button, Panel } from './Primitives';
+import './WorkingScreens.css';
 
 export const DailyTrainingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -91,22 +93,29 @@ export const DailyTrainingScreen: React.FC = () => {
     startedAt.current = performance.now();
   };
 
-  return <div className="daily-training-screen">
-    <h2 ref={heading} tabIndex={-1}>Daily Training</h2><p role="status" aria-label="Lesson progress">Lesson {currentIndex + 1} of {sessionLessons.length}</p>
-    <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
-      orientation={lesson.source.fen.split(' ')[1] === 'b' ? 'black' : 'white'}
-      resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
-      visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
-      onMove={submitMove} />
-    <div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>
-    <div role="status" aria-atomic="true">{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}</div>
-    <button type="button" data-testid="request-hint-button"
-      disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}
-      onClick={() => setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1))}>
-      Next hint
-    </button>
-    <div role="status" aria-atomic="true">{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}</div>
-    {finished && <section data-testid="lesson-explanation"><h3>Explanation</h3><p>{lesson.explanation?.text}</p></section>}
-    <button data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</button>
+  return <div className="daily-training-screen working-screen">
+    <h2 ref={heading} tabIndex={-1}>Daily Training</h2>
+    <div className="board-workspace">
+      <div className="board-workspace__board">
+        <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
+          orientation={lesson.source.fen.split(' ')[1] === 'b' ? 'black' : 'white'}
+          resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
+          visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
+          onMove={submitMove} />
+      </div>
+      <Panel className="board-workspace__side working-controls" aria-label="Training controls">
+        <p role="status" aria-label="Lesson progress">Lesson {currentIndex + 1} of {sessionLessons.length}</p>
+        <div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>
+        <div role="status" aria-atomic="true">{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}</div>
+        <Button data-testid="request-hint-button"
+          disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}
+          onClick={() => setHintIndex(value => Math.min(value + 1, lesson.hints.length - 1))}>
+          Next hint
+        </Button>
+        <div role="status" aria-atomic="true">{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}</div>
+        {finished && <section data-testid="lesson-explanation"><h3>Explanation</h3><p>{lesson.explanation?.text}</p></section>}
+        <Button variant="primary" data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</Button>
+      </Panel>
+    </div>
   </div>;
 };
