@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-14
+
+### Changed
+
+- The macOS app retries an update check interrupted by a network error after a few seconds, then again within the hour if the connection is still failing, instead of waiting a day. Rejected updates (bad signature, checksum or version) are not retried.
+
+### Fixed
+
+- **Missed capture** is no longer reported when the player actually made the recommended capture. A pre-registered re-test on fresh real games kept the diagnosis trusted.
+
 ## [0.6.0] - 2026-11-14
 
 ### Added
