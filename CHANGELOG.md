@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-14
+
+### Fixed
+
+- The macOS app's updater can read GitHub release information. In 0.5.0 every check failed with "Update failed", so 0.5.0 users must install 0.5.1 manually once.
+- Release builds of the macOS app no longer fail on GitHub's anonymous API rate limit.
+
 ## [0.5.0] - 2026-11-14
 
 ### Added
