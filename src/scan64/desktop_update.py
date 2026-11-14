@@ -34,11 +34,21 @@ from packaging.version import InvalidVersion, Version
 LATEST_URL = "https://api.github.com/repos/Mathews-Tom/Scan64/releases/latest"
 RELEASE_URL = "https://github.com/Mathews-Tom/Scan64/releases/latest"
 STOP_TIMEOUT_SECONDS = 2.0
+CHECK_RETRY_DELAYS: tuple[float, ...] = (5.0, 30.0)
+FAILED_CHECK_RETRY_SECONDS = 60.0 * 60
+DAILY_CHECK_SECONDS = 24.0 * 60 * 60
 LOGGER = logging.getLogger(__name__)
 
 
 class UpdateError(ValueError):
     """An update cannot safely be used."""
+
+
+def is_transient(error: BaseException) -> bool:
+    """Connection drops and server-side errors may succeed on retry; rejections never."""
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code == 429 or error.response.status_code >= 500
+    return isinstance(error, (httpx.TransportError, TimeoutError, ConnectionError))
 
 
 @dataclass(frozen=True)
@@ -430,6 +440,7 @@ class UpdateController:
         self._wake = threading.Event()
         self._scheduler: threading.Thread | None = None
         self._worker: threading.Thread | None = None
+        self._transient_failure = False
         self._manifest: Manifest | None = None
         self._staged: Path | None = None
         self._state: dict[str, Any] = {
@@ -463,44 +474,62 @@ class UpdateController:
         try:
             if self.snapshot()["status"] == "ready":
                 return
-            self._set("checking", "Checking")
-            tag, assets = release_assets(
-                json.loads(self.client.fetch(self.release_url, 2 * 1024 * 1024))
-            )
-            if "update.json" not in assets or "update.json.sig" not in assets:
-                raise UpdateError("Release is missing signed update metadata")
-            manifest = verify_manifest(
-                self.client.fetch(assets["update.json"], 65536),
-                self.client.fetch(assets["update.json.sig"], 1024),
-                self.public_key,
-                tag,
-                self.current_version,
-            )
-            if manifest is None:
-                self._set("idle", "Up to date")
-                return
-            if manifest.asset not in assets:
-                raise UpdateError("Release is missing its signed archive")
-            directory = self.data / "updates" / manifest.version
-            self._set("downloading", "Downloading 0%", manifest.version)
-            archive = download_archive(
-                self.client,
-                assets[manifest.asset],
-                manifest,
-                directory,
-                lambda percent: self._set(
-                    "downloading", f"Downloading {percent}%", manifest.version
-                ),
-                self._stop,
-            )
-            staged = stage_archive(archive, manifest, directory)
-            self._manifest, self._staged = manifest, staged
-            self._set("ready", "Ready — Restart to update", manifest.version)
-        except Exception as error:
-            LOGGER.warning("Update rejected: %s", error)
-            self._set("failed", f"Update failed: {error}")
+            self._transient_failure = False
+            # Network blips (e.g. a dropped TLS handshake) are retried promptly;
+            # rejected metadata or archives are never retried within a check.
+            for delay in (*CHECK_RETRY_DELAYS, None):
+                try:
+                    self._attempt()
+                    return
+                except Exception as error:
+                    if not is_transient(error):
+                        LOGGER.warning("Update rejected: %s", error)
+                        self._set("failed", f"Update failed: {error}")
+                        return
+                    LOGGER.warning("Update check interrupted: %s", error)
+                    if delay is None or self._stop.wait(delay):
+                        self._transient_failure = True
+                        self._set("failed", f"Update failed: {error}")
+                        return
         finally:
             self._check_lock.release()
+
+    def _attempt(self) -> None:
+        self._set("checking", "Checking")
+        tag, assets = release_assets(
+            json.loads(self.client.fetch(self.release_url, 2 * 1024 * 1024))
+        )
+        if "update.json" not in assets or "update.json.sig" not in assets:
+            raise UpdateError("Release is missing signed update metadata")
+        manifest = verify_manifest(
+            self.client.fetch(assets["update.json"], 65536),
+            self.client.fetch(assets["update.json.sig"], 1024),
+            self.public_key,
+            tag,
+            self.current_version,
+        )
+        if manifest is None:
+            self._set("idle", "Up to date")
+            return
+        if manifest.asset not in assets:
+            raise UpdateError("Release is missing its signed archive")
+        directory = self.data / "updates" / manifest.version
+        self._set("downloading", "Downloading 0%", manifest.version)
+        archive = download_archive(
+            self.client,
+            assets[manifest.asset],
+            manifest,
+            directory,
+            lambda percent: self._set("downloading", f"Downloading {percent}%", manifest.version),
+            self._stop,
+        )
+        staged = stage_archive(archive, manifest, directory)
+        self._manifest, self._staged = manifest, staged
+        self._set("ready", "Ready — Restart to update", manifest.version)
+
+    def next_check_delay(self) -> float:
+        """A check that ended on a network failure retries within the hour."""
+        return FAILED_CHECK_RETRY_SECONDS if self._transient_failure else DAILY_CHECK_SECONDS
 
     def check_background(self) -> None:
         with self._lock:
@@ -522,7 +551,11 @@ class UpdateController:
                     return
                 if self.snapshot()["automatic_updates"]:
                     self.check_background()
-                delay = 24 * 60 * 60
+                    # Base the next delay on this check's outcome, not the last one.
+                    worker = self._worker
+                    while worker is not None and worker.is_alive() and not self._stop.is_set():
+                        worker.join(timeout=0.1)
+                delay = self.next_check_delay()
 
         self._scheduler = threading.Thread(
             target=schedule, name="scan64-update-schedule", daemon=True

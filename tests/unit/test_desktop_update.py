@@ -551,3 +551,98 @@ def test_stop_does_not_wait_for_a_stalled_check(
     controller.stop()
     assert time.monotonic() - started < 2
     client.release.set()
+
+
+class FlakyClient(update.ReleaseClient):
+    """Fails the first `failures` metadata reads, then serves an up-to-date release."""
+
+    def __init__(self, failures: int, error: Exception) -> None:
+        super().__init__()
+        self.failures = failures
+        self.error = error
+        self.calls = 0
+
+    def fetch(self, url: str, cap: int) -> bytes:
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise self.error
+        return json.dumps({"tag_name": "v0.4.0", "assets": []}).encode()
+
+
+def drop() -> httpx.ConnectError:
+    return httpx.ConnectError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred")
+
+
+def test_transient_failures_are_retried_within_one_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(update, "CHECK_RETRY_DELAYS", (0.0, 0.0))
+    client = FlakyClient(2, drop())
+    controller = update.UpdateController(tmp_path, "0.4.0", None, client=client)
+    controller.check()
+    assert client.calls == 3
+    # The release lacks signed metadata, so the third attempt reaches verification.
+    assert controller.snapshot()["message"] == (
+        "Update failed: Release is missing signed update metadata"
+    )
+    assert controller.next_check_delay() == update.DAILY_CHECK_SECONDS
+
+
+def test_persistent_network_failure_retries_within_the_hour(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(update, "CHECK_RETRY_DELAYS", (0.0, 0.0))
+    client = FlakyClient(10, drop())
+    controller = update.UpdateController(tmp_path, "0.4.0", None, client=client)
+    controller.check()
+    assert client.calls == 3
+    assert controller.snapshot()["status"] == "failed"
+    assert controller.next_check_delay() == update.FAILED_CHECK_RETRY_SECONDS
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        update.UpdateError("Archive digest does not match manifest"),
+        httpx.HTTPStatusError(
+            "415",
+            request=httpx.Request("GET", "https://api.github.com"),
+            response=httpx.Response(415),
+        ),
+    ],
+)
+def test_rejections_are_not_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    monkeypatch.setattr(update, "CHECK_RETRY_DELAYS", (0.0, 0.0))
+    client = FlakyClient(10, error)
+    controller = update.UpdateController(tmp_path, "0.4.0", None, client=client)
+    controller.check()
+    assert client.calls == 1
+    assert controller.next_check_delay() == update.DAILY_CHECK_SECONDS
+
+
+@pytest.mark.parametrize("status,transient", [(429, True), (503, True), (403, False), (404, False)])
+def test_http_status_classification(status: int, transient: bool) -> None:
+    error = httpx.HTTPStatusError(
+        str(status),
+        request=httpx.Request("GET", "https://api.github.com"),
+        response=httpx.Response(status),
+    )
+    assert update.is_transient(error) is transient
+
+
+def test_stop_is_prompt_while_scheduler_waits_on_a_stalled_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(update, "STOP_TIMEOUT_SECONDS", 0.5)
+    client = StalledClient()
+    controller = update.UpdateController(tmp_path, "0.4.0", tmp_path / "Scan64.app", client=client)
+    controller._wake.set()  # skip the startup delay
+    controller.start()
+    assert client.entered.wait(10)
+    started = time.monotonic()
+    controller.stop()
+    # One stop timeout for the stalled worker; the scheduler must not add another.
+    assert time.monotonic() - started < 0.9
+    client.release.set()
