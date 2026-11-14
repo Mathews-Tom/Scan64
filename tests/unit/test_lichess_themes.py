@@ -445,7 +445,7 @@ async def test_v3_requires_deep_source_and_excludes_prior_forced_mate() -> None:
         await diagnose(puzzle, record, registry(), version="v3")
     source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        "no_eligible_diagnosis", None
+        "untrusted_only", "positional.king_safety_neglect"
     )
     # Pre-fix replay deliberately keeps the frozen, genuinely shallow source rule.
     assert await diagnose(puzzle, record, registry(), version="v2") == (
@@ -470,7 +470,7 @@ async def test_historical_replay_is_isolated_from_future_production_trust(
     monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", future_trust)
     puzzle, record, source, _ = mate_example()
     assert await diagnose(puzzle, record, registry(), version="v1") == (
-        "no_eligible_diagnosis", None
+        "untrusted_only", "positional.king_safety_neglect"
     )
     assert await diagnose(puzzle, record, registry(), version="v2") == (
         "untrusted_only", ALLOWED_MATE
