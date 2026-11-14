@@ -24,6 +24,7 @@ mkdir -p "$stage/stockfish" "$stage/bin" "$stage/source"
 uv run --no-sync python - "$stage" <<'PY'
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -36,9 +37,15 @@ stage = Path(sys.argv[1])
 build = (Path(sys.base_prefix) / "BUILD").read_text().strip()
 version = ".".join(str(value) for value in sys.version_info[:3])
 name = f"cpython-{version}+{build}-aarch64-apple-darwin-pgo+lto-full.tar.zst"
-with urllib.request.urlopen(
-    f"https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/{build}"
-) as response:
+request = urllib.request.Request(
+    f"https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/{build}",
+    headers={"Accept": "application/vnd.github+json"},
+)
+# Shared CI runner addresses exhaust the anonymous API limit; use a token when given.
+token = os.environ.get("GITHUB_TOKEN")
+if token:
+    request.add_header("Authorization", f"Bearer {token}")
+with urllib.request.urlopen(request, timeout=60) as response:
     release = json.load(response)
 asset = next(item for item in release["assets"] if item["name"] == name)
 expected = asset["digest"].removeprefix("sha256:")
