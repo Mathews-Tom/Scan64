@@ -66,7 +66,9 @@ async def analyze_lesson_source(
     if initial_analysis is not None and (
         initial_analysis.config.get("nodes") != nodes or initial_multipv not in (2, 4, 8)
     ):
-        raise ValueError("Reusable source analysis must have the same node budget and MultiPV 2/4/8")
+        raise ValueError(
+            "Reusable source analysis must have the same node budget and MultiPV 2/4/8"
+        )
     for multipv in (2, 4, 8):
         if isinstance(initial_multipv, int) and initial_multipv > multipv:
             continue

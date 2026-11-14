@@ -374,9 +374,7 @@ def _historical_arbitrate(
 ) -> tuple[DiagnosisCandidate, tuple[DiagnosisCandidate, ...]] | None:
     """Freeze v1/v2 trust-dependent precedence without weakening production rules."""
     legacy_ids = {
-        item.evidence_id
-        for item in evidence
-        if item.evidence_id.startswith("m77-v2-legacy:")
+        item.evidence_id for item in evidence if item.evidence_id.startswith("m77-v2-legacy:")
     }
     mates = [
         candidate
@@ -452,9 +450,7 @@ async def diagnose(
         swing_cp=candidate.swing_cp,
     )
     if version != "v3":
-        evidence = [
-            item for item in evidence if item.payload.get("blunder_type") != "allowed_mate"
-        ]
+        evidence = [item for item in evidence if item.payload.get("blunder_type") != "allowed_mate"]
         if version == "v2":
             legacy = _legacy_allowed_mate_evidence(
                 puzzle, candidate.before_analysis, candidate.after_analysis, evidence[0]

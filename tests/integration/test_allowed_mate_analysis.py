@@ -43,7 +43,9 @@ class RecordedMateAdapter:
         if nodes == 10_000 and multipv == 1:
             raw = self.case["before"] if fen == self.case["fen"] else self.case["after"]
         elif nodes == 1_000_000 and multipv == 4:
-            raw = self.case["mate_source"] if fen == self.case["fen"] else self.case["focused_after"]
+            raw = (
+                self.case["mate_source"] if fen == self.case["fen"] else self.case["focused_after"]
+            )
         else:
             raise AssertionError(f"Unrecorded analysis request: {fen}, {nodes}, {multipv}")
         assert fen in {self.case["fen"], self.after_fen}
@@ -62,19 +64,24 @@ async def test_source_proof_persisted_and_material_suppression(
     registry = PluginRegistry()
     register_seeded_detectors(registry)
     game = Game(
-        pgn="", headers={"FEN": adapter.case["fen"]}, moves=[adapter.case["move"]],
-        owner_color="white", owner_player_id="fixture-player",
+        pgn="",
+        headers={"FEN": adapter.case["fen"]},
+        moves=[adapter.case["move"]],
+        owner_color="white",
+        owner_player_id="fixture-player",
     )
     db_session.add(game)
     db_session.commit()
     await jobs.run_analysis_for_game(game, db_session, registry)
 
     proof = next(
-        item for item in db_session.exec(select(Evidence)).all()
+        item
+        for item in db_session.exec(select(Evidence)).all()
         if item.payload.get("blunder_type") == "allowed_mate"
     )
     source = next(
-        item for item in db_session.exec(select(EngineAnalysis)).all()
+        item
+        for item in db_session.exec(select(EngineAnalysis)).all()
         if str(item.id) == proof.payload["mate_source_analysis_id"]
     )
     assert source.config["nodes"] == 1_000_000
@@ -83,9 +90,10 @@ async def test_source_proof_persisted_and_material_suppression(
     assert (adapter.case["fen"], 1_000_000, 2) not in adapter.requests
     reviews = db_session.exec(select(GameMoveReview).where(GameMoveReview.game_id == game.id)).all()
     assert len(reviews) == 1
-    assert review_band(
-        review_loss(reviews[0].before_probability, reviews[0].after_probability)
-    ) == "blunder"
+    assert (
+        review_band(review_loss(reviews[0].before_probability, reviews[0].after_probability))
+        == "blunder"
+    )
     lessons = db_session.exec(
         select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.game_id == game.id)
     ).all()

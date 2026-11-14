@@ -66,9 +66,7 @@ def test_fresh80_is_separate_fixed_holdout() -> None:
     assert fresh["provenance"]["preregistration_commit"] == "c4490fa"
     assert fresh["provenance"]["engine"] == original["provenance"]["engine"]
     assert fresh["provenance"]["source_sha256"] == original["provenance"]["source_sha256"]
-    assert not {game["id"] for game in original["games"]} & {
-        game["id"] for game in fresh["games"]
-    }
+    assert not {game["id"] for game in original["games"]} & {game["id"] for game in fresh["games"]}
     pgn = FRESH_CORPUS.with_name("fresh80_real_games.pgn")
     assert hashlib.sha256(pgn.read_bytes()).hexdigest() == fresh["provenance"]["pgn_sha256"]
     assert FRESH_CORPUS.stat().st_size <= 8_000_000

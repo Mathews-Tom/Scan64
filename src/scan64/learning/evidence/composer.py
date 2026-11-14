@@ -86,6 +86,7 @@ def mating_line_san(board: Board, line: object, mate_in: object) -> list[str] | 
         replay.push(move)
     return san if replay.is_checkmate() else None
 
+
 def needs_mate_source(analysis: EngineAnalysis) -> bool:
     """Only mate-range replies need the additional million-node source search."""
     mate = analysis.raw_result[0].get("score_mate") if analysis.raw_result else None
@@ -102,8 +103,10 @@ def allowed_mate_line(payload: Mapping[str, Any]) -> list[str] | None:
         or source_config.get("nodes") != 1_000_000
         or not isinstance(payload.get("mate_source_analysis_id"), str)
         or not (
-            isinstance(before_mate, int) and before_mate > 0
-            or before_mate is None and isinstance(payload.get("before_score_cp"), int)
+            isinstance(before_mate, int)
+            and before_mate > 0
+            or before_mate is None
+            and isinstance(payload.get("before_score_cp"), int)
         )
         or payload.get("after_score_mate") != payload.get("mate_in")
     ):
@@ -116,7 +119,6 @@ def allowed_mate_line(payload: Mapping[str, Any]) -> list[str] | None:
     except ValueError:
         return None
     return mating_line_san(board, payload.get("mating_line"), payload.get("mate_in"))
-
 
 
 def _piece_value(piece: Piece) -> int:

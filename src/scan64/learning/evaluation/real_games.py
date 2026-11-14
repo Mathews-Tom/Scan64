@@ -148,11 +148,15 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 )
                 predicted = arbitrate_diagnoses(detected, evidence, trusted_only=False) is not None
                 if any(allowed_mate_line(item.payload) is not None for item in evidence):
-                    if code in {
-                        "board_awareness.hanging_piece",
-                        "threat_processing.missed_direct_threat",
-                        "threat_processing.missed_capture",
-                    } and predicted:
+                    if (
+                        code
+                        in {
+                            "board_awareness.hanging_piece",
+                            "threat_processing.missed_direct_threat",
+                            "threat_processing.missed_capture",
+                        }
+                        and predicted
+                    ):
                         raise AssertionError("Confirmed mate was emitted as a material diagnosis")
                 if predicted:
                     if code in labels:
@@ -186,7 +190,10 @@ def main() -> None:
     args = parser.parse_args()
     scores = asyncio.run(measure())
     fresh_scores = asyncio.run(measure(FRESH_CORPUS))
-    for name, measured in (("original40 development post-fix", scores), ("fresh80 holdout", fresh_scores)):
+    for name, measured in (
+        ("original40 development post-fix", scores),
+        ("fresh80 holdout", fresh_scores),
+    ):
         print(name)
         print("skill code                              precision support TP FP FN trusted")
         for code, score in measured.items():

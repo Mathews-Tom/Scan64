@@ -142,7 +142,8 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
     engine_name = ""
     original_engine = (
         json.loads((DEST / "recorded.json").read_text())["provenance"]["engine"]
-        if fresh80 else None
+        if fresh80
+        else None
     )
     try:
         for index, game in enumerate(selected if fresh80 else [*selected, reference]):
@@ -224,7 +225,8 @@ async def record(source: Path, *, fresh80: bool = False) -> None:
             "game_count": len(selected),
             "selection": (
                 "Next 80 qualifying games after original40; qualifying ordinal 41..120."
-                if fresh80 else "First 40 qualifying games."
+                if fresh80
+                else "First 40 qualifying games."
             ),
             "preregistration_commit": "c4490fa" if fresh80 else None,
             "engine": engine_name,
@@ -256,6 +258,7 @@ if __name__ == "__main__":
     parser.add_argument("--fresh80", action="store_true")
     args = parser.parse_args()
     asyncio.run(
-        augment_before(args.source) if args.augment_before
+        augment_before(args.source)
+        if args.augment_before
         else record(args.source, fresh80=args.fresh80)
     )

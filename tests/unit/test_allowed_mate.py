@@ -65,8 +65,13 @@ async def detect(evidence: list[Evidence]) -> list[DiagnosisCandidate]:
     registry = PluginRegistry()
     register_seeded_detectors(registry)
     opportunity = LearningOpportunity(
-        opportunity_id="mate", game_id="recorded", position_id="mate", player_id="p",
-        played_move="recorded", engine_eval_before=0.0, engine_eval_after=-10.0,
+        opportunity_id="mate",
+        game_id="recorded",
+        position_id="mate",
+        player_id="p",
+        played_move="recorded",
+        engine_eval_before=0.0,
+        engine_eval_after=-10.0,
     )
     candidates = []
     for name in registry.names(kind=PluginKind.PATTERN_DETECTOR):

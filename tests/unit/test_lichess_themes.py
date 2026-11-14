@@ -370,9 +370,7 @@ def mate_example() -> tuple[Puzzle, PuzzleRecording, SourcePuzzleRecording, Sour
             nodes=1000000,
             multipv=4,
         ),
-        lines=[
-            RecordedLine(pv=[uci], score_cp=0) for uci in ("b1c3", "g1h3", "a2a3", "h2h3")
-        ],
+        lines=[RecordedLine(pv=[uci], score_cp=0) for uci in ("b1c3", "g1h3", "a2a3", "h2h3")],
     )
     sources = SourceRecording(
         provenance=SourceRecordingProvenance(
@@ -404,9 +402,17 @@ def test_source_recording_checks_exact_coverage_ids_fen_engine_and_pvs() -> None
             update={"puzzles": [source.model_copy(update={"source_fen": chess.STARTING_FEN})]}
         ),
         sources.model_copy(
-            update={"puzzles": [source.model_copy(update={"analysis_id": source_analysis_id(
-                replace(puzzle, puzzle_id="different")
-            )})]}
+            update={
+                "puzzles": [
+                    source.model_copy(
+                        update={
+                            "analysis_id": source_analysis_id(
+                                replace(puzzle, puzzle_id="different")
+                            )
+                        }
+                    )
+                ]
+            }
         ),
     ):
         with pytest.raises(ValueError):
@@ -445,11 +451,13 @@ async def test_v3_requires_deep_source_and_excludes_prior_forced_mate() -> None:
         await diagnose(puzzle, record, registry(), version="v3")
     source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        "untrusted_only", "positional.king_safety_neglect"
+        "untrusted_only",
+        "positional.king_safety_neglect",
     )
     # Pre-fix replay deliberately keeps the frozen, genuinely shallow source rule.
     assert await diagnose(puzzle, record, registry(), version="v2") == (
-        "untrusted_only", ALLOWED_MATE
+        "untrusted_only",
+        ALLOWED_MATE,
     )
     with pytest.raises(ValueError, match="Historical"):
         await diagnose(puzzle, record, registry(), version="v2", source=source)
@@ -470,13 +478,16 @@ async def test_historical_replay_is_isolated_from_future_production_trust(
     monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", future_trust)
     puzzle, record, source, _ = mate_example()
     assert await diagnose(puzzle, record, registry(), version="v1") == (
-        "untrusted_only", "positional.king_safety_neglect"
+        "untrusted_only",
+        "positional.king_safety_neglect",
     )
     assert await diagnose(puzzle, record, registry(), version="v2") == (
-        "untrusted_only", ALLOWED_MATE
+        "untrusted_only",
+        ALLOWED_MATE,
     )
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        ALLOWED_MATE, None
+        ALLOWED_MATE,
+        None,
     )
     frozen = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
     assert score(frozen, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
@@ -500,8 +511,7 @@ def test_v3_render_keeps_same_mapping_intervals_and_both_historical_comparisons(
     assert f"| `{ALLOWED_MATE}` | N/A | N/A | N/A | N/A |" in output
     assert f"| `{HANGING}` | -1 | -1 | +0.0000 | -0.5000 |" in output
     assert (
-        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | "
-        "0.5000 | [0.0945, 0.9055] |"
+        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | 0.5000 | [0.0945, 0.9055] |"
     ) in output
     assert output == render_v3_results(
         list(reversed(outcomes)), baseline, baseline, provenance(), sources, "source-hash"
@@ -530,11 +540,13 @@ async def test_v3_untrusted_mate_suppresses_material_but_historical_versions_do_
     assert await diagnose(puzzle, record, registry(), version="v1") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v2") == (HANGING, None)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        "untrusted_only", ALLOWED_MATE
+        "untrusted_only",
+        ALLOWED_MATE,
     )
     source.lines[0] = RecordedLine(pv=["b1c3"], score_mate=-6)
     assert await diagnose(puzzle, record, registry(), version="v3", source=source) == (
-        HANGING, None
+        HANGING,
+        None,
     )
 
 
