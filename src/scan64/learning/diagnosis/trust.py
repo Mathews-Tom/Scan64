@@ -2,9 +2,10 @@
 
 Promote only with precision >= 0.80 and support (TP + FP) >= 10. CI checks
 these declared codes, rather than silently shrinking trust on a regression.
-Allowed mate is gated on the fixed fresh80 holdout alone; the original four
-codes retain the original40 gate. Source-side search evidence is shared by
-the corrected allowed-mate detector and reference, not independently proven.
+Allowed mate is gated on M78 fresh80 and missed capture on M79 fresh80 alone;
+the other three established codes retain the original40 gate. Source-side search
+evidence is shared by the corrected allowed-mate detector and reference, not
+independently proven.
 No independent human review is implied (development-plan gap G2).
 """
 

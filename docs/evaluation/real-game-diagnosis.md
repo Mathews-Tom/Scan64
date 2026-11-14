@@ -3,9 +3,10 @@
 ## M79 missed-capture investigation and preregistration
 
 The original40 and M78 fresh80 are now **development data for missed capture**,
-not evidence for its next trust decision. This section is frozen before recording
-or measuring the M79 holdout. Historical measurements below and all M77 v1–v3
-fixtures/reports remain unchanged.
+not evidence for its next trust decision. Selection and the production detector fix
+were committed before recording; the separately disclosed reference amendment was
+committed before any new-set measurement. Historical measurements below and all
+M77 v1–v3 fixtures/reports remain unchanged.
 
 ### Definition and false-positive attribution
 
@@ -176,6 +177,71 @@ Even if capture remains trusted, an old lesson cannot recommend the very move
 the player made. The comparison does not modify stored lesson/evidence bytes.
 A taken-capture regression and an omitted-capture control cover that read path.
 This read-time extension does not change recording or detector measurement.
+
+## M79 fresh80 measured result and trust decision
+
+Selection/production preregistration: `4afbe47d09138606ecd7d3dbabc4659e1ef2c6ed`.
+Premeasurement reference amendment: `f0521e1cbd6772f52befdfc3b5bd3379cf0c8125`.
+Historical-restoration safeguards: `10ed1d1`; read-time identity exclusion: `08bd25a`.
+The raw recording embeds the selection preregistration, not the later reference
+amendment, because recording contains engine output only.
+
+The checksum-verified source yielded **exactly ordinals 121–200: 80 games,
+4,946 plies, 798 candidate moves**. Stockfish 19, one thread, 16 MB hash,
+10,000-node fast searches and separately reset 1,000,000-node MultiPV-4 source/
+reply searches match both earlier corpora. The two earlier game-ID prefixes were
+verified. No hand-selection, extension, early stopping or outcome filtering occurred.
+
+Separate fixtures: `tests/fixtures/m48/m79_fresh80_recorded.json` and
+`tests/fixtures/m48/m79_fresh80_real_games.pgn`. SHA256, respectively:
+`36f4ab102c418ef5eeeedf8a8733638623d643321f4b5741143c98f0284167a7`;
+`958ee8358bff5d271788225eb03b0977d80921b395cd41d0843fcce3e5e7cd16`.
+All four earlier corpus/PGN checksums still match the M78 values below.
+
+| Code | Precision | Support | TP | FP | FN | Meets numeric gate |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `board_awareness.hanging_piece` | 0.882 | 127 | 112 | 15 | 30 | yes |
+| `threat_processing.missed_check` | 0.953 | 64 | 61 | 3 | 28 | yes |
+| `threat_processing.missed_capture` | **0.839** | **93** | **78** | **15** | **29** | **yes** |
+| `threat_processing.missed_direct_threat` | 0.826 | 195 | 161 | 34 | 65 | yes |
+| `tactics.fork.knight` | 0.750 | 4 | 3 | 1 | 2 | no |
+| `tactics.pin` | 0.046 | 65 | 3 | 62 | 1 | no |
+| `tactics.overloaded_defender` | 0.020 | 152 | 3 | 149 | 0 | no |
+| `calculation.stopped_too_early` | 0.300 | 407 | 122 | 285 | 81 | no |
+| `opening.delayed_development` | 0.138 | 80 | 11 | 69 | 3 | no |
+| `positional.king_safety_neglect` | 0.349 | 195 | 68 | 127 | 25 | no |
+| `threat_processing.allowed_mate` | 1.000 | 36 | 36 | 0 | 0 | yes |
+
+**Decision: keep missed capture trusted**, exclusively from M79 precision
+78/93 = 0.8387096774 and support 93 under the amended omission reference.
+The active five-code allowlist is unchanged. Therefore the `hangingPiece`
+practice mapping still includes missed capture, and current pattern, habit,
+profile and positive-credit consumers retain it. No other code is promoted.
+The other three established codes keep original40 gates; allowed mate keeps M78
+fresh80. All other M79 rows are descriptive, not replacement trust samples.
+
+**Chronology:** one uninterrupted recording attempt completed in 4,222.92 seconds
+(about 70 minutes), without a tool deadline. There were **no recording restarts**.
+Only game/ply/candidate progress counts were available during recording. No partial
+M79 diagnosis counts, labels or precision were computed or inspected. The
+reference amendment and both persistence safeguards above were committed while
+raw recording ran, before the first complete-set measurement. No detector,
+reference, threshold or sample change followed the new numbers.
+
+The first recorded-only `real_games --check` completed with exit status **0**:
+the three original40 gates, allowed-mate M78 gate and missed-capture M79 gate pass,
+as do confirmed-mate material-suppression assertions across all three corpora.
+The retained historical original40 capture count is 56/65; historical-label M78
+development replay after the identity fix is 84/108, as disclosed above.
+
+**Limits:** this is one finite sample against engine-derived operational labels,
+not independent coach review or measured teaching efficacy. The remaining 15
+capture disagreements are not concealed by arbitration: each code is still scored
+in isolation. Deep first-move disagreement does not refute alternative captures,
+and finite-PV endpoint material can disagree with the taxonomy's hanging-piece
+language. Passing the preregistered point-estimate gate does not remove those
+limitations. The new omission reference prevents the specific played-capture
+false-TP mechanism without making the detector share its deep source conclusion.
 
 ## M78 source-depth correction: fresh80 preregistration
 

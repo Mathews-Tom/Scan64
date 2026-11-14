@@ -1,0 +1,1943 @@
+[Event "Rated Classical game"]
+[Site "https://lichess.org/5ysdq1vq"]
+[Date "????.??.??"]
+[Round "?"]
+[White "IsraelCravchik"]
+[Black "shueardm"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:21:43"]
+[WhiteElo "1334"]
+[BlackElo "1273"]
+[WhiteRatingDiff "-14"]
+[BlackRatingDiff "+24"]
+[ECO "C42"]
+[Opening "Russian Game: Three Knights Game"]
+[TimeControl "600+0"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nf6 3. Nc3 a6 4. d4 Bb4 5. dxe5 Bxc3+ 6. bxc3 Nxe4 7. Ba3 Nxc3
+8. Qd3 Nb5 9. O-O-O f6 10. Qe4 Nxa3 11. Bc4 Nxc4 12. Qxc4 fxe5 13. Nxe5 Rf8 14.
+Rhe1 Qg5+ 15. f4 Qxf4+ 16. Qxf4 Rxf4 17. Ng6+ Kf7 18. Nxf4 g5 19. Nd5 Nc6 20.
+Rf1+ Kg6 21. Ne7+ Nxe7 22. Rde1 Nf5 23. Re4 d5 24. Re5 d4 25. g4 Ne3 26. Rf8
+Nxg4 27. Rg8+ Kf6 28. Rexg5 Nxh2 29. Rg2 Ng4 30. Rf8+ Ke7 31. Rf4 c5 32. Re4+
+Kf6 33. Rg3 h6 34. Rf3+ Kg6 35. Ref4 Be6 36. Rf6+ Nxf6 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/4o5cqe8a"]
+[Date "????.??.??"]
+[Round "?"]
+[White "LEGENDARY_ERFAN"]
+[Black "Boss92"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:23:00"]
+[WhiteElo "1433"]
+[BlackElo "1486"]
+[WhiteRatingDiff "-22"]
+[BlackRatingDiff "+10"]
+[ECO "B06"]
+[Opening "Modern Defense"]
+[TimeControl "60+0"]
+[Termination "Time forfeit"]
+
+1. e4 g6 2. Bc4 e6 3. d3 Bg7 4. Nf3 Ne7 5. Nc3 O-O 6. O-O f5 7. Bd2 fxe4 8.
+dxe4 Rxf3 9. Qxf3 c6 10. e5 a6 11. Rfe1 b5 12. Bb3 Bb7 13. h3 a5 14. a4 bxa4
+15. Bxa4 Qc7 16. Bf4 Na6 17. Qe2 Nb4 18. b3 Ba6 19. Qd2 Nf5 20. Bh6 Bxh6 21.
+Qd1 Bg7 22. f3 Bxe5 23. g4 Bxc3 24. gxf5 Bxe1 25. Qxe1 Nxc2 26. Qd2 Qg3+ 27.
+Kh1 Nxa1 28. Qg2 Qxg2+ 29. Kxg2 exf5 30. Kh2 d6 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/p73b0lko"]
+[Date "????.??.??"]
+[Round "?"]
+[White "gsmaldone"]
+[Black "adamsrj"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:23:39"]
+[WhiteElo "1443"]
+[BlackElo "1531"]
+[WhiteRatingDiff "-9"]
+[BlackRatingDiff "+9"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game: Mason Attack"]
+[TimeControl "1560+30"]
+[Termination "Normal"]
+
+1. d4 d5 2. Bf4 a6 3. Nc3 Nf6 4. e3 Bf5 5. Nf3 h6 6. Bd3 Bxd3 7. Qxd3 Nh5 8.
+Be5 f6 9. Bxc7 Qxc7 10. Nxd5 Qd8 11. Nb4 e6 12. Qg6+ Ke7 13. Qxh5 Qe8 14. Qxe8+
+Kxe8 15. O-O Bxb4 16. c3 Bd6 17. b4 Nd7 18. a4 Kf7 19. b5 axb5 20. axb5 b6 21.
+Rxa8 Rxa8 22. h3 e5 23. dxe5 Nxe5 24. Nxe5+ Bxe5 25. Rd1 Kg6 26. Rd7 Ra5 27. c4
+h5 28. Rb7 Ra1# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/l1m4sg77"]
+[Date "????.??.??"]
+[Round "?"]
+[White "sebastian44"]
+[Black "Richard_XII"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:25:15"]
+[WhiteElo "1363"]
+[BlackElo "1482"]
+[WhiteRatingDiff "+15"]
+[BlackRatingDiff "-15"]
+[ECO "B02"]
+[Opening "Alekhine Defense: Maroczy Variation"]
+[TimeControl "300+5"]
+[Termination "Normal"]
+
+1. e4 Nf6 2. d3 d5 3. e5 Nfd7 4. d4 Nc6 5. Nf3 e6 6. Bb5 a6 7. Bxc6 bxc6 8. c3
+c5 9. O-O c4 10. Bg5 f6 11. exf6 Nxf6 12. Bxf6 Qxf6 13. Ne5 Bd6 14. Re1 O-O 15.
+Nd2 Qxf2+ 16. Kh1 Bxe5 17. Rf1 Qh4 18. Rxf8+ Kxf8 19. dxe5 Qf4 20. Qe1 Bd7 21.
+g3 Qg5 22. Nf3 Qf5 23. Qf1 Kg8 24. Qg2 Be8 25. Rf1 Bh5 26. Nd4 Qxe5 27. Nc6 Qd6
+28. Qh3 Qxc6 29. Qxh5 d4+ 30. Kg1 d3 31. Qf7+ Kh8 32. Qf8+ 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/u564mccd"]
+[Date "????.??.??"]
+[Round "?"]
+[White "LEGENDARY_ERFAN"]
+[Black "ptdhina"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:25:42"]
+[WhiteElo "1411"]
+[BlackElo "1551"]
+[WhiteRatingDiff "-16"]
+[BlackRatingDiff "+7"]
+[ECO "C50"]
+[Opening "Italian Game: Giuoco Pianissimo"]
+[TimeControl "60+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. Bc4 Nc6 3. d3 Bc5 4. Nf3 d6 5. h3 Be6 6. O-O Nf6 7. Ng5 Bxc4 8.
+dxc4 O-O 9. Nc3 Nd4 10. Na4 Bb6 11. Nxb6 axb6 12. Be3 c5 13. c3 Nc6 14. b4 Nd7
+15. bxc5 bxc5 16. Rb1 b6 17. a4 h6 18. Nf3 Qf6 19. Re1 Qg6 20. g4 f5 21. exf5
+Rxf5 22. Bxh6 Rxf3 23. Qxf3 Qxh6 24. Re4 Nf6 25. Re3 Rf8 26. Qg3 Qg6 27. h4
+Nxg4 28. Re4 Qxe4 29. Re1 Qxe1+ 30. Kg2 Qxf2+ 31. Qxf2 Rxf2+ 32. Kh3 Ne3 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/fie8isuu"]
+[Date "????.??.??"]
+[Round "?"]
+[White "namesnik"]
+[Black "cougar1"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:27:37"]
+[WhiteElo "1505"]
+[BlackElo "1404"]
+[WhiteRatingDiff "+8"]
+[BlackRatingDiff "-13"]
+[ECO "C34"]
+[Opening "King's Gambit Accepted, Schallopp Defense"]
+[TimeControl "120+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. f4 Nf6 3. Nf3 exf4 4. d4 Be7 5. Bxf4 Nxe4 6. Qd3 f5 7. c3 O-O 8.
+Qc4+ d5 9. Qb3 b6 10. Nbd2 Bd7 11. Nxe4 fxe4 12. Nd2 Be6 13. Nxe4 Rxf4 14. Bd3
+Qd7 15. Ng3 Bh4 16. O-O-O Bg5 17. Kb1 Nc6 18. Rdf1 Raf8 19. Qc2 Rxf1+ 20. Rxf1
+Rxf1+ 21. Nxf1 g6 22. Ng3 Bf6 23. Qf2 Qf7 24. Ne2 Qg7 25. Nf4 g5 26. Nxe6 Qe7
+27. Bf5 Nxd4 28. Nxd4 Qc5 29. Qe2 Bxd4 30. cxd4 Qxd4 31. Qe8+ Kg7 32. Qe7+ Kg8
+33. Qxh7+ Kf8 34. Kc2 Qf2+ 35. Kb3 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/fxragyi1"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Thunder87"]
+[Black "adamsrj"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:28:04"]
+[WhiteElo "1500"]
+[BlackElo "1540"]
+[WhiteRatingDiff "-157"]
+[BlackRatingDiff "+7"]
+[ECO "B23"]
+[Opening "Sicilian Defense: Closed Variation"]
+[TimeControl "1560+30"]
+[Termination "Normal"]
+
+1. e4 c5 2. Nc3 d6 3. d3 Nf6 4. Be2 Nbd7 5. Be3 e6 6. Nf3 a6 7. O-O Be7 8. b3
+Ng4 9. a4 Nxe3 10. fxe3 Bf6 11. e5 dxe5 12. d4 cxd4 13. exd4 exd4 14. Nxd4 Nc5
+15. a5 Bxd4+ 16. Kh1 O-O 17. h3 Ne4 18. Nxe4 Bxa1 19. Qxa1 Bd7 20. Nc5 Bc6 21.
+Rd1 Qe7 22. Qa3 Rfd8 23. Rxd8+ Rxd8 24. b4 Qg5 25. Bd3 Qxg2# 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/94m4edd4"]
+[Date "????.??.??"]
+[Round "?"]
+[White "LEGENDARY_ERFAN"]
+[Black "ptdhina"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:28:35"]
+[WhiteElo "1395"]
+[BlackElo "1558"]
+[WhiteRatingDiff "+34"]
+[BlackRatingDiff "-17"]
+[ECO "C20"]
+[Opening "King's Pawn Game: King's Head Opening #2"]
+[TimeControl "60+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. f3 Nc6 3. Nh3 Bc5 4. Bc4 Qh4+ 5. g3 Qxh3 6. Qe2 Nf6 7. Rg1 Bxg1 8.
+d3 Qxh2 9. Qxh2 Bxh2 10. Be3 Bxg3+ 11. Bf2 Bxf2+ 12. Kxf2 h5 13. b3 h4 14. Ke2
+h3 15. Nc3 h2 16. Kf2 h1=Q 17. Rxh1 Rxh1 18. Kg2 Rh8 19. Nb5 a6 20. Nxc7+ 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/61zt30b8"]
+[Date "????.??.??"]
+[Round "?"]
+[White "sebastian44"]
+[Black "Alexey_K"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:33:02"]
+[WhiteElo "1378"]
+[BlackElo "1366"]
+[WhiteRatingDiff "+11"]
+[BlackRatingDiff "-17"]
+[ECO "C00"]
+[Opening "French Defense: Steinitz Attack"]
+[TimeControl "300+5"]
+[Termination "Normal"]
+
+1. e4 e6 2. e5 d6 3. exd6 Qxd6 4. d4 Be7 5. Nf3 Nf6 6. Bb5+ c6 7. Bd3 O-O 8.
+Bg5 h6 9. Bxf6 Bxf6 10. O-O Nd7 11. Qe1 c5 12. Qe4 g6 13. Qe3 cxd4 14. Qxh6 Nc5
+15. Ng5 Bxg5 16. Qxg5 Nxd3 17. cxd3 Qb6 18. Nd2 Qxb2 19. Ne4 e5 20. Nf6+ Kg7
+21. h4 b6 22. h5 Rh8 23. hxg6 fxg6 24. Rac1 Rh5 25. Rc7+ Kf8 26. Qxg6 Rf5 27.
+Qg8# 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/e85955u4"]
+[Date "????.??.??"]
+[Round "?"]
+[White "lamobot"]
+[Black "adamsrj"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:33:42"]
+[WhiteElo "1394"]
+[BlackElo "1508"]
+[WhiteRatingDiff "-12"]
+[BlackRatingDiff "+8"]
+[ECO "B22"]
+[Opening "Sicilian Defense: Alapin Variation"]
+[TimeControl "180+3"]
+[Termination "Time forfeit"]
+
+1. e4 c5 2. c3 d6 3. d4 cxd4 4. cxd4 Nf6 5. Nc3 a6 6. Bg5 e6 7. Nf3 Be7 8. e5
+dxe5 9. Nxe5 Nbd7 10. Bc4 O-O 11. O-O b5 12. Be2 Rb8 13. Nc6 Qc7 14. Nxb8 Qxb8
+15. f4 h6 16. Bh4 Qd6 17. Qd3 Bd8 18. Rae1 Bb6 19. Kh1 Qc6 20. Bf3 Nd5 21. f5
+Qc7 22. fxe6 Nxc3 23. exd7 Bxd7 24. Qxc3 Qf4 25. Bg3 Qg5 26. Bc6 Bxc6 27. Qxc6
+Bxd4 28. Bf4 Qh4 29. g3 Qg4 30. Re4 f5 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/zv6wdxr0"]
+[Date "????.??.??"]
+[Round "?"]
+[White "khan"]
+[Black "kramer"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:38:05"]
+[WhiteElo "1430"]
+[BlackElo "1070"]
+[WhiteRatingDiff "+3"]
+[BlackRatingDiff "-4"]
+[ECO "A04"]
+[Opening "Zukertort Opening: Queen's Gambit Invitation"]
+[TimeControl "300+8"]
+[Termination "Time forfeit"]
+
+1. Nf3 e6 2. d4 Bb4+ 3. Bd2 Bxd2+ 4. Qxd2 Nc6 5. e4 Qe7 6. Nc3 Qb4 7. Rb1 Nce7
+8. a3 Qd6 9. e5 Qb6 10. Na4 Qc6 11. Bd3 b5 12. Nc5 b4 13. Qxb4 Nh6 14. Bb5 Qd5
+15. Na6 O-O 16. Nxc7 Rb8 17. Nxd5 Nxd5 18. Qc5 Nf4 19. O-O a6 20. Bd3 Ng4 21.
+h3 Nxh3+ 22. gxh3 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/3hvs16w2"]
+[Date "????.??.??"]
+[Round "?"]
+[White "pskpress"]
+[Black "TheWeebles"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:38:46"]
+[WhiteElo "1471"]
+[BlackElo "1561"]
+[WhiteRatingDiff "-8"]
+[BlackRatingDiff "+10"]
+[ECO "B20"]
+[Opening "Sicilian Defense"]
+[TimeControl "900+0"]
+[Termination "Normal"]
+
+1. e4 c5 2. Qf3 Nc6 3. c3 e5 4. d3 d6 5. h3 Nge7 6. Be2 Be6 7. Be3 b6 8. Nd2 d5
+9. exd5 Nxd5 10. Ne4 Nxe3 11. Qxe3 Qd7 12. Ng5 Bd5 13. Bf3 f6 14. Bxd5 Qxd5 15.
+N5f3 O-O-O 16. c4 Qxd3 17. Qxd3 Rxd3 18. b3 Bd6 19. Ne2 Nd4 20. Nfxd4 exd4 21.
+O-O Re8 22. Nc1 Rd2 23. a4 Be5 24. Rb1 d3 25. Re1 Rd8 26. Re4 Rb2 27. Rxb2 Bxb2
+28. Nxd3 Rxd3 29. Re7 Be5 30. Rxa7 Rd1# 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/nwcdjfop"]
+[Date "????.??.??"]
+[Round "?"]
+[White "jakethedog"]
+[Black "ptdhina"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:41:02"]
+[WhiteElo "1572"]
+[BlackElo "1541"]
+[WhiteRatingDiff "-16"]
+[BlackRatingDiff "+13"]
+[ECO "A25"]
+[Opening "English Opening: King's English Variation, Reversed Closed Sicilian"]
+[TimeControl "120+0"]
+[Termination "Time forfeit"]
+
+1. c4 e5 2. Nc3 Nc6 3. d3 Bc5 4. g3 Nf6 5. e3 d6 6. Nge2 Bg4 7. Bg2 Nd7 8. a3
+a6 9. O-O Qf6 10. Nd5 Qd8 11. b4 Ba7 12. Nec3 Bxd1 13. Rxd1 Ne7 14. Bb2 Nxd5
+15. Bxd5 Nf6 16. Bxb7 Rb8 17. Bg2 Ng4 18. h3 Nf6 19. Bc6+ Nd7 20. Bd5 O-O 21.
+Ne4 Nf6 22. Nxf6+ Qxf6 23. Rf1 Qg6 24. Kh2 Kh8 25. Be4 f5 26. Bd5 f4 27. Be4
+Qh6 28. exf4 exf4 29. Bc1 c6 30. Bxf4 Rxf4 31. gxf4 Qxf4+ 32. Kg2 Rf8 33. f3 d5
+34. cxd5 cxd5 35. Bxd5 Qd2+ 36. Kg3 Qxd3 37. Be4 Bb8+ 38. Kg2 Qd2+ 39. Kg1 Bh2+
+40. Kh1 Bg3 41. Ra2 Qxa2 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/wreeq43f"]
+[Date "????.??.??"]
+[Round "?"]
+[White "adamsrj"]
+[Black "lamobot"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:41:34"]
+[WhiteElo "1516"]
+[BlackElo "1382"]
+[WhiteRatingDiff "+7"]
+[BlackRatingDiff "-11"]
+[ECO "E61"]
+[Opening "King's Indian Defense"]
+[TimeControl "180+3"]
+[Termination "Normal"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. h3 d5 5. e3 c5 6. cxd5 Nxd5 7. Qb3 Nxc3 8.
+bxc3 cxd4 9. cxd4 Be6 10. Qxb7 Nd7 11. Bb5 O-O 12. Bxd7 Bxd7 13. Nf3 Rb8 14.
+Qxa7 Ra8 15. Qc5 Ba4 16. Bd2 Qd7 17. O-O Rfc8 18. Qg5 f6 19. Qg4 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/9kzr3vtr"]
+[Date "????.??.??"]
+[Round "?"]
+[White "sebastian44"]
+[Black "VanillaShamanilla"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:42:44"]
+[WhiteElo "1389"]
+[BlackElo "1308"]
+[WhiteRatingDiff "+8"]
+[BlackRatingDiff "-44"]
+[ECO "C44"]
+[Opening "Scotch Game: Scotch Gambit, Dubois Reti Defense"]
+[TimeControl "300+5"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. Nxd4 Nxe4 6. Qe2 Nxd4 7. Qxe4+ Ne6
+8. Ba6 d5 9. Qa4+ c6 10. Bd3 g6 11. O-O Bg7 12. Nd2 b5 13. Qb4 a5 14. Qg4 Nd4
+15. Re1+ Be6 16. c3 O-O 17. Qg3 Nf5 18. Bxf5 Bxf5 19. Nf3 Be4 20. Bg5 Qb6 21.
+Nh4 f6 22. Be3 Qc7 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/g5vi9wig"]
+[Date "????.??.??"]
+[Round "?"]
+[White "blizz"]
+[Black "jesse"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "02:54:02"]
+[WhiteElo "1359"]
+[BlackElo "1510"]
+[WhiteRatingDiff "-38"]
+[BlackRatingDiff "+6"]
+[ECO "B00"]
+[Opening "Owen Defense"]
+[TimeControl "240+0"]
+[Termination "Time forfeit"]
+
+1. e4 b6 2. Nf3 Bb7 3. Nc3 e6 4. d4 Bb4 5. a3 Bxc3+ 6. bxc3 Bxe4 7. Bc4 Nf6 8.
+Bf4 d6 9. O-O Nbd7 10. Re1 O-O 11. Bg5 Bb7 12. h4 h6 13. Bd2 Ne4 14. Be3 Nxc3
+15. Qd3 Nd5 16. Ba2 N7f6 17. c4 Nxe3 18. fxe3 Re8 19. Nd2 Nh5 20. e4 Qxh4 21.
+d5 exd5 22. cxd5 Ng3 23. Nf3 Qh1+ 24. Kf2 Qh5 25. Kxg3 Qg5+ 26. Kf2 c6 27. Qe3
+Qf6 28. dxc6 Bxc6 29. Rad1 Rxe4 30. Qd3 Rae8 31. Qxd6 R4e6 32. Rxe6 Rxe6 33.
+Qd4 Re4 34. Qxf6 gxf6 35. Rd8+ Kg7 36. Rc8 Bb5 37. Nh4 Rxh4 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/72f4jdy3"]
+[Date "????.??.??"]
+[Round "?"]
+[White "blizz"]
+[Black "jesse"]
+[Result "1/2-1/2"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:07:31"]
+[WhiteElo "1321"]
+[BlackElo "1513"]
+[WhiteRatingDiff "+28"]
+[BlackRatingDiff "-5"]
+[ECO "B00"]
+[Opening "Owen Defense"]
+[TimeControl "240+0"]
+[Termination "Normal"]
+
+1. e4 b6 2. d4 Bb7 3. Bd3 Nf6 4. Qe2 e6 5. c4 Be7 6. Nc3 O-O 7. h4 h6 8. Bf4 d6
+9. Qd2 Ng4 10. Nf3 Nd7 11. Rh3 e5 12. Bxh6 Nxh6 13. Rg3 Bxh4 14. Qxh6 Bxg3 15.
+Qh3 Bf4 16. Nh4 g6 17. Ke2 Kg7 18. Rh1 Rh8 19. g3 Bg5 20. dxe5 Nxe5 21. f4 Nxd3
+22. Kxd3 Bxh4 23. gxh4 Qf6 24. Ne2 Qxb2 25. f5 Rh6 26. fxg6 fxg6 27. h5 Rah8
+28. Qd7+ Kg8 29. Qe8+ Kg7 30. Qe7+ Kg8 31. Qe8+ Kg7 32. Qe7+ Kg8 33. Qe8+ Kg7
+34. Qe7+ Kg8 1/2-1/2
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/4mqfq8hd"]
+[Date "????.??.??"]
+[Round "?"]
+[White "writinggambler"]
+[Black "LewisIII"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:08:09"]
+[WhiteElo "1055"]
+[BlackElo "1413"]
+[WhiteRatingDiff "+47"]
+[BlackRatingDiff "-39"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game: Levitsky Attack"]
+[TimeControl "1800+30"]
+[Termination "Normal"]
+
+1. d4 d5 2. Bg5 f6 3. Be3 Nc6 4. Nc3 e5 5. Nxd5 Qxd5 6. dxe5 Qxe5 7. Bd4 Nxd4
+8. c3 Nc6 9. Nf3 Qb5 10. a4 Qxb2 11. g4 Qxc3+ 12. Nd2 Bb4 13. Rc1 Qe5 14. Rc4
+Bxg4 15. Rxg4 Nh6 16. Rxg7 O-O-O 17. Bh3+ Kb8 18. O-O Rxd2 19. Qb3 Rxe2 20. Qf7
+b6 21. Rxh7 Rg8+ 22. Rg7 Rd8 23. Qc4 Rd4 24. Qxc6 Bd6 25. Rh7 Nf5 26. Rh8+ Qe8
+27. Rxe8+ Rxe8 28. Qxe8+ Kb7 29. Bxf5 a5 30. Rc1 Rh4 31. Qc6+ Ka7 32. Kf1 Rxh2
+33. Kg1 Rh5 34. Bg4 Rg5 35. f3 Rg7 36. Kf2 Rh7 37. Bc8 Rh2+ 38. Kg1 Rh8 39.
+Qb7# 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/j7i999zt"]
+[Date "????.??.??"]
+[Round "?"]
+[White "luuletaja"]
+[Black "spaces"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:10:52"]
+[WhiteElo "1332"]
+[BlackElo "1506"]
+[WhiteRatingDiff "-10"]
+[BlackRatingDiff "+7"]
+[ECO "C00"]
+[Opening "French Defense: Steinitz Attack"]
+[TimeControl "300+8"]
+[Termination "Normal"]
+
+1. e4 e6 2. e5 c5 3. f4 d5 4. d4 cxd4 5. Qxd4 Nc6 6. Qd3 Bc5 7. c4 d4 8. Ne2
+Nh6 9. Bd2 Qb6 10. b3 Nf5 11. g4 Ne3 12. Bxe3 dxe3 13. Bg2 Bb4+ 14. Kf1 Bd7 15.
+Nbc3 Bxc3 16. Nxc3 Nb4 17. Qd6 Qd8 18. Qxb4 Qh4 19. Ke2 Qf2+ 20. Kd3 Qd2+ 21.
+Ke4 Bc6+ 22. Nd5 exd5+ 23. Kf5 Bd7+ 24. e6 Bxe6+ 25. Ke5 Qb2+ 26. Kd6 Rd8+ 27.
+Kc5 b6+ 28. Kc6 Bd7+ 29. Kd6 Qf6+ 30. Kc7 Qc6# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/f73f2wv4"]
+[Date "????.??.??"]
+[Round "?"]
+[White "writinggambler"]
+[Black "Viktoriya"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:22:48"]
+[WhiteElo "1102"]
+[BlackElo "1025"]
+[WhiteRatingDiff "+19"]
+[BlackRatingDiff "-52"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game: Levitsky Attack, Welling Variation"]
+[TimeControl "1800+30"]
+[Termination "Normal"]
+
+1. d4 d5 2. Bg5 Bg4 3. Nf3 Nf6 4. Bxf6 Bxf3 5. Bxg7 Bxg2 6. Bxg2 Bxg7 7. Nc3
+Nc6 8. Bxd5 Bxd4 9. e3 e6 10. Bxc6+ Qd7 11. Bxd7+ Kxd7 12. exd4 c6 13. Qh5 b6
+14. Qxf7+ Kd6 15. O-O Rhf8 16. Qh5 Rg8+ 17. Kh1 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/a59evrwr"]
+[Date "????.??.??"]
+[Round "?"]
+[White "saxwellrs"]
+[Black "LewisIII"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:31:06"]
+[WhiteElo "1254"]
+[BlackElo "1374"]
+[WhiteRatingDiff "-8"]
+[BlackRatingDiff "+15"]
+[ECO "C20"]
+[Opening "King's Pawn Game: Wayward Queen Attack"]
+[TimeControl "900+8"]
+[Termination "Normal"]
+
+1. e4 e5 2. Qh5 d6 3. Bc4 Qe7 4. d3 Nf6 5. Qf3 Bg4 6. Qg3 Nc6 7. h3 Bd7 8. d4
+Nxd4 9. Qc3 Nxe4 10. Qb4 Nxc2+ 11. Kd1 Nxb4 12. Bd3 Nxf2+ 13. Ke2 Nxh1 14. Be4
+Qf6 15. Kd2 Qf2+ 16. Ne2 d5 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/jbuzruvj"]
+[Date "????.??.??"]
+[Round "?"]
+[White "migsan"]
+[Black "yehshua"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:33:13"]
+[WhiteElo "1194"]
+[BlackElo "1548"]
+[WhiteRatingDiff "-3"]
+[BlackRatingDiff "+3"]
+[ECO "A00"]
+[Opening "Van't Kruijs Opening"]
+[TimeControl "420+0"]
+[Termination "Normal"]
+
+1. e3 e5 2. g3 Nc6 3. b3 Bc5 4. Bb2 d5 5. a3 Be6 6. f4 exf4 7. gxf4 Nf6 8. Nf3
+Ne4 9. Ng5 Nxg5 10. fxg5 Qxg5 11. Qf3 Qh4+ 12. Qf2 Qxf2+ 13. Kxf2 d4 14. exd4
+Bxd4+ 15. Ke2 Bxb2 16. Rg1 Bxa1 17. Rxg7 Nd4+ 18. Ke3 O-O-O 19. Rg5 Nxc2+ 20.
+Ke2 Nd4+ 21. Kd3 Nf3+ 22. Ke4 Nxg5+ 23. Kf4 h6 24. Kg3 Rhg8 25. Kh4 Ne4 26. Kh5
+Bg4+ 27. Kxh6 Rd6+ 28. Kh7 Rdg6 29. Bg2 Ng5# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/5guw75n9"]
+[Date "????.??.??"]
+[Round "?"]
+[White "writinggambler"]
+[Black "Alexey_K"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:33:58"]
+[WhiteElo "1121"]
+[BlackElo "1497"]
+[WhiteRatingDiff "+46"]
+[BlackRatingDiff "-20"]
+[ECO "A41"]
+[Opening "Queen's Pawn"]
+[TimeControl "1800+30"]
+[Termination "Normal"]
+
+1. d4 d6 2. Bg5 f6 3. Bh4 g5 4. Bg3 c6 5. e3 Qb6 6. b3 Na6 7. h4 Bf5 8. Qh5+
+Bg6 9. Qe2 Nb4 10. Na3 O-O-O 11. h5 Bd3 12. Qg4+ Kc7 13. Bxd3 Nxd3+ 14. cxd3
+Qb4+ 15. Ke2 Qxa3 16. Nf3 Qb2+ 17. Nd2 Nh6 18. Qe6 f5 19. Rab1 Qxa2 20. Rhc1 f4
+21. exf4 gxf4 22. Bxf4 Bg7 23. d5 c5 24. Qxe7+ Kc8 25. Qxg7 Rhe8+ 26. Kd1 Nf5
+27. Qxh7 Nd4 28. Be3 Rd7 29. Qg6 b6 30. Qxe8+ Kc7 31. Bxd4 a5 32. Rb2 Qa3 33.
+Rc3 Qxb2 34. Rc2 Qxd4 35. f3 Qxd5 36. Ne4 Qxd3+ 37. Rd2 Qxb3+ 38. Ke2 Qc4+ 39.
+Rd3 d5 40. Nf6 Qc2+ 41. Rd2 Qc4+ 42. Rd3 Rd8 43. Qe5+ Kc6 44. Qe7 Rd6 45. Nxd5
+Rxd5 46. Qe6+ Kb5 47. Qxd5 Qc2+ 48. Rd2 Qc3 49. Qd3+ Qxd3+ 50. Rxd3 a4 51. h6
+Kb4 52. h7 a3 53. h8=Q c4 54. Qf8+ Kb5 55. Qxa3 cxd3+ 56. Qxd3+ Kc5 57. f4 b5
+58. f5 b4 59. f6 b3 60. Qxb3 Kd6 61. f7 Ke7 62. Qf3 Kf8 63. g4 Kg7 64. f8=Q+
+Kg6 65. Q3f5# 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/65ko0exp"]
+[Date "????.??.??"]
+[Round "?"]
+[White "yehshua"]
+[Black "Pozitiv"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:38:51"]
+[WhiteElo "1558"]
+[BlackElo "1412"]
+[WhiteRatingDiff "+7"]
+[BlackRatingDiff "-8"]
+[ECO "C23"]
+[Opening "Bishop's Opening: Philidor Counterattack"]
+[TimeControl "840+14"]
+[Termination "Normal"]
+
+1. e4 e5 2. Bc4 c6 3. Nc3 b5 4. Bb3 Ba6 5. d3 c5 6. a3 b4 7. axb4 cxb4 8. Rxa6
+Nxa6 9. Nd5 Nf6 10. Qf3 Nc5 11. Nxf6+ gxf6 12. Ba2 Bg7 13. Be3 Qa5 14. Bd5 b3+
+15. c3 Qa1+ 16. Qd1 Qxb2 17. Bxa8 Qxc3+ 18. Qd2 Qxd2+ 19. Kxd2 b2 20. Kc2 Na4
+21. Ne2 Ke7 22. Bd5 Rc8+ 23. Kb1 Bf8 24. Bb3 Nc5 25. Kxb2 Nxd3+ 26. Ka2 Nxf2
+27. Rc1 Kd8 28. Rxc8+ Kxc8 29. Bxf2 a5 30. Nc3 Kc7 31. Nb5+ Kc6 32. Nc3 Bh6 33.
+Bxf7 Bd2 34. Bd5+ Kd6 35. Na4 Kc7 36. Bb6+ Kd6 37. Bd8 Bg5 38. g3 Be3 39. Bxf6
+Bd4 40. Bg8 h6 41. Bg7 Kc6 42. Bxh6 Kb5 43. Nb2 d6 44. Bf8 Bc5 45. h4 Kb4 46.
+h5 Kc3 47. h6 Kd4 48. h7 Kxe4 49. h8=Q d5 50. Qh4+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/ouf66j6i"]
+[Date "????.??.??"]
+[Round "?"]
+[White "migsan"]
+[Black "khan"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:40:16"]
+[WhiteElo "1191"]
+[BlackElo "1268"]
+[WhiteRatingDiff "-11"]
+[BlackRatingDiff "+9"]
+[ECO "A00"]
+[Opening "Van't Kruijs Opening"]
+[TimeControl "420+0"]
+[Termination "Normal"]
+
+1. e3 Nc6 2. g3 Nf6 3. Bg2 d5 4. b3 e5 5. Bb2 Bd6 6. Qf3 Bg4 7. Qxf6 gxf6 8.
+Bh3 Bxh3 9. Nxh3 Qe7 10. f4 exf4 11. Nxf4 Bxf4 12. gxf4 O-O-O 13. Rg1 Rhg8 14.
+Rxg8 Rxg8 15. Ke2 Rg2+ 16. Kf1 Rxh2 17. Kg1 Re2 18. Nc3 Rxd2 19. Bc1 Rxc2 20.
+Nxd5 Qe4 21. Nxf6 Qg2# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/oewwkkcw"]
+[Date "????.??.??"]
+[Round "?"]
+[White "LewisIII"]
+[Black "khan"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:45:21"]
+[WhiteElo "1389"]
+[BlackElo "1428"]
+[WhiteRatingDiff "-19"]
+[BlackRatingDiff "+10"]
+[ECO "D00"]
+[Opening "Queen's Pawn Opening: Veresov, Richter Attack"]
+[TimeControl "300+8"]
+[Termination "Normal"]
+
+1. d4 d5 2. Nc3 Nf6 3. f3 e6 4. e4 Bb4 5. e5 Bxc3+ 6. bxc3 Nfd7 7. Ba3 b6 8.
+Ne2 c5 9. f4 O-O 10. Ng3 c4 11. Bxf8 Qxf8 12. Qg4 Qa3 13. Nh5 g6 14. Nf6+ Kg7
+15. Nh5+ Kg8 16. Ng3 Qxc3+ 17. Kf2 Qxa1 18. Bd3 Qxa2 19. Bxg6 fxg6 20. Qxe6+
+Kf8 21. Qd6+ Ke8 22. Qe6+ Kd8 23. Qg8+ Kc7 24. Qxh7 Qxc2+ 25. Ne2 Nc6 26. e6
+Nxd4 27. Re1 Nxe6 28. Kf1 Nf8 29. Qe7 Qe4 30. Qg7 Qf5 31. Nd4 Qxf4+ 32. Kg1
+Qxd4+ 33. Kh1 Qxg7 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/1qxq8wwe"]
+[Date "????.??.??"]
+[Round "?"]
+[White "gsmaldone"]
+[Black "metrolog"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:46:43"]
+[WhiteElo "1401"]
+[BlackElo "1438"]
+[WhiteRatingDiff "-11"]
+[BlackRatingDiff "+9"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game: Mason Attack"]
+[TimeControl "240+4"]
+[Termination "Time forfeit"]
+
+1. d4 d5 2. Bf4 e6 3. Nf3 h6 4. e3 Nf6 5. Nc3 a6 6. Bd3 c5 7. dxc5 Bxc5 8. O-O
+Nc6 9. a3 O-O 10. b4 Be7 11. h3 Nh7 12. Ne2 Ng5 13. c4 Nxf3+ 14. gxf3 d4 15.
+exd4 Nxd4 16. Nxd4 Bf6 17. Nb3 Bxa1 18. Qxa1 Qh4 19. Bg3 Qxh3 20. Be5 f6 21.
+Bd6 Rd8 22. c5 e5 23. Nd2 Qh5 24. Be2 Qg5+ 25. Kh2 Qxd2 26. Bc4+ Kh8 27. Kg3
+Qf4+ 28. Kg2 Qxc4 29. Be7 Rd4 30. Qb1 Rh4 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/ewp4454u"]
+[Date "????.??.??"]
+[Round "?"]
+[White "tiggran"]
+[Black "adamsrj"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:47:32"]
+[WhiteElo "1584"]
+[BlackElo "1523"]
+[WhiteRatingDiff "+9"]
+[BlackRatingDiff "-9"]
+[ECO "B84"]
+[Opening "Sicilian Defense: Scheveningen Variation, Classical Variation"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Be2 e6 7. Be3 Bd7 8. f3
+Nc6 9. Qd2 Nxd4 10. Bxd4 Be7 11. O-O-O Qc7 12. Kb1 O-O 13. g4 h6 14. h4 e5 15.
+Be3 Nh7 16. g5 hxg5 17. hxg5 Nxg5 18. Bxg5 Bxg5 19. Qxg5 b5 20. Rdg1 g6 21. Qh6
+1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/1t2kxec5"]
+[Date "????.??.??"]
+[Round "?"]
+[White "tiggran"]
+[Black "blizz"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:36:36"]
+[WhiteElo "1564"]
+[BlackElo "1441"]
+[WhiteRatingDiff "+7"]
+[BlackRatingDiff "-32"]
+[ECO "B34"]
+[Opening "Sicilian Defense: Accelerated Dragon, Modern Variation"]
+[TimeControl "240+0"]
+[Termination "Normal"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 g6 5. Nc3 Bg7 6. Be3 e6 7. f3 Nge7 8.
+Be2 d5 9. exd5 Nxd5 10. Nxd5 Qxd5 11. Qd2 Nxd4 12. O-O-O Nxe2+ 13. Qxe2 Qxa2
+14. Qb5+ Ke7 15. Bc5+ Kf6 16. Bd4+ Ke7 17. Qb4+ Ke8 18. Bxg7 Rg8 19. Bf6 a6 20.
+Qe7# 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/4fwbyq05"]
+[Date "????.??.??"]
+[Round "?"]
+[White "adamsrj"]
+[Black "tiggran"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:50:27"]
+[WhiteElo "1514"]
+[BlackElo "1593"]
+[WhiteRatingDiff "-9"]
+[BlackRatingDiff "+9"]
+[ECO "C50"]
+[Opening "Four Knights Game: Italian Variation"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Nc3 Nf6 5. Ng5 O-O 6. a3 h6 7. Nf3 d6 8. h3
+Ne7 9. d4 exd4 10. Nxd4 Bxd4 11. Qxd4 Ng6 12. O-O Bd7 13. Nd5 Nxd5 14. exd5 Qc8
+15. Qc3 b5 16. Bxb5 Bxb5 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/tknxpk5u"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Link"]
+[Black "ilovemyself"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:50:35"]
+[WhiteElo "1361"]
+[BlackElo "1417"]
+[WhiteRatingDiff "-10"]
+[BlackRatingDiff "+12"]
+[ECO "B01"]
+[Opening "Scandinavian Defense: Modern Variation #2"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 d5 2. exd5 Nf6 3. Nc3 e6 4. Bc4 Bb4 5. Qf3 Nbd7 6. b3 Nc5 7. Bb2 Bxc3 8.
+Bxc3 O-O 9. dxe6 Bxe6 10. Bxe6 Re8 11. Ne2 Rxe6 12. O-O Qe7 13. Nf4 Rc6 14.
+Bxf6 Qxf6 15. Rfe1 Nd7 16. Re2 Qxa1+ 17. Re1 Qxe1# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/r5y3zqm2"]
+[Date "????.??.??"]
+[Round "?"]
+[White "gregosaurus"]
+[Black "matru"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:53:16"]
+[WhiteElo "1041"]
+[BlackElo "1386"]
+[WhiteRatingDiff "+40"]
+[BlackRatingDiff "-19"]
+[ECO "C46"]
+[Opening "Three Knights Opening: Steinitz Defense"]
+[TimeControl "900+9"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 g6 4. Bc4 Bg7 5. Ng5 Nh6 6. Nf3 d6 7. d3 O-O 8. Bg5
+Ne7 9. Nd5 c6 10. Nxe7+ Kh8 11. Qd2 Qd7 12. O-O-O Ng4 13. d4 f6 14. Nxc8 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/dht2wmpj"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Kingjones30"]
+[Black "khan"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:53:50"]
+[WhiteElo "1456"]
+[BlackElo "1438"]
+[WhiteRatingDiff "+11"]
+[BlackRatingDiff "-11"]
+[ECO "D01"]
+[Opening "Queen's Pawn Game: Chigorin Variation"]
+[TimeControl "300+8"]
+[Termination "Time forfeit"]
+
+1. d4 d5 2. Nc3 Nf6 3. h3 e6 4. Nf3 Bb4 5. Bd2 Ne4 6. a3 Bxc3 7. Bxc3 O-O 8.
+Ne5 Nc6 9. f3 Nxc3 10. bxc3 Nxe5 11. dxe5 c5 12. f4 Qh4+ 13. Kd2 Qxf4+ 14. e3
+Qxe5 15. Bd3 c4 16. Be2 Qg3 17. Bf3 b5 18. h4 a6 19. Qf1 a5 20. Rh3 Qd6 21. h5
+e5 22. h6 Bxh3 23. gxh3 g6 24. Qg2 e4 25. Bh5 Qe5 26. Bxg6 fxg6 27. Rf1 Rxf1
+28. Qxf1 Qh2+ 29. Kc1 Qxh3 30. Qf6 Qxh6 31. Qe6+ Kh8 32. Qxd5 Rf8 33. Qxb5
+Qxe3+ 34. Kb2 Qf4 35. Qxc4 Rb8+ 36. Ka2 Qf7 37. Qxf7 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/hu3j6csj"]
+[Date "????.??.??"]
+[Round "?"]
+[White "919191"]
+[Black "luuletaja"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:55:39"]
+[WhiteElo "1402"]
+[BlackElo "1322"]
+[WhiteRatingDiff "+9"]
+[BlackRatingDiff "-13"]
+[ECO "B01"]
+[Opening "Scandinavian Defense: Mieses-Kotroc Variation"]
+[TimeControl "300+12"]
+[Termination "Normal"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qe5+ 4. Be2 Be6 5. Nf3 Qd6 6. O-O Nd7 7. Ne4 Qc6
+8. d3 O-O-O 9. Nd4 Qa6 10. Nxe6 fxe6 11. d4 Qa5 12. Bd2 Qd5 13. Nc3 Qxd4 14.
+Be3 Qxd1 15. Raxd1 g6 16. Bg4 e5 17. Bxd7+ Rxd7 18. Rxd7 Kxd7 19. Nd5 Nf6 20.
+Nc3 e6 21. Rd1+ Bd6 22. Bxa7 Ra8 23. Be3 Ng4 24. Bd2 Rf8 25. f3 Nf6 26. a4 Nd5
+27. Nxd5 exd5 28. b4 e4 29. fxe4 dxe4 30. b5 h5 31. a5 h4 32. a6 bxa6 33. bxa6
+Ra8 34. Ra1 Bc5+ 35. Kf1 e3 36. Bc1 Bd4 37. Ra4 Bc5 38. Ke2 Kd6 39. Bxe3 Bxe3
+40. Kxe3 Re8+ 41. Kd3 c5 42. Rxh4 Ra8 43. Rh6 Rxa6 44. Rxg6+ Kd5 45. Rxa6 c4+
+46. Kc3 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/1cxc3jgd"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Pozitiv"]
+[Black "ilovemyself"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "03:56:50"]
+[WhiteElo "1404"]
+[BlackElo "1459"]
+[WhiteRatingDiff "+14"]
+[BlackRatingDiff "-17"]
+[ECO "B01"]
+[Opening "Scandinavian Defense"]
+[TimeControl "840+14"]
+[Termination "Normal"]
+
+1. e4 d5 2. e5 d4 3. d3 c5 4. g3 h6 5. Bg2 Nc6 6. f4 e6 7. Bxc6+ bxc6 8. Qf3
+Bb7 9. c3 c4 10. dxc4 Qe7 11. cxd4 c5 12. d5 exd5 13. cxd5 O-O-O 14. Nc3 f6 15.
+e6 Qc7 16. Be3 Qa5 17. O-O-O Bd6 18. f5 Ne7 19. Nge2 Bb8 20. Kb1 c4 21. Nf4 g5
+22. Ng6 Nxd5 23. Nxd5 Bxd5 24. Rxd5 Qxd5 25. Ne7+ Kb7 26. Nxd5 Rd6 27. e7 Re8
+28. Nxf6+ Kc7 29. Nxe8+ Kd7 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/i3ormpqu"]
+[Date "????.??.??"]
+[Round "?"]
+[White "MJordanLutz"]
+[Black "MaxPax"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:01:08"]
+[WhiteElo "1502"]
+[BlackElo "1587"]
+[WhiteRatingDiff "+13"]
+[BlackRatingDiff "-14"]
+[ECO "C62"]
+[Opening "Ruy Lopez: Steinitz Defense"]
+[TimeControl "300+8"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. Bxc6+ bxc6 5. d4 exd4 6. Nxd4 Nf6 7. Nxc6 Qd7
+8. Nd4 Ba6 9. b3 c5 10. Nf3 Be7 11. c4 Nxe4 12. O-O O-O 13. Re1 Nf6 14. Nc3 Bb7
+15. Nd5 Nxd5 16. cxd5 Bf6 17. Rb1 Bc3 18. Re2 Ba6 19. Re4 Rfe8 20. Qc2 Rxe4 21.
+Qxe4 Re8 22. Qc2 Bb4 23. Bd2 Bxd2 24. Qxd2 Bb7 25. Rd1 h6 26. h3 a6 27. Qf4 Qb5
+28. Qxd6 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/il5y6nwa"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Alexey_K"]
+[Black "gregosaurus"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:06:20"]
+[WhiteElo "1477"]
+[BlackElo "1081"]
+[WhiteRatingDiff "+2"]
+[BlackRatingDiff "-5"]
+[ECO "B02"]
+[Opening "Alekhine Defense"]
+[TimeControl "900+9"]
+[Termination "Normal"]
+
+1. e4 Nf6 2. Nc3 Nc6 3. d3 e5 4. Be3 Bb4 5. Qd2 Ng4 6. a3 Ba5 7. b4 Bb6 8. Bxb6
+cxb6 9. b5 Nd4 10. O-O-O d5 11. f3 Nf6 12. Qg5 Qc7 13. Qxg7 Rf8 14. Qxf6 Qxc3
+15. Qxe5+ Be6 16. Rd2 Qxa3+ 17. Kd1 Qc3 18. exd5 O-O-O 19. dxe6 fxe6 20. Ne2
+Rf5 21. Qxd4 Rxd4 22. Nxc3 Rb4 23. Re2 a5 24. Rxe6 a4 25. g4 Rc5 26. Kd2 a3 27.
+Bh3 Rb2 28. g5 a2 29. Re8+ Kc7 30. Ra1 Rxg5 31. Nxa2 Rgxb5 32. Nc3 Rb1 33. Rxb1
+1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/yfq9u4fm"]
+[Date "????.??.??"]
+[Round "?"]
+[White "tiggran"]
+[Black "treehugger"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:13:22"]
+[WhiteElo "1599"]
+[BlackElo "1487"]
+[WhiteRatingDiff "+8"]
+[BlackRatingDiff "-8"]
+[ECO "B00"]
+[Opening "Owen Defense"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 b6 2. Nf3 Bb7 3. Nc3 e6 4. d3 Bb4 5. Bd2 Bxc3 6. Bxc3 Ne7 7. Be2 f6 8. e5
+Ng6 9. exf6 gxf6 10. Qd2 Bxf3 11. Bxf3 c6 12. O-O-O Qe7 13. Rhe1 e5 14. Bd4 c5
+15. Bc3 Nc6 16. Bxc6 dxc6 17. Qh6 Rg8 18. g3 Qg7 19. Qh3 Ke7 20. d4 Rad8 21.
+dxe5 Rxd1+ 22. Rxd1 fxe5 23. Rd7+ 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/wujruyjz"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Milligan"]
+[Black "samijoon"]
+[Result "1/2-1/2"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:15:48"]
+[WhiteElo "1416"]
+[BlackElo "1407"]
+[WhiteRatingDiff "-1"]
+[BlackRatingDiff "+0"]
+[ECO "C41"]
+[Opening "Philidor Defense #2"]
+[TimeControl "900+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. Nf3 d6 3. Nc3 Nf6 4. d4 exd4 5. Nxd4 d5 6. e5 Ne4 7. Nxe4 dxe4 8.
+Bc4 Bc5 9. c3 Nc6 10. Be3 h5 11. a3 O-O 12. O-O Qe7 13. b4 Bxd4 14. cxd4 Be6
+15. Rc1 Bxc4 16. Rxc4 Rad8 17. Qxh5 g6 18. Qe2 Kg7 19. b5 Na5 20. Rb4 b6 21.
+Qd2 Rh8 22. d5 Nb7 23. Bg5 Qxe5 24. Bxd8 Rxd8 25. Qe3 Rxd5 26. Re1 Qd6 27. Rxe4
+Rd1 28. h3 Rd3 29. Qg5 Rxa3 30. R1e3 Ra1+ 31. Re1 Ra5 32. g3 Nc5 33. Qc1 Nxe4
+34. Rxe4 Rxb5 35. Qc3+ Qf6 36. Qxc7 Rb1+ 37. Kg2 a5 38. Re7 Rb2 39. h4 Qxf2+
+40. Kh3 Qh2+ 41. Kg4 Rb4+ 42. Kf3 Qh1+ 43. Ke3 Rb3+ 44. Kd4 Qd1+ 45. Kc4 Qc2+
+46. Kd5 Rd3+ 47. Ke5 Re3+ 48. Kd6 Qd3+ 49. Kc6 Qc4+ 50. Kxb6 Qxc7+ 51. Rxc7 a4
+52. g4 a3 53. Rc1 a2 54. Ra1 Re2 55. Kc5 Rb2 56. Kc4 Kf6 57. Kc3 Rf2 58. Kd3
+Rg2 59. g5+ Ke5 60. Kc3 Kf4 61. Kb3 Kg4 62. Rxa2 Rxa2 63. Kxa2 Kxh4 64. Kb2
+Kxg5 65. Kc2 f6 66. Kd3 f5 67. Ke3 Kg4 68. Kf2 g5 69. Ke3 f4+ 70. Ke4 Kh4 71.
+Kf3 Kh5 72. Kf2 g4 73. Kg2 f3+ 74. Kg3 Kg5 75. Kf2 Kf4 76. Kf1 g3 77. Kg1 Ke3
+78. Kf1 g2+ 79. Kg1 Ke2 80. Kh2 f2 81. Kxg2 f1=Q+ 82. Kg3 Qf3+ 83. Kh4 Qg2 84.
+Kh5 Kf3 85. Kh6 Kg4 86. Kg6 Qf3 87. Kg7 Kf5 88. Kf7 Qe4 89. Kg7 Kg5 90. Kf7 Qe5
+91. Kg8 Qf6 92. Kh7 1/2-1/2
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/1ymgb7qf"]
+[Date "????.??.??"]
+[Round "?"]
+[White "tiggran"]
+[Black "metrolog"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:16:07"]
+[WhiteElo "1599"]
+[BlackElo "1447"]
+[WhiteRatingDiff "+7"]
+[BlackRatingDiff "-6"]
+[ECO "B01"]
+[Opening "Scandinavian Defense: Mieses-Kotroc Variation"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd8 4. Bb5+ c6 5. Bc4 e6 6. Nf3 h6 7. O-O Nf6 8.
+d3 Nbd7 9. Re1 Bd6 10. Be3 O-O 11. Bb3 Bc7 12. Qd2 Nh7 13. Ne2 f5 14. Ng3 Bxg3
+15. fxg3 Kh8 16. Bxe6 Rf6 17. Bxd7 Qxd7 18. c3 b5 19. Bd4 Rg6 20. Ne5 Qf7 21.
+Nxf7+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/gjvzapv0"]
+[Date "????.??.??"]
+[Round "?"]
+[White "khan"]
+[Black "vblack"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:17:58"]
+[WhiteElo "1277"]
+[BlackElo "1491"]
+[WhiteRatingDiff "-6"]
+[BlackRatingDiff "+5"]
+[ECO "D02"]
+[Opening "Queen's Pawn Game: Zukertort Variation"]
+[TimeControl "180+3"]
+[Termination "Normal"]
+
+1. Nf3 d5 2. d4 b6 3. e3 e6 4. Bb5+ c6 5. Bd3 a6 6. O-O h6 7. c4 Nf6 8. cxd5
+cxd5 9. Ne5 Nbd7 10. Nc6 Qc7 11. Ne5 Nxe5 12. dxe5 Ne4 13. Nc3 Bb7 14. Nxe4
+dxe4 15. Be2 Be7 16. b3 O-O 17. f3 Rfd8 18. Qc2 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/9q1uycag"]
+[Date "????.??.??"]
+[Round "?"]
+[White "vblack"]
+[Black "Pozitiv"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:20:27"]
+[WhiteElo "1504"]
+[BlackElo "1418"]
+[WhiteRatingDiff "+9"]
+[BlackRatingDiff "-9"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game #3"]
+[TimeControl "840+14"]
+[Termination "Normal"]
+
+1. d4 d5 2. e3 Nf6 3. a3 g6 4. b3 Bh6 5. Bb2 O-O 6. Nd2 Nc6 7. Ngf3 Bg4 8. g3
+Ne4 9. Bg2 f5 10. O-O Qd6 11. c4 Nxd2 12. Qxd2 dxc4 13. bxc4 g5 14. d5 Bxf3 15.
+Bxf3 Ne5 16. Bxe5 Qxe5 17. Qd4 Qxd4 18. exd4 f4 19. Rad1 fxg3 20. fxg3 Bg7 21.
+c5 Rad8 22. Be2 Rxd5 23. Bc4 Rxf1+ 24. Rxf1 e6 25. Bxd5 exd5 26. Kg2 Bxd4 27.
+Rd1 Bxc5 28. Rxd5 b6 29. a4 Kf7 30. Rxg5 h6 31. Rf5+ Ke6 32. g4 a6 33. h3 c6
+34. Kf3 b5 35. axb5 axb5 36. Rxc5 Kd6 37. Rc2 Kd5 38. h4 c5 39. Ke3 c4 40. g5
+hxg5 41. hxg5 b4 42. g6 b3 43. Rc1 b2 44. Rb1 c3 45. g7 c2 46. g8=Q+ Ke5 47.
+Qg7+ Kf5 48. Qh7+ Kg4 49. Qxc2 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/0grq3e85"]
+[Date "????.??.??"]
+[Round "?"]
+[White "VanillaShamanilla"]
+[Black "menssser"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:23:29"]
+[WhiteElo "1264"]
+[BlackElo "1487"]
+[WhiteRatingDiff "-23"]
+[BlackRatingDiff "+46"]
+[ECO "C00"]
+[Opening "French Defense: Normal Variation"]
+[TimeControl "300+0"]
+[Termination "Time forfeit"]
+
+1. d4 e6 2. e4 g6 3. Nf3 Bg7 4. Nc3 d6 5. Bg5 f6 6. Bf4 Bd7 7. Bb5 Nc6 8. d5
+Ne5 9. Bxe5 dxe5 10. Bxd7+ Qxd7 11. Nd2 exd5 12. exd5 O-O-O 13. Nc4 Ne7 14. Ne3
+f5 15. O-O f4 16. Ng4 Nxd5 17. Nxd5 Qxd5 18. Qxd5 Rxd5 19. Rad1 Rxd1 20. Rxd1
+Rd8 21. Rxd8+ Kxd8 22. b4 Kd7 23. c4 Kd6 24. Kf1 c5 25. b5 a6 26. a4 axb5 27.
+axb5 h5 28. Nxe5 Bxe5 29. Ke2 Bd4 30. f3 Ke5 31. g4 hxg4 32. fxg4 Ke4 33. h4
+f3+ 34. Kf1 Kf4 35. h5 gxh5 36. gxh5 Kg4 37. h6 Kg5 38. h7 Kg6 39. h8=Q Bxh8
+40. Kf2 Kf5 41. Kxf3 Bd4 42. Ke2 Ke4 43. Kd2 Be3+ 44. Kc3 Bd4+ 45. Kb3 Kd3 46.
+b6 Kd2 47. Ka4 Kc3 48. Kb5 Kb3 49. Ka5 Kxc4 50. Ka4 Bc3 51. Ka3 Kb5 52. Ka2 Bb4
+53. Kb3 Kxb6 54. Kc4 Ka5 55. Kd5 b5 56. Kc6 c4 57. Kb7 c3 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/b9nky80l"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ronis"]
+[Black "writinggambler"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:24:29"]
+[WhiteElo "1408"]
+[BlackElo "1167"]
+[WhiteRatingDiff "+4"]
+[BlackRatingDiff "-10"]
+[ECO "C21"]
+[Opening "King's Pawn Game: Beyer Gambit"]
+[TimeControl "660+8"]
+[Termination "Normal"]
+
+1. d4 d5 2. e4 e5 3. dxe5 dxe4 4. Qxd8+ Kxd8 5. Nc3 f5 6. Bg5+ Be7 7. Bxe7+
+Kxe7 8. Nd5+ Ke6 9. Nxc7+ Kxe5 10. Nxa8 Nf6 11. f3 e3 12. Bd3 f4 13. Ne2 Nd5
+14. O-O b6 15. c4 Bb7 16. Be4 Bxa8 17. cxd5 Rc8 18. Rac1 Rc5 19. Rxc5 bxc5 20.
+g3 g5 21. Re1 Na6 22. gxf4+ gxf4 23. d6 Bxe4 24. d7 Bxf3 25. d8=Q Bxe2 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/mncgcplf"]
+[Date "????.??.??"]
+[Round "?"]
+[White "opptimyst"]
+[Black "treehugger"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:26:32"]
+[WhiteElo "1422"]
+[BlackElo "1589"]
+[WhiteRatingDiff "-44"]
+[BlackRatingDiff "+6"]
+[ECO "B00"]
+[Opening "Owen Defense"]
+[TimeControl "120+0"]
+[Termination "Normal"]
+
+1. e4 b6 2. Nf3 Bb7 3. Nc3 e6 4. d4 Bb4 5. a3 Bxc3+ 6. bxc3 Bxe4 7. Bd3 Bxf3 8.
+Qxf3 Nc6 9. Qh3 Qf6 10. O-O g6 11. Be4 d5 12. Bf3 h5 13. Bf4 Rc8 14. Bg3 Nh6
+15. a4 Qe7 16. c4 Nxd4 17. cxd5 Nxf3+ 18. gxf3 O-O 19. Rac1 exd5 20. c4 dxc4
+21. Rxc4 Qa3 22. Be5 Rce8 23. Qg3 Qe7 24. f4 Nf5 25. Qc3 c5 26. Re1 Qh4 27. Bd6
+Nxd6 28. f5 Rxe1+ 29. Qxe1 Nxf5 30. Rxh4 Nxh4 31. f3 Nxf3+ 32. Kf2 Nxe1 33.
+Kxe1 Re8+ 34. Kf2 a6 35. Kg3 b5 36. axb5 axb5 37. Kf4 b4 38. Kg3 b3 39. Kf4 b2
+40. Kg5 b1=Q 41. Kh6 Qc1# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/vz1rmqp1"]
+[Date "????.??.??"]
+[Round "?"]
+[White "froonsan"]
+[Black "khan"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:28:02"]
+[WhiteElo "1447"]
+[BlackElo "1427"]
+[WhiteRatingDiff "+19"]
+[BlackRatingDiff "-11"]
+[ECO "C20"]
+[Opening "King's Pawn Game: Wayward Queen Attack"]
+[TimeControl "600+15"]
+[Termination "Normal"]
+
+1. e4 e5 2. Qh5 Nc6 3. Bb5 Qf6 4. Bxc6 bxc6 5. Nf3 g6 6. Qxe5+ Qxe5 7. Nxe5 Nf6
+8. Nc3 d6 9. Nxc6 Be7 10. Nxe7 Kxe7 11. Nd5+ Ke6 12. Nxf6 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/539zrm0n"]
+[Date "????.??.??"]
+[Round "?"]
+[White "treehugger"]
+[Black "lamobot"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:30:41"]
+[WhiteElo "1479"]
+[BlackElo "1369"]
+[WhiteRatingDiff "+8"]
+[BlackRatingDiff "-12"]
+[ECO "A01"]
+[Opening "Nimzo-Larsen Attack: Classical Variation"]
+[TimeControl "180+3"]
+[Termination "Normal"]
+
+1. b3 d5 2. Bb2 Nf6 3. e3 Nc6 4. Bb5 a6 5. Bxc6+ bxc6 6. f3 Bf5 7. Ne2 e6 8.
+Nd4 c5 9. Nxf5 exf5 10. a4 Bd6 11. O-O O-O 12. Qe1 f4 13. Qh4 fxe3 14. Bxf6
+Qxf6 15. Qxf6 gxf6 16. dxe3 Be5 17. Ra2 c4 18. bxc4 dxc4 19. c3 Rfb8 20. Kf2
+Rb3 21. Rc1 Rd8 22. Ke2 Rd3 23. f4 Bxc3 24. Nxc3 Rdxc3 25. Rxc3 Rxc3 26. h4 h5
+27. Kf3 Kg7 28. Ke4 Rd3 29. Rc2 Ra3 30. Rxc4 Kg6 31. f5+ Kg7 32. Kd4 Kf8 33. e4
+Ke8 34. Kd5 Kd7 35. Kc5 Kc8 36. Kc6 Kb8 37. Kd7 Kb7 38. Ke7 Kb6 39. Kxf7 c5 40.
+Kxf6 Ka5 41. Kg6 Rxa4 42. Rxa4+ Kxa4 43. f6 c4 44. f7 c3 45. f8=Q c2 46. Qc8
+Kb3 47. Kxh5 Kb2 48. e5 a5 49. e6 a4 50. e7 a3 51. e8=Q a2 52. Qa4 a1=Q 53.
+Qcxc2# 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/fdjbct7p"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Alexey_K"]
+[Black "froonsan"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:32:08"]
+[WhiteElo "1479"]
+[BlackElo "1466"]
+[WhiteRatingDiff "+11"]
+[BlackRatingDiff "-19"]
+[ECO "C44"]
+[Opening "Scotch Game"]
+[TimeControl "600+15"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 f6 4. dxe5 Nxe5 5. Nxe5 fxe5 6. Qh5+ g6 7. Qxe5+ Qe7
+8. Qxh8 Nf6 9. Bg5 Qxe4+ 10. Be2 Qxc2 11. O-O Qxe2 12. Qxf6 Qe7 13. Qxe7+ Bxe7
+14. Re1 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/vxf0f361"]
+[Date "????.??.??"]
+[Round "?"]
+[White "lamobot"]
+[Black "metrolog"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:46:37"]
+[WhiteElo "1357"]
+[BlackElo "1441"]
+[WhiteRatingDiff "-12"]
+[BlackRatingDiff "+8"]
+[ECO "C02"]
+[Opening "French Defense: Advance Variation #3"]
+[TimeControl "180+3"]
+[Termination "Normal"]
+
+1. e4 d5 2. e5 e6 3. d4 Nd7 4. Nf3 c5 5. Bg5 Be7 6. Bxe7 Nxe7 7. Bb5 a6 8. Ba4
+b5 9. Bb3 c4 10. Bxc4 bxc4 11. O-O O-O 12. Nbd2 f6 13. Nh4 Nxe5 14. dxe5 fxe5
+15. Ndf3 e4 16. Ng5 Nc6 17. Qh5 h6 18. Nh3 e5 19. Ng6 Rf5 20. Ng5 Rxg5 21. Qh4
+Rxg6 22. Qxd8+ Nxd8 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/ha48pwvj"]
+[Date "????.??.??"]
+[Round "?"]
+[White "4lawsdotcom"]
+[Black "gsmaldone"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:49:49"]
+[WhiteElo "1590"]
+[BlackElo "1434"]
+[WhiteRatingDiff "+14"]
+[BlackRatingDiff "-7"]
+[ECO "C41"]
+[Opening "Philidor Defense #3"]
+[TimeControl "480+4"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 d6 3. Bc4 Nf6 4. Nc3 Bg4 5. h3 Bxf3 6. Qxf3 Nc6 7. a3 Be7 8. d3
+Nd4 9. Qd1 O-O 10. Be3 Nc6 11. Nb5 Na5 12. Ba2 c6 13. Nc3 c5 14. b4 cxb4 15.
+axb4 Nc6 16. b5 Nb8 17. Rb1 Qa5 18. b6 Qxc3+ 19. Bd2 Qa3 20. Ra1 Qc5 21. Be3
+Qc3+ 22. Bd2 Qc5 23. Be3 Qc3+ 24. Bd2 Qc5 25. Be3 Qc6 26. bxa7 Nbd7 27. g4 b6
+28. g5 Ne8 29. h4 Rxa7 30. Bxf7+ Rxf7 31. Rxa7 Qc3+ 32. Bd2 Qd4 33. Be3 Qc3+
+34. Bd2 Qc6 35. h5 Bxg5 36. Bxg5 h6 37. Bxh6 gxh6 38. Qg4+ Rg7 39. Qe6+ Kf8 40.
+Qxh6 Qc3+ 41. Ke2 Qxc2+ 42. Qd2 Qxd2+ 43. Kxd2 Nef6 44. h6 Rh7 45. Rh3 Ke7 46.
+Rb7 Ng4 47. Rg3 Nxf2 48. Rg7+ Rxg7 49. hxg7 Kf7 50. Rxd7+ Kg8 51. Ke3 Ng4+ 52.
+Kd2 Nf6 53. Rxd6 Kxg7 54. Rxb6 Kg6 55. Kc3 Kg5 56. d4 exd4+ 57. Kxd4 Nd7 58.
+Rb5+ Kf4 59. Rb7 Nf6 60. Rf7 Kg5 61. Rxf6 Kxf6 62. Kd5 Ke7 63. e5 Kd7 64. Ke4
+Ke7 65. Kf5 Kf7 66. e6+ Ke7 67. Ke5 Ke8 68. Kd6 Kf8 69. Kd7 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/52ukb4zq"]
+[Date "????.??.??"]
+[Round "?"]
+[White "metrolog"]
+[Black "lamobot"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:51:29"]
+[WhiteElo "1449"]
+[BlackElo "1345"]
+[WhiteRatingDiff "-14"]
+[BlackRatingDiff "+20"]
+[ECO "D06"]
+[Opening "Queen's Gambit Refused: Marshall Defense"]
+[TimeControl "180+3"]
+[Termination "Time forfeit"]
+
+1. d4 Nf6 2. c4 d5 3. a3 g6 4. Nc3 Bg7 5. c5 b6 6. b4 bxc5 7. bxc5 Ba6 8. Nf3
+O-O 9. Qb3 Nc6 10. Bf4 Ne4 11. Nb5 e5 12. dxe5 Nxe5 13. Nxe5 Re8 14. Rd1 Nxc5
+15. Qb4 Ne6 16. Nc6 Qh4 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/p2mcxhi4"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ADRNLNNJECTD"]
+[Black "spaces"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:53:36"]
+[WhiteElo "1558"]
+[BlackElo "1506"]
+[WhiteRatingDiff "-13"]
+[BlackRatingDiff "+13"]
+[ECO "C02"]
+[Opening "French Defense: Advance Variation, Nimzowitsch System"]
+[TimeControl "600+10"]
+[Termination "Normal"]
+
+1. e4 e6 2. d4 d5 3. e5 c5 4. Nf3 Nc6 5. Bb5 Bd7 6. Nc3 cxd4 7. Nxd4 Qb6 8. Be3
+Bc5 9. Nxc6 Bxe3 10. Nxd5 Bxf2+ 11. Kf1 exd5 12. Qxd5 bxc6 13. Qf3 cxb5 14.
+Qxf2 Qxf2+ 15. Kxf2 Be6 16. b4 Ne7 17. Kf3 Nd5 18. Rhe1 Nxb4 19. c3 Nc2 20.
+Red1 Nxa1 21. Rxa1 Ke7 22. a4 bxa4 23. Rxa4 Rhc8 24. Ra3 f6 25. Ke4 Rc4+ 26.
+Kd3 fxe5 27. Ra5 e4+ 28. Kc2 Kf6 29. Kb3 Rc6+ 30. Kb4 e3 31. Ra2 Bxa2 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/13e4v9dw"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ptdhina"]
+[Black "_viper_"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:57:21"]
+[WhiteElo "1565"]
+[BlackElo "1598"]
+[WhiteRatingDiff "-11"]
+[BlackRatingDiff "+14"]
+[ECO "C50"]
+[Opening "Italian Game: Giuoco Pianissimo, Normal"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Nf6 5. O-O d6 6. c3 Bg4 7. a4 a6 8. b4 Ba7
+9. h3 Bh5 10. g4 Nxg4 11. hxg4 Bxg4 12. Be3 Qf6 13. Bxa7 Bxf3 14. Kh2 Qh4+ 15.
+Kg1 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/h5mtz6vm"]
+[Date "????.??.??"]
+[Round "?"]
+[White "lamobot"]
+[Black "metrolog"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:58:49"]
+[WhiteElo "1365"]
+[BlackElo "1435"]
+[WhiteRatingDiff "+18"]
+[BlackRatingDiff "-13"]
+[ECO "B01"]
+[Opening "Scandinavian Defense"]
+[TimeControl "180+3"]
+[Termination "Time forfeit"]
+
+1. e4 d5 2. Nc3 dxe4 3. Nxe4 e6 4. d4 h6 5. Nf3 Nf6 6. Nc5 Bxc5 7. dxc5 Qxd1+
+8. Kxd1 O-O 9. Bf4 c6 10. Bc4 Nbd7 11. b4 b5 12. Bd3 Bb7 13. Ne5 Nxe5 14. Bxe5
+Ng4 15. Bg3 f5 16. f3 Nf6 17. c4 a6 18. cxb5 cxb5 19. a4 Bd5 20. axb5 Bb3+ 21.
+Ke2 axb5 22. Bxb5 Rad8 23. Bd6 Rf7 24. Ra3 Bd5 25. Rb1 Nh7 26. Ba6 Ng5 27. b5
+e5 28. b6 e4 29. b7 exf3+ 30. gxf3 Re8+ 31. Kf2 Nh3+ 32. Kg3 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/bk689z5a"]
+[Date "????.??.??"]
+[Round "?"]
+[White "_viper_"]
+[Black "ptdhina"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "04:58:56"]
+[WhiteElo "1598"]
+[BlackElo "1565"]
+[WhiteRatingDiff "-17"]
+[BlackRatingDiff "+12"]
+[ECO "C53"]
+[Opening "Italian Game: Classical Variation, La Bourdonnais Variation"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 d6 5. d4 exd4 6. cxd4 Bb6 7. Nc3 a6 8. d5
+Nce7 9. Bg5 h6 10. Bh4 g5 11. Bg3 Nf6 12. e5 dxe5 13. Bxe5 Ng6 14. O-O O-O 15.
+Re1 Nxe5 16. Rxe5 Ng4 17. Re2 Bf5 18. h3 Nxf2 19. Rxf2 Bxf2+ 20. Kxf2 c6 21.
+dxc6 Qb6+ 22. Kf1 Qxc6 23. Bb3 Rad8 24. Qc1 Bd3+ 25. Kg1 Qc5+ 26. Kh1 Qf2 27.
+Nxg5 hxg5 28. Qxg5+ Bg6 29. Qxg6+ Kh8 30. Qh6+ Kg8 31. Qg6+ Kh8 32. Qh5+ Kg7
+33. Qg5+ Kh7 34. Rc1 Rg8 35. Qh5+ Kg7 36. Qg4+ Kf8 37. Qb4+ Ke8 38. Ba4+ Rd7
+39. Bxd7+ Kxd7 40. Qxb7+ Ke6 41. Qd5+ Ke7 42. Rd1 Qxb2 43. Qd6+ Ke8 44. Ne4
+Qxg2# 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/9twm2b1s"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ptdhina"]
+[Black "_viper_"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:04:06"]
+[WhiteElo "1577"]
+[BlackElo "1581"]
+[WhiteRatingDiff "-11"]
+[BlackRatingDiff "+15"]
+[ECO "C50"]
+[Opening "Italian Game: Giuoco Pianissimo, Italian Four Knights Variation"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Nf6 5. Nc3 d6 6. a3 Bg4 7. h3 Bh5 8. O-O
+Nd4 9. Be3 Bxf3 10. gxf3 Qd7 11. Kh2 O-O-O 12. Bxd4 Bxd4 13. Nd5 Nxd5 14. Bxd5
+f5 15. Qd2 fxe4 16. Qb4 Bb6 17. a4 c6 18. Bxe4 d5 19. a5 Bc7 20. a6 b6 21. Bxd5
+cxd5 22. c4 e4+ 23. Kh1 Qxh3+ 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/a1hubukl"]
+[Date "????.??.??"]
+[Round "?"]
+[White "_viper_"]
+[Black "ptdhina"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:06:45"]
+[WhiteElo "1596"]
+[BlackElo "1566"]
+[WhiteRatingDiff "-16"]
+[BlackRatingDiff "+12"]
+[ECO "C62"]
+[Opening "Ruy Lopez: Steinitz Defense"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. d4 a6 5. Ba4 b5 6. Bb3 exd4 7. Nxd4 Nxd4 8.
+Qxd4 Nf6 9. Bg5 Be7 10. Bxf6 Bxf6 11. Qd5 O-O 12. Qxa8 Bxb2 13. O-O Bxa1 14.
+Nd2 Bc3 15. Nf3 Qf6 16. Qd5 Qg6 17. Nd4 Bh3 18. g3 Bxf1 19. Kxf1 Bxd4 20. Qxd4
+Re8 21. Qd5 Qxe4 22. Qxf7+ Kh8 23. Qxc7 Qh1# 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/yszcdr82"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ptdhina"]
+[Black "_viper_"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:09:51"]
+[WhiteElo "1566"]
+[BlackElo "1596"]
+[WhiteRatingDiff "+12"]
+[BlackRatingDiff "-16"]
+[ECO "C53"]
+[Opening "Italian Game: Classical Variation, Giuoco Pianissimo"]
+[TimeControl "60+2"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Nf6 5. c3 d6 6. a4 a6 7. O-O Bg4 8. h3 Bh5
+9. Be3 Bxe3 10. fxe3 Qd7 11. Kh2 O-O-O 12. b4 g5 13. b5 axb5 14. axb5 Nb8 15.
+Qb3 g4 16. hxg4 Nxg4+ 17. Kg1 Nxe3 18. Ng5 Nxf1 19. Nxf7 Bxf7 20. Bxf7 Qe7 21.
+Be6+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/sxkjujgk"]
+[Date "????.??.??"]
+[Round "?"]
+[White "lamobot"]
+[Black "metrolog"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:11:09"]
+[WhiteElo "1383"]
+[BlackElo "1422"]
+[WhiteRatingDiff "+17"]
+[BlackRatingDiff "-12"]
+[ECO "B01"]
+[Opening "Scandinavian Defense"]
+[TimeControl "180+3"]
+[Termination "Normal"]
+
+1. e4 d5 2. Nc3 dxe4 3. Nxe4 e6 4. Bb5+ c6 5. Ba4 Nd7 6. d4 h6 7. Nf3 Ngf6 8.
+Nxf6+ Qxf6 9. O-O b5 10. Bb3 Bb7 11. Be3 c5 12. dxc5 Nxc5 13. c4 Nxb3 14. Qxb3
+a6 15. cxb5 axb5 16. Qxb5+ Kd8 17. Qxb7 Ra5 18. Bb6+ Ke8 19. Bxa5 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/8jb5kiqw"]
+[Date "????.??.??"]
+[Round "?"]
+[White "_viper_"]
+[Black "ptdhina"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:13:09"]
+[WhiteElo "1580"]
+[BlackElo "1578"]
+[WhiteRatingDiff "+14"]
+[BlackRatingDiff "-11"]
+[ECO "C53"]
+[Opening "Italian Game: Classical Variation, La Bourdonnais Variation"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 d6 5. d4 exd4 6. cxd4 Bb6 7. d5 Na5 8.
+Bb5+ c6 9. dxc6 Nxc6 10. Nd4 Bd7 11. Nxc6 bxc6 12. Bc4 Qf6 13. O-O Nh6 14. Nc3
+Ng4 15. Qe2 O-O 16. Be3 Rfe8 17. Bxb6 axb6 18. f3 Ne5 19. Bb3 d5 20. exd5 Ng4
+21. Qf2 Ne3 22. Rfe1 Qd4 23. dxc6 Bxc6 24. Rac1 Nf5 25. Ne2 Qd2 26. Rxc6 Ne3
+27. Rc7 Nf5 28. Bxf7+ Kh8 29. Bxe8 Rxe8 30. Rcc1 Nd6 31. Ng3 Rxe1+ 32. Rxe1
+Qxb2 33. Qxb2 h6 34. Qxb6 Nf7 35. a4 Ne5 36. a5 Nd3 37. Rd1 Ne1 38. Rxe1 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/o24td0c8"]
+[Date "????.??.??"]
+[Round "?"]
+[White "spaces"]
+[Black "ADRNLNNJECTD"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:14:53"]
+[WhiteElo "1519"]
+[BlackElo "1545"]
+[WhiteRatingDiff "+12"]
+[BlackRatingDiff "-12"]
+[ECO "A43"]
+[Opening "Old Benoni Defense"]
+[TimeControl "300+8"]
+[Termination "Normal"]
+
+1. d4 c5 2. c3 c4 3. Bf4 d5 4. e3 Nc6 5. Nf3 e6 6. Be2 h6 7. O-O g5 8. Bg3 Nf6
+9. Ne5 Bd6 10. Nd2 h5 11. h3 h4 12. Bh2 Bxe5 13. dxe5 Nd7 14. f4 f6 15. Bh5+
+Ke7 16. fxg5 fxg5 17. Rf7+ Ke8 18. Rh7+ Kf8 19. Rxh8+ Ke7 20. Rxd8 Kxd8 21. Qf3
+Kc7 22. Be8 Ndxe5 23. Bxe5+ Nxe5 24. Qf6 Kd6 25. Qd8+ Kc5 26. Qc7+ Nc6 27. b4+
+cxb3 28. Nxb3+ Kc4 29. Bxc6 bxc6 30. Qxc6+ Kd3 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/uuj7sgbk"]
+[Date "????.??.??"]
+[Round "?"]
+[White "lamobot"]
+[Black "COLDEST"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:15:53"]
+[WhiteElo "1400"]
+[BlackElo "1493"]
+[WhiteRatingDiff "+19"]
+[BlackRatingDiff "-13"]
+[ECO "C21"]
+[Opening "Danish Gambit"]
+[TimeControl "180+1"]
+[Termination "Normal"]
+
+1. e4 e5 2. d4 exd4 3. c3 Nc6 4. Bc4 dxc3 5. Nxc3 Bb4 6. Qb3 Qe7 7. Nf3 Qxe4+
+8. Be3 Qe7 9. O-O Nf6 10. Rfe1 O-O 11. Bg5 Qd6 12. Rad1 Qc5 13. Ne4 Nxe4 14.
+Rxe4 h6 15. Bh4 d6 16. Re7 Nxe7 17. Bxe7 Re8 18. Bh4 b5 19. Bxf7+ Kf8 20. Bxe8
+Kxe8 21. Rd5 Qc6 22. Rd3 Bc5 23. Qg8+ Kd7 24. Qxg7+ Ke8 25. Qe7# 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/aes89exy"]
+[Date "????.??.??"]
+[Round "?"]
+[White "ptdhina"]
+[Black "_viper_"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:17:55"]
+[WhiteElo "1567"]
+[BlackElo "1594"]
+[WhiteRatingDiff "-11"]
+[BlackRatingDiff "+14"]
+[ECO "C50"]
+[Opening "Italian Game: Giuoco Pianissimo, Normal"]
+[TimeControl "60+2"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Nf6 5. h3 d6 6. O-O Be6 7. c3 Bxc4 8. dxc4
+Qd7 9. a4 a6 10. b4 Ba7 11. Be3 O-O 12. Ng5 h6 13. Nf3 Ne7 14. b5 Ng6 15. bxa6
+bxa6 16. Bxa7 Rxa7 17. Qe2 Nf4 18. Qe3 Rb7 19. Nbd2 Rfb8 20. g3 Nxh3+ 21. Kh2
+Ng4+ 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/a0c1jnhy"]
+[Date "????.??.??"]
+[Round "?"]
+[White "arun"]
+[Black "jorespi"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:22:55"]
+[WhiteElo "1068"]
+[BlackElo "1587"]
+[WhiteRatingDiff "+64"]
+[BlackRatingDiff "-21"]
+[ECO "C22"]
+[Opening "Center Game: Normal Variation"]
+[TimeControl "300+4"]
+[Termination "Normal"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qd1 d6 5. Bb5 Bd7 6. e5 Nxe5 7. Bxd7+ Qxd7
+8. Nc3 Nf6 9. Nf3 Nxf3+ 10. Qxf3 c6 11. O-O Be7 12. Re1 O-O 13. Qg3 Kh8 14. Bg5
+Rfe8 15. Bxf6 Bxf6 16. Rxe8+ Rxe8 17. a4 d5 18. h3 d4 19. Rd1 Qe6 20. Nb1 Qe1+
+21. Rxe1 Rxe1+ 22. Kh2 g6 23. Nd2 Be5 24. f4 Bxf4 25. Qxf4 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/oxrogyob"]
+[Date "????.??.??"]
+[Round "?"]
+[White "spaces"]
+[Black "ADRNLNNJECTD"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:25:47"]
+[WhiteElo "1531"]
+[BlackElo "1525"]
+[WhiteRatingDiff "+12"]
+[BlackRatingDiff "-11"]
+[ECO "A40"]
+[Opening "Englund Gambit Complex: Soller Gambit"]
+[TimeControl "300+8"]
+[Termination "Time forfeit"]
+
+1. d4 e5 2. dxe5 f6 3. Nf3 d5 4. exf6 Nxf6 5. Bg5 Nbd7 6. e3 Bc5 7. Bd3 h6 8.
+Bh4 g5 9. Bg6+ Ke7 10. Bg3 Qg8 11. Bf5 Ne4 12. Nbd2 Nxg3 13. hxg3 g4 14. Nh4
+Ne5 15. Bxc8 Rxc8 16. Qe2 Kd6 17. O-O-O Qg5 18. Ne4+ Kc6 19. Nxg5 hxg5 20. Nf5
+Rxh1 21. Rxh1 Nc4 22. Rh6+ Kb5 23. b3 Re8 24. bxc4+ dxc4 25. c3 Re5 26. Qb2+
+Ka5 27. Nd4 c6 28. Rh7 b5 29. Nxc6+ Kb6 30. Nxe5 Bd6 31. Rh6 Kc5 32. Nd7+ Kd5
+33. Qxb5+ Bc5 34. Qxc5+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/earjizco"]
+[Date "????.??.??"]
+[Round "?"]
+[White "VanillaShamanilla"]
+[Black "M3hran"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:25:46"]
+[WhiteElo "1241"]
+[BlackElo "1291"]
+[WhiteRatingDiff "+51"]
+[BlackRatingDiff "-30"]
+[ECO "B01"]
+[Opening "Scandinavian Defense: Gubinsky-Melts Defense"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qd6 4. Nf3 Bf5 5. g3 Nc6 6. Bg2 Nb4 7. O-O Nxc2 8.
+Rb1 Nd4 9. Nxd4 Qxd4 10. Nb5 Qd7 11. Bxb7 Rb8 12. Qf3 Qxb5 13. Bc6+ Bd7 14.
+Bxb5 Rxb5 15. d4 e5 16. Qa8+ Ke7 17. Re1 Nf6 18. Rxe5+ Rxe5 19. dxe5 Nh5 20.
+Bg5+ f6 21. exf6+ gxf6 22. Bh4 Bg7 23. Qe4+ Be6 24. Qb4+ Kf7 25. Qb7 Rc8 26.
+Qxa7 Bh6 27. f4 Bh3 28. Rc1 Rd8 29. Qxc7+ Ke8 30. Qxh7 Nxg3 31. Bxg3 Bf8 32.
+Qxh3 Rd2 33. Qc8+ Rd8 34. Re1+ Be7 35. Qc6+ Kf8 36. h4 Rd6 37. Qc8+ Rd8 38. Qe6
+Bc5+ 39. Kh2 Rd2+ 40. Kh3 Be7 41. Qxe7+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/by36hk81"]
+[Date "????.??.??"]
+[Round "?"]
+[White "chinni"]
+[Black "jorespi"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:31:59"]
+[WhiteElo "1406"]
+[BlackElo "1566"]
+[WhiteRatingDiff "-7"]
+[BlackRatingDiff "+7"]
+[ECO "A00"]
+[Opening "Mieses Opening"]
+[TimeControl "240+4"]
+[Termination "Normal"]
+
+1. d3 d5 2. e4 dxe4 3. dxe4 Qxd1+ 4. Kxd1 e5 5. Nf3 Nc6 6. h3 Nf6 7. Bb5 Nxe4
+8. Be3 f6 9. Nc3 Nxc3+ 10. bxc3 Be6 11. Ke2 Ba3 12. Rhd1 Bb2 13. Rab1 Bxc3 14.
+Bxc6+ bxc6 15. Rd3 Ba5 16. Rbd1 O-O 17. Bc5 Rfe8 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/dkvedk5w"]
+[Date "????.??.??"]
+[Round "?"]
+[White "FF4"]
+[Black "arun"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:32:27"]
+[WhiteElo "1460"]
+[BlackElo "1372"]
+[WhiteRatingDiff "+9"]
+[BlackRatingDiff "-14"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game #2"]
+[TimeControl "300+10"]
+[Termination "Normal"]
+
+1. d4 d5 2. e3 Nc6 3. Na3 e5 4. Nf3 e4 5. Nd2 Bb4 6. Bb5 Bd7 7. O-O Bxa3 8.
+Bxc6 Bb4 9. Bxd5 Bxd2 10. Bxd2 f5 11. f3 Nf6 12. fxe4 fxe4 13. Rxf6 gxf6 14.
+Qh5+ Ke7 15. Qf7+ Kd6 16. Bb4+ c5 17. Bxc5+ Kc7 18. Bxe4 Qg8 19. Qxf6 Re8 20.
+Qd6+ Kc8 21. Bxb7+ Kxb7 22. Qxd7+ Kb8 23. Bd6+ Ka8 24. Qc6# 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/pvn41ok2"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Lalara"]
+[Black "Dipankar"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:39:51"]
+[WhiteElo "1400"]
+[BlackElo "1495"]
+[WhiteRatingDiff "+82"]
+[BlackRatingDiff "-12"]
+[ECO "A40"]
+[Opening "Englund Gambit"]
+[TimeControl "180+0"]
+[Termination "Time forfeit"]
+
+1. d4 e5 2. dxe5 Nc6 3. f4 Qe7 4. Nf3 f6 5. Qd5 d6 6. exd6 Qxd6 7. Qxd6 Bxd6 8.
+c3 Nge7 9. e4 Na5 10. b4 Nac6 11. Bc4 a6 12. O-O b5 13. Bb3 a5 14. bxa5 Nxa5
+15. Bd5 Rb8 16. Nbd2 f5 17. e5 Nxd5 18. exd6 cxd6 19. Re1+ Kf7 20. Bb2 Re8 21.
+Ng5+ Kg6 22. Ndf3 Bb7 23. Nh4+ Kh5 24. Nxf5 Nxf4 25. Nxg7+ Kxg5 26. Nxe8 Nxg2
+27. Re2 Nf4 28. Re7 Nh3+ 29. Kf1 Nf4 30. Rg7+ Kh6 31. Rf7 Nd3 32. Ba3 Rxe8 33.
+Bxd6 Nc4 34. Bf4+ Kg6 35. Rd7 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/0xp6sh9f"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Dipankar"]
+[Black "evg"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:46:17"]
+[WhiteElo "1483"]
+[BlackElo "1594"]
+[WhiteRatingDiff "+15"]
+[BlackRatingDiff "-15"]
+[ECO "C20"]
+[Opening "King's Pawn Game: Wayward Queen Attack"]
+[TimeControl "300+0"]
+[Termination "Normal"]
+
+1. e4 e5 2. Qh5 Bc5 3. Nf3 Qf6 4. c3 d6 5. d4 exd4 6. cxd4 Bb4+ 7. Nbd2 g6 8.
+Qb5+ Nc6 9. d5 Bd7 10. dxc6 bxc6 11. Qxb4 Ne7 12. Bd3 O-O 13. O-O c5 14. Qc3
+Nc6 15. Qxf6 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/0crfb2tz"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Lalara"]
+[Black "khan"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:47:16"]
+[WhiteElo "1482"]
+[BlackElo "1271"]
+[WhiteRatingDiff "+27"]
+[BlackRatingDiff "-6"]
+[ECO "D01"]
+[Opening "Queen's Pawn Game: Chigorin Variation"]
+[TimeControl "180+0"]
+[Termination "Time forfeit"]
+
+1. d4 d5 2. Nc3 Nf6 3. Bf4 Nc6 4. Nb5 e5 5. dxe5 Nd7 6. e6 Bd6 7. exf7+ Kxf7 8.
+Qxd5+ Ke8 9. Bxd6 cxd6 10. Nxd6+ Kf8 11. O-O-O Nb6 12. Qf3+ Qf6 13. Qxf6+ gxf6
+14. c3 Kg7 15. e3 Rd8 16. Be2 Ne5 17. f4 Nf7 18. Nxf7 Rxd1+ 19. Bxd1 Be6 20.
+Nd6 Nc4 21. Nxc4 Bxc4 22. b3 Bd3 23. Be2 Be4 24. Bf3 Bxf3 25. Nxf3 Rd8 26. Rd1
+Rxd1+ 27. Kxd1 a6 28. g4 b6 29. f5 h6 30. a4 a5 31. h4 Kf7 32. Nd4 Ke7 33. Kd2
+Kd6 34. Kd3 Kc5 35. Ne6+ Kd6 36. Nf8 Ke7 37. Ng6+ Kf7 38. Kd4 Ke8 39. Kd5 Kd7
+40. e4 Kc7 41. Ke6 Kc6 42. Kxf6 b5 43. axb5+ Kxb5 44. Ke6 a4 45. bxa4+ Kxa4 46.
+f6 Kb3 47. f7 Kxc3 48. f8=Q Kd3 49. Nf4+ Kxe4 50. Qf5+ Kf3 51. Nh5+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/k7cp8r3k"]
+[Date "????.??.??"]
+[Round "?"]
+[White "evg"]
+[Black "Dipankar"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:48:19"]
+[WhiteElo "1579"]
+[BlackElo "1498"]
+[WhiteRatingDiff "-13"]
+[BlackRatingDiff "+13"]
+[ECO "C30"]
+[Opening "King's Gambit Declined, Keene Defense"]
+[TimeControl "300+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. f4 Qh4+ 3. g3 Qe7 4. f5 d5 5. exd5 Bxf5 6. Nf3 Be4 7. Be2 Bxd5 8.
+O-O Nf6 9. Re1 e4 10. d3 Nc6 11. dxe4 Nxe4 12. Bb5 O-O-O 13. Bxc6 Bxc6 14. Nc3
+Rxd1 0-1
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/0efbuxny"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Dipankar"]
+[Black "ralphhh"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:53:08"]
+[WhiteElo "1511"]
+[BlackElo "1422"]
+[WhiteRatingDiff "-14"]
+[BlackRatingDiff "+14"]
+[ECO "C00"]
+[Opening "French Defense #2"]
+[TimeControl "300+3"]
+[Termination "Normal"]
+
+1. e4 e6 2. Nh3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. d3 Nxe4 6. dxe4 Qxd1+ 7. Kxd1 Nc6
+8. Bf4 Bd6 9. Ke2 Bd7 10. Rd1 Bxf4 11. Nxf4 O-O-O 12. Kf3 h6 13. Bb5 g5 14. Nh5
+f5 15. Nf6 Ne5+ 16. Kg3 Bxb5 17. Rxd8+ Rxd8 18. b3 Bc6 19. c4 Bxe4 20. Nxe4
+fxe4 21. Re1 Rd4 22. f3 Nd3 23. Rxe4 Rxe4 24. fxe4 Kd7 25. Kg4 e5 26. Kh5 Nf4+
+27. Kxh6 Nxg2 28. Kxg5 Nf4 29. Kf5 Kd6 30. c5+ Kxc5 31. Kxe5 Nd3+ 32. Kf5 Kd4
+33. h4 Ne5 34. h5 Nf7 35. Kg6 Ne5+ 36. Kg7 Ng4 37. Kg6 Kxe4 38. Kg5 Kf3 39. a4
+a5 40. h6 Nxh6 41. Kxh6 Ke4 42. Kg6 Kd4 43. Kf7 Kc3 44. Ke7 Kxb3 45. Kd7 Kxa4
+46. Kxc7 Kb3 47. Kxb7 a4 48. Kc6 Kb2 49. Kd5 a3 50. Kd4 a2 51. Kd3 a1=Q 52. Kd2
+Qc1+ 53. Kd3 Qc3+ 54. Ke4 Qd2 55. Ke5 Kc2 56. Kf6 Qe2 57. Kg7 Qf2 58. Kh8 Qg2
+59. Kh7 Kd3 60. Kh6 Ke4 61. Kh5 Kf4 62. Kh4 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/qt2upplt"]
+[Date "????.??.??"]
+[Round "?"]
+[White "nazer"]
+[Black "arun"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:49:58"]
+[WhiteElo "1323"]
+[BlackElo "1358"]
+[WhiteRatingDiff "-12"]
+[BlackRatingDiff "+16"]
+[ECO "C45"]
+[Opening "Scotch Game: Malaniuk Variation"]
+[TimeControl "540+0"]
+[Termination "Time forfeit"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bb4+ 5. c3 Bc5 6. Nb3 b6 7. Bc4 Qh4 8.
+g3 Qxe4+ 9. Be2 Qxh1+ 10. Kd2 Qd5+ 11. Kc2 Qe4+ 12. Bd3 Qg2 13. Qe2+ Nce7 14.
+f4 Qd5 15. Be4 Qd6 16. Bxa8 Qg6+ 17. Kd1 d5 18. Be3 Bg4 19. f5 Bxe2+ 20. Kxe2
+Qg4+ 21. Kd3 Qe4+ 22. Ke2 Qxe3+ 23. Kd1 Qg1+ 24. Kc2 Qf2+ 25. N3d2 Nxf5 26.
+Bc6+ Kd8 27. Bxd5 Ne3+ 28. Kb3 Nxd5 29. c4 Qe3+ 30. Kc2 Nb4+ 31. Kd1 Qg1+ 32.
+Ke2 Nc2 33. b4 Nxa1 34. bxc5 Qxc5 35. Nc3 Qe5+ 36. Nde4 Nc2 37. Kd2 Nb4 38. Kc1
+Nxa2+ 39. Kb2 Nxc3 40. Nxc3 Qe2+ 41. Kb3 Qe6 42. Kc2 Nf6 43. h4 Ne4 44. Nxe4
+Qxe4+ 45. Kb3 a5 46. Ka4 Qxc4+ 47. Ka3 b5 48. Kb2 a4 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/cu2eud5o"]
+[Date "????.??.??"]
+[Round "?"]
+[White "4lawsdotcom"]
+[Black "Verminard"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:57:19"]
+[WhiteElo "1568"]
+[BlackElo "1243"]
+[WhiteRatingDiff "-30"]
+[BlackRatingDiff "+253"]
+[ECO "A06"]
+[Opening "Zukertort Opening: Tennison Gambit"]
+[TimeControl "480+4"]
+[Termination "Normal"]
+
+1. e4 d5 2. Nf3 dxe4 3. Ng5 Nf6 4. d3 Qd5 5. dxe4 Qxd1+ 6. Kxd1 h6 7. Nf3 Bg4
+8. Bd3 Bxf3+ 9. gxf3 e5 10. f4 Nc6 11. fxe5 Nxe5 12. Bb5+ c6 13. Ba4 O-O-O+ 14.
+Ke2 Bc5 15. Bf4 Rhe8 16. a3 Nxe4 17. f3 Ng5 18. Nd2 Nd3+ 19. Kf1 Nxf4 20. b4
+Rxd2 21. bxc5 Nxf3 22. c3 Nxh2+ 23. Kg1 Rg2# 0-1
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/fveyply9"]
+[Date "????.??.??"]
+[Round "?"]
+[White "oilmanesh"]
+[Black "namesnik"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "05:57:56"]
+[WhiteElo "1540"]
+[BlackElo "1547"]
+[WhiteRatingDiff "+12"]
+[BlackRatingDiff "-13"]
+[ECO "A00"]
+[Opening "Van Geet Opening: Reversed Nimzowitsch"]
+[TimeControl "60+0"]
+[Termination "Time forfeit"]
+
+1. Nc3 e5 2. d3 Nf6 3. e4 Bb4 4. Nf3 O-O 5. Be2 Re8 6. O-O c6 7. Be3 d5 8. exd5
+cxd5 9. d4 Nc6 10. dxe5 Nxe5 11. Nxe5 Rxe5 12. Bd4 Rg5 13. Bf3 Bh3 14. Bxf6
+Qxf6 15. Nxd5 Qd6 16. Ne3 Qxd1 17. Rfxd1 Re8 18. Kf1 Be6 19. c3 Bc5 20. h3 Bxe3
+21. fxe3 Re5 22. Rd3 Bf5 23. e4 Bg6 24. Re1 f5 25. Rde3 fxe4 26. Bxe4 Rf8+ 27.
+Kg1 Rg5 28. Bxg6 hxg6 29. R1e2 Re8 30. Kh2 Kf7 31. Rf3+ Kg8 32. Rxe8+ 1-0
+
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/d8387cts"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Tomi"]
+[Black "Elquesoy"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "06:00:19"]
+[WhiteElo "1423"]
+[BlackElo "1418"]
+[WhiteRatingDiff "+11"]
+[BlackRatingDiff "-23"]
+[ECO "C50"]
+[Opening "Italian Game: Giuoco Pianissimo, Normal"]
+[TimeControl "420+1"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Nf6 5. Ng5 O-O 6. Nc3 h6 7. Nf3 Re8 8. O-O
+a6 9. h3 Na5 10. Bd5 c6 11. Bc4 Nxc4 12. dxc4 Qb6 13. a3 a5 14. Qd2 Qa7 15. Na4
+Bf8 16. Qd3 d6 17. Be3 Qb8 18. Nb6 Ra6 19. Na4 c5 20. Rab1 Be6 21. b3 Bd7 22.
+Nc3 b6 23. a4 Qb7 24. Bd2 Bc6 25. Nh4 Nxe4 26. Nxe4 Bxe4 27. Qc3 Be7 28. f3
+Bxh4 29. fxe4 Qxe4 30. Rbc1 Qg6 31. Rcd1 Bg5 32. Bxg5 Qxg5 33. Rxd6 Qe7 34. Rd5
+e4 35. Qe3 Qg5 36. Rxg5 hxg5 37. Kh2 Ra7 38. Rf5 f6 39. Kg3 Rae7 40. h4 gxh4+
+41. Kxh4 Kf7 42. Kg4 g6 43. Rd5 f5+ 44. Kf4 Kf6 45. Rd6+ Kf7 46. Rxb6 Rd8 47.
+Kg5 Rd1 48. Rxg6 Rg1 49. Rf6+ Kg7 50. Rxf5 Rxg2+ 51. Kf4 Rg1 52. Qxg1+ Kh7 53.
+Rh5# 1-0
+
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/8743nbcx"]
+[Date "????.??.??"]
+[Round "?"]
+[White "BulletKiller"]
+[Black "namesnik"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "06:00:32"]
+[WhiteElo "1500"]
+[BlackElo "1534"]
+[WhiteRatingDiff "-159"]
+[BlackRatingDiff "+8"]
+[ECO "A00"]
+[Opening "Gedult's Opening"]
+[TimeControl "0+1"]
+[Termination "Normal"]
+
+1. f3 d6 2. g3 e5 3. Bg2 Nc6 4. e3 Nf6 5. d3 d5 6. f4 exf4 7. exf4 Bd6 8. Qe2+
+Qe7 9. Qxe7+ Bxe7 10. Nf3 O-O 11. O-O Re8 12. c3 d4 13. c4 Bc5 14. a3 Bb6 15.
+b4 a6 16. Bd2 Bg4 17. Nh4 h6 18. h3 Be6 19. g4 Rad8 20. f5 Bc8 21. Nf3 Ba7 22.
+c5 b6 23. cxb6 Bxb6 24. a4 a5 25. b5 Na7 26. Na3 Bb7 27. Nc4 Bxf3 28. Bxf3 Nc8
+29. Bc6 Re7 30. Nxb6 cxb6 31. Bf4 Na7 32. Bf3 Rc8 33. Ra3 Rc2 34. Be4 Nxe4 35.
+dxe4 Rxe4 36. Bc7 Ree2 37. Bxb6 Rg2+ 38. Kh1 Rh2+ 39. Kg1 Rcg2# 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/385zd8ai"]
+[Date "????.??.??"]
+[Round "?"]
+[White "spaces"]
+[Black "Pozitiv"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "06:03:23"]
+[WhiteElo "1537"]
+[BlackElo "1419"]
+[WhiteRatingDiff "+7"]
+[BlackRatingDiff "-9"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game: Mason Attack"]
+[TimeControl "840+14"]
+[Termination "Normal"]
+
+1. d4 d5 2. Bf4 e6 3. e3 f6 4. Bd3 Nc6 5. c3 e5 6. dxe5 fxe5 7. Bg3 e4 8. Bb5
+Bd7 9. Qxd5 Bb4 10. cxb4 Nxb4 11. Bxd7+ Qxd7 12. Qxe4+ Qe7 13. Qxb7 Rd8 14. Na3
+Nd3+ 15. Ke2 Nf6 16. Qxc7 O-O 17. Qxe7 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/t31ek2u9"]
+[Date "????.??.??"]
+[Round "?"]
+[White "Verminard"]
+[Black "4lawsdotcom"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "06:05:42"]
+[WhiteElo "1496"]
+[BlackElo "1538"]
+[WhiteRatingDiff "+117"]
+[BlackRatingDiff "-20"]
+[ECO "D00"]
+[Opening "Queen's Pawn Game #2"]
+[TimeControl "480+4"]
+[Termination "Normal"]
+
+1. d4 d5 2. e3 c5 3. c4 cxd4 4. Qxd4 Nc6 5. Qd2 Nf6 6. Nc3 e6 7. c5 Bxc5 8. Bb5
+a6 9. Bxc6+ bxc6 10. Nf3 Qc7 11. Na4 Bd6 12. Nd4 e5 13. Nf5 Bxf5 14. Qc3 Rb8
+15. O-O h5 16. f3 h4 17. e4 Be6 18. Bg5 h3 19. g3 Rh5 20. Bxf6 gxf6 21. Rac1
+Bd7 22. exd5 e4 23. fxe4 Ke7 24. dxc6 Be6 25. Qxf6+ Ke8 26. Qc3 Rb4 27. Qf3
+Rxa4 28. Qxh5 Bxg3 29. Qh8+ Ke7 30. Qc3 Bxh2+ 31. Kh1 Rxe4 32. Rf3 Bd5 33. Qc5+
+Ke8 34. Qxd5 Re2 35. Rxh3 Bf4 36. Rh8+ Ke7 37. Qc5+ Bd6 38. Qg5+ Ke6 39. Qg4+
+Ke7 40. Qxe2+ 1-0
