@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -94,6 +95,13 @@ app.include_router(habit_router)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/v1/app/info")
+def app_info() -> dict[str, str]:
+    return {
+        "distribution": "desktop" if os.getenv("SCAN64_DISTRIBUTION") == "desktop" else "source"
+    }
 
 
 # Registered last: known API routes retain their own methods and responses.

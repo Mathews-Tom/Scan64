@@ -178,6 +178,12 @@ function getActivePlayerAuthorizationHeader(): Record<string, string> {
 }
 
 export class ApiClient {
+  static async getAppInfo(): Promise<{ distribution: string }> {
+    const response = await fetch(`${API_BASE}/app/info`);
+    if (!response.ok) throw new Error('Application information unavailable');
+    return response.json() as Promise<{ distribution: string }>;
+  }
+
   private static async puzzleRequest<T>(path: string, method: 'GET' | 'POST', data?: object): Promise<T> {
     const response = await fetch(`${API_BASE}/puzzles${path}`, {
       method,

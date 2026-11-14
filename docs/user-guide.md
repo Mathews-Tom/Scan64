@@ -19,9 +19,9 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 Follow the [root quickstart](../README.md) for the source, Docker or unsigned macOS Apple silicon app. For the macOS app, unzip the release asset, move Scan64.app to Applications, attempt to open it, and use **System Settings → Privacy & Security → Open Anyway → Open** if Gatekeeper blocks it. Verify the download origin and checksum first; the app needs no developer tools and is not signed/notarized.
 
-The app opens your browser at the first available loopback port from 8001. Its status window offers **Open Scan64** and **Quit Scan64**; closing that window, Dock Quit or ⌘Q also shuts down the server and engines. A second launch reopens the existing browser page without starting another server. Games survive relaunch in `~/Library/Application Support/Scan64/scan64.db`; puzzle data and `desktop.log` live in that directory too. Keep browser local storage to retain your player token. If another app occupies the original port, close it and relaunch Scan64 on that original browser origin to regain the saved browser identity.
+The app opens your browser at the first available loopback port from 8001. Its status window offers **Open Scan64**, **Import puzzles…**, **Cancel import** and **Quit Scan64**; closing that window, Dock Quit or ⌘Q also shuts down the server and engines. A second launch reopens the existing browser page without starting another server. Games survive relaunch in `~/Library/Application Support/Scan64/scan64.db`; puzzle data and `desktop.log` live in that directory too. Keep browser local storage to retain your player token. If another app occupies the original port, close it and relaunch Scan64 on that original browser origin to regain the saved browser identity.
 
-The macOS app does not bundle a command-line entry point or offer a puzzle-import control. An app-only installation therefore cannot populate an empty puzzle catalog; the Puzzles screen's `uv run scan64-cli puzzles import …` instruction requires a separate source checkout and uv. If you have those, use the [macOS database import workaround](#import-a-puzzle-catalog) below.
+Use **Import puzzles…** to select a local Lichess `.csv.zst` file without a terminal. The window shows progress and the result; **Cancel import** leaves the catalog unchanged. See [Import a puzzle catalog](#import-a-puzzle-catalog) for details.
 
 The development-only `scripts/run.sh` instead uses the API on port 8001 and Vite on 5173.
 
@@ -333,14 +333,17 @@ uv run scan64-cli puzzles import --download --json
 docker exec <container> scan64-cli puzzles import --download --json
 ```
 
-For the macOS app, there is no in-app importer or bundled CLI. If you also have a source checkout and its Python dependencies, quit Scan64 and run this from the repository root to target the app's actual database rather than creating a separate `database.db`:
-
-```sh
-SCAN64_DATABASE_URL="sqlite:///$HOME/Library/Application Support/Scan64/scan64.db" \
-  uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json
-```
-
-Replace the input path with your complete local file, or replace that argument with `--download` for an explicit full download. Relaunch the app after import. Without a source environment, the released app currently has no supported puzzle-import path; playing, game review and lessons generated from your games do not need that catalog.
+For the macOS app, download the complete Lichess CC0 puzzle database from
+<https://database.lichess.org/lichess_db_puzzle.csv.zst> using your browser.
+This is a large download (about 310 MB, changing over time), not a filtered sample.
+Keep the file compressed. Choose **Import puzzles…** in the Scan64 status window
+and select that local `.csv.zst` file. No source checkout or terminal is required.
+The import runs in the background against the app's database with the default
+filters below; the button stays disabled until it finishes. The window shows batch
+progress and inserted/already-present counts. **Cancel import**, quitting, or a
+failed import rolls back all catalog changes from that import, including metadata
+refreshes. After success, return to Puzzles and choose **Start** (or reload the page).
+Nothing downloads automatically and the app does not offer filter controls.
 
 `--download` saves the **entire** compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
 the complete file and a temporary replacement when downloading again. Interrupted downloads

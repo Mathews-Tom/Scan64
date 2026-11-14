@@ -24,6 +24,7 @@ def configure_environment(resources: Path, data: Path) -> None:
     os.environ["SCAN64_DATABASE_URL"] = f"sqlite:///{data / 'scan64.db'}"
     os.environ["SCAN64_DATA_DIR"] = str(data)
     os.environ["SCAN64_WEB_DIST"] = str(resources / "web")
+    os.environ["SCAN64_DISTRIBUTION"] = "desktop"
     os.environ["PATH"] = (
         str(resources / "bin")
         + os.pathsep
@@ -92,11 +93,22 @@ class InstanceLock:
         self.file.close()
 
 
-def run_window(instance: InstanceLock, listener: socket.socket) -> None:
+def run_window(
+    instance: InstanceLock,
+    listener: socket.socket,
+    *,
+    no_browser: bool = False,
+    import_path: Path | None = None,
+) -> None:
     # Import the application only after the persistent paths are configured.
     import tkinter as tk
+    from queue import Empty, Queue
+    from tkinter import filedialog
 
     import uvicorn
+
+    from scan64.desktop_import import ImportCancelled, run_import
+    from scan64.persistence.database import engine
 
     port = int(listener.getsockname()[1])
     url = f"http://127.0.0.1:{port}"
@@ -118,20 +130,63 @@ def run_window(instance: InstanceLock, listener: socket.socket) -> None:
     label.pack()
     opened = False
     quitting = False
+    import_cancel = threading.Event()
+    import_messages: Queue[str] = Queue()
+    importer: threading.Thread | None = None
+
+    def import_file(selected: Path | None = None) -> None:
+        nonlocal importer
+        path = (
+            str(selected)
+            if selected
+            else filedialog.askopenfilename(
+                parent=root,
+                title="Import Lichess puzzles",
+                filetypes=[("Compressed puzzle CSV", "*.csv.zst")],
+            )
+        )
+        if not path:
+            return
+        import_cancel.clear()
+        import_button.config(state="disabled")
+        cancel_button.config(state="normal")
+
+        def run() -> None:
+            try:
+                summary = run_import(engine, Path(path), import_cancel, import_messages.put)
+                import_messages.put(
+                    f"Imported {summary.inserted} puzzles; {summary.existing} already present."
+                )
+            except ImportCancelled:
+                import_messages.put("Import cancelled. Catalog unchanged.")
+            except Exception as error:
+                import_messages.put(f"Import failed. Catalog unchanged.\n{error}")
+
+        importer = threading.Thread(target=run, name="scan64-import")
+        importer.start()
 
     def open_browser() -> None:
-        if server.started and not quitting:
+        if server.started and not quitting and not no_browser:
             webbrowser.open(url)
 
     def quit_app() -> None:
         nonlocal quitting
         quitting = True
+        import_cancel.set()
         label.config(text="Stopping server and chess engines…")
         server.should_exit = True
         if not worker.is_alive():
             root.destroy()
 
     tk.Button(root, text="Open Scan64", command=open_browser).pack(padx=20, pady=5)
+    import_button = tk.Button(root, text="Import puzzles…", command=import_file)
+    import_button.pack(padx=20, pady=5)
+    cancel_button = tk.Button(
+        root, text="Cancel import", command=import_cancel.set, state="disabled"
+    )
+    cancel_button.pack(padx=20, pady=5)
+    import_status = tk.Label(root, text="", padx=20, pady=5, wraplength=440)
+    import_status.pack()
     tk.Button(root, text="Quit Scan64", command=quit_app).pack(padx=20, pady=(5, 20))
     root.protocol("WM_DELETE_WINDOW", quit_app)
     root.createcommand("::tk::mac::Quit", quit_app)
@@ -143,6 +198,14 @@ def run_window(instance: InstanceLock, listener: socket.socket) -> None:
 
     def poll() -> None:
         nonlocal opened
+        try:
+            while True:
+                import_status.config(text=import_messages.get_nowait())
+        except Empty:
+            pass
+        if importer is not None and not importer.is_alive() and not quitting:
+            import_button.config(state="normal")
+            cancel_button.config(state="disabled")
         if not worker.is_alive():
             if failures and not quitting:
                 label.config(text=f"Scan64 could not start. See desktop.log.\n{failures[0]}")
@@ -154,6 +217,8 @@ def run_window(instance: InstanceLock, listener: socket.socket) -> None:
             instance.publish(port)
             label.config(text=f"Scan64 is running\n{url}")
             opened = True
+            if import_path is not None:
+                import_file(import_path)
             open_browser()
         root.after(100, poll)
 
@@ -163,9 +228,20 @@ def run_window(instance: InstanceLock, listener: socket.socket) -> None:
     finally:
         server.should_exit = True
         worker.join()
+        import_cancel.set()
+        if importer is not None:
+            importer.join()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Scan64 desktop launcher")
+    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument(
+        "--import-puzzles", type=Path, help="Select a local file for the window importer"
+    )
+    args = parser.parse_args(argv if argv is not None else [])
     data = data_directory()
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     configure_environment(resources, data)
@@ -177,10 +253,13 @@ def main() -> None:
         listener: socket.socket | None = None
         try:
             if not instance.acquire():
-                webbrowser.open(instance.existing_url())
+                if not args.no_browser:
+                    webbrowser.open(instance.existing_url())
                 return
             listener = reserve_port()
-            run_window(instance, listener)
+            run_window(
+                instance, listener, no_browser=args.no_browser, import_path=args.import_puzzles
+            )
         finally:
             if listener is not None:
                 listener.close()
@@ -189,4 +268,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

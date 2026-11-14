@@ -6,6 +6,7 @@ import io
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from threading import Event
 
 import chess
 import httpx
@@ -24,6 +25,7 @@ from scan64.content.puzzle_import import (
     import_puzzles,
     read_lesson,
 )
+from scan64.desktop_import import ImportCancelled, run_import
 
 HEADERS = [
     "PuzzleId",
@@ -515,3 +517,81 @@ def test_cli_downloads_complete_file_before_import(
 def test_invalid_filter_configuration(filters: dict[str, int]) -> None:
     with pytest.raises(ValueError):
         ImportFilters(**filters)
+
+
+@pytest.mark.parametrize("failure", ["cancel", "failure"])
+def test_desktop_import_rolls_back_batches_and_metadata(
+    database: Engine, tmp_path: Path, failure: str
+) -> None:
+    path = save_csv(tmp_path, [puzzle("original")])
+    run_import(database, path, Event(), lambda _: None)
+    path = save_csv(
+        tmp_path,
+        [
+            puzzle("original", Rating=1200),
+            *[puzzle(f"new{i}") for i in range(300)],
+        ],
+    )
+    cancel = Event()
+
+    def progress(message: str) -> None:
+        if "batch 1" in message:
+            if failure == "cancel":
+                cancel.set()
+            else:
+                raise ValueError("simulated read failure after a committed batch")
+
+    with pytest.raises(ImportCancelled if failure == "cancel" else ValueError):
+        run_import(database, path, cancel, progress)
+    with Session(database) as session:
+        items = session.exec(select(ContentItem)).all()
+        assert len(items) == 1
+        assert items[0].payload["rating"] == 1000
+
+
+def test_desktop_import_success_and_precancel(database: Engine, tmp_path: Path) -> None:
+    path = save_csv(tmp_path, [puzzle()])
+    cancel = Event()
+    cancel.set()
+    with pytest.raises(ImportCancelled):
+        run_import(database, path, cancel, lambda _: None)
+    messages: list[str] = []
+    summary = run_import(database, path, Event(), messages.append)
+    assert summary.inserted == 1
+    assert any("batch 1" in message for message in messages)
+    with Session(database) as session:
+        assert len(session.exec(select(ContentItem)).all()) == 1
+
+
+def test_app_distribution(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scan64.api.app import app_info
+
+    monkeypatch.delenv("SCAN64_DISTRIBUTION", raising=False)
+    assert app_info() == {"distribution": "source"}
+    monkeypatch.setenv("SCAN64_DISTRIBUTION", "desktop")
+    assert app_info() == {"distribution": "desktop"}
+
+
+def test_desktop_staging_keeps_live_database_writable(tmp_path: Path) -> None:
+    live = create_engine(f"sqlite:///{tmp_path / 'live.db'}", connect_args={"timeout": 0.1})
+    SQLModel.metadata.create_all(live, tables=[ContentItem.__table__])
+    path = save_csv(tmp_path, [puzzle(f"row{i}") for i in range(300)])
+    wrote = False
+
+    def progress(message: str) -> None:
+        nonlocal wrote
+        if "batch 1" in message:
+            with Session(live) as session:
+                session.add(
+                    ContentItem(id="concurrent", domain="opening", provenance="test", licence="CC0")
+                )
+                session.commit()
+            wrote = True
+
+    try:
+        assert run_import(live, path, Event(), progress).inserted == 300
+        assert wrote
+        with Session(live) as session:
+            assert session.get(ContentItem, "concurrent") is not None
+    finally:
+        live.dispose()

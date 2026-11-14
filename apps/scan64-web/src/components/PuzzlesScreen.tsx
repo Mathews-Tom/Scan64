@@ -8,6 +8,14 @@ import './PuzzlesScreen.css';
 const IMPORT_COMMAND = 'uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json';
 
 export function PuzzlesScreen() {
+  const [distribution, setDistribution] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void ApiClient.getAppInfo().then(info => {
+      if (!cancelled) setDistribution(info.distribution);
+    }).catch(() => { if (!cancelled) setDistribution('unavailable'); });
+    return () => { cancelled = true; };
+  }, []);
   const [practiceRequest] = useState(() => new URLSearchParams(window.location.search));
   const practiceStarted = useRef(false);
   const [patternUnavailable, setPatternUnavailable] = useState(false);
@@ -299,8 +307,7 @@ export function PuzzlesScreen() {
     {!active && mode !== 'mistakes' && !run && catalog && (catalog.status === 'empty' || catalog.status === 'exhausted') ? <div className="study-panel">
       <p>{catalog.status === 'empty' ? 'No imported puzzles are available.' : mode === 'daily' ? 'No more puzzles are available in today’s set. The next daily set resets at UTC midnight.' : 'This practice mode is exhausted. No unseen eligible puzzles remain.'}</p>
       {catalog.status === 'empty' ? <>
-        <p>Ask the operator to import puzzles into the application database:</p>
-        <code>{IMPORT_COMMAND}</code>
+        <PuzzleImportInstructions distribution={distribution} />
         <p>Nothing downloads automatically.</p>
       </> : null}
       <button disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</button>
@@ -337,4 +344,12 @@ export function PuzzlesScreen() {
       </div>
     </div> : null}
   </section>;
+}
+
+export function PuzzleImportInstructions({ distribution }: { distribution: string | null }) {
+  if (distribution === null) return <p>Loading import instructions…</p>;
+  if (distribution === 'unavailable') return <p>Application information unavailable. Reload to see import instructions.</p>;
+  return distribution === 'desktop'
+    ? <p>Use Import puzzles… in the Scan64 window.</p>
+    : <><p>Ask the operator to import puzzles into the application database:</p><code>{IMPORT_COMMAND}</code></>;
 }

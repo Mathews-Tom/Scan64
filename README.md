@@ -141,7 +141,7 @@ Puzzles need a one-time import of the free [Lichess puzzle database](https://dat
 uv run scan64-cli puzzles import --download --json
 ```
 
-The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. The macOS app has no built-in importer yet; the guide explains how to import into its database from a source checkout.
+The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the macOS app, use **Import puzzles…** in the Scan64 status window to choose a local `.csv.zst` file.
 
 ## What Scan64 does not claim
 
