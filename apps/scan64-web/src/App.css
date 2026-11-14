@@ -1,11 +1,11 @@
 :root { --shell-clearance: 0px; scroll-padding-block-end: var(--shell-clearance); }
 .app-shell { min-height: 100svh; }
 .coach-board > div:first-child { max-width: calc(100svh - var(--shell-clearance) - var(--space-8)); scroll-margin-block: var(--space-4) calc(var(--shell-clearance) + var(--space-4)); }
-.app-header { position: fixed; inset: 0 auto auto 0; width: 208px; height: 140px; padding: var(--space-8) var(--space-6); z-index: 3; background: var(--surface); }
+.app-header { position: fixed; inset: 0 auto auto 0; width: 208px; height: 140px; padding: var(--space-8) var(--space-6); z-index: 3; background: var(--surface); border-right: 1px solid var(--border); }
 .app-brand { display: flex; align-items: center; gap: var(--space-3); color: var(--ink); font-size: 24px; font-weight: 500; }
 .app-brand img { width: 32px; height: 32px; }
 .app-header p { margin: var(--space-2) 0 0; font-size: var(--type-label); color: var(--muted); }
-.app-nav { position: fixed; inset: 140px auto 0 0; width: 208px; display: flex; flex-direction: column; gap: var(--space-1); padding: 0 var(--space-4) var(--space-6); overflow-y: auto; overscroll-behavior: contain; background: var(--surface); border-right: 1px solid var(--border); }
+.app-nav { position: fixed; inset: 140px auto 0 0; width: 208px; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-4) var(--space-6); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; background: var(--surface); border-right: 1px solid var(--border); }
 .app-nav button { display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left; background: var(--transparent); border-color: var(--transparent); }
 .app-nav button svg { flex: 0 0 20px; width: 20px; height: 20px; }
 .app-nav button[aria-current='page'] { color: var(--ink); background: var(--accent); border-color: var(--mark-ink); font-weight: 500; }
@@ -36,17 +36,17 @@
   .app-header, .app-nav { width: 72px; }
   .app-header { height: 96px; padding: var(--space-6) var(--space-4); }
   .app-brand-name, .app-header p, .app-nav button span { display: none; }
-  .app-nav { inset-block-start: 96px; padding: 0 var(--space-1) var(--space-4); }
+  .app-nav { inset-block-start: 96px; padding: var(--space-2) var(--space-2) var(--space-4); }
   .app-nav button { justify-content: center; padding-inline: var(--space-2); }
   .app-shell main, .desktop-update-banner { margin-left: 72px; }
 }
 @media (max-width: 767px) {
   :root { --shell-clearance: calc(128px + env(safe-area-inset-bottom)); }
-  .app-header { position: static; width: auto; height: auto; padding: var(--space-4); border-bottom: 1px solid var(--border); }
+  .app-header { position: static; width: auto; height: auto; padding: var(--space-4); border-right: 0; border-bottom: 1px solid var(--border); }
   .app-header p { display: none; }
   .app-brand { font-size: 20px; }
   .app-brand img { width: 24px; height: 24px; }
-  .app-nav { inset: auto 0 0; z-index: 5; width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--border); }
+  .app-nav { inset: auto 0 0; z-index: 5; width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--border); }
   .app-nav button { justify-content: center; min-width: 0; padding: var(--space-2) 0; }
   .app-nav button span { display: none; }
   .app-nav .settings-link { margin-top: 0; }

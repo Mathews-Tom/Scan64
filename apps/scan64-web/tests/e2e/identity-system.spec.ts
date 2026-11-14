@@ -34,15 +34,28 @@ for (const width of [1440, 1024, 768, 390]) {
   }
 }
 
-for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 }]) {
+for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 }, { width: 390, height: 640 }]) {
   test(`navigation remains reachable at ${viewport.width} × ${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.addInitScript(() => localStorage.clear());
     await page.route('**/v1/app/info', route => route.fulfill({ json: { distribution: 'source' } }));
     await page.goto('/');
     const headerBounds = await page.getByRole('banner').boundingBox();
-    const todayBounds = await page.getByRole('button', { name: 'Today', exact: true }).boundingBox();
+    const today = page.getByRole('button', { name: 'Today', exact: true });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await expect(today).toBeFocused();
+    const todayBounds = await today.boundingBox();
     expect(todayBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
+    const navBounds = await page.getByRole('navigation', { name: 'Main navigation' }).boundingBox();
+    const focusOutset = await today.evaluate(element => {
+      const style = getComputedStyle(element);
+      return Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset);
+    });
+    expect(focusOutset).toBeGreaterThan(0);
+    expect(todayBounds!.y - navBounds!.y).toBeGreaterThanOrEqual(focusOutset);
+    expect(todayBounds!.x - navBounds!.x).toBeGreaterThanOrEqual(focusOutset);
+    expect(navBounds!.x + navBounds!.width - todayBounds!.x - todayBounds!.width).toBeGreaterThanOrEqual(focusOutset);
     const settings = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Settings', exact: true });
     await settings.focus();
     await expect(settings).toBeInViewport();
