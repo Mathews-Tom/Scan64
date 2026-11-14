@@ -67,7 +67,7 @@ Settings → Appearance selects System, Light or Dark and remembers the choice i
 
 On short screens, navigation scrolls below the fixed brand rather than underneath it. Every navigation layout reserves space for the complete keyboard focus outline. Filled-primary actions are explicit; being a form submit button does not assign visual priority. Generated live-run images in `artifacts/m81/` are ignored and belong on the separate evidence branch, not in the client source.
 
-Play, Review/Analysis, Puzzles, Daily Training, Famous Games and Explorer share the ivory/sage board, mint selection and last-move highlights, and a board-first workspace. Controls sit beside the board when space permits and stack below it on narrower screens. Best-move, threat and alternative annotations retain numbered or written descriptions; colour is never the only cue. The board also fits the usable viewport above mobile navigation, including short landscape screens.
+Play, Review/Analysis, Puzzles, Daily Training, Famous Games and Explorer share the ivory/sage board, mint selection and last-move highlights, and a board-first workspace. Controls sit beside the board from 900px and stack below it on narrower screens. Best-move, threat and alternative annotations name their kind in the written description and number each candidate once. Their kind stays tied to the original position while previewing a line; colour is never the only cue. The board also fits the usable viewport above mobile navigation, including short landscape screens.
 
 ## User documentation
 

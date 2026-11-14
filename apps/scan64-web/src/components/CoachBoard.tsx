@@ -228,9 +228,9 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
         aria-hidden="true"
         aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
         className="coach-board__ground" />
-      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={animationFen ?? chess.current.fen()} />
+      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={chess.current.fen()} />
     </div>
-    <VisualizationDescriptions visualizations={visualizations} fen={animationFen ?? chess.current.fen()} />
+    <VisualizationDescriptions visualizations={visualizations} fen={chess.current.fen()} />
     <p role="status" aria-atomic="true">{moving.current ? 'Submitting move.' : <>
       {animationFen || preview ? 'Line preview. ' : controlled ? `Review position ${selectedPly}. ` : ''}
       {!controlled && !animationFen && !preview && announcement ? `${announcement} ` : ''}{result}

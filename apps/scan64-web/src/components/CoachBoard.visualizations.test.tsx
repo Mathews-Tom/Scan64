@@ -70,14 +70,17 @@ describe('board visualizations', () => {
   it('previews animate_line without moving and retains unknown descriptions', async () => {
     const fen = new Chess().fen();
     const onMove = vi.fn();
-    render(<CoachBoard fen={fen} onMove={onMove} visualizations={[
+    const { container } = render(<CoachBoard fen={fen} onMove={onMove} visualizations={[
       { command: 'animate_line', description: 'Explore', moves: ['e2e4', 'e7e5'] },
+      { command: 'draw_arrow', description: '1. Nf3', origin: 'g1', target: 'f3' },
       { command: 'future_command', description: 'Readable fallback' },
     ]} />);
     expect(screen.getByText('Readable fallback')).toBeTruthy();
     fireEvent.click(screen.getByText('Next line move'));
     const expected = new Chess(); expected.move('e4');
     await waitFor(() => expect(ground.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: expected.fen() })));
+    expect(container.querySelector('.board-visualizations line')).toHaveAttribute('stroke', 'var(--annotation-best)');
+    expect(screen.getByRole('list', { name: 'Board annotations' })).toHaveTextContent('Best move: 1. Nf3');
     fireEvent.click(screen.getByText('Show full line')); expected.move('e5');
     await waitFor(() => expect(ground.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: expected.fen() })));
     fireEvent.click(screen.getByText('Return to original position'));

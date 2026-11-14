@@ -2,12 +2,14 @@ import { useId, useMemo } from 'react';
 import { Chess, type Square } from 'chess.js';
 import type { Visualization } from '../api/types';
 
-function annotationKind(visualization: Visualization, game: Chess) {
+function annotationKind(visualization: Visualization, game: Chess, arrow: number) {
   const origin = visualization.origin;
   const piece = origin && /^[a-h][1-8]$/.test(origin) ? game.get(origin as Square) : undefined;
   if (piece && piece.color !== game.turn()) return 'threat';
-  return visualization.label && visualization.label !== '1' ? 'alternative' : 'best';
+  return (visualization.label ? visualization.label !== '1' : arrow > 1) ? 'alternative' : 'best';
 }
+
+const annotationNames = { best: 'Best move', threat: 'Threat', alternative: 'Alternative' } as const;
 
 function defenders(fen: string, target: string): string[] {
     const game = new Chess(fen);
@@ -30,6 +32,7 @@ function defenders(fen: string, target: string): string[] {
 }
 
 export function VisualizationDescriptions({ visualizations, fen }: { visualizations: Visualization[]; fen: string }) {
+  const game = useMemo(() => new Chess(fen), [fen]);
   const graphical = visualizations.filter(v => ['draw_arrow', 'draw_defence_map', 'highlight_square', 'highlight_piece'].includes(v.command));
   if (!graphical.length) return null;
   let arrow = 0;
@@ -38,7 +41,9 @@ export function VisualizationDescriptions({ visualizations, fen }: { visualizati
       if (v.command === 'draw_arrow') arrow += 1;
       const label = v.command === 'draw_arrow' ? v.label ?? String(arrow) : v.label;
       const squares = v.square ? [v.square] : v.squares ?? [];
-      return <li key={index}>{label ? `${label}. ` : ''}{v.description}
+      const kind = v.command === 'draw_arrow' ? annotationKind(v, game, arrow) : null;
+      const prefix = label && !v.description.trimStart().startsWith(`${label}.`) ? `${label}. ` : '';
+      return <li key={index}>{kind ? `${annotationNames[kind]}: ` : ''}{prefix}{v.description}
         {v.command === 'draw_arrow' ? ` (${v.origin} to ${v.target})` : squares.length ? ` (${squares.join(', ')})` : ''}
         {v.command === 'draw_defence_map' && squares.map(square => {
           const origins = defenders(fen, square);
@@ -70,7 +75,7 @@ export function BoardVisualizations({ visualizations, orientation, fen }: { visu
         // Number the arrow near its destination: candidates can share an origin.
         const labelX = from[0] + (to[0] - from[0]) * 0.75;
         const labelY = from[1] + (to[1] - from[1]) * 0.75;
-        const kind = annotationKind(v, game);
+        const kind = annotationKind(v, game, arrow);
         return <g key={index} aria-label={`${label}: ${v.description}`}><line x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} stroke={`var(--annotation-${kind})`} strokeWidth="1.7" markerEnd={`url(#${id}-${kind})`} opacity="0.8" /><circle cx={labelX} cy={labelY} r="3.2" fill="var(--ground)" /><text x={labelX} y={labelY} dy="1.5" textAnchor="middle" fontSize="4.5" fill="var(--ink)">{label}</text></g>;
       }
       if (v.command === 'draw_defence_map') {
