@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import socket
 import threading
 import time
@@ -13,7 +14,12 @@ import httpx
 from pydantic import BaseModel
 from sqlalchemy import Engine
 
-from scan64.content.puzzle_import import DEFAULT_PUZZLE_URL, ImportProgress, download_puzzles
+from scan64.content.puzzle_import import (
+    DEFAULT_PUZZLE_URL,
+    ImportProgress,
+    ImportSummary,
+    download_puzzles,
+)
 from scan64.desktop_import import ImportCancelled, run_import
 
 
@@ -105,6 +111,14 @@ class PuzzleImportJob:
         self._transport: _DownloadTransport | None = None
         self._state = ImportJobState()
         self._phase_started = 0.0
+        self._result: JobSummary | None = None
+        # One desktop server owns this data directory. Recover only its temporary
+        # download directories; never follow a link out to a user-selected file.
+        for stale in data_dir.glob("puzzle-import-*"):
+            if stale.is_symlink():
+                stale.unlink()
+            elif stale.is_dir():
+                shutil.rmtree(stale)
 
     def state(self) -> ImportJobState:
         with self._lock:
@@ -117,6 +131,7 @@ class PuzzleImportJob:
             local = validate_puzzle_path(path or "") if source == "file" else None
             self._cancel.clear()
             self._committed.clear()
+            self._result = None
             self._phase_started = time.monotonic()
             self._state = ImportJobState(
                 status="running", phase="download" if local is None else "read"
@@ -170,6 +185,25 @@ class PuzzleImportJob:
         if self._cancel.is_set():
             raise ImportCancelled()
 
+    def _record_summary(self, summary: ImportSummary) -> None:
+        # Called under the commit lock before the irreversible write, so even a
+        # later detach/temporary-file cleanup exception retains the true result.
+        self._result = JobSummary(
+            accepted=summary.accepted,
+            inserted=summary.inserted,
+            existing=summary.existing,
+            read=summary.read,
+        )
+
+    def _finish_success(self, warning: str | None = None) -> None:
+        # Caller holds the job lock.
+        self._state.status = "succeeded"
+        self._state.phase = "save"
+        self._state.done = 1
+        self._state.total = 1
+        self._state.summary = self._result
+        self._state.error = warning
+
     def _run(self, local: Path | None) -> None:
         try:
             self.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -189,7 +223,7 @@ class PuzzleImportJob:
                     finally:
                         with self._lock:
                             self._transport = None
-                summary = run_import(
+                run_import(
                     self.engine,
                     path,
                     self._cancel,
@@ -198,25 +232,23 @@ class PuzzleImportJob:
                     commit_lock=self._lock,
                     committed=self._committed,
                     provenance=provenance,
-                )
-                result = JobSummary(
-                    accepted=summary.accepted,
-                    inserted=summary.inserted,
-                    existing=summary.existing,
-                    read=summary.read,
+                    before_commit=self._record_summary,
                 )
             # Terminal status is published only after the downloaded file is removed.
             with self._lock:
-                self._state.status = "succeeded"
-                self._state.done = 1
-                self._state.total = 1
-                self._state.summary = result
+                self._finish_success()
         except Exception as error:
             with self._lock:
-                cancelled = self._cancel.is_set() or isinstance(error, ImportCancelled)
-                self._state.status = "cancelled" if cancelled else "failed"
-                # Do not expose local paths, credentials, response URLs or internal traces.
-                self._state.error = None if cancelled else self._error_message(error)
+                if self._committed.is_set():
+                    self._finish_success(
+                        "Puzzles were imported, but cleanup did not finish normally. "
+                        "Restart Scan64 to retry temporary-file cleanup."
+                    )
+                else:
+                    cancelled = self._cancel.is_set() or isinstance(error, ImportCancelled)
+                    self._state.status = "cancelled" if cancelled else "failed"
+                    # Never expose paths, credentials, URLs or internal traces.
+                    self._state.error = None if cancelled else self._error_message(error)
 
     @staticmethod
     def _error_message(error: Exception) -> str:

@@ -110,7 +110,7 @@ export function ProgressBar({ label, value, max = 100, valueText }: ProgressBarP
   );
 }
 
-export type StatusLineProps = HTMLAttributes<HTMLParagraphElement> & {
+export type StatusLineProps = ComponentPropsWithRef<'p'> & {
   kind?: 'status' | 'error';
 };
 

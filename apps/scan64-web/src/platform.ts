@@ -79,5 +79,9 @@ export async function restartDesktopServer(): Promise<void> {
 /** Native paths never enter browser installs; cancellation is not an error. */
 export async function choosePuzzleFile(): Promise<string | null> {
   if (!isDesktop()) return null;
-  return invoke<string | null>('choose_puzzle_file');
+  try {
+    return await invoke<string | null>('choose_puzzle_file');
+  } catch (error) {
+    throw typeof error === 'string' ? new Error(error) : error;
+  }
 }

@@ -34,6 +34,7 @@ def run_import(
     commit_lock: LockType | None = None,
     committed: Event | None = None,
     provenance: SourceProvenance | None = None,
+    before_commit: Callable[[ImportSummary], None] | None = None,
 ) -> ImportSummary:
     batches = 0
 
@@ -102,6 +103,8 @@ def run_import(
                     # a late Cancel cannot report that the catalog was left unchanged.
                     with commit_lock if commit_lock is not None else nullcontext():
                         checkpoint()
+                        if before_commit is not None:
+                            before_commit(summary)
                         connection.commit()
                         if committed is not None:
                             committed.set()

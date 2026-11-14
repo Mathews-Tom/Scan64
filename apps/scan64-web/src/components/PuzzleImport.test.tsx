@@ -66,7 +66,8 @@ describe('Puzzle import', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel download' })); await settle();
     expect(apiFetch).toHaveBeenCalledWith('/v1/app/puzzle-import', { method: 'DELETE' });
-    expect(screen.getByRole('button', { name: 'Cancel download' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel download' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Cancel download' })).toBeEnabled();
     state = { ...state, status: 'cancelled' };
     await act(async () => { await vi.advanceTimersByTimeAsync(500); });
     expect(screen.getByText('Import cancelled. Your puzzle library is unchanged.')).toBeInTheDocument();
@@ -82,7 +83,7 @@ describe('Puzzle import', () => {
   it.each(['read', 'import', 'save'] as const)('restores the %s phase and offers cancel import', async phase => {
     state = { ...idle, status: 'running', phase, done: 10, total: 50 };
     render(<Harness />); await settle();
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', expect.stringContaining('10 puzzles of 50 puzzles'));
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', phase === 'save' ? 'Saving puzzle catalog…' : expect.stringContaining('10 puzzles of 50 puzzles'));
     expect(screen.getByRole('button', { name: 'Cancel import' })).toBeEnabled();
   });
   it('shows failures and allows another attempt', async () => {
@@ -103,6 +104,60 @@ describe('Puzzle import', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
     expect(screen.getByRole('alert')).toHaveTextContent('Another import is running.');
     expect(screen.queryByRole('button', { name: 'Start puzzles' })).toBeNull();
+  });
+  it('keeps keyboard focus on Cancel while cancelling and on the terminal status afterward', async () => {
+    render(<Harness />); await settle();
+    const download = screen.getByRole('button', { name: 'Download puzzles' });
+    download.focus();
+    fireEvent.click(download); await settle();
+    const cancel = screen.getByRole('button', { name: 'Cancel download' });
+    expect(document.activeElement).toBe(cancel);
+    fireEvent.click(cancel); await settle();
+    expect(document.activeElement).toBe(cancel);
+    expect(cancel).toHaveAttribute('aria-disabled', 'true');
+    const deletes = vi.mocked(apiFetch).mock.calls.filter(([, options]) => options?.method === 'DELETE').length;
+    fireEvent.click(cancel); await settle();
+    expect(vi.mocked(apiFetch).mock.calls.filter(([, options]) => options?.method === 'DELETE')).toHaveLength(deletes);
+    state = { ...state, status: 'cancelled' };
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(document.activeElement).toBe(screen.getByText('Import cancelled. Your puzzle library is unchanged.'));
+  });
+  it('focuses Start puzzles after a successful import', async () => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    state = { ...state, status: 'succeeded', summary: { accepted: 1, inserted: 1, existing: 0, read: 1 } };
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Start puzzles' }));
+  });
+  it('focuses failures and keeps Retry actions available', async () => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    state = { ...state, status: 'failed', error: 'The download failed.' };
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+    expect(screen.getByRole('button', { name: 'Download puzzles' })).toBeEnabled();
+  });
+  it('preserves string picker errors and focuses the message', async () => {
+    render(<Harness />); await settle();
+    vi.mocked(choosePuzzleFile).mockRejectedValueOnce('Puzzle file is not readable');
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a file…' })); await settle();
+    expect(screen.getByRole('alert')).toHaveTextContent('Puzzle file is not readable');
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+  });
+  it('does not offer Start puzzles when no rows matched the filters', async () => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    state = { ...state, status: 'succeeded', summary: { accepted: 0, inserted: 0, existing: 0, read: 3 } };
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(screen.queryByRole('button', { name: 'Start puzzles' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByText(/No puzzles matched the filters/));
+  });
+  it('keeps post-commit cleanup warnings distinct from import failure', async () => {
+    state = { ...idle, status: 'succeeded', summary: { accepted: 1, inserted: 1, existing: 0, read: 1 }, error: 'Puzzles were imported, but cleanup did not finish normally.' };
+    render(<Harness />); await settle();
+    expect(screen.getByText(/cleanup did not finish normally/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start puzzles' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
   it('keeps CLI instructions and makes no desktop requests in browser installs', async () => {
     vi.mocked(isDesktop).mockReturnValue(false);

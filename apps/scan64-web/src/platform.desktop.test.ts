@@ -23,7 +23,7 @@ describe('desktop platform', () => {
     invoke.mockResolvedValueOnce(null);
     expect(await choosePuzzleFile()).toBeNull();
     invoke.mockRejectedValueOnce('Puzzle file is not readable');
-    await expect(choosePuzzleFile()).rejects.toBe('Puzzle file is not readable');
+    await expect(choosePuzzleFile()).rejects.toThrow('Puzzle file is not readable');
   });
 
   it('requires the shell connection before constructing an API URL', async () => {

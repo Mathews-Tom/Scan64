@@ -365,3 +365,56 @@ def test_browser_install_returns_404(method: str, monkeypatch: pytest.MonkeyPatc
     namespace = runpy.run_module("scan64.api.app")
     client = TestClient(namespace["app"])
     assert client.request(method, "/v1/app/puzzle-import", json={}).status_code == 404
+
+
+def test_post_commit_exception_preserves_success_and_summary(
+    engine: Engine, source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_import = job_module.run_import
+
+    def cleanup_failure(*args: object, **kwargs: object) -> ImportSummary:
+        original_import(*args, **kwargs)
+        raise OSError("fixture cleanup failed after commit")
+
+    monkeypatch.setattr(job_module, "run_import", cleanup_failure)
+    job = PuzzleImportJob(engine, tmp_path / "imports")
+    job.start("file", str(source))
+    state = finished(job)
+    assert state.status == "succeeded"
+    assert state.summary is not None and state.summary.inserted == 1
+    assert state.error is not None and "Puzzles were imported" in state.error
+    assert "unchanged" not in state.error
+    assert len(catalog(engine)) == 1
+    assert source.read_bytes() == PAYLOAD
+
+
+def test_constructor_removes_only_abandoned_download_directories(
+    engine: Engine, source: Path, tmp_path: Path
+) -> None:
+    data = tmp_path / "imports"
+    stale = data / "puzzle-import-crashed"
+    stale.mkdir(parents=True)
+    (stale / ".puzzles.csv.zst.part").write_bytes(b"partial")
+    keep = data / "other-directory"
+    keep.mkdir()
+    (keep / "private.txt").write_text("keep")
+    regular = data / "puzzle-import-not-a-directory"
+    regular.write_text("keep this regular file")
+    PuzzleImportJob(engine, data)
+    assert not stale.exists()
+    assert (keep / "private.txt").read_text() == "keep"
+    assert regular.read_text() == "keep this regular file"
+    assert source.read_bytes() == PAYLOAD
+
+
+def test_constructor_never_follows_stale_download_symlink(engine: Engine, tmp_path: Path) -> None:
+    data = tmp_path / "imports"
+    data.mkdir()
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "keep.txt").write_text("keep")
+    link = data / "puzzle-import-link"
+    link.symlink_to(external, target_is_directory=True)
+    PuzzleImportJob(engine, data)
+    assert not link.is_symlink()
+    assert (external / "keep.txt").read_text() == "keep"

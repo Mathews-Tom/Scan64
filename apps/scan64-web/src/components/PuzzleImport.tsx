@@ -70,7 +70,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
     return () => { stopped = true; clearTimeout(timer); };
   }, [desktop, running, request]);
   const act = async (action: 'download' | 'file' | 'cancel') => {
-    if (!desktop || busy.current || (action !== 'cancel' && running)) return;
+    if (!desktop || busy.current || (action !== 'cancel' && running) || (action === 'cancel' && state.status === 'cancelling')) return;
     busy.current = true; setPending(true); setError(null);
     version.current += 1;
     try {
@@ -80,7 +80,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
       version.current += 1;
       if (mounted.current) setState(next);
     } catch (failure) {
-      if (mounted.current) setError(failure instanceof Error ? failure.message : 'Puzzle import failed. Try again.');
+      if (mounted.current) setError(failure instanceof Error ? failure.message : typeof failure === 'string' ? failure : 'Puzzle import failed. Try again.');
     } finally {
       busy.current = false;
       if (mounted.current) setPending(false);
@@ -92,6 +92,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
 export function usePuzzleImport() { return useContext(ImportContext); }
 const phaseNames = { download: 'Download', read: 'Read', import: 'Import', save: 'Save' };
 export function importProgressText(state: PuzzleImportState): string {
+  if (state.phase === 'save') return state.status === 'cancelling' ? 'Cancelling puzzle import…' : 'Saving puzzle catalog…';
   const amount = (value: number) => state.unit === 'bytes' ? `${(value / 1_000_000).toFixed(1)} MB` : `${value.toLocaleString()} puzzles`;
   const progress = `${amount(state.done)}${state.total !== null ? ` of ${amount(state.total)}` : ''}`;
   const speed = state.bytes_per_second;
@@ -106,27 +107,45 @@ export function PuzzleImportFoot() {
 }
 export function PuzzleLibraryControls() {
   const controller = usePuzzleImport();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const previousStatus = useRef(controller?.state.status);
+  const status = controller?.state.status;
+  const accepted = controller?.state.summary?.accepted ?? 0;
+  useEffect(() => {
+    if (previousStatus.current === status) return;
+    previousStatus.current = status;
+    if (status === 'running') cancelRef.current?.focus();
+    else if (status === 'succeeded' && accepted > 0) startRef.current?.focus();
+    else if (status === 'cancelled' || status === 'failed' || status === 'succeeded') statusRef.current?.focus();
+  }, [status, accepted]);
+  const requestError = controller?.error;
+  useEffect(() => { if (requestError) errorRef.current?.focus(); }, [requestError]);
   if (!controller?.desktop) return <><p>Ask the operator to import puzzles into the application database:</p><code>uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json</code></>;
   const { state, pending, error } = controller;
   const active = activeJob(state);
+  const ready = state.status === 'succeeded' && accepted > 0;
   return <div>
     <p>Download the compressed puzzle database from database.lichess.org (about 270 MB; the size changes as the database grows). Keep 50,000 puzzles rated 600–1800. Nothing downloads automatically.</p>
     {active ? <>
       <p>Download → Read → Import → Save</p>
       <ProgressBar label={state.phase ? phaseNames[state.phase] : 'Preparing puzzle import'} value={state.total !== null ? state.done : undefined} max={state.total ?? undefined} valueText={importProgressText(state)} />
-      <StatusLine>{state.status === 'cancelling' ? 'Cancelling puzzle import…' : `${state.phase ? phaseNames[state.phase] : 'Preparing'} in progress. You can leave this page.`}</StatusLine>
-      <Button disabled={pending || state.status === 'cancelling'} onClick={controller.cancel}>{state.phase === 'download' ? 'Cancel download' : 'Cancel import'}</Button>
+      <StatusLine>{state.status === 'cancelling' ? 'Cancelling puzzle import…' : state.phase === 'save' ? 'Saving puzzle catalog…' : `${state.phase ? phaseNames[state.phase] : 'Preparing'} in progress. You can leave this page.`}</StatusLine>
+      <Button ref={cancelRef} aria-disabled={pending || state.status === 'cancelling'} onClick={controller.cancel}>{state.phase === 'download' ? 'Cancel download' : 'Cancel import'}</Button>
     </> : <>
       {state.status === 'succeeded' ? <>
-        <StatusLine>Puzzle library ready. {state.summary?.inserted.toLocaleString() ?? 0} added; {state.summary?.existing.toLocaleString() ?? 0} already in your library.</StatusLine>
-        <Button variant="primary" onClick={controller.startPuzzles}>Start puzzles</Button>
+        <StatusLine ref={statusRef} tabIndex={-1}>{ready ? <>Puzzle library ready. {state.summary?.inserted.toLocaleString() ?? 0} added; {state.summary?.existing.toLocaleString() ?? 0} already in your library.</> : 'No puzzles matched the filters. Choose another file or download the current database.'}</StatusLine>
+        {state.error ? <StatusLine>{state.error}</StatusLine> : null}
+        {ready ? <Button ref={startRef} variant="primary" onClick={controller.startPuzzles}>Start puzzles</Button> : null}
       </> : null}
-      {state.status === 'cancelled' ? <StatusLine>Import cancelled. Your puzzle library is unchanged.</StatusLine> : null}
-      {state.status === 'failed' ? <StatusLine kind="error">{state.error ?? 'Import failed. Your puzzle library is unchanged. Try again.'}</StatusLine> : null}
-      <Button variant={state.status === 'succeeded' ? 'secondary' : 'primary'} disabled={pending} onClick={controller.download}>Download puzzles</Button>
-      <Button disabled={pending} onClick={controller.chooseFile}>Choose a file…</Button>
+      {state.status === 'cancelled' ? <StatusLine ref={statusRef} tabIndex={-1}>Import cancelled. Your puzzle library is unchanged.</StatusLine> : null}
+      {state.status === 'failed' ? <StatusLine ref={statusRef} tabIndex={-1} kind="error">{state.error ?? 'Import failed. Your puzzle library is unchanged. Try again.'}</StatusLine> : null}
+      <Button variant={ready ? 'secondary' : 'primary'} aria-disabled={pending} onClick={controller.download}>Download puzzles</Button>
+      <Button aria-disabled={pending} onClick={controller.chooseFile}>Choose a file…</Button>
     </>}
-    {error ? <StatusLine kind="error">{error}</StatusLine> : null}
+    {error ? <StatusLine ref={errorRef} tabIndex={-1} kind="error">{error}</StatusLine> : null}
   </div>;
 }
 export function PuzzleLibraryPanel() { return <Panel title="Puzzle library"><PuzzleLibraryControls /></Panel>; }
