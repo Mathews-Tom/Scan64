@@ -153,7 +153,9 @@ from pathlib import Path
 listener = socket.socket()
 listener.bind(("127.0.0.1", 0))
 listener.listen()
-Path(sys.argv[1]).write_text(json.dumps({"pid": os.getpid(), "port": listener.getsockname()[1]}))
+Path(sys.argv[1]).write_text(json.dumps({
+    "pid": os.getpid(), "parent_pid": os.getppid(), "port": listener.getsockname()[1]
+}))
 for line in sys.stdin:
     if line.strip() == "uci":
         print("id name lifecycle-test-engine", flush=True)
@@ -257,7 +259,10 @@ def test_eof_deadline_kills_server_and_actual_uci_child_even_if_shutdown_hangs(
             except json.JSONDecodeError:
                 assert time.monotonic() < deadline
                 time.sleep(0.01)
-        assert server["engine_pid"] == engine["pid"]
+        # Windows virtualenv python.exe is a redirector: asyncio tracks its PID,
+        # while the real UCI interpreter is its direct child. Check that lineage
+        # rather than confusing the redirector with the process owning the socket.
+        assert server["engine_pid"] in (engine["pid"], engine["parent_pid"])
         assert accepting_connections(server["port"])
         assert accepting_connections(engine["port"])
         started = time.monotonic()
