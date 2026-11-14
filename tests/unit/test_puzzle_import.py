@@ -4,9 +4,13 @@ import csv
 import hashlib
 import io
 import json
+import secrets
+import time
 from collections.abc import Iterator
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 
 import chess
 import httpx
@@ -21,6 +25,9 @@ from scan64.content.models import ContentItem
 from scan64.content.puzzle_import import (
     DEFAULT_PUZZLE_URL,
     ImportFilters,
+    ImportProgress,
+    ProgressCallback,
+    SourceProvenance,
     download_puzzles,
     import_puzzles,
     read_lesson,
@@ -464,9 +471,11 @@ def test_cli_downloads_complete_file_before_import(
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
 
-        def download(path: Path, *, url: str):
+        def download(
+            path: Path, *, url: str, progress: ProgressCallback | None
+        ) -> SourceProvenance:
             assert path == output
-            return download_puzzles(path, url=url, client=client)
+            return download_puzzles(path, url=url, client=client, progress=progress)
 
         def initialized() -> None:
             # Database import cannot start until the complete download is saved.
@@ -595,3 +604,216 @@ def test_desktop_staging_keeps_live_database_writable(tmp_path: Path) -> None:
             assert session.get(ContentItem, "concurrent") is not None
     finally:
         live.dispose()
+
+
+class TerminalStream(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def renders(output: str) -> list[str]:
+    """Every state a terminal showed: carriage returns redraw, newlines end a phase."""
+    return [
+        part.removesuffix("\x1b[K")
+        for line in output.split("\n")
+        for part in line.split("\r")
+        if part.removesuffix("\x1b[K")
+    ]
+
+
+def bulky_csv(count: int) -> bytes:
+    # Random opening tags keep the compressed file large enough to show MB progress.
+    return compressed_csv(
+        [puzzle(f"p{i}", OpeningTags=secrets.token_hex(2000)) for i in range(count)]
+    )
+
+
+@pytest.mark.parametrize("with_length", [True, False])
+def test_download_progress_is_monotonic_and_ends_at_size(tmp_path: Path, with_length: bool) -> None:
+    content = compressed_csv([puzzle()])
+    events: list[ImportProgress] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        headers = {"Content-Length": str(len(content))} if with_length else {}
+        return httpx.Response(200, stream=Chunks(content), headers=headers)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        download_puzzles(tmp_path / "puzzles.csv.zst", client=client, progress=events.append)
+    assert events[0] == ImportProgress("connect", 0, None, "bytes")
+    downloads = events[1:]
+    assert {event.phase for event in downloads} == {"download"}
+    done = [event.done for event in downloads]
+    assert done == sorted(done) and done[0] == 0 and len(set(done)) == 3
+    assert downloads[-1].done == len(content)
+    expected_total = len(content) if with_length else None
+    assert {event.total for event in downloads} == {expected_total}
+
+
+def test_interrupted_download_leaves_no_partial_file(tmp_path: Path) -> None:
+    class Interrupted(httpx.SyncByteStream):
+        def __iter__(self) -> Iterator[bytes]:
+            yield b"first half"
+            raise KeyboardInterrupt
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=Interrupted())
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(KeyboardInterrupt):
+            download_puzzles(tmp_path / "puzzles.csv.zst", client=client)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_import_progress_counts_kept_puzzles_and_rows(session: Session, tmp_path: Path) -> None:
+    path = save_csv(tmp_path, [puzzle(f"p{i}") for i in range(300)])
+    events: list[ImportProgress] = []
+    summary = import_puzzles(
+        session, path, filters=ImportFilters(limit=280), progress=events.append
+    )
+    reads = [event for event in events if event.phase == "read"]
+    imports = [event for event in events if event.phase == "import"]
+    assert events == reads + imports
+    assert reads[-1].done == reads[-1].total == path.stat().st_size
+    assert imports[0] == ImportProgress("import", 0, 280, "puzzles", rows_read=0)
+    assert [event.done for event in imports] == [0, 256, 280]
+    assert imports[-1].done == summary.accepted
+    assert imports[-1].rows_read == summary.read
+
+
+def test_piped_progress_writes_plain_lines_at_most_every_five_seconds() -> None:
+    stream = io.StringIO()
+    clock = FakeClock()
+    render = puzzles_cli.ProgressRenderer(stream, source="database.lichess.org", clock=clock)
+    for at, event in [
+        (0.0, ImportProgress("connect", 0, None, "bytes")),
+        (0.5, ImportProgress("download", 0, 100_000_000, "bytes")),
+        (2.0, ImportProgress("download", 10_000_000, 100_000_000, "bytes")),
+        (5.2, ImportProgress("download", 50_000_000, 100_000_000, "bytes")),
+        (7.0, ImportProgress("download", 60_000_000, 100_000_000, "bytes")),
+        (10.3, ImportProgress("import", 1_000, 50_000, "puzzles", rows_read=4_000)),
+    ]:
+        clock.now = at
+        render(event)
+    render.close()
+    assert "\r" not in stream.getvalue()
+    assert stream.getvalue().splitlines() == [
+        "Connecting to database.lichess.org…",
+        "Downloading  50.0 / 100.0 MB  50%  10.6 MB/s  0:05 left",
+        "Importing    1,000 / 50,000 puzzles kept  ·  4,000 rows read",
+    ]
+
+
+def test_terminal_progress_redraws_one_line_per_phase() -> None:
+    stream = TerminalStream()
+    clock = FakeClock()
+    render = puzzles_cli.ProgressRenderer(stream, source="database.lichess.org", clock=clock)
+    for at, event in [
+        (0.0, ImportProgress("connect", 0, None, "bytes")),
+        (0.2, ImportProgress("download", 0, None, "bytes")),
+        (1.2, ImportProgress("download", 2_000_000, None, "bytes")),
+        (1.25, ImportProgress("download", 2_500_000, None, "bytes")),
+        (2.0, ImportProgress("import", 0, 50_000, "puzzles", rows_read=0)),
+    ]:
+        clock.now = at
+        render(event)
+    render.close()
+    assert stream.getvalue().count("\n") == 3
+    assert renders(stream.getvalue()) == [
+        "Connecting to database.lichess.org…",
+        "Downloading  0.0 MB",
+        "Downloading  2.0 MB  2.0 MB/s",
+        # Throttled within 0.1 s, then drawn when the phase ends: no update is lost.
+        "Downloading  2.5 MB  1.4 MB/s",
+        "Importing    0 / 50,000 puzzles kept  ·  0 rows read",
+    ]
+
+
+@contextmanager
+def serve_slowly(content: bytes, *, with_length: bool) -> Iterator[str]:
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            if with_length:
+                self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            step = len(content) // 6 + 1
+            for start in range(0, len(content), step):
+                self.wfile.write(content[start : start + step])
+                self.wfile.flush()
+                time.sleep(0.15)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/lichess_db_puzzle.csv.zst"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@pytest.mark.parametrize("with_length", [True, False])
+def test_cli_download_shows_progress_on_stderr_and_one_json_document(
+    database: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    with_length: bool,
+) -> None:
+    content = bulky_csv(300)
+    terminal = TerminalStream()
+    monkeypatch.setattr(puzzles_cli, "engine", database)
+    monkeypatch.setattr(puzzles_cli, "create_db_and_tables", lambda: None)
+    with serve_slowly(content, with_length=with_length) as url:
+        monkeypatch.setattr(
+            "sys.argv",
+            ["scan64-cli", "puzzles", "import", "--download", "--url", url]
+            + ["--data-dir", str(tmp_path), "--limit", "100", "--json"],
+        )
+        monkeypatch.setattr("sys.stderr", terminal)
+        with pytest.raises(SystemExit) as result:
+            main()
+    assert result.value.code == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["accepted"] == 100
+    shown = renders(terminal.getvalue())
+    assert shown[0] == "Connecting to 127.0.0.1…"
+    downloads = [line for line in shown if line.startswith("Downloading")]
+    assert len(set(downloads)) >= 2
+    assert any("MB/s" in line for line in downloads)
+    if with_length:
+        assert all("%" in line for line in downloads)
+        assert any(line.endswith("left") for line in downloads)
+    else:
+        assert not any("%" in line or "left" in line for line in downloads)
+    assert shown[-1] == "Importing    100 / 100 puzzles kept  ·  100 rows read"
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_cli_quiet_writes_no_progress(
+    database: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = save_csv(tmp_path, [puzzle()])
+    monkeypatch.setattr(puzzles_cli, "engine", database)
+    monkeypatch.setattr(puzzles_cli, "create_db_and_tables", lambda: None)
+    monkeypatch.setattr("sys.argv", ["scan64-cli", "puzzles", "import", str(path), "--quiet"])
+    with pytest.raises(SystemExit) as result:
+        main()
+    assert result.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "accepted 1 unique rows" in captured.out

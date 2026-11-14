@@ -9,9 +9,10 @@ import os
 import re
 import tempfile
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import chess
 import httpx
@@ -90,14 +91,41 @@ class ImportSummary:
         }
 
 
-def local_provenance(path: Path) -> SourceProvenance:
+@dataclass(frozen=True)
+class ImportProgress:
+    """One progress report shared by the CLI and the app.
+
+    ``done`` never decreases within a phase. ``total`` is None when unknown (a download
+    without Content-Length). ``rows_read`` is set only for the import phase.
+    """
+
+    phase: Literal["connect", "download", "read", "import"]
+    done: int
+    total: int | None
+    unit: Literal["bytes", "puzzles"]
+    rows_read: int | None = None
+
+
+ProgressCallback = Callable[[ImportProgress], None]
+
+
+def local_provenance(path: Path, progress: ProgressCallback | None = None) -> SourceProvenance:
     digest = hashlib.sha256()
     size = 0
+    total = path.stat().st_size if progress is not None else None
+    if progress is not None:
+        progress(ImportProgress("read", 0, total, "bytes"))
     with path.open("rb") as source:
         while chunk := source.read(1024 * 1024):
             digest.update(chunk)
             size += len(chunk)
+            if progress is not None:
+                progress(ImportProgress("read", size, total, "bytes"))
     return SourceProvenance(str(path.resolve()), digest.hexdigest(), size)
+
+
+def _content_length(value: str | None) -> int | None:
+    return int(value) if value is not None and value.isdigit() else None
 
 
 def download_puzzles(
@@ -105,6 +133,7 @@ def download_puzzles(
     *,
     url: str = DEFAULT_PUZZLE_URL,
     client: httpx.Client | None = None,
+    progress: ProgressCallback | None = None,
 ) -> SourceProvenance:
     """Save the complete response atomically; leave a previous file intact on failure."""
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -112,18 +141,25 @@ def download_puzzles(
     http = client if client is not None else httpx.Client(follow_redirects=True, timeout=60.0)
     temporary: Path | None = None
     try:
+        if progress is not None:
+            progress(ImportProgress("connect", 0, None, "bytes"))
         with http.stream("GET", url) as response:
             response.raise_for_status()
+            total = _content_length(response.headers.get("content-length"))
             digest = hashlib.sha256()
             size = 0
             with tempfile.NamedTemporaryFile(
                 dir=output.parent, prefix=f".{output.name}.", suffix=".part", delete=False
             ) as target:
                 temporary = Path(target.name)
+                if progress is not None:
+                    progress(ImportProgress("download", 0, total, "bytes"))
                 for chunk in response.iter_raw():
                     target.write(chunk)
                     digest.update(chunk)
                     size += len(chunk)
+                    if progress is not None:
+                        progress(ImportProgress("download", size, total, "bytes"))
                 expected = response.headers.get("content-length")
                 if expected is not None and size != int(expected):
                     raise ValueError("Incomplete puzzle download: Content-Length does not match")
@@ -249,6 +285,7 @@ def import_puzzles(
     *,
     filters: ImportFilters | None = None,
     provenance: SourceProvenance | None = None,
+    progress: ProgressCallback | None = None,
 ) -> ImportSummary:
     """Import first qualifying unique identities, including already-present rows in the cap.
 
@@ -257,7 +294,7 @@ def import_puzzles(
     never consume the cap; underfilled input never relaxes filters.
     """
     filters = filters or ImportFilters()
-    provenance = provenance or local_provenance(path)
+    provenance = provenance or local_provenance(path, progress)
     summary = ImportSummary(provenance, filters)
     skipped: Counter[str] = Counter()
     seen: set[str] = set()
@@ -277,6 +314,8 @@ def import_puzzles(
                     raise ValueError("Puzzle CSV is missing required header columns")
                 if len(set(reader.fieldnames)) != len(reader.fieldnames):
                     raise ValueError("Puzzle CSV has duplicate header columns")
+                if progress is not None:
+                    progress(ImportProgress("import", 0, filters.limit, "puzzles", rows_read=0))
                 while summary.accepted < filters.limit:
                     # Count malformed records and resume at the CSV reader's current position.
                     rows: list[_Puzzle | str] = []
@@ -342,5 +381,15 @@ def import_puzzles(
                                 item.difficulty_estimate = float(row.metadata["rating"])
                                 session.add(item)
                     session.commit()
+                    if progress is not None:
+                        progress(
+                            ImportProgress(
+                                "import",
+                                summary.accepted,
+                                filters.limit,
+                                "puzzles",
+                                rows_read=summary.read,
+                            )
+                        )
     summary.skipped = dict(sorted(skipped.items()))
     return summary

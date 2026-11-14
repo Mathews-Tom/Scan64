@@ -373,6 +373,8 @@ do not replace a previously saved file. The default destination is
 changes the name (an absolute path overrides the directory), and `--url URL` changes the
 download source. Download-only options cannot be combined with a local input path.
 
+Progress goes to stderr, so `--json` output on stdout stays one JSON document. On a terminal one line per phase updates in place: connecting, downloading (MB done of the total, percent, speed and time left; only MB and speed when the server sends no length), reading a local file, and importing (puzzles kept of the limit and rows read). When stderr is piped or redirected, plain lines appear at most once every five seconds. `--quiet` turns progress off. Ctrl-C stops the command and removes the partial download.
+
 Import streams CSV by header through the pinned BSD-licensed `zstandard` library; it does not
 load the whole dataset into memory. Defaults select the first **50,000 qualifying unique
 puzzles in file order**: rating **600–1800 inclusive**, rating deviation **≤100**,
