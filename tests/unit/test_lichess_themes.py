@@ -10,7 +10,10 @@ from pydantic import ValidationError
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evaluation.lichess_themes import (
+    ALLOWED_MATE,
     CODE_THEMES,
+    V1_SEED_CODES,
+    V2_CODE_THEMES,
     CodeScore,
     Outcome,
     Puzzle,
@@ -18,8 +21,10 @@ from scan64.learning.evaluation.lichess_themes import (
     RecordedLine,
     RecordedPuzzleAdapter,
     RecordingProvenance,
+    code_themes,
     diagnose,
     render_results,
+    render_v2_results,
     score,
     wilson,
 )
@@ -68,7 +73,8 @@ def provenance() -> RecordingProvenance:
 
 
 def test_mapping_is_frozen_and_does_not_reverse_ownership() -> None:
-    assert set(CODE_THEMES) == TRUSTED_CODES
+    assert set(CODE_THEMES) == {HANGING, DIRECT, CHECK, CAPTURE}
+    assert set(CODE_THEMES) <= TRUSTED_CODES
     assert CODE_THEMES[HANGING] == CODE_THEMES[DIRECT] == {"hangingPiece"}
     assert CODE_THEMES[CHECK] == CODE_THEMES[CAPTURE] == set()
     assert not any("mate" in themes or "advantage" in themes for themes in CODE_THEMES.values())
@@ -238,3 +244,89 @@ def test_recording_scores_and_settings_cannot_silently_change() -> None:
     metadata["fast_nodes"] = 100000
     with pytest.raises(ValidationError):
         RecordingProvenance.model_validate(metadata)
+
+
+def test_v2_mapping_only_adds_verified_mate_tags() -> None:
+    assert code_themes("v1") == CODE_THEMES
+    assert code_themes("v2") == V2_CODE_THEMES
+    assert {code: tags for code, tags in V2_CODE_THEMES.items() if code != ALLOWED_MATE} == (
+        CODE_THEMES
+    )
+    assert V2_CODE_THEMES[ALLOWED_MATE] == {
+        "mate", "mateIn1", "mateIn2", "mateIn3", "backRankMate"
+    }
+    assert ALLOWED_MATE not in V1_SEED_CODES
+    with pytest.raises(ValueError, match="version"):
+        code_themes("v3")  # type: ignore[arg-type]
+
+
+def test_v1_render_seed_distribution_excludes_new_detector() -> None:
+    output = render_results([Outcome("a", frozenset(), "not_flagged")], provenance(), "hash")
+    assert ALLOWED_MATE not in output
+
+
+def test_v2_render_reports_both_wilson_intervals_and_old_code_deltas() -> None:
+    baseline = [
+        Outcome("a", frozenset({"hangingPiece", "mate"}), HANGING),
+        Outcome("b", frozenset({"hangingPiece"}), HANGING),
+        Outcome("c", frozenset({"mateIn2"}), "not_flagged"),
+    ]
+    outcomes = [
+        replace(baseline[0], disposition=ALLOWED_MATE),
+        baseline[1],
+        baseline[2],
+    ]
+    output = render_v2_results(outcomes, baseline, provenance(), "hash")
+    assert "Recall Wilson 95% CI" in output
+    assert (
+        f"| `{ALLOWED_MATE}` | 1 | 2 | 1 | 1.0000 | [0.2065, 1.0000] | "
+        "0.5000 | [0.0945, 0.9055] |"
+    ) in output
+    assert f"| `{HANGING}` | -1 | -1 | +0.0000 | -0.5000 |" in output
+    assert f"| `{CHECK}` | +0 | N/A | N/A | N/A |" in output
+    assert output == render_v2_results(list(reversed(outcomes)), baseline, provenance(), "hash")
+    with pytest.raises(ValueError, match="same nonempty"):
+        render_v2_results(outcomes, baseline[:-1], provenance(), "hash")
+
+
+def test_v2_mapped_zero_denominators_remain_undefined() -> None:
+    outcomes = [Outcome("a", frozenset(), "not_flagged")]
+    output = render_v2_results(outcomes, outcomes, provenance(), "hash")
+    assert f"| `{ALLOWED_MATE}` | 0 | 0 | 0 | N/A | N/A | N/A | N/A |" in output
+    assert score(outcomes, version="v2")[ALLOWED_MATE] == CodeScore(0, 0, 0)
+    with pytest.raises(ValueError, match="disposition"):
+        score([Outcome("a", frozenset({"mate"}), ALLOWED_MATE)])
+
+
+@pytest.mark.asyncio
+async def test_v1_never_requests_appended_detectors(monkeypatch: pytest.MonkeyPatch) -> None:
+    detectors = registry()
+    original_get = detectors.get
+    requested = []
+
+    def frozen_get(*, kind, name):
+        assert name in V1_SEED_CODES
+        requested.append(name)
+        return original_get(kind=kind, name=name)
+
+    monkeypatch.setattr(detectors, "get", frozen_get)
+    puzzle, record = example()
+    assert await diagnose(puzzle, record, detectors, version="v1") == (HANGING, None)
+    assert tuple(requested) == V1_SEED_CODES
+
+
+def test_v2_untrusted_mate_is_an_abstention_not_an_emission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scan64.learning.evaluation import lichess_themes
+
+    monkeypatch.setattr(lichess_themes, "TRUSTED_CODES", frozenset(CODE_THEMES))
+    outcomes = [Outcome("a", frozenset({"mate"}), "untrusted_only", ALLOWED_MATE)]
+    assert score(outcomes, version="v2")[ALLOWED_MATE] == CodeScore(0, 1, 0)
+    output = render_v2_results(
+        outcomes, [replace(outcomes[0], disposition="not_flagged", untrusted_code=None)],
+        provenance(), "hash",
+    )
+    assert "M48 allowed-mate trust decision: **not trusted**" in output
+    assert f"| `{ALLOWED_MATE}` | 1 | 100.00% |" in output
+    assert "Trusted emissions: **0**; abstentions: **1**." in output

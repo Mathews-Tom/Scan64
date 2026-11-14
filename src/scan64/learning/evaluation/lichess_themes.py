@@ -26,6 +26,7 @@ from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
+from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -42,6 +43,32 @@ CODE_THEMES: dict[str, frozenset[str]] = {
 }
 ABSTENTIONS = ("not_flagged", "no_eligible_diagnosis", "untrusted_only")
 DISPOSITIONS = (*CODE_THEMES, *ABSTENTIONS)
+VERSION_TWO_REPORT = ROOT / "docs/evaluation/lichess-theme-agreement-v2.md"
+V2_PREREGISTRATION = "66eb859"
+ALLOWED_MATE = "threat_processing.allowed_mate"
+V2_CODE_THEMES = {
+    **CODE_THEMES,
+    ALLOWED_MATE: frozenset({"mate", "mateIn1", "mateIn2", "mateIn3", "backRankMate"}),
+}
+V1_SEED_CODES = (
+    "board_awareness.hanging_piece",
+    "threat_processing.missed_check",
+    "threat_processing.missed_capture",
+    "threat_processing.missed_direct_threat",
+    "tactics.fork.knight",
+    "tactics.pin",
+    "tactics.overloaded_defender",
+    "calculation.stopped_too_early",
+    "opening.delayed_development",
+    "positional.king_safety_neglect",
+)
+Version = Literal["v1", "v2"]
+
+
+def code_themes(version: Version) -> dict[str, frozenset[str]]:
+    if version not in {"v1", "v2"}:
+        raise ValueError(f"Unknown experiment version: {version}")
+    return CODE_THEMES if version == "v1" else V2_CODE_THEMES
 
 
 class RecordedLine(BaseModel):
@@ -210,9 +237,10 @@ class RecordedPuzzleAdapter:
 
 
 async def diagnose(
-    puzzle: Puzzle, record: PuzzleRecording, registry: PluginRegistry
+    puzzle: Puzzle, record: PuzzleRecording, registry: PluginRegistry, *, version: Version = "v1"
 ) -> tuple[str, str | None]:
     """Diagnose the setup mover; puzzle themes never enter the evidence pipeline."""
+    mapping = code_themes(version)
     adapter = RecordedPuzzleAdapter(puzzle, record)
     before, after, san = puzzle.boards_and_san()
     fast = await FastPassOrchestrator(adapter, FastPassConfig(nodes=10000)).run_fast_pass(
@@ -245,15 +273,23 @@ async def diagnose(
         engine_eval_after=-candidate.swing_cp / 100,
     )
     candidates: list[DiagnosisCandidate] = []
-    for code in SEED_CODES:
+    for code in V1_SEED_CODES if version == "v1" else SEED_CODES:
         detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
         assert isinstance(detector, PatternDetector)
         candidates.extend(
             await detector.detect(opportunity, evidence, PlayerContext(player_id="m77-owner"))
         )
-    winner = arbitrate_diagnoses(candidates, evidence)
+    winner = (
+        arbitrate_diagnoses(
+            [candidate for candidate in candidates if candidate.skill_id in CODE_THEMES],
+            evidence,
+            trusted_only=False,
+        )
+        if version == "v1"
+        else arbitrate_diagnoses(candidates, evidence)
+    )
     if winner is not None:
-        if winner[0].skill_id not in CODE_THEMES:
+        if winner[0].skill_id not in mapping:
             raise ValueError("Trusted code set changed since pre-registration")
         return winner[0].skill_id, None
     untrusted = arbitrate_diagnoses(candidates, evidence, trusted_only=False)
@@ -262,14 +298,18 @@ async def diagnose(
     return "no_eligible_diagnosis", None
 
 
-def score(outcomes: list[Outcome]) -> dict[str, CodeScore]:
+def score(outcomes: list[Outcome], *, version: Version = "v1") -> dict[str, CodeScore]:
+    mapping = code_themes(version)
+    dispositions = (*mapping, *ABSTENTIONS)
+    seeds = V1_SEED_CODES if version == "v1" else SEED_CODES
+    trusted = CODE_THEMES if version == "v1" else TRUSTED_CODES
     if len({outcome.puzzle_id for outcome in outcomes}) != len(outcomes):
         raise ValueError("Duplicate outcome ID")
-    if any(outcome.disposition not in DISPOSITIONS for outcome in outcomes):
+    if any(outcome.disposition not in dispositions for outcome in outcomes):
         raise ValueError("Unknown outcome disposition")
     for outcome in outcomes:
         if outcome.disposition == "untrusted_only":
-            if outcome.untrusted_code not in SEED_CODES or outcome.untrusted_code in CODE_THEMES:
+            if outcome.untrusted_code not in seeds or outcome.untrusted_code in trusted:
                 raise ValueError("Untrusted-only outcome must identify a non-trusted code")
         elif outcome.untrusted_code is not None:
             raise ValueError("Only untrusted-only outcomes may carry a non-trusted code")
@@ -279,7 +319,7 @@ def score(outcomes: list[Outcome]) -> dict[str, CodeScore]:
             theme_positive=sum(bool(o.themes & themes) for o in outcomes),
             overlap=sum(o.disposition == code and bool(o.themes & themes) for o in outcomes),
         )
-        for code, themes in CODE_THEMES.items()
+        for code, themes in mapping.items()
     }
 
 
@@ -360,7 +400,7 @@ def render_results(
             "| --- | --- | ---: | ---: |",
         ]
     )
-    for code in SEED_CODES:
+    for code in V1_SEED_CODES:
         trusted = code in CODE_THEMES
         count = counts[code] if trusted else untrusted_counts[code]
         status = "trusted emission" if trusted else "non-trusted eligible-only"
@@ -447,7 +487,124 @@ def render_results(
     return "\n".join(lines)
 
 
-async def reproduce(directory: Path = FIXTURES) -> str:
+def _interval(successes: int, total: int) -> str:
+    interval = wilson(successes, total)
+    return "N/A" if interval is None else f"[{interval[0]:.4f}, {interval[1]:.4f}]"
+
+
+def _delta(current: float | None, previous: float | None) -> str:
+    return "N/A" if current is None or previous is None else f"{current - previous:+.4f}"
+
+
+def render_v2_results(
+    outcomes: list[Outcome],
+    baseline: list[Outcome],
+    provenance: RecordingProvenance,
+    recording_sha256: str,
+) -> str:
+    if not outcomes or {o.puzzle_id for o in outcomes} != {o.puzzle_id for o in baseline}:
+        raise ValueError("Version comparison requires the same nonempty sample")
+    scores = score(outcomes, version="v2")
+    previous = score(baseline)
+    n = len(outcomes)
+    counts = Counter(o.disposition for o in outcomes)
+    untrusted = Counter(o.untrusted_code for o in outcomes if o.untrusted_code is not None)
+    trusted = ALLOWED_MATE in TRUSTED_CODES
+    lines = [
+        "## Results",
+        "",
+        "Informational theme agreement only; no coach validation or efficacy claim.",
+        "Blind independent coach review remains **PENDING**.",
+        "",
+        f"V2 pre-registration commit: `{V2_PREREGISTRATION}`.",
+        f"M48 allowed-mate trust decision: **{'trusted' if trusted else 'not trusted'}**.",
+        "Trust comes solely from the separate M48 isolation report, never these labels.",
+        f"Frozen owner-side sample: **{n:,}**. Fast-pass flagged: "
+        f"**{n - counts['not_flagged']:,}**.",
+        f"Trusted emissions: **{sum(counts[c] for c in V2_CODE_THEMES):,}**; "
+        f"abstentions: **{sum(counts[c] for c in ABSTENTIONS):,}**.",
+        "",
+        "### Per-code agreement",
+        "",
+        "| Code | Emitted support | Theme-positive rows | Matches | Precision | "
+        "Precision Wilson 95% CI | Recall | Recall Wilson 95% CI |",
+        "| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |",
+    ]
+    for code, themes in V2_CODE_THEMES.items():
+        result = scores[code]
+        values = (
+            f"{result.support} | {result.theme_positive} | {result.overlap} | "
+            f"{_ratio(result.precision)} | {_interval(result.overlap, result.support)} | "
+            f"{_ratio(result.recall)} | {_interval(result.overlap, result.theme_positive)}"
+            if themes
+            else f"{result.support} | N/A | N/A | N/A | N/A | N/A | N/A"
+        )
+        lines.append(f"| `{code}` | {values} |")
+    lines.extend([
+        "",
+        "N/A is undefined/unmapped, not a measured zero. An untrusted allowed-mate",
+        "eligible-only winner is reported below, not counted as a trusted emission.",
+        "",
+        "### V2 minus v1: unchanged old-code mappings",
+        "",
+        "| Code | Support delta | Matches delta | Precision delta | Recall delta |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ])
+    for code, themes in CODE_THEMES.items():
+        current, old = scores[code], previous[code]
+        values = (
+            f"{current.overlap - old.overlap:+d} | "
+            f"{_delta(current.precision, old.precision)} | {_delta(current.recall, old.recall)}"
+            if themes else "N/A | N/A | N/A"
+        )
+        lines.append(f"| `{code}` | {current.support - old.support:+d} | {values} |")
+    lines.extend([
+        "",
+        "### Disposition and eligible-only distribution",
+        "",
+        "| Disposition | Count | Rate over full sample |",
+        "| --- | ---: | ---: |",
+    ])
+    for disposition in (*V2_CODE_THEMES, *ABSTENTIONS):
+        lines.append(
+            f"| `{disposition}` | {counts[disposition]} | {counts[disposition] / n:.2%} |"
+        )
+    lines.extend([
+        "",
+        "| Non-trusted eligible-only winner | Count | Rate over full sample |",
+        "| --- | ---: | ---: |",
+    ])
+    for code in SEED_CODES:
+        if code not in TRUSTED_CODES:
+            lines.append(f"| `{code}` | {untrusted[code]} | {untrusted[code] / n:.2%} |")
+    lines.extend([
+        "",
+        "### Frozen evidence and reproduction",
+        "",
+        f"- Original recording pre-registration: `{provenance.preregistration_commit}`.",
+        f"- Engine: {provenance.engine}; Threads {provenance.threads}, "
+        f"Hash {provenance.hash_mb} MiB; {provenance.reset}.",
+        f"- Fast nodes {provenance.fast_nodes}; focused nodes {provenance.focused_nodes}, "
+        f"MultiPV {provenance.focused_multipv}. No new engine requests.",
+        f"- Sample SHA256: `{provenance.sample_sha256}`.",
+        f"- Recording SHA256: `{recording_sha256}`.",
+        "",
+        "```sh",
+        "uv run python -m scan64.learning.evaluation.lichess_themes --version v1 --check",
+        "uv run python -m scan64.learning.evaluation.lichess_themes --version v2 --check",
+        "```",
+        "",
+        "Both checks are offline and reproduce their respective Results suffixes.",
+        "All pre-registered limitations above and in v1 apply. Mate tags do not prove",
+        "the absence of prior forced mate or the detector's three-move bound.",
+        "No core tuning, label remapping or sample selection followed these results.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
+async def reproduce(directory: Path = FIXTURES, *, version: Version = "v1") -> str:
+    code_themes(version)
     puzzles = load_sample(directory)
     recording_path = directory / "recorded.json"
     payload = recording_path.read_bytes()
@@ -458,19 +615,27 @@ async def reproduce(directory: Path = FIXTURES) -> str:
     register_seeded_detectors(registry)
     outcomes = []
     for puzzle, record in zip(puzzles, recording.puzzles, strict=True):
-        disposition, untrusted_code = await diagnose(puzzle, record, registry)
+        disposition, untrusted_code = await diagnose(puzzle, record, registry, version=version)
         outcomes.append(Outcome(puzzle.puzzle_id, puzzle.themes, disposition, untrusted_code))
-    return render_results(outcomes, recording.provenance, hashlib.sha256(payload).hexdigest())
+    recording_sha256 = hashlib.sha256(payload).hexdigest()
+    if version == "v1":
+        return render_results(outcomes, recording.provenance, recording_sha256)
+    baseline = []
+    for puzzle, record in zip(puzzles, recording.puzzles, strict=True):
+        disposition, untrusted_code = await diagnose(puzzle, record, registry, version="v1")
+        baseline.append(Outcome(puzzle.puzzle_id, puzzle.themes, disposition, untrusted_code))
+    return render_v2_results(outcomes, baseline, recording.provenance, recording_sha256)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify the committed Results suffix")
+    parser.add_argument("--version", choices=("v1", "v2"), default="v1")
     args = parser.parse_args()
     try:
-        result = asyncio.run(reproduce())
+        result = asyncio.run(reproduce(version=args.version))
         if args.check:
-            document = REPORT.read_text()
+            document = (REPORT if args.version == "v1" else VERSION_TWO_REPORT).read_text()
             marker = "## Results\n"
             if marker not in document or document[document.index(marker) :] != result:
                 raise ValueError("Committed Results differ from offline reproduction")
