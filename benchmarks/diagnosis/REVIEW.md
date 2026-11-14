@@ -24,3 +24,9 @@ satisfied until this section is updated.
 - Date: (pending)
 - Sample: (pending)
 - Agreement threshold met: (pending)
+
+An interim [Lichess puzzle-theme agreement proxy](../../docs/evaluation/lichess-theme-agreement.md)
+compares the normal owner-side diagnosis of real setup blunders with independent-source,
+partly algorithmic puzzle themes. Its frozen sample, mapping and recorded-engine offline
+report provide informational agreement measurements, not coach validation or evidence of
+learning efficacy. The blind independent coach review above remains **PENDING**.

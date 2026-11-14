@@ -1,0 +1,30 @@
+{
+  "source_url": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+  "license": "CC0-1.0",
+  "retrieved_utc": "2026-11-14",
+  "byte_range_inclusive": [
+    0,
+    8388607
+  ],
+  "prefix_bytes": 8388608,
+  "prefix_sha256": "b58e19f817b7a8889cd713654a59e8914c3e92f11987b0273e74fb30e7d38b96",
+  "http_content_range": "bytes 0-8388607/309751173",
+  "http_last_modified": "Sun, 01 Nov 2026 07:57:40 GMT",
+  "http_etag": "\"6ae6f0f4-12766d85\"",
+  "sample_size": 2000,
+  "source_rows_scanned": 4180,
+  "selection": "First 2000 valid unique PuzzleIds in official source-file order; rating 600..1800 inclusive, rating deviation <=100, popularity >=80, plays >=100; valid standard-chess FEN and legal Moves[0]. No theme or diagnosis selection.",
+  "retained_columns": [
+    "PuzzleId",
+    "FEN",
+    "Blunder",
+    "Rating",
+    "RatingDeviation",
+    "Popularity",
+    "NbPlays",
+    "Themes"
+  ],
+  "blunder_column": "Moves[0] only; continuation and game URLs not retained",
+  "sample_sha256": "fc43cc078553522a19fb2cd0089eb5a63ad0518220a93788b530157099970b35",
+  "prefix_note": "A byte-range prefix ends mid-zstd-frame. Streaming stops after the fixed N, before the incomplete frame; the full compressed file is not required."
+}
