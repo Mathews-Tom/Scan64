@@ -29,7 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Security
 
 - Update signatures must also authenticate the announced version, so an older signed build cannot be served as a newer one. Downgrades and insecure update transport are rejected, and release builds refuse any non-canonical updater setting.
-- In the desktop app, the bundled local server accepts API calls only from the app's own window, which proves itself with a new credential on every launch.
+- In the desktop app, the bundled local server rejects API calls that lack the shell token, which the app generates anew on every launch. Any local process that obtains that token can still call the API.
 
 ## [0.6.1] - 2026-11-14
 
