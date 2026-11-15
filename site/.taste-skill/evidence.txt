@@ -21,7 +21,7 @@ node <skill>/scripts/copy-lint.mjs site/index.html --kind software
   0 FAIL, 0 WARN; final copy 186 words.
 actionlint .github/workflows/pages.yml
   exit 0; no diagnostics.
-uv run --no-project python site/validate.py
+uv run --no-project python scripts/site/validate.py
   PASS: 25 HTML resources and links; relative assets support /Scan64/.
 node <skill>/scripts/perf.mjs index.html --profile .taste-skill/chrome-perf (from site/)
   SUMMARY index.html: 0 FAIL, 2 WARN -> WARN.
@@ -59,7 +59,7 @@ Owner-approved deviation
 Remove the dead root .gitignore template mkdocs comment and /site entry so the new source directory is normally trackable. No MkDocs configuration exists. site/.gitignore narrowly excludes browser profiles, screenshots, raw logs and check caches; meaningful skill state remains committed.
 
 Exact browser commands (from site/)
-S=/Users/druk/.omp/agent/skills/design-taste-frontend
+S="<skill>"
 node "$S/scripts/consistency.mjs" index.html --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --profile .taste-skill/chrome-check --page software --category 'chess coach' --primary 'Download Scan64'
 node "$S/assets/layout/check.mjs" --url index.html --profile .taste-skill/chrome-layout --sizes 1440x900,1024x768,820x1180,768x1024,390x844 --shots .taste-skill/shots/layout
 node "$S/scripts/perf.mjs" index.html --profile .taste-skill/chrome-perf
@@ -72,8 +72,8 @@ SUMMARY index.html: 0 FAIL, 4 WARN -> WARN
 Two additional WARN rows are the same busy-host CPU-load warning at desktop and phone (59/33%); not a page resource or layout failure. Timing verdicts are explicitly not treated as real-device measurements.
 
 Repository format coverage
-scripts/check.sh formats-checks the whole repository, so the new site/validate.py follows that convention.
-uv run ruff format --check site/validate.py
+scripts/check.sh formats-checks the whole repository, so scripts/site/validate.py follows that convention.
+uv run ruff format --check scripts/site/validate.py
   1 file already formatted.
 The full CI / Quality gate remains required on the PR head; no backend/app behavior was changed or launched locally.
 
@@ -110,3 +110,19 @@ node <skill>/scripts/consistency.mjs index.html --quick --widths 1440,390 --prof
 node <skill>/scripts/shoot.mjs --url index.html --w 820 --h 600 --out .taste-skill/shots/820-short.png --profile .taste-skill/chrome-shoot
   Saved and inspected the short-tablet layout.
 Nine other review comments concern unused exported kit lifecycle/form/loop/concurrent-mount paths. This static page has no unmount/remount/replacement, forms, data-m-loop, ui.loop or concurrent grounds. Each thread received its concrete applicability explanation; findings were reported upstream and the required unmodified kit was preserved.
+
+Runner security review follow-through (all five requested changes)
+Product UI now copies the actual App.tsx navigation order exactly: Today, Play, Review, Train, Puzzles, Profile, Library, Coach, Settings; Review selected.
+All review-frame labels trace to OwnedGameReview.tsx: Analysis Board, Initial position, Move by move, Key moments, Retry this moment. Hero Train/Daily Training traces to App.tsx and DailyTrainingScreen.tsx; Play and Scan64 match app navigation/brand.
+Chessboards retain square geometry; the review board is sized to fit its frame rather than clipping its bottom ranks.
+Linux aarch64, armv7l and arm64 now use the latest-release fallback. Selector regression run passed those three, macOS, Windows, Linux x64, ChromeOS, Android and unknown (nine cases).
+Static assertion passed exact navigation order, Review selected and all five review labels.
+Checkout now sets persist-credentials: false.
+Validator moved to scripts/site/validate.py; workflow and evidence callers migrated, including the scripts/site/** trigger dependency. It no longer enters the Pages artifact.
+Evidence uses <skill> rather than a home path. Hidden-source grep (excluding ignored browser profiles, reports, captures and raw logs) found no absolute home paths in publishable site source.
+actionlint .github/workflows/pages.yml: clean.
+uv run --no-project python scripts/site/validate.py: PASS 25 resources/links.
+uv run ruff check scripts/site/validate.py: All checks passed!
+uv run ruff format --check scripts/site/validate.py: 1 file already formatted.
+Final runner-security recheck: GATE: PASS (same three matching waivers; tablet-only fourth remains documented).
+Fresh 1024 and 1440 captures show all nine real navigation labels, Review selected, exact review copy, square boards and every rank visible; refreshed share.jpg from the final hero.

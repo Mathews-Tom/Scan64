@@ -3,7 +3,7 @@ Deal: triptych hero; M81 brand white #ffffff, ink #232323, surface #f3f3f3, mute
 Voice: technical-dry; exact not cold, direct not promotional; chess nouns and short sentences; no humour or invented proof.
 Facts: free open-source local chess coach; club players roughly 600–1600 (README); play, hints, review and personal puzzles (README/user-guide); three desktop platforms and unsigned builds (0.7.0 release/user-guide); no measured improvement claim (system-overview).
 Copy first: Chess coaching for club players. Play at your level, review the moves that decided your game, and practise puzzles drawn from your own mistakes. Free and open source. macOS, Windows and Linux. Download Scan64.
-hero: category, UI collage of actual Play/Review/Practice subjects; object; 1 screen.
+hero: category, UI collage of actual Play/Review/Train subjects; object; 1 screen. Labels trace to App.tsx, OwnedGameReview.tsx and DailyTrainingScreen.tsx.
 review: app-frame live HTML matching actual app shell and board; object; 1 screen.
 practice: Scan64 practice; letters-assemble moment draws attention to the practice destination; type; 1 screen. Explanation and installation FAQ share this screen.
 closing: Scan64 on your computer; installer information and source/user-guide links; type; 1 screen.

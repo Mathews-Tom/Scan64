@@ -1,12 +1,12 @@
 {
- "start": "2026-11-15T16:27:27.201Z",
+ "start": "2026-11-15T16:57:43.522Z",
  "round": 0,
  "idle": 0,
  "errors": 0,
  "status": "pass",
  "history": [
   {
-   "at": "2026-11-15T16:28:47.845Z",
+   "at": "2026-11-15T16:59:04.780Z",
    "mode": "manual",
    "status": "pass",
    "fails": 0,
@@ -24,11 +24,11 @@
   "category": "chess coach",
   "primary": "Download Scan64",
   "rounds": 1,
-  "start": "2026-11-15T16:27:27.201Z",
+  "start": "2026-11-15T16:57:43.522Z",
   "by": "gate.mjs --start"
  },
  "manual": true,
- "fp": "c6b460d25d7f9a3f",
+ "fp": "8754f4979155e0b9",
  "page": "index.html",
  "found": {
   "fails": [
@@ -195,5 +195,5 @@
   }
  ],
  "warnCount": 5,
- "at": "2026-11-15T16:28:47.846Z"
+ "at": "2026-11-15T16:59:04.781Z"
 }
