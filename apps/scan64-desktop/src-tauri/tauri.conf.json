@@ -26,5 +26,14 @@
   "bundle": {
     "active": false,
     "icon": ["../../scan64-web/public/pwa-512x512.png", "icons/icon.ico"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "SCAN64_PRODUCTION_UPDATER_PUBLIC_KEY_REQUIRED",
+      "endpoints": ["https://github.com/Mathews-Tom/Scan64/releases/latest/download/latest.json"],
+      "dangerousInsecureTransportProtocol": false,
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
   }
 }

@@ -1,14 +1,15 @@
 """Loopback-only server owned by the desktop shell's open stdin pipe.
 
 Run with ``python -m scan64.desktop_server``. The shell supplies SCAN64_DATA_DIR,
-SCAN64_PORT and SCAN64_SHELL_TOKEN, and retains stdin until it quits. No browser
-or platform-specific advisory file lock is involved.
+SCAN64_PORT, SCAN64_SHELL_TOKEN and SCAN64_APP_VERSION, and retains stdin until
+it quits. No browser or platform-specific advisory file lock is involved.
 """
 
 from __future__ import annotations
 
 import os
 import signal
+import socket
 import sys
 import threading
 import traceback
@@ -16,6 +17,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO, NoReturn, cast
+
+from scan64.desktop_backups import application_version, prepare_desktop_backup
 
 # Leave margin under the shell's five-second kill deadline. This timer does not
 # depend on uvicorn's event loop, lifespan, engine pool, or graceful shutdown.
@@ -243,11 +246,19 @@ def main() -> NoReturn:
             if sys.stderr is None:
                 sys.stderr = log
 
-        # Imports, schema migration and lifespan startup are inside the watchdog
-        # deadline too. No application module may precede configure_environment.
+        backup = prepare_desktop_backup(configuration.data_dir, application_version(os.environ))
+
+        # Backup precedes all API imports; migrations run in uvicorn's lifespan.
+        # Commit the version only after that lifespan and server binding succeed.
         import uvicorn
 
-        server = uvicorn.Server(
+        class VersionedServer(uvicorn.Server):
+            async def startup(self, sockets: list[socket.socket] | None = None) -> None:
+                await super().startup(sockets=sockets)
+                if self.started:
+                    backup.record_successful_startup()
+
+        server = VersionedServer(
             uvicorn.Config(
                 "scan64.api.app:app",
                 host="127.0.0.1",

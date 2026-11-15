@@ -1,0 +1,27 @@
+.updates-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 0.5rem);
+  margin-block: 1rem;
+}
+.updates-automatic {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.updates-automatic input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+.updates-foot {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.updates-foot p {
+  margin-block: 0 0.5rem;
+}
+.app-nav .updates-foot button {
+  width: 100%;
+}

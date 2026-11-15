@@ -5,6 +5,7 @@ Scan64 is a local-first chess practice and learning application. It records game
 ## Contents
 
 - [Start the application](#start-the-application)
+- [Updates](#updates)
 - [Choose a starting point](#choose-a-starting-point) and [read your strength record](#read-your-strength-record)
 - [Keyboard, touch and screen readers](#keyboard-touch-and-screen-readers)
 - [Play a game](#play-a-game) and [use hints](#hints-during-play)
@@ -38,7 +39,21 @@ The desktop app opens one window containing Scan64, not a browser tab. Closing i
 
 Downloads and `logs/server.log` live under the same directory. Keep the app's local storage to retain your player token. The shell uses a fixed origin, so a different server port does not sign you out. Data from the older desktop app is not migrated.
 
-Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Nothing downloads without a click. In-app updates arrive in a later release; these builds do not check for or install updates.
+Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Puzzle downloads always require a click.
+
+### Updates
+
+These controls belong to the forthcoming unified desktop release, not the legacy browser-opening launcher. Browser and container installs do not update themselves.
+
+Open **Settings → Updates** for the installed version, last check time, **Check for updates**, and release notes. **Check for Updates…** is also in the Scan64 application menu on macOS and the Help menu on Windows/Linux. The app checks ten seconds after launch and every 24 hours while it stays open.
+
+**Download updates automatically** is on by default and persists across launches. A signed update downloads in the background; the sidebar shows its version and percentage, then **Restart to update**. Turn the switch off to see **Version X is available** and download only when you press **Download**. Neither setting installs or restarts the app by itself: you must explicitly press **Restart to update**, which stops the local server before installation and relaunch.
+
+If checking, downloading or installation fails, the Updates panel explains the failure and offers **Retry**. Linux `.deb` installs cannot self-update; use the release download link to install the newer package. A read-only installation or macOS App Translocation also shows an explanation and a download link. On macOS, move the app to a writable Applications folder and launch it there.
+
+The app contacts **GitHub Releases** (`github.com/Mathews-Tom/Scan64`, with GitHub's release-asset download hosts) to check for and download updates. These requests disclose normal network metadata such as your IP address; they do not upload your games or database. Updates must pass signature verification against the app's compiled-in public key.
+
+Before a newer desktop version can run database migrations, the server creates a consistent SQLite copy in the data directory's `backups/` folder, retaining the newest three. First launch records the version without a backup. If a required backup fails, startup stops rather than migrating unprotected data. There is no automatic application-bundle rollback: reinstall an earlier trusted release if a new app cannot start, and keep the database backups safe.
 
 ### Browser and source operation
 

@@ -114,3 +114,48 @@ export async function choosePuzzleFile(): Promise<string | null> {
     throw typeof error === 'string' ? new Error(error) : error;
   }
 }
+
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'upToDate' | 'available' | 'downloading' | 'ready' | 'installing' | 'failed' | 'unavailable';
+  installedVersion: string;
+  availableVersion: string | null;
+  percent: number | null;
+  lastChecked: number | null;
+  automatic: boolean;
+  reason: string | null;
+  downloadUrl: string;
+  releaseNotesUrl: string;
+}
+
+export const browserUpdateStatus: UpdateStatus = {
+  state: 'unavailable', installedVersion: 'Browser version', availableVersion: null,
+  percent: null, lastChecked: null, automatic: false,
+  reason: 'In-app updates are available in the Scan64 desktop app. Your browser uses the version served by your Scan64 server.',
+  downloadUrl: 'https://github.com/Mathews-Tom/Scan64/releases/latest',
+  releaseNotesUrl: 'https://github.com/Mathews-Tom/Scan64/releases/latest',
+};
+
+export async function updateStatus(): Promise<UpdateStatus> {
+  return isDesktop() ? invoke<UpdateStatus>('update_status') : browserUpdateStatus;
+}
+
+export async function checkUpdates(): Promise<void> {
+  if (isDesktop()) await invoke('check_updates');
+}
+
+export async function downloadUpdate(): Promise<void> {
+  if (isDesktop()) await invoke('download_update');
+}
+
+export async function restartToUpdate(): Promise<void> {
+  if (isDesktop()) await invoke('restart_to_update');
+}
+
+export async function setAutomaticUpdates(enabled: boolean): Promise<void> {
+  if (isDesktop()) await invoke('set_automatic_updates', { enabled });
+}
+
+/** Desktop links are opened by the shell; browser anchors retain their normal navigation. */
+export async function openReleaseUrl(url: string): Promise<void> {
+  if (isDesktop()) await invoke('open_release_url', { url });
+}

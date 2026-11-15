@@ -106,7 +106,7 @@ The unified desktop app opens Scan64 in one window, without a browser tab. It bu
 
 **All builds are unsigned.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. On Windows, SmartScreen may require **More info → Run anyway**. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
 
-In-app updates arrive in a later release; these builds do not check for or install updates. See the [user guide](docs/user-guide.md#start-the-application) for first-run behaviour and data locations.
+The unified desktop app includes signed in-app updates: **Settings → Updates** checks GitHub Releases, downloads in the background by default, and waits for **Restart to update**. It never restarts automatically. Linux `.deb` installs instead link to the release download. This applies to the forthcoming unified release, not the legacy app. See the [updates guide](docs/user-guide.md#updates).
 
 ### Build the macOS app (Apple silicon)
 
@@ -120,15 +120,17 @@ pnpm install --frozen-lockfile
 cargo install cargo-about --version 0.8.2 --locked
 pnpm --dir apps/scan64-web build
 uv run --no-sync python scripts/build-server.py
-pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app
+SCAN64_UPDATER_DRY_RUN=1 pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app
 open apps/scan64-desktop/src-tauri/target/release/bundle/macos/Scan64.app
 ```
 
 The build bundles Python, Stockfish 18, both networks and their licences/source; runtime needs no developer tools or system Stockfish. It is **unsigned and not notarized** (ad-hoc signing only). If macOS blocks a trusted build, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 
+This is an explicit development dry run: it skips only the not-yet-configured production public-key guard and cannot consume production updates. Release builds fail until the owner supplies the real updater public key; never use the test-only updater overlay for a release.
+
 Quit with **⌘Q**, the application menu or by closing the window; another launch focuses the existing window. Data and logs live in `~/Library/Application Support/org.scan64.desktop`. The fixed shell origin keeps your player signed in even when the loopback server port changes; retain the app's local storage as well as its database. Older desktop data is not migrated.
 
-Use **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**. In-app updates arrive in a later release. Browser and container installation below is unchanged. See the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Use **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**. Manage app updates in **Settings → Updates**. Browser and container installation below is unchanged. See the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### Docker
 

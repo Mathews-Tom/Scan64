@@ -9,6 +9,7 @@ on:
       - 'scripts/build-server.py'
       - 'scripts/desktop-smoke.py'
       - 'scripts/desktop-package-smoke.py'
+      - 'scripts/desktop-update-e2e.py'
       - 'scan64-server.spec'
       - 'Dockerfile'
       - 'pnpm-lock.yaml'
@@ -109,6 +110,9 @@ jobs:
     env:
       BROWSER: /usr/bin/true
       CARGO_TERM_COLOR: always
+      # PR installers are explicitly unsigned dry runs; only the key-placeholder
+      # guard is skipped. Production releases must supply the committed real key.
+      SCAN64_UPDATER_DRY_RUN: "1"
       APPIMAGE_EXTRACT_AND_RUN: "1"
       NO_STRIP: "true"
     steps:
@@ -127,6 +131,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: 1.99.1
+          components: clippy
       - name: Install Linux build and screenshot dependencies
         if: runner.os == 'Linux'
         run: |
@@ -172,6 +177,13 @@ jobs:
             apps/scan64-desktop/src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
           retention-days: 14
+      - name: Prove signed N to N+1 update, tamper rejection and database safety
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- uv run --no-sync python scripts/desktop-update-e2e.py
+          else
+            uv run --no-sync python scripts/desktop-update-e2e.py
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:

@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod release_links;
 mod server;
+mod updater;
 
 use server::{Connection, Server};
 use std::{
@@ -13,7 +15,7 @@ use std::{
     time::Duration,
 };
 use tauri::{
-    menu::{Menu, PredefinedMenuItem, Submenu},
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     Manager,
 };
 use tauri_plugin_dialog::DialogExt;
@@ -172,6 +174,11 @@ fn stop_on_exit(state: &Mutex<Server>) {
 }
 
 fn main() {
+    #[cfg(feature = "updater-test")]
+    if updater::prepare_smoke_launch().is_err() {
+        eprintln!("Invalid updater smoke launch arguments");
+        std::process::exit(1);
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
@@ -182,31 +189,73 @@ fn main() {
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "check-for-updates" {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = updater::check_updates(app).await;
+                });
+            }
+        })
         .manage(AtomicBool::new(false))
         .invoke_handler(tauri::generate_handler![
             desktop_connection,
             restart_server,
             choose_puzzle_file,
+            release_links::open_release_url,
             smoke_complete,
-            smoke_failed
+            smoke_failed,
+            updater::update_status,
+            updater::check_updates,
+            updater::download_update,
+            updater::restart_to_update,
+            updater::set_automatic_updates
         ])
         .setup(|app| {
             // Release smoke may isolate CI data; ordinary releases always use the OS app directory.
             // This must not admit debug-only executable overrides into release launches.
-            let data_dir = if cfg!(debug_assertions) || server::smoke_file().is_some() {
+            let data_dir = if cfg!(debug_assertions)
+                || server::smoke_file().is_some()
+                || (cfg!(feature = "updater-test")
+                    && env::var_os("SCAN64_UPDATE_SMOKE_FILE").is_some())
+            {
                 env::var_os("SCAN64_DATA_DIR").map(Into::into)
             } else {
                 None
             }
             .unwrap_or(app.path().app_data_dir()?);
-            app.manage(Arc::new(Mutex::new(Server::new(
-                data_dir,
-                app.path().resource_dir()?,
-            ))));
-            // Updates join this application menu in M84; no updater is advertised yet.
+            server::private_directory(&data_dir)?;
+            let updates = updater::Controller::new(app.handle(), &data_dir);
+            app.manage(Arc::new(Mutex::new(
+                Server::new(data_dir, app.path().resource_dir()?)
+                    .with_app_version(app.package_info().version.to_string()),
+            )));
+            app.manage(Arc::new(Mutex::new(updates)));
             let quit = PredefinedMenuItem::quit(app, Some("Quit Scan64"))?;
-            let application = Submenu::with_items(app, "Scan64", true, &[&quit])?;
-            app.set_menu(Menu::with_items(app, &[&application])?)?;
+            let check = MenuItem::with_id(
+                app,
+                "check-for-updates",
+                "Check for Updates…",
+                true,
+                None::<&str>,
+            )?;
+            #[cfg(target_os = "macos")]
+            let menu = {
+                let separator = PredefinedMenuItem::separator(app)?;
+                let application =
+                    Submenu::with_items(app, "Scan64", true, &[&check, &separator, &quit])?;
+                Menu::with_items(app, &[&application])?
+            };
+            #[cfg(not(target_os = "macos"))]
+            let menu = {
+                let application = Submenu::with_items(app, "Scan64", true, &[&quit])?;
+                let help = Submenu::with_items(app, "Help", true, &[&check])?;
+                Menu::with_items(app, &[&application, &help])?
+            };
+            app.set_menu(menu)?;
+            updater::start(app.handle().clone());
             if server::smoke_file().is_some() {
                 let handle = app.handle().clone();
                 thread::spawn(move || {

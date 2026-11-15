@@ -1,4 +1,5 @@
 import { PuzzleImportProvider, PuzzleImportFoot } from './components/PuzzleImport';
+import { UpdatesProvider, UpdatesFoot } from './components/Updates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import { PlayScreen } from './components/PlayScreen';
@@ -181,6 +182,7 @@ function App() {
   }
 
   return (
+    <UpdatesProvider>
     <PuzzleImportProvider onStartPuzzles={() => { setPuzzleLibraryRevision(value => value + 1); navigate('/puzzles'); }}>
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
@@ -210,6 +212,7 @@ function App() {
           );
         })}
         <PuzzleImportFoot />
+        <UpdatesFoot />
       </nav>
       <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content">
         {!hasIdentity && isKnownPath && pathname !== '/settings' ? (
@@ -253,6 +256,7 @@ function App() {
       </main>
     </div>
     </PuzzleImportProvider>
+    </UpdatesProvider>
   );
 }
 

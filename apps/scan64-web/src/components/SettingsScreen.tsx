@@ -1,4 +1,5 @@
 import { PuzzleLibraryPanel } from './PuzzleImport';
+import { UpdatesPanel } from './Updates';
 import { useEffect, useState } from 'react';
 import { ListRow, Panel, SegmentedControl, StatusLine } from './Primitives';
 
@@ -66,6 +67,7 @@ export function SettingsScreen() {
         ) : null}
       </Panel>
       <PuzzleLibraryPanel />
+      <UpdatesPanel />
       <Panel title="About and licences">
         <p>Scan64 is a local-first chess study app. Play, review your games and practise with lessons grounded in your moves.</p>
         <p>Scan64 is free software licensed under the GNU General Public License, version 3 or later (GPL-3.0-or-later). Stockfish, python-chess and Chessground are also licensed under GPL-3.0-or-later.</p>
