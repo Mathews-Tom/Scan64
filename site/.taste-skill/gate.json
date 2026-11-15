@@ -1,30 +1,21 @@
 {
- "start": "2026-11-15T15:54:17.913Z",
- "round": 1,
+ "start": "2026-11-15T16:27:27.201Z",
+ "round": 0,
  "idle": 0,
  "errors": 0,
  "status": "pass",
  "history": [
   {
-   "at": "2026-11-15T16:06:23.373Z",
-   "mode": "manual",
-   "status": "fail",
-   "fails": 5,
-   "round": 1,
-   "reused": false,
-   "stopHookActive": false
-  },
-  {
-   "at": "2026-11-15T16:13:31.023Z",
+   "at": "2026-11-15T16:28:47.845Z",
    "mode": "manual",
    "status": "pass",
    "fails": 0,
-   "round": 1,
+   "round": 0,
    "reused": false,
    "stopHookActive": false
   }
  ],
- "max": 3,
+ "max": 1,
  "marker": {
   "page": "index.html",
   "url": null,
@@ -32,16 +23,12 @@
   "kind": "software",
   "category": "chess coach",
   "primary": "Download Scan64",
-  "rounds": 3,
-  "start": "2026-11-15T15:54:17.913Z",
+  "rounds": 1,
+  "start": "2026-11-15T16:27:27.201Z",
   "by": "gate.mjs --start"
  },
  "manual": true,
- "roundKey": "e3deaccd0a31c42e:da39a3ee",
- "roundFree": false,
- "idleFree": false,
- "blockKey": null,
- "fp": "47ab556deeb30336",
+ "fp": "c6b460d25d7f9a3f",
  "page": "index.html",
  "found": {
   "fails": [
@@ -96,6 +83,17 @@
   ],
   "warns": [
    {
+    "check": "nav",
+    "where": "header.nav.nav--centre > div.wrap.nav__bar > div.nav__actions > a.nav__link \"Source code\"",
+    "msg": "the nav is lopsided: its last item ends 8px inside the content's edge (1360px), while its first starts on the other edge",
+    "fix": "start the nav's first item and end its last on the content's two edges",
+    "widths": [
+     1440,
+     390
+    ],
+    "from": "consistency"
+   },
+   {
     "check": "label-centre",
     "where": "div.hero-text.grid > div.hero__cta.span-3 > div > a.btn.btn--primary \"Download Scan64\"",
     "msg": "its label sits 18px off-centre (33px of room at the left, 51px at the right)",
@@ -138,7 +136,7 @@
   ],
   "crashed": [],
   "seconds": {
-   "consistency": 79,
+   "consistency": 77,
    "layout": 4
   }
  },
@@ -159,7 +157,7 @@
    "wheres": [
     "footer.footer.closing > div.wrap > div.closing__cta.close--type > a.btn.btn--primary \"Download Scan64\""
    ],
-   "reason": "This is the dealt close-type recipe's full-width primary download button, not an inset content band. The recipe explicitly requires this button across the wrap."
+   "reason": "The dealt close-type recipe requires the full-width footer download button; at tablet widths the triptych hero's download button also fills its column. These actionable download links are buttons, not inset content bands."
   },
   {
    "check": "container-edges",
@@ -196,6 +194,6 @@
    "reason": "The final 31-character category-and-buyer heading fits three desktop lines and two phone lines. Only the check's synthetic maximum-length replacement needs four lines; M81 requires the bundled Host Grotesk pairing."
   }
  ],
- "warnCount": 4,
- "at": "2026-11-15T16:13:31.023Z"
+ "warnCount": 5,
+ "at": "2026-11-15T16:28:47.846Z"
 }

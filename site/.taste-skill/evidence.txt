@@ -57,3 +57,41 @@ The one-section waiver also covers the dealt full-width tablet hero download but
 
 Owner-approved deviation
 Remove the dead root .gitignore template mkdocs comment and /site entry so the new source directory is normally trackable. No MkDocs configuration exists. site/.gitignore narrowly excludes browser profiles, screenshots, raw logs and check caches; meaningful skill state remains committed.
+
+Exact browser commands (from site/)
+S=/Users/druk/.omp/agent/skills/design-taste-frontend
+node "$S/scripts/consistency.mjs" index.html --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --profile .taste-skill/chrome-check --page software --category 'chess coach' --primary 'Download Scan64'
+node "$S/assets/layout/check.mjs" --url index.html --profile .taste-skill/chrome-layout --sizes 1440x900,1024x768,820x1180,768x1024,390x844 --shots .taste-skill/shots/layout
+node "$S/scripts/perf.mjs" index.html --profile .taste-skill/chrome-perf
+node "$S/scripts/shoot.mjs" --url index.html --w 1440 --out .taste-skill/shots/1440.png --profile .taste-skill/chrome-shoot
+Repeat shoot at widths 1024, 820 (1180 high), 768 (1024 high), 390 (844 high).
+node "$S/scripts/gate.mjs" index.html
+
+Latest completed perf tail
+SUMMARY index.html: 0 FAIL, 4 WARN -> WARN
+Two additional WARN rows are the same busy-host CPU-load warning at desktop and phone (59/33%); not a page resource or layout failure. Timing verdicts are explicitly not treated as real-device measurements.
+
+Repository format coverage
+scripts/check.sh formats-checks the whole repository, so the new site/validate.py follows that convention.
+uv run ruff format --check site/validate.py
+  1 file already formatted.
+The full CI / Quality gate remains required on the PR head; no backend/app behavior was changed or launched locally.
+
+Final acceptance tails
+GATE: PASS
+  Three matching gate waivers: required body skip link, dealt wide download button, synthetic hero headline stress.
+  Fourth documented waiver covers tablet-only letters-assemble scroll-reveal findings; it matches no 1440/390 gate finding and the gate reports it ignored there.
+Full consistency widths 1440,1024,820,768,390:
+  total 12 FAIL, 14 WARN before waivers. All 12 are the explicitly recorded skip-link, wide-button-band and dealt-letter-moment false positives; no unwaived finding remains.
+Layout check at all five requested sizes:
+  Four sizes: no findings. 1440: only the documented synthetic hero-lines stress finding; actual heading is three lines.
+Final perf:
+  SUMMARY index.html: 0 FAIL, 2 WARN -> WARN (only the tiny repeated local logo SVGs not lazy).
+Final copy-lint:
+  index.html (186 words) 0 FAIL, 0 WARN.
+Final headless OS/prefix harness:
+  PASS macOS; PASS Windows; PASS Linux; PASS unknown.
+  PASS /Scan64/ prefix: no missing asset/font/module requests.
+All five final screenshots read and inspected; hero alone on first screen, four full-screen sections, no empty visuals or sideways overflow.
+Kept nonblocking style WARNs: reserved arrow space in button labels; dealt close-type footer whitespace; split-letter moment heading; collage proximity; compact source-only phone navigation. None is hidden or suppressed in the kit.
+Temporary headless harness removed after its successful final run. Browser captures/profiles/raw logs remain local and ignored.

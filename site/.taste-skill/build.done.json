@@ -5,7 +5,7 @@
  "kind": "software",
  "category": "chess coach",
  "primary": "Download Scan64",
- "rounds": 3,
- "start": "2026-11-15T15:54:17.913Z",
+ "rounds": 1,
+ "start": "2026-11-15T16:27:27.201Z",
  "by": "gate.mjs --start"
 }

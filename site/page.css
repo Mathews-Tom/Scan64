@@ -10,3 +10,5 @@
 #practice .mo-la__sub{color:var(--ink)}
 .board{grid-template-rows:repeat(8,minmax(0,1fr))}.product-bar{height:44px;min-height:44px;box-sizing:border-box;line-height:20px}.nav .nav__actions{display:flex;align-items:center}.nav__inner .nav__links{flex:none}.nav__inner .nav__links a{padding-inline:12px}.nav__inner .nav__links{gap:8px}
 @media(min-width:640px) and (max-width:1200px){.app-sidebar{padding:16px;gap:6px}.app-sidebar span{padding:4px 8px;line-height:22px}.review-panel h3{font-size:20px;margin-bottom:12px}.move-row{padding:8px 0}.review-note{padding:12px}.review-panel p{margin-block:12px}}
+.nav:not(.is-open) .nav__actions > .nav__link{display:inline-flex;min-height:44px}
+@media(max-width:639px){.hero--triptych .hero__lead{font-size:16px}.hero__cta .small,.preview-tag{font-size:13px}}
