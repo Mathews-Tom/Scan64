@@ -3144,7 +3144,7 @@ dependencies = [
 
 [[package]]
 name = "scan64-desktop"
-version = "0.0.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "getrandom 0.3.4",

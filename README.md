@@ -95,7 +95,7 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
 
-**Installer availability:** the new cross-platform installers are planned for **v0.7.0** and are **not released yet**. When published, download them from [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases). The steps below apply to those release files. [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are temporary test builds, not release downloads; do not treat a successful pull-request run as a trusted installer source. The current release's macOS launcher is the **legacy browser-opening app**, not this unified desktop app; its data is not migrated.
+**Download:** the installers are published with each release from **v0.7.0** on, on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases/latest). [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are temporary test builds, not release downloads; do not treat a successful pull-request run as a trusted installer source. **Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install v0.7.0 by hand. Its data is not migrated.
 
 | Platform | Install and open |
 | --- | --- |
@@ -106,7 +106,7 @@ The unified desktop app opens Scan64 in one window, without a browser tab. It bu
 
 **All builds are unsigned.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. On Windows, SmartScreen may require **More info → Run anyway**. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
 
-The unified desktop app includes signed in-app updates: **Settings → Updates** checks GitHub Releases, downloads in the background by default, and waits for **Restart to update**. It never restarts automatically. Linux `.deb` installs instead link to the release download. This applies to the forthcoming unified release, not the legacy app. See the [updates guide](docs/user-guide.md#updates).
+The desktop app includes signed in-app updates: **Settings → Updates** checks GitHub Releases, downloads in the background by default, and waits for **Restart to update**. It never restarts automatically. Linux `.deb` installs instead link to the release download. See the [updates guide](docs/user-guide.md#updates).
 
 ### Build the macOS app (Apple silicon)
 

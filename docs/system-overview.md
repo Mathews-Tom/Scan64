@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The application is currently released as `0.6.1`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
+The application is currently released as `0.7.0`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
 
 ## What works today
 
@@ -35,7 +35,7 @@ The application is currently released as `0.6.1`. Its release record is [CHANGEL
 - Player-reachable game, play-session, position, analysis-job, and attempt paths are authorized by bearer-token ownership.
 - Missing, malformed, ownerless, and non-owned resources use the same not-found surface.
 - Player-scoped export, import, and deletion cover learning, analysis, and study records.
-- Run the built UI and API on one port with `scan64-cli serve`, build a local Docker image, or locally build the unsigned Apple silicon macOS Tauri app: one window, bundled Python/Stockfish, in-app puzzle import and data in `~/Library/Application Support/org.scan64.desktop`. Windows/Linux installers arrive in M83 and in-app updates in M84. No hosted service, published container image or signed/notarized app is provided.
+- Run the built UI and API on one port with `scan64-cli serve`, build a local Docker image, or install the desktop app: one window, bundled Python/Stockfish, in-app puzzle import and signed in-app updates, with installers for macOS Apple silicon, Windows x64 and Linux x64 attached to each release. No hosted service, published container image or Developer ID/Authenticode-signed app is provided.
 
 ## Architecture boundaries
 

@@ -18,7 +18,7 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md#get-started) for source, Docker or the unified desktop app. New cross-platform installers are planned for **v0.7.0**, but are **not released yet**; use the installation steps below when those files appear on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases). Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. The macOS launcher on current releases is the **legacy app that opens a browser**, not this new one-window desktop app.
+Follow the [root quickstart](../README.md#get-started) for source, Docker or the desktop app. From **v0.7.0** on, the desktop installers are attached to each release on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases/latest). Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. Scan64 0.6.1 and earlier shipped a different macOS app that opened a browser. It cannot update itself to 0.7.0: delete it, install 0.7.0 by hand, and optionally remove its data with `rm -rf ~/Library/Application\ Support/Scan64`.
 
 ### Install on your OS
 
@@ -43,7 +43,7 @@ Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Cho
 
 ### Updates
 
-These controls belong to the forthcoming unified desktop release, not the legacy browser-opening launcher. Browser and container installs do not update themselves.
+Updates work in the desktop app from 0.7.0 on. Browser and container installs do not update themselves.
 
 Open **Settings → Updates** for the installed version, last check time, **Check for updates**, and release notes. **Check for Updates…** is also in the Scan64 application menu on macOS and the Help menu on Windows/Linux. The app checks ten seconds after launch and every 24 hours while it stays open.
 
@@ -573,16 +573,9 @@ When an active skill reaches the implemented mastery threshold, Scan64 can assig
 
 This measures the product's transfer signal. It does not prove Scan64 improves over-the-board chess performance; that requires real learner studies.
 
-## Desktop app updates
-
-In-app updates are not available in this local-build milestone; they arrive in
-M84. Rebuild and replace the app manually, preserving its app-data directory and
-local storage. Windows/Linux installers arrive in M83. No migration from the
-older desktop app is provided.
-
 ## Data and privacy
 
-Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. There are no scheduled update checks in this build.
+Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. The desktop app checks GitHub Releases for updates ten seconds after launch and every 24 hours; that request carries only normal connection information. Browser and container installs never check for updates.
 
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
