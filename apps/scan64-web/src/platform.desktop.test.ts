@@ -111,6 +111,71 @@ describe('desktop platform', () => {
     expect(invoke).toHaveBeenLastCalledWith('smoke_complete', { origin: 'tauri://localhost', path: '/v1/players', status: 200 });
   });
 
+  it('prepares the ordinary board route only in explicit board-smoke mode', async () => {
+    const platform = await import('./platform');
+    invoke.mockResolvedValueOnce({ ...server, smoke: true, smoke_board: true });
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ id: 'board-smoke-player', access_token: 'player-secret' }),
+    });
+    vi.stubGlobal('fetch', fetch);
+    try {
+      await platform.initializeDesktop();
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(replaceState).toHaveBeenCalledWith({}, '', '/analysis');
+      expect(localStorage.getItem('scan64_player_id')).not.toBeNull();
+      expect(invoke).toHaveBeenLastCalledWith('smoke_complete', {
+        origin: `${window.location.protocol}//${window.location.host}`,
+        path: '/v1/players', status: 200,
+      });
+    } finally {
+      replaceState.mockRestore();
+      localStorage.clear();
+    }
+  });
+
+  it('plays a bundled-engine move before recording packaged smoke success', async () => {
+    const platform = await import('./platform');
+    invoke.mockResolvedValueOnce({ ...server, smoke: true, smoke_engine: true });
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ id: 'engine-smoke-player', access_token: 'player-secret' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ opponent_move: 'e2e4' }),
+      });
+    vi.stubGlobal('fetch', fetch);
+    await platform.initializeDesktop();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).toBe('http://127.0.0.1:43123/v1/play-sessions');
+    const options = fetch.mock.calls[1][1] as RequestInit;
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer player-secret');
+    expect(new Headers(options.headers).get('X-Scan64-Shell-Token')).toBe(server.token);
+    expect(JSON.parse(options.body as string)).toMatchObject({
+      player_id: 'engine-smoke-player', player_color: 'black',
+    });
+    expect(invoke).toHaveBeenLastCalledWith('smoke_complete', expect.anything());
+    expect(JSON.stringify(invoke.mock.calls)).not.toContain('player-secret');
+  });
+
+  it('does not certify packaged smoke without a bot move', async () => {
+    const platform = await import('./platform');
+    invoke.mockResolvedValueOnce({ ...server, smoke: true, smoke_engine: true });
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ id: 'engine-smoke-player', access_token: 'player-secret' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ opponent_move: null }),
+      });
+    vi.stubGlobal('fetch', fetch);
+    await expect(platform.initializeDesktop()).rejects.toThrow('bot move');
+    expect(invoke).not.toHaveBeenCalledWith('smoke_complete', expect.anything());
+  });
+
   it('does not record smoke success after an unsuccessful API response', async () => {
     const platform = await import('./platform');
     invoke.mockResolvedValueOnce({ ...server, smoke: true });

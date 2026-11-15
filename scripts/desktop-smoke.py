@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
 import ctypes
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -33,8 +35,12 @@ def alive(pid: int) -> bool:
         finally:
             kernel.CloseHandle(handle)
     try:
+        if sys.platform == "linux":
+            status = Path(f"/proc/{pid}/stat")
+            if status.exists() and status.read_text().split(") ", 1)[1].startswith("Z"):
+                return False
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except (ProcessLookupError, FileNotFoundError):
         return False
     return True
 
@@ -50,20 +56,150 @@ def assert_stopped(pid: int, port: int) -> None:
             raise AssertionError(f"Server port {port} is still listening")
 
 
-def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
+def descendants(parent: int) -> list[int]:
+    """Snapshot actual children, including live bundled engine processes."""
+    if os.name == "nt":
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process | Where-Object CreationDate"
+                " | Select-Object ProcessId,ParentProcessId,"
+                "@{Name='Started';Expression={$_.CreationDate.ToUniversalTime().Ticks}}"
+                " | ConvertTo-Json -Compress",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        processes = json.loads(result.stdout)
+        started = {item["ProcessId"]: item["Started"] for item in processes}
+        # Windows retains a dead parent's PID; compiler daemons can outlive it.
+        # A recycled PID does not make an older process a child of this app.
+        rows = [
+            (item["ProcessId"], item["ParentProcessId"])
+            for item in processes
+            if item["Started"] is not None
+            and started.get(item["ParentProcessId"]) is not None
+            and item["Started"] >= started[item["ParentProcessId"]]
+        ]
+    else:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,ppid="], check=True, capture_output=True, text=True
+        )
+        rows = [tuple(map(int, line.split())) for line in result.stdout.splitlines()]
+    children: list[int] = []
+    pending = [parent]
+    while pending:
+        current = pending.pop()
+        direct = [pid for pid, ppid in rows if ppid == current]
+        children.extend(direct)
+        pending.extend(direct)
+    return children
+
+
+def process_executable(pid: int) -> Path | None:
+    """Identify an actual executable, not a WebView helper counted as an engine."""
+    if os.name == "nt":
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.restype = ctypes.c_void_p
+        kernel.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+        kernel.QueryFullProcessImageNameW.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ulong,
+            ctypes.c_wchar_p,
+            ctypes.POINTER(ctypes.c_ulong),
+        ]
+        kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return None
+        try:
+            size = ctypes.c_ulong(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            if not kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                return None
+            return Path(buffer.value)
+        finally:
+            kernel.CloseHandle(handle)
+    if sys.platform == "darwin":
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+        libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        libproc.proc_pidpath.restype = ctypes.c_int
+        buffer = ctypes.create_string_buffer(4096)
+        if libproc.proc_pidpath(pid, buffer, len(buffer)) <= 0:
+            return None
+        return Path(os.fsdecode(buffer.value))
+    try:
+        return Path(os.readlink(f"/proc/{pid}/exe"))
+    except (FileNotFoundError, ProcessLookupError, PermissionError):
+        return None
+
+
+def stockfish_children(server_pid: int) -> list[int]:
+    return [
+        pid
+        for pid in descendants(server_pid)
+        if (executable := process_executable(pid)) is not None
+        and executable.name.lower() in ("stockfish", "stockfish.exe")
+    ]
+
+
+def assert_children_stopped(children: list[int]) -> None:
+    deadline = time.monotonic() + 5
+    while any(alive(pid) for pid in children) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    survivors = [pid for pid in children if alive(pid)]
+    if survivors:
+        raise AssertionError(f"Child processes survived shell termination: {survivors}")
+
+
+def runtime_path() -> str:
+    """Exclude Python, MinGW and other build tools from installed-app acceptance."""
+    if os.name == "nt":
+        system = Path(os.environ["SystemRoot"])
+        return os.pathsep.join(str(path) for path in (system / "System32", system))
+    return "/usr/bin:/bin:/usr/sbin:/sbin"
+
+
+def run(
+    binary: Path,
+    directory: Path,
+    *,
+    kill: bool,
+    packaged: bool = False,
+    screenshot: Path | None = None,
+    failure_logs: Path | None = None,
+) -> dict[str, object]:
     record_path = directory / "roundtrip.json"
     environment = dict(os.environ)
     environment.update(
         BROWSER="/usr/bin/true",
-        SCAN64_SERVER_COMMAND=json.dumps([sys.executable, "-m", "scan64.desktop_server"]),
         SCAN64_DATA_DIR=str(directory / "data"),
         SCAN64_SMOKE_FILE=str(record_path),
     )
+    if packaged:
+        environment.pop("SCAN64_SERVER_COMMAND", None)
+        environment["PATH"] = runtime_path()
+        environment["SCAN64_SMOKE_ENGINE"] = "1"
+    else:
+        environment.pop("SCAN64_SMOKE_ENGINE", None)
+        environment["SCAN64_SERVER_COMMAND"] = json.dumps(
+            [sys.executable, "-m", "scan64.desktop_server"]
+        )
+    if screenshot is not None:
+        environment["SCAN64_SMOKE_BOARD"] = "1"
     if kill:
         environment["SCAN64_SMOKE_HOLD"] = "1"
     else:
         environment.pop("SCAN64_SMOKE_HOLD", None)
-    process = subprocess.Popen([str(binary)], env=environment)
+    app_log = directory / "app.log"
+    with app_log.open("wb") as log:
+        process = subprocess.Popen(
+            [str(binary)], env=environment, stdout=log, stderr=subprocess.STDOUT
+        )
+    children: list[int] = []
     try:
         deadline = time.monotonic() + 175
         while not record_path.exists():
@@ -86,6 +222,18 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
         assert "token" not in record, "Smoke receipts must not contain credentials"
         server_pid, port = int(record["server_pid"]), int(record["port"])
         if kill:
+            children = descendants(process.pid)
+            assert server_pid in children, "Receipt server is not a child of the installed app"
+            if packaged:
+                engines = stockfish_children(server_pid)
+                assert engines, "Installed server has no live bundled Stockfish executable"
+                children = sorted(set(children + engines))
+                record["engine_pids"] = engines
+        if screenshot is not None:
+            # The ordinary analysis screen mounts after initializeDesktop returns.
+            time.sleep(5)
+            subprocess.run(["import", "-window", "root", str(screenshot)], check=True)
+        if kill:
             try:
                 with urlopen(f"http://127.0.0.1:{port}/v1/players", timeout=5):
                     raise AssertionError("Desktop API accepted a request without shell token")
@@ -96,6 +244,7 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
         else:
             assert process.wait(timeout=10) == 0
         assert_stopped(server_pid, port)
+        assert_children_stopped(children)
         print(json.dumps({"phase": "kill" if kill else "quit", **record}, sort_keys=True))
         return record
     finally:
@@ -105,18 +254,48 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
         log = directory / "data" / "logs" / "server.log"
         if log.exists():
             print(log.read_text(encoding="utf-8", errors="replace"))
+        if sys.exception() is not None:
+            if app_log.exists():
+                print(app_log.read_text(encoding="utf-8", errors="replace"))
+            if failure_logs is not None:
+                failure_logs.mkdir(parents=True, exist_ok=True)
+                for path in (app_log, log):
+                    if path.exists():
+                        shutil.copy2(path, failure_logs / path.name)
 
 
 def main() -> None:
-    binary = Path(sys.argv[1]).resolve(strict=True)
-    output = Path(sys.argv[2]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--packaged", action="store_true")
+    parser.add_argument("--screenshot", type=Path)
+    args = parser.parse_args()
+    # Cocoa needs canonical bundle parents (/var aliases /private/var on macOS).
+    # Preserve the final launcher symlink: resolving AppRun bypasses its setup.
+    binary = args.binary.parent.resolve() / args.binary.name
+    if not binary.is_file():
+        parser.error(f"Installed executable does not exist: {binary}")
+    output = args.output.resolve()
     with tempfile.TemporaryDirectory(prefix="scan64-desktop-") as temporary:
         root = Path(temporary)
         records = []
         for kill, name in [(False, "quit"), (True, "kill")]:
             directory = root / name
             directory.mkdir()
-            records.append(run(binary, directory, kill=kill))
+            records.append(
+                run(
+                    binary,
+                    directory,
+                    failure_logs=Path(__file__).resolve().parents[1]
+                    / "build"
+                    / "desktop-evidence"
+                    / f"{output.stem}-{name}-failure",
+                    kill=kill,
+                    packaged=args.packaged,
+                    screenshot=args.screenshot if kill else None,
+                )
+            )
         output.write_text(json.dumps(records, indent=2) + "\n")
     print("Desktop smoke passed: origin fetch, player creation, token gate, quit and kill")
 

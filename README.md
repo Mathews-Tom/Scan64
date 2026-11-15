@@ -7,7 +7,7 @@
   <a href="https://github.com/Mathews-Tom/Scan64/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Mathews-Tom/Scan64/ci.yml?branch=main&label=CI"></a>
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-e7b75f"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-142234">
-  <img alt="macOS app for Apple silicon" src="https://img.shields.io/badge/macOS-Apple%20silicon-142234">
+  <img alt="Desktop: macOS arm64, Windows x64 and Linux x64" src="https://img.shields.io/badge/desktop-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-142234">
 </p>
 
 <p align="center">
@@ -91,15 +91,33 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 ## Get started
 
+### Install the desktop app
+
+The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
+
+**Installer availability:** the new cross-platform installers are planned for **v0.7.0** and are **not released yet**. When published, download them from [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases). The steps below apply to those release files. [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are temporary test builds, not release downloads; do not treat a successful pull-request run as a trusted installer source. The current release's macOS launcher is the **legacy browser-opening app**, not this unified desktop app; its data is not migrated.
+
+| Platform | Install and open |
+| --- | --- |
+| **macOS Apple silicon (arm64)** | Open the `.dmg`, drag **Scan64** into **Applications**, eject the disk image and launch Scan64 from Applications. |
+| **Windows x64** | Run the `-setup.exe` installer. It installs for your current user without administrator rights; launch Scan64 from the Start menu. |
+| **Linux x64 — AppImage** | Run `chmod +x /path/to/Scan64.AppImage`, then `/path/to/Scan64.AppImage` (replace the path with your downloaded filename). AppImage needs FUSE support; if unavailable, use the Debian package below. |
+| **Linux x64 — Debian/Ubuntu** | Run `sudo apt install /path/to/scan64.deb` with the downloaded package's actual absolute path, then launch Scan64 from your application menu. |
+
+**All builds are unsigned.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. On Windows, SmartScreen may require **More info → Run anyway**. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
+
+In-app updates arrive in a later release; these builds do not check for or install updates. See the [user guide](docs/user-guide.md#start-the-application) for first-run behaviour and data locations.
+
 ### Build the macOS app (Apple silicon)
 
-The unified desktop app is currently a **local build**, not a downloadable installer.
+You can also build the unified desktop app locally.
 It opens one window with the whole client, not a browser tab or a status window.
 You need Xcode Command Line Tools, Rust, uv with managed Python 3.12+, Node.js 24+ and pnpm 10.33.3:
 
 ```sh
 uv sync --locked --group build --python-preference only-managed
 pnpm install --frozen-lockfile
+cargo install cargo-about --version 0.8.2 --locked
 pnpm --dir apps/scan64-web build
 uv run --no-sync python scripts/build-server.py
 pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app
@@ -110,7 +128,7 @@ The build bundles Python, Stockfish 18, both networks and their licences/source;
 
 Quit with **⌘Q**, the application menu or by closing the window; another launch focuses the existing window. Data and logs live in `~/Library/Application Support/org.scan64.desktop`. The fixed shell origin keeps your player signed in even when the loopback server port changes; retain the app's local storage as well as its database. Older desktop data is not migrated.
 
-Use **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**. Windows/Linux installers arrive in M83 and in-app updates in M84; neither is delivered here. Browser and container installation below is unchanged. See the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Use **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**. In-app updates arrive in a later release. Browser and container installation below is unchanged. See the [user guide](docs/user-guide.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ### Docker
 
@@ -152,7 +170,7 @@ Puzzles need a one-time import of the free [Lichess puzzle database](https://dat
 uv run scan64-cli puzzles import --download --json
 ```
 
-The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the macOS app, choose **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**.
+The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the desktop app, choose **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**.
 
 ## What Scan64 does not claim
 

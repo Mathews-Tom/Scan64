@@ -214,8 +214,9 @@ def test_windows_job_has_kill_on_close_and_fails_closed(
         kernel.CloseHandle.assert_not_called()
 
 
+@pytest.mark.parametrize("windowed", [False, True])
 def test_main_configures_only_loopback_with_no_access_log(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windowed: bool
 ) -> None:
     values = environment(tmp_path)
     for name, value in values.items():
@@ -225,12 +226,18 @@ def test_main_configures_only_loopback_with_no_access_log(
     monkeypatch.setattr(desktop_server, "_configure_process_cleanup", Mock())
     exit_tree = Mock(side_effect=ProcessExited)
     monkeypatch.setattr(desktop_server, "_exit_process_tree", exit_tree)
-    monkeypatch.setattr(desktop_server.threading, "Thread", Mock())
-    monkeypatch.setattr(
-        desktop_server,
-        "sys",
-        SimpleNamespace(stdin=io.TextIOWrapper(io.BytesIO()), platform=sys.platform),
+    threads = Mock()
+    monkeypatch.setattr(desktop_server.threading, "Thread", threads)
+    parent_pipe = io.BytesIO()
+    recover_pipe = Mock(return_value=parent_pipe)
+    monkeypatch.setattr(desktop_server, "_open_windows_parent_pipe", recover_pipe)
+    fake_sys = SimpleNamespace(
+        stdin=None if windowed else io.TextIOWrapper(parent_pipe),
+        stdout=None if windowed else sys.stdout,
+        stderr=None if windowed else sys.stderr,
+        platform="win32" if windowed else sys.platform,
     )
+    monkeypatch.setattr(desktop_server, "sys", fake_sys)
     configuration = Mock(return_value="uvicorn-configuration")
     server = SimpleNamespace(started=True, run=Mock())
     server_factory = Mock(return_value=server)
@@ -253,11 +260,19 @@ def test_main_configures_only_loopback_with_no_access_log(
     server.run.assert_called_once()
     exit_tree.assert_called_once_with(0)
     assert os.environ["SCAN64_DATABASE_URL"].endswith("/desktop data/scan64.db")
+    assert threads.call_args_list[0].kwargs["args"][0] is parent_pipe
+    if windowed:
+        recover_pipe.assert_called_once()
+        assert fake_sys.stdout is fake_sys.stderr
+        fake_sys.stderr.close()
+        assert (tmp_path / "desktop data" / "logs" / "server.log").is_file()
+    else:
+        recover_pipe.assert_not_called()
 
 
 def test_missing_shell_pipe_is_a_fatal_startup_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(desktop_server, "_configure_process_cleanup", Mock())
-    monkeypatch.setattr(desktop_server, "sys", SimpleNamespace(stdin=None))
+    monkeypatch.setattr(desktop_server, "sys", SimpleNamespace(stdin=None, platform="linux"))
     diagnostic = Mock()
     monkeypatch.setattr(desktop_server.traceback, "print_exc", diagnostic)
     exit_tree = Mock(side_effect=ProcessExited)
@@ -266,3 +281,65 @@ def test_missing_shell_pipe_is_a_fatal_startup_error(monkeypatch: pytest.MonkeyP
         desktop_server.main()
     diagnostic.assert_called_once()
     exit_tree.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize("terminal", [False, True])
+def test_parent_stream_rejects_missing_or_terminal_input(
+    terminal: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stdin = SimpleNamespace(isatty=lambda: True) if terminal else None
+    monkeypatch.setattr(desktop_server, "sys", SimpleNamespace(stdin=stdin, platform="linux"))
+    with pytest.raises(RuntimeError, match="requires a piped stdin"):
+        desktop_server._parent_stream()
+
+
+@pytest.mark.parametrize(
+    ("handle", "file_type"),
+    [(None, 3), (ctypes.c_void_p(-1).value, 3), (456, 0), (456, 1), (456, 2)],
+)
+def test_windowed_stdin_requires_a_real_inherited_pipe(
+    handle: int | None, file_type: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(desktop_server, "sys", SimpleNamespace(platform="win32"))
+    kernel = SimpleNamespace(
+        GetStdHandle=Mock(return_value=handle), GetFileType=Mock(return_value=file_type)
+    )
+    descriptor = Mock()
+    monkeypatch.setattr(ctypes, "WinDLL", Mock(return_value=kernel), raising=False)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(open_osfhandle=descriptor))
+    with pytest.raises(RuntimeError, match="requires a piped stdin"):
+        desktop_server._open_windows_parent_pipe()
+    kernel.GetStdHandle.assert_called_once_with(-10)
+    descriptor.assert_not_called()
+
+
+@pytest.mark.parametrize("opening_fails", [False, True])
+def test_windowed_stdin_recovers_binary_non_inheritable_handle_without_console(
+    opening_fails: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    kernel = SimpleNamespace(GetStdHandle=Mock(return_value=456), GetFileType=Mock(return_value=3))
+    descriptor = Mock(return_value=17)
+    monkeypatch.setattr(desktop_server, "sys", SimpleNamespace(platform="win32"))
+    pipe = io.BytesIO()
+    fake_os = SimpleNamespace(
+        O_RDONLY=0,
+        O_BINARY=0x8000,
+        set_inheritable=Mock(),
+        fdopen=(
+            Mock(side_effect=OSError("fdopen failed")) if opening_fails else Mock(return_value=pipe)
+        ),
+        close=Mock(),
+    )
+    monkeypatch.setattr(ctypes, "WinDLL", Mock(return_value=kernel), raising=False)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(open_osfhandle=descriptor))
+    monkeypatch.setattr(desktop_server, "os", fake_os)
+    if opening_fails:
+        with pytest.raises(OSError, match="fdopen failed"):
+            desktop_server._open_windows_parent_pipe()
+        fake_os.close.assert_called_once_with(17)
+    else:
+        assert desktop_server._open_windows_parent_pipe() is pipe
+        fake_os.close.assert_not_called()
+    descriptor.assert_called_once_with(456, 0x8000)
+    fake_os.set_inheritable.assert_called_once_with(17, False)
+    fake_os.fdopen.assert_called_once_with(17, "rb", buffering=0)

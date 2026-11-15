@@ -182,21 +182,66 @@ def _watch_parent(stream: BinaryIO, stop_requested: threading.Event) -> None:
         stop_requested.set()
 
 
+def _open_windows_parent_pipe() -> BinaryIO:
+    """Recover STARTF_USESTDHANDLES stdin when a windowed bootloader clears sys.stdin."""
+    if sys.platform != "win32":
+        raise RuntimeError("Windows pipe handles require Windows")
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetStdHandle.argtypes = [wintypes.DWORD]
+    kernel.GetStdHandle.restype = wintypes.HANDLE
+    kernel.GetFileType.argtypes = [wintypes.HANDLE]
+    kernel.GetFileType.restype = wintypes.DWORD
+    handle = kernel.GetStdHandle(-10)  # STD_INPUT_HANDLE
+    if not handle or handle == wintypes.HANDLE(-1).value or kernel.GetFileType(handle) != 3:
+        raise RuntimeError("Desktop server requires a piped stdin held by its shell")
+    # open_osfhandle transfers ownership to the descriptor; no console is attached
+    # or allocated. Never let an engine inherit the shell's watchdog handle.
+    descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+    try:
+        os.set_inheritable(descriptor, False)
+        return cast(BinaryIO, os.fdopen(descriptor, "rb", buffering=0))
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _parent_stream() -> BinaryIO:
+    if sys.stdin is not None and not sys.stdin.isatty():
+        return sys.stdin.buffer
+    if sys.stdin is None and sys.platform == "win32":
+        return _open_windows_parent_pipe()
+    raise RuntimeError("Desktop server requires a piped stdin held by its shell")
+
+
 def main() -> NoReturn:
     _configure_process_cleanup()
     exit_code = 1
     try:
-        if sys.stdin is None or sys.stdin.isatty():
-            raise RuntimeError("Desktop server requires a piped stdin held by its shell")
+        parent_stream = _parent_stream()
         stop_requested = threading.Event()
         threading.Thread(
             target=_watch_parent,
-            args=(sys.stdin.buffer, stop_requested),
+            args=(parent_stream, stop_requested),
             daemon=True,
             name="desktop-parent-watchdog",
         ).start()
         configuration = configuration_from_environment(os.environ)
         configure_environment(configuration)
+        # Windowed PyInstaller deliberately sets absent standard streams to None.
+        # Uvicorn's formatters need real streams; retain diagnostics without ever
+        # creating a console or recording request headers/the shell token.
+        if sys.platform == "win32" and (sys.stdout is None or sys.stderr is None):
+            logs = configuration.data_dir / "logs"
+            logs.mkdir(mode=0o700, exist_ok=True)
+            log = (logs / "server.log").open("a", encoding="utf-8", buffering=1)
+            if sys.stdout is None:
+                sys.stdout = log
+            if sys.stderr is None:
+                sys.stderr = log
 
         # Imports, schema migration and lifespan startup are inside the watchdog
         # deadline too. No application module may precede configure_environment.
