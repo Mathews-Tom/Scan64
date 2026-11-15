@@ -68,11 +68,33 @@ belongs in source, artifacts or logs. Losing the signing key requires users to
 reinstall manually; treat a compromise as a security incident, stop publication,
 and coordinate replacement through the private reporting channel above.
 
-Until the owner supplies the public half, the committed production configuration
-contains a clearly named placeholder and release builds fail closed. Explicit PR
-dry runs may bypass only that missing-key check, never insecure transport,
+The committed production public key identifies minisign key
+`A1BF33DC0D262D9E`. Release builds validate it without the PR-only
+`SCAN64_UPDATER_DRY_RUN` bypass. Replacing or losing this key requires **one
+manual reinstall** of a build containing the new public key; the old installation
+cannot authenticate the replacement key. Never silently rotate it.
+
+The `Release` workflow builds on macOS arm64, Windows x64 and Linux x64 with
+read-only repository permissions. Published-release signing jobs do not restore
+shared uv, pnpm or Rust build caches. Only the Tauri build step receives the two
+signing secrets; no step prints environment values or writes signing keys to
+artifacts. Signed dry-run workflow artifacts expire after one day (14 days for
+published-release workflow artifacts). A separate, secret-free runner uses pinned
+minisign to verify every
+update signature and its authenticated version against the committed public key,
+then creates `latest.json`. On published releases it also requires the tag,
+Python, Tauri, crate and crate-lock versions to match. Only the final upload job
+has `contents: write`; it downloads the verified assets without executing
+repository or artifact code and attaches them to the existing published release.
+Pull-request runs (same-repository heads only) and manual dispatches build and
+verify identically but **never upload to a release**. Review workflow changes
+carefully: a same-repository author able to modify the signing step is inside
+the Actions-secret trust boundary. Fork pull requests never receive this job.
+
+The build guard rejects insecure transport,
 disabled TLS certificate or hostname validation, an unexpected production
-endpoint, or the signed-version requirement. The build guard accepts only the
+endpoint, or a missing signed-version requirement, including during dry runs.
+The build guard accepts only the
 allowlisted canonical updater keys: `pubkey`, `endpoints`,
 `dangerousInsecureTransportProtocol`, `requireSignedVersion`, and `windows`.
 When present, `windows` must be an object containing only the canonical
