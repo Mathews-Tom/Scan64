@@ -10,7 +10,7 @@ The implemented learning loop is:
 game -> Stockfish analysis -> persisted evidence -> diagnosis -> owned lesson -> verified answer -> profile update
 ```
 
-The web application includes Today and first-run orientation; eight relative Stockfish levels with colour choice, take-back and three-step hints; PGN import and per-move game review with accuracy, coverage, key moments and mistake retries; Daily Training; imported puzzles with a separate rating, stable daily sets, theme practice and solve streaks; evidence-linked patterns, UTC daily goals and tracked practice targets; opening exploration, famous-game study, a player profile, transfer measurement and opt-in coach-mode interruptions.
+The unified desktop app runs the same React client on macOS Apple silicon, Windows x64 and Linux x64. It includes Today and first-run orientation; eight relative Stockfish levels with colour choice, take-back and three-step hints; PGN import and per-move game review with accuracy, coverage, key moments and mistake retries; Daily Training; imported puzzles with a separate rating, stable daily sets, theme practice and solve streaks; evidence-linked patterns, UTC daily goals and tracked practice targets; opening exploration, famous-game study, a player profile, transfer measurement and opt-in coach-mode interruptions. Light, dark and system appearance share one board-centred interface.
 
 The learning engine publishes renderer-independent `LessonSpec` objects. The React board is one consumer of that contract rather than a private shortcut around it.
 
@@ -34,7 +34,9 @@ Keyboard move entry (strict UCI or canonical English SAN), readable chess positi
 
 ## Use and evaluate it
 
-Run locally with the [README quickstart](../README.md): a one-port source application, a locally built Docker image, or a locally built unsigned Apple silicon macOS app. The desktop app uses one window and offers puzzle download/import; Windows/Linux installers arrive in M83 and updates in M84. No hosted service, published container image or signed/notarized app is provided. Follow the [user guide](user-guide.md) to complete the play-to-training workflow. The local quality gate is:
+Download the published [v0.7.0 installers](https://github.com/Mathews-Tom/Scan64/releases/tag/v0.7.0): macOS `.dmg`, Windows `-setup.exe`, or Linux `.AppImage` / `.deb`. The desktop app opens one window and bundles Python and Stockfish; no developer tools or separate engine installation are needed. It offers puzzle download/import with progress, signature-checked updates on macOS, Windows and AppImage, and an explicit **Restart to update** action. Debian packages link to the release download instead of self-updating.
+
+Follow the [README install steps and native-window demos](../README.md#get-started), or run the one-port source application or a locally built Docker image. All installers are unsigned; macOS builds are ad-hoc signed and not notarized. Version 0.6.1 and earlier cannot update to 0.7.0 automatically, and their data is not migrated. No hosted service or published container image is provided. The [user guide](user-guide.md) covers the play-to-training workflow, OS warnings, updates and local data. The local quality gate is:
 
 ```sh
 scripts/check.sh

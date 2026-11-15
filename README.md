@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Mathews-Tom/Scan64/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathews-Tom/Scan64?color=235da0&label=release"></a>
+  <a href="https://github.com/Mathews-Tom/Scan64/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathews-Tom/Scan64?color=a1ffcb&label=release"></a>
   <a href="https://github.com/Mathews-Tom/Scan64/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Mathews-Tom/Scan64/ci.yml?branch=main&label=CI"></a>
-  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-e7b75f"></a>
-  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-142234">
-  <img alt="Desktop: macOS arm64, Windows x64 and Linux x64" src="https://img.shields.io/badge/desktop-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-142234">
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-a1ffcb"></a>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-232323">
+  <img alt="Desktop: macOS arm64, Windows x64 and Linux x64" src="https://img.shields.io/badge/desktop-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-232323">
 </p>
 
 <p align="center">
@@ -35,6 +35,8 @@ Most chess tools can tell you that a move was bad. Scan64 tries to help you see 
 
 ## See it in action
 
+These recordings and screenshots are from the **published v0.7.0 macOS app window**, using demonstration games and a small sample of the Lichess CC0 puzzle catalog. The same client runs on all three desktop platforms.
+
 ### Play a bot and ask for a hint
 
 Pick one of eight bot levels and a colour, take moves back while you learn, and step through the hint ladder when you're stuck.
@@ -45,7 +47,7 @@ Pick one of eight bot levels and a colour, take moves back while you learn, and 
 
 After a game, Scan64 analyses your moves with Stockfish and shows an accuracy figure, an evaluation graph and up to three key moments, each of which you can retry on the board.
 
-<p align="center"><img src="assets/demo-review.gif" alt="A game review with the evaluation graph and key moments, then retrying one of the key moments" width="860"></p>
+<p align="center"><img src="assets/demo-review.gif" alt="Selecting a blunder on the review board, reading its evaluation graph and accuracy coverage, then inspecting the game's two verified key moments" width="860"></p>
 
 ### Practise puzzles
 
@@ -55,14 +57,14 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 
 <table>
   <tr>
-    <td width="33%"><img src="assets/screenshot-today.png" alt="The Today dashboard with Play, Train and Review"></td>
-    <td width="33%"><img src="assets/screenshot-review.png" alt="A game review showing accuracy, coverage and key moments"></td>
-    <td width="33%"><img src="assets/screenshot-profile.png" alt="The profile with a recurring pattern and the positions behind it"></td>
+    <td width="33%"><a href="assets/screenshot-today.png"><img src="assets/screenshot-today.png" alt="The v0.7.0 Today screen with Play, Train and Review actions"></a></td>
+    <td width="33%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="The v0.7.0 review board with a selected blunder marked as a key moment"></a></td>
+    <td width="33%"><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="The v0.7.0 Profile cropped to the declared starting level, suggested bot level and introductory daily-puzzle progress"></a></td>
   </tr>
   <tr>
     <td align="center"><b>Today</b>: what to do next</td>
     <td align="center"><b>Review</b>: where the game turned</td>
-    <td align="center"><b>Profile</b>: your recurring pattern</td>
+    <td align="center"><b>Profile</b>: your starting point</td>
   </tr>
 </table>
 
@@ -95,14 +97,16 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
 
-**Download:** the installers are published with each release from **v0.7.0** on, on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases/latest). [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are temporary test builds, not release downloads; do not treat a successful pull-request run as a trusted installer source. **Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install v0.7.0 by hand. Its data is not migrated.
+**Download [Scan64 v0.7.0](https://github.com/Mathews-Tom/Scan64/releases/tag/v0.7.0)** for your OS below. These are published release installers, not temporary [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts.
 
-| Platform | Install and open |
-| --- | --- |
-| **macOS Apple silicon (arm64)** | Open the `.dmg`, drag **Scan64** into **Applications**, eject the disk image and launch Scan64 from Applications. |
-| **Windows x64** | Run the `-setup.exe` installer. It installs for your current user without administrator rights; launch Scan64 from the Start menu. |
-| **Linux x64 — AppImage** | Run `chmod +x /path/to/Scan64.AppImage`, then `/path/to/Scan64.AppImage` (replace the path with your downloaded filename). AppImage needs FUSE support; if unavailable, use the Debian package below. |
-| **Linux x64 — Debian/Ubuntu** | Run `sudo apt install /path/to/scan64.deb` with the downloaded package's actual absolute path, then launch Scan64 from your application menu. |
+**Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install v0.7.0 by hand. Its data is not migrated.
+
+| Platform | Download | Install and open |
+| --- | --- | --- |
+| **macOS Apple silicon (arm64)** | [`.dmg`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_aarch64.dmg) | Open the disk image, drag **Scan64** into **Applications**, eject the image and launch Scan64 from Applications. |
+| **Windows x64** | [`-setup.exe`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_x64-setup.exe) | Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights. |
+| **Linux x64 — AppImage** | [`.AppImage`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_amd64.AppImage) | Run `chmod +x Scan64_0.7.0_amd64.AppImage`, then `./Scan64_0.7.0_amd64.AppImage` from your download folder. Requires FUSE support; otherwise use the Debian package. |
+| **Linux x64 — Debian/Ubuntu** | [`.deb`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_amd64.deb) | From your download folder, run `sudo apt install ./Scan64_0.7.0_amd64.deb`, then launch Scan64 from the application menu. |
 
 **All builds are unsigned.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. On Windows, SmartScreen may require **More info → Run anyway**. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
 
@@ -126,7 +130,7 @@ open apps/scan64-desktop/src-tauri/target/release/bundle/macos/Scan64.app
 
 The build bundles Python, Stockfish 18, both networks and their licences/source; runtime needs no developer tools or system Stockfish. It is **unsigned and not notarized** (ad-hoc signing only). If macOS blocks a trusted build, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 
-This is an explicit development dry run: it skips only the not-yet-configured production public-key guard and cannot consume production updates. Release builds fail until the owner supplies the real updater public key; never use the test-only updater overlay for a release.
+This is an explicit development dry run: it skips the production public-key guard and cannot consume production updates. The published installers use the production updater key; never use the test-only updater overlay for a release.
 
 Quit with **⌘Q**, the application menu or by closing the window; another launch focuses the existing window. Data and logs live in `~/Library/Application Support/org.scan64.desktop`. The fixed shell origin keeps your player signed in even when the loopback server port changes; retain the app's local storage as well as its database. Older desktop data is not migrated.
 
@@ -141,7 +145,7 @@ docker build -t scan64 .
 docker run --name scan64 -p 127.0.0.1:8001:8001 -v scan64-data:/data scan64
 ```
 
-Open **http://127.0.0.1:8001**. The image supports Linux amd64 and arm64, includes checksum-verified Stockfish 18, runs as a non-root user and keeps its database in the `scan64-data` volume. Stop with Ctrl-C and resume with `docker start -a scan64`; your games survive as long as you reuse the volume.
+Open `http://127.0.0.1:8001`. The image supports Linux amd64 and arm64, includes checksum-verified Stockfish 18, runs as a non-root user and keeps its database in the `scan64-data` volume. Stop with Ctrl-C and resume with `docker start -a scan64`; your games survive as long as you reuse the volume.
 
 ### From source
 
@@ -156,7 +160,7 @@ pnpm --dir apps/scan64-web build
 uv run scan64-cli serve
 ```
 
-This serves the app and API at **http://127.0.0.1:8001** and opens your browser. Use `--no-browser` to skip that, or `--port 8061` for another port. Scan64 binds to loopback only; it is not a hardened LAN or hosted deployment. To keep the database somewhere specific:
+This serves the app and API at `http://127.0.0.1:8001` and opens your browser. Use `--no-browser` to skip that, or `--port 8061` for another port. Scan64 binds to loopback only; it is not a hardened LAN or hosted deployment. To keep the database somewhere specific:
 
 ```sh
 SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" uv run scan64-cli serve
@@ -188,7 +192,7 @@ The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#i
 | [User guide](docs/user-guide.md) | [System overview](docs/system-overview.md) | [Contributing](CONTRIBUTING.md) |
 | [Maia opponents](docs/maia.md) | [System design](docs/system-design.md) | [Web client guide](apps/scan64-web/README.md) |
 | [Opening families](docs/content/opening-families.md) | [LessonSpec package](packages/chess-lesson-spec/README.md) | [Changelog](CHANGELOG.md) |
-| [Live API reference](http://127.0.0.1:8001/docs) (while running) | [Project brief](docs/pitch.md) | [Security policy](SECURITY.md) |
+| Local API reference: `http://127.0.0.1:8001/docs` (while running) | [Project brief](docs/pitch.md) | [Security policy](SECURITY.md) |
 
 ### Development
 
@@ -208,3 +212,5 @@ Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIB
 Scan64 is licensed under the [GNU General Public License v3.0](LICENSE).
 
 It builds on [Stockfish](https://stockfishchess.org/), [python-chess](https://github.com/niklasf/python-chess) and [Chessground](https://github.com/lichess-org/chessground) (all GPL-3.0-or-later), and imports the [Lichess puzzle database](https://database.lichess.org/#puzzles) (CC0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full list.
+
+The Scan64 [mark](assets/logo.svg) and [social preview](assets/social-preview.png) are available in `assets/`.
