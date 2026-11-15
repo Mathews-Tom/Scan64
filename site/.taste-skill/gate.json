@@ -1,12 +1,12 @@
 {
- "start": "2026-11-15T16:57:43.522Z",
+ "start": "2026-11-15T17:41:01.686Z",
  "round": 0,
  "idle": 0,
  "errors": 0,
  "status": "pass",
  "history": [
   {
-   "at": "2026-11-15T16:59:04.780Z",
+   "at": "2026-11-15T17:46:43.728Z",
    "mode": "manual",
    "status": "pass",
    "fails": 0,
@@ -15,20 +15,20 @@
    "stopHookActive": false
   }
  ],
- "max": 1,
+ "max": 3,
  "marker": {
   "page": "index.html",
   "url": null,
   "root": null,
   "kind": "software",
-  "category": "chess coach",
+  "category": "chess coaching",
   "primary": "Download Scan64",
-  "rounds": 1,
-  "start": "2026-11-15T16:57:43.522Z",
+  "rounds": 3,
+  "start": "2026-11-15T17:41:01.686Z",
   "by": "gate.mjs --start"
  },
  "manual": true,
- "fp": "8754f4979155e0b9",
+ "fp": "69b7245bdf707c71",
  "page": "index.html",
  "found": {
   "fails": [
@@ -49,19 +49,19 @@
     ]
    },
    {
-    "check": "container-edges",
-    "where": "a.skip-link \"Skip to content\"",
-    "msg": "a <a> at the top of the page, outside header.nav, main, footer.closing and nav.actionbar (SR-6)",
-    "fix": "build the page as header.nav, a main of sections (each one in-flow .wrap plus background layers) and footer.closing",
+    "check": "row-lines",
+    "where": "main#main > section.hero.hero--triptych > div.wrap > div.hero-text.grid \"Chess coaching for club playersPlay at y\"",
+    "msg": "a row of 3 items: its items are 250/644/317px tall, not one height (2px either way) (SR-7)",
+    "fix": "start the row's first item on the container's left line and end its last on the right line, every item one height",
     "widths": [
      1440
     ],
     "from": "consistency",
     "ids": [
-     "container-edges"
+     "row-lines"
     ],
     "wheres": [
-     "a.skip-link \"Skip to content\""
+     "main#main > section.hero.hero--triptych > div.wrap > div.hero-text.grid \"Chess coaching for club playersPlay at y\""
     ]
    },
    {
@@ -84,8 +84,8 @@
   "warns": [
    {
     "check": "nav",
-    "where": "header.nav.nav--centre > div.wrap.nav__bar > div.nav__actions > a.nav__link \"Source code\"",
-    "msg": "the nav is lopsided: its last item ends 8px inside the content's edge (1360px), while its first starts on the other edge",
+    "where": "header.nav.nav--centre > div.wrap.nav__bar > div.nav__actions > a.nav__link.github-link",
+    "msg": "the nav is lopsided: its last item ends 10px inside the content's edge (1360px), while its first starts on the other edge",
     "fix": "start the nav's first item and end its last on the content's two edges",
     "widths": [
      1440,
@@ -94,9 +94,19 @@
     "from": "consistency"
    },
    {
+    "check": "nav-labels",
+    "where": "header.nav.nav--centre > div.wrap.nav__bar > a.skip-link \"Skip to content\"",
+    "msg": "\"Skip to content\" opens a section headed \"Chess coaching for club players\"",
+    "fix": "name each nav link after the heading of the section it opens",
+    "widths": [
+     1440
+    ],
+    "from": "consistency"
+   },
+   {
     "check": "label-centre",
     "where": "div.hero-text.grid > div.hero__cta.span-3 > div > a.btn.btn--primary \"Download Scan64\"",
-    "msg": "its label sits 18px off-centre (33px of room at the left, 51px at the right)",
+    "msg": "its label sits 18px off-centre (58px of room at the left, 76px at the right)",
     "fix": "centre the label in its button, or fill the empty side with an icon",
     "widths": [
      1440
@@ -126,7 +136,7 @@
    {
     "check": "proximity",
     "where": "section.hero.hero--triptych > div.wrap > div.hero-text.grid > div.ly-collage.span-6 \"Chess coaching for club players Play at \"",
-    "msg": "stacked at this width, the visual starts 14px under the text and buttons above it (\"Chess coaching for club player\"): it reads glued to them",
+    "msg": "stacked at this width, the visual starts 18px under the text and buttons above it (\"Chess coaching for club player\"): it reads glued to them",
     "fix": "give the stacked split the section's own gap between text and visual (40px or more on a phone)",
     "widths": [
      390
@@ -136,7 +146,7 @@
   ],
   "crashed": [],
   "seconds": {
-   "consistency": 77,
+   "consistency": 85,
    "layout": 4
   }
  },
@@ -160,21 +170,21 @@
    "reason": "The dealt close-type recipe requires the full-width footer download button; at tablet widths the triptych hero's download button also fills its column. These actionable download links are buttons, not inset content bands."
   },
   {
-   "check": "container-edges",
-   "where": "a.skip-link \"Skip to content\"",
-   "msg": "a <a> at the top of the page, outside header.nav, main, footer.closing and nav.actionbar (SR-6)",
-   "fix": "build the page as header.nav, a main of sections (each one in-flow .wrap plus background layers) and footer.closing",
+   "check": "row-lines",
+   "where": "main#main > section.hero.hero--triptych > div.wrap > div.hero-text.grid \"Chess coaching for club playersPlay at y\"",
+   "msg": "a row of 3 items: its items are 250/644/317px tall, not one height (2px either way) (SR-7)",
+   "fix": "start the row's first item on the container's left line and end its last on the right line, every item one height",
    "widths": [
     1440
    ],
    "from": "consistency",
    "ids": [
-    "container-edges"
+    "row-lines"
    ],
    "wheres": [
-    "a.skip-link \"Skip to content\""
+    "main#main > section.hero.hero--triptych > div.wrap > div.hero-text.grid \"Chess coaching for club playersPlay at y\""
    ],
-   "reason": "The required keyboard skip link is intentionally a direct body child, positioned offscreen until focus, exactly as the skill starter requires."
+   "reason": "The dealt software triptych is headline, UI collage and download action, not an equal-height card row. All three start on the same top line and end on the prescribed wrap/column edges; forcing their heights equal would reintroduce the owner's viewport-height stretching."
   },
   {
    "check": "hero-lines",
@@ -194,6 +204,6 @@
    "reason": "The final 31-character category-and-buyer heading fits three desktop lines and two phone lines. Only the check's synthetic maximum-length replacement needs four lines; M81 requires the bundled Host Grotesk pairing."
   }
  ],
- "warnCount": 5,
- "at": "2026-11-15T16:59:04.781Z"
+ "warnCount": 6,
+ "at": "2026-11-15T17:46:43.728Z"
 }
