@@ -1,9 +1,11 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { createActivePlayer } from './api/client';
 
 interface DesktopConnection {
   port: number;
   token: string;
   smoke: boolean;
+  smoke_board?: boolean;
 }
 
 let connection: DesktopConnection | null = null;
@@ -59,6 +61,11 @@ export async function initializeDesktop(): Promise<void> {
     });
     if (!response.ok) throw new Error(`Desktop smoke request failed: HTTP ${response.status}`);
     await response.json();
+    if (connection.smoke_board) {
+      // Exercise the ordinary analysis screen in the installed WebView for CI's screenshot.
+      await createActivePlayer('Desktop board smoke');
+      window.history.replaceState({}, '', '/analysis');
+    }
     await invoke('smoke_complete', { origin, path, status: response.status });
   } catch (error) {
     const reason = String(error).replaceAll(connection.token, '[redacted]');

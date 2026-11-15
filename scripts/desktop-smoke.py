@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import ctypes
 import json
 import os
@@ -33,8 +34,12 @@ def alive(pid: int) -> bool:
         finally:
             kernel.CloseHandle(handle)
     try:
+        if sys.platform == "linux":
+            status = Path(f"/proc/{pid}/stat")
+            if status.exists() and status.read_text().split(") ", 1)[1].startswith("Z"):
+                return False
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except (ProcessLookupError, FileNotFoundError):
         return False
     return True
 
@@ -50,20 +55,84 @@ def assert_stopped(pid: int, port: int) -> None:
             raise AssertionError(f"Server port {port} is still listening")
 
 
-def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
+def descendants(parent: int) -> list[int]:
+    """Snapshot actual children, including live bundled engine processes."""
+    if os.name == "nt":
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId"
+                " | ConvertTo-Json -Compress",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        rows = [(item["ProcessId"], item["ParentProcessId"]) for item in json.loads(result.stdout)]
+    else:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,ppid="], check=True, capture_output=True, text=True
+        )
+        rows = [tuple(map(int, line.split())) for line in result.stdout.splitlines()]
+    children: list[int] = []
+    pending = [parent]
+    while pending:
+        current = pending.pop()
+        direct = [pid for pid, ppid in rows if ppid == current]
+        children.extend(direct)
+        pending.extend(direct)
+    return children
+
+
+def assert_children_stopped(children: list[int]) -> None:
+    deadline = time.monotonic() + 5
+    while any(alive(pid) for pid in children) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    survivors = [pid for pid in children if alive(pid)]
+    if survivors:
+        raise AssertionError(f"Child processes survived shell termination: {survivors}")
+
+
+def runtime_path() -> str:
+    """Exclude Python, MinGW and other build tools from installed-app acceptance."""
+    if os.name == "nt":
+        system = Path(os.environ["SystemRoot"])
+        return os.pathsep.join(str(path) for path in (system / "System32", system))
+    return "/usr/bin:/bin:/usr/sbin:/sbin"
+
+
+def run(
+    binary: Path,
+    directory: Path,
+    *,
+    kill: bool,
+    packaged: bool = False,
+    screenshot: Path | None = None,
+) -> dict[str, object]:
     record_path = directory / "roundtrip.json"
     environment = dict(os.environ)
     environment.update(
         BROWSER="/usr/bin/true",
-        SCAN64_SERVER_COMMAND=json.dumps([sys.executable, "-m", "scan64.desktop_server"]),
         SCAN64_DATA_DIR=str(directory / "data"),
         SCAN64_SMOKE_FILE=str(record_path),
     )
+    if packaged:
+        environment.pop("SCAN64_SERVER_COMMAND", None)
+        environment["PATH"] = runtime_path()
+    else:
+        environment["SCAN64_SERVER_COMMAND"] = json.dumps(
+            [sys.executable, "-m", "scan64.desktop_server"]
+        )
+    if screenshot is not None:
+        environment["SCAN64_SMOKE_BOARD"] = "1"
     if kill:
         environment["SCAN64_SMOKE_HOLD"] = "1"
     else:
         environment.pop("SCAN64_SMOKE_HOLD", None)
     process = subprocess.Popen([str(binary)], env=environment)
+    children: list[int] = []
     try:
         deadline = time.monotonic() + 175
         while not record_path.exists():
@@ -86,6 +155,15 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
         assert "token" not in record, "Smoke receipts must not contain credentials"
         server_pid, port = int(record["server_pid"]), int(record["port"])
         if kill:
+            children = descendants(process.pid)
+            assert server_pid in children, "Receipt server is not a child of the installed app"
+            if packaged:
+                assert len(children) > 1, "Installed app did not launch any engine children"
+        if screenshot is not None:
+            # The ordinary analysis screen mounts after initializeDesktop returns.
+            time.sleep(5)
+            subprocess.run(["import", "-window", "root", str(screenshot)], check=True)
+        if kill:
             try:
                 with urlopen(f"http://127.0.0.1:{port}/v1/players", timeout=5):
                     raise AssertionError("Desktop API accepted a request without shell token")
@@ -96,6 +174,7 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
         else:
             assert process.wait(timeout=10) == 0
         assert_stopped(server_pid, port)
+        assert_children_stopped(children)
         print(json.dumps({"phase": "kill" if kill else "quit", **record}, sort_keys=True))
         return record
     finally:
@@ -108,15 +187,29 @@ def run(binary: Path, directory: Path, *, kill: bool) -> dict[str, object]:
 
 
 def main() -> None:
-    binary = Path(sys.argv[1]).resolve(strict=True)
-    output = Path(sys.argv[2]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--packaged", action="store_true")
+    parser.add_argument("--screenshot", type=Path)
+    args = parser.parse_args()
+    binary = args.binary.resolve(strict=True)
+    output = args.output.resolve()
     with tempfile.TemporaryDirectory(prefix="scan64-desktop-") as temporary:
         root = Path(temporary)
         records = []
         for kill, name in [(False, "quit"), (True, "kill")]:
             directory = root / name
             directory.mkdir()
-            records.append(run(binary, directory, kill=kill))
+            records.append(
+                run(
+                    binary,
+                    directory,
+                    kill=kill,
+                    packaged=args.packaged,
+                    screenshot=args.screenshot if kill else None,
+                )
+            )
         output.write_text(json.dumps(records, indent=2) + "\n")
     print("Desktop smoke passed: origin fetch, player creation, token gate, quit and kill")
 

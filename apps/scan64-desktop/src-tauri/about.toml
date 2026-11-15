@@ -1,0 +1,25 @@
+# cargo-about 0.8.2; scripts/build-server.py verifies every Cargo.lock package.
+# Do not filter targets or ignore build/dev/transitive/private crates: notices
+# cover the complete lockfile on every OS, not only this runner's dependencies.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "Unlicense",
+    "BSL-1.0",
+    "MPL-2.0",
+    "GPL-3.0-or-later",
+]
+no-clearly-defined = true
+ignore-build-dependencies = false
+ignore-dev-dependencies = false
+ignore-transitive-dependencies = false
+private = { ignore = false }
+workarounds = ["cocoa", "gtk", "rustix", "unicode-ident"]

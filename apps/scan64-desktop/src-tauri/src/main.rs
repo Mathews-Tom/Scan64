@@ -191,7 +191,7 @@ fn main() {
             smoke_failed
         ])
         .setup(|app| {
-            let data_dir = if cfg!(debug_assertions) {
+            let data_dir = if cfg!(debug_assertions) || server::smoke_file().is_some() {
                 env::var_os("SCAN64_DATA_DIR").map(Into::into)
             } else {
                 None

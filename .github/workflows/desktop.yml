@@ -8,9 +8,13 @@ on:
       - 'src/scan64/**'
       - 'scripts/build-server.py'
       - 'scripts/desktop-smoke.py'
+      - 'scripts/desktop-package-smoke.py'
+      - 'scan64-server.spec'
+      - 'Dockerfile'
       - 'pnpm-lock.yaml'
       - 'uv.lock'
       - '.github/workflows/desktop.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -82,3 +86,94 @@ jobs:
           name: desktop-smoke-${{ matrix.os }}
           path: desktop-smoke.json
           if-no-files-found: warn
+
+  build:
+    name: Dry-run build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            bundles: dmg
+          - os: windows-latest
+            bundles: nsis
+          - os: ubuntu-22.04
+            bundles: appimage,deb
+    defaults:
+      run:
+        shell: bash
+    env:
+      BROWSER: /usr/bin/true
+      CARGO_TERM_COLOR: always
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      NO_STRIP: "true"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: 1.99.1
+      - name: Install Linux build and screenshot dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb libfuse2 imagemagick dbus-x11
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        id: msys2
+        if: runner.os == 'Windows'
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-make
+      - name: Expose MinGW tools
+        if: runner.os == 'Windows'
+        run: echo '${{ steps.msys2.outputs.msys2-location }}/mingw64/bin' >> "$GITHUB_PATH"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/scan64-desktop/src-tauri
+      - name: Install locked dependencies and pinned licence generator
+        run: |
+          uv sync --frozen --all-groups --python-preference only-managed
+          pnpm install --frozen-lockfile
+          cargo install cargo-about --version 0.8.2 --locked
+      - name: Freeze server and build pinned Stockfish with bundled notices
+        run: |
+          pnpm --dir apps/scan64-web build
+          uv run --no-sync python scripts/build-server.py
+      - name: Build unsigned installable artifacts (no publishing)
+        run: pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles '${{ matrix.bundles }}'
+      - name: Install artifacts and verify contents, bot move and app lifetime
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- uv run --no-sync python scripts/desktop-package-smoke.py
+          else
+            uv run --no-sync python scripts/desktop-package-smoke.py
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: desktop-installers-${{ matrix.os }}
+          path: |
+            apps/scan64-desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/scan64-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/scan64-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            apps/scan64-desktop/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: desktop-build-evidence-${{ matrix.os }}
+          path: build/desktop-evidence/
+          if-no-files-found: warn
+          retention-days: 14

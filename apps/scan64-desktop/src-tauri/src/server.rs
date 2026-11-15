@@ -15,6 +15,7 @@ pub struct Connection {
     pub port: u16,
     pub token: String,
     pub smoke: bool,
+    pub smoke_board: bool,
 }
 
 pub struct Server {
@@ -159,6 +160,8 @@ impl Server {
                         port,
                         token,
                         smoke: smoke_file().is_some(),
+                        smoke_board: smoke_file().is_some()
+                            && env::var_os("SCAN64_SMOKE_BOARD").is_some(),
                     };
                     self.connection = Some(connection.clone());
                     return Ok(connection);
@@ -250,9 +253,7 @@ fn private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 pub fn smoke_file() -> Option<PathBuf> {
-    cfg!(debug_assertions)
-        .then(|| env::var_os("SCAN64_SMOKE_FILE").map(PathBuf::from))
-        .flatten()
+    env::var_os("SCAN64_SMOKE_FILE").map(PathBuf::from)
 }
 
 fn free_port() -> std::io::Result<u16> {

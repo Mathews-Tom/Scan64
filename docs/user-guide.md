@@ -17,11 +17,30 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md) for source, Docker or a **locally built** macOS Apple silicon app. The desktop build needs the listed developer tools; the resulting app bundles its runtime. It is unsigned/ad-hoc signed and not notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
+Follow the [root quickstart](../README.md#get-started) for source, Docker or the unified desktop app. Installers currently come from successful dry-run [Desktop workflow runs](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml); nothing is published by those runs. Download your OS artifact and unzip the artifact download to get the installer. The macOS launcher on existing releases is the **legacy app that opens a browser**, not this new one-window desktop app.
 
-The macOS app opens one window containing Scan64, not a browser tab. Closing it, Dock Quit or ⌘Q stops its server and engines. A second launch focuses the existing window. Games survive relaunch in `~/Library/Application Support/org.scan64.desktop/scan64.db`; downloads and `logs/server.log` live under the same app-data directory. Keep the app's local storage to retain your player token. The shell uses a fixed origin, so a different server port does not sign you out. Data from the older desktop app is not migrated.
+### Install on your OS
 
-Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Nothing downloads without a click. Windows/Linux installers arrive in M83; in-app updates arrive in M84.
+- **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is unsigned/ad-hoc signed and not notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
+- **Windows x64:** run the `-setup.exe` installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a trusted download, choose **More info → Run anyway**.
+- **Linux x64, AppImage:** make the downloaded file executable with `chmod +x /path/to/Scan64.AppImage`, then run `/path/to/Scan64.AppImage`, substituting the actual filename. AppImage needs FUSE support from your distribution. If that is unavailable, use the Debian package.
+- **Linux x64, Debian/Ubuntu:** install with `sudo apt install /path/to/scan64.deb`, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights. Linux builds are unsigned too.
+
+Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed.
+
+### Desktop first run and data
+
+The desktop app opens one window containing Scan64, not a browser tab. Closing it stops its server and engines; on macOS, Dock Quit or ⌘Q also quits. A second launch focuses the existing window. Games survive relaunch in `scan64.db` under the OS app-data directory:
+
+- macOS: `~/Library/Application Support/org.scan64.desktop`
+- Windows: `%APPDATA%\org.scan64.desktop`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/org.scan64.desktop` (normally `~/.local/share/org.scan64.desktop`)
+
+Downloads and `logs/server.log` live under the same directory. Keep the app's local storage to retain your player token. The shell uses a fixed origin, so a different server port does not sign you out. Data from the older desktop app is not migrated.
+
+Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Nothing downloads without a click. In-app updates arrive in a later release; these builds do not check for or install updates.
+
+### Browser and source operation
 
 The development-only `scripts/run.sh` instead uses the API on port 8001 and Vite on 5173.
 

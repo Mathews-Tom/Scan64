@@ -111,6 +111,30 @@ describe('desktop platform', () => {
     expect(invoke).toHaveBeenLastCalledWith('smoke_complete', { origin: 'tauri://localhost', path: '/v1/players', status: 200 });
   });
 
+  it('prepares the ordinary board route only in explicit board-smoke mode', async () => {
+    const platform = await import('./platform');
+    invoke.mockResolvedValueOnce({ ...server, smoke: true, smoke_board: true });
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ id: 'board-smoke-player', access_token: 'player-secret' }),
+    });
+    vi.stubGlobal('fetch', fetch);
+    try {
+      await platform.initializeDesktop();
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(replaceState).toHaveBeenCalledWith({}, '', '/analysis');
+      expect(localStorage.getItem('scan64_player_id')).not.toBeNull();
+      expect(invoke).toHaveBeenLastCalledWith('smoke_complete', {
+        origin: `${window.location.protocol}//${window.location.host}`,
+        path: '/v1/players', status: 200,
+      });
+    } finally {
+      replaceState.mockRestore();
+      localStorage.clear();
+    }
+  });
+
   it('does not record smoke success after an unsuccessful API response', async () => {
     const platform = await import('./platform');
     invoke.mockResolvedValueOnce({ ...server, smoke: true });
