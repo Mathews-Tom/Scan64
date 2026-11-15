@@ -12,23 +12,18 @@
 .nav__links a:hover,.footer-links a:hover,.other-platforms a:hover{text-decoration:underline;text-underline-offset:5px}
 .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 
-/* The dealt triptych stays top-aligned; its artwork follows width, not viewport height. */
+/* The dealt triptych aligns content tops; artwork dimensions follow width only. */
 .hero--triptych .hero__grid{align-items:start;align-content:start}
 .hero--triptych .hero__grid>.ly-triptych__copy{align-self:start}
-.hero--triptych .ly-collage{height:auto;min-height:0;container-type:inline-size;align-self:start}
-.ly-collage .ly-collage__set{position:relative;display:grid;grid-template-columns:1fr 2.75fr;gap:12px;padding:0 0 16px}
+.hero--triptych .ly-collage{width:100%;height:auto;min-height:0;container-type:inline-size;align-self:start}
+.ly-collage .ly-collage__set{position:relative}
 .ly-collage .ly-piece{position:relative;border:1px solid #d3d3d3;border-radius:12px;overflow:hidden}
-.ly-collage .preview-board{grid-column:1/-1;width:min(84%,430px)}
+.ly-collage .preview-board{width:100%}
 .product-bar{display:flex;align-items:center;justify-content:space-between;height:44px;min-height:44px;padding:12px 16px;background:#f3f3f3;font-size:14px;font-weight:500;line-height:20px}
 .board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:100%;height:auto;aspect-ratio:1;background:#edeee6;color:#232323}
 .square{display:flex;justify-content:center;align-items:center;min-width:0;min-height:0;font-size:clamp(18px,5cqw,52px);line-height:1;font-family:Georgia,serif}
 .square.dark{background:#86a694}
 .square.white-piece{color:#fff;text-shadow:0 1px 1px #232323,1px 0 1px #232323,-1px 0 1px #232323}
-.preview-review,.preview-tag{display:flex;flex-direction:column;justify-content:center;gap:8px;min-height:96px;padding:16px}
-.preview-review{grid-column:2;grid-row:2}
-.preview-review strong{font-size:clamp(17px,3.8cqw,26px)}
-.preview-review span,.preview-tag{font-size:clamp(13px,2.2cqw,16px);line-height:1.4}
-.ly-collage .preview-tag{grid-column:1;grid-row:2;background:#a1ffcb}
 .hero__cta>div{display:grid;gap:4px;width:100%}
 .hero--triptych .hero__cta .btn{width:100%}
 .download-platform,.small{font-size:14px;line-height:1.6}
@@ -42,7 +37,7 @@
 .app-sidebar span{padding:4px 12px;line-height:22px}
 .selected{background:#a1ffcb;border-radius:8px}
 .app-main{flex:1;min-width:0;padding:16px}
-.review-layout{display:grid;grid-template-columns:minmax(0,min(430px,calc(100svh - 460px))) minmax(180px,1fr);align-items:start;gap:24px;padding-top:16px}
+.review-layout{display:grid;grid-template-columns:minmax(0,430px) minmax(180px,1fr);align-items:start;gap:24px;padding-top:16px}
 .review-layout .board{container-type:inline-size}
 .review-layout .square{font-size:clamp(20px,4vw,52px)}
 .review-panel{padding:16px}
@@ -67,6 +62,15 @@ details p{font-size:16px;max-width:80ch}
   .hero--triptych .ly-collage{grid-row:1/3}
   .hero--triptych .hero__cta{grid-row:2;margin-top:0}
 }
+@media(min-width:1024px) and (min-height:1100px){
+  .hero--triptych>.wrap{justify-content:center}
+  .hero--triptych>.wrap>.hero-text{height:auto;grid-template-rows:auto}
+}
+/* Short landscape screens scroll the complete UI rather than overlap the next section. */
+@media(max-height:760px){
+  main>.hero.hero--triptych,#review{height:auto;min-height:100svh}
+  .hero--triptych>.wrap,.hero--triptych>.wrap>.hero-text,#review>.wrap{height:auto}
+}
 @media(min-width:640px) and (max-width:1200px){
   .app-sidebar{width:110px;padding:16px;gap:6px}
   .app-sidebar span{padding:4px 8px}
@@ -75,11 +79,7 @@ details p{font-size:16px;max-width:80ch}
   .review-note{padding:12px}
 }
 @media(max-width:1023px){
-  .hero--triptych .ly-collage{flex:none;width:100%;margin-block:16px}
-  .ly-collage .ly-collage__set{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);grid-template-rows:1fr 1fr;padding:0;gap:12px}
-  .ly-collage .preview-board{grid-column:1;grid-row:1/3;width:100%}
-  .preview-review{grid-column:2;grid-row:1}
-  .ly-collage .preview-tag{grid-column:2;grid-row:2}
+  .hero--triptych .ly-collage{flex:none;width:100%;max-width:430px;align-self:center;margin-block:16px}
   .hero__cta .other-platforms{flex-direction:row;flex-wrap:wrap;gap:0 16px}
   .hero__cta .download-platform{margin:0}
   .hero__cta .small{margin-top:8px}
@@ -93,9 +93,8 @@ details p{font-size:16px;max-width:80ch}
   .hero--triptych .hero__lead{font-size:16px;margin-top:12px}
   .hero--triptych .hero__grid{gap:0}
   .hero--triptych .hero__cta{margin-top:0}
-  .preview-review,.preview-tag{padding:8px;gap:4px;min-height:0}
-  .preview-review strong{font-size:16px}
-  .preview-review span,.preview-tag,.hero__cta .small,.hero__cta .other-platforms{font-size:13px}
+  .hero--triptych .ly-collage{max-width:246px}
+  .hero__cta .small,.hero__cta .other-platforms{font-size:13px}
   .preview-board .product-bar{padding:12px 8px}
   .app-sidebar{display:none}
   .review-layout{grid-template-columns:1fr}
