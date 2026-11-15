@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import socket
 import subprocess
 import sys
@@ -10,11 +11,44 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from scan64 import desktop_server
+from scan64.api import web
 from scan64.api.desktop_security import SHELL_ORIGINS, SHELL_TOKEN_HEADER
+from scan64.content.puzzle_import import DEFAULT_PUZZLE_URL
 
 TOKEN = "desktop-server-integration-secret"
+
+
+@pytest.mark.parametrize("desktop", [False, True])
+@pytest.mark.parametrize("debug_url", [None, "http://127.0.0.1:9876/fixture.csv.zst"])
+def test_fixture_url_is_only_used_by_shell_import_lifespan(
+    desktop: bool,
+    debug_url: str | None,
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("SCAN64_SHELL_TOKEN", raising=False)
+    monkeypatch.delenv("SCAN64_DEBUG_PUZZLE_URL", raising=False)
+    monkeypatch.setenv("SCAN64_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("SCAN64_ENGINE_POOL_ENABLED", "0")
+    if desktop:
+        monkeypatch.setenv("SCAN64_SHELL_TOKEN", TOKEN)
+    if debug_url is not None:
+        monkeypatch.setenv("SCAN64_DEBUG_PUZZLE_URL", debug_url)
+    namespace = runpy.run_path(str(Path(web.__file__).with_name("app.py")))
+    application = namespace["app"]
+    with TestClient(application):
+        if desktop:
+            assert application.state.puzzle_import_job.download_url == (
+                debug_url or DEFAULT_PUZZLE_URL
+            )
+        else:
+            assert not hasattr(application.state, "puzzle_import_job")
+    assert not hasattr(application.state, "puzzle_import_job")
 
 
 def server_environment(tmp_path: Path, port: int) -> dict[str, str]:

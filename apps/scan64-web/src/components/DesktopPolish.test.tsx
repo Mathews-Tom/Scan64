@@ -13,13 +13,8 @@ describe('desktop polish', () => {
     expect(latestGameLabel({ ...game, white: 'Grace', black: player, date: '????.??.??' }, player)).toBe('Grace vs You (Black) · 14 Nov');
     expect(latestGameLabel(game, 'other')).not.toContain(player);
   });
-  it('directs desktop users to the window without a terminal command', () => {
-    render(<PuzzleImportInstructions distribution="desktop" />);
-    expect(screen.getByText('Use Import puzzles… in the Scan64 window.')).toBeTruthy();
-    expect(screen.queryByText(/uv run/)).toBeNull();
-  });
   it('preserves source installation import instructions', () => {
-    render(<PuzzleImportInstructions distribution="source" />);
+    render(<PuzzleImportInstructions />);
     expect(screen.getByText(/uv run scan64-cli puzzles import/)).toBeTruthy();
   });
 });

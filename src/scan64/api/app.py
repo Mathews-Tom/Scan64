@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from sqlmodel import Session
 
 import scan64.persistence.database as database
@@ -59,10 +59,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         EnginePoolManager.from_env(StockfishConfig()) if engine_pool_enabled() else None
     )
     if shell_token is not None:
+        from scan64.content.puzzle_import import DEFAULT_PUZZLE_URL
         from scan64.puzzle_import_job import PuzzleImportJob
 
         app.state.puzzle_import_job = PuzzleImportJob(
-            database.engine, Path(os.environ["SCAN64_DATA_DIR"])
+            database.engine,
+            Path(os.environ["SCAN64_DATA_DIR"]),
+            # The shell forwards this local-fixture seam only in debug builds;
+            # its cleared release environment always uses the pinned URL.
+            download_url=os.environ.get("SCAN64_DEBUG_PUZZLE_URL", DEFAULT_PUZZLE_URL),
         )
     try:
         await recover_analysis_jobs(app.state.engine_pool_manager)
@@ -125,15 +130,6 @@ def app_info() -> dict[str, str]:
             else "source"
         )
     }
-
-
-@app.get("/v1/app/update")
-def app_update() -> dict[str, object]:
-    if os.getenv("SCAN64_DISTRIBUTION") != "desktop":
-        raise HTTPException(status_code=404, detail="Not found")
-    from scan64.desktop_update import get_update_state
-
-    return get_update_state()
 
 
 # Registered last: known API routes retain their own methods and responses.

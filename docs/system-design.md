@@ -1,12 +1,18 @@
 # Scan64 — System Design
 
-This document describes the implementation delivered in Scan64 `0.6.1`, not a future architecture proposal. Product behavior and operating instructions are in the [user guide](user-guide.md).
+This document describes the current implementation, including M82's locally built desktop shell, not a future architecture proposal. Product behavior and operating instructions are in the [user guide](user-guide.md).
 
 ## Runtime
 
 The normal source entry point, `uv run scan64-cli serve`, serves the built React client and FastAPI on `http://127.0.0.1:8001`. Build the client first; `--host`, `--port` and `--no-browser` control binding and browser launch. `SCAN64_WEB_DIST` can select another built-client directory. API namespaces remain reserved, missing assets return 404, and extensionless client routes fall back to the application's HTML.
 
-The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume. The unsigned Apple silicon macOS app bundles Python, the client and Stockfish, chooses the first free loopback port from 8001, and stores data and logs in `~/Library/Application Support/Scan64`. Its status window owns server shutdown, and a second launch reuses the running instance. `scripts/build-macos-app.sh` and `Scan64.spec` build that app; neither signing with a distribution identity nor notarization is delivered.
+The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume.
+
+The locally built macOS arm64 app uses a Tauri 2 system-webview window containing that same React client. `scripts/build-server.py` freezes `scan64.desktop_server` through the one-folder `scan64-server.spec`, compiles the Dockerfile's SHA-256-pinned Stockfish 18 with `ARCH=apple-silicon`, and verifies both pinned networks. Tauri packages the server folder, engine/networks, corresponding GPL source archive, `Copying.txt`, Scan64 licence and notices under `Contents/Resources`. No Tk or browser process is required. Builds are unsigned/ad-hoc signed and not notarized; Windows/Linux installers arrive in M83 and updates in M84.
+
+The shell selects a free loopback port, creates a per-launch shell token, starts the resource-directory server with a cleared, allowlisted environment, and waits up to 30 seconds with three retries. It passes the absolute bundled Stockfish path through `SCAN64_STOCKFISH_PATH`, without modifying PATH, so application folders containing colons work too. Only debug builds accept `SCAN64_SERVER_COMMAND` and `SCAN64_DEBUG_PUZZLE_URL` for development/CI. Startup failure shows the log path and Restart. The server serves no client files, permits only shell origins through CORS and requires the shell token for every request except minimal `/health`; player bearer authorization remains underneath.
+
+The fixed shell origin preserves player local storage across port changes. Data lives under `~/Library/Application Support/org.scan64.desktop`, including `scan64.db` and `logs/server.log`; older desktop data is not migrated. A second launch focuses the existing window. Quit closes the server's stdin pipe; EOF triggers graceful shutdown and a three-second independent process-tree hard exit. macOS/Linux kill the isolated process group; Windows uses a kill-on-close Job Object, including engine descendants.
 
 For development, `scripts/run.sh` starts two local processes. Only the Vite client hot-reloads; the API runs without `--reload`, so restart the script after Python changes:
 
@@ -82,7 +88,7 @@ Live-session hints persist server-side assistance before disclosure; that canoni
 
 ### Puzzles, orientation and habit evidence
 
-Puzzle catalogs are imported explicitly through `scan64-cli puzzles import`; startup never downloads them. Source-verified continuations, not Stockfish diagnoses, grade these multi-move runs. The server persists the active cursor, wrong-attempt budget and revealed hints, with revision checks for conflicting tabs. Daily sets are stable for a UTC day; first-exposure rating events use a separate 1200/K32 puzzle scale. Theme and solve-streak modes are unrated, and Your mistakes reuses owned lesson retries.
+Puzzle catalogs are imported explicitly through `scan64-cli puzzles import`, or in the desktop window through Puzzles/Settings → Puzzle library. Desktop-only POST/GET/DELETE `/v1/app/puzzle-import` start, poll and cancel one staged job, protected by the shell token; browser/container servers return 404. Download → Read → Import → Save progress is polled twice a second and remains visible in the sidebar. Cancel/failure leaves the catalog unchanged, temporary downloads are removed, and selected local files remain untouched. Startup never downloads puzzles. Source-verified continuations, not Stockfish diagnoses, grade these multi-move runs. The server persists the active cursor, wrong-attempt budget and revealed hints, with revision checks for conflicting tabs. Daily sets are stable for a UTC day; first-exposure rating events use a separate 1200/K32 puzzle scale. Theme and solve-streak modes are unrated, and Your mistakes reuses owned lesson retries.
 
 Onboarding maps declared experience to an overridable bot suggestion, not measured strength. Puzzle rating and Stockfish level/policy result cohorts remain separate. Recurring patterns project retained trusted evidence, while habit outcome writers record qualifying solves and bounded pattern-target awards. Reads do not mint habit rewards. Puzzle hints are server-tracked; lesson zero-hint status is app-reported. Goals, calendar streaks and targets grant no rating or mastery bonus. See the [user guide](user-guide.md#daily-goals-and-tracked-pattern-evidence) for qualification and coverage limits.
 

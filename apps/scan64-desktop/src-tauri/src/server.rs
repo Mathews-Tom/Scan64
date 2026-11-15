@@ -118,6 +118,12 @@ impl Server {
                 .env("SCAN64_SHELL_TOKEN", &token)
                 .env("PYTHONUTF8", "1")
                 .stdin(Stdio::piped());
+            if cfg!(debug_assertions) {
+                if let Some(url) = env::var_os("SCAN64_DEBUG_PUZZLE_URL") {
+                    command.env("SCAN64_DEBUG_PUZZLE_URL", url);
+                }
+            }
+            configure_engine(&mut command, &self.resource_dir);
             let log = OpenOptions::new()
                 .create(true)
                 .append(true)
@@ -287,9 +293,64 @@ fn healthy(port: u16) -> bool {
         .is_ok_and(|count| response[..count].starts_with(b"HTTP/1.1 200 "))
 }
 
+fn configure_engine(command: &mut Command, resource_dir: &Path) {
+    let engine_dir = resource_dir.join("stockfish");
+    if engine_dir.is_dir() {
+        let binary = if cfg!(windows) {
+            "stockfish.exe"
+        } else {
+            "stockfish"
+        };
+        command.env("SCAN64_STOCKFISH_PATH", engine_dir.join(binary));
+        // Keep external NNUE files discoverable without changing the inherited PATH.
+        command.current_dir(engine_dir);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_engine_uses_an_absolute_path_without_mutating_path() {
+        let root = env::temp_dir()
+            .join(new_token().unwrap())
+            .join(if cfg!(unix) {
+                "Scan64: test"
+            } else {
+                "Scan64 test"
+            });
+        let engine_dir = root.join("stockfish");
+        fs::create_dir_all(&engine_dir).unwrap();
+        let mut command = Command::new("unused");
+        command.env_clear().env("PATH", "original");
+        configure_engine(&mut command, &root);
+        let variables: std::collections::HashMap<_, _> = command.get_envs().collect();
+        let expected = engine_dir.join(if cfg!(windows) {
+            "stockfish.exe"
+        } else {
+            "stockfish"
+        });
+        assert_eq!(
+            variables.get(std::ffi::OsStr::new("SCAN64_STOCKFISH_PATH")),
+            Some(&Some(expected.as_os_str()))
+        );
+        assert_eq!(
+            variables.get(std::ffi::OsStr::new("PATH")),
+            Some(&Some(std::ffi::OsStr::new("original")))
+        );
+        assert_eq!(command.get_current_dir(), Some(engine_dir.as_path()));
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn source_server_without_resources_keeps_its_engine_lookup() {
+        let mut command = Command::new("unused");
+        command.env_clear();
+        configure_engine(&mut command, &env::temp_dir().join(new_token().unwrap()));
+        assert_eq!(command.get_envs().count(), 0);
+        assert!(command.get_current_dir().is_none());
+    }
 
     #[test]
     fn tokens_are_unpredictable_and_header_safe() {

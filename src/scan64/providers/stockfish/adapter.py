@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 import chess
@@ -26,7 +27,9 @@ class EngineAdapter(Protocol):
 
 @dataclass
 class StockfishConfig:
-    binary_path: str = "stockfish"
+    binary_path: str = field(
+        default_factory=lambda: os.environ.get("SCAN64_STOCKFISH_PATH", "stockfish")
+    )
     threads: int = 1
     hash_size: int = 16
 

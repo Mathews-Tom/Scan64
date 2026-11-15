@@ -18,6 +18,19 @@ from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
 
 
+@pytest.mark.parametrize("binary", [None, "/Applications/Scan64: test/stockfish", "/tmp/engine"])
+def test_stockfish_config_uses_shell_engine_path_at_construction(
+    binary: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SCAN64_STOCKFISH_PATH", raising=False)
+    before = StockfishConfig()
+    if binary is not None:
+        monkeypatch.setenv("SCAN64_STOCKFISH_PATH", binary)
+    assert before.binary_path == "stockfish"
+    assert StockfishConfig().binary_path == (binary or "stockfish")
+    assert StockfishConfig(binary_path="explicit-engine").binary_path == "explicit-engine"
+
+
 def candidates() -> list[chess.engine.InfoDict]:
     return [
         {
