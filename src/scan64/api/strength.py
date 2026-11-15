@@ -1,5 +1,7 @@
 """Separate puzzle Elo from descriptive bot results, never a playing Elo."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 from typing import Literal
 
@@ -13,6 +15,7 @@ from scan64.chess.games.assistance import SessionHintReveal
 from scan64.chess.games.eligibility import session_exclusion
 from scan64.chess.games.models import Game, PlaySession
 from scan64.content.puzzle_practice_models import INITIAL_RATING, PuzzleRating, PuzzleRatingEvent
+from scan64.learning.progress import progress_reset_at
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["strength"])
@@ -91,10 +94,14 @@ def read_strength(player_id: str, session: Session) -> StrengthRead:
     # A resumed/continued game can have several sessions. Count each game once and
     # conservatively reject it if any associated session is ineligible or hinted.
     games: dict[str, tuple[Game, list[PlaySession]]] = {}
+    boundary = progress_reset_at(player_id, session)
     rows = session.exec(
         select(Game, PlaySession)
         .join(PlaySession, col(PlaySession.game_id) == Game.id)
-        .where(Game.owner_player_id == player_id)
+        .where(
+            Game.owner_player_id == player_id,
+            Game.created_at >= boundary if boundary is not None else True,
+        )
         .order_by(col(Game.created_at).desc(), col(Game.id).desc())
     ).all()
     for game, play in rows:

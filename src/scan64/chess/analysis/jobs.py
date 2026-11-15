@@ -33,6 +33,7 @@ from scan64.chess.analysis.review import (
 from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
@@ -48,6 +49,7 @@ from scan64.learning.plugins.host_registry import get_host_registry
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 from scan64.learning.profiling.profile_update import apply_analysis_observation
+from scan64.learning.progress import game_counts_for_progress
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.tolerance import win_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
@@ -344,11 +346,13 @@ async def run_analysis_for_game(
     if unchanged is None:
         session.rollback()
         raise ValueError("Game changed during analysis; analyse the finished game again")
+    lock_puzzle_player(game.owner_player_id, session)
+    counts_for_progress = game_counts_for_progress(game, game.owner_player_id, session)
     session.add_all(positions_by_fen.values())
     session.add_all(analyses.values())
     session.add_all(review_rows)
     session.add_all(all_evidence)
-    for position_id, skill_id in observations:
+    for position_id, skill_id in observations if counts_for_progress else ():
         apply_analysis_observation(
             session=session,
             player_id=game.owner_player_id,
@@ -368,16 +372,18 @@ async def run_analysis_for_game(
             lesson_spec=lesson.model_dump(mode="json"),
         )
         session.add(persisted)
-        session.add(
-            ReviewSchedule(
-                player_id=game.owner_player_id,
-                item_id=str(persisted.id),
-                skill_id=item.diagnosis.skill_id,
-                next_review_at=datetime.now(UTC),
+        if counts_for_progress:
+            session.add(
+                ReviewSchedule(
+                    player_id=game.owner_player_id,
+                    item_id=str(persisted.id),
+                    skill_id=item.diagnosis.skill_id,
+                    next_review_at=datetime.now(UTC),
+                )
             )
-        )
 
-    apply_positive_move_credits(game, session, rating=rating, staged_observations=observations)
+    if counts_for_progress:
+        apply_positive_move_credits(game, session, rating=rating, staged_observations=observations)
 
     session.commit()
 

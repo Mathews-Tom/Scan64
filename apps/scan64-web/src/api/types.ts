@@ -154,6 +154,29 @@ export interface PuzzleRunRead {
   streak: PuzzleStreakRead;
 }
 
+export interface PuzzleReviewRead {
+  run_id: string;
+  initial_fen: string;
+  solution: string[];
+}
+
+export interface PuzzleMoveExplanationRead {
+  run: PuzzleRunRead;
+  move: string;
+  fen_before: string;
+  fen_after: string;
+  verdict: 'mistake' | 'alternative' | 'uncertain';
+  summary: string;
+  reply_line: string[];
+  visualizations: Visualization[];
+}
+
+export interface ProgressResetRead {
+  player_id: string;
+  reset_at: string;
+  cleared: Record<string, number>;
+}
+
 export interface PuzzleStartRead {
   status: 'idle' | 'ready' | 'empty' | 'exhausted';
   run: PuzzleRunRead | null;

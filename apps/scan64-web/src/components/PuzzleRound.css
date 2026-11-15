@@ -1,0 +1,20 @@
+.puzzle-result {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.puzzle-result--solved {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  border-color: var(--annotation-best);
+  background: color-mix(in srgb, var(--annotation-best) 10%, var(--ground));
+}
+.puzzle-result h2 { margin: 0; font-size: clamp(24px, 2.4vw, 32px); line-height: 1.15; }
+.puzzle-result p { margin: var(--space-2) 0 0; }
+.puzzle-result__mark { color: var(--annotation-best); font-size: 32px; line-height: 1; }
+.puzzle-feedback { display: grid; gap: var(--space-3); min-width: 0; padding-block: var(--space-3); }
+.puzzle-feedback h3, .puzzle-feedback p { margin: 0; }
+.puzzle-feedback--attempt { border-block: 1px solid var(--annotation-threat); }
+.puzzle-round--attempt .coach-board__frame { --board-selection: var(--annotation-threat); outline: 2px solid var(--annotation-threat); outline-offset: 2px; }

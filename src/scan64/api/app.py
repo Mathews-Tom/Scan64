@@ -21,6 +21,7 @@ from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.onboarding import router as onboarding_router
 from scan64.api.play import router as play_router
 from scan64.api.players import router as players_router
+from scan64.api.progress import router as progress_router
 from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
 from scan64.api.puzzles import router as puzzles_router
 from scan64.api.reports import router as reports_router
@@ -103,6 +104,7 @@ app.include_router(coach_linkage_router)
 app.include_router(coach_router)
 app.include_router(players_router)
 app.include_router(data_lifecycle_router)
+app.include_router(progress_router)
 app.include_router(onboarding_router)
 app.include_router(strength_router)
 app.include_router(reports_router)

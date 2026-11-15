@@ -1,8 +1,11 @@
 """Owned, revision-checked puzzle runs; complete solution specs stay server-side."""
 
+from __future__ import annotations
+
 from typing import Literal, cast
 
 import chess
+import chess.engine
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -27,8 +30,10 @@ from scan64.content.puzzle_practice_models import PuzzleDailySlot
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.habit import ensure_policy, record_puzzle_credit
 from scan64.learning.insights import InsightStep
+from scan64.learning.puzzle_feedback import PuzzleMoveFeedback, explain_puzzle_move
 from scan64.learning.verification.verifier import verify_lesson
 from scan64.persistence.database import get_session
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(prefix="/v1/puzzles", tags=["puzzles"])
 MAX_WRONG_ATTEMPTS = 3
@@ -90,7 +95,7 @@ class PuzzleStartCreate(BaseModel):
     theme: str | None = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")
-    def check_theme(self) -> "PuzzleStartCreate":
+    def check_theme(self) -> PuzzleStartCreate:
         if (self.mode == "theme") != (self.theme is not None):
             raise ValueError("Only theme mode requires a source theme.")
         return self
@@ -115,6 +120,23 @@ class PuzzleMoveCreate(ExpectedPuzzleState):
 
 class PuzzleHintCreate(ExpectedPuzzleState):
     step: int = Field(ge=1, le=3)
+
+
+class PuzzleExplanationCreate(PuzzleMoveCreate):
+    review_cursor: int | None = Field(default=None, ge=0)
+
+
+class PuzzleReviewRead(BaseModel):
+    run_id: str
+    initial_fen: str
+    solution: list[str]
+
+
+class PuzzleMoveExplanationRead(PuzzleMoveFeedback):
+    run: PuzzleRunRead
+    move: str
+    fen_before: str
+    fen_after: str
 
 
 def _item_and_lesson(run: PuzzleRun, session: Session) -> tuple[ContentItem, LessonSpec]:
@@ -158,7 +180,9 @@ def _safe_run(run: PuzzleRun, session: Session) -> PuzzleRunRead:
         selection_reason=binding.mode if binding else slot.reason if slot else None,
         widening=binding.widening if binding else slot.widening if slot else None,
         rated=bool(slot and slot.first_exposure),
-        daily=PuzzleDailyRead(**daily_summary(run.player_id, session)),
+        daily=PuzzleDailyRead(
+            **daily_summary(run.player_id, session, read_only=run.state in ("failed", "solved"))
+        ),
         mode=cast(PracticeMode, binding.mode if binding else "daily"),
         theme=binding.theme if binding else None,
         streak=streak_for(run.player_id, session),
@@ -176,13 +200,16 @@ def _owned_run(run_id: str, request: Request, session: Session) -> PuzzleRun:
 
 
 def _conflict(run: PuzzleRun, session: Session) -> None:
+    run_id = run.id
     session.rollback()
-    session.refresh(run)
+    latest = session.get(PuzzleRun, run_id, populate_existing=True)
+    if latest is None:
+        raise HTTPException(status_code=404, detail="Puzzle run not found")
     raise HTTPException(
         status_code=409,
         detail={
             "message": "Puzzle state changed. Try again.",
-            "run": _safe_run(run, session).model_dump(mode="json"),
+            "run": _safe_run(latest, session).model_dump(mode="json"),
         },
     )
 
@@ -535,4 +562,111 @@ def abandon_puzzle_run(
         wrong_attempts=run.wrong_attempts,
         state="abandoned",
         hint_steps=run.hint_steps,
+    )
+
+
+@router.get("/runs/{run_id}/review", response_model=PuzzleReviewRead)
+def read_puzzle_review(
+    run_id: str, request: Request, session: Session = Depends(get_session)
+) -> PuzzleReviewRead:
+    run = _owned_run(run_id, request, session)
+    if run.state not in ("failed", "solved"):
+        raise HTTPException(status_code=409, detail="Finish the scored run before source review.")
+    _, lesson = _item_and_lesson(run, session)
+    return PuzzleReviewRead(
+        run_id=run.id,
+        initial_fen=lesson.source.fen,
+        solution=list(lesson.interaction.solution),
+    )
+
+
+def _expect_explanation(run: PuzzleRun, body: PuzzleExplanationCreate, session: Session) -> None:
+    if (
+        run.state not in ("active", "failed", "solved")
+        or run.cursor != body.expected_cursor
+        or run.revision != body.expected_revision
+    ):
+        _conflict(run, session)
+    if run.state == "active" and body.review_cursor is not None:
+        raise HTTPException(status_code=422, detail="Active runs cannot choose a review cursor.")
+
+
+def _explanation_position(
+    run: PuzzleRun, body: PuzzleExplanationCreate, session: Session
+) -> chess.Board:
+    _, lesson = _item_and_lesson(run, session)
+    cursor = run.cursor if body.review_cursor is None else body.review_cursor
+    line = lesson.interaction.solution
+    if cursor >= len(line) or cursor % 2:
+        raise HTTPException(status_code=422, detail="Choose a solver-turn source position.")
+    board = chess.Board(lesson.source.fen)
+    for uci in line[:cursor]:
+        board.push_uci(uci)
+    if board.is_game_over():
+        raise HTTPException(status_code=422, detail="The review position is already game over.")
+    if chess.Move.from_uci(body.move) not in board.legal_moves:
+        raise HTTPException(status_code=422, detail="The candidate move must be legal.")
+    return board
+
+
+@router.post("/runs/{run_id}/explanations", response_model=PuzzleMoveExplanationRead)
+async def explain_puzzle_candidate(
+    run_id: str,
+    body: PuzzleExplanationCreate,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> PuzzleMoveExplanationRead:
+    run = _owned_run(run_id, request, session)
+    _expect_explanation(run, body, session)
+    before = _explanation_position(run, body, session)
+    state = run.state
+    move = chess.Move.from_uci(body.move)
+    after = before.copy()
+    after.push(move)
+    manager: EnginePoolManager | None = getattr(request.app.state, "engine_pool_manager", None)
+    # Release the read transaction and expire the identity map before awaiting.
+    # Only immutable request values and reconstructed boards cross the await.
+    session.rollback()
+    try:
+        feedback = await explain_puzzle_move(before, move, manager)
+    except TimeoutError:
+        raise HTTPException(
+            status_code=503, detail="Explanation capacity is busy; try again shortly."
+        ) from None
+    except (ValueError, chess.engine.EngineError, OSError):
+        raise HTTPException(
+            status_code=503, detail="The interactive engine could not explain this move."
+        ) from None
+
+    # Authentication, ownership and snapshot validity are checked again after
+    # both searches. Never charge assistance for a failed or stale response.
+    run = _owned_run(run_id, request, session)
+    _expect_explanation(run, body, session)
+    if run.state != state:
+        _conflict(run, session)
+    if state == "active":
+        hints = {**run.hint_steps, str(run.cursor): 3}
+        safe = _update_run(
+            run,
+            body,
+            session,
+            fen=run.fen,
+            cursor=run.cursor,
+            played_moves=run.played_moves,
+            wrong_attempts=run.wrong_attempts,
+            state="active",
+            hint_steps=hints,
+        )
+    else:
+        # Terminal review never calls the result/rating/streak update path.
+        safe = _safe_run(run, session)
+    return PuzzleMoveExplanationRead(
+        verdict=feedback.verdict,
+        summary=feedback.summary,
+        reply_line=feedback.reply_line,
+        visualizations=feedback.visualizations,
+        run=safe,
+        move=body.move,
+        fen_before=before.fen(),
+        fen_after=after.fen(),
     )

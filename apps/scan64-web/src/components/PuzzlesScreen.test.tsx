@@ -1,21 +1,28 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Chess } from 'chess.js';
 import { PuzzlesScreen } from './PuzzlesScreen';
 import { ApiClient, PuzzleConflictError } from '../api/client';
-import type { PuzzleDailyRead, PuzzleRunRead, PuzzleStartRead, Visualization } from '../api/types';
+import type { PuzzleDailyRead, PuzzleMoveExplanationRead, PuzzleRunRead, PuzzleStartRead, Visualization } from '../api/types';
 import type * as ClientModule from '../api/client';
 import { VisualizationDescriptions } from './BoardVisualizations';
 
 import { reviewLesson } from './review.test-fixtures';
 const board = vi.hoisted(() => ({ props: null as null | {
   fen: string; orientation: string; disabled: boolean; resetAfterAttempt: boolean;
+  pgn?: string; selectedPly?: number;
   visualizations?: Visualization[];
   onMove: (move: string) => void | Promise<void>;
 } }));
 vi.mock('./CoachBoard', () => ({ CoachBoard: (props: NonNullable<typeof board.props> & { testId: string }) => {
   board.props = props;
-  return <div data-testid={props.testId} data-fen={props.fen} data-orientation={props.orientation} data-disabled={String(props.disabled)}>
-    <VisualizationDescriptions fen={props.fen} visualizations={props.visualizations ?? []} />
+  const game = new Chess(props.fen);
+  if (props.pgn) game.loadPgn(props.pgn);
+  const history = game.history({ verbose: true });
+  const fen = props.selectedPly === undefined ? game.fen()
+    : history[props.selectedPly - 1]?.after ?? history[0]?.before ?? props.fen;
+  return <div data-testid={props.testId} data-fen={fen} data-orientation={props.orientation} data-disabled={String(props.disabled)}>
+    <VisualizationDescriptions fen={fen} visualizations={props.visualizations ?? []} />
   </div>;
 } }));
 vi.mock('../api/client', async importOriginal => {
@@ -25,6 +32,7 @@ vi.mock('../api/client', async importOriginal => {
     getActivePuzzleRun: vi.fn(),
     revealPuzzleHint: vi.fn(), abandonPuzzleRun: vi.fn(),
     getPuzzleModes: vi.fn(), getPuzzleMistakes: vi.fn(), startPuzzleMistake: vi.fn(),
+    getPuzzleReview: vi.fn(), explainPuzzleMove: vi.fn(),
   } };
 });
 
@@ -42,6 +50,11 @@ function run(overrides: Partial<PuzzleRunRead> = {}): PuzzleRunRead {
   return { run_id: 'run-1', puzzle_id: 'puzzle-1', fen: SETUP, setup: 'e2e4', played_moves: [],
     cursor: 0, revision: 0, wrong_attempts: 0, maximum_wrong_attempts: 3,
     state: 'active', hint_step: 0, hints: [], selection_reason: 'weak', widening: '400', rated: true, daily, mode: 'daily', theme: null, streak, ...overrides };
+}
+function afterMove(fen: string, move: string): string {
+  const game = new Chess(fen);
+  game.move(move);
+  return game.fen();
 }
 function deferred<T>() {
   return Promise.withResolvers<T>();
@@ -99,7 +112,6 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
     expectBoard(SETUP);
     expect(board.props?.orientation).toBe('black');
-    expect(board.props?.resetAfterAttempt).toBe(true);
     expect(screen.getByText('3 wrong attempts remaining')).toBeInTheDocument();
     const workspace = screen.getByRole('region', { name: 'Puzzle workspace' });
     expect(within(workspace).getByTestId('puzzle-board')).toBeVisible();
@@ -119,8 +131,8 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.getByRole('status', { name: 'Puzzle progress' }))
       .toHaveTextContent('Black played e7 to e5. White played g1 to f3.');
     await move('a7a6');
-    expectBoard(REPLY, true);
-    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/puzzle failed/i);
+    expectBoard(afterMove(REPLY, 'a7a6'), true);
+    expect(screen.getByRole('button', { name: 'Retry unscored' })).toBeEnabled();
     expect(ApiClient.submitPuzzleMove).toHaveBeenLastCalledWith('run-1', {
       expected_cursor: 2, expected_revision: 5, move: 'a7a6',
     });
@@ -158,11 +170,11 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(ApiClient.submitPuzzleMove).toHaveBeenNthCalledWith(2, 'run-1', { expected_cursor: 2, expected_revision: 1, move: 'b8c6' });
     expectBoard(FINISH, true);
     expect(board.props?.orientation).toBe('black');
-    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/solved/i);
+    expect(screen.getByRole('heading', { name: 'Puzzle solved' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Next puzzle' })).toBeEnabled();
   });
 
-  it('preserves board and cursor for wrong moves and fails after three total wrong submissions', async () => {
+  it('holds mistaken moves until retry and exhausts the three-attempt scored budget', async () => {
     for (let wrong = 1; wrong <= 3; wrong++) {
       vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValueOnce(run({ wrong_attempts: wrong, revision: wrong, state: wrong === 3 ? 'failed' : 'active' }));
     }
@@ -170,10 +182,21 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     for (let wrong = 1; wrong <= 3; wrong++) {
       await move('a7a6');
       expect(ApiClient.submitPuzzleMove).toHaveBeenNthCalledWith(wrong, 'run-1', { expected_cursor: 0, expected_revision: wrong - 1, move: 'a7a6' });
-      expectBoard(SETUP, wrong === 3);
-      if (wrong < 3) expect(screen.getByText(`${3 - wrong} wrong attempts remaining`)).toBeInTheDocument();
+      expectBoard(afterMove(SETUP, 'a7a6'), true);
+      expect(screen.getByRole('region', { name: 'Move feedback' })).toHaveTextContent('a6');
+      if (wrong < 3) {
+        expect(screen.getByText(`${3 - wrong} wrong attempts remaining`)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        expectBoard(SETUP);
+      }
     }
-    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/failed/i);
+    expect(screen.getByRole('button', { name: 'Retry unscored' })).toBeEnabled();
+    vi.mocked(ApiClient.getPuzzleReview).mockResolvedValue({
+      run_id: 'run-1', initial_fen: SETUP, solution: ['e7e5', 'g1f3', 'b8c6'],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expectBoard(SETUP));
+    expect(ApiClient.submitPuzzleMove).toHaveBeenCalledTimes(3);
     vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily, streak });
     fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
     await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1));
@@ -508,5 +531,79 @@ describe('pattern practice routes', () => {
     expect(await screen.findByRole('link', { name: 'Daily puzzles — may be unrelated' })).toHaveAttribute('href', '/puzzles');
     expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1);
     expect(ApiClient.startPuzzleRun).toHaveBeenCalledWith({ mode: 'theme', theme: 'fork' });
+  });
+});
+
+describe('interactive puzzle review', () => {
+  it('allows unlimited terminal retries without submitting another graded move', async () => {
+    await mount(run({ state: 'failed', wrong_attempts: 3, revision: 3 }));
+    vi.mocked(ApiClient.getPuzzleReview).mockResolvedValue({
+      run_id: 'run-1', initial_fen: SETUP, solution: ['e7e5', 'g1f3', 'b8c6'],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry unscored' }));
+    await waitFor(() => expectBoard(SETUP));
+    for (let retry = 0; retry < 4; retry++) {
+      await move('a7a6');
+      expectBoard(afterMove(SETUP, 'a7a6'), true);
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expectBoard(SETUP);
+    }
+    await move('e7e5');
+    expectBoard(REPLY);
+    await move('b8c6');
+    expectBoard(FINISH, true);
+    expect(screen.getByRole('heading', { name: 'Unscored practice complete' })).toBeVisible();
+    expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
+    expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
+  });
+
+  it('discloses assistance and replays the legal reply without calling a good alternative bad', async () => {
+    await mount();
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValue(run({ wrong_attempts: 1, revision: 1 }));
+    await move('a7a6');
+    const attempted = afterMove(SETUP, 'a7a6');
+    expect(screen.getByText(/counts as assistance/)).toBeVisible();
+    vi.mocked(ApiClient.explainPuzzleMove).mockResolvedValue({
+      run: run({ wrong_attempts: 1, revision: 2, hint_step: 3 }), move: 'a7a6',
+      fen_before: SETUP, fen_after: attempted, verdict: 'alternative',
+      summary: 'The search does not establish a mistake.', reply_line: ['g1f3'],
+      visualizations: [{ command: 'draw_arrow', origin: 'g1', target: 'f3', description: 'Opponent reply: Nf3.' }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Explain this move' }));
+    expect(await screen.findByRole('heading', { name: 'Playable alternative' })).toBeVisible();
+    expectBoard(attempted, true);
+    expect(screen.getByRole('list', { name: 'Board annotations' })).toHaveTextContent('Opponent reply');
+    fireEvent.click(screen.getByRole('button', { name: 'Next move' }));
+    expectBoard(afterMove(attempted, 'g1f3'), true);
+    expect(screen.queryByRole('list', { name: 'Board annotations' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expectBoard(SETUP);
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValue(run({ fen: REPLY, cursor: 2, revision: 3, played_moves: ['e7e5', 'g1f3'] }));
+    await move();
+    expect(ApiClient.submitPuzzleMove).toHaveBeenLastCalledWith('run-1', { expected_cursor: 0, expected_revision: 2, move: 'e7e5' });
+  });
+
+  it('discards an explanation that finishes after the user starts the next puzzle', async () => {
+    const ended = run({ state: 'failed', wrong_attempts: 3, revision: 3 });
+    await mount(ended);
+    vi.mocked(ApiClient.getPuzzleReview).mockResolvedValue({
+      run_id: 'run-1', initial_fen: SETUP, solution: ['e7e5', 'g1f3', 'b8c6'],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry unscored' }));
+    await waitFor(() => expectBoard(SETUP));
+    await move('a7a6');
+    const response = deferred<PuzzleMoveExplanationRead>();
+    vi.mocked(ApiClient.explainPuzzleMove).mockReturnValue(response.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Explain this move' }));
+    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily, streak });
+    fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
+    await waitFor(() => expectBoard(SETUP));
+    await act(async () => response.resolve({
+      run: ended, move: 'a7a6', fen_before: SETUP, fen_after: afterMove(SETUP, 'a7a6'),
+      verdict: 'alternative', summary: 'Old explanation.', reply_line: ['g1f3'], visualizations: [],
+    }));
+    expect(screen.queryByText('Old explanation.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Move feedback' })).not.toBeInTheDocument();
+    expectBoard(SETUP);
   });
 });

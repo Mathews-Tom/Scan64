@@ -154,7 +154,7 @@ test(`Black puzzle local validation, hint and solve at ${size.width}x${size.heig
     await page.touchscreen.tap(box.x + box.width * 3.5 / 8, box.y + box.height * 6.5 / 8);
     await page.touchscreen.tap(box.x + box.width * 3.5 / 8, box.y + box.height * 4.5 / 8);
   }
-  await expect(page.getByRole('region', { name: 'Current puzzle' }).getByText(/solved/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Puzzle solved', exact: true })).toBeVisible();
   expect(calls).toBe(1);
   await reflow(page);
   await testInfo.attach('puzzle-tree', { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
