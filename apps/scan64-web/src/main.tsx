@@ -5,8 +5,11 @@ import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
 import { initializeDesktop, isDesktop } from './platform'
 import { DesktopHost } from './components/DesktopHost'
+import { initializeBoardAppearance } from './boardAppearance'
 
 if (!isDesktop()) registerSW({ immediate: true })
+
+initializeBoardAppearance()
 
 const rootElement = document.getElementById('root')!
 const root = createRoot(rootElement)

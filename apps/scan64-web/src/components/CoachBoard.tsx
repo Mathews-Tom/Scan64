@@ -10,7 +10,7 @@ import { resolveMove } from './moveEntry';
 
 import 'chessground/assets/chessground.base.css';
 import './Board.css';
-import 'chessground/assets/chessground.cburnett.css';
+import '../pieces.css';
 
 type Promotion = 'q' | 'r' | 'b' | 'n';
 const EMPTY_VISUALIZATIONS: Visualization[] = [];
