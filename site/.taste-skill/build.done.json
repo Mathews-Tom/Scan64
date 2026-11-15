@@ -3,9 +3,9 @@
  "url": null,
  "root": null,
  "kind": "software",
- "category": "chess coach",
+ "category": "chess coaching",
  "primary": "Download Scan64",
- "rounds": 1,
- "start": "2026-11-15T16:57:43.522Z",
+ "rounds": 3,
+ "start": "2026-11-15T18:08:16.957Z",
  "by": "gate.mjs --start"
 }
