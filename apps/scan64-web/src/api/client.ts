@@ -1,3 +1,4 @@
+import { apiBase, apiFetch } from '../platform';
 import type {
   AnalysisJobRead,
   BotRead,
@@ -41,7 +42,6 @@ import type {
   WeeklyReport,
 } from './types';
 
-const API_BASE = '/v1';
 const PLAYER_TOKEN_STORAGE_PREFIX = 'scan64_player_token:';
 
 const PLAYER_ID_STORAGE_KEY = 'scan64_player_id';
@@ -93,7 +93,7 @@ export function getOrCreatePlayerId(): string {
 }
 
 async function registerPlayer(data: PlayerCreate): Promise<PlayerRegistration> {
-  const response = await fetch(`${API_BASE}/players`, {
+  const response = await apiFetch(`${apiBase()}/players`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -179,19 +179,19 @@ function getActivePlayerAuthorizationHeader(): Record<string, string> {
 
 export class ApiClient {
   static async getAppInfo(): Promise<{ distribution: string }> {
-    const response = await fetch(`${API_BASE}/app/info`);
+    const response = await apiFetch(`${apiBase()}/app/info`);
     if (!response.ok) throw new Error('Application information unavailable');
     return response.json() as Promise<{ distribution: string }>;
   }
 
   static async getAppUpdate(): Promise<{ status: string; version: string | null }> {
-    const response = await fetch(`${API_BASE}/app/update`, { cache: 'no-store' });
+    const response = await apiFetch(`${apiBase()}/app/update`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Application update information unavailable');
     return response.json() as Promise<{ status: string; version: string | null }>;
   }
 
   private static async puzzleRequest<T>(path: string, method: 'GET' | 'POST', data?: object): Promise<T> {
-    const response = await fetch(`${API_BASE}/puzzles${path}`, {
+    const response = await apiFetch(`${apiBase()}/puzzles${path}`, {
       method,
       headers: { ...getActivePlayerAuthorizationHeader(), ...(data ? { 'Content-Type': 'application/json' } : {}) },
       ...(data ? { body: JSON.stringify(data) } : {}),
@@ -250,7 +250,7 @@ export class ApiClient {
   }
 
   static async getPositionInsight(data: PositionInsightRequest): Promise<PositionInsight> {
-    const response = await fetch(`${API_BASE}/insights/position`, {
+    const response = await apiFetch(`${apiBase()}/insights/position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(data.player_id) },
       body: JSON.stringify(data),
@@ -265,7 +265,7 @@ export class ApiClient {
   }
 
   static async createGame(data: GameCreate): Promise<GameRead> {
-    const response = await fetch(`${API_BASE}/games`, {
+    const response = await apiFetch(`${apiBase()}/games`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ export class ApiClient {
   }
 
   static async getGame(gameId: string): Promise<GameRead> {
-    const response = await fetch(`${API_BASE}/games/${gameId}`, {
+    const response = await apiFetch(`${apiBase()}/games/${gameId}`, {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
@@ -292,10 +292,8 @@ export class ApiClient {
 
   static async getPlayerGames(playerId: string, cursor?: string): Promise<PlayerGamesPage> {
     const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
-    const response = await fetch(
-      `${API_BASE}/players/${encodeURIComponent(playerId)}/games${query}`,
-      { headers: getPlayerAuthorizationHeader(playerId) },
-    );
+    const response = await apiFetch(`${apiBase()}/players/${encodeURIComponent(playerId)}/games${query}`,
+    { headers: getPlayerAuthorizationHeader(playerId) },);
     if (!response.ok) {
       throw new ApiRequestError(`Failed to get player games: ${response.statusText}`, response.status);
     }
@@ -303,7 +301,7 @@ export class ApiClient {
   }
 
   static async getPositions(gameId: string): Promise<PositionRead[]> {
-    const response = await fetch(`${API_BASE}/games/${gameId}/positions`, {
+    const response = await apiFetch(`${apiBase()}/games/${gameId}/positions`, {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
@@ -314,7 +312,7 @@ export class ApiClient {
   }
 
   static async getGameAnalysisStatus(gameId: string): Promise<GameAnalysisStatusRead> {
-    const response = await fetch(`${API_BASE}/games/${gameId}/analysis-status`, {
+    const response = await apiFetch(`${apiBase()}/games/${gameId}/analysis-status`, {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
@@ -327,7 +325,7 @@ export class ApiClient {
   }
 
   static async getGameReview(gameId: string): Promise<GameReviewRead> {
-    const response = await fetch(`${API_BASE}/games/${encodeURIComponent(gameId)}/review`, {
+    const response = await apiFetch(`${apiBase()}/games/${encodeURIComponent(gameId)}/review`, {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
@@ -337,7 +335,7 @@ export class ApiClient {
   }
 
   static async backfillGameReview(gameId: string): Promise<GameReviewRead> {
-    const response = await fetch(`${API_BASE}/games/${encodeURIComponent(gameId)}/review/backfill`, {
+    const response = await apiFetch(`${apiBase()}/games/${encodeURIComponent(gameId)}/review/backfill`, {
       method: 'POST',
       headers: getActivePlayerAuthorizationHeader(),
     });
@@ -353,10 +351,8 @@ export class ApiClient {
   static async getLearningOpportunities(gameId: string): Promise<GameLearningSessionRead> {
     let playerId = getOrCreatePlayerId();
     playerId = await ensurePlayerAuthorization(playerId);
-    const response = await fetch(
-      `${API_BASE}/games/${gameId}/learning-opportunities?player_id=${encodeURIComponent(playerId)}`,
-      { headers: getPlayerAuthorizationHeader(playerId) },
-    );
+    const response = await apiFetch(`${apiBase()}/games/${gameId}/learning-opportunities?player_id=${encodeURIComponent(playerId)}`,
+    { headers: getPlayerAuthorizationHeader(playerId) },);
     if (!response.ok) {
       throw new Error(`Failed to fetch learning opportunities: ${response.statusText}`);
     }
@@ -364,7 +360,7 @@ export class ApiClient {
   }
 
   static async createAnalysisJob(gameId: string): Promise<AnalysisJobRead> {
-    const response = await fetch(`${API_BASE}/games/${gameId}/analysis-jobs`, {
+    const response = await apiFetch(`${apiBase()}/games/${gameId}/analysis-jobs`, {
       method: 'POST',
       headers: getActivePlayerAuthorizationHeader(),
     });
@@ -379,7 +375,7 @@ export class ApiClient {
   }
 
   static async getAnalysisJob(jobId: string): Promise<AnalysisJobRead> {
-    const response = await fetch(`${API_BASE}/analysis-jobs/${jobId}`, {
+    const response = await apiFetch(`${apiBase()}/analysis-jobs/${jobId}`, {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
@@ -390,13 +386,13 @@ export class ApiClient {
   }
 
   static async getBots(): Promise<BotRead[]> {
-    const response = await fetch(`${API_BASE}/bots`);
+    const response = await apiFetch(`${apiBase()}/bots`);
     if (!response.ok) throw new ApiRequestError(`Failed to fetch bots: ${response.statusText}`, response.status);
     return await response.json() as BotRead[];
   }
 
   static async takebackPlaySession(sessionId: string): Promise<PlaySessionRead> {
-    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/takeback`, {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/takeback`, {
       method: 'POST',
       headers: getPlayerAuthorizationHeader(getActivePlayerId()),
     });
@@ -405,7 +401,7 @@ export class ApiClient {
   }
 
   static async createPlaySession(data: PlaySessionCreate): Promise<PlaySessionRead> {
-    const response = await fetch(`${API_BASE}/play-sessions`, {
+    const response = await apiFetch(`${apiBase()}/play-sessions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -421,7 +417,7 @@ export class ApiClient {
   }
 
   static async getPlaySession(sessionId: string): Promise<PlaySessionRead> {
-    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}`, {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}`, {
       headers: getPlayerAuthorizationHeader(getActivePlayerId()),
     });
     if (!response.ok) {
@@ -431,7 +427,7 @@ export class ApiClient {
   }
 
   static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
-    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/moves`, {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/moves`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -447,7 +443,7 @@ export class ApiClient {
   }
 
   static async resignPlaySession(sessionId: string): Promise<PlaySessionRead> {
-    const response = await fetch(`${API_BASE}/play-sessions/${sessionId}/resign`, {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/resign`, {
       method: 'POST',
       headers: getPlayerAuthorizationHeader(getActivePlayerId()),
     });
@@ -462,7 +458,7 @@ export class ApiClient {
   }
 
   static async getFamousGames(): Promise<FamousGameRead[]> {
-    const response = await fetch(`${API_BASE}/content/famous-games`);
+    const response = await apiFetch(`${apiBase()}/content/famous-games`);
     if (!response.ok) {
       throw new Error(`Failed to fetch famous games: ${response.statusText}`);
     }
@@ -471,7 +467,7 @@ export class ApiClient {
   }
 
   static async getFamousGame(id: string): Promise<FamousGameRead> {
-    const response = await fetch(`${API_BASE}/content/famous-games/${id}`);
+    const response = await apiFetch(`${apiBase()}/content/famous-games/${id}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch famous game: ${response.statusText}`);
     }
@@ -480,7 +476,7 @@ export class ApiClient {
   }
 
   static async recordFamousGameAttempt(id: string, attempt: AttemptCreate): Promise<AttemptRead> {
-    const response = await fetch(`${API_BASE}/content/famous-games/${id}/attempts`, {
+    const response = await apiFetch(`${apiBase()}/content/famous-games/${id}/attempts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -498,7 +494,7 @@ export class ApiClient {
   static async getTrainingSession(): Promise<TrainingSessionRead> {
     let playerId = getOrCreatePlayerId();
     playerId = await ensurePlayerAuthorization(playerId);
-    const response = await fetch(`${API_BASE}/learning/session?player_id=${playerId}`, {
+    const response = await apiFetch(`${apiBase()}/learning/session?player_id=${playerId}`, {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {
@@ -508,7 +504,7 @@ export class ApiClient {
   }
 
   static async recordLessonAttempt(attempt: LessonAttemptCreate): Promise<LessonAttemptRead> {
-    const response = await fetch(`${API_BASE}/learning/lesson-attempts`, {
+    const response = await apiFetch(`${apiBase()}/learning/lesson-attempts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -526,7 +522,7 @@ export class ApiClient {
     playerId: string,
     resource: string,
   ): Promise<T> {
-    const response = await fetch(`${API_BASE}/players/${playerId}/${resource}`, {
+    const response = await apiFetch(`${apiBase()}/players/${playerId}/${resource}`, {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {
@@ -553,7 +549,7 @@ export class ApiClient {
     method: 'GET' | 'POST',
     data?: { goal: number } | { code: string } | Record<string, never>,
   ): Promise<HabitSummaryRead> {
-    const response = await fetch(`${API_BASE}/players/${encodeURIComponent(playerId)}/habit${path}`, {
+    const response = await apiFetch(`${apiBase()}/players/${encodeURIComponent(playerId)}/habit${path}`, {
       method,
       headers: { ...getPlayerAuthorizationHeader(playerId), ...(data ? { 'Content-Type': 'application/json' } : {}) },
       ...(data ? { body: JSON.stringify(data) } : {}),
@@ -589,7 +585,7 @@ export class ApiClient {
     method: 'POST' | 'PUT',
     data: OnboardingAction | { bot_level: number },
   ): Promise<PlayerOnboardingRead> {
-    const response = await fetch(`${API_BASE}/players/${encodeURIComponent(playerId)}/${resource}`, {
+    const response = await apiFetch(`${apiBase()}/players/${encodeURIComponent(playerId)}/${resource}`, {
       method,
       headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
       body: JSON.stringify(data),
@@ -613,10 +609,8 @@ export class ApiClient {
   }
 
   static async getWeeklyReport(playerId: string): Promise<WeeklyReport> {
-    const response = await fetch(
-      `${API_BASE}/reports/weekly?player_id=${encodeURIComponent(playerId)}`,
-      { headers: getPlayerAuthorizationHeader(playerId) },
-    );
+    const response = await apiFetch(`${apiBase()}/reports/weekly?player_id=${encodeURIComponent(playerId)}`,
+    { headers: getPlayerAuthorizationHeader(playerId) },);
     if (!response.ok) {
       throw new Error(`Failed to fetch weekly report: ${response.statusText}`);
     }
@@ -632,7 +626,7 @@ export class ApiClient {
   }
 
   static async getCoachDashboard(coachId: string): Promise<CoachDashboard> {
-    const response = await fetch(`${API_BASE}/coaches/${coachId}/dashboard`, {
+    const response = await apiFetch(`${apiBase()}/coaches/${coachId}/dashboard`, {
       headers: getPlayerAuthorizationHeader(coachId),
     });
     if (!response.ok) {

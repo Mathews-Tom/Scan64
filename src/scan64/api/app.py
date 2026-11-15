@@ -10,6 +10,7 @@ from scan64.api.coach import router as coach_router
 from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
+from scan64.api.desktop_security import add_desktop_security
 from scan64.api.games import router as games_router
 from scan64.api.habit import router as habit_router
 from scan64.api.insights import router as insights_router
@@ -91,6 +92,9 @@ app.include_router(strength_router)
 app.include_router(reports_router)
 app.include_router(habit_router)
 
+shell_token = os.environ.get("SCAN64_SHELL_TOKEN")
+add_desktop_security(app, shell_token)
+
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -100,7 +104,11 @@ def health() -> dict[str, str]:
 @app.get("/v1/app/info")
 def app_info() -> dict[str, str]:
     return {
-        "distribution": "desktop" if os.getenv("SCAN64_DISTRIBUTION") == "desktop" else "source"
+        "distribution": (
+            "desktop"
+            if shell_token is not None or os.getenv("SCAN64_DISTRIBUTION") == "desktop"
+            else "source"
+        )
     }
 
 
@@ -114,6 +122,7 @@ def app_update() -> dict[str, object]:
 
 
 # Registered last: known API routes retain their own methods and responses.
-web_dist = web_dist_directory()
-if web_dist.is_dir():
-    mount_web_client(app, web_dist)
+if shell_token is None:
+    web_dist = web_dist_directory()
+    if web_dist.is_dir():
+        mount_web_client(app, web_dist)
