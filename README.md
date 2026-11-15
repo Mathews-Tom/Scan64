@@ -95,7 +95,7 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
 
-**Installer availability:** these builds are currently dry-run artifacts from the [Desktop workflow](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml), not published release assets. Open a successful run, download the artifact for your OS and unzip the artifact download first. The existing [release](https://github.com/Mathews-Tom/Scan64/releases/latest) macOS launcher is the **legacy browser-opening app**, not this unified desktop app; its data is not migrated.
+**Installer availability:** the new cross-platform installers are planned for **v0.7.0** and are **not released yet**. When published, download them from [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases). The steps below apply to those release files. [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are temporary test builds, not release downloads; do not treat a successful pull-request run as a trusted installer source. The current release's macOS launcher is the **legacy browser-opening app**, not this unified desktop app; its data is not migrated.
 
 | Platform | Install and open |
 | --- | --- |
@@ -117,6 +117,7 @@ You need Xcode Command Line Tools, Rust, uv with managed Python 3.12+, Node.js 2
 ```sh
 uv sync --locked --group build --python-preference only-managed
 pnpm install --frozen-lockfile
+cargo install cargo-about --version 0.8.2 --locked
 pnpm --dir apps/scan64-web build
 uv run --no-sync python scripts/build-server.py
 pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app

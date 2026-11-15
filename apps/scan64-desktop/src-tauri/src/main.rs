@@ -191,6 +191,8 @@ fn main() {
             smoke_failed
         ])
         .setup(|app| {
+            // Release smoke may isolate CI data; ordinary releases always use the OS app directory.
+            // This must not admit debug-only executable overrides into release launches.
             let data_dir = if cfg!(debug_assertions) || server::smoke_file().is_some() {
                 env::var_os("SCAN64_DATA_DIR").map(Into::into)
             } else {

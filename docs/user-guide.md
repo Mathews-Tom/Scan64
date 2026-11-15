@@ -17,7 +17,7 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md#get-started) for source, Docker or the unified desktop app. Installers currently come from successful dry-run [Desktop workflow runs](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml); nothing is published by those runs. Download your OS artifact and unzip the artifact download to get the installer. The macOS launcher on existing releases is the **legacy app that opens a browser**, not this new one-window desktop app.
+Follow the [root quickstart](../README.md#get-started) for source, Docker or the unified desktop app. New cross-platform installers are planned for **v0.7.0**, but are **not released yet**; use the installation steps below when those files appear on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases). Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. The macOS launcher on current releases is the **legacy app that opens a browser**, not this new one-window desktop app.
 
 ### Install on your OS
 

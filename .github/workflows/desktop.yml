@@ -84,7 +84,9 @@ jobs:
         if: always()
         with:
           name: desktop-smoke-${{ matrix.os }}
-          path: desktop-smoke.json
+          path: |
+            desktop-smoke.json
+            build/desktop-evidence/
           if-no-files-found: warn
 
   build:

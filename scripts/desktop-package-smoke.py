@@ -99,7 +99,9 @@ def request(port: int, path: str, token: str, body=None, authorization: str | No
         return json.load(r)
 
 
-def frozen_smoke(resources: Path, directory: Path) -> dict[str, object]:
+def frozen_smoke(
+    resources: Path, directory: Path, *, failure_log: Path | None = None
+) -> dict[str, object]:
     executable = ".exe" if os.name == "nt" else ""
     binary = resources / "scan64-server" / f"scan64-server{executable}"
     stockfish = resources / "stockfish" / f"stockfish{executable}"
@@ -184,12 +186,14 @@ def frozen_smoke(resources: Path, directory: Path) -> dict[str, object]:
                     process.wait(timeout=5)
             if sys.exception() is not None:
                 log.flush()
-                print(
-                    (directory / "frozen-server.log")
-                    .read_text(errors="replace")
-                    .replace(token, "[redacted]"),
-                    flush=True,
-                )
+                text = (directory / "frozen-server.log").read_text(errors="replace")
+                server_log = directory / "data" / "logs" / "server.log"
+                if server_log.exists():
+                    text += server_log.read_text(encoding="utf-8", errors="replace")
+                text = text.replace(token, "[redacted]")
+                print(text, flush=True)
+                if failure_log is not None:
+                    failure_log.write_text(text, encoding="utf-8")
 
 
 def verify(binary: Path, resources: Path, label: str, *, screenshot: bool = False) -> None:
@@ -198,7 +202,9 @@ def verify(binary: Path, resources: Path, label: str, *, screenshot: bool = Fals
         contents = check_contents(resources)
         if os.name == "nt":
             check_windowless(binary)
-        server = frozen_smoke(resources, directory)
+        server = frozen_smoke(
+            resources, directory, failure_log=EVIDENCE / f"{label}-frozen-server.log"
+        )
         output = EVIDENCE / f"{label}-app-smoke.json"
         args = [
             sys.executable,
@@ -272,7 +278,7 @@ def main() -> None:
                 command(str(artifact), "--appimage-extract", cwd=directory)
                 appdir = directory / "squashfs-root"
                 verify(
-                    appdir / "usr/bin/scan64-desktop",
+                    appdir / "AppRun",
                     resource_root(appdir),
                     "appimage",
                     screenshot=True,

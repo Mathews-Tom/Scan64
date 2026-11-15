@@ -16,6 +16,7 @@ pub struct Connection {
     pub token: String,
     pub smoke: bool,
     pub smoke_board: bool,
+    pub smoke_engine: bool,
 }
 
 pub struct Server {
@@ -162,6 +163,8 @@ impl Server {
                         smoke: smoke_file().is_some(),
                         smoke_board: smoke_file().is_some()
                             && env::var_os("SCAN64_SMOKE_BOARD").is_some(),
+                        smoke_engine: smoke_file().is_some()
+                            && env::var_os("SCAN64_SMOKE_ENGINE").is_some(),
                     };
                     self.connection = Some(connection.clone());
                     return Ok(connection);
@@ -253,6 +256,9 @@ fn private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 pub fn smoke_file() -> Option<PathBuf> {
+    // Deliberately release-reachable so CI exercises the actual installed artifact.
+    // This opt-in may write only credential-free receipts; it must never enable
+    // env-selected server commands or weaken the shell/API token boundary.
     env::var_os("SCAN64_SMOKE_FILE").map(PathBuf::from)
 }
 

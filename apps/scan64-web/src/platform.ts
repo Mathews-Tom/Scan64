@@ -6,6 +6,7 @@ interface DesktopConnection {
   token: string;
   smoke: boolean;
   smoke_board?: boolean;
+  smoke_engine?: boolean;
 }
 
 let connection: DesktopConnection | null = null;
@@ -60,7 +61,28 @@ export async function initializeDesktop(): Promise<void> {
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) throw new Error(`Desktop smoke request failed: HTTP ${response.status}`);
-    await response.json();
+    const player = await response.json() as { id: string; access_token: string };
+    if (connection.smoke_engine) {
+      // Engines are lazy: play a real move before proving that killing the shell
+      // tears down its live engine children, rather than checking an empty tree.
+      const session = await apiFetch(`${apiBase()}/play-sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${player.access_token}`,
+        },
+        body: JSON.stringify({
+          player_id: player.id, player_color: 'black',
+          opponent_config: { provider: 'stockfish', bot_level: '1' },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!session.ok) throw new Error(`Desktop engine smoke failed: HTTP ${session.status}`);
+      const move = (await session.json() as { opponent_move: unknown }).opponent_move;
+      if (typeof move !== 'string' || !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)) {
+        throw new Error('Desktop engine smoke did not receive a legal-shaped bot move');
+      }
+    }
     if (connection.smoke_board) {
       // Exercise the ordinary analysis screen in the installed WebView for CI's screenshot.
       await createActivePlayer('Desktop board smoke');
