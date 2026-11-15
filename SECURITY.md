@@ -75,9 +75,11 @@ disabled TLS certificate or hostname validation, an unexpected production
 endpoint, or the signed-version requirement. The build guard accepts only the
 allowlisted canonical updater keys: `pubkey`, `endpoints`,
 `dangerousInsecureTransportProtocol`, `requireSignedVersion`, and `windows`.
-All other keys, including TLS verification bypass flags, downgrade flags, and
-kebab-case aliases, are rejected in every build mode. Insecure transport is
-permitted only within the explicit loopback HTTP test boundary, never in normal
+When present, `windows` must be an object containing only the canonical
+`installMode` key. Every other key at either level, including installer arguments,
+TLS verification bypass flags, downgrade flags, and kebab-case aliases, is
+rejected in every build mode. Insecure transport is permitted only within the
+explicit loopback HTTP test boundary, never in normal
 debug builds or PR dry runs. Test builds require the `updater-test`
 Cargo feature and `SCAN64_UPDATER_TEST=1`; they use a per-run temporary test key
 and a loopback-only HTTP overlay that also requires signed versions. Never

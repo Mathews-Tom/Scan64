@@ -44,6 +44,14 @@ pub fn validate(
     }) {
         return Err("only allowlisted canonical updater keys are permitted");
     }
+    if let Some(windows) = fields.get("windows") {
+        let windows = windows
+            .as_object()
+            .ok_or("updater windows configuration must be an object")?;
+        if windows.keys().any(|key| key != "installMode") {
+            return Err("only canonical windows.installMode is permitted");
+        }
+    }
     let test = test_feature && test_opt_in;
     if test_feature != test_opt_in {
         return Err("updater-test requires the explicit SCAN64_UPDATER_TEST=1 build opt-in");
@@ -183,6 +191,50 @@ mod tests {
                         );
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn windows_accepts_only_canonical_install_mode_in_every_boundary() {
+        for (release, dry_run) in [(true, false), (true, true), (false, false), (false, true)] {
+            for test in [false, true] {
+                let mut config = config();
+                config["plugins"]["updater"]["pubkey"] = public_key().into();
+                if test {
+                    config["plugins"]["updater"]["endpoints"] =
+                        serde_json::json!(["http://127.0.0.1:9876/latest.json"]);
+                    config["plugins"]["updater"]["dangerousInsecureTransportProtocol"] =
+                        true.into();
+                }
+                config["plugins"]["updater"]["windows"] =
+                    serde_json::json!({"installMode": "passive"});
+                assert!(validate(&config, release, test, test, dry_run).is_ok());
+                for field in [
+                    "installer-args",
+                    "installerArgs",
+                    "install-mode",
+                    "unknownWindowsKey",
+                ] {
+                    config["plugins"]["updater"]["windows"][field] = if field == "install-mode" {
+                        serde_json::json!("passive")
+                    } else {
+                        serde_json::json!(["/unapproved"])
+                    };
+                    assert_eq!(
+                        validate(&config, release, test, test, dry_run),
+                        Err("only canonical windows.installMode is permitted")
+                    );
+                    config["plugins"]["updater"]["windows"]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove(field);
+                }
+                config["plugins"]["updater"]["windows"] = serde_json::json!([]);
+                assert_eq!(
+                    validate(&config, release, test, test, dry_run),
+                    Err("updater windows configuration must be an object")
+                );
             }
         }
     }
