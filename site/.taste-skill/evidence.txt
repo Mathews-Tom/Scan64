@@ -95,3 +95,18 @@ Final headless OS/prefix harness:
 All five final screenshots read and inspected; hero alone on first screen, four full-screen sections, no empty visuals or sideways overflow.
 Kept nonblocking style WARNs: reserved arrow space in button labels; dealt close-type footer whitespace; split-letter moment heading; collage proximity; compact source-only phone navigation. None is hidden or suppressed in the kit.
 Temporary headless harness removed after its successful final run. Browser captures/profiles/raw logs remain local and ignored.
+
+Unsolicited review follow-through
+Fixed unsupported ChromeOS routing: CrOS is excluded before Linux detection, and X11 alone no longer implies Linux.
+Fixed a short tablet (820x600): the stacked hero grows naturally instead of letting controls overlap the next section. Standard acceptance viewports retain their one-screen layout.
+node /tmp/m85-browser-regressions.mjs (temporary headless Chrome/CDP harness)
+  PASS macOS -> DMG; Windows -> EXE; Linux -> AppImage.
+  PASS ChromeOS, unknown X11/FreeBSD, Android and unknown -> latest release page.
+  PASS every case at /Scan64/ and 820x600: no missing resources, horizontal overflow, hero-content overflow or next-section overlap.
+  Hero bottom and review top both 843.47px; last hero content bottom 779.47px.
+  Temporary harness removed after success.
+node <skill>/scripts/consistency.mjs index.html --quick --widths 1440,390 --profile .taste-skill/chrome-check --page software --category 'chess coach' --primary 'Download Scan64'
+  Only the already-documented wide-button and required skip-link false positives; no new standard-viewport finding.
+node <skill>/scripts/shoot.mjs --url index.html --w 820 --h 600 --out .taste-skill/shots/820-short.png --profile .taste-skill/chrome-shoot
+  Saved and inspected the short-tablet layout.
+Nine other review comments concern unused exported kit lifecycle/form/loop/concurrent-mount paths. This static page has no unmount/remount/replacement, forms, data-m-loop, ui.loop or concurrent grounds. Each thread received its concrete applicability explanation; findings were reported upstream and the required unmodified kit was preserved.

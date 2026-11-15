@@ -12,3 +12,4 @@
 @media(min-width:640px) and (max-width:1200px){.app-sidebar{padding:16px;gap:6px}.app-sidebar span{padding:4px 8px;line-height:22px}.review-panel h3{font-size:20px;margin-bottom:12px}.move-row{padding:8px 0}.review-note{padding:12px}.review-panel p{margin-block:12px}}
 .nav:not(.is-open) .nav__actions > .nav__link{display:inline-flex;min-height:44px}
 @media(max-width:639px){.hero--triptych .hero__lead{font-size:16px}.hero__cta .small,.preview-tag{font-size:13px}}
+@media(min-width:640px) and (max-width:1023px) and (max-height:760px){main>.hero.hero--triptych{height:auto;min-height:100svh}main>.hero.hero--triptych>.wrap,main>.hero.hero--triptych>.wrap>.hero-text{height:auto}.hero--triptych .hero__grid{min-height:0}.hero--triptych .ly-collage{flex:none;height:300px;min-height:300px}}

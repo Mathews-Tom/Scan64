@@ -7,9 +7,9 @@ const platforms = {
   linux: { name: 'Linux · x64 AppImage', asset: 'Scan64_0.7.0_amd64.AppImage' },
 };
 const platform = `${navigator.userAgentData?.platform || ''} ${navigator.platform || ''} ${navigator.userAgent || ''}`;
-// iOS/iPadOS must not receive the macOS desktop installer.
-const mobile = /iPhone|iPad|iPod|Android/i.test(platform) || (/Mac/i.test(platform) && navigator.maxTouchPoints > 1);
-const os = mobile ? null : /Win/i.test(platform) ? 'windows' : /Mac/i.test(platform) ? 'mac' : /Linux|X11/i.test(platform) ? 'linux' : null;
+// Mobile devices and ChromeOS have no supported desktop installer.
+const unsupported = /iPhone|iPad|iPod|Android|CrOS/i.test(platform) || (/Mac/i.test(platform) && navigator.maxTouchPoints > 1);
+const os = unsupported ? null : /Win/i.test(platform) ? 'windows' : /Mac/i.test(platform) ? 'mac' : /Linux/i.test(platform) ? 'linux' : null;
 if (os) {
   document.querySelectorAll('[data-download]').forEach(link => { link.href = release + platforms[os].asset; });
   document.querySelector('[data-platform]').textContent = platforms[os].name;
