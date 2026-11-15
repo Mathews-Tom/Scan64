@@ -131,7 +131,7 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
 
   if (selectedLesson !== null && lessonSessionId !== null) {
     return (
-      <div ref={reviewContainer} tabIndex={-1} role="region" aria-label="Imported game lesson" onKeyDown={event => {
+      <div className="lesson-study working-screen" ref={reviewContainer} tabIndex={-1} role="region" aria-label="Imported game lesson" onKeyDown={event => {
         if (event.key === 'Escape' && !event.defaultPrevented) setSelectedLesson(null);
       }}>
         <button onClick={() => setSelectedLesson(null)}>Back to Import</button>

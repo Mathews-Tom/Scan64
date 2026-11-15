@@ -104,17 +104,10 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
   };
 
   return (
-    <Panel className="critical-moment-review" data-testid="critical-moment-review">
+    <Panel className="critical-moment-review working-screen" data-testid="critical-moment-review">
       <h2 ref={heading} tabIndex={-1}>Critical Moment Review</h2>
-      <div className="objective">
-        <strong>Objective:</strong> {lesson.objective.instruction}
-      <p role="status" aria-atomic="true">Review step {step} of 7</p>
-      </div>
-      {(initialAttemptsUsed > 0 || initialAttemptsRemaining < lesson.interaction.maximum_attempts) && (
-        <p>{attemptCount} lifetime attempts used; {Math.max(0, attemptLimit - attemptCount)} remaining.</p>
-      )}
-
-      {feedback && <p role="alert">{feedback}</p>}
+      <div className="board-workspace">
+      <div className="board-workspace__board">
       <CoachBoard
         key={lesson.lesson_id}
         fen={lesson.source.fen}
@@ -128,6 +121,16 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         }
         onMove={recordAttempt}
       />
+      </div>
+      <div className="board-workspace__side working-controls">
+      <div className="objective">
+        <strong>Objective:</strong> {lesson.objective.instruction}
+        <p role="status" aria-atomic="true">Review step {step} of 7</p>
+      </div>
+      {(initialAttemptsUsed > 0 || initialAttemptsRemaining < lesson.interaction.maximum_attempts) && (
+        <p>{attemptCount} lifetime attempts used; {Math.max(0, attemptLimit - attemptCount)} remaining.</p>
+      )}
+      {feedback && <p role="alert">{feedback}</p>}
       {submittedMove && <p data-testid="critical-attempt-recorded">Attempt recorded.</p>}
 
       <div className="step-content">
@@ -202,6 +205,8 @@ export function CriticalMomentReview({ lesson, opportunityId, sessionId, onCompl
         {step === 7 && (
           <button className="btn btn--primary" onClick={onComplete} data-testid="complete-btn">Finish Review</button>
         )}
+      </div>
+      </div>
       </div>
     </Panel>
   );

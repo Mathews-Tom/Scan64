@@ -100,10 +100,16 @@ export function importProgressText(state: PuzzleImportState): string {
     ? ` · ${(speed / 1_000_000).toFixed(1)} MB/s${state.total !== null ? ` · ${Math.ceil(Math.max(0, state.total - state.done) / speed)} seconds left` : ''}` : '';
   return `${state.status === 'cancelling' ? 'Cancelling' : state.phase ? phaseNames[state.phase] : 'Preparing'} · ${progress}${timing}`;
 }
-export function PuzzleImportFoot() {
+export function PuzzleImportFoot({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const controller = usePuzzleImport();
-  return controller?.desktop && activeJob(controller.state)
-    ? <p className="puzzle-import-foot">{importProgressText(controller.state)}</p> : null;
+  if (!controller?.desktop || !activeJob(controller.state)) return null;
+  const progress = importProgressText(controller.state);
+  return <a className="puzzle-import-foot" href="/settings#puzzle-library" aria-label={`Puzzle import: ${progress}. Open Settings import panel`} title={progress} onClick={event => {
+    if (onOpenSettings) { event.preventDefault(); onOpenSettings(); }
+  }}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2" /></svg>
+    <span className="puzzle-import-text">{progress}</span>
+  </a>;
 }
 export function PuzzleLibraryControls() {
   const controller = usePuzzleImport();
@@ -152,4 +158,4 @@ export function PuzzleLibraryControls() {
     {error ? <StatusLine ref={errorRef} tabIndex={-1} kind="error">{error}</StatusLine> : null}
   </div>;
 }
-export function PuzzleLibraryPanel() { return <Panel title="Puzzle library"><PuzzleLibraryControls /></Panel>; }
+export function PuzzleLibraryPanel() { return <Panel id="puzzle-library" tabIndex={-1} title="Puzzle library"><PuzzleLibraryControls /></Panel>; }

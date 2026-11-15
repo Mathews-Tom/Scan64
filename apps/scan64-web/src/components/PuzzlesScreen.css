@@ -1,10 +1,57 @@
-.puzzles-screen > p { max-width: 75ch; }
-.puzzles-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
-.puzzles-screen code { overflow-wrap: anywhere; }
-.puzzles-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); min-width: 0; margin: 0; padding: 0; border: none; }
-.puzzles-modes legend { padding: 0; margin-bottom: var(--space-3); color: var(--muted); font-size: var(--type-label); }
+.puzzles-screen {
+  width: 100%;
+  max-width: var(--workspace-max);
+  min-width: 0;
+  margin-inline: auto;
+}
+.puzzles-screen > p { max-width: 72ch; }
+.puzzles-screen code,
+.puzzles-screen li,
+.puzzles-screen a { overflow-wrap: anywhere; }
+.puzzles-setup,
+.puzzles-library,
+.puzzles-recovery,
+.puzzles-summary {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.puzzles-library { padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+.puzzles-library > div { min-width: 0; }
+.puzzles-library button { margin-block: var(--space-2); margin-inline-end: var(--space-2); }
+.puzzles-recovery > button { justify-self: start; }
+.puzzles-modes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.puzzles-modes legend { padding: 0; margin-bottom: var(--space-2); color: var(--muted); font-size: var(--type-label); }
 .puzzles-modes label { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 44px; cursor: pointer; }
-.puzzles-modes label:has(select), .puzzles-modes > button { grid-column: 1 / -1; }
-.puzzles-modes label:has(select) { flex-wrap: wrap; }
+.puzzles-modes label:has(select) { grid-column: 1 / -1; flex-wrap: wrap; }
 .puzzles-modes select { min-width: 0; max-width: 100%; }
-.puzzles-screen li, .puzzles-screen a { overflow-wrap: anywhere; }
+.puzzles-start { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.puzzles-start > p { flex: 1 1 28ch; max-width: 72ch; }
+.puzzles-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.puzzles-hints { min-width: 0; }
+.puzzles-hints ol,
+.puzzles-hints ul { padding-inline-start: var(--space-6); margin-block: 0; }
+.puzzles-hints li + li { margin-top: var(--space-3); }
+.puzzles-retry { min-width: 0; scroll-margin-block: var(--space-4); }
+.puzzles-retry > button { margin-bottom: var(--space-3); }
+.puzzles-summary-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-gap); align-items: start; }
+.puzzles-summary h2,
+.puzzles-summary p { margin: 0; }
+.puzzles-summary h2 { font-size: 20px; }
+.puzzles-disclosure { min-width: 0; }
+.puzzles-disclosure > summary { min-height: 44px; padding-block: var(--space-3); cursor: pointer; overflow-wrap: anywhere; }
+.puzzles-disclosure > p { max-width: 72ch; margin-block: 0 var(--space-3); }
+.puzzles-disclosure > p:last-child { margin-bottom: 0; }
+.puzzles-rules { border-top: 1px solid var(--border); }
+@media (max-width: 767px) {
+  .puzzles-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .puzzles-summary-row { grid-template-columns: minmax(0, 1fr); }
+}

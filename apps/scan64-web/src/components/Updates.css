@@ -25,3 +25,7 @@
 .app-nav .updates-foot button {
   width: 100%;
 }
+.app-nav .updates-indicator { display: none; }
+.app-shell[data-sidebar-expanded='false'] .updates-foot { padding: 0; }
+.app-shell[data-sidebar-expanded='false'] .updates-foot-details { display: none; }
+.app-shell[data-sidebar-expanded='false'] .updates-indicator { display: flex; justify-content: center; min-height: 44px; }

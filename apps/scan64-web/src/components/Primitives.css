@@ -241,15 +241,6 @@
   margin-top: var(--space-4);
 }
 
-.settings-screen {
-  display: grid;
-  gap: var(--space-6);
-  max-width: 70ch;
-}
-
-.settings-screen > h1 {
-  margin-bottom: 0;
-}
 
 .settings-screen .ui-segmented {
   margin-top: var(--space-4);

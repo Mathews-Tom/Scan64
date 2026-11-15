@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 function renderUpdates() {
-  return render(<UpdatesProvider><UpdatesPanel /><UpdatesFoot /></UpdatesProvider>);
+  return render(<UpdatesProvider><UpdatesPanel /><UpdatesFoot onOpenSettings={vi.fn()} /></UpdatesProvider>);
 }
 
 describe('Updates', () => {

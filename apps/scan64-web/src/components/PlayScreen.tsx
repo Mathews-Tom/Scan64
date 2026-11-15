@@ -561,13 +561,39 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       window.removeEventListener('online', synchronizeOnReconnect);
     };
   }, [synchronizeQueuedSession]);
+  const [sessionAnnouncement, setSessionAnnouncement] = useState('');
+  const sessionId = session?.id;
+  useEffect(() => {
+    if (!sessionId) { setSessionAnnouncement(''); return; }
+    const lastMove = chessRef.current.history().at(-1);
+    const side = chessRef.current.turn() === 'w' ? 'White' : 'Black';
+    setSessionAnnouncement(lastMove
+      ? `Position loaded. Last move: ${lastMove}. ${side} to move.`
+      : `Game started. ${side} to move.`);
+  }, [sessionId]);
 
 
   return (
-    <div className="play-screen" data-testid="play-screen">
+    <div className="play-screen working-screen" data-testid="play-screen">
       <h1 ref={heading} tabIndex={-1}>Play against Scan64</h1>
+      <div className="visually-hidden" role="status" aria-label="Game position">{sessionAnnouncement}</div>
       {resuming ? <div role="status" data-testid="resuming-game">Resuming game...</div> : null}
-      <div className="board-workspace">
+      <div className={session ? 'board-workspace' : 'play-setup'}>
+      {session && <div className="board-workspace__board">
+      <CoachBoard
+        {...boardPosition}
+        {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
+        testId="chessground-board"
+        preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
+        orientation={sessionPlayerColor(session) ?? 'white'}
+        disabled={session.status !== 'active' || movePending || resigning || takingBack ||
+          (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
+            (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
+          criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) ||
+          queuedMoveNeedsRefreshRef.current.has(session.id)}
+        onMove={handleMove}
+      />
+      </div>}
       <div className="board-workspace__side">
       {!session && !resuming && (
         <Panel className="player-setup" title="Your opponent">
@@ -637,23 +663,6 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           Retry game refresh
         </button>
       ) : null}
-      </div>
-      <div className="board-workspace__board">
-      <CoachBoard
-        {...boardPosition}
-        {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
-        testId="chessground-board"
-        preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
-        orientation={sessionPlayerColor(session) ?? 'white'}
-        disabled={!session || session.status !== 'active' || movePending || resigning || takingBack ||
-          (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
-            (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
-          criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) ||
-          queuedMoveNeedsRefreshRef.current.has(session.id)}
-        onMove={handleMove}
-      />
-      </div>
-      <div className="board-workspace__side">
       {session && <Panel title="Current game">
         <p>You play {sessionPlayerColor(session) ?? 'your chosen side'} against Scan64.</p>
         <p data-testid="session-info">Status: {session.status}</p>

@@ -1,9 +1,35 @@
 .working-screen {
   display: grid;
+  align-content: start;
   gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+  max-width: var(--canvas-max);
   color: var(--ink);
   font-size: var(--type-body);
 }
+
+.working-screen > * { min-width: 0; }
+.lesson-study > button { justify-self: start; }
+.working-screen > header { display: grid; gap: var(--space-2); }
+.working-screen > header h1,
+.working-screen > header p { margin: 0; }
+
+.play-screen,
+.analysis-screen,
+.daily-training-screen,
+.opening-explorer,
+.famous-game-study,
+.lesson-study,
+.critical-moment-review { max-width: var(--workspace-max); }
+
+.pgn-import,
+.play-setup,
+.settings-screen { width: 100%; max-width: var(--reading-max); }
+
+.today-panels,
+.profile-records,
+.habit-panels { align-items: start; gap: var(--layout-gap); }
 
 .working-screen > h1,
 .working-screen > h2,
@@ -68,7 +94,8 @@
 .profile-records {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-6);
+  gap: var(--layout-gap);
+  align-items: start;
 }
 
 .coach-dashboard__students,
@@ -78,18 +105,23 @@
   gap: var(--space-4);
 }
 
-.coach-student__header,
-.coach-student__section {
+.coach-student {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-4) var(--layout-gap);
+}
+.coach-student > header,
+.coach-student > .strength-summary { grid-column: 1 / -1; }
+.coach-student > * { min-width: 0; }
+.famous-games-list .working-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.coach-student__header {
   padding-bottom: var(--space-4);
-  margin-bottom: var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
-.coach-student__section:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
+.coach-student__section > h3 { margin-top: 0; }
 
 .coach-student__evidence {
   padding: 0;
@@ -121,8 +153,10 @@
   padding-block: var(--space-3);
 }
 
-@media (max-width: 899px) {
-  .profile-records {
+@media (max-width: 959px) {
+  .profile-records,
+  .coach-student,
+  .famous-games-list .working-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }

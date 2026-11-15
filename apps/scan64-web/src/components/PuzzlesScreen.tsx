@@ -219,92 +219,110 @@ export function PuzzlesScreen() {
   const hintSlots = [1, 2, 3].map(step => run?.hints.find(hint => hint.step === step));
   const daily = run?.daily ?? catalog?.daily;
   const streak = run?.streak ?? catalog?.streak ?? modes?.streak;
+  const showRun = run && (active || mode === run.mode);
+  const emptyLibrary = !run && catalog?.status === 'empty';
+  const exhaustedMode = !run && catalog?.status === 'exhausted';
+  const progressMessages = [
+    pending ? 'Loading puzzle state…' : '',
+    notice,
+    showRun ? `${Math.max(0, run.maximum_wrong_attempts - run.wrong_attempts)} wrong attempts remaining` : '',
+    showRun && run.state === 'solved' ? 'Puzzle solved. You completed the source continuation.' : '',
+    showRun && run.state === 'failed' ? 'Puzzle failed. All wrong attempts have been used.' : '',
+    showRun && run.state === 'abandoned' ? 'Puzzle abandoned. No content success or failure attempt was recorded; a rated first exposure counts as a rating loss.' : '',
+  ].filter(Boolean);
+  const progress = <div aria-hidden="true">{progressMessages.map((message, index) => <p key={index}>{message}</p>)}</div>;
+  const recovery = error ? <div role="alert" className="puzzles-recovery">
+    <p>{error} Please retry loading the server state before continuing.</p>
+    <Button disabled={pending} onClick={() => void (mode === 'mistakes' ? loadMistakes(mistakes?.offset ?? 0) : run ? refresh() : start())}>Retry</Button>
+  </div> : null;
   return <section className="puzzles-screen working-screen" aria-labelledby="puzzles-title" aria-busy={pending}>
     <h1 id="puzzles-title">Puzzles</h1>
-    <p>Practise the complete imported source continuation. The opponent’s setup move is already played.</p>
-    <div className="board-workspace">
+    <div className="visually-hidden" role="status" aria-label="Puzzle progress" aria-live="polite">{progressMessages.length ? `Puzzle progress: ${progressMessages.join(' ')}` : ''}</div>
+    <p>{emptyLibrary && mode !== 'mistakes' ? 'Build your puzzle library to start practising.' : 'Practise the complete imported source continuation. The opponent’s setup move is already played.'}</p>
+    <Panel className="puzzles-setup working-controls" aria-label="Puzzle controls">
+      {emptyLibrary && mode !== 'mistakes' ? <section className="puzzles-library" aria-labelledby="puzzle-library-title">
+        <h2 id="puzzle-library-title">Build your puzzle library</h2>
+        <p>No imported puzzles are available.</p>
+        {puzzleImport?.desktop ? <PuzzleLibraryControls /> : <><PuzzleImportInstructions /><p>Nothing downloads automatically.</p>
+          <Button disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</Button></>}
+      </section> : null}
+      <fieldset className="puzzles-modes" disabled={pending || active}>
+        <legend>Practice mode</legend>
+        {([['daily', 'Daily'], ['theme', 'Theme'], ['mistakes', 'Your mistakes'], ['streak', 'Solve streak']] as const).map(([value, label]) =>
+          <label key={value}><input type="radio" name="puzzle-mode" checked={mode === value} onChange={() => chooseMode(value)} /> {label}</label>)}
+        {mode === 'theme' ? <label>Theme
+          <select value={theme} onChange={event => setTheme(event.target.value)} disabled={!modes?.themes.length}>
+            {!modes?.themes.length ? <option value="">No themes available</option> : null}
+            {modes?.themes.map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label> : null}
+      </fieldset>
+      {!showRun && mode !== 'mistakes' && catalog && !emptyLibrary && !exhaustedMode ? <div className="puzzles-start">
+        <Button variant="primary" disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Start {mode === 'streak' ? 'solve streak' : mode}</Button>
+        <p>{mode === 'daily'
+          ? 'Daily may be rated on a first exposure. An independent solve wins rating; hints, failure or abandonment lose rating.'
+          : 'Unrated practice. Used puzzles cease to be rated first exposures and may reduce future Daily supply.'}</p>
+      </div> : null}
+      {active ? <p>Finish or abandon the active puzzle before switching modes.</p> : null}
+      {modesError ? <p role="alert">{modesError}</p> : null}
+      {!showRun ? <>
+        {progress}
+        {recovery}
+        {exhaustedMode && mode !== 'mistakes' ? <section className="working-controls__section">
+          <h2>{mode === 'daily' ? 'Daily set complete' : 'No unseen puzzles in this mode'}</h2>
+          <p>{mode === 'daily' ? 'No more puzzles are available in today’s set. The next daily set resets at UTC midnight.' : 'This practice mode is exhausted. No unseen eligible puzzles remain.'}</p>
+          <p>Choose another practice mode or check again for available puzzles.</p>
+          <Button variant="primary" disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</Button>
+        </section> : null}
+      </> : null}
+      {run?.mode === 'theme' && run.theme === relatedTheme ? <p>Related unrated theme practice, not diagnosis mastery.</p> : null}
+      {patternUnavailable ? <p role="status">Related practice is unavailable. <a href="/puzzles">Daily puzzles — may be unrelated</a>. Today’s set may contain no related puzzle.</p> : null}
+    </Panel>
+    {showRun ? <div className="board-workspace" role="region" aria-label="Puzzle workspace">
       <div className="board-workspace__board">
-        {run && (active || mode === run.mode) ? <CoachBoard key={run.run_id} fen={run.fen} orientation={solverBlack ? 'black' : 'white'}
+        <CoachBoard key={run.run_id} fen={run.fen} orientation={solverBlack ? 'black' : 'white'}
           disabled={pending || !active || needsRefresh} resetAfterAttempt testId="puzzle-board"
           onMove={(move) => mutate('move', move)} visualizations={latestHint?.visualizations} />
-          : <Panel aria-label="Puzzle practice"><h2>Choose your practice</h2><p>Select a practice mode to find a puzzle or revisit a mistake from your games.</p></Panel>}
       </div>
-      <Panel className="board-workspace__side working-controls" aria-label="Puzzle controls">
-        <fieldset className="puzzles-modes" disabled={pending || active}>
-          <legend>Practice mode</legend>
-          {([['daily', 'Daily'], ['theme', 'Theme'], ['mistakes', 'Your mistakes'], ['streak', 'Solve streak']] as const).map(([value, label]) =>
-            <label key={value}><input type="radio" name="puzzle-mode" checked={mode === value} onChange={() => chooseMode(value)} /> {label}</label>)}
-          {mode === 'theme' ? <label>Theme
-            <select value={theme} onChange={event => setTheme(event.target.value)} disabled={!modes?.themes.length}>
-              {!modes?.themes.length ? <option value="">No themes available</option> : null}
-              {modes?.themes.map(value => <option key={value} value={value}>{value}</option>)}
-            </select>
-          </label> : null}
-          {mode !== 'mistakes' ? <Button variant={!run && catalog?.status !== 'empty' && catalog?.status !== 'exhausted' ? 'primary' : 'secondary'} disabled={mode === 'theme' && !theme} onClick={() => void startSelected()}>Start {mode === 'streak' ? 'solve streak' : mode}</Button> : null}
-        </fieldset>
-        {run?.mode === 'theme' && run.theme === relatedTheme ? <p>Related unrated theme practice, not diagnosis mastery.</p> : null}
-        {patternUnavailable ? <p role="status">Related practice is unavailable. <a href="/puzzles">Daily puzzles — may be unrelated</a>. Today’s set may contain no related puzzle.</p> : null}
-        {active ? <p>Finish or abandon the active puzzle before switching modes.</p> : null}
-        {modesError ? <p role="alert">{modesError}</p> : null}
-        <div role="status" aria-label="Puzzle progress" aria-live="polite">
-          {pending ? <p>Loading puzzle state…</p> : null}
-          {notice ? <p>{notice}</p> : null}
-          {run ? <>
-            <p>{Math.max(0, run.maximum_wrong_attempts - run.wrong_attempts)} wrong attempts remaining</p>
-            {run.state === 'solved' ? <p>Puzzle solved. You completed the source continuation.</p> : null}
-            {run.state === 'failed' ? <p>Puzzle failed. All wrong attempts have been used.</p> : null}
-            {run.state === 'abandoned' ? <p>Puzzle abandoned. No content success or failure attempt was recorded; a rated first exposure counts as a rating loss.</p> : null}
-          </> : null}
+      <Panel className="board-workspace__side working-controls" aria-label="Current puzzle">
+        <h2 ref={puzzleHeading} tabIndex={-1}>Source puzzle</h2>
+        <p>Mode: {run.mode}{run.theme ? ` · ${run.theme}` : ''}</p>
+        <p>{run.rated ? 'Rated first exposure' : run.mode !== 'daily' ? 'Unrated mode practice' : 'Unrated review, repeat or earlier run'}</p>
+        {progress}
+        {recovery}
+        <p>{run.rated
+          ? 'On a rated first exposure, an independent solve wins rating; hints, failure or abandonment lose rating. Mistakes within the three-attempt limit are allowed.'
+          : run.mode === 'streak' ? 'Unrated. Hints, failure or abandonment reset the solve streak.'
+            : 'Hints and abandonment do not change your puzzle rating in this unrated run.'}</p>
+        <section className="puzzles-hints working-controls__section" aria-label="Puzzle hints">
+          <Button variant={active ? 'primary' : 'secondary'} disabled={pending || !active || needsRefresh || run.hint_step >= 3} onClick={() => void mutate('hint')}>Show hint</Button>
+          <p>Hint {run.hint_step} of 3. The third hint can reveal the source line.</p>
+          {hintSlots.map((hint, index) => <div key={index} role="status" aria-atomic="true">
+            {hint ? <><h3>Hint {hint.step}</h3>
+            {hint.step !== 3 ? <p>{hint.text}</p> : <ol>{hint.candidates.map(candidate => <li key={candidate.move}>
+              <strong>Source continuation: {candidate.san}</strong>
+              <p>Source line (UCI): {candidate.line.join(' ')}</p>
+              {candidate.reasons.length ? <ul>{candidate.reasons.map((reason, index) => <li key={index}><strong>{reason.tier === 'principle' ? 'Principle' : 'Tactical'}:</strong> {reason.description}</li>)}</ul> : <p>Source continuation; no engine-quality claim.</p>}
+            </li>)}</ol>}</> : null}
+          </div>)}
+        </section>
+        <div className="puzzles-actions">
+          {active ? <Button disabled={pending || needsRefresh} onClick={() => void mutate('abandon')}>Abandon puzzle</Button>
+            : <Button variant="primary" disabled={pending} onClick={() => void startSelected()}>Next puzzle</Button>}
         </div>
-        {error ? <div role="alert"><p>{error} Please retry loading the server state before continuing.</p>
-          <Button disabled={pending} onClick={() => void (mode === 'mistakes' ? loadMistakes(mistakes?.offset ?? 0) : run ? refresh() : start())}>Retry</Button>
-        </div> : null}
-        {!active && mode !== 'mistakes' && !run && catalog && (catalog.status === 'empty' || catalog.status === 'exhausted') ? <section className="working-controls__section">
-          <p>{catalog.status === 'empty' ? 'No imported puzzles are available.' : mode === 'daily' ? 'No more puzzles are available in today’s set. The next daily set resets at UTC midnight.' : 'This practice mode is exhausted. No unseen eligible puzzles remain.'}</p>
-          {catalog.status === 'empty' ? <>
-            {puzzleImport?.desktop ? <PuzzleLibraryControls /> : <><PuzzleImportInstructions /><p>Nothing downloads automatically.</p></>}
-          </> : null}
-          {!(catalog.status === 'empty' && puzzleImport?.desktop) ? <Button variant="primary" disabled={pending || (mode === 'theme' && !theme)} onClick={() => void startSelected()}>Check for puzzles</Button> : null}
-        </section> : null}
-        {run && (active || mode === run.mode) ? <section className="working-controls__section">
-          <h2 ref={puzzleHeading} tabIndex={-1}>Source puzzle</h2>
+        <details className="puzzles-disclosure">
+          <summary>Source and selection details</summary>
           <p>Selection: {run.selection_reason === 'due' ? 'Due review' : run.selection_reason === 'weak' ? 'Related to recurring weaknesses (theme heuristic, not measured mastery)' : run.selection_reason === 'exploration' ? 'Exploration' : 'Resumed earlier practice'}</p>
-          <p>Mode: {run.mode}{run.theme ? ` · ${run.theme}` : ''}</p>
           {run.widening ? <p>Selection range: {run.widening === '200' ? 'Within ±200 of your puzzle rating' : run.widening === '400' ? 'Widened to ±400 of your puzzle rating' : run.widening === 'catalog' ? 'Widened to the available catalog' : 'Scheduled due review'}</p> : null}
-          <p>{run.rated ? 'Rated first exposure' : run.mode !== 'daily' ? 'Unrated mode practice' : 'Unrated review, repeat or earlier run'}</p>
           <p>Setup move (UCI): {run.setup}</p>
           <p>Played continuation (UCI): {run.played_moves.length ? run.played_moves.join(' ') : 'No solver moves yet.'}</p>
-          <section aria-label="Puzzle hints">
-            <Button variant={active ? 'primary' : 'secondary'} disabled={pending || !active || needsRefresh || run.hint_step >= 3} onClick={() => void mutate('hint')}>Show hint</Button>
-            <p>Hint {run.hint_step} of 3. The third hint can reveal the source line.</p>
-            {hintSlots.map((hint, index) => <div key={index} role="status" aria-atomic="true">
-              {hint ? <><h3>Hint {hint.step}</h3>
-              {hint.step !== 3 ? <p>{hint.text}</p> : <ol>{hint.candidates.map(candidate => <li key={candidate.move}>
-                <strong>Source continuation: {candidate.san}</strong>
-                <p>Source line (UCI): {candidate.line.join(' ')}</p>
-                {candidate.reasons.length ? <ul>{candidate.reasons.map((reason, index) => <li key={index}><strong>{reason.tier === 'principle' ? 'Principle' : 'Tactical'}:</strong> {reason.description}</li>)}</ul> : <p>Source continuation; no engine-quality claim.</p>}
-              </li>)}</ol>}</> : null}
-            </div>)}
-          </section>
-          <div className="puzzles-actions">
-            {active ? <Button disabled={pending || needsRefresh} onClick={() => void mutate('abandon')}>Abandon puzzle</Button>
-              : <Button variant="primary" disabled={pending} onClick={() => void startSelected()}>Next puzzle</Button>}
-          </div>
-        </section> : null}
+        </details>
       </Panel>
-    </div>
-    <p>Lichess CC0 source-verified practice: the source line is legal, not an engine judgement of move quality. Puzzle rating is separate from chess strength and does not award theme mastery.</p>
-    <p>Theme, Your mistakes and Solve streak are unrated. Mode-used puzzles permanently cease to be rated first exposures or weak/exploration candidates; future Daily supply may widen or be shorter.</p>
-    {streak ? <Panel aria-label="Solve streak progress">
-      <h2>Solve streak</h2><p>Current: {streak.current} · Best: {streak.best}</p>
-      {streak.reset_reason ? <p>Reset reason: {streak.reset_reason}</p> : null}
-      <p>Only finished Solve streak puzzles count. Unhinted solves add one; hints, failure or abandonment reset the streak. Within-puzzle mistakes are allowed. Daily and Theme do not change it.</p>
-    </Panel> : null}
-    {mode === 'mistakes' && !active ? <Panel aria-label="Your mistakes">
+    </div> : null}
+    {mode === 'mistakes' && !active ? <Panel className="puzzles-mistakes working-controls" aria-label="Your mistakes">
       <h2 ref={mistakeHeading} tabIndex={-1}>Your mistakes</h2>
       <p>Hints are app-reported. Existing lesson hints and assisted-credit rules apply; lifetime attempt budgets do not reset.</p>
       {mistakes ? <>
-        <p>Excluded on this page: no review schedule {mistakes.excluded.no_review_schedule}; retired {mistakes.excluded.retired}; untrusted {mistakes.excluded.untrusted}; exhausted {mistakes.excluded.exhausted}.</p>
         {!mistakes.items.length ? <p>No eligible mistakes available.</p> : <ul className="working-list">{mistakes.items.map((item, index) => <li key={item.lesson_id}>
           <a href={`/games/${encodeURIComponent(item.game_id)}/analysis?ply=${item.ply}`}>Game review {mistakes.offset + index + 1} at ply {item.ply}</a>
           <span> · {item.attempts_remaining} attempts remaining </span>
@@ -317,9 +335,14 @@ export function PuzzlesScreen() {
           <Button disabled={pending || mistakes.offset === 0} onClick={() => void loadMistakes(Math.max(0, mistakes.offset - mistakes.limit))}>Previous mistakes</Button>
           <Button disabled={pending || !mistakes.has_more} onClick={() => void loadMistakes(mistakes.offset + mistakes.limit)}>More mistakes</Button>
         </div>
+        <details className="puzzles-disclosure">
+          <summary>Excluded mistakes</summary>
+          <p>Excluded on this page: no review schedule {mistakes.excluded.no_review_schedule}; retired {mistakes.excluded.retired}; untrusted {mistakes.excluded.untrusted}; exhausted {mistakes.excluded.exhausted}.</p>
+        </details>
       </> : null}
     </Panel> : null}
     {openedMistakes.map(entry => <div key={entry.moment.lesson_id}
+      className="puzzles-retry"
       id={`mistake-${entry.moment.lesson_id}`}
       ref={mistake?.moment.lesson_id === entry.moment.lesson_id ? retryPanel : undefined}
       role="region" aria-label={`Retry mistake at ply ${entry.moment.ply}`} tabIndex={-1}
@@ -333,15 +356,33 @@ export function PuzzlesScreen() {
           item.lesson_id === entry.moment.lesson_id ? { ...item, attempts_remaining: Math.max(0, entry.moment.attempts_used + entry.moment.attempts_remaining - used) } : item) } : null)}
         onComplete={() => setMistake(null)} />
     </div>)}
-    {daily ? <Panel aria-label="Daily puzzle practice">
-      <h2>Daily puzzle practice · {daily.utc_day} UTC</h2>
-      <p>Scan64 puzzle rating: {daily.rating}{daily.provisional ? ' (provisional)' : ''} · {daily.rated_count} rated puzzles</p>
-      <p>{daily.completed} of {daily.total} completed · {daily.remaining} remaining · {daily.overdue_count} overdue reviews</p>
-      <p>Selected mix: {daily.actual_mix.due} due reviews, {daily.actual_mix.weak} related to weaknesses, {daily.actual_mix.exploration} exploration.</p>
-      <p>{daily.message}</p>
-      <p>Up to 10 puzzles per UTC day. Refreshing or choosing Next does not regenerate or skip the set. An active puzzle resumes first, even after UTC midnight.</p>
-    </Panel> : null}
-    <p>On a rated first exposure, an independent solve wins rating; hints, failure or abandonment lose rating. Mistakes within the three-attempt limit are allowed. Reviews and repeats are unrated.</p>
+    <div className="puzzles-summary-row">
+      {daily ? <Panel className="puzzles-summary" aria-label="Daily puzzle practice">
+        <h2>Daily puzzle practice · {daily.utc_day} UTC</h2>
+        <p>Scan64 puzzle rating: {daily.rating}{daily.provisional ? ' (provisional)' : ''} · {daily.rated_count} rated puzzles</p>
+        <p>{daily.completed} of {daily.total} completed · {daily.remaining} remaining · {daily.overdue_count} overdue reviews</p>
+        <details className="puzzles-disclosure">
+          <summary>Daily set details</summary>
+          <p>Selected mix: {daily.actual_mix.due} due reviews, {daily.actual_mix.weak} related to weaknesses, {daily.actual_mix.exploration} exploration.</p>
+          <p>{daily.message}</p>
+          <p>Up to 10 puzzles per UTC day. Refreshing or choosing Next does not regenerate or skip the set. An active puzzle resumes first, even after UTC midnight.</p>
+        </details>
+      </Panel> : null}
+      {streak ? <Panel className="puzzles-summary" aria-label="Solve streak progress">
+        <h2>Solve streak</h2><p>Current: {streak.current} · Best: {streak.best}</p>
+        {streak.reset_reason ? <p>Reset reason: {streak.reset_reason}</p> : null}
+        <details className="puzzles-disclosure">
+          <summary>Solve streak rules</summary>
+          <p>Only finished Solve streak puzzles count. Unhinted solves add one; hints, failure or abandonment reset the streak. Within-puzzle mistakes are allowed. Daily and Theme do not change it.</p>
+        </details>
+      </Panel> : null}
+    </div>
+    <details className="puzzles-disclosure puzzles-rules">
+      <summary>Rating and practice rules</summary>
+      <p>Lichess CC0 source-verified practice: the source line is legal, not an engine judgement of move quality. Puzzle rating is separate from chess strength and does not award theme mastery.</p>
+      <p>Theme, Your mistakes and Solve streak are unrated. Mode-used puzzles permanently cease to be rated first exposures or weak/exploration candidates; future Daily supply may widen or be shorter.</p>
+      <p>A rated first exposure rewards an independent solve. Using a hint, failing or abandoning counts as a rating loss. Mistakes within the three-attempt limit are allowed. Reviews and repeats are unrated.</p>
+    </details>
   </section>;
 }
 

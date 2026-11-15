@@ -40,7 +40,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: (path: string) => void
   const weakestSkills = [...(data?.weekly.active_mastery ?? [])].sort((a, b) => a.mastery - b.mastery).slice(0, 3);
 
   return (
-    <section className="today-screen" aria-labelledby="today-title">
+    <section className="today-screen working-screen" aria-labelledby="today-title">
       <header className="today-heading">
         <h1 id="today-title">Today</h1>
         <p>A game to play. A moment to understand. A skill to practise.</p>

@@ -255,6 +255,30 @@ fn main() {
                 Menu::with_items(app, &[&application, &help])?
             };
             app.set_menu(menu)?;
+            // The window-state plugin restores physical sizes before setup.
+            // Clamp old saved sizes against the current logical-pixel minimum.
+            let window = app
+                .get_webview_window("main")
+                .ok_or("Main window is unavailable")?;
+            let config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|config| config.label == "main")
+                .ok_or("Main window configuration is unavailable")?;
+            let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) else {
+                return Err("Main window minimum size is required".into());
+            };
+            let size = window
+                .inner_size()?
+                .to_logical::<f64>(window.scale_factor()?);
+            if size.width < min_width || size.height < min_height {
+                window.set_size(tauri::LogicalSize::new(
+                    size.width.max(min_width),
+                    size.height.max(min_height),
+                ))?;
+            }
             updater::start(app.handle().clone());
             if server::smoke_file().is_some() {
                 let handle = app.handle().clone();
