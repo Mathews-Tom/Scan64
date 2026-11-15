@@ -259,8 +259,9 @@ def main() -> None:
     parser.add_argument("--packaged", action="store_true")
     parser.add_argument("--screenshot", type=Path)
     args = parser.parse_args()
-    # Preserve the installed launcher (including AppRun symlinks), not its inner target.
-    binary = args.binary.absolute()
+    # Cocoa needs canonical bundle parents (/var aliases /private/var on macOS).
+    # Preserve the final launcher symlink: resolving AppRun bypasses its setup.
+    binary = args.binary.parent.resolve() / args.binary.name
     if not binary.is_file():
         parser.error(f"Installed executable does not exist: {binary}")
     output = args.output.resolve()

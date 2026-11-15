@@ -128,3 +128,30 @@ def test_failed_app_smoke_preserves_both_logs_before_temporary_cleanup(
         helpers.run(Path("/unused"), tmp_path, kill=True, failure_logs=evidence)
     assert (evidence / "server.log").read_text() == "server failure"
     assert (evidence / "app.log").read_text() == "app failure"
+
+
+@pytest.mark.skipif(packaging.os.name == "nt", reason="Unix installers use symlink launchers")
+def test_smoke_cli_canonicalizes_bundle_parents_but_preserves_apprun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helpers = packaging.smoke_helpers()
+    actual = tmp_path / "bundle"
+    actual.mkdir()
+    inner = actual / "scan64-desktop"
+    inner.write_text("executable")
+    (actual / "AppRun").symlink_to(inner)
+    alias = tmp_path / "alias"
+    alias.symlink_to(actual, target_is_directory=True)
+    monkeypatch.setattr(
+        helpers.sys,
+        "argv",
+        ["desktop-smoke.py", str(alias / "AppRun"), str(tmp_path / "result.json")],
+    )
+
+    def record(binary: Path, directory: Path, **kwargs) -> dict:
+        assert binary == actual.resolve() / "AppRun"
+        assert binary.is_symlink()
+        return {}
+
+    monkeypatch.setattr(helpers, "run", record)
+    helpers.main()
