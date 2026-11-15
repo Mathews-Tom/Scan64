@@ -1,9 +1,12 @@
+import asyncio
 import ctypes
 import io
 import os
 import signal
+import sqlite3
 import sys
 import threading
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -18,6 +21,7 @@ def environment(tmp_path: Path) -> dict[str, str]:
         "SCAN64_DATA_DIR": str(tmp_path / "desktop data"),
         "SCAN64_PORT": "12345",
         "SCAN64_SHELL_TOKEN": "unit-test-shell-secret",
+        "SCAN64_APP_VERSION": "0.6.1",
     }
 
 
@@ -240,12 +244,25 @@ def test_main_configures_only_loopback_with_no_access_log(
     monkeypatch.setattr(desktop_server, "sys", fake_sys)
     configuration = Mock(return_value="uvicorn-configuration")
     server = SimpleNamespace(started=True, run=Mock())
-    server_factory = Mock(return_value=server)
+
+    class FakeServer:
+        def __init__(self, config: object) -> None:
+            server_factory(config)
+            self.started = False
+
+        async def startup(self, sockets: object = None) -> None:
+            self.started = True
+
+        def run(self) -> None:
+            asyncio.run(self.startup())
+            server.run()
+
+    server_factory = Mock()
 
     monkeypatch.setitem(
         sys.modules,
         "uvicorn",
-        SimpleNamespace(Config=configuration, Server=server_factory),
+        SimpleNamespace(Config=configuration, Server=FakeServer),
     )
     with pytest.raises(ProcessExited):
         desktop_server.main()
@@ -261,6 +278,7 @@ def test_main_configures_only_loopback_with_no_access_log(
     exit_tree.assert_called_once_with(0)
     assert os.environ["SCAN64_DATABASE_URL"].endswith("/desktop data/scan64.db")
     assert threads.call_args_list[0].kwargs["args"][0] is parent_pipe
+    assert (tmp_path / "desktop data" / "desktop-app-version").read_text() == "0.6.1\n"
     if windowed:
         recover_pipe.assert_called_once()
         assert fake_sys.stdout is fake_sys.stderr
@@ -343,3 +361,74 @@ def test_windowed_stdin_recovers_binary_non_inheritable_handle_without_console(
     descriptor.assert_called_once_with(456, 0x8000)
     fake_os.set_inheritable.assert_called_once_with(17, False)
     fake_os.fdopen.assert_called_once_with(17, "rb", buffering=0)
+
+
+@pytest.mark.parametrize("failure", [None, "backup", "migration", "bind", "marker"])
+def test_version_backup_precedes_api_loading_and_migrations_and_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str | None
+) -> None:
+    from scan64 import desktop_backups
+
+    data_dir = tmp_path / "desktop data"
+    data_dir.mkdir()
+    marker = data_dir / desktop_backups.VERSION_MARKER
+    marker.write_text("0.6.1\n", encoding="utf-8")
+    with closing(sqlite3.connect(data_dir / "scan64.db")) as database:
+        database.execute("CREATE TABLE migration_log (version TEXT)")
+        database.execute("INSERT INTO migration_log VALUES ('0.6.1')")
+        database.commit()
+    for name, value in {**environment(tmp_path), "SCAN64_APP_VERSION": "0.6.2"}.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("SCAN64_DATABASE_URL", "sqlite:///inherited.db")
+    monkeypatch.setenv("SCAN64_DISTRIBUTION", "source")
+    monkeypatch.setattr(desktop_server, "_configure_process_cleanup", Mock())
+    monkeypatch.setattr(desktop_server, "_parent_stream", lambda: io.BytesIO())
+    monkeypatch.setattr(desktop_server.threading, "Thread", Mock())
+    exit_tree = Mock(side_effect=ProcessExited)
+    monkeypatch.setattr(desktop_server, "_exit_process_tree", exit_tree)
+    monkeypatch.setattr(desktop_server.traceback, "print_exc", Mock())
+    if failure == "backup":
+        monkeypatch.setattr(
+            desktop_backups, "_backup_database", Mock(side_effect=OSError("backup failed"))
+        )
+    if failure == "marker":
+        monkeypatch.setattr(
+            desktop_backups.DesktopBackup,
+            "record_successful_startup",
+            Mock(side_effect=OSError("marker failed")),
+        )
+    events: list[str] = []
+
+    def load_api(*args: object, **kwargs: object) -> object:
+        snapshots = list((data_dir / "backups").glob(desktop_backups.BACKUP_PATTERN))
+        assert len(snapshots) == 1
+        with closing(sqlite3.connect(snapshots[0])) as snapshot:
+            assert snapshot.execute("SELECT version FROM migration_log").fetchall() == [("0.6.1",)]
+        events.append("api-loaded")
+        return object()
+
+    class FakeServer:
+        def __init__(self, configuration: object) -> None:
+            self.started = False
+
+        async def startup(self, sockets: object = None) -> None:
+            events.append("migration")
+            assert marker.read_text() == "0.6.1\n"
+            if failure == "migration":
+                raise RuntimeError("migration failed")
+            with closing(sqlite3.connect(data_dir / "scan64.db")) as database:
+                database.execute("INSERT INTO migration_log VALUES ('0.6.2')")
+                database.commit()
+            self.started = failure != "bind"
+
+        def run(self) -> None:
+            asyncio.run(self.startup())
+            if self.started:
+                assert marker.read_text() == "0.6.2\n"
+
+    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(Config=load_api, Server=FakeServer))
+    with pytest.raises(ProcessExited):
+        desktop_server.main()
+    assert events == ([] if failure == "backup" else ["api-loaded", "migration"])
+    exit_tree.assert_called_once_with(0 if failure is None else 1)
+    assert marker.read_text() == ("0.6.2\n" if failure is None else "0.6.1\n")

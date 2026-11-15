@@ -26,6 +26,8 @@ pub struct Server {
     data_dir: PathBuf,
     resource_dir: PathBuf,
     pub log_path: PathBuf,
+    app_version: String,
+    updating: bool,
 }
 
 impl Server {
@@ -38,10 +40,20 @@ impl Server {
             data_dir,
             resource_dir,
             log_path,
+            app_version: env!("CARGO_PKG_VERSION").to_owned(),
+            updating: false,
         }
     }
 
+    pub fn with_app_version(mut self, version: String) -> Self {
+        self.app_version = version;
+        self
+    }
+
     pub fn connection(&mut self) -> Result<Connection, String> {
+        if self.updating {
+            return Err("The server is stopped while an update is installed".to_owned());
+        }
         if let Some(child) = self.child.as_mut() {
             match child.try_wait() {
                 Ok(None) => {
@@ -64,7 +76,10 @@ impl Server {
     }
 
     pub fn restart(&mut self) -> Result<Connection, String> {
-        self.stop();
+        if self.updating {
+            return Err("The server cannot restart while an update is installed".to_owned());
+        }
+        self.stop_checked()?;
         self.failure = None;
         self.start()
     }
@@ -116,6 +131,7 @@ impl Server {
             }
             command
                 .env("SCAN64_DATA_DIR", &self.data_dir)
+                .env("SCAN64_APP_VERSION", &self.app_version)
                 .env("SCAN64_PORT", port.to_string())
                 .env("SCAN64_SHELL_TOKEN", &token)
                 .env("PYTHONUTF8", "1")
@@ -207,6 +223,20 @@ impl Server {
     }
 
     pub fn stop(&mut self) {
+        let _ = self.stop_checked();
+    }
+
+    pub fn stop_for_update(&mut self) -> Result<(), String> {
+        self.updating = true;
+        self.stop_checked()
+    }
+
+    pub fn recover_after_update(&mut self) -> Result<Connection, String> {
+        self.updating = false;
+        self.restart()
+    }
+
+    fn stop_checked(&mut self) -> Result<(), String> {
         self.connection = None;
         if let Some(mut child) = self.child.take() {
             // EOF starts the server's bounded, process-tree shutdown watchdog.
@@ -214,7 +244,7 @@ impl Server {
             let deadline = Instant::now() + Duration::from_secs(5);
             while Instant::now() < deadline {
                 if matches!(child.try_wait(), Ok(Some(_))) {
-                    return;
+                    return Ok(());
                 }
                 thread::sleep(Duration::from_millis(25));
             }
@@ -226,9 +256,17 @@ impl Server {
                     libc::killpg(child.id() as libc::pid_t, libc::SIGKILL);
                 }
             }
-            let _ = child.kill();
-            let _ = child.wait();
+            // Do not install over an executable that might still own the database.
+            if child.kill().is_err() && !matches!(child.try_wait(), Ok(Some(_))) {
+                self.child = Some(child);
+                return Err(self.error("Cannot stop the server for an update"));
+            }
+            if child.wait().is_err() {
+                self.child = Some(child);
+                return Err(self.error("Cannot confirm the server stopped"));
+            }
         }
+        Ok(())
     }
 }
 
@@ -238,7 +276,7 @@ impl Drop for Server {
     }
 }
 
-fn private_directory(path: &Path) -> std::io::Result<()> {
+pub(crate) fn private_directory(path: &Path) -> std::io::Result<()> {
     let mut directory = fs::DirBuilder::new();
     directory.recursive(true);
     #[cfg(unix)]
@@ -317,6 +355,30 @@ fn configure_engine(command: &mut Command, resource_dir: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn update_pause_prevents_frontend_from_starting_or_restarting_the_child() {
+        let mut server =
+            Server::new("unused".into(), "unused".into()).with_app_version("0.6.2".to_owned());
+        assert_eq!(server.app_version, "0.6.2");
+        server.stop_for_update().unwrap();
+        assert!(server.connection().err().unwrap().contains("update"));
+        assert!(server.restart().err().unwrap().contains("update"));
+        assert!(server.pid().is_none());
+    }
+
+    #[test]
+    fn failed_install_recovery_releases_the_update_gate() {
+        let directory = env::temp_dir().join(new_token().unwrap());
+        let mut server = Server::new(directory.clone(), directory.join("missing-resources"));
+        server.stop_for_update().unwrap();
+        // A missing bundle cannot launch, but recovery must remove the gate so
+        // ordinary server recovery is possible instead of leaving Installing.
+        assert!(server.recover_after_update().is_err());
+        assert!(!server.updating);
+        assert!(server.pid().is_none());
+        fs::remove_dir_all(directory).unwrap();
+    }
 
     #[test]
     fn bundled_engine_uses_an_absolute_path_without_mutating_path() {

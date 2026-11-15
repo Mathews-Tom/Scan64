@@ -15,6 +15,9 @@ accepted = [
     "Unlicense",
     "BSL-1.0",
     "MPL-2.0",
+    # Updater TLS root-certificate data; redistribution requires this licence text,
+    # which the complete cargo-about inventory embeds in the bundled notices.
+    "CDLA-Permissive-2.0",
     "GPL-3.0-or-later",
 ]
 no-clearly-defined = true

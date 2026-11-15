@@ -47,3 +47,33 @@ stops startup. These mechanisms
 do not depend on Stockfish cooperating with UCI shutdown. The five-second
 shell-death requirement is subject to the three-OS lifecycle checks, not a claim
 that the desktop shell is a security sandbox.
+
+## Desktop update signing
+
+The unified desktop updater accepts an update only after Tauri verifies its
+signature against the public key compiled into `plugins.updater.pubkey`. The
+production endpoint is the HTTPS GitHub Releases `latest.json` for
+`Mathews-Tom/Scan64`; ordinary TLS checks remain enabled for the manifest and
+download. This signing is separate from Apple notarization and Windows code
+signing: installers remain unsigned by those platform authorities.
+
+The owner generates and retains the production private key **offline**, with an
+offline backup, and supplies the key and password only through the Actions secret
+store (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). Neither
+belongs in source, artifacts or logs. Losing the signing key requires users to
+reinstall manually; treat a compromise as a security incident, stop publication,
+and coordinate replacement through the private reporting channel above.
+
+Until the owner supplies the public half, the committed production configuration
+contains a clearly named placeholder and release builds fail closed. Explicit PR
+dry runs may bypass only that missing-key check, never insecure transport or an
+unexpected production endpoint. Test builds require the `updater-test` Cargo
+feature and `SCAN64_UPDATER_TEST=1`; they use a per-run temporary test key and a
+loopback-only HTTP overlay. Never publish a test-configured build as a release.
+
+Installation requires the user's explicit **Restart to update** action, and the
+shell stops its server before replacing the app. On first startup under a newer
+app version, a SQLite backup precedes any migrations; failure prevents startup.
+The newest three snapshots are kept under the app data directory's `backups/`.
+They contain private player data and need the same protection as the live
+database. This is database protection, not automatic app-bundle rollback.
