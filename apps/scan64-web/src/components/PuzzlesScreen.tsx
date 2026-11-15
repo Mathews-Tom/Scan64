@@ -19,7 +19,7 @@ export function PuzzlesScreen() {
   const [run, setRun] = useState<PuzzleRunRead | null>(null);
   const [catalog, setCatalog] = useState<PuzzleStartRead | null>(null);
   const [pending, setPending] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; retry: () => Promise<void> } | null>(null);
   const [notice, setNotice] = useState('Loading puzzle…');
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [mode, setMode] = useState<PuzzleMode | 'mistakes'>('daily');
@@ -37,7 +37,7 @@ export function PuzzlesScreen() {
   const busy = useRef(false);
   const generation = useRef(0);
 
-  const start = useCallback(async (body?: PuzzleRunCreate, related = false) => {
+  const start = useCallback(async (body?: PuzzleRunCreate, related = false): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
     const request = generation.current;
@@ -59,7 +59,7 @@ export function PuzzlesScreen() {
     } catch (failure) {
       if (request === generation.current) {
         setNotice('');
-        setError(failure instanceof Error ? failure.message : 'Could not load puzzle.');
+        setError({ message: failure instanceof Error ? failure.message : 'Could not load puzzle.', retry: () => start(body, related) });
         if (related) setPatternUnavailable(true);
       }
     } finally {
@@ -105,7 +105,7 @@ export function PuzzlesScreen() {
         setRun(failure.run);
         setNotice(`${failure.message} Latest puzzle state loaded; your action was not replayed.`);
       } else {
-        setError(failure instanceof Error ? failure.message : 'Puzzle request failed.');
+        setError({ message: failure instanceof Error ? failure.message : 'Puzzle request failed.', retry: refresh });
         setNeedsRefresh(true);
       }
     } finally {
@@ -113,7 +113,7 @@ export function PuzzlesScreen() {
     }
   };
 
-  const refresh = async () => {
+  const refresh = async (): Promise<void> => {
     if (!run || busy.current) return;
     busy.current = true;
     const request = generation.current;
@@ -124,13 +124,13 @@ export function PuzzlesScreen() {
       setRun(next); setNeedsRefresh(false);
       setNotice('Latest puzzle state loaded. Choose your next action.');
     } catch (failure) {
-      if (request === generation.current) setError(failure instanceof Error ? failure.message : 'Could not refresh puzzle.');
+      if (request === generation.current) setError({ message: failure instanceof Error ? failure.message : 'Could not refresh puzzle.', retry: refresh });
     } finally {
       if (request === generation.current) { busy.current = false; setPending(false); }
     }
   };
 
-  const loadMistakes = async (offset = 0) => {
+  const loadMistakes = async (offset = 0): Promise<void> => {
     if (busy.current) return;
     busy.current = true; setPending(true); setError(null);
     const request = generation.current;
@@ -138,13 +138,13 @@ export function PuzzlesScreen() {
       const result = await ApiClient.getPuzzleMistakes(offset);
       if (request === generation.current) setMistakes(result);
     } catch (failure) {
-      if (request === generation.current) setError(failure instanceof Error ? failure.message : 'Could not load your mistakes.');
+      if (request === generation.current) setError({ message: failure instanceof Error ? failure.message : 'Could not load your mistakes.', retry: () => loadMistakes(offset) });
     } finally {
       if (request === generation.current) { busy.current = false; setPending(false); }
     }
   };
 
-  const startMistake = useCallback(async (item: { lesson_id: string; game_id: string }) => {
+  const startMistake = useCallback(async (item: { lesson_id: string; game_id: string }): Promise<void> => {
     if (busy.current || run?.state === 'active') return;
     busy.current = true; setPending(true); setError(null);
     const request = generation.current;
@@ -157,7 +157,7 @@ export function PuzzlesScreen() {
       }
     } catch (failure) {
       if (request === generation.current) {
-        setError(failure instanceof Error ? failure.message : 'Could not start this mistake.');
+        setError({ message: failure instanceof Error ? failure.message : 'Could not start this mistake.', retry: () => startMistake(item) });
         if (practiceRequest.get('lesson') === item.lesson_id) {
           try {
             const available = await ApiClient.getPuzzleModes();
@@ -232,8 +232,8 @@ export function PuzzlesScreen() {
   ].filter(Boolean);
   const progress = <div aria-hidden="true">{progressMessages.map((message, index) => <p key={index}>{message}</p>)}</div>;
   const recovery = error ? <div role="alert" className="puzzles-recovery">
-    <p>{error} Please retry loading the server state before continuing.</p>
-    <Button disabled={pending} onClick={() => void (mode === 'mistakes' ? loadMistakes(mistakes?.offset ?? 0) : run ? refresh() : start())}>Retry</Button>
+    <p>{error.message} Please retry to continue.</p>
+    <Button disabled={pending} onClick={() => void error.retry()}>Retry</Button>
   </div> : null;
   return <section className="puzzles-screen working-screen" aria-labelledby="puzzles-title" aria-busy={pending}>
     <h1 id="puzzles-title">Puzzles</h1>

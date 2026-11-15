@@ -31,6 +31,9 @@
 .review-moves [aria-current='step'], .review-key-moments [aria-current='step'] { border-color: var(--ink); background: var(--surface); box-shadow: inset 3px 0 var(--accent); }
 .review-key-moments article { border-top: 1px solid var(--border); padding-block: var(--space-4); }
 .review-key-moments h4 { margin-block: var(--space-3) var(--space-2); }
+@media (min-width: 960px) {
+  .review-moves ol { max-height: min(28rem, 50svh); overflow-y: auto; overscroll-behavior: contain; }
+}
 @media (max-width: 767px) {
   .review-summary { gap: var(--space-4); }
 }

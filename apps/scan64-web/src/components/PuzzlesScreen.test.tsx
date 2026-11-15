@@ -375,6 +375,23 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.queryByTestId('puzzle-board')).not.toBeInTheDocument();
   });
 
+  it('retries the failed theme start instead of refreshing an older completed daily run', async () => {
+    await mount(run({ state: 'solved' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Theme' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: 'pin' } });
+    vi.mocked(ApiClient.startPuzzleRun)
+      .mockRejectedValueOnce(new Error('Theme request interrupted'))
+      .mockResolvedValueOnce({ status: 'ready', run: run({ mode: 'theme', theme: 'pin', rated: false }), message: '', daily, streak });
+    fireEvent.click(screen.getByRole('button', { name: 'Start theme' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Theme request interrupted');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await screen.findByTestId('puzzle-board');
+    expect(screen.getByRole('radio', { name: 'Theme' })).toBeChecked();
+    expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(2);
+    expect(ApiClient.startPuzzleRun).toHaveBeenLastCalledWith({ mode: 'theme', theme: 'pin' });
+    expect(ApiClient.getPuzzleRun).not.toHaveBeenCalled();
+  });
+
   it('shows authoritative terminal streak progress and reset reason', async () => {
     await mount(run({ mode: 'streak', rated: false }));
     vi.mocked(ApiClient.abandonPuzzleRun).mockResolvedValueOnce(run({ mode: 'streak', rated: false, state: 'abandoned',

@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { Chess } from 'chess.js';
+import { makeGameReview } from '../../src/components/review.test-fixtures';
 import type { PuzzleRunRead } from '../../src/api/types';
 import { prepareToday } from './today';
 
@@ -100,6 +102,31 @@ test('compact navigation expands without squeezing the workspace and dismisses w
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.locator('main')).toBeFocused();
   await expect(page.locator('main')).not.toHaveAttribute('inert');
+});
+
+test('desktop review keeps the board visible while selecting a late move', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepareToday(page);
+  const id = '00000000-0000-0000-0000-000000000001';
+  const game = new Chess();
+  game.loadPgn(Array.from({ length: 20 }, (_, index) =>
+    `${index * 2 + 1}. Nf3 Nf6 ${index * 2 + 2}. Ng1 Ng8`).join(' ') + ' *');
+  const review = makeGameReview({ game_id: id, key_moments: [] });
+  review.moves = game.history({ verbose: true }).map((move, index) => ({
+    ...review.moves[0], ply: index + 1, source_fen: move.before, fen: move.after,
+    move_uci: move.from + move.to, san: move.san, is_owner_move: move.color === 'w',
+    mover: move.color === 'w' ? 'white' : 'black',
+  }));
+  await page.route(`**/v1/games/${id}/review`, route => route.fulfill({ json: review }));
+  await page.route(`**/v1/games/${id}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
+  await page.goto(`/games/${id}/analysis`);
+  const history = page.getByTestId('review-move-list');
+  await expect(history.getByRole('listitem')).toHaveCount(80);
+  expect((await history.boundingBox())!.height).toBeLessThanOrEqual(450);
+  expect(await history.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+  await page.getByTestId('review-move-80').click();
+  await expect(page.getByTestId('review-move-80')).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByTestId('review-board')).toBeInViewport();
 });
 
 test('wide navigation preference survives reload and compact drawer closes at the breakpoint', async ({ page }) => {

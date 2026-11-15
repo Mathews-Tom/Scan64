@@ -25,7 +25,7 @@ vi.mock('./components/PuzzleImport', async importOriginal => ({
 vi.mock('./components/Updates', async importOriginal => ({
   ...await importOriginal<typeof UpdatesModule>(),
   UpdatesProvider: ({ children }: { children: ReactNode }) => children,
-  UpdatesFoot: () => null,
+  UpdatesFoot: () => <div style={{ display: 'none' }}><button>Hidden updater control</button></div>,
 }));
 
 const originalWidth = window.innerWidth;

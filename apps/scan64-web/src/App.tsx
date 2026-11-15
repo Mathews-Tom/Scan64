@@ -94,7 +94,14 @@ function App() {
         event.stopPropagation();
         dismissDrawer();
       } else if (event.key === 'Tab') {
-        const controls = sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]');
+        const controls = Array.from(sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]') ?? [])
+          .filter(control => {
+            for (let element: HTMLElement | null = control; element && element !== sidebar; element = element.parentElement) {
+              const style = getComputedStyle(element);
+              if (element.hidden || style.display === 'none' || style.visibility !== 'visible') return false;
+            }
+            return true;
+          });
         event.stopPropagation();
         const first = controls?.[0];
         const last = controls?.[controls.length - 1];
