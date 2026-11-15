@@ -1,3 +1,4 @@
+import { PuzzleImportProvider, PuzzleImportFoot } from './components/PuzzleImport';
 import { DesktopUpdateBanner } from './components/DesktopUpdateBanner';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
@@ -31,6 +32,7 @@ function decodeRouteSegment(value: string): string | null {
 }
 function App() {
   useState(initializeAppearance);
+  const [puzzleLibraryRevision, setPuzzleLibraryRevision] = useState(0);
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [activePlaySession, setActivePlaySession] = useState<{session: PlaySessionRead, fen: string} | null>(null);
   const [activeAnalysisGameId, setActiveAnalysisGameId] = useState<string | undefined>();
@@ -151,7 +153,7 @@ function App() {
       screen = <DailyTrainingScreen />;
       break;
     case '/puzzles':
-      screen = <PuzzlesScreen />;
+      screen = <PuzzlesScreen key={puzzleLibraryRevision} />;
       break;
     case '/profile':
       screen = <ProfileScreen onNavigate={navigate} />;
@@ -180,6 +182,7 @@ function App() {
   }
 
   return (
+    <PuzzleImportProvider onStartPuzzles={() => { setPuzzleLibraryRevision(value => value + 1); navigate('/puzzles'); }}>
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <DesktopUpdateBanner />
@@ -208,6 +211,7 @@ function App() {
             ><NavigationIcon name={label} /><span>{label}</span></button>
           );
         })}
+        <PuzzleImportFoot />
       </nav>
       <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content">
         {!hasIdentity && isKnownPath && pathname !== '/settings' ? (
@@ -250,6 +254,7 @@ function App() {
         )}
       </main>
     </div>
+    </PuzzleImportProvider>
   );
 }
 

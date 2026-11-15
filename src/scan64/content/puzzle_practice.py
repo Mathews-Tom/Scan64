@@ -182,7 +182,7 @@ def lock_puzzle_player(player_id: str, session: Session) -> None:
 def daily_set(
     player_id: str, session: Session, now: datetime | None = None, *, commit_new: bool = True
 ) -> PuzzleDailySet:
-    """Reserve once; starts retain the transaction until their run is inserted."""
+    """Reserve once supply exists; starts retain the transaction until run insertion."""
     now = now or utc_now()
     utc_day = now.astimezone(UTC).date().isoformat()
     statement = select(PuzzleDailySet).where(
@@ -201,6 +201,18 @@ def daily_set(
         day = PuzzleDailySet(
             player_id=player_id, utc_day=utc_day, player_rating=rating.rating, created_at=now
         )
+        if (
+            session.exec(
+                select(ContentItem.id).where(ContentItem.domain == "puzzles").limit(1)
+            ).first()
+            is None
+        ):
+            # The empty-library screen precedes the user's first import. There is
+            # no selection to freeze yet; a same-day import must become playable.
+            # Once any puzzle exists, even a zero-slot/underfilled day stays stable.
+            if commit_new:
+                session.commit()
+            return day
         pool = _pool(player_id, rating.rating, now, session)
         selected = SessionComposer(
             {"due": 0.4, "mistakes": 0.5, "exploration": 0.1}

@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiBase, apiFetch, initializeDesktop, isDesktop, refreshDesktopConnection, restartDesktopServer } from './platform';
+import { apiBase, apiFetch, choosePuzzleFile, initializeDesktop, isDesktop, refreshDesktopConnection, restartDesktopServer } from './platform';
+
+const invoke = vi.hoisted(() => vi.fn());
+vi.mock('@tauri-apps/api/core', () => ({ invoke, isTauri: () => false }));
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -12,6 +15,8 @@ describe('browser platform', () => {
     await initializeDesktop();
     await refreshDesktopConnection();
     await restartDesktopServer();
+    expect(await choosePuzzleFile()).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 

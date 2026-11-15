@@ -75,3 +75,13 @@ export async function refreshDesktopConnection(): Promise<void> {
 export async function restartDesktopServer(): Promise<void> {
   if (isDesktop()) await connect('restart_server');
 }
+
+/** Native paths never enter browser installs; cancellation is not an error. */
+export async function choosePuzzleFile(): Promise<string | null> {
+  if (!isDesktop()) return null;
+  try {
+    return await invoke<string | null>('choose_puzzle_file');
+  } catch (error) {
+    throw typeof error === 'string' ? new Error(error) : error;
+  }
+}

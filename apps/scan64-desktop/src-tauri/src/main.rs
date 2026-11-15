@@ -16,6 +16,56 @@ use tauri::{
     menu::{Menu, PredefinedMenuItem, Submenu},
     Manager,
 };
+use tauri_plugin_dialog::DialogExt;
+
+fn readable_puzzle_file(path: &std::path::Path) -> Result<String, String> {
+    if !path.as_os_str().to_string_lossy().ends_with(".csv.zst") {
+        return Err("Choose a .csv.zst puzzle file".to_owned());
+    }
+    if !fs::metadata(path)
+        .map_err(|_| "Cannot read puzzle file metadata")?
+        .is_file()
+    {
+        return Err("Choose a readable regular file".to_owned());
+    }
+    let file = fs::File::open(path).map_err(|_| "Puzzle file is not readable".to_owned())?;
+    if !file
+        .metadata()
+        .map_err(|_| "Cannot read puzzle file metadata")?
+        .is_file()
+    {
+        return Err("Choose a readable regular file".to_owned());
+    }
+    path.to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| "Puzzle file path is not valid UTF-8".to_owned())
+}
+
+#[tauri::command]
+async fn choose_puzzle_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    app.dialog()
+        .file()
+        .set_title("Choose a puzzle file")
+        .add_filter("Compressed puzzle CSV", &["csv.zst"])
+        .pick_file(move |file| {
+            let _ = sender.send(file);
+        });
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = receiver
+            .recv()
+            .map_err(|_| "File dialog closed unexpectedly".to_owned())?;
+        file.map(|file| {
+            let path = file
+                .into_path()
+                .map_err(|_| "Choose a local puzzle file".to_owned())?;
+            readable_puzzle_file(&path)
+        })
+        .transpose()
+    })
+    .await
+    .map_err(|_| "File selection task failed".to_owned())?
+}
 
 type SharedServer = Arc<Mutex<Server>>;
 
@@ -131,10 +181,12 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AtomicBool::new(false))
         .invoke_handler(tauri::generate_handler![
             desktop_connection,
             restart_server,
+            choose_puzzle_file,
             smoke_complete,
             smoke_failed
         ])
@@ -195,6 +247,26 @@ mod tests {
         drop(startup);
         worker.join().unwrap();
         assert!(result.is_ok(), "Quit waited for the startup/restart lock");
+    }
+
+    #[test]
+    fn puzzle_selection_requires_readable_regular_csv_zst() {
+        let root = std::env::temp_dir().join(format!("scan64-picker-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let valid = root.join("puzzles.csv.zst");
+        fs::write(&valid, b"fixture").unwrap();
+        assert_eq!(
+            readable_puzzle_file(&valid).unwrap(),
+            valid.to_str().unwrap()
+        );
+        let wrong = root.join("puzzles.csv");
+        fs::write(&wrong, b"fixture").unwrap();
+        assert!(readable_puzzle_file(&wrong).is_err());
+        assert!(readable_puzzle_file(&root.join("missing.csv.zst")).is_err());
+        let directory = root.join("directory.csv.zst");
+        fs::create_dir(&directory).unwrap();
+        assert!(readable_puzzle_file(&directory).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -12,6 +12,7 @@
 .app-nav button[aria-current='page'] span { color: var(--mark-ink); }
 .app-nav button[aria-current='page'] svg { color: var(--mark-ink); }
 .app-nav .settings-link { margin-top: auto; }
+.puzzle-import-foot { font-size: var(--type-label); color: var(--muted); margin: var(--space-2) 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-shell main { margin-left: 208px; padding: var(--space-8); min-width: 0; overflow-wrap: anywhere; }
 .skip-link { position: fixed; top: var(--space-2); left: var(--space-2); transform: translateY(-200%); color: var(--ink); background: var(--ground); padding: var(--space-3); z-index: 10; }
 .skip-link:focus { transform: translateY(0); }

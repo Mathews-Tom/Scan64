@@ -15,6 +15,17 @@ afterEach(() => {
 });
 
 describe('desktop platform', () => {
+  it('returns the native selected path or cancellation and preserves picker errors', async () => {
+    const { choosePuzzleFile } = await import('./platform');
+    invoke.mockResolvedValueOnce('/tmp/puzzles.csv.zst');
+    expect(await choosePuzzleFile()).toBe('/tmp/puzzles.csv.zst');
+    expect(invoke).toHaveBeenLastCalledWith('choose_puzzle_file');
+    invoke.mockResolvedValueOnce(null);
+    expect(await choosePuzzleFile()).toBeNull();
+    invoke.mockRejectedValueOnce('Puzzle file is not readable');
+    await expect(choosePuzzleFile()).rejects.toThrow('Puzzle file is not readable');
+  });
+
   it('requires the shell connection before constructing an API URL', async () => {
     const platform = await import('./platform');
     expect(platform.isDesktop()).toBe(true);

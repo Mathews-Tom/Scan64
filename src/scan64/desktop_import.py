@@ -1,6 +1,8 @@
 """Cancellable desktop imports staged away from the live application database."""
 
+from _thread import LockType
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Event
@@ -9,7 +11,13 @@ from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 from scan64.content.models import ContentItem  # noqa: F401 -- register catalog metadata
-from scan64.content.puzzle_import import ImportSummary, import_puzzles
+from scan64.content.puzzle_import import (
+    ImportProgress,
+    ImportSummary,
+    SourceProvenance,
+    import_puzzles,
+    local_provenance,
+)
 
 
 class ImportCancelled(Exception):
@@ -17,13 +25,28 @@ class ImportCancelled(Exception):
 
 
 def run_import(
-    engine: Engine, path: Path, cancel: Event, progress: Callable[[str], None]
+    engine: Engine,
+    path: Path,
+    cancel: Event,
+    progress: Callable[[str], None],
+    *,
+    on_progress: Callable[[ImportProgress], None] | None = None,
+    commit_lock: LockType | None = None,
+    committed: Event | None = None,
+    provenance: SourceProvenance | None = None,
+    before_commit: Callable[[ImportSummary], None] | None = None,
 ) -> ImportSummary:
     batches = 0
 
     def checkpoint() -> None:
         if cancel.is_set():
             raise ImportCancelled()
+
+    def report(update: ImportProgress) -> None:
+        checkpoint()
+        if on_progress is not None:
+            on_progress(update)
+        checkpoint()
 
     class ImportSession(Session):
         def commit(self) -> None:
@@ -55,8 +78,12 @@ def run_import(
                         "FROM puzzle_stage.contentitem"
                     )
                     connection.commit()
+                    if provenance is not None:
+                        local_provenance(path, report)
                     with ImportSession(staging) as session:
-                        summary = import_puzzles(session, path)
+                        summary = import_puzzles(
+                            session, path, provenance=provenance, progress=report
+                        )
                     checkpoint()
                     progress("Saving puzzle catalog…")
                     # A single set-based merge keeps the live write transaction short.
@@ -72,7 +99,15 @@ def run_import(
                         "difficulty_estimate = excluded.difficulty_estimate"
                     )
                     checkpoint()
-                    connection.commit()
+                    # Serialize cancellation with the irreversible commit. Once committed,
+                    # a late Cancel cannot report that the catalog was left unchanged.
+                    with commit_lock if commit_lock is not None else nullcontext():
+                        checkpoint()
+                        if before_commit is not None:
+                            before_commit(summary)
+                        connection.commit()
+                        if committed is not None:
+                            committed.set()
                     return summary
                 finally:
                     connection.rollback()

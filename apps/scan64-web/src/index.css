@@ -29,8 +29,8 @@ button {
   cursor: pointer;
   transition: transform var(--motion-out) var(--ease), opacity var(--motion-out) var(--ease);
 }
-button:active:not(:disabled) { transform: translateY(1px) scale(.985); transition-duration: var(--motion-press); }
-button:disabled { opacity: .55; cursor: not-allowed; }
+button:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px) scale(.985); transition-duration: var(--motion-press); }
+button:is(:disabled, [aria-disabled="true"]) { opacity: .55; cursor: not-allowed; }
 .btn--primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
 .btn--secondary { background: var(--ground); color: var(--ink); border-color: var(--border); }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
