@@ -615,11 +615,11 @@ describe('PlayScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('retry-move-sync')).toBeInTheDocument();
     });
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        movable: expect.objectContaining({ color: undefined, dests: undefined }),
-      }),
-    );
+    const move = await waitFor(getRegisteredMoveHandler);
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    await act(async () => { await move('g1', 'f3'); });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
   });
   it('retries a failed canonical refresh after queued-move synchronization', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
