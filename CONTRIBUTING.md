@@ -66,7 +66,35 @@ using the frozen bundled server; the cleared release environment drops it.
 
 `scripts/check.sh` also runs cargo format, strict Clippy and Rust tests.
 The Desktop pull-request workflow proves the shell-origin request and child
-lifecycle on macOS, Windows and Linux using a source server. This is not
-Windows/Linux installer evidence: those builds arrive in M83.
-Local apps are unsigned/ad-hoc signed, not notarized. In-app updates and the
-replacement release workflow arrive in M84; no release upload runs here.
+lifecycle on macOS, Windows and Linux using a source server. Its installer jobs
+also install/extract the packaged apps, exercise the frozen server and Stockfish,
+and prove signed updates with per-run test keys. Local apps are unsigned/ad-hoc
+signed, not notarized.
+
+## Desktop release workflow
+
+The `Release` workflow builds the macOS arm64 `.dmg` and `.app.tar.gz`, Windows
+x64 NSIS `-setup.exe`, and Linux x64 `.AppImage` and `.deb`. Updater artifacts
+(`.app.tar.gz`, NSIS installer, AppImage) carry `.sig` files. Linux `.deb`
+installations use manual replacement rather than the in-app updater.
+
+Changes to `.github/workflows/release.yml` or `scripts/release/**` trigger a
+same-repository pull-request dry run. After the workflow is on the default
+branch, `workflow_dispatch` also builds and verifies without publishing. Both
+use the owner's Actions signing secrets and the committed production public
+key, not the update end-to-end test overlay. The release build guard is not
+bypassed. Before release preparation, dry runs use the current Tauri version
+(`0.0.0` initially), even if the Python version differs; their generated download
+URLs are evidence only, not published assets.
+
+On `release: published`, the isolated verifier requires `v<version>` to match
+`pyproject.toml`, `tauri.conf.json`, `Cargo.toml` and the desktop `Cargo.lock`.
+It verifies every signature and its authenticated version, then creates
+`latest.json` with three platform download URLs and inline signatures. The only
+write-permission job attaches that manifest, all installers, update bundles and
+signatures to the existing release. CI artifacts retain the verified files for
+14 days. No dispatch or pull-request event can run that upload job.
+
+Release preparation and publication require owner approval; this workflow does
+not create tags or releases. Keep signing keys out of source and logs, and follow
+the [signing and key-rotation policy](SECURITY.md#desktop-update-signing).
