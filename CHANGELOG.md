@@ -13,18 +13,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Scan64 is now one desktop app for macOS (Apple silicon), Windows (x64) and Linux (x64). It opens a single window and needs neither Python nor a separately installed Stockfish, because both the server and Stockfish 18 are bundled. Installers: `.dmg` (macOS), `-setup.exe` (Windows, per-user), and `.AppImage` or `.deb` (Linux).
 - In-app updates on macOS, Windows and the Linux AppImage. Scan64 checks 10 seconds after launch and then every 24 hours. Settings → Updates and the sidebar show progress. You can turn automatic downloads off, and an update installs only when you click **Restart to update**. Every update is signature-checked; a tampered download is rejected and the app stays as it was. The Linux `.deb`, read-only install locations and macOS App Translocation explain why updates are unavailable and link to the download page.
 - Before a new version upgrades the database, Scan64 copies it into `backups/` in the app's data folder and keeps the newest three copies.
-- Puzzles can be downloaded from database.lichess.org, or imported from a local `.csv.zst` file, inside the app (Puzzles, Settings or the sidebar). The import shows progress, speed and time left, can be cancelled, and removes downloaded files when it finishes.
+- Puzzles can be downloaded from database.lichess.org, or imported from a local `.csv.zst` file, inside the app from Puzzles or Settings → Puzzle library; progress stays visible in the sidebar. The import shows progress, speed and time left, can be cancelled, and removes downloaded files when it finishes.
 - `scan64-cli puzzles import --download` shows download and import progress on stderr (`--quiet` turns it off).
 - A new look across every screen: Scan64 identity, light, dark and system appearance in Settings, bundled fonts, and a board-centred layout for Play, Review, Puzzles, Daily Training, Famous Games and Explorer.
 
 ### Changed
 
 - The app keeps its data in a new folder, `org.scan64.desktop`: under `~/Library/Application Support` on macOS, `%APPDATA%` on Windows and `${XDG_DATA_HOME:-~/.local/share}` on Linux. Data from 0.6.1 and earlier is not migrated.
-- Release assets are built, signed and verified by one workflow for all three systems. Each update bundle carries a signature that is checked against the public key compiled into the app.
+- Release assets are built and verified by one workflow for all three systems. The update bundles (`Scan64.app.tar.gz`, `-setup.exe`, `.AppImage`) carry a signature that is checked against the public key compiled into the app. Installers are not code-signed: macOS builds are ad-hoc signed and not notarized, and Windows builds are not Authenticode-signed.
 
 ### Removed
 
-- The old macOS app from 0.4.0–0.6.1 (a status window that opened Scan64 in the browser), its Python updater and its `update.json` release files. 0.6.1 cannot update itself to 0.7.0; install 0.7.0 by hand.
+- The old macOS app from 0.4.0–0.6.1 (a status window that opened Scan64 in the browser), its Python updater and its `update.json` release files. 0.6.1 cannot update itself to 0.7.0: its update check reports a failure. Delete it, install 0.7.0 by hand and, once you no longer need the old data, remove it with `rm -rf ~/Library/Application\ Support/Scan64`.
 
 ### Security
 

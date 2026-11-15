@@ -573,16 +573,9 @@ When an active skill reaches the implemented mastery threshold, Scan64 can assig
 
 This measures the product's transfer signal. It does not prove Scan64 improves over-the-board chess performance; that requires real learner studies.
 
-## Desktop app updates
-
-In-app updates are not available in this local-build milestone; they arrive in
-M84. Rebuild and replace the app manually, preserving its app-data directory and
-local storage. Windows/Linux installers arrive in M83. No migration from the
-older desktop app is provided.
-
 ## Data and privacy
 
-Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. There are no scheduled update checks in this build.
+Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. The desktop app checks GitHub Releases for updates ten seconds after launch and every 24 hours; that request carries only normal connection information. Browser and container installs never check for updates.
 
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
