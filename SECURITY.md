@@ -69,15 +69,18 @@ reinstall manually; treat a compromise as a security incident, stop publication,
 and coordinate replacement through the private reporting channel above.
 
 The committed production public key identifies minisign key
-`058C7236D5853CF5`. Release builds validate it without the PR-only
+`A1BF33DC0D262D9E`. Release builds validate it without the PR-only
 `SCAN64_UPDATER_DRY_RUN` bypass. Replacing or losing this key requires **one
 manual reinstall** of a build containing the new public key; the old installation
 cannot authenticate the replacement key. Never silently rotate it.
 
 The `Release` workflow builds on macOS arm64, Windows x64 and Linux x64 with
-read-only repository permissions. Only the Tauri build step receives the two
+read-only repository permissions. Published-release signing jobs do not restore
+shared uv, pnpm or Rust build caches. Only the Tauri build step receives the two
 signing secrets; no step prints environment values or writes signing keys to
-artifacts. A separate, secret-free runner uses pinned minisign to verify every
+artifacts. Signed dry-run workflow artifacts expire after one day (14 days for
+published-release workflow artifacts). A separate, secret-free runner uses pinned
+minisign to verify every
 update signature and its authenticated version against the committed public key,
 then creates `latest.json`. On published releases it also requires the tag,
 Python, Tauri, crate and crate-lock versions to match. Only the final upload job

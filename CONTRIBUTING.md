@@ -93,7 +93,9 @@ It verifies every signature and its authenticated version, then creates
 `latest.json` with three platform download URLs and inline signatures. The only
 write-permission job attaches that manifest, all installers, update bundles and
 signatures to the existing release. CI artifacts retain the verified files for
-14 days. No dispatch or pull-request event can run that upload job.
+one day on dry runs and 14 days on published-release runs. Published-release
+signing jobs do not restore shared uv, pnpm or Rust build caches. No dispatch or
+pull-request event can run the upload job.
 
 Release preparation and publication require owner approval; this workflow does
 not create tags or releases. Keep signing keys out of source and logs, and follow

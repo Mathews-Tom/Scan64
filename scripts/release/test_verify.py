@@ -178,4 +178,4 @@ def test_production_trust_anchor_is_owner_supplied_public_key() -> None:
     decoded = base64.b64decode(config["plugins"]["updater"]["pubkey"]).decode().splitlines()
     raw = base64.b64decode(decoded[1])
     assert raw[:2] == b"Ed"
-    assert raw[2:10][::-1].hex().upper() == "058C7236D5853CF5"
+    assert raw[2:10][::-1].hex().upper() == "A1BF33DC0D262D9E"
