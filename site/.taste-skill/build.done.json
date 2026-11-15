@@ -1,0 +1,11 @@
+{
+ "page": "index.html",
+ "url": null,
+ "root": null,
+ "kind": "software",
+ "category": "chess coach",
+ "primary": "Download Scan64",
+ "rounds": 1,
+ "start": "2026-11-15T16:57:43.522Z",
+ "by": "gate.mjs --start"
+}

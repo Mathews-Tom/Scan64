@@ -1,0 +1,199 @@
+{
+ "start": "2026-11-15T16:57:43.522Z",
+ "round": 0,
+ "idle": 0,
+ "errors": 0,
+ "status": "pass",
+ "history": [
+  {
+   "at": "2026-11-15T16:59:04.780Z",
+   "mode": "manual",
+   "status": "pass",
+   "fails": 0,
+   "round": 0,
+   "reused": false,
+   "stopHookActive": false
+  }
+ ],
+ "max": 1,
+ "marker": {
+  "page": "index.html",
+  "url": null,
+  "root": null,
+  "kind": "software",
+  "category": "chess coach",
+  "primary": "Download Scan64",
+  "rounds": 1,
+  "start": "2026-11-15T16:57:43.522Z",
+  "by": "gate.mjs --start"
+ },
+ "manual": true,
+ "fp": "8754f4979155e0b9",
+ "page": "index.html",
+ "found": {
+  "fails": [
+   {
+    "check": "one-section",
+    "where": "footer.footer.closing > div.wrap > div.closing__cta.close--type > a.btn.btn--primary \"Download Scan64\"",
+    "msg": "a band: a box 89% of the section wide on a ground of its own that holds only text: the section's own ground is the band (SR-4)",
+    "fix": "put every block of <main> in a <section>, and give a band its own section instead of a ground inside one",
+    "widths": [
+     1440
+    ],
+    "from": "consistency",
+    "ids": [
+     "one-section"
+    ],
+    "wheres": [
+     "footer.footer.closing > div.wrap > div.closing__cta.close--type > a.btn.btn--primary \"Download Scan64\""
+    ]
+   },
+   {
+    "check": "container-edges",
+    "where": "a.skip-link \"Skip to content\"",
+    "msg": "a <a> at the top of the page, outside header.nav, main, footer.closing and nav.actionbar (SR-6)",
+    "fix": "build the page as header.nav, a main of sections (each one in-flow .wrap plus background layers) and footer.closing",
+    "widths": [
+     1440
+    ],
+    "from": "consistency",
+    "ids": [
+     "container-edges"
+    ],
+    "wheres": [
+     "a.skip-link \"Skip to content\""
+    ]
+   },
+   {
+    "check": "hero-lines",
+    "where": "section.hero h1",
+    "msg": "the check fills the h1 to 34 characters (this hero's maxChars in heroes.json), not the page's own: it takes 4 lines at 1440, 3 at most",
+    "fix": "the check fills the h1 to this hero's maxChars, not your own: take the next type pairing the deal printed (start.mjs); when the h1 is final and fits, waive it (target: section.hero h1)",
+    "widths": [
+     1440
+    ],
+    "from": "layout",
+    "ids": [
+     "hero-lines"
+    ],
+    "wheres": [
+     "section.hero h1"
+    ]
+   }
+  ],
+  "warns": [
+   {
+    "check": "nav",
+    "where": "header.nav.nav--centre > div.wrap.nav__bar > div.nav__actions > a.nav__link \"Source code\"",
+    "msg": "the nav is lopsided: its last item ends 8px inside the content's edge (1360px), while its first starts on the other edge",
+    "fix": "start the nav's first item and end its last on the content's two edges",
+    "widths": [
+     1440,
+     390
+    ],
+    "from": "consistency"
+   },
+   {
+    "check": "label-centre",
+    "where": "div.hero-text.grid > div.hero__cta.span-3 > div > a.btn.btn--primary \"Download Scan64\"",
+    "msg": "its label sits 18px off-centre (33px of room at the left, 51px at the right)",
+    "fix": "centre the label in its button, or fill the empty side with an icon",
+    "widths": [
+     1440
+    ],
+    "from": "consistency"
+   },
+   {
+    "check": "empty-area",
+    "where": "footer.footer.closing \"Scan64 on your computer\"",
+    "msg": "36% of the section is empty: 256px of empty rows between its content, in its 720px of rows (WARN over 35%, FAIL over 50%)",
+    "fix": "fill the section: a picture or a second column beside the words, or more of its own content; the section stays one or two screens tall (T-height)",
+    "widths": [
+     1440
+    ],
+    "from": "consistency"
+   },
+   {
+    "check": "one-heading",
+    "where": "section#practice > div.wrap > h2.mo-la__type \"Scan64 practice\"",
+    "msg": "headings of two sections show whole on one screen at 7 of 55 scroll positions (12.7%; at scroll 1150, 1200, 1250, 1300px), here with \"♟\": at most 3% on a desktop (it is in a scroll scene: told as a WARN) (SR-5)",
+    "fix": "make the sections one screen tall so their headings sit a screen apart and two never share one",
+    "widths": [
+     1440
+    ],
+    "from": "consistency"
+   },
+   {
+    "check": "proximity",
+    "where": "section.hero.hero--triptych > div.wrap > div.hero-text.grid > div.ly-collage.span-6 \"Chess coaching for club players Play at \"",
+    "msg": "stacked at this width, the visual starts 14px under the text and buttons above it (\"Chess coaching for club player\"): it reads glued to them",
+    "fix": "give the stacked split the section's own gap between text and visual (40px or more on a phone)",
+    "widths": [
+     390
+    ],
+    "from": "consistency"
+   }
+  ],
+  "crashed": [],
+  "seconds": {
+   "consistency": 77,
+   "layout": 4
+  }
+ },
+ "open": [],
+ "waived": [
+  {
+   "check": "one-section",
+   "where": "footer.footer.closing > div.wrap > div.closing__cta.close--type > a.btn.btn--primary \"Download Scan64\"",
+   "msg": "a band: a box 89% of the section wide on a ground of its own that holds only text: the section's own ground is the band (SR-4)",
+   "fix": "put every block of <main> in a <section>, and give a band its own section instead of a ground inside one",
+   "widths": [
+    1440
+   ],
+   "from": "consistency",
+   "ids": [
+    "one-section"
+   ],
+   "wheres": [
+    "footer.footer.closing > div.wrap > div.closing__cta.close--type > a.btn.btn--primary \"Download Scan64\""
+   ],
+   "reason": "The dealt close-type recipe requires the full-width footer download button; at tablet widths the triptych hero's download button also fills its column. These actionable download links are buttons, not inset content bands."
+  },
+  {
+   "check": "container-edges",
+   "where": "a.skip-link \"Skip to content\"",
+   "msg": "a <a> at the top of the page, outside header.nav, main, footer.closing and nav.actionbar (SR-6)",
+   "fix": "build the page as header.nav, a main of sections (each one in-flow .wrap plus background layers) and footer.closing",
+   "widths": [
+    1440
+   ],
+   "from": "consistency",
+   "ids": [
+    "container-edges"
+   ],
+   "wheres": [
+    "a.skip-link \"Skip to content\""
+   ],
+   "reason": "The required keyboard skip link is intentionally a direct body child, positioned offscreen until focus, exactly as the skill starter requires."
+  },
+  {
+   "check": "hero-lines",
+   "where": "section.hero h1",
+   "msg": "the check fills the h1 to 34 characters (this hero's maxChars in heroes.json), not the page's own: it takes 4 lines at 1440, 3 at most",
+   "fix": "the check fills the h1 to this hero's maxChars, not your own: take the next type pairing the deal printed (start.mjs); when the h1 is final and fits, waive it (target: section.hero h1)",
+   "widths": [
+    1440
+   ],
+   "from": "layout",
+   "ids": [
+    "hero-lines"
+   ],
+   "wheres": [
+    "section.hero h1"
+   ],
+   "reason": "The final 31-character category-and-buyer heading fits three desktop lines and two phone lines. Only the check's synthetic maximum-length replacement needs four lines; M81 requires the bundled Host Grotesk pairing."
+  }
+ ],
+ "warnCount": 5,
+ "at": "2026-11-15T16:59:04.781Z"
+}

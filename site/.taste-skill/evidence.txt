@@ -1,0 +1,128 @@
+M85 lane A — static Scan64 landing page
+
+Authority and scope
+Base d7e5789c5f5d784aa07071723b3c1338968b94b7; feat/m85-site; main PR base.
+Only site/ and .github/workflows/pages.yml. No app, .docs, release, tag or merge changes.
+Pages Actions source enabled by owner; intended URL https://mathews-tom.github.io/Scan64/.
+
+Facts and material
+README: free/open-source/local chess coach, club-player audience, play/review/personal practice.
+docs/user-guide.md: desktop platforms, bundled Stockfish, update checks, local data, unsigned/ad-hoc builds and macOS not notarized.
+docs/system-overview.md: no measured chess-improvement outcome claim.
+0.7.0 release: exact four platform installer filenames. No invented testimonials, figures, customers, photos or ratings.
+Reuse apps/scan64-web/public/logo.svg and bundled Host Grotesk/JetBrains Mono plus their OFL texts.
+UI is live HTML depicting the existing Scan64 navigation, board, moves and review/practice subjects. It is a static product presentation, not a playable game or running engine; no invented performance or player data.
+
+Download URL decision
+Versioned 0.7.0 installer URLs are stable compatibility-baseline downloads and keep working after 0.7.1. The release-notes link and unknown/mobile fallback use releases/latest, which always names the current release. No runtime GitHub API request, tracking or third-party font request.
+
+Initial checks
+node <skill>/scripts/copy-lint.mjs site/index.html --kind software
+  0 FAIL, 0 WARN; final copy 186 words.
+actionlint .github/workflows/pages.yml
+  exit 0; no diagnostics.
+uv run --no-project python scripts/site/validate.py
+  PASS: 25 HTML resources and links; relative assets support /Scan64/.
+node <skill>/scripts/perf.mjs index.html --profile .taste-skill/chrome-perf (from site/)
+  SUMMARY index.html: 0 FAIL, 2 WARN -> WARN.
+  248.6 KiB phone transfer; 19 requests; 2 font families/files; 131.2 KiB fonts.
+  0 broken requests; 0 unused mounted modules; peak 1 live WebGL context.
+  Phone layout shift 0.000; desktop 0.002. CPU-rendered timing is not a real-device benchmark.
+  Kept WARN: tiny repeated local logo SVGs are not lazy-loaded; 0.5 KiB total image transfer, avoiding visible mark pop-in.
+
+Link checks
+curl -IL --max-time 30 on all four published installer URLs followed redirects to HTTP 200. Initial checks before release uploads finished returned 404; final assets were verified uploaded through the release API. GitHub/latest, project source, main/docs/user-guide.md and main/LICENSE returned HTTP 200.
+
+Waivers
+container-edges / a.skip-link: required keyboard skip link is a body child as in the starter.
+one-section / footer close-type primary button: dealt recipe requires a full-width download button; not an inset content band.
+hero-lines / section.hero h1: final category/buyer heading fits 3 desktop and 2 phone lines; only synthetic maximum-length stress copy needs 4, and the M81 Host Grotesk pairing is mandatory.
+
+No assumed facts, coined names, stand-in photos, customer slots, forms or contacts. No custom domain or analytics. Kit assets were copied, unused families removed, retained kit sources unchanged.
+
+OS detection and sub-path proof
+node /tmp/m85-site-os.mjs (temporary headless Chrome/CDP harness, no user browser)
+  Spoofed both Network.setUserAgentOverride userAgent and platform.
+  PASS macOS / MacIntel -> Scan64_0.7.0_aarch64.dmg; Windows and Linux named alternatives.
+  PASS Windows / Win32 -> Scan64_0.7.0_x64-setup.exe; macOS and Linux named alternatives.
+  PASS Linux / Linux x86_64 -> Scan64_0.7.0_amd64.AppImage; macOS and Windows named alternatives.
+  PASS unknown / Unknown -> releases/latest; all three platform links named.
+  Every case also offers the Debian package, renders 128 board squares, and loads the bundled font.
+  PASS /Scan64/ prefix: no missing asset/font/module requests.
+  Initial harness attempt read the page before its modules ran; repaired the harness to await the rendered board before assertions.
+
+Additional waiver
+scroll-reveal / h2.mo-la__type: unchanged dealt letters-assemble moment inside its own declared section; checker intermittently treats its required letter transforms as an ordinary content reveal on tablets. Reduced-motion remains readable.
+The one-section waiver also covers the dealt full-width tablet hero download button, which is an actionable link rather than a content band.
+
+Owner-approved deviation
+Remove the dead root .gitignore template mkdocs comment and /site entry so the new source directory is normally trackable. No MkDocs configuration exists. site/.gitignore narrowly excludes browser profiles, screenshots, raw logs and check caches; meaningful skill state remains committed.
+
+Exact browser commands (from site/)
+S="<skill>"
+node "$S/scripts/consistency.mjs" index.html --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --profile .taste-skill/chrome-check --page software --category 'chess coach' --primary 'Download Scan64'
+node "$S/assets/layout/check.mjs" --url index.html --profile .taste-skill/chrome-layout --sizes 1440x900,1024x768,820x1180,768x1024,390x844 --shots .taste-skill/shots/layout
+node "$S/scripts/perf.mjs" index.html --profile .taste-skill/chrome-perf
+node "$S/scripts/shoot.mjs" --url index.html --w 1440 --out .taste-skill/shots/1440.png --profile .taste-skill/chrome-shoot
+Repeat shoot at widths 1024, 820 (1180 high), 768 (1024 high), 390 (844 high).
+node "$S/scripts/gate.mjs" index.html
+
+Latest completed perf tail
+SUMMARY index.html: 0 FAIL, 4 WARN -> WARN
+Two additional WARN rows are the same busy-host CPU-load warning at desktop and phone (59/33%); not a page resource or layout failure. Timing verdicts are explicitly not treated as real-device measurements.
+
+Repository format coverage
+scripts/check.sh formats-checks the whole repository, so scripts/site/validate.py follows that convention.
+uv run ruff format --check scripts/site/validate.py
+  1 file already formatted.
+The full CI / Quality gate remains required on the PR head; no backend/app behavior was changed or launched locally.
+
+Final acceptance tails
+GATE: PASS
+  Three matching gate waivers: required body skip link, dealt wide download button, synthetic hero headline stress.
+  Fourth documented waiver covers tablet-only letters-assemble scroll-reveal findings; it matches no 1440/390 gate finding and the gate reports it ignored there.
+Full consistency widths 1440,1024,820,768,390:
+  total 12 FAIL, 14 WARN before waivers. All 12 are the explicitly recorded skip-link, wide-button-band and dealt-letter-moment false positives; no unwaived finding remains.
+Layout check at all five requested sizes:
+  Four sizes: no findings. 1440: only the documented synthetic hero-lines stress finding; actual heading is three lines.
+Final perf:
+  SUMMARY index.html: 0 FAIL, 2 WARN -> WARN (only the tiny repeated local logo SVGs not lazy).
+Final copy-lint:
+  index.html (186 words) 0 FAIL, 0 WARN.
+Final headless OS/prefix harness:
+  PASS macOS; PASS Windows; PASS Linux; PASS unknown.
+  PASS /Scan64/ prefix: no missing asset/font/module requests.
+All five final screenshots read and inspected; hero alone on first screen, four full-screen sections, no empty visuals or sideways overflow.
+Kept nonblocking style WARNs: reserved arrow space in button labels; dealt close-type footer whitespace; split-letter moment heading; collage proximity; compact source-only phone navigation. None is hidden or suppressed in the kit.
+Temporary headless harness removed after its successful final run. Browser captures/profiles/raw logs remain local and ignored.
+
+Unsolicited review follow-through
+Fixed unsupported ChromeOS routing: CrOS is excluded before Linux detection, and X11 alone no longer implies Linux.
+Fixed a short tablet (820x600): the stacked hero grows naturally instead of letting controls overlap the next section. Standard acceptance viewports retain their one-screen layout.
+node /tmp/m85-browser-regressions.mjs (temporary headless Chrome/CDP harness)
+  PASS macOS -> DMG; Windows -> EXE; Linux -> AppImage.
+  PASS ChromeOS, unknown X11/FreeBSD, Android and unknown -> latest release page.
+  PASS every case at /Scan64/ and 820x600: no missing resources, horizontal overflow, hero-content overflow or next-section overlap.
+  Hero bottom and review top both 843.47px; last hero content bottom 779.47px.
+  Temporary harness removed after success.
+node <skill>/scripts/consistency.mjs index.html --quick --widths 1440,390 --profile .taste-skill/chrome-check --page software --category 'chess coach' --primary 'Download Scan64'
+  Only the already-documented wide-button and required skip-link false positives; no new standard-viewport finding.
+node <skill>/scripts/shoot.mjs --url index.html --w 820 --h 600 --out .taste-skill/shots/820-short.png --profile .taste-skill/chrome-shoot
+  Saved and inspected the short-tablet layout.
+Nine other review comments concern unused exported kit lifecycle/form/loop/concurrent-mount paths. This static page has no unmount/remount/replacement, forms, data-m-loop, ui.loop or concurrent grounds. Each thread received its concrete applicability explanation; findings were reported upstream and the required unmodified kit was preserved.
+
+Runner security review follow-through (all five requested changes)
+Product UI now copies the actual App.tsx navigation order exactly: Today, Play, Review, Train, Puzzles, Profile, Library, Coach, Settings; Review selected.
+All review-frame labels trace to OwnedGameReview.tsx: Analysis Board, Initial position, Move by move, Key moments, Retry this moment. Hero Train/Daily Training traces to App.tsx and DailyTrainingScreen.tsx; Play and Scan64 match app navigation/brand.
+Chessboards retain square geometry; the review board is sized to fit its frame rather than clipping its bottom ranks.
+Linux aarch64, armv7l and arm64 now use the latest-release fallback. Selector regression run passed those three, macOS, Windows, Linux x64, ChromeOS, Android and unknown (nine cases).
+Static assertion passed exact navigation order, Review selected and all five review labels.
+Checkout now sets persist-credentials: false.
+Validator moved to scripts/site/validate.py; workflow and evidence callers migrated, including the scripts/site/** trigger dependency. It no longer enters the Pages artifact.
+Evidence uses <skill> rather than a home path. Hidden-source grep (excluding ignored browser profiles, reports, captures and raw logs) found no absolute home paths in publishable site source.
+actionlint .github/workflows/pages.yml: clean.
+uv run --no-project python scripts/site/validate.py: PASS 25 resources/links.
+uv run ruff check scripts/site/validate.py: All checks passed!
+uv run ruff format --check scripts/site/validate.py: 1 file already formatted.
+Final runner-security recheck: GATE: PASS (same three matching waivers; tablet-only fourth remains documented).
+Fresh 1024 and 1440 captures show all nine real navigation labels, Review selected, exact review copy, square boards and every rank visible; refreshed share.jpg from the final hero.

@@ -1,0 +1,6 @@
+.taste-skill/chrome-*/
+.taste-skill/consistency/
+.taste-skill/gate/
+.taste-skill/shots/
+.taste-skill/*.log
+__pycache__/
