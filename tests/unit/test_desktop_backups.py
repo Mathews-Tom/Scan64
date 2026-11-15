@@ -166,6 +166,7 @@ def test_four_failed_migrations_reuse_original_snapshot_and_keep_retention_three
         desktop_backups.prepare_desktop_backup(tmp_path, "0.6.4")
         pending = (tmp_path / desktop_backups.PENDING_UPGRADE_MARKER).read_text().splitlines()
         assert pending[0] == "0.6.3"
+        assert pending[2] == "0.6.4"
         snapshot = tmp_path / "backups" / pending[1]
         if original is None:
             original = snapshot
@@ -246,7 +247,7 @@ def test_new_upgrade_after_success_takes_fresh_baseline(tmp_path: Path) -> None:
     assert len(snapshots(tmp_path)) == 2
 
 
-def test_different_upgrade_target_still_reuses_pending_baseline(tmp_path: Path) -> None:
+def test_different_upgrade_target_takes_fresh_snapshot(tmp_path: Path) -> None:
     database = create_database(tmp_path)
     marker = tmp_path / desktop_backups.VERSION_MARKER
     marker.write_text("0.6.1\n", encoding="utf-8")
@@ -255,27 +256,45 @@ def test_different_upgrade_target_still_reuses_pending_baseline(tmp_path: Path) 
     with closing(sqlite3.connect(database)) as connection:
         connection.execute("UPDATE player SET name = 'Partial migration'")
         connection.commit()
-    desktop_backups.prepare_desktop_backup(tmp_path, "0.6.3").record_successful_startup()
-    assert snapshots(tmp_path) == original
+    startup = desktop_backups.prepare_desktop_backup(tmp_path, "0.6.3")
+    pending = (tmp_path / desktop_backups.PENDING_UPGRADE_MARKER).read_text().splitlines()
+    assert pending[2] == "0.6.3"
+    snapshot = tmp_path / "backups" / pending[1]
+    assert snapshot not in original
+    assert all(path in snapshots(tmp_path) for path in original)
+    with closing(sqlite3.connect(snapshot)) as saved:
+        assert saved.execute("SELECT name FROM player").fetchall() == [("Partial migration",)]
+    startup.record_successful_startup()
     assert marker.read_text() == "0.6.3\n"
     assert not (tmp_path / desktop_backups.PENDING_UPGRADE_MARKER).exists()
 
 
-def test_missing_pending_snapshot_stops_before_backing_up_changed_database(tmp_path: Path) -> None:
+@pytest.mark.parametrize("remove_directory", [False, True])
+def test_missing_pending_snapshot_takes_fresh_backup(
+    tmp_path: Path, remove_directory: bool
+) -> None:
     database = create_database(tmp_path)
     marker = tmp_path / desktop_backups.VERSION_MARKER
     marker.write_text("0.6.1\n", encoding="utf-8")
     desktop_backups.prepare_desktop_backup(tmp_path, "0.6.2")
     [snapshot] = snapshots(tmp_path)
     snapshot.unlink()
+    if remove_directory:
+        snapshot.parent.rmdir()
     with closing(sqlite3.connect(database)) as connection:
-        connection.execute("DROP TABLE player")
+        connection.execute("INSERT INTO player VALUES (2, 'New data')")
         connection.commit()
-    with pytest.raises(FileNotFoundError, match="pending upgrade snapshot is missing"):
-        desktop_backups.prepare_desktop_backup(tmp_path, "0.6.2")
-    assert snapshots(tmp_path) == []
+    desktop_backups.prepare_desktop_backup(tmp_path, "0.6.2")
+    [fresh] = snapshots(tmp_path)
+    assert fresh != snapshot
+    with closing(sqlite3.connect(fresh)) as saved:
+        assert saved.execute("SELECT name FROM player ORDER BY id").fetchall() == [
+            ("Saved player",),
+            ("New data",),
+        ]
     assert marker.read_text() == "0.6.1\n"
-    assert (tmp_path / desktop_backups.PENDING_UPGRADE_MARKER).exists()
+    pending = (tmp_path / desktop_backups.PENDING_UPGRADE_MARKER).read_text().splitlines()
+    assert pending == ["0.6.1", fresh.name, "0.6.2"]
 
 
 def test_failed_pending_marker_publish_cannot_allow_migrations(
@@ -327,28 +346,47 @@ def test_crash_after_success_marker_commit_does_not_reuse_stale_pending_snapshot
         connection.execute("UPDATE player SET name = 'Successfully upgraded'")
         connection.commit()
     desktop_backups.prepare_desktop_backup(tmp_path, "0.6.3")
-    baseline, snapshot = pending.read_text().splitlines()
+    baseline, snapshot, target = pending.read_text().splitlines()
     assert baseline == "0.6.2"
+    assert target == "0.6.3"
     with closing(sqlite3.connect(tmp_path / "backups" / snapshot)) as saved:
         assert saved.execute("SELECT name FROM player").fetchall() == [("Successfully upgraded",)]
     assert len(snapshots(tmp_path)) == 2
 
 
-def test_same_or_older_success_keeps_pending_upgrade_for_retry(tmp_path: Path) -> None:
-    create_database(tmp_path)
+@pytest.mark.parametrize("version", ["0.6.1", "0.6.0"])
+@pytest.mark.parametrize("remove_directory", [False, True])
+def test_same_or_older_success_clears_pending_and_next_upgrade_saves_new_data(
+    tmp_path: Path, version: str, remove_directory: bool
+) -> None:
+    database = create_database(tmp_path)
     marker = tmp_path / desktop_backups.VERSION_MARKER
     marker.write_text("0.6.1\n", encoding="utf-8")
     desktop_backups.prepare_desktop_backup(tmp_path, "0.6.2")
     pending = tmp_path / desktop_backups.PENDING_UPGRADE_MARKER
-    original_marker = pending.read_text()
-    original_snapshots = snapshots(tmp_path)
-    for version in ("0.6.1", "0.6.0"):
-        desktop_backups.prepare_desktop_backup(tmp_path, version).record_successful_startup()
-        assert marker.read_text() == "0.6.1\n"
-        assert pending.read_text() == original_marker
-        assert snapshots(tmp_path) == original_snapshots
-    desktop_backups.prepare_desktop_backup(tmp_path, "0.6.2").record_successful_startup()
-    assert snapshots(tmp_path) == original_snapshots
+    [original] = snapshots(tmp_path)
+    if remove_directory:
+        original.unlink()
+        original.parent.rmdir()
+    desktop_backups.prepare_desktop_backup(tmp_path, version).record_successful_startup()
+    assert marker.read_text() == "0.6.1\n"
+    assert not pending.exists()
+    if not remove_directory:
+        assert snapshots(tmp_path) == [original]
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute("INSERT INTO player VALUES (2, 'After successful rollback')")
+        connection.commit()
+    startup = desktop_backups.prepare_desktop_backup(tmp_path, "0.6.3")
+    baseline, name, target = pending.read_text().splitlines()
+    assert (baseline, target) == ("0.6.1", "0.6.3")
+    fresh = tmp_path / "backups" / name
+    assert fresh != original
+    with closing(sqlite3.connect(fresh)) as saved:
+        assert saved.execute("SELECT name FROM player ORDER BY id").fetchall() == [
+            ("Saved player",),
+            ("After successful rollback",),
+        ]
+    startup.record_successful_startup()
     assert not pending.exists()
 
 
@@ -358,11 +396,11 @@ def test_same_or_older_success_keeps_pending_upgrade_for_retry(tmp_path: Path) -
         "",
         "0.6.1\n",
         "0.6.1\nsnapshot.db\nunexpected\n",
-        "broken\nscan64-100-before-0.6.2-test.db\n",
-        "0.6.2\nscan64-100-before-0.6.3-test.db\n",
-        "0.6.1\n../scan64-100-before-0.6.2-test.db\n",
-        "0.6.1\n..\\scan64-100-before-0.6.2-test.db\n",
-        "0.6.1\nmanual-export.db\n",
+        "broken\nscan64-100-before-0.6.2-test.db\n0.6.2\n",
+        "0.6.1\nscan64-100-before-0.6.2-test.db\nbroken\n",
+        "0.6.1\n../scan64-100-before-0.6.2-test.db\n0.6.2\n",
+        "0.6.1\n..\\scan64-100-before-0.6.2-test.db\n0.6.2\n",
+        "0.6.1\nmanual-export.db\n0.6.2\n",
     ],
 )
 def test_invalid_pending_marker_fails_closed(tmp_path: Path, contents: str) -> None:

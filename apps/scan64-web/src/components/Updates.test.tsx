@@ -97,6 +97,18 @@ describe('Updates', () => {
     expect(fireEvent(link, event)).toBe(false);
     await waitFor(() => expect(platform.openReleaseUrl).toHaveBeenCalledExactlyOnceWith(base.releaseNotesUrl));
   });
+  it('opens release notes while an update action is busy', async () => {
+    const { promise, resolve } = Promise.withResolvers<void>();
+    vi.mocked(platform.checkUpdates).mockReturnValueOnce(promise);
+    renderUpdates();
+    const link = await screen.findByRole('link', { name: 'Release notes' });
+    const check = screen.getByRole('button', { name: 'Check for updates' });
+    fireEvent.click(check);
+    expect(check).toBeDisabled();
+    expect(fireEvent.click(link)).toBe(false);
+    await waitFor(() => expect(platform.openReleaseUrl).toHaveBeenCalledExactlyOnceWith(base.releaseNotesUrl));
+    await act(async () => { resolve(); });
+  });
   it('shows a release opener failure without losing the link', async () => {
     vi.mocked(platform.openReleaseUrl).mockRejectedValueOnce(new Error('Cannot open release link'));
     renderUpdates();

@@ -43,7 +43,15 @@ function useUpdater() {
       if (mounted.current) setBusy(false);
     }
   }
-  return { status, busy, error, act };
+  async function openRelease(url: string) {
+    setError(null);
+    try {
+      await openReleaseUrl(url);
+    } catch (failure) {
+      if (mounted.current) setError(String(failure));
+    }
+  }
+  return { status, busy, error, act, openRelease };
 }
 
 interface Updater {
@@ -51,6 +59,7 @@ interface Updater {
   busy: boolean;
   error: string | null;
   act: (action: () => Promise<void>) => Promise<void>;
+  openRelease: (url: string) => Promise<void>;
 }
 const UpdatesContext = createContext<Updater | null>(null);
 export function UpdatesProvider({ children }: { children: ReactNode }) {
@@ -82,14 +91,14 @@ function UpdateActions({ updater }: { updater: Updater }) {
 }
 
 function UpdatesPanelContent({ updater }: { updater: Updater }) {
-  const { status, busy, error, act } = updater;
+  const { status, busy, error, act, openRelease } = updater;
   const unavailable = status?.state === 'unavailable';
   const pending = !status || ['checking', 'downloading', 'installing'].includes(status.state);
   function openLink(event: MouseEvent<HTMLAnchorElement>) {
     if (!isDesktop() || (event.button !== 0 && event.button !== 1)) return;
     event.preventDefault();
     const url = event.currentTarget.getAttribute('href');
-    if (url) void act(() => openReleaseUrl(url));
+    if (url) void openRelease(url);
   }
   return <Panel title="Updates">
     {status ? <>

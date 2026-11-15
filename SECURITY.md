@@ -72,10 +72,13 @@ Until the owner supplies the public half, the committed production configuration
 contains a clearly named placeholder and release builds fail closed. Explicit PR
 dry runs may bypass only that missing-key check, never insecure transport,
 disabled TLS certificate or hostname validation, an unexpected production
-endpoint, or the signed-version requirement. The build guard rejects
-`dangerousInsecureTransportProtocol`, `dangerousAcceptInvalidCerts`, and
-`dangerousAcceptInvalidHostnames` when enabled outside the explicit test boundary,
-including debug builds and PR dry runs. Test builds require the `updater-test`
+endpoint, or the signed-version requirement. The build guard accepts only the
+allowlisted canonical updater keys: `pubkey`, `endpoints`,
+`dangerousInsecureTransportProtocol`, `requireSignedVersion`, and `windows`.
+All other keys, including TLS verification bypass flags, downgrade flags, and
+kebab-case aliases, are rejected in every build mode. Insecure transport is
+permitted only within the explicit loopback HTTP test boundary, never in normal
+debug builds or PR dry runs. Test builds require the `updater-test`
 Cargo feature and `SCAN64_UPDATER_TEST=1`; they use a per-run temporary test key
 and a loopback-only HTTP overlay that also requires signed versions. Never
 publish a test-configured build as a release.

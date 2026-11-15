@@ -31,6 +31,19 @@ pub fn validate(
     dry_run: bool,
 ) -> Result<(), &'static str> {
     let updater = &config["plugins"]["updater"];
+    let fields = updater.as_object().ok_or("missing updater configuration")?;
+    if fields.keys().any(|key| {
+        !matches!(
+            key.as_str(),
+            "pubkey"
+                | "endpoints"
+                | "dangerousInsecureTransportProtocol"
+                | "requireSignedVersion"
+                | "windows"
+        )
+    }) {
+        return Err("only allowlisted canonical updater keys are permitted");
+    }
     let test = test_feature && test_opt_in;
     if test_feature != test_opt_in {
         return Err("updater-test requires the explicit SCAN64_UPDATER_TEST=1 build opt-in");
@@ -38,17 +51,8 @@ pub fn validate(
     if updater["dangerousInsecureTransportProtocol"] == true && !test {
         return Err("insecure updater transport is test-only, even in a dry run");
     }
-    if !test
-        && (updater["dangerousAcceptInvalidCerts"] == true
-            || updater["dangerousAcceptInvalidHostnames"] == true)
-    {
-        return Err("disabling updater TLS validation is test-only, even in a dry run");
-    }
     if !test && updater["requireSignedVersion"] != true {
         return Err("production updater must require signed versions, even in a dry run");
-    }
-    if updater["allowDowngrades"] == true {
-        return Err("updater downgrades are forbidden");
     }
     let endpoints = updater["endpoints"]
         .as_array()
@@ -146,28 +150,40 @@ mod tests {
     }
 
     #[test]
-    fn tls_validation_bypasses_are_test_only_even_in_debug_and_dry_runs() {
+    fn non_allowlisted_keys_are_rejected_in_every_boundary() {
         for field in [
             "dangerousAcceptInvalidCerts",
             "dangerousAcceptInvalidHostnames",
+            "allowDowngrades",
+            "dangerous-accept-invalid-certs",
+            "dangerous-accept-invalid-hostnames",
+            "dangerous-insecure-transport-protocol",
+            "allow-downgrades",
+            "require-signed-version",
+            "unknownUpdaterKey",
         ] {
-            for (release, dry_run) in [(true, false), (true, true), (false, false)] {
-                let mut config = config();
-                config["plugins"]["updater"]["pubkey"] = public_key().into();
-                config["plugins"]["updater"][field] = true.into();
-                assert_eq!(
-                    validate(&config, release, false, false, dry_run),
-                    Err("disabling updater TLS validation is test-only, even in a dry run")
-                );
-                config["plugins"]["updater"][field] = false.into();
-                assert!(validate(&config, release, false, false, dry_run).is_ok());
+            for value in [true, false] {
+                for (release, dry_run) in
+                    [(true, false), (true, true), (false, false), (false, true)]
+                {
+                    for test in [false, true] {
+                        let mut config = config();
+                        config["plugins"]["updater"]["pubkey"] = public_key().into();
+                        if test {
+                            config["plugins"]["updater"]["endpoints"] =
+                                serde_json::json!(["http://127.0.0.1:9876/latest.json"]);
+                            config["plugins"]["updater"]["dangerousInsecureTransportProtocol"] =
+                                true.into();
+                        }
+                        config["plugins"]["updater"][field] = value.into();
+                        assert_eq!(
+                            validate(&config, release, test, test, dry_run),
+                            Err("only allowlisted canonical updater keys are permitted"),
+                            "field={field}, value={value}, release={release}, dry_run={dry_run}, test={test}"
+                        );
+                    }
+                }
             }
-            let mut config = config();
-            config["plugins"]["updater"]["pubkey"] = public_key().into();
-            config["plugins"]["updater"]["endpoints"] =
-                serde_json::json!(["http://127.0.0.1:9876/latest.json"]);
-            config["plugins"]["updater"][field] = true.into();
-            assert!(validate(&config, true, true, true, false).is_ok());
         }
     }
 
