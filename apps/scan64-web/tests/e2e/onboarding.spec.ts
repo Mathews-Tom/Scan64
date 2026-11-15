@@ -135,7 +135,7 @@ test('existing opt-in, keyboard skip and continue-later retain identity and mult
   await page.route('**/v1/puzzles/modes', route => route.fulfill({ json: { themes: [], streak: { current: 0, best: 0, reset_reason: null } } }));
   await page.getByRole('link', { name: 'Start/resume daily puzzles' }).click();
   await expect(page).toHaveURL('/puzzles');
-  await expect(page.getByText('No eligible daily puzzles. Play is still available.')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Puzzle controls' }).getByText('No eligible daily puzzles. Play is still available.')).toBeVisible();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Play', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Game' })).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('scan64_player_id'))).toBe('player-1');

@@ -1,6 +1,6 @@
 import { PuzzleImportProvider, PuzzleImportFoot } from './components/PuzzleImport';
 import { UpdatesProvider, UpdatesFoot } from './components/Updates';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './App.css';
 import { PlayScreen } from './components/PlayScreen';
 import { PgnImportScreen } from './components/PgnImportScreen';
@@ -18,6 +18,7 @@ import { PuzzlesScreen } from './components/PuzzlesScreen';
 import { SettingsScreen, initializeAppearance } from './components/SettingsScreen';
 import { NavigationIcon } from './components/NavigationIcon';
 import { Button, Panel } from './components/Primitives';
+import { isDesktop } from './platform';
 import './components/WorkingScreens.css';
 
 function decodeRouteSegment(value: string): string | null {
@@ -29,6 +30,12 @@ function decodeRouteSegment(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+type SidebarViewport = 'phone' | 'compact' | 'wide';
+const sidebarPreferenceKey = 'scan64_sidebar_expanded';
+function sidebarViewport(): SidebarViewport {
+  return window.innerWidth < 768 && !isDesktop() ? 'phone' : window.innerWidth < 1200 ? 'compact' : 'wide';
 }
 function App() {
   useState(initializeAppearance);
@@ -42,6 +49,91 @@ function App() {
   const [identityError, setIdentityError] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const previousScreen = useRef({ pathname, hasIdentity });
+  const [viewport, setViewport] = useState(sidebarViewport);
+  const [wideExpanded, setWideExpanded] = useState(() => localStorage.getItem(sidebarPreferenceKey) !== 'false');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
+  const drawerWasOpen = useRef(false);
+  const drawerFocus = useRef<'toggle' | 'main'>('toggle');
+  const focusSettingsPanel = useRef<string | null>(null);
+  const drawerVisible = viewport === 'compact' && drawerOpen;
+  const sidebarExpanded = viewport === 'wide' ? wideExpanded : drawerVisible;
+  const dismissDrawer = useCallback((focus: 'toggle' | 'main' = 'toggle') => {
+    drawerFocus.current = focus;
+    setDrawerOpen(false);
+  }, []);
+  useEffect(() => {
+    const resize = () => {
+      const next = sidebarViewport();
+      if (next !== viewport) {
+        dismissDrawer(next === 'phone' ? 'main' : 'toggle');
+        setViewport(next);
+      }
+    };
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [viewport, dismissDrawer]);
+  useLayoutEffect(() => {
+    if (!drawerVisible) {
+      if (drawerWasOpen.current) {
+        (drawerFocus.current === 'main' ? mainRef.current : sidebarToggleRef.current)?.focus();
+      }
+      drawerWasOpen.current = false;
+      return;
+    }
+    drawerWasOpen.current = true;
+    const sidebar = sidebarRef.current;
+    sidebarToggleRef.current?.focus();
+    const keepFocusInside = (event: FocusEvent) => {
+      if (event.target instanceof Node && !sidebar?.contains(event.target)) sidebarToggleRef.current?.focus();
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        dismissDrawer();
+      } else if (event.key === 'Tab') {
+        const controls = Array.from(sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]') ?? [])
+          .filter(control => {
+            for (let element: HTMLElement | null = control; element && element !== sidebar; element = element.parentElement) {
+              const style = getComputedStyle(element);
+              if (element.hidden || style.display === 'none' || style.visibility !== 'visible') return false;
+            }
+            return true;
+          });
+        event.stopPropagation();
+        const first = controls?.[0];
+        const last = controls?.[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.addEventListener('focusin', keepFocusInside);
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.documentElement.style.overflow = previousOverflow;
+      document.removeEventListener('focusin', keepFocusInside);
+      document.removeEventListener('keydown', handleKey, true);
+    };
+  }, [drawerVisible, dismissDrawer]);
+  const toggleSidebar = () => {
+    if (viewport === 'compact') {
+      if (drawerVisible) dismissDrawer();
+      else setDrawerOpen(true);
+    } else if (viewport === 'wide') {
+      const expanded = !wideExpanded;
+      setWideExpanded(expanded);
+      localStorage.setItem(sidebarPreferenceKey, String(expanded));
+    }
+  };
   useEffect(() => {
     const titles: Record<string, string> = {
       '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
@@ -55,9 +147,16 @@ function App() {
     }
     previousScreen.current = { pathname, hasIdentity };
   }, [pathname, hasIdentity]);
+  useEffect(() => {
+    if (focusSettingsPanel.current && pathname === '/settings' && !drawerVisible) {
+      mainRef.current?.querySelector<HTMLElement>(`#${focusSettingsPanel.current}`)?.focus();
+      focusSettingsPanel.current = null;
+    }
+  }, [pathname, drawerVisible]);
 
   useEffect(() => {
     const handlePopState = () => {
+      dismissDrawer('main');
       if (window.location.pathname !== '/play') setActivePlaySession(null);
       setPathname(window.location.pathname);
     };
@@ -70,14 +169,19 @@ function App() {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('storage', handleStorage);
     };
-  }, []);
+  }, [dismissDrawer]);
 
   const navigate = useCallback((nextPathname: string) => {
+    if (drawerWasOpen.current) dismissDrawer('main');
     if (nextPathname === window.location.pathname) return;
     if (nextPathname !== '/play') setActivePlaySession(null);
     window.history.pushState({}, '', nextPathname);
     setPathname(window.location.pathname);
-  }, []);
+  }, [dismissDrawer]);
+  const openSettingsPanel = (id: 'puzzle-library' | 'app-updates') => {
+    if (pathname === '/settings' && !drawerVisible) mainRef.current?.querySelector<HTMLElement>(`#${id}`)?.focus();
+    else { focusSettingsPanel.current = id; navigate('/settings'); }
+  };
   const gameAnalysisMatch = /^\/games\/([^/]+)\/analysis$/.exec(pathname);
   const gameAnalysisId = gameAnalysisMatch ? decodeRouteSegment(gameAnalysisMatch[1]) : null;
   let screen = <div data-testid="not-found">Page not found</div>;
@@ -184,13 +288,20 @@ function App() {
   return (
     <UpdatesProvider>
     <PuzzleImportProvider onStartPuzzles={() => { setPuzzleLibraryRevision(value => value + 1); navigate('/puzzles'); }}>
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">Skip to content</a>
-      <header className="app-header">
-        <div className="app-brand"><img src="/logo.svg" alt="" /><span className="app-brand-name">Scan64</span></div>
-        <p>Your chess study table</p>
-      </header>
-      <nav className="app-nav" aria-label="Main navigation">
+    <div className="app-shell" data-sidebar-expanded={sidebarExpanded} data-drawer-open={drawerVisible} data-native={isDesktop()}>
+      <a className="skip-link" href="#main-content" inert={drawerVisible}>Skip to content</a>
+      {drawerVisible ? <div className="sidebar-backdrop" aria-hidden="true" onClick={() => dismissDrawer()} /> : null}
+      <div className="app-sidebar-slot">
+      <aside className="app-sidebar" ref={sidebarRef} role={drawerVisible ? 'dialog' : undefined} aria-modal={drawerVisible ? true : undefined} aria-label={drawerVisible ? 'Navigation menu' : undefined}>
+        <header className="app-header">
+          <div className="app-brand"><img src="/logo.svg" alt="" /><span className="app-brand-name">Scan64</span></div>
+          <p>Your chess study table</p>
+          <button ref={sidebarToggleRef} className="sidebar-toggle" aria-expanded={sidebarExpanded} aria-controls="main-navigation" aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'} onClick={toggleSidebar}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d={sidebarExpanded ? 'm14 6-6 6 6 6' : 'm10 6 6 6-6 6'} /></svg>
+            <span>{sidebarExpanded ? 'Collapse' : 'Expand'}</span>
+          </button>
+        </header>
+      <nav id="main-navigation" className="app-nav" aria-label="Main navigation">
         {[
           ['Today', '/'], ['Play', '/play'], ['Review', '/games'],
           ['Train', '/training'], ['Puzzles', '/puzzles'], ['Profile', '/profile'],
@@ -211,10 +322,13 @@ function App() {
             ><NavigationIcon name={label} /><span>{label}</span></button>
           );
         })}
-        <PuzzleImportFoot />
-        <UpdatesFoot />
+        <PuzzleImportFoot onOpenSettings={() => openSettingsPanel('puzzle-library')} />
+        <UpdatesFoot onOpenSettings={() => openSettingsPanel('app-updates')} />
       </nav>
-      <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content">
+      </aside>
+      </div>
+      <main id="main-content" ref={mainRef} tabIndex={-1} aria-label="Study content" inert={drawerVisible}>
+        <div className="app-canvas">
         {!hasIdentity && isKnownPath && pathname !== '/settings' ? (
           <section className="identity-screen" aria-labelledby="welcome-title">
             <h1 id="welcome-title">Welcome to Scan64</h1>
@@ -253,6 +367,7 @@ function App() {
             {screen}
           </>
         )}
+        </div>
       </main>
     </div>
     </PuzzleImportProvider>

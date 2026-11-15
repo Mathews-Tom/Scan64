@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PuzzlesScreen } from './PuzzlesScreen';
 import { ApiClient, PuzzleConflictError } from '../api/client';
@@ -73,6 +73,18 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     render(<PuzzlesScreen />);
     expect(await screen.findByText(/uv run scan64-cli puzzles import/)).toBeVisible();
     expect(screen.queryByText(/Scan64 window/)).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Puzzle workspace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Choose your practice' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start daily' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check for puzzles' })).toBeEnabled();
+  });
+  it('prevents checking an empty library with no eligible theme selected', async () => {
+    vi.mocked(ApiClient.getPuzzleModes).mockResolvedValue({ themes: [], streak });
+    vi.mocked(ApiClient.getActivePuzzleRun).mockResolvedValue({ status: 'empty', run: null, message: '', daily, streak });
+    render(<PuzzlesScreen />);
+    await screen.findByText('No imported puzzles are available.');
+    fireEvent.click(screen.getByRole('radio', { name: 'Theme' }));
+    expect(screen.getByRole('button', { name: 'Check for puzzles' })).toBeDisabled();
   });
   it('clears loading speech when initial puzzle loading fails', async () => {
     vi.mocked(ApiClient.getActivePuzzleRun).mockRejectedValue(new Error('Puzzle service unavailable'));
@@ -89,6 +101,9 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(board.props?.orientation).toBe('black');
     expect(board.props?.resetAfterAttempt).toBe(true);
     expect(screen.getByText('3 wrong attempts remaining')).toBeInTheDocument();
+    const workspace = screen.getByRole('region', { name: 'Puzzle workspace' });
+    expect(within(workspace).getByTestId('puzzle-board')).toBeVisible();
+    expect(within(workspace).getByRole('region', { name: 'Current puzzle' })).toContainElement(screen.getByRole('button', { name: 'Show hint' }));
     expect(screen.queryByText(/^(rating gained|mastery improved)/i)).not.toBeInTheDocument();
   });
 
@@ -105,7 +120,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
       .toHaveTextContent('Black played e7 to e5. White played g1 to f3.');
     await move('a7a6');
     expectBoard(REPLY, true);
-    expect(screen.getByText(/puzzle failed/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/puzzle failed/i);
     expect(ApiClient.submitPuzzleMove).toHaveBeenLastCalledWith('run-1', {
       expected_cursor: 2, expected_revision: 5, move: 'a7a6',
     });
@@ -143,7 +158,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(ApiClient.submitPuzzleMove).toHaveBeenNthCalledWith(2, 'run-1', { expected_cursor: 2, expected_revision: 1, move: 'b8c6' });
     expectBoard(FINISH, true);
     expect(board.props?.orientation).toBe('black');
-    expect(screen.getByText(/solved/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/solved/i);
     expect(screen.getByRole('button', { name: 'Next puzzle' })).toBeEnabled();
   });
 
@@ -158,7 +173,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
       expectBoard(SETUP, wrong === 3);
       if (wrong < 3) expect(screen.getByText(`${3 - wrong} wrong attempts remaining`)).toBeInTheDocument();
     }
-    expect(screen.getByText(/failed/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/failed/i);
     vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily, streak });
     fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
     await waitFor(() => expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(1));
@@ -201,7 +216,8 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     const annotations = screen.getByRole('list', { name: 'Board annotations' });
     expect(annotations).toHaveTextContent('Source continuation: e5.');
     expect(annotations).not.toHaveTextContent(/best|engine.quality/i);
-    expect(screen.getByText(/not an engine judgement of move quality/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Rating and practice rules'));
+    expect(screen.getByText(/not an engine judgement of move quality/)).toBeVisible();
   });
 
   it('disables Next puzzle while requesting another run and does not double-start', async () => {
@@ -221,11 +237,10 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     vi.mocked(ApiClient.abandonPuzzleRun).mockResolvedValue(run({ state: 'abandoned', revision: 1 }));
     await mount();
     fireEvent.click(screen.getByRole('button', { name: 'Abandon puzzle' }));
-    await screen.findByText(/puzzle abandoned/i);
+    await waitFor(() => expect(screen.getByRole('status', { name: 'Puzzle progress' })).toHaveTextContent(/puzzle abandoned/i));
     expectBoard(SETUP, true);
     expect(ApiClient.abandonPuzzleRun).toHaveBeenCalledWith('run-1', { expected_cursor: 0, expected_revision: 0 });
-    expect(screen.getByText(/abandoned/i)).toBeInTheDocument();
-    expect(screen.queryByText(/puzzle solved|puzzle failed/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Puzzle progress' })).not.toHaveTextContent(/puzzle solved|puzzle failed/i);
     expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Next puzzle' })).toBeEnabled();
   });
@@ -294,14 +309,19 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     if (status === 'empty') expect(screen.getByText(/scan64.*puzzles.*import/)).toBeInTheDocument();
     else expect(screen.getByText(/next daily set resets at UTC midnight/i)).toBeInTheDocument();
     expect(screen.queryByTestId('puzzle-board')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Puzzle workspace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start daily' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check for puzzles' })).toBeEnabled();
     expect(ApiClient.submitPuzzleMove).not.toHaveBeenCalled();
   });
   it('shows selection limits and updates rating and progress from the terminal response', async () => {
     await mount();
     expect(screen.getByText(/1200 \(provisional\)/)).toBeInTheDocument();
     expect(screen.getByText(/0 of 10 completed.*4 overdue reviews/)).toBeInTheDocument();
-    expect(screen.getByText(/Widened to ±400/)).toBeInTheDocument();
-    expect(screen.getByText(/Related to recurring weaknesses/)).toBeInTheDocument();
+    expect(screen.getByText(/Widened to ±400/)).not.toBeVisible();
+    fireEvent.click(screen.getByText('Source and selection details'));
+    expect(screen.getByText(/Widened to ±400/)).toBeVisible();
+    expect(screen.getByText(/Related to recurring weaknesses/)).toBeVisible();
     expect(screen.getByText(/hints, failure or abandonment lose rating/)).toBeInTheDocument();
     vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValue(run({
       state: 'solved', revision: 1,
@@ -333,6 +353,8 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.getByRole('radio', { name: 'Solve streak' })).toBeEnabled();
     expect(screen.getByRole('radio', { name: 'Your mistakes' })).toBeEnabled();
     expect(screen.queryByText(/No more puzzles are available/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Puzzle workspace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Choose your practice' })).not.toBeInTheDocument();
     fireEvent.click(themeRadio);
     vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({
       status: 'ready', run: run({ mode: 'theme', theme: 'fork', rated: false }), message: '', daily, streak,
@@ -353,6 +375,23 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.queryByTestId('puzzle-board')).not.toBeInTheDocument();
   });
 
+  it('retries the failed theme start instead of refreshing an older completed daily run', async () => {
+    await mount(run({ state: 'solved' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Theme' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: 'pin' } });
+    vi.mocked(ApiClient.startPuzzleRun)
+      .mockRejectedValueOnce(new Error('Theme request interrupted'))
+      .mockResolvedValueOnce({ status: 'ready', run: run({ mode: 'theme', theme: 'pin', rated: false }), message: '', daily, streak });
+    fireEvent.click(screen.getByRole('button', { name: 'Start theme' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Theme request interrupted');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await screen.findByTestId('puzzle-board');
+    expect(screen.getByRole('radio', { name: 'Theme' })).toBeChecked();
+    expect(ApiClient.startPuzzleRun).toHaveBeenCalledTimes(2);
+    expect(ApiClient.startPuzzleRun).toHaveBeenLastCalledWith({ mode: 'theme', theme: 'pin' });
+    expect(ApiClient.getPuzzleRun).not.toHaveBeenCalled();
+  });
+
   it('shows authoritative terminal streak progress and reset reason', async () => {
     await mount(run({ mode: 'streak', rated: false }));
     vi.mocked(ApiClient.abandonPuzzleRun).mockResolvedValueOnce(run({ mode: 'streak', rated: false, state: 'abandoned',
@@ -371,6 +410,7 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     await mount(run({ state: 'solved' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Your mistakes' }));
     expect(await screen.findByText('No eligible mistakes available.')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Puzzle workspace' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'More mistakes' }));
     expect(ApiClient.getPuzzleMistakes).toHaveBeenLastCalledWith(20);
     expect(await screen.findByText(/2 attempts remaining/)).toBeInTheDocument();

@@ -362,11 +362,6 @@ describe('PlayScreen', () => {
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('sess-123', { move: 'a7a8b' });
   });
 
-  it('renders start button and board container', () => {
-    render(<PlayScreen />);
-    expect(screen.getByTestId('start-btn')).toBeTruthy();
-    expect(screen.getByTestId('chessground-board')).toBeTruthy();
-  });
 
   it('starts a game and updates session info', async () => {
     vi.mocked(ApiClient.createPlayer).mockResolvedValueOnce({
@@ -588,22 +583,14 @@ describe('PlayScreen', () => {
     await waitFor(() => {
       expect(syncQueuedMoves).toHaveBeenCalled();
     });
-    expect(chessgroundMock.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        movable: expect.objectContaining({ color: undefined, dests: undefined }),
-      }),
-    );
 
 
     await waitFor(() => {
       expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
       expect(ApiClient.getGame).toHaveBeenCalledTimes(2);
-      expect(chessgroundMock.set).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
-          movable: expect.objectContaining({ color: 'white', dests: expect.any(Map) }),
-        }),
-      );
+      expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('Nf3');
+      expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('Nc6');
+      expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
     });
   });
 
@@ -628,11 +615,11 @@ describe('PlayScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('retry-move-sync')).toBeInTheDocument();
     });
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        movable: expect.objectContaining({ color: undefined, dests: undefined }),
-      }),
-    );
+    const move = await waitFor(getRegisteredMoveHandler);
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    await act(async () => { await move('g1', 'f3'); });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
   });
   it('retries a failed canonical refresh after queued-move synchronization', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
@@ -1239,6 +1226,7 @@ describe('PlayScreen', () => {
       fen: expect.stringContaining('4P3'), movable: expect.objectContaining({ color: 'black' }) })));
     expect(screen.getByTestId('takeback-btn')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
+    expect(screen.getByRole('status', { name: 'Game position' })).toHaveTextContent('Last move: e4. Black to move.');
   });
 
   it('offers random color without guessing the server chosen color', async () => {

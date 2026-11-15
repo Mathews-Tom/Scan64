@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-16
+
+### Changed
+
+- Desktop windows stop at 960 logical pixels wide and keep navigation on the left, including at increased zoom. Expand/Collapse reveals labels; compact windows use a temporary navigation drawer, and wide windows remember the sidebar preference.
+- Screens share bounded board/control columns, aligned overview grids and readable form widths. Puzzles shows full-width library setup when empty, a real board only during practice, compact progress summaries and expandable practice rules.
+
+### Fixed
+
+- Compact navigation skips hidden updater controls when wrapping keyboard focus.
+- Puzzle Retry repeats a failed mode start instead of reloading an older completed run.
+- Desktop game reviews keep long move lists scrollable beside the board.
+
 ## [0.7.0] - 2026-11-15
 
 ### Added

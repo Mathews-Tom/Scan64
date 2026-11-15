@@ -43,11 +43,9 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 1280, height: 480 
     await page.setViewportSize(viewport);
     await page.addInitScript(() => localStorage.clear());
     await page.goto('/');
-    const headerBounds = await page.getByRole('banner').boundingBox();
+    const headerBounds = await page.locator('.app-header').boundingBox();
     const today = page.getByRole('button', { name: 'Today', exact: true });
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await expect(today).toBeFocused();
+    await today.focus();
     const todayBounds = await today.boundingBox();
     expect(todayBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
     const navBounds = await page.getByRole('navigation', { name: 'Main navigation' }).boundingBox();

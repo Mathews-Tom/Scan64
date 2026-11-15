@@ -104,7 +104,7 @@ test('navigates to puzzles, rejects a wrong move, resumes hints on reload, plays
   await expect.poll(() => starts).toBe(6);
   expect(mutations).toHaveLength(3);
   await movePiece(page, board, 'b8', 'c6');
-  await expect(page.getByText(/solved/i)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Current puzzle' }).getByText(/solved/i)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Next puzzle', exact: true })).toBeEnabled();
   expect(mutations.filter(item => item.path.endsWith('/moves')).map(item => item.body)).toEqual([
     { expected_cursor: 0, expected_revision: 0, move: 'a7a6' },

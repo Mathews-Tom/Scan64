@@ -52,7 +52,7 @@ export function SettingsScreen() {
   }
 
   return (
-    <section className="settings-screen" aria-labelledby="settings-title">
+    <section className="settings-screen working-screen" aria-labelledby="settings-title">
       <h1 id="settings-title">Settings</h1>
       <Panel title="Appearance">
         <p>Choose a light or dark appearance, or follow your device setting.</p>

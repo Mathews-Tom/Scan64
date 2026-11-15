@@ -100,7 +100,7 @@ function UpdatesPanelContent({ updater }: { updater: Updater }) {
     const url = event.currentTarget.getAttribute('href');
     if (url) void openRelease(url);
   }
-  return <Panel title="Updates">
+  return <Panel title="Updates" id="app-updates" tabIndex={-1}>
     {status ? <>
       <p>Installed version: {status.installedVersion}</p>
       <p>Last checked: {status.lastChecked === null ? 'Never' : <time dateTime={new Date(status.lastChecked).toISOString()}>{new Date(status.lastChecked).toLocaleString()}</time>}</p>
@@ -125,13 +125,20 @@ export function UpdatesPanel() {
   const updater = useContext(UpdatesContext);
   return updater ? <UpdatesPanelContent updater={updater} /> : <StandaloneUpdatesPanel />;
 }
-export function UpdatesFoot() {
+export function UpdatesFoot({ onOpenSettings }: { onOpenSettings: () => void }) {
   const updater = useContext(UpdatesContext);
   if (!updater?.status || !['downloading', 'ready', 'available'].includes(updater.status.state)) return null;
   const { status } = updater;
+  const message = updater.error ? `${statusText(status)} ${updater.error}` : statusText(status);
   return <div className="updates-foot" aria-label="App update">
-    <p role="status">{status.state === 'ready' ? `Version ${status.availableVersion} is ready` : statusText(status)}</p>
-    <UpdateActions updater={updater} />
-    {updater.error ? <p role="alert">{updater.error}</p> : null}
+    <p className="visually-hidden" role="status">{message}</p>
+    <button className="updates-indicator" aria-label={`Updates: ${message} Open Settings`} title={message} onClick={onOpenSettings}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4" /></svg>
+    </button>
+    <div className="updates-foot-details">
+      <p>{status.state === 'ready' ? `Version ${status.availableVersion} is ready` : statusText(status)}</p>
+      <UpdateActions updater={updater} />
+      {updater.error ? <p role="alert">{updater.error}</p> : null}
+    </div>
   </div>;
 }

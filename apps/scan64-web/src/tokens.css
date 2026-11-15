@@ -56,6 +56,16 @@
   --space-8: 32px;
   --space-12: 48px;
   --space-16: 64px;
+  --sidebar-expanded: 208px;
+  --sidebar-compact: 72px;
+  --canvas-max: 1200px;
+  --reading-max: 800px;
+  --workspace-max: 1024px;
+  --board-max: 640px;
+  --controls-min: 320px;
+  --controls-max: 360px;
+  --layout-gap: var(--space-6);
+  --page-padding: var(--space-6);
   --type-label: 13px;
   --type-small: 16px;
   --type-body: 16px;
