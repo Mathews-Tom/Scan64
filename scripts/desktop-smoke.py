@@ -64,14 +64,26 @@ def descendants(parent: int) -> list[int]:
                 "powershell.exe",
                 "-NoProfile",
                 "-Command",
-                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId"
+                "Get-CimInstance Win32_Process | Where-Object CreationDate"
+                " | Select-Object ProcessId,ParentProcessId,"
+                "@{Name='Started';Expression={$_.CreationDate.ToUniversalTime().Ticks}}"
                 " | ConvertTo-Json -Compress",
             ],
             check=True,
             capture_output=True,
             text=True,
         )
-        rows = [(item["ProcessId"], item["ParentProcessId"]) for item in json.loads(result.stdout)]
+        processes = json.loads(result.stdout)
+        started = {item["ProcessId"]: item["Started"] for item in processes}
+        # Windows retains a dead parent's PID; compiler daemons can outlive it.
+        # A recycled PID does not make an older process a child of this app.
+        rows = [
+            (item["ProcessId"], item["ParentProcessId"])
+            for item in processes
+            if item["Started"] is not None
+            and started.get(item["ParentProcessId"]) is not None
+            and item["Started"] >= started[item["ParentProcessId"]]
+        ]
     else:
         result = subprocess.run(
             ["ps", "-axo", "pid=,ppid="], check=True, capture_output=True, text=True

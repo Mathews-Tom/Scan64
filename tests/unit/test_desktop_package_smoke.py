@@ -155,3 +155,27 @@ def test_smoke_cli_canonicalizes_bundle_parents_but_preserves_apprun(
 
     monkeypatch.setattr(helpers, "run", record)
     helpers.main()
+
+
+def test_windows_ancestry_rejects_stale_recycled_parent_pids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    helpers = packaging.smoke_helpers()
+
+    class Windows:
+        name = "nt"
+
+    records = [
+        {"ProcessId": 50, "ParentProcessId": 1, "Started": 200},
+        {"ProcessId": 51, "ParentProcessId": 50, "Started": 201},
+        {"ProcessId": 52, "ParentProcessId": 50, "Started": 100},
+        {"ProcessId": 53, "ParentProcessId": 51, "Started": 202},
+    ]
+
+    def snapshot(command, **kwargs):
+        assert "CreationDate" in command[-1]
+        return helpers.subprocess.CompletedProcess(command, 0, stdout=helpers.json.dumps(records))
+
+    monkeypatch.setattr(helpers, "os", Windows)
+    monkeypatch.setattr(helpers.subprocess, "run", snapshot)
+    assert helpers.descendants(50) == [51, 53]
