@@ -1,0 +1,59 @@
+M85 lane A — static Scan64 landing page
+
+Authority and scope
+Base d7e5789c5f5d784aa07071723b3c1338968b94b7; feat/m85-site; main PR base.
+Only site/ and .github/workflows/pages.yml. No app, .docs, release, tag or merge changes.
+Pages Actions source enabled by owner; intended URL https://mathews-tom.github.io/Scan64/.
+
+Facts and material
+README: free/open-source/local chess coach, club-player audience, play/review/personal practice.
+docs/user-guide.md: desktop platforms, bundled Stockfish, update checks, local data, unsigned/ad-hoc builds and macOS not notarized.
+docs/system-overview.md: no measured chess-improvement outcome claim.
+0.7.0 release: exact four platform installer filenames. No invented testimonials, figures, customers, photos or ratings.
+Reuse apps/scan64-web/public/logo.svg and bundled Host Grotesk/JetBrains Mono plus their OFL texts.
+UI is live HTML depicting the existing Scan64 navigation, board, moves and review/practice subjects. It is a static product presentation, not a playable game or running engine; no invented performance or player data.
+
+Download URL decision
+Versioned 0.7.0 installer URLs are stable compatibility-baseline downloads and keep working after 0.7.1. The release-notes link and unknown/mobile fallback use releases/latest, which always names the current release. No runtime GitHub API request, tracking or third-party font request.
+
+Initial checks
+node <skill>/scripts/copy-lint.mjs site/index.html --kind software
+  0 FAIL, 0 WARN; final copy 186 words.
+actionlint .github/workflows/pages.yml
+  exit 0; no diagnostics.
+uv run --no-project python site/validate.py
+  PASS: 25 HTML resources and links; relative assets support /Scan64/.
+node <skill>/scripts/perf.mjs index.html --profile .taste-skill/chrome-perf (from site/)
+  SUMMARY index.html: 0 FAIL, 2 WARN -> WARN.
+  248.6 KiB phone transfer; 19 requests; 2 font families/files; 131.2 KiB fonts.
+  0 broken requests; 0 unused mounted modules; peak 1 live WebGL context.
+  Phone layout shift 0.000; desktop 0.002. CPU-rendered timing is not a real-device benchmark.
+  Kept WARN: tiny repeated local logo SVGs are not lazy-loaded; 0.5 KiB total image transfer, avoiding visible mark pop-in.
+
+Link checks
+curl -IL --max-time 30 on all four published installer URLs followed redirects to HTTP 200. Initial checks before release uploads finished returned 404; final assets were verified uploaded through the release API. GitHub/latest, project source, main/docs/user-guide.md and main/LICENSE returned HTTP 200.
+
+Waivers
+container-edges / a.skip-link: required keyboard skip link is a body child as in the starter.
+one-section / footer close-type primary button: dealt recipe requires a full-width download button; not an inset content band.
+hero-lines / section.hero h1: final category/buyer heading fits 3 desktop and 2 phone lines; only synthetic maximum-length stress copy needs 4, and the M81 Host Grotesk pairing is mandatory.
+
+No assumed facts, coined names, stand-in photos, customer slots, forms or contacts. No custom domain or analytics. Kit assets were copied, unused families removed, retained kit sources unchanged.
+
+OS detection and sub-path proof
+node /tmp/m85-site-os.mjs (temporary headless Chrome/CDP harness, no user browser)
+  Spoofed both Network.setUserAgentOverride userAgent and platform.
+  PASS macOS / MacIntel -> Scan64_0.7.0_aarch64.dmg; Windows and Linux named alternatives.
+  PASS Windows / Win32 -> Scan64_0.7.0_x64-setup.exe; macOS and Linux named alternatives.
+  PASS Linux / Linux x86_64 -> Scan64_0.7.0_amd64.AppImage; macOS and Windows named alternatives.
+  PASS unknown / Unknown -> releases/latest; all three platform links named.
+  Every case also offers the Debian package, renders 128 board squares, and loads the bundled font.
+  PASS /Scan64/ prefix: no missing asset/font/module requests.
+  Initial harness attempt read the page before its modules ran; repaired the harness to await the rendered board before assertions.
+
+Additional waiver
+scroll-reveal / h2.mo-la__type: unchanged dealt letters-assemble moment inside its own declared section; checker intermittently treats its required letter transforms as an ordinary content reveal on tablets. Reduced-motion remains readable.
+The one-section waiver also covers the dealt full-width tablet hero download button, which is an actionable link rather than a content band.
+
+Owner-approved deviation
+Remove the dead root .gitignore template mkdocs comment and /site entry so the new source directory is normally trackable. No MkDocs configuration exists. site/.gitignore narrowly excludes browser profiles, screenshots, raw logs and check caches; meaningful skill state remains committed.

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="256" height="256" role="img" aria-labelledby="title desc">
+  <title id="title">Scan64</title>
+  <desc id="desc">An ink square crossed by one rising mint scan stroke.</desc>
+  <rect x="1" y="1" width="14" height="14" rx="3" fill="#232323"/>
+  <path d="M5 11 11 5" fill="none" stroke="#a1ffcb" stroke-width="2" stroke-linecap="round"/>
+</svg>

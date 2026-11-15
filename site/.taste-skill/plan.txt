@@ -1,0 +1,10 @@
+software
+Deal: triptych hero; M81 brand white #ffffff, ink #232323, surface #f3f3f3, muted #686868, mint #a1ffcb through start.mjs brand; Host Grotesk + JetBrains Mono mandated by existing identity rather than new pairing. Neutral grounds match the desktop; mint marks selection. nav-centre, footer-dark, close-type, dark-band, arrow buttons; existing client mark overrides dealt stack. sand lit ground; grain-gradient hero effect; letters-assemble statement moment; no scene.
+Voice: technical-dry; exact not cold, direct not promotional; chess nouns and short sentences; no humour or invented proof.
+Facts: free open-source local chess coach; club players roughly 600–1600 (README); play, hints, review and personal puzzles (README/user-guide); three desktop platforms and unsigned builds (0.7.0 release/user-guide); no measured improvement claim (system-overview).
+Copy first: Chess coaching for club players. Play at your level, review the moves that decided your game, and practise puzzles drawn from your own mistakes. Free and open source. macOS, Windows and Linux. Download Scan64.
+hero: category, UI collage of actual Play/Review/Practice subjects; object; 1 screen.
+review: app-frame live HTML matching actual app shell and board; object; 1 screen.
+practice: Scan64 practice; letters-assemble moment draws attention to the practice destination; type; 1 screen. Explanation and installation FAQ share this screen.
+closing: Scan64 on your computer; installer information and source/user-guide links; type; 1 screen.
+No invented testimonials, customers, figures, photographs, forms, email or stand-ins. UI is a static presentation of existing screens, not a playable chess engine. No missing client assets.
