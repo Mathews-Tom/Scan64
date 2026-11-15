@@ -154,3 +154,8 @@ export async function restartToUpdate(): Promise<void> {
 export async function setAutomaticUpdates(enabled: boolean): Promise<void> {
   if (isDesktop()) await invoke('set_automatic_updates', { enabled });
 }
+
+/** Desktop links are opened by the shell; browser anchors retain their normal navigation. */
+export async function openReleaseUrl(url: string): Promise<void> {
+  if (isDesktop()) await invoke('open_release_url', { url });
+}

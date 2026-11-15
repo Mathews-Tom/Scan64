@@ -32,6 +32,7 @@
       "pubkey": "SCAN64_PRODUCTION_UPDATER_PUBLIC_KEY_REQUIRED",
       "endpoints": ["https://github.com/Mathews-Tom/Scan64/releases/latest/download/latest.json"],
       "dangerousInsecureTransportProtocol": false,
+      "requireSignedVersion": true,
       "windows": { "installMode": "passive" }
     }
   }

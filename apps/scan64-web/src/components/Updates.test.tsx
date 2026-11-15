@@ -7,7 +7,7 @@ import { UpdatesFoot, UpdatesPanel, UpdatesProvider } from './Updates';
 vi.mock('../platform', async (original) => ({
   ...await original<typeof platform>(),
   isDesktop: vi.fn(() => true), updateStatus: vi.fn(),
-  checkUpdates: vi.fn(), downloadUpdate: vi.fn(), restartToUpdate: vi.fn(), setAutomaticUpdates: vi.fn(),
+  checkUpdates: vi.fn(), downloadUpdate: vi.fn(), restartToUpdate: vi.fn(), setAutomaticUpdates: vi.fn(), openReleaseUrl: vi.fn(),
 }));
 const base: UpdateStatus = {
   state: 'idle', installedVersion: '0.6.1', availableVersion: '0.6.2', percent: null,
@@ -74,6 +74,52 @@ describe('Updates', () => {
     expect(await screen.findByText(reason)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Download Scan64' })).toHaveAttribute('href', base.downloadUrl);
     expect(screen.getByRole('button', { name: 'Check for updates' })).toBeDisabled();
+  });
+  it.each([
+    ['Release notes', base.releaseNotesUrl], ['Download Scan64', base.downloadUrl],
+  ])('routes the desktop %s anchor through the shell only on activation', async (name, url) => {
+    vi.mocked(platform.updateStatus).mockResolvedValue({ ...base, state: 'unavailable' });
+    renderUpdates();
+    const link = await screen.findByRole('link', { name });
+    expect(link).toHaveAttribute('href', url);
+    expect(platform.openReleaseUrl).not.toHaveBeenCalled();
+    expect(fireEvent.click(link)).toBe(false);
+    await waitFor(() => expect(platform.openReleaseUrl).toHaveBeenCalledExactlyOnceWith(url));
+  });
+  it.each([
+    ['keyboard', 'click', 0, 0, false],
+    ['modified click', 'click', 0, 1, true],
+    ['middle click', 'auxclick', 1, 1, false],
+  ] as const)('routes desktop %s activation without WebView navigation', async (_name, type, button, detail, ctrlKey) => {
+    renderUpdates();
+    const link = await screen.findByRole('link', { name: 'Release notes' });
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, button, detail, ctrlKey });
+    expect(fireEvent(link, event)).toBe(false);
+    await waitFor(() => expect(platform.openReleaseUrl).toHaveBeenCalledExactlyOnceWith(base.releaseNotesUrl));
+  });
+  it('shows a release opener failure without losing the link', async () => {
+    vi.mocked(platform.openReleaseUrl).mockRejectedValueOnce(new Error('Cannot open release link'));
+    renderUpdates();
+    const link = await screen.findByRole('link', { name: 'Release notes' });
+    fireEvent.click(link);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot open release link');
+    expect(link).toHaveAttribute('href', base.releaseNotesUrl);
+  });
+  it.each(['Release notes', 'Download Scan64'])('keeps normal browser %s navigation without invoking the shell', (name) => {
+    vi.mocked(platform.isDesktop).mockReturnValue(false);
+    renderUpdates();
+    const link = screen.getByRole('link', { name });
+    expect(link).toHaveAttribute('href', platform.browserUpdateStatus.downloadUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+    let preventedByApp: boolean | undefined;
+    // Observe the app handler, then cancel the test's default action: never open a browser.
+    document.addEventListener('click', (event) => {
+      preventedByApp = event.defaultPrevented;
+      event.preventDefault();
+    }, { once: true });
+    fireEvent.click(link);
+    expect(preventedByApp).toBe(false);
+    expect(platform.openReleaseUrl).not.toHaveBeenCalled();
   });
   it('does not poll or invoke native commands in browser installs', () => {
     vi.mocked(platform.isDesktop).mockReturnValue(false);

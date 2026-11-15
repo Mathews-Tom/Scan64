@@ -309,11 +309,10 @@ fn permitted_download(update: &Update) -> bool {
 fn download_failure(error: &tauri_plugin_updater::Error) -> &'static str {
     use tauri_plugin_updater::Error;
     match error {
-        Error::Minisign(_)
-        | Error::Base64(_)
-        | Error::SignatureUtf8(_)
-        | Error::SignedVersionMismatch { .. }
-        | Error::MissingSignedVersion => {
+        Error::SignedVersionMismatch { .. } | Error::MissingSignedVersion => {
+            "The update signature does not authenticate the announced version. Retry or download Scan64 from GitHub."
+        }
+        Error::Minisign(_) | Error::Base64(_) | Error::SignatureUtf8(_) => {
             "The update signature verification failed. Retry or download Scan64 from GitHub."
         }
         _ => "The update download failed. Check your connection and retry.",
@@ -783,6 +782,20 @@ mod tests {
             ))
             .contains("signature")
         );
+    }
+
+    #[test]
+    fn signed_version_failures_are_signature_rejections() {
+        for error in [
+            tauri_plugin_updater::Error::SignedVersionMismatch {
+                signed: "0.6.1".to_owned(),
+                announced: "0.6.2".to_owned(),
+            },
+            tauri_plugin_updater::Error::MissingSignedVersion,
+        ] {
+            assert!(download_failure(&error).contains("signature"));
+            assert!(download_failure(&error).contains("version"));
+        }
     }
 
     #[test]

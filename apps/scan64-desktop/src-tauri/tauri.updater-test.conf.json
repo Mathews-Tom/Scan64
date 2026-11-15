@@ -4,7 +4,8 @@
     "updater": {
       "pubkey": "SCAN64_PER_RUN_TEST_PUBLIC_KEY_REQUIRED",
       "endpoints": ["http://127.0.0.1:0/latest.json"],
-      "dangerousInsecureTransportProtocol": true
+      "dangerousInsecureTransportProtocol": true,
+      "requireSignedVersion": true
     }
   }
 }

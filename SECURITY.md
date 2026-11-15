@@ -51,11 +51,15 @@ that the desktop shell is a security sandbox.
 ## Desktop update signing
 
 The unified desktop updater accepts an update only after Tauri verifies its
-signature against the public key compiled into `plugins.updater.pubkey`. The
-production endpoint is the HTTPS GitHub Releases `latest.json` for
-`Mathews-Tom/Scan64`; ordinary TLS checks remain enabled for the manifest and
-download. This signing is separate from Apple notarization and Windows code
-signing: installers remain unsigned by those platform authorities.
+signature against the public key compiled into `plugins.updater.pubkey`.
+`plugins.updater.requireSignedVersion` is required to be `true` in production:
+the signature's authenticated version must match the version announced in the
+manifest. Missing signed versions and version mismatches fail verification, so
+an older correctly signed bundle cannot be relabeled as a newer release.
+The production endpoint is the HTTPS GitHub Releases `latest.json` for
+`Mathews-Tom/Scan64`; TLS certificate and hostname validation remain enabled for
+the manifest and download. This signing is separate from Apple notarization and
+Windows code signing: installers remain unsigned by those platform authorities.
 
 The owner generates and retains the production private key **offline**, with an
 offline backup, and supplies the key and password only through the Actions secret
@@ -66,10 +70,15 @@ and coordinate replacement through the private reporting channel above.
 
 Until the owner supplies the public half, the committed production configuration
 contains a clearly named placeholder and release builds fail closed. Explicit PR
-dry runs may bypass only that missing-key check, never insecure transport or an
-unexpected production endpoint. Test builds require the `updater-test` Cargo
-feature and `SCAN64_UPDATER_TEST=1`; they use a per-run temporary test key and a
-loopback-only HTTP overlay. Never publish a test-configured build as a release.
+dry runs may bypass only that missing-key check, never insecure transport,
+disabled TLS certificate or hostname validation, an unexpected production
+endpoint, or the signed-version requirement. The build guard rejects
+`dangerousInsecureTransportProtocol`, `dangerousAcceptInvalidCerts`, and
+`dangerousAcceptInvalidHostnames` when enabled outside the explicit test boundary,
+including debug builds and PR dry runs. Test builds require the `updater-test`
+Cargo feature and `SCAN64_UPDATER_TEST=1`; they use a per-run temporary test key
+and a loopback-only HTTP overlay that also requires signed versions. Never
+publish a test-configured build as a release.
 
 Installation requires the user's explicit **Restart to update** action, and the
 shell stops its server before replacing the app. On first startup under a newer

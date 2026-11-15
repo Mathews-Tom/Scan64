@@ -162,3 +162,48 @@ def test_player_survival_checks_the_real_player_and_profile_schema(tmp_path: Pat
         session.commit()
     assert not updater.player_present(database)
     engine.dispose()
+
+
+@pytest.mark.parametrize("query_fails", [False, True])
+def test_player_presence_closes_the_database_on_success_and_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, query_fails: bool
+) -> None:
+    closed = False
+
+    class Connection:
+        def execute(self, *_args: object) -> Connection:
+            if query_fails:
+                raise updater.sqlite3.DatabaseError("query failed")
+            return self
+
+        def fetchone(self) -> tuple[str]:
+            return ("Update smoke",)
+
+        def close(self) -> None:
+            nonlocal closed
+            closed = True
+
+    monkeypatch.setattr(updater.sqlite3, "connect", lambda *_args, **_kwargs: Connection())
+    if query_fails:
+        with pytest.raises(updater.sqlite3.DatabaseError, match="query failed"):
+            updater.player_present(tmp_path / "scan64.db")
+    else:
+        assert updater.player_present(tmp_path / "scan64.db")
+    assert closed
+
+
+def test_ci_summary_uses_utf8_even_with_a_windows_ansi_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_open = Path.open
+
+    def ansi_default(path: Path, mode: str = "r", *args, **kwargs):
+        if "b" not in mode:
+            kwargs.setdefault("encoding", "cp1252")
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", ansi_default)
+    monkeypatch.setattr(updater, "platform_key", lambda: "windows-x86_64")
+    report = tmp_path / "summary.md"
+    updater.write_summary(report)
+    assert f"{updater.FROM_VERSION} → {updater.TO_VERSION}" in report.read_bytes().decode("utf-8")

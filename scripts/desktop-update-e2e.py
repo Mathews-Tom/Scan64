@@ -15,7 +15,6 @@ import importlib.util
 import json
 import os
 import platform
-import secrets
 import shutil
 import sqlite3
 import subprocess
@@ -23,6 +22,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import closing
 from pathlib import Path
 from urllib.parse import quote
 
@@ -51,8 +51,8 @@ def run(args: list[str], *, environment: dict[str, str] | None = None) -> None:
 
 
 def tauri(*args: str, environment: dict[str, str], quiet: bool = False) -> None:
-    # Never echo argv or captured signer output: the generator accepts its test
-    # password only as a CLI option, sourced here from the ephemeral environment.
+    # Never echo captured signer output. Ephemeral signing values are supplied
+    # only through environment variables or private temporary files.
     result = subprocess.run(
         [shutil.which("pnpm") or "pnpm", "--dir", str(DESKTOP), "tauri", *args],
         cwd=ROOT,
@@ -230,7 +230,7 @@ def assert_trace(records: list[dict[str, object]], mode: str) -> None:
 
 
 def player_present(database: Path) -> bool:
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True) as connection:
+    with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
         return connection.execute(
             "SELECT profile.display_name FROM player "
             "JOIN playerprofile AS profile ON profile.player_id = player.id WHERE player.id = ?",
@@ -358,6 +358,21 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
+def write_summary(path: Path) -> None:
+    with path.open("a", encoding="utf-8") as report:
+        report.write(f"### Signed update end-to-end ({platform_key()})\n\n")
+        report.write(
+            f"Observed {FROM_VERSION} → {TO_VERSION}; progress, explicit restart, "
+            "database backup and player intact.\n\n"
+        )
+        report.write(
+            "Modified bundle, modified signature and mismatched signed version: rejected; "
+            "installed app unchanged.\n\n"
+        )
+        if sys.platform == "linux":
+            report.write("Installed .deb: unavailable, release download link present.\n\n")
+
+
 def main() -> None:
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="scan64-update-test-") as temporary:
@@ -367,16 +382,16 @@ def main() -> None:
         environment = {
             key: value for key, value in os.environ.items() if not key.startswith("TAURI_SIGNING_")
         }
-        # A fresh test credential, never a GitHub secret or a production key.
-        environment["TAURI_SIGNING_PRIVATE_KEY_PASSWORD"] = secrets.token_urlsafe(32)
+        # The CLI's --ci generator uses an empty password without putting any
+        # credential in argv. The private test key is protected by this 0700
+        # temporary directory and removed deterministically when the run ends.
+        environment["TAURI_SIGNING_PRIVATE_KEY_PASSWORD"] = ""
         tauri(
             "signer",
             "generate",
             "--ci",
             "--write-keys",
             str(private_key),
-            "--password",
-            environment["TAURI_SIGNING_PRIVATE_KEY_PASSWORD"],
             environment=environment,
             quiet=True,
         )
@@ -401,6 +416,7 @@ def main() -> None:
                     "pubkey": public_key,
                     "endpoints": [f"http://127.0.0.1:{port}/latest.json"],
                     "dangerousInsecureTransportProtocol": True,
+                    "requireSignedVersion": True,
                     "windows": {"installMode": "passive"},
                 }
                 config.write_text(json.dumps(overlay))
@@ -443,7 +459,12 @@ def main() -> None:
                 shutil.copy2(new, served)
                 pristine_digest = digest(old)
                 results = []
-                for case in ("tampered-bundle", "tampered-signature", "install"):
+                for case in (
+                    "tampered-bundle",
+                    "tampered-signature",
+                    "mismatched-version",
+                    "install",
+                ):
                     signature_value = signature
                     shutil.copy2(new, served)
                     if case == "tampered-bundle":
@@ -451,6 +472,11 @@ def main() -> None:
                             output.write(b"tampered updater bundle")
                     elif case == "tampered-signature":
                         signature_value = signature_tamper(signature)
+                    elif case == "mismatched-version":
+                        # Cryptographically valid N bytes/signature, but the
+                        # manifest announces N+1: only version binding rejects it.
+                        shutil.copy2(old, served)
+                        signature_value = Path(str(old) + ".sig").read_text().strip()
                     (release / "latest.json").write_text(
                         json.dumps(manifest(served, signature_value, port))
                     )
@@ -464,6 +490,10 @@ def main() -> None:
                     if case != "install":
                         assert digest(binary) == before, "Rejected update changed the installed app"
                         result["app_unchanged"] = True
+                    if case == "mismatched-version":
+                        assert "version" in str(result["states"][-1]["reason"]).lower()
+                        result["signed_version"] = FROM_VERSION
+                        result["manifest_version"] = TO_VERSION
                     result["case"] = case
                     results.append(result)
                     assert digest(old) == pristine_digest, "The saved N install was modified"
@@ -503,19 +533,7 @@ def main() -> None:
                 )
                 summary = os.environ.get("GITHUB_STEP_SUMMARY")
                 if summary:
-                    with Path(summary).open("a") as report:
-                        report.write(f"### Signed update end-to-end ({platform_key()})\n\n")
-                        report.write(
-                            f"Observed {FROM_VERSION} → {TO_VERSION}; progress, explicit restart, "
-                            "database backup and player intact.\n\n"
-                        )
-                        report.write(
-                            "Modified bundle and signature: rejected; installed app unchanged.\n\n"
-                        )
-                        if sys.platform == "linux":
-                            report.write(
-                                "Installed .deb: unavailable, release download link present.\n\n"
-                            )
+                    write_summary(Path(summary))
             finally:
                 server.shutdown()
 

@@ -38,6 +38,15 @@ pub fn validate(
     if updater["dangerousInsecureTransportProtocol"] == true && !test {
         return Err("insecure updater transport is test-only, even in a dry run");
     }
+    if !test
+        && (updater["dangerousAcceptInvalidCerts"] == true
+            || updater["dangerousAcceptInvalidHostnames"] == true)
+    {
+        return Err("disabling updater TLS validation is test-only, even in a dry run");
+    }
+    if !test && updater["requireSignedVersion"] != true {
+        return Err("production updater must require signed versions, even in a dry run");
+    }
     if updater["allowDowngrades"] == true {
         return Err("updater downgrades are forbidden");
     }
@@ -113,7 +122,8 @@ mod tests {
     fn config() -> Value {
         serde_json::json!({"plugins": {"updater": {
             "pubkey": PLACEHOLDER, "endpoints": [ENDPOINT],
-            "dangerousInsecureTransportProtocol": false
+            "dangerousInsecureTransportProtocol": false,
+            "requireSignedVersion": true
         }}})
     }
 
@@ -133,6 +143,46 @@ mod tests {
         config["plugins"]["updater"]["endpoints"] =
             serde_json::json!(["http://127.0.0.1/latest.json"]);
         assert!(validate(&config, true, false, false, true).is_err());
+    }
+
+    #[test]
+    fn tls_validation_bypasses_are_test_only_even_in_debug_and_dry_runs() {
+        for field in [
+            "dangerousAcceptInvalidCerts",
+            "dangerousAcceptInvalidHostnames",
+        ] {
+            for (release, dry_run) in [(true, false), (true, true), (false, false)] {
+                let mut config = config();
+                config["plugins"]["updater"]["pubkey"] = public_key().into();
+                config["plugins"]["updater"][field] = true.into();
+                assert_eq!(
+                    validate(&config, release, false, false, dry_run),
+                    Err("disabling updater TLS validation is test-only, even in a dry run")
+                );
+                config["plugins"]["updater"][field] = false.into();
+                assert!(validate(&config, release, false, false, dry_run).is_ok());
+            }
+            let mut config = config();
+            config["plugins"]["updater"]["pubkey"] = public_key().into();
+            config["plugins"]["updater"]["endpoints"] =
+                serde_json::json!(["http://127.0.0.1:9876/latest.json"]);
+            config["plugins"]["updater"][field] = true.into();
+            assert!(validate(&config, true, true, true, false).is_ok());
+        }
+    }
+
+    #[test]
+    fn production_requires_explicit_signed_versions_even_in_debug_and_dry_runs() {
+        for value in [Value::Null, false.into(), "true".into()] {
+            for (release, dry_run) in [(true, false), (true, true), (false, false)] {
+                let mut config = config();
+                config["plugins"]["updater"]["requireSignedVersion"] = value.clone();
+                assert_eq!(
+                    validate(&config, release, false, false, dry_run),
+                    Err("production updater must require signed versions, even in a dry run")
+                );
+            }
+        }
     }
 
     #[test]
@@ -163,6 +213,7 @@ mod tests {
         let mut config = config();
         merge(&mut config, serde_json::json!({"version": "0.6.1"}));
         assert_eq!(config["plugins"]["updater"]["endpoints"][0], ENDPOINT);
+        assert_eq!(config["plugins"]["updater"]["requireSignedVersion"], true);
         merge(
             &mut config,
             serde_json::json!({"plugins": {"updater": null}}),

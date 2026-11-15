@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod release_links;
 mod server;
 mod updater;
 
@@ -203,6 +204,7 @@ fn main() {
             desktop_connection,
             restart_server,
             choose_puzzle_file,
+            release_links::open_release_url,
             smoke_complete,
             smoke_failed,
             updater::update_status,

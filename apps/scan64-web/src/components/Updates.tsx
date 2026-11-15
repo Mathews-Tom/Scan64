@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { browserUpdateStatus, checkUpdates, downloadUpdate, isDesktop, restartToUpdate, setAutomaticUpdates, updateStatus, type UpdateStatus } from '../platform';
+import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { browserUpdateStatus, checkUpdates, downloadUpdate, isDesktop, openReleaseUrl, restartToUpdate, setAutomaticUpdates, updateStatus, type UpdateStatus } from '../platform';
 import { Button, Panel, StatusLine } from './Primitives';
 import './Updates.css';
 
@@ -85,6 +85,12 @@ function UpdatesPanelContent({ updater }: { updater: Updater }) {
   const { status, busy, error, act } = updater;
   const unavailable = status?.state === 'unavailable';
   const pending = !status || ['checking', 'downloading', 'installing'].includes(status.state);
+  function openLink(event: MouseEvent<HTMLAnchorElement>) {
+    if (!isDesktop() || (event.button !== 0 && event.button !== 1)) return;
+    event.preventDefault();
+    const url = event.currentTarget.getAttribute('href');
+    if (url) void act(() => openReleaseUrl(url));
+  }
   return <Panel title="Updates">
     {status ? <>
       <p>Installed version: {status.installedVersion}</p>
@@ -99,7 +105,7 @@ function UpdatesPanelContent({ updater }: { updater: Updater }) {
     </div>
     <label className="updates-automatic"><input type="checkbox" role="switch" checked={status?.automatic ?? false} disabled={!status || busy || unavailable} onChange={(event) => { const enabled = event.target.checked; void act(() => setAutomaticUpdates(enabled)); }} />Download updates automatically</label>
     <p className="muted">Updates download in the background. Scan64 only restarts when you choose Restart to update.</p>
-    {status ? <p><a href={status.releaseNotesUrl} target="_blank" rel="noreferrer">Release notes</a>{unavailable ? <> · <a href={status.downloadUrl} target="_blank" rel="noreferrer">Download Scan64</a></> : null}</p> : null}
+    {status ? <p><a href={status.releaseNotesUrl} target="_blank" rel="noreferrer" onClick={openLink} onAuxClick={openLink}>Release notes</a>{unavailable ? <> · <a href={status.downloadUrl} target="_blank" rel="noreferrer" onClick={openLink} onAuxClick={openLink}>Download Scan64</a></> : null}</p> : null}
     {error ? <StatusLine kind="error">{error}</StatusLine> : null}
   </Panel>;
 }

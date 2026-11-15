@@ -32,6 +32,18 @@ describe('update platform adapter', () => {
       ['set_automatic_updates', { enabled: false }], ['set_automatic_updates', { enabled: true }],
     ]);
   });
+  it('opens a user-selected release URL only through the native command', async () => {
+    const platform = await import('./platform');
+    expect(invoke).not.toHaveBeenCalled();
+    const url = 'https://github.com/Mathews-Tom/Scan64/releases/tag/v0.6.2';
+    await platform.openReleaseUrl(url);
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('open_release_url', { url });
+  });
+  it('preserves release link rejection for the UI', async () => {
+    const platform = await import('./platform');
+    invoke.mockRejectedValue(new Error('Only Scan64 GitHub release links can be opened'));
+    await expect(platform.openReleaseUrl('https://example.com')).rejects.toThrow('Only Scan64 GitHub release links can be opened');
+  });
   it('preserves native failures for the UI', async () => {
     const platform = await import('./platform');
     invoke.mockRejectedValue(new Error('Signature verification failed'));
@@ -46,6 +58,7 @@ describe('update platform adapter', () => {
     await platform.downloadUpdate();
     await platform.restartToUpdate();
     await platform.setAutomaticUpdates(true);
+    await platform.openReleaseUrl(platform.browserUpdateStatus.releaseNotesUrl);
     expect(invoke).not.toHaveBeenCalled();
   });
 });
