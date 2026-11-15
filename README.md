@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Mathews-Tom/Scan64/releases/tag/v0.7.0"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathews-Tom/Scan64?color=a1ffcb&label=release"></a>
+  <a href="https://github.com/Mathews-Tom/Scan64/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathews-Tom/Scan64?color=a1ffcb&label=release"></a>
   <a href="https://github.com/Mathews-Tom/Scan64/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Mathews-Tom/Scan64/ci.yml?branch=main&label=CI"></a>
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-a1ffcb"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-232323">
@@ -59,12 +59,12 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
   <tr>
     <td width="33%"><a href="assets/screenshot-today.png"><img src="assets/screenshot-today.png" alt="The v0.7.0 Today screen with Play, Train and Review actions"></a></td>
     <td width="33%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="The v0.7.0 review board with a selected blunder marked as a key moment"></a></td>
-    <td width="33%"><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="The v0.7.0 Profile showing declared experience and a separate provisional puzzle rating"></a></td>
+    <td width="33%"><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="The v0.7.0 Profile cropped to the declared starting level, suggested bot level and introductory daily-puzzle progress"></a></td>
   </tr>
   <tr>
     <td align="center"><b>Today</b>: what to do next</td>
     <td align="center"><b>Review</b>: where the game turned</td>
-    <td align="center"><b>Profile</b>: separate strength records</td>
+    <td align="center"><b>Profile</b>: your starting point</td>
   </tr>
 </table>
 
