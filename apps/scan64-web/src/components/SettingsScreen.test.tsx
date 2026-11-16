@@ -118,6 +118,36 @@ describe('Independent board preferences', () => {
     expect(initializeBoardAppearance()).toEqual({ pieceSet: 'firi', boardTheme: 'slate' });
   });
 
+  it.each([
+    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', 'spatial', 'Spatial'],
+    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', null, 'Chessnut'],
+    ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', 'walnut', 'Walnut'],
+    ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', null, 'Slate'],
+  ] as const)('keeps %s %s across remounts when saving fails (case %#)', (preference, choice, value, datasetKey, storageKey, savedValue, savedChoice) => {
+    if (savedValue !== null) localStorage.setItem(storageKey, savedValue);
+    initializeBoardAppearance();
+    const first = render(<SettingsScreen />);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+
+    fireEvent.click(screen.getByRole('radio', { name: choice }));
+    expect(screen.getByRole('alert')).toHaveTextContent(new RegExp(`${preference} changed for this session`, 'i'));
+    expect(document.documentElement.dataset[datasetKey]).toBe(value);
+    expect(localStorage.getItem(storageKey)).toBe(savedValue);
+
+    first.unmount();
+    const reopened = render(<SettingsScreen />);
+    expect(document.documentElement.dataset[datasetKey]).toBe(value);
+    expect(screen.getByRole('radio', { name: choice })).toBeChecked();
+    expect(screen.getByRole('radio', { name: savedChoice })).not.toBeChecked();
+
+    reopened.unmount();
+    // Startup must read saved/default values instead of the outgoing session.
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: savedChoice })).toBeChecked();
+    expect(document.documentElement.dataset[datasetKey]).toBe(savedValue ?? (datasetKey === 'pieceSet' ? 'chessnut' : 'slate'));
+  });
+
   it('keeps session choices and separate error states when persistence is blocked', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Storage blocked'); });
     const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });

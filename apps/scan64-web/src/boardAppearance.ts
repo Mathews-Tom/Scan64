@@ -19,7 +19,9 @@ export type PieceSet = typeof PIECE_SET_OPTIONS[number]['value'];
 export type BoardTheme = typeof BOARD_THEME_OPTIONS[number]['value'];
 export interface BoardAppearance { pieceSet: PieceSet; boardTheme: BoardTheme }
 
-function readChoice<T extends string>(key: string, options: readonly { value: T }[], fallback: T): T {
+function readChoice<T extends string>(key: string, options: readonly { value: T }[], fallback: T, sessionValue?: string): T {
+  const sessionChoice = options.find((option) => option.value === sessionValue);
+  if (sessionChoice) return sessionChoice.value;
   try {
     const stored = window.localStorage.getItem(key);
     return options.find((option) => option.value === stored)?.value ?? fallback;
@@ -28,11 +30,16 @@ function readChoice<T extends string>(key: string, options: readonly { value: T 
   }
 }
 
-export function readBoardAppearance(): BoardAppearance {
+function readBoardChoices(session?: DOMStringMap): BoardAppearance {
   return {
-    pieceSet: readChoice('scan64-piece-set', PIECE_SET_OPTIONS, 'chessnut'),
-    boardTheme: readChoice('scan64-board-theme', BOARD_THEME_OPTIONS, 'slate'),
+    pieceSet: readChoice('scan64-piece-set', PIECE_SET_OPTIONS, 'chessnut', session?.pieceSet),
+    boardTheme: readChoice('scan64-board-theme', BOARD_THEME_OPTIONS, 'slate', session?.boardTheme),
   };
+}
+
+/** The applied document choices remain authoritative until the page reloads. */
+export function readBoardAppearance(): BoardAppearance {
+  return readBoardChoices(typeof document === 'undefined' ? undefined : document.documentElement.dataset);
 }
 
 export function applyBoardAppearance({ pieceSet, boardTheme }: BoardAppearance): void {
@@ -43,7 +50,7 @@ export function applyBoardAppearance({ pieceSet, boardTheme }: BoardAppearance):
 
 /** Apply before render so every shared board starts with the saved graphics. */
 export function initializeBoardAppearance(): BoardAppearance {
-  const appearance = readBoardAppearance();
+  const appearance = readBoardChoices();
   applyBoardAppearance(appearance);
   return appearance;
 }
