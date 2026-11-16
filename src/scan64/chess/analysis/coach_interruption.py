@@ -65,7 +65,8 @@ class PreparedCoachInterruption:
     study_session: StudySession
     mate_source_analysis: EngineAnalysis | None = None
 
-    def add_to(self, session: Session) -> None:
+    def add_to(self, session: Session) -> CoachInterruption | None:
+        """Stage historical evidence and return only a fenced, usable lesson."""
         lock_puzzle_player(self.player_id, session)
         game = session.get(Game, self.game_id)
         counts_for_progress = game is not None and game_counts_for_progress(
@@ -84,7 +85,7 @@ class PreparedCoachInterruption:
         ):
             session.add(row)
         if not counts_for_progress:
-            return
+            return None
         profile = session.get(PlayerProfile, self.player_id)
         apply_analysis_observation(
             session=session,
@@ -95,6 +96,7 @@ class PreparedCoachInterruption:
             rating=profile.rating if profile is not None else 1500,
             observed_at=self.observed_at,
         )
+        return self.interruption
 
 
 def _white_score_cp(analysis: EngineAnalysis, side_to_move: chess.Color) -> int | None:

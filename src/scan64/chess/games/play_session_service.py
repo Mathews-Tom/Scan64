@@ -343,43 +343,36 @@ class PlaySessionService:
 
         if board.is_game_over():
             self.persist_moves(play_session, fetched, moves_before, snapshot)
-            if prepared_interruption is not None:
-                prepared_interruption.add_to(self.db)
+            interruption = (
+                prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
+            )
             self.complete_session(play_session, fetched, board.result())
             return PlayMoveResult(
                 opponent_move=None,
-                interruption=(
-                    prepared_interruption.interruption
-                    if prepared_interruption is not None
-                    else None
-                ),
+                interruption=interruption,
             )
 
         opponent_move = await self.play_opponent_move(play_session, fetched, board)
 
         if board.is_game_over():
             self.persist_moves(play_session, fetched, moves_before, snapshot)
-            if prepared_interruption is not None:
-                prepared_interruption.add_to(self.db)
+            interruption = (
+                prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
+            )
             self.complete_session(play_session, fetched, board.result())
             return PlayMoveResult(
                 opponent_move=opponent_move,
-                interruption=(
-                    prepared_interruption.interruption
-                    if prepared_interruption is not None
-                    else None
-                ),
+                interruption=interruption,
             )
 
         self.persist_moves(play_session, fetched, moves_before, snapshot)
         self.db.add(play_session)
-        if prepared_interruption is not None:
-            prepared_interruption.add_to(self.db)
+        interruption = (
+            prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
+        )
         self.db.commit()
 
         return PlayMoveResult(
             opponent_move=opponent_move,
-            interruption=(
-                prepared_interruption.interruption if prepared_interruption is not None else None
-            ),
+            interruption=interruption,
         )
