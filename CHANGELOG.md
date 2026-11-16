@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Solved puzzles show a prominent result beside the final board.
 - Legal moves outside a puzzle's source line remain visible for inspection until **Try again**, rather than immediately snapping back.
 - Restore the native desktop title bar so the application window can be dragged normally.
+- Keep session-only board choices when navigating away from Settings, and discard stale puzzle reviews when another tab advances the position.
+- Keep learning requests responsive during database lock waits, and avoid offering unrecordable coach lessons from games predating a progress reset.
 
 ## [0.7.1] - 2026-11-16
 
