@@ -637,7 +637,7 @@ def test_prepared_coach_work_does_not_restore_deleted_session_or_schedule(
         client.post(PATH, headers=headers, json={"confirmation": "RESET PROGRESS"}).status_code
         == 200
     )
-    staged.add_to(db_session)
+    assert staged.add_to(db_session) is None
     db_session.commit()
     assert db_session.get(EngineAnalysis, before.id) is not None
     assert db_session.get(PersistedLessonOpportunity, opportunity.id) is not None
