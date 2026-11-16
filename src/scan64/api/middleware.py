@@ -8,6 +8,7 @@ from typing import cast
 
 from fastapi import HTTPException, Request, Response
 from sqlmodel import Field, Session, SQLModel
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 from starlette.types import ASGIApp
@@ -65,6 +66,44 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             return record_key
         return f"{record_key}:progress:{generation[1]}"
 
+    def _lookup(
+        self, request: Request, record_key: str
+    ) -> tuple[LearningGeneration | None, Response | None]:
+        with self._cache_session() as session:
+            generation = self._learning_generation(request, session)
+            record = session.get(IdempotencyRecord, self._generation_key(record_key, generation))
+            cached = (
+                Response(
+                    content=record.response_body,
+                    status_code=record.status_code,
+                    headers=json.loads(record.headers),
+                )
+                if record is not None
+                else None
+            )
+            return generation, cached
+
+    def _publish(
+        self,
+        request: Request,
+        record_key: str,
+        generation: LearningGeneration | None,
+        response: Response,
+        body: bytes,
+    ) -> None:
+        with self._cache_session() as session:
+            current_generation = self._learning_generation(request, session)
+            if current_generation == generation:
+                session.add(
+                    IdempotencyRecord(
+                        idempotency_key=self._generation_key(record_key, generation),
+                        status_code=response.status_code,
+                        response_body=body.decode("utf-8"),
+                        headers=json.dumps(dict(response.headers)),
+                    )
+                )
+                session.commit()
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
@@ -85,20 +124,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         record_key = f"{request.method}:{request.url.path}:{principal}:{idempotency_key}"
 
         try:
-            with self._cache_session() as session:
-                generation = self._learning_generation(request, session)
-                record = session.get(
-                    IdempotencyRecord, self._generation_key(record_key, generation)
-                )
-                cached = (
-                    Response(
-                        content=record.response_body,
-                        status_code=record.status_code,
-                        headers=json.loads(record.headers),
-                    )
-                    if record is not None
-                    else None
-                )
+            generation, cached = await run_in_threadpool(self._lookup, request, record_key)
         except HTTPException:
             # Let the endpoint retain its own authentication error contract;
             # an invalid/revoked principal must never receive a cached success.
@@ -128,18 +154,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         if 200 <= response.status_code < 300 and not skip_idempotency_cache:
             try:
-                with self._cache_session() as session:
-                    current_generation = self._learning_generation(request, session)
-                    if current_generation == generation:
-                        session.add(
-                            IdempotencyRecord(
-                                idempotency_key=self._generation_key(record_key, generation),
-                                status_code=response.status_code,
-                                response_body=body.decode("utf-8"),
-                                headers=json.dumps(dict(response.headers)),
-                            )
-                        )
-                        session.commit()
+                await run_in_threadpool(
+                    self._publish, request, record_key, generation, response, body
+                )
             except HTTPException:
                 # Account removal during the endpoint likewise forbids caching.
                 pass

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
+from collections.abc import AsyncIterator, Generator
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from pathlib import Path
+from threading import get_ident
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -13,7 +17,7 @@ from chess_lesson_spec import LessonSpec
 from fastapi import Request, Response
 from fastapi.testclient import TestClient
 from sqlalchemy import event
-from sqlmodel import Session, SQLModel, col, select
+from sqlmodel import Session, SQLModel, col, create_engine, select
 from starlette.responses import StreamingResponse
 
 import scan64.api.onboarding as onboarding_api
@@ -21,7 +25,13 @@ import scan64.api.puzzles as puzzle_api
 import scan64.chess.analysis.jobs as jobs
 from scan64.api.app import app
 from scan64.api.middleware import IdempotencyMiddleware, IdempotencyRecord
-from scan64.api.models import Player, PlayerCredential, PlayerOnboarding, PlayerProfile
+from scan64.api.models import (
+    Player,
+    PlayerCredential,
+    PlayerOnboarding,
+    PlayerProfile,
+    issue_player_token,
+)
 from scan64.api.progress import CLEARED_MODELS
 from scan64.chess.analysis.coach_interruption import (
     CoachInterruption,
@@ -40,6 +50,7 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentItem, LessonAttempt, StudySession
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.content.puzzle_practice_models import INITIAL_RATING, PuzzleRating
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
@@ -827,3 +838,133 @@ def test_bot_choice_refreshes_stale_preferences_after_concurrent_reset(
     )
     assert player.preferences[RESET_GENERATION_KEY]
     assert not game_counts_for_progress(game, OWNER, db_session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["lookup", "publication"])
+async def test_learning_cache_owner_lock_wait_keeps_event_loop_responsive(
+    tmp_path: Path, phase: str
+) -> None:
+    # Independent file-backed connections must really contend, unlike StaticPool.
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'cache-lock.db'}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    SQLModel.metadata.create_all(engine)
+    token, token_hash = issue_player_token()
+    with Session(engine) as seed_session:
+        seed_session.add(
+            Player(id=OWNER, preferences={RESET_GENERATION_KEY: "lock-test-generation"})
+        )
+        seed_session.add(PlayerCredential(player_id=OWNER, token_hash=token_hash))
+        seed_session.commit()
+
+    loop = asyncio.get_running_loop()
+    loop_thread = get_ident()
+    lock_attempted = asyncio.Event()
+    lock_acquired = asyncio.Event()
+    session_threads: list[tuple[int, int]] = []
+
+    def cache_sessions() -> Generator[Session, None, None]:
+        created_thread = get_ident()
+        with Session(engine) as session:
+            try:
+                yield session
+            finally:
+                assert not session.in_transaction()
+                session_threads.append((created_thread, get_ident()))
+
+    middleware = IdempotencyMiddleware(app, get_session_callable=cache_sessions)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/v1/learning/lesson-attempts",
+            "query_string": b"",
+            "headers": [
+                (b"authorization", f"Bearer {token}".encode()),
+                (b"idempotency-key", b"contended-owner"),
+            ],
+        }
+    )
+    with Session(engine) as owner:
+        owner_connection = owner.connection()
+        owner_locked = False
+        contending_connection: Any = None
+
+        def before_update(
+            connection: Any,
+            _cursor: Any,
+            statement: str,
+            _parameters: Any,
+            _context: Any,
+            _executemany: bool,
+        ) -> None:
+            nonlocal contending_connection
+            if (
+                owner_locked
+                and connection is not owner_connection
+                and statement.startswith("UPDATE player SET")
+            ):
+                contending_connection = connection
+                loop.call_soon_threadsafe(lock_attempted.set)
+
+        def after_update(
+            connection: Any,
+            _cursor: Any,
+            statement: str,
+            _parameters: Any,
+            _context: Any,
+            _executemany: bool,
+        ) -> None:
+            if connection is contending_connection and statement.startswith("UPDATE player SET"):
+                loop.call_soon_threadsafe(lock_acquired.set)
+
+        async def call_next(_: Request) -> Response:
+            nonlocal owner_locked
+            if phase == "publication":
+                # Model a lesson transaction holding the fence over engine await.
+                lock_puzzle_player(OWNER, owner)
+                owner_locked = True
+
+            async def body() -> AsyncIterator[bytes]:
+                yield b"{}"
+
+            return StreamingResponse(body(), media_type="application/json")
+
+        async def release_owner() -> None:
+            nonlocal owner_locked
+            await lock_attempted.wait()
+            # This coroutine can run while the other connection's UPDATE cannot
+            # complete. Releasing the real owner lock is possible only if the
+            # middleware has not blocked this event loop.
+            assert not lock_acquired.is_set()
+            assert not dispatch_task.done()
+            owner.rollback()
+            owner_locked = False
+            await lock_acquired.wait()
+
+        event.listen(engine, "before_cursor_execute", before_update)
+        event.listen(engine, "after_cursor_execute", after_update)
+        try:
+            if phase == "lookup":
+                lock_puzzle_player(OWNER, owner)
+                owner_locked = True
+            # Timeouts are deadlock fail-safes, not timing-based synchronization.
+            async with asyncio.timeout(30), asyncio.TaskGroup() as tasks:
+                dispatch_task = tasks.create_task(middleware.dispatch(request, call_next))
+                tasks.create_task(release_owner())
+            assert dispatch_task.result().status_code == 200
+            assert lock_attempted.is_set() and lock_acquired.is_set()
+            assert len(session_threads) == 2
+            assert all(created == closed != loop_thread for created, closed in session_threads)
+            with Session(engine) as verification:
+                record = verification.exec(select(IdempotencyRecord)).one()
+                assert record.idempotency_key.endswith(":progress:lock-test-generation")
+                assert record.response_body == "{}"
+        finally:
+            owner.rollback()
+            event.remove(engine, "before_cursor_execute", before_update)
+            event.remove(engine, "after_cursor_execute", after_update)
+            engine.dispose()
