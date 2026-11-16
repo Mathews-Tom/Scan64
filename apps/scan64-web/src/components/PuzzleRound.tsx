@@ -9,6 +9,7 @@ import './PuzzleRound.css';
 
 interface Attempt {
   move: string;
+  runCursor: number;
   before: string;
   after: string;
   san: string;
@@ -37,20 +38,29 @@ export function PuzzleRound({ run, pending, needsRefresh, onMove, onRunChange, c
   onRunChange: (run: PuzzleRunRead) => void;
   children: ReactNode;
 }) {
-  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [storedAttempt, setAttempt] = useState<Attempt | null>(null);
   const [review, setReview] = useState<PuzzleReviewRead | null>(null);
   const [practice, setPractice] = useState<Practice | null>(null);
-  const [replay, setReplay] = useState<Replay | null>(null);
+  const [storedReplay, setReplay] = useState<Replay | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const alive = useRef(true);
   const working = useRef(false);
   const frame = useRef<HTMLDivElement>(null);
+  const latestCursor = useRef(run.cursor);
+  latestCursor.current = run.cursor;
+  const attempt = storedAttempt?.runCursor === run.cursor ? storedAttempt : null;
+  const replay = storedAttempt && !attempt ? null : storedReplay;
   useEffect(() => {
     alive.current = true;
     return () => { alive.current = false; };
   }, []);
+  useEffect(() => {
+    if (!storedAttempt || storedAttempt.runCursor === run.cursor) return;
+    setAttempt(null); setReplay(null); setError('');
+    setMessage('The puzzle position changed. Choose a move from the latest position.');
+  }, [storedAttempt, run.cursor]);
 
   const active = run.state === 'active';
   const terminal = run.state === 'solved' || run.state === 'failed';
@@ -72,7 +82,7 @@ export function PuzzleRound({ run, pending, needsRefresh, onMove, onRunChange, c
     const before = practice?.fen ?? run.fen;
     const game = new Chess(before);
     const played = game.move(move);
-    const candidate: Attempt = { move, before, after: game.fen(), san: played.san,
+    const candidate: Attempt = { move, runCursor: run.cursor, before, after: game.fen(), san: played.san,
       ...(practice ? { reviewCursor: practice.cursor } : {}) };
     setError(''); setMessage('');
     if (practice && review) {
@@ -91,7 +101,7 @@ export function PuzzleRound({ run, pending, needsRefresh, onMove, onRunChange, c
     working.current = true;
     try {
       const next = await onMove(move);
-      if (!alive.current || !next) return;
+      if (!alive.current || !next || latestCursor.current !== candidate.runCursor) return;
       if (next.wrong_attempts > run.wrong_attempts) {
         // Commit the held position before CoachBoard restores its controlled FEN.
         flushSync(() => setAttempt(candidate));
@@ -123,19 +133,19 @@ export function PuzzleRound({ run, pending, needsRefresh, onMove, onRunChange, c
   };
 
   const explain = async () => {
-    if (!attempt || working.current || blocked) return;
+    if (!attempt || attempt.runCursor !== latestCursor.current || working.current || blocked) return;
     working.current = true; setLoading(true); setError('');
     try {
       const result = await ApiClient.explainPuzzleMove(run.run_id, {
         expected_cursor: run.cursor, expected_revision: run.revision, move: attempt.move,
         ...(attempt.reviewCursor !== undefined ? { review_cursor: attempt.reviewCursor } : {}),
       });
-      if (!alive.current) return;
+      if (!alive.current || latestCursor.current !== attempt.runCursor) return;
       const line = replayLine(result.fen_before, [result.move, ...result.reply_line]);
       onRunChange(result.run);
       setReplay({ ...line, ply: 1, explanation: result });
     } catch (failure) {
-      if (!alive.current) return;
+      if (!alive.current || latestCursor.current !== attempt.runCursor) return;
       if (failure instanceof PuzzleConflictError) {
         onRunChange(failure.run); setAttempt(null); setReplay(null);
       }

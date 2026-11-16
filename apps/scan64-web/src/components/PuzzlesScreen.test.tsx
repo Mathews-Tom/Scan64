@@ -268,6 +268,52 @@ describe('PuzzlesScreen server-authoritative practice', () => {
     expect(screen.getByRole('button', { name: 'Next puzzle' })).toBeEnabled();
   });
 
+  it.each(['conflict', 'refresh'] as const)('clears a held attempt when a %s advances the same run', async source => {
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValueOnce(run({ wrong_attempts: 1, revision: 1 }));
+    await mount();
+    await move('a7a6');
+    expectBoard(afterMove(SETUP, 'a7a6'), true);
+    const current = run({ fen: REPLY, cursor: 2, revision: 7, wrong_attempts: 1, played_moves: ['e7e5', 'g1f3'] });
+    vi.mocked(ApiClient.revealPuzzleHint).mockRejectedValueOnce(source === 'conflict'
+      ? new PuzzleConflictError('Run advanced in another tab', current) : new Error('Connection interrupted'));
+    fireEvent.click(screen.getByRole('button', { name: 'Show hint' }));
+    if (source === 'refresh') {
+      vi.mocked(ApiClient.getPuzzleRun).mockResolvedValueOnce(current);
+      fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    }
+    await waitFor(() => expectBoard(REPLY));
+    expect(screen.queryByRole('button', { name: 'Explain this move' })).not.toBeInTheDocument();
+    expect(ApiClient.explainPuzzleMove).not.toHaveBeenCalled();
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValueOnce({ ...current, fen: FINISH, cursor: 3,
+      revision: 8, state: 'solved', played_moves: ['e7e5', 'g1f3', 'b8c6'] });
+    await move('b8c6');
+    expectBoard(FINISH, true);
+    expect(ApiClient.submitPuzzleMove).toHaveBeenLastCalledWith('run-1', { expected_cursor: 2, expected_revision: 7, move: 'b8c6' });
+  });
+
+  it('discards an in-flight explanation when the same run advances to another cursor', async () => {
+    vi.mocked(ApiClient.submitPuzzleMove).mockResolvedValueOnce(run({ wrong_attempts: 1, revision: 1 }));
+    await mount();
+    await move('a7a6');
+    const response = deferred<PuzzleMoveExplanationRead>();
+    vi.mocked(ApiClient.explainPuzzleMove).mockReturnValueOnce(response.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Explain this move' }));
+    const current = run({ fen: REPLY, cursor: 2, revision: 7, wrong_attempts: 1, played_moves: ['e7e5', 'g1f3'] });
+    vi.mocked(ApiClient.revealPuzzleHint).mockRejectedValueOnce(new PuzzleConflictError('Run advanced in another tab', current));
+    fireEvent.click(screen.getByRole('button', { name: 'Show hint' }));
+    await waitFor(() => expectBoard(REPLY, true));
+    await act(async () => response.resolve({
+      run: run({ revision: 2, wrong_attempts: 1, hint_step: 3 }), move: 'a7a6', fen_before: SETUP,
+      fen_after: afterMove(SETUP, 'a7a6'), verdict: 'alternative', summary: 'Earlier position analysis.',
+      reply_line: ['g1f3'], visualizations: [],
+    }));
+    expectBoard(REPLY);
+    expect(screen.queryByRole('button', { name: 'Explain this move' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Move explanation' })).not.toBeInTheDocument();
+    expect(ApiClient.explainPuzzleMove).toHaveBeenCalledTimes(1);
+    expect(ApiClient.submitPuzzleMove).toHaveBeenCalledTimes(1);
+  });
+
   it('reconciles a 409 without replaying the mutation', async () => {
     const current = run({ fen: REPLY, cursor: 2, revision: 7, played_moves: ['e7e5', 'g1f3'] });
     vi.mocked(ApiClient.submitPuzzleMove).mockRejectedValueOnce(new PuzzleConflictError('Run changed in another tab', current));
