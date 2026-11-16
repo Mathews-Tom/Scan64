@@ -27,7 +27,7 @@
 .coach-board cg-board square.oc.move-dest { background: var(--transparent); box-shadow: inset 0 0 0 4px var(--mark-ink); }
 .coach-board cg-board square.check { box-shadow: inset 0 0 0 4px var(--mark-ink); }
 .coach-board cg-board square.current-premove { background: var(--board-selection); }
-.coach-board .cg-wrap coords { color: var(--mark-ink); font-size: var(--type-label); font-family: var(--mono); }
+.coach-board .cg-wrap coords { color: var(--board-light); text-shadow: 0 1px 2px var(--mark-ink), 1px 0 2px var(--mark-ink), -1px 0 2px var(--mark-ink); font-weight: 700; font-size: var(--type-label); font-family: var(--mono); }
 .board-visualizations { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .board-visualizations text { font-family: var(--sans); font-weight: 600; }
 .coach-board__moves { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; }

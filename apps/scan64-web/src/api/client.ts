@@ -38,6 +38,9 @@ import type {
   PuzzleModesRead,
   PuzzleMistakesRead,
   PuzzleMistakeStartRead,
+  PuzzleReviewRead,
+  PuzzleMoveExplanationRead,
+  ProgressResetRead,
   TrainingSessionRead,
   WeeklyReport,
 } from './types';
@@ -235,6 +238,29 @@ export class ApiClient {
 
   static abandonPuzzleRun(runId: string, body: PuzzleExpectedState): Promise<PuzzleRunRead> {
     return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/abandon`, 'POST', body);
+  }
+
+  static getPuzzleReview(runId: string): Promise<PuzzleReviewRead> {
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/review`, 'GET');
+  }
+
+  static explainPuzzleMove(runId: string, body: PuzzleExpectedState & { move: string; review_cursor?: number }): Promise<PuzzleMoveExplanationRead> {
+    return this.puzzleRequest(`/runs/${encodeURIComponent(runId)}/explanations`, 'POST', body);
+  }
+
+  static async resetProgress(confirmation: string): Promise<ProgressResetRead> {
+    const playerId = getActivePlayerId();
+    const response = await apiFetch(`${apiBase()}/players/${encodeURIComponent(playerId)}/progress/reset`, {
+      method: 'POST',
+      headers: { ...getPlayerAuthorizationHeader(playerId), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation }),
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) {
+      const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+      throw new ApiRequestError(typeof detail === 'string' ? detail : `Progress reset failed (${response.status}).`, response.status);
+    }
+    return body as ProgressResetRead;
   }
 
   static async getPositionInsight(data: PositionInsightRequest): Promise<PositionInsight> {

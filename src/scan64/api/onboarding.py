@@ -166,6 +166,9 @@ def set_bot_choice(
     session: Session = Depends(get_session),
 ) -> OnboardingRead:
     player = owned_player(request, player_id, session)
+    # Merge only after taking reset's owner fence and reloading its generation.
+    puzzle_practice.lock_puzzle_player(player_id, session)
+    session.refresh(player)
     player.preferences = {**player.preferences, "manual_bot_level": choice.bot_level}
     session.add(player)
     result = read_onboarding(player, session)

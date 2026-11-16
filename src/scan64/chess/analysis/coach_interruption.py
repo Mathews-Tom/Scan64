@@ -16,6 +16,7 @@ from scan64.chess.games.ingestion import resolve_position
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
@@ -26,6 +27,7 @@ from scan64.learning.exercises.exact_replay import generate_exact_replay_exercis
 from scan64.learning.exercises.hints import fill_lesson_hints
 from scan64.learning.exercises.sound_moves import sound_moves
 from scan64.learning.profiling.profile_update import apply_analysis_observation
+from scan64.learning.progress import game_counts_for_progress
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -63,7 +65,13 @@ class PreparedCoachInterruption:
     study_session: StudySession
     mate_source_analysis: EngineAnalysis | None = None
 
-    def add_to(self, session: Session) -> None:
+    def add_to(self, session: Session) -> CoachInterruption | None:
+        """Stage historical evidence and return only a fenced, usable lesson."""
+        lock_puzzle_player(self.player_id, session)
+        game = session.get(Game, self.game_id)
+        counts_for_progress = game is not None and game_counts_for_progress(
+            game, self.player_id, session
+        )
         if self.mate_source_analysis is not None:
             session.add(self.mate_source_analysis)
         for row in (
@@ -73,10 +81,11 @@ class PreparedCoachInterruption:
             self.after_analysis,
             *self.evidence,
             self.opportunity,
-            self.schedule,
-            self.study_session,
+            *((self.schedule, self.study_session) if counts_for_progress else ()),
         ):
             session.add(row)
+        if not counts_for_progress:
+            return None
         profile = session.get(PlayerProfile, self.player_id)
         apply_analysis_observation(
             session=session,
@@ -87,6 +96,7 @@ class PreparedCoachInterruption:
             rating=profile.rating if profile is not None else 1500,
             observed_at=self.observed_at,
         )
+        return self.interruption
 
 
 def _white_score_cp(analysis: EngineAnalysis, side_to_move: chess.Color) -> int | None:

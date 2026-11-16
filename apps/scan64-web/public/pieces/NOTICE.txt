@@ -1,0 +1,55 @@
+Scan64 bundled chess piece artwork
+=================================
+The SVG artwork in these directories is separately licensed. It is NOT relicensed
+under Scan64's GPL-3.0-or-later software licence. The presence of the three
+non-commercial sets means the complete bundled artwork is NOT offered for
+unrestricted commercial use. Selecting another set does not remove these
+restrictions from redistribution of the bundled non-commercial artwork.
+
+All 72 SVGs are distributed unmodified from lichess-org/lila/public/piece.
+Source and attribution authority:
+https://github.com/lichess-org/lila/blob/master/COPYING.md
+A snapshot of that authority is included in UPSTREAM-COPYING.txt.
+
+california/ — California, Jerry S.
+https://sites.google.com/view/jerrychess/home
+https://github.com/lichess-org/lila/tree/master/public/piece/california
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.
+NON-COMMERCIAL ONLY. Attribution required; adaptations must use the same licence.
+Full terms: CC-BY-NC-SA-4.0.txt
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+maestro/ — Maestro, sadsnake1
+https://github.com/lichess-org/lila/tree/master/public/piece/maestro
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.
+NON-COMMERCIAL ONLY. Attribution required; adaptations must use the same licence.
+Full terms: CC-BY-NC-SA-4.0.txt
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+staunty/ — Staunty, sadsnake1
+https://github.com/lichess-org/lila/tree/master/public/piece/staunty
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.
+NON-COMMERCIAL ONLY. Attribution required; adaptations must use the same licence.
+Full terms: CC-BY-NC-SA-4.0.txt
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+chessnut/ — Chessnut, Alexis Luengas
+https://github.com/LexLuengas/chessnut-pieces
+https://github.com/lichess-org/lila/tree/master/public/piece/chessnut
+Apache License, Version 2.0. Original full terms: chessnut/LICENSE.txt
+
+spatial/ — Spatial, Maurizio Monge
+https://github.com/maurimo/chess-art
+https://github.com/lichess-org/lila/tree/master/public/piece/spatial
+MIT License. Original copyright and full terms: spatial/LICENSE.txt
+
+firi/ — Firi, James Faure
+https://github.com/jfaure/Firi-pieceset
+https://github.com/lichess-org/lila/tree/master/public/piece/Firi
+Creative Commons Attribution 4.0 International. Attribution required.
+Full terms: CC-BY-4.0.txt
+https://creativecommons.org/licenses/by/4.0/
+
+No artwork modifications were made by Scan64. Directory naming for Firi is
+lowercased locally; the SVG content is unchanged. Licence summaries here are
+not substitutes for the full licence texts.

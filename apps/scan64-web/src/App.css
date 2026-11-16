@@ -1,9 +1,8 @@
 :root { --shell-clearance: 0px; scroll-padding-block-end: var(--shell-clearance); }
-.app-shell { --sidebar-width: var(--sidebar-compact); --titlebar-clearance: 0px; display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); min-height: 100svh; }
-.app-shell[data-native='true'] { --titlebar-clearance: 40px; }
+.app-shell { --sidebar-width: var(--sidebar-compact); display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); min-height: 100svh; }
 .app-sidebar-slot { min-width: 0; background: var(--surface); }
 .app-sidebar { position: sticky; inset-block-start: 0; height: 100svh; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); z-index: 3; }
-.app-header { flex: 0 0 auto; padding: calc(var(--titlebar-clearance) + var(--space-4)) var(--space-3) var(--space-3); }
+.app-header { flex: 0 0 auto; padding: var(--space-4) var(--space-3) var(--space-3); }
 .app-brand { display: flex; align-items: center; gap: var(--space-3); color: var(--ink); font-size: 24px; font-weight: 500; }
 .app-brand img { flex: 0 0 32px; width: 32px; height: 32px; }
 .app-header p { margin: var(--space-2) 0 0; font-size: var(--type-label); color: var(--muted); }
@@ -27,7 +26,7 @@
 .app-shell[data-sidebar-expanded='true'] .puzzle-import-foot { justify-content: flex-start; }
 .sidebar-backdrop { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 40%, transparent); z-index: 6; }
 .app-shell[data-drawer-open='true'] .app-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-expanded); z-index: 7; }
-.app-shell main { min-width: 0; padding: max(var(--page-padding), var(--titlebar-clearance)) var(--page-padding) var(--page-padding); overflow-wrap: anywhere; }
+.app-shell main { min-width: 0; padding: var(--page-padding); overflow-wrap: anywhere; }
 .app-canvas { width: 100%; max-width: var(--canvas-max); margin-inline: auto; }
 .skip-link { position: fixed; top: var(--space-2); left: var(--space-2); transform: translateY(-200%); color: var(--ink); background: var(--ground); padding: var(--space-3); z-index: 10; }
 .skip-link:focus { transform: translateY(0); }

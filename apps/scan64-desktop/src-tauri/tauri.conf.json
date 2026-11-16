@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Scan64",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "identifier": "org.scan64.desktop",
   "build": {
     "beforeDevCommand": "pnpm --dir ../scan64-web build",
@@ -15,9 +15,7 @@
       "width": 1200,
       "height": 820,
       "minWidth": 960,
-      "minHeight": 560,
-      "titleBarStyle": "Overlay",
-      "hiddenTitle": true
+      "minHeight": 560
     }],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*"

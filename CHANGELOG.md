@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-16
+
+### Added
+
+- Six selectable chess-piece sets and five board palettes, saved independently of the app's light/dark appearance. Artwork attribution and licence restrictions are available in Settings; California, Maestro and Staunty are non-commercial only.
+- Puzzle review with unlimited unscored retries after the three-attempt scored round. Review does not record another rating, streak or mastery result.
+- On-demand, engine-verified move explanations with board annotations and step-through replies. Different source-line alternatives are not automatically labelled mistakes; explanations during an active scored round count as assistance.
+- Settings can reset all learning progress after explicit typed confirmation, preserving the account, saved games and analyses, imported libraries and settings.
+
+### Fixed
+
+- Solved puzzles show a prominent result beside the final board.
+- Legal moves outside a puzzle's source line remain visible for inspection until **Try again**, rather than immediately snapping back.
+- Restore the native desktop title bar so the application window can be dragged normally.
+- Keep session-only board choices when navigating away from Settings, and discard stale puzzle reviews when another tab advances the position.
+- Keep learning requests responsive during database lock waits, and avoid offering unrecordable coach lessons from games predating a progress reset.
+
 ## [0.7.1] - 2026-11-16
 
 ### Changed

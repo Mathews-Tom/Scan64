@@ -2,7 +2,7 @@ import { PuzzleLibraryControls, usePuzzleImport } from './PuzzleImport';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClient, PuzzleConflictError } from '../api/client';
 import type { PuzzleMode, PuzzleModesRead, PuzzleMistakesRead, PuzzleMistakeStartRead, PuzzleRunCreate, PuzzleRunRead, PuzzleStartRead } from '../api/types';
-import { CoachBoard } from './CoachBoard';
+import { PuzzleRound } from './PuzzleRound';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import './PuzzlesScreen.css';
 import { Button, Panel } from './Primitives';
@@ -40,7 +40,7 @@ export function PuzzlesScreen() {
   const start = useCallback(async (body?: PuzzleRunCreate, related = false): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
-    const request = generation.current;
+    const request = ++generation.current;
     setPending(true); setError(null);
     if (body) {
       setRelatedTheme(related && body.mode === 'theme' ? body.theme ?? null : null);
@@ -99,6 +99,7 @@ export function PuzzlesScreen() {
       setNotice(action === 'move' && next.wrong_attempts > run.wrong_attempts
         ? next.state === 'active' ? 'That move is not the source continuation. Try again.' : 'That move is not the source continuation.'
         : action === 'move' ? `${moveAnnouncements}${next.state === 'active' ? ' Source move accepted. Continue the puzzle.' : ''}` : '');
+      return next;
     } catch (failure) {
       if (request !== generation.current) return;
       if (failure instanceof PuzzleConflictError) {
@@ -211,11 +212,7 @@ export function PuzzlesScreen() {
     if (previousRunState.current === 'active' && run?.state !== 'active') puzzleHeading.current?.focus();
     previousRunState.current = run?.state;
   }, [run?.state]);
-  // Undo the parity of already played plies to keep the initial solver side on screen.
-  const blackToMove = run?.fen.split(' ')[1] === 'b';
-  const solverBlack = run ? blackToMove !== (run.played_moves.length % 2 === 1) : false;
   const active = run?.state === 'active';
-  const latestHint = run?.hints.at(-1);
   const hintSlots = [1, 2, 3].map(step => run?.hints.find(hint => hint.step === step));
   const daily = run?.daily ?? catalog?.daily;
   const streak = run?.streak ?? catalog?.streak ?? modes?.streak;
@@ -225,9 +222,7 @@ export function PuzzlesScreen() {
   const progressMessages = [
     pending ? 'Loading puzzle state…' : '',
     notice,
-    showRun ? `${Math.max(0, run.maximum_wrong_attempts - run.wrong_attempts)} wrong attempts remaining` : '',
-    showRun && run.state === 'solved' ? 'Puzzle solved. You completed the source continuation.' : '',
-    showRun && run.state === 'failed' ? 'Puzzle failed. All wrong attempts have been used.' : '',
+    showRun && active ? `${Math.max(0, run.maximum_wrong_attempts - run.wrong_attempts)} wrong attempts remaining` : '',
     showRun && run.state === 'abandoned' ? 'Puzzle abandoned. No content success or failure attempt was recorded; a rated first exposure counts as a rating loss.' : '',
   ].filter(Boolean);
   const progress = <div aria-hidden="true">{progressMessages.map((message, index) => <p key={index}>{message}</p>)}</div>;
@@ -278,13 +273,8 @@ export function PuzzlesScreen() {
       {run?.mode === 'theme' && run.theme === relatedTheme ? <p>Related unrated theme practice, not diagnosis mastery.</p> : null}
       {patternUnavailable ? <p role="status">Related practice is unavailable. <a href="/puzzles">Daily puzzles — may be unrelated</a>. Today’s set may contain no related puzzle.</p> : null}
     </Panel>
-    {showRun ? <div className="board-workspace" role="region" aria-label="Puzzle workspace">
-      <div className="board-workspace__board">
-        <CoachBoard key={run.run_id} fen={run.fen} orientation={solverBlack ? 'black' : 'white'}
-          disabled={pending || !active || needsRefresh} resetAfterAttempt testId="puzzle-board"
-          onMove={(move) => mutate('move', move)} visualizations={latestHint?.visualizations} />
-      </div>
-      <Panel className="board-workspace__side working-controls" aria-label="Current puzzle">
+    {showRun ? <PuzzleRound key={run.run_id} run={run} pending={pending} needsRefresh={needsRefresh}
+      onMove={move => mutate('move', move)} onRunChange={setRun}>
         <h2 ref={puzzleHeading} tabIndex={-1}>Source puzzle</h2>
         <p>Mode: {run.mode}{run.theme ? ` · ${run.theme}` : ''}</p>
         <p>{run.rated ? 'Rated first exposure' : run.mode !== 'daily' ? 'Unrated mode practice' : 'Unrated review, repeat or earlier run'}</p>
@@ -317,8 +307,7 @@ export function PuzzlesScreen() {
           <p>Setup move (UCI): {run.setup}</p>
           <p>Played continuation (UCI): {run.played_moves.length ? run.played_moves.join(' ') : 'No solver moves yet.'}</p>
         </details>
-      </Panel>
-    </div> : null}
+    </PuzzleRound> : null}
     {mode === 'mistakes' && !active ? <Panel className="puzzles-mistakes working-controls" aria-label="Your mistakes">
       <h2 ref={mistakeHeading} tabIndex={-1}>Your mistakes</h2>
       <p>Hints are app-reported. Existing lesson hints and assisted-credit rules apply; lifetime attempt budgets do not reset.</p>

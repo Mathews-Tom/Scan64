@@ -18,6 +18,7 @@ from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evaluation.transfer_measurement import (
     PRODUCTION_TRANSFER_LIFECYCLE_PREFIX,
@@ -302,7 +303,10 @@ def record_lesson_attempt(
     db: Session = Depends(get_session),
 ) -> LessonAttemptRead:
     authenticated_player_id = require_authenticated_player(request, db)
-    study_session = db.get(StudySession, attempt_in.session_id)
+    # Fence reset against both ordinary and engine-reverified lesson outcomes.
+    # A caller holding a pre-reset identity-map object must not resurrect it.
+    lock_puzzle_player(authenticated_player_id, db)
+    study_session = db.get(StudySession, attempt_in.session_id, populate_existing=True)
     if study_session is None or study_session.player_id != authenticated_player_id:
         raise HTTPException(status_code=404, detail="Study session not found")
     if attempt_in.source_kind == "opening_mission":

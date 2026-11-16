@@ -1,5 +1,7 @@
 """Bounded, stable daily selection and transactional puzzle-only rating effects."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 
@@ -246,11 +248,22 @@ def daily_set(
         return session.exec(statement).one()
 
 
-def daily_summary(player_id: str, session: Session) -> dict[str, Any]:
+def daily_summary(player_id: str, session: Session, *, read_only: bool = False) -> dict[str, Any]:
+    """Read terminal review summaries without reserving a new day or rating."""
     now = utc_now()
-    day = daily_set(player_id, session, now)
-    rating = rating_for(player_id, session)
-    slots = slots_for(day, session)
+    utc_day = now.astimezone(UTC).date().isoformat()
+    if read_only:
+        day = session.exec(
+            select(PuzzleDailySet).where(
+                PuzzleDailySet.player_id == player_id, PuzzleDailySet.utc_day == utc_day
+            )
+        ).one_or_none()
+        rating = session.get(PuzzleRating, player_id) or PuzzleRating(player_id=player_id)
+        slots = slots_for(day, session) if day is not None else []
+    else:
+        day = daily_set(player_id, session, now)
+        rating = rating_for(player_id, session)
+        slots = slots_for(day, session)
     completed = sum(slot.closed_at is not None for slot in slots)
     overdue = session.exec(
         select(func.count())
@@ -278,8 +291,10 @@ def daily_summary(player_id: str, session: Session) -> dict[str, Any]:
         )
     elif not any(slot.reason == "exploration" for slot in slots):
         message += " Exploration shortfall: no eligible unseen non-weak puzzles."
+    if day is None:
+        message = "Today's daily set has not been reserved. Start a puzzle to reserve it."
     return {
-        "utc_day": day.utc_day,
+        "utc_day": utc_day,
         "rating": round(rating.rating),
         "rated_count": rating.rated_count,
         "provisional": rating.rated_count < 20,

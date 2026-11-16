@@ -45,6 +45,18 @@ The desktop window cannot shrink below 960 logical pixels wide. Navigation stays
 
 An empty puzzle library shows setup across the main content area instead of reserving space for a board. During practice, the board and current-puzzle controls share a bounded workspace; results and hints stay beside the board. Daily progress and solve streaks share a summary row, with detailed selection and rating explanations available through expandable sections. Import and update activity icons in the compact sidebar open the corresponding Settings panel.
 
+### Board appearance
+
+Open **Settings → Chessboard** to choose Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Slate, Sage, Graphite, Walnut or Sand board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+
+### Reset learning progress
+
+Open **Settings → Reset learning progress** to start fresh without deleting your account, saved games and analyses, imported libraries or settings. Reset clears puzzle and lesson results, learning ratings and strength estimates, streaks, mastery, achievements and review schedules, including active learning sessions. Configured goals are kept. The confirmation screen lists the boundary and requires the exact phrase **RESET PROGRESS** before **Permanently reset learning progress** becomes available.
+
+Reset cannot be undone. After success, choose **Continue and reload** to load fresh state; reload other open Scan64 tabs too.
+
+Historical games remain reviewable. Reanalysing or finishing a game created before the reset does not restore its old strength, mastery or review schedules. New learning attempts can still use preserved content.
+
 ### Updates
 
 Updates work in the desktop app from 0.7.0 on. Browser and container installs do not update themselves.
@@ -447,9 +459,7 @@ and an explicit local import command; the screen never downloads a catalog.
 
 The board starts after the opponent's setup move, with your solving side facing you.
 Play the complete source continuation, including choosing the exact promotion piece; a legal alternative checkmate is also accepted on the final solution move.
-After each accepted move the server plays the next opponent move automatically. A
-wrong move leaves the position unchanged. There are **three wrong submissions total
-per run**, not three per turn; only the server changes this count.
+After each accepted move the server plays the next opponent move automatically. A legal move outside the source continuation stays on the board, with marked squares and **Try again** to return to the puzzle position. A different source move is not necessarily a bad chess move. There are **three wrong submissions total per scored run**, not three per turn; only the server changes this count.
 
 **Show hint** reveals the next of three levels without spending a wrong attempt.
 Previously requested hints remain visible for that turn, including after reload.
@@ -457,9 +467,9 @@ The third hint may disclose the source move and remaining line. Hints reset on t
 next solving turn. These hints come from the imported puzzle, not the live game's
 engine-hint endpoint.
 
-Reloading or returning to Puzzles resumes the active server-owned run, including
-across UTC midnight; no solution line or progress is saved in browser storage.
-Solved and failed states disable the board; choose **Next puzzle** to continue.
+**Explain this move** analyzes the attempted move and offers legal step-through replies with board annotations. The engine can identify a mistake, a playable alternative or an inconclusive result. During an active scored round, requesting the full explanation counts as assistance, like the final hint. Engine unavailability is reported explicitly rather than replaced with an invented explanation.
+
+Reloading or returning to Puzzles resumes the active server-owned run, including across UTC midnight; no solution line or progress is saved in browser storage. Solved rounds show **Puzzle solved** beside the final board. After solving or using all three scored attempts, choose **Review solution**, **Retry unscored** for unlimited local retries, or **Next puzzle**. Review and unscored retries do not change the recorded rating, streak or mastery result.
 **Abandon puzzle** ends the run without a content attempt. For Daily it closes
 the slot and loses rating when it is a rated first exposure; other modes are unrated.
 

@@ -74,6 +74,11 @@ test('navigates to puzzles, rejects a wrong move, resumes hints on reload, plays
   expect(run.cursor).toBe(0);
   expect(run.fen).toBe(SETUP);
   await expect.poll(() => board.locator('piece.black.pawn').evaluateAll(pieces =>
+    pieces.some(piece => (piece as HTMLElement & { cgKey?: string }).cgKey === 'a6'),
+  )).toBe(true);
+  await expect(page.getByRole('region', { name: 'Move feedback' })).toBeVisible();
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect.poll(() => board.locator('piece.black.pawn').evaluateAll(pieces =>
     pieces.some(piece => (piece as HTMLElement & { cgKey?: string }).cgKey === 'a7'),
   )).toBe(true);
   await page.getByRole('button', { name: 'Show hint', exact: true }).click();
@@ -104,7 +109,7 @@ test('navigates to puzzles, rejects a wrong move, resumes hints on reload, plays
   await expect.poll(() => starts).toBe(6);
   expect(mutations).toHaveLength(3);
   await movePiece(page, board, 'b8', 'c6');
-  await expect(page.getByRole('region', { name: 'Current puzzle' }).getByText(/solved/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Puzzle solved', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Next puzzle', exact: true })).toBeEnabled();
   expect(mutations.filter(item => item.path.endsWith('/moves')).map(item => item.body)).toEqual([
     { expected_cursor: 0, expected_revision: 0, move: 'a7a6' },

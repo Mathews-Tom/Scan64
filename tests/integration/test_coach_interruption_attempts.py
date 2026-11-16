@@ -145,6 +145,73 @@ def test_coach_diagnostic_persists_attempt_context_before_move_response(
     assert engine_evidence.payload["analysis_depth"] == "interactive"
 
 
+@pytest.mark.parametrize("reset_timing", ["never", "before_game", "after_game"])
+@pytest.mark.parametrize("opponent_ends_game", [False, True])
+def test_move_response_only_returns_coach_session_persisted_in_its_progress_epoch(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    reset_timing: str,
+    opponent_ends_game: bool,
+) -> None:
+    auth = _register(db_session)
+    reset_path = "/v1/players/alice/progress/reset"
+    if reset_timing == "before_game":
+        reset = client.post(reset_path, headers=auth, json={"confirmation": "RESET PROGRESS"})
+        assert reset.status_code == 200, reset.text
+    # The player's quiet queen move advances the halfmove clock to 149; the
+    # opponent's quiet king move then ends the game by the automatic 75-move rule.
+    fen = COACH_FEN.replace("0 1", "148 1") if opponent_ends_game else COACH_FEN
+    play_session = _coach_session(db_session, coach_mode=True, fen=fen)
+    play_id = play_session.id
+    game_id = play_session.game_id
+    if reset_timing == "after_game":
+        reset = client.post(reset_path, headers=auth, json={"confirmation": "RESET PROGRESS"})
+        assert reset.status_code == 200, reset.text
+    _install_deterministic_diagnostic(monkeypatch)
+    # Only the halfmove clock differs from the diagnostic fixture's source FEN.
+    monkeypatch.setattr(
+        EnginePoolManager,
+        "analyze_interactive",
+        AsyncMock(side_effect=[_analysis_for(COACH_FEN), _analysis_for("after")]),
+    )
+
+    response = client.post(
+        f"/v1/play-sessions/{play_id}/moves",
+        json={"move": "e2e3"},
+        headers=auth,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == ("completed" if opponent_ends_game else "active")
+    assert response.json()["opponent_move"] == "e8d7"
+    db_session.rollback()
+    game = db_session.get(Game, game_id)
+    assert game is not None and game.moves == ["e2e3", "e8d7"]
+    assert game.result == ("1/2-1/2" if opponent_ends_game else "*")
+    # Historical diagnosis and engine evidence survive even when this game can
+    # no longer publish a new learning session.
+    opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
+    assert opportunity.game_id == game_id
+    assert db_session.exec(select(EngineAnalysis)).all()
+    assert db_session.exec(select(Evidence)).all()
+    interruption = response.json()["critical_interruption"]
+    schedules = db_session.exec(select(ReviewSchedule)).all()
+    studies = db_session.exec(select(StudySession)).all()
+    observations = db_session.exec(select(ProfileObservation)).all()
+    if reset_timing == "after_game":
+        assert interruption is None
+        assert schedules == studies == observations == []
+        assert db_session.exec(select(SkillState)).all() == []
+    else:
+        assert interruption is not None
+        assert interruption["opportunity_id"] == str(opportunity.id)
+        assert len(studies) == len(schedules) == len(observations) == 1
+        assert interruption["study_session_id"] == studies[0].id
+        assert studies[0].player_id == "alice"
+        assert schedules[0].item_id == str(opportunity.id)
+
+
 def test_coach_diagnostic_does_not_duplicate_a_revisited_source_position(
     client: TestClient,
     db_session: Session,
@@ -329,13 +396,22 @@ def test_ordinary_play_does_not_run_the_coach_diagnostic(
     assert db_session.exec(select(PersistedLessonOpportunity)).all() == []
 
 
+@pytest.mark.parametrize("reset_before_move", [False, True])
 def test_game_ending_coach_move_skips_terminal_diagnostic(
     client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
+    reset_before_move: bool,
 ) -> None:
     auth = _register(db_session)
     play_session = _coach_session(db_session, coach_mode=True, fen=CHECKMATE_FEN)
+    if reset_before_move:
+        reset = client.post(
+            "/v1/players/alice/progress/reset",
+            headers=auth,
+            json={"confirmation": "RESET PROGRESS"},
+        )
+        assert reset.status_code == 200, reset.text
     diagnostic_calls: list[str] = []
 
     async def observe_diagnostic(
@@ -357,6 +433,7 @@ def test_game_ending_coach_move_skips_terminal_diagnostic(
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "completed"
     assert diagnostic_calls == []
+    assert response.json()["critical_interruption"] is None
     assert db_session.exec(select(PersistedLessonOpportunity)).all() == []
 
 

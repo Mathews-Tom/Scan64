@@ -32,10 +32,10 @@
   --primary: #232323;
   --primary-ink: #ffffff;
   --mark-ink: #232323;
-  --board-light: #edeee6;
-  --board-dark: #86a694;
+  --board-light: #e8edf1;
+  --board-dark: #73899a;
   --board-selection: #a1ffcb;
-  --board-checkerboard: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' viewBox='0 0 2 2'%3E%3Cpath fill='%23edeee6' d='M0 0h2v2H0z'/%3E%3Cpath fill='%2386a694' d='M1 0h1v1H1zM0 1h1v1H0z'/%3E%3C/svg%3E");
+  --board-checkerboard: conic-gradient(from 90deg, var(--board-light) 25%, var(--board-dark) 0 50%, var(--board-light) 0 75%, var(--board-dark) 0);
   --annotation-best: #176246;
   --annotation-threat: #a63732;
   --annotation-alternative: #245f9e;
@@ -75,6 +75,11 @@
   --motion-press: 90ms;
   --ease: cubic-bezier(.2,.8,.2,1);
 }
+:root[data-board-theme='slate'] { --board-light: #e8edf1; --board-dark: #73899a; }
+:root[data-board-theme='sage'] { --board-light: #edf1e7; --board-dark: #789687; }
+:root[data-board-theme='graphite'] { --board-light: #cbd2da; --board-dark: #526475; }
+:root[data-board-theme='walnut'] { --board-light: #f0dfc4; --board-dark: #997451; }
+:root[data-board-theme='sand'] { --board-light: #f4ead5; --board-dark: #b9a17c; }
 :root[data-appearance='dark'] {
   color-scheme: dark;
   --ground: #232323;

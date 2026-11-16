@@ -3,10 +3,13 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeAppearance, SettingsScreen } from './SettingsScreen';
 import { Button, Dialog, EmptyState, Field, ListRow, Panel, ProgressBar, SegmentedControl, StatusLine } from './Primitives';
+import { initializeBoardAppearance } from '../boardAppearance';
 
 beforeEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.appearance;
+  delete document.documentElement.dataset.pieceSet;
+  delete document.documentElement.dataset.boardTheme;
 });
 
 afterEach(() => {
@@ -14,6 +17,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   delete document.documentElement.dataset.appearance;
+  delete document.documentElement.dataset.pieceSet;
+  delete document.documentElement.dataset.boardTheme;
 });
 
 describe('Settings', () => {
@@ -69,6 +74,95 @@ describe('Settings', () => {
     expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(document.documentElement.dataset.appearance).toBe('dark');
     expect(screen.getByRole('alert')).toHaveTextContent(/did not allow saving/i);
+  });
+});
+
+describe('Independent board preferences', () => {
+  it('persists every piece set and palette without changing the app appearance', () => {
+    localStorage.setItem('scan64-appearance', 'dark');
+    initializeAppearance();
+    const view = render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Sage' }));
+    for (const pieceSet of ['chessnut', 'spatial', 'firi', 'california', 'maestro', 'staunty']) {
+      fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${pieceSet}( \\(non-commercial\\))?$`, 'i') }));
+      expect(localStorage.getItem('scan64-piece-set')).toBe(pieceSet);
+      expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
+      for (const boardTheme of ['slate', 'sage', 'graphite', 'walnut', 'sand']) {
+        fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${boardTheme}$`, 'i') }));
+        expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
+        expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
+        expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
+        expect(document.documentElement.dataset.appearance).toBe('dark');
+      }
+    }
+    fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(document.documentElement.dataset.pieceSet).toBe('staunty');
+    expect(document.documentElement.dataset.boardTheme).toBe('sand');
+    view.unmount();
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'staunty', boardTheme: 'sand' });
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: 'Staunty (non-commercial)' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Sand' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
+  });
+
+  it('validates each saved choice independently at startup', () => {
+    localStorage.setItem('scan64-piece-set', 'untrusted');
+    localStorage.setItem('scan64-board-theme', 'walnut');
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'chessnut', boardTheme: 'walnut' });
+    expect(document.documentElement.dataset.pieceSet).toBe('chessnut');
+    expect(document.documentElement.dataset.boardTheme).toBe('walnut');
+    localStorage.setItem('scan64-piece-set', 'firi');
+    localStorage.setItem('scan64-board-theme', 'untrusted');
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'firi', boardTheme: 'slate' });
+  });
+
+  it.each([
+    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', 'spatial', 'Spatial'],
+    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', null, 'Chessnut'],
+    ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', 'walnut', 'Walnut'],
+    ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', null, 'Slate'],
+  ] as const)('keeps %s %s across remounts when saving fails (case %#)', (preference, choice, value, datasetKey, storageKey, savedValue, savedChoice) => {
+    if (savedValue !== null) localStorage.setItem(storageKey, savedValue);
+    initializeBoardAppearance();
+    const first = render(<SettingsScreen />);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+
+    fireEvent.click(screen.getByRole('radio', { name: choice }));
+    expect(screen.getByRole('alert')).toHaveTextContent(new RegExp(`${preference} changed for this session`, 'i'));
+    expect(document.documentElement.dataset[datasetKey]).toBe(value);
+    expect(localStorage.getItem(storageKey)).toBe(savedValue);
+
+    first.unmount();
+    const reopened = render(<SettingsScreen />);
+    expect(document.documentElement.dataset[datasetKey]).toBe(value);
+    expect(screen.getByRole('radio', { name: choice })).toBeChecked();
+    expect(screen.getByRole('radio', { name: savedChoice })).not.toBeChecked();
+
+    reopened.unmount();
+    // Startup must read saved/default values instead of the outgoing session.
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: savedChoice })).toBeChecked();
+    expect(document.documentElement.dataset[datasetKey]).toBe(savedValue ?? (datasetKey === 'pieceSet' ? 'chessnut' : 'slate'));
+  });
+
+  it('keeps session choices and separate error states when persistence is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'chessnut', boardTheme: 'slate' });
+    render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Graphite' }));
+    expect(document.documentElement.dataset.pieceSet).toBe('firi');
+    expect(document.documentElement.dataset.boardTheme).toBe('graphite');
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
+    save.mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('radio', { name: 'Spatial' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Board palette changed for this session');
+    fireEvent.click(screen.getByRole('radio', { name: 'Sage' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 

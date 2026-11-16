@@ -26,6 +26,7 @@
 .pgn-import,
 .play-setup,
 .settings-screen { width: 100%; max-width: var(--reading-max); }
+.settings-board-appearance .ui-segmented:first-of-type .ui-segmented__options > label { flex-basis: 12rem; }
 
 .today-panels,
 .profile-records,
