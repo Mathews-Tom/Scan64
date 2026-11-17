@@ -113,7 +113,7 @@ Runtime controls:
 | `SCAN64_WEB_DIST` | `apps/scan64-web/dist` in a source checkout | Built web-client directory; Docker and the macOS app set their bundled paths. |
 | `SCAN64_ANALYSIS_DAILY_QUOTA` | `50` | Immediately admitted analysis games per player per day; `0` queues every job. |
 | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | `2` | Interactive Stockfish pool size. |
-| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, CPU count − interactive pool size − 1)` | Batch Stockfish pool size; an unknown CPU count uses the minimum of 2. |
+| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, available CPUs − interactive pool size − 1)` | Batch Stockfish pool size; uses process affinity where supported, otherwise the system CPU count. An unknown CPU count uses the minimum of 2. |
 | `SCAN64_ENGINE_POOL_ENABLED` | enabled | Set `0`, `false`, `no`, or `off` to construct engines per call. |
 | `SCAN64_MAIA_CONFIG` | unset | Operator-owned Maia configuration file. |
 | `SCAN64_LLM_CONFIG` | unset | Optional explanation-provider configuration file. |

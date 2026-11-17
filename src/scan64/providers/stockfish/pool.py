@@ -45,7 +45,9 @@ def interactive_concurrency() -> int:
 
 def batch_concurrency() -> int:
     """Batch size reserves the interactive engines and one CPU for the application."""
-    default = max(2, (os.cpu_count() or 1) - interactive_concurrency() - 1)
+    affinity = getattr(os, "sched_getaffinity", None)
+    available_cpus = len(affinity(0)) if affinity is not None else (os.cpu_count() or 1)
+    default = max(2, available_cpus - interactive_concurrency() - 1)
     return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", default)
 
 
@@ -174,6 +176,7 @@ class EnginePool:
         self.config = config
         self.concurrency = concurrency
         self._queue: asyncio.Queue[PooledStockfishAdapter] = asyncio.Queue()
+        self._adapters: list[PooledStockfishAdapter] = []
         self._initialized = False
         self.closed = False
 
@@ -185,25 +188,30 @@ class EnginePool:
         async with self._initialize_lock:
             if self._initialized:
                 return
-            adapters = []
+            # A previous startup rollback can itself have been cancelled.
+            await self._close_adapters()
             try:
                 for _ in range(self.concurrency):
                     adapter = PooledStockfishAdapter(self.config)
-                    adapters.append(adapter)
+                    self._adapters.append(adapter)
                     await adapter.ensure_started()
             except BaseException:
-                # Includes cancellation from the hint's wall deadline.
-                for adapter in adapters:
-                    await adapter.quit()
+                # Retain ownership until quit completes, even if cleanup is cancelled again.
+                await self._close_adapters()
                 raise
-            for adapter in adapters:
+            for adapter in self._adapters:
                 self._queue.put_nowait(adapter)
             self._initialized = True
 
-    async def close(self) -> None:
+    async def _close_adapters(self) -> None:
+        while self._adapters:
+            await self._adapters[-1].quit()
+            self._adapters.pop()
         while not self._queue.empty():
-            adapter = self._queue.get_nowait()
-            await adapter.quit()
+            self._queue.get_nowait()
+
+    async def close(self) -> None:
+        await self._close_adapters()
         self.closed = True
 
     @asynccontextmanager

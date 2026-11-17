@@ -36,6 +36,7 @@ def test_batch_capacity_reserves_interactive_and_application_cpus(
     monkeypatch: pytest.MonkeyPatch, cpus: int | None, interactive: int, expected: int
 ) -> None:
     monkeypatch.setattr(pool.os, "cpu_count", lambda: cpus)
+    monkeypatch.delattr(pool.os, "sched_getaffinity", raising=False)
     monkeypatch.setenv("SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", str(interactive))
     monkeypatch.delenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", raising=False)
     manager = pool.EnginePoolManager.from_env(StockfishConfig())
@@ -45,6 +46,16 @@ def test_batch_capacity_reserves_interactive_and_application_cpus(
 
 def test_batch_capacity_override_wins(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pool.os, "cpu_count", lambda: 12)
+    monkeypatch.setenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", "3")
+    assert pool.EnginePoolManager.from_env(StockfishConfig()).batch_pool.concurrency == 3
+
+
+def test_batch_capacity_uses_process_affinity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pool.os, "cpu_count", lambda: 64)
+    monkeypatch.setattr(pool.os, "sched_getaffinity", lambda _: set(range(8)), raising=False)
+    monkeypatch.setenv("SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", "2")
+    monkeypatch.delenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", raising=False)
+    assert pool.EnginePoolManager.from_env(StockfishConfig()).batch_pool.concurrency == 5
     monkeypatch.setenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", "3")
     assert pool.EnginePoolManager.from_env(StockfishConfig()).batch_pool.concurrency == 3
 
@@ -181,3 +192,50 @@ async def test_pass_failure_awaits_sibling_cleanup(cancel: bool) -> None:
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_pool_retains_engines_when_startup_rollback_is_cancelled_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: set[pool.PooledStockfishAdapter] = set()
+    cold_start = asyncio.Event()
+    cleaning = asyncio.Event()
+    release_cleanup = asyncio.Event()
+
+    async def start(adapter: pool.PooledStockfishAdapter) -> None:
+        started.add(adapter)
+        if len(started) == 2:
+            cold_start.set()
+            await asyncio.Event().wait()
+
+    async def quit(adapter: pool.PooledStockfishAdapter) -> None:
+        cleaning.set()
+        await release_cleanup.wait()
+        started.discard(adapter)
+
+    monkeypatch.setattr(pool.PooledStockfishAdapter, "ensure_started", start)
+    monkeypatch.setattr(pool.PooledStockfishAdapter, "quit", quit)
+    manager = pool.EnginePoolManager(
+        StockfishConfig(), interactive_concurrency=1, batch_concurrency=2
+    )
+    task = asyncio.create_task(
+        FastPassOrchestrator(manager.batch_adapter, FastPassConfig(concurrency=2)).run_fast_pass(
+            MOVES
+        )
+    )
+    try:
+        await asyncio.wait_for(cold_start.wait(), timeout=2)
+        task.cancel()
+        await asyncio.wait_for(cleaning.wait(), timeout=2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        release_cleanup.set()
+        await manager.close()
+        assert not started
+    finally:
+        release_cleanup.set()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await manager.close()
