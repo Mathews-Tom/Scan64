@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { Chess } from 'chess.js';
 import { prepareToday } from './today';
 import { makeGameReview } from '../../src/components/review.test-fixtures';
 
@@ -31,6 +32,15 @@ async function reflow(page: Page) {
 
 test('keyboard-only analysis entry, errors, all promotions and direct board position', async ({ page }, testInfo) => {
   await prepareToday(page);
+  await page.route('**/v1/analysis/position', async route => {
+    const { fen } = route.request().postDataJSON() as { fen: string };
+    const game = new Chess(fen);
+    const lines = game.isGameOver() ? [] : game.moves({ verbose: true }).slice(0, 1).map(move => ({
+      score_cp: 25, mate: null,
+      moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }],
+    }));
+    await route.fulfill({ json: { fen: game.fen(), lines } });
+  });
   await page.goto('/analysis');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
@@ -52,6 +62,7 @@ test('keyboard-only analysis entry, errors, all promotions and direct board posi
     await page.keyboard.insertText('8/4P3/8/8/8/8/8/k6K w - - 0 1');
     await tabTo(page, page.getByRole('button', { name: 'Load FEN' }));
     await page.keyboard.press('Enter');
+    await expect(page.getByText('Position loaded. Started a new variation tree.', { exact: true })).toBeVisible();
     await tabTo(page, input);
     await page.keyboard.insertText('e7e8');
     await tabTo(page, page.getByRole('button', { name: 'Make move' }));

@@ -62,9 +62,14 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     const moves = game.history({ verbose: true });
     return { moves, initialFen: moves[0]?.before ?? game.fen() };
   }, [fen, pgn, controlled]);
-  const selectedFen = replay
-    ? replay.moves[Math.max(0, Math.min(selectedPly ?? 0, replay.moves.length)) - 1]?.after ?? replay.initialFen
-    : undefined;
+  const selectedPosition = useMemo(() => {
+    if (!replay) return null;
+    const game = new Chess(replay.initialFen);
+    const ply = Math.max(0, Math.min(selectedPly ?? 0, replay.moves.length));
+    for (let index = 0; index < ply; index++) game.move(replay.moves[index]);
+    return game;
+  }, [replay, selectedPly]);
+  const selectedFen = selectedPosition?.fen();
   const [initialPosition] = useState(() => position(fen, pgn));
   const chess = useRef(initialPosition);
   const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, editableReplay, premoveColor });
@@ -315,9 +320,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   }, [requestMove, draw]);
 
   const displayed = useMemo(() => {
-    const displayedFen = animationFen ?? selectedFen;
-    return displayedFen ? new Chess(displayedFen) : null;
-  }, [animationFen, selectedFen]) ?? chess.current;
+    return animationFen ? new Chess(animationFen) : selectedPosition;
+  }, [animationFen, selectedPosition]) ?? chess.current;
   const blocked = disabled || preview || !onMove || (controlled && !editableReplay) || moving.current || pendingPromotion !== null || animationFen !== undefined;
   const side = displayed.turn() === 'w' ? 'White' : 'Black';
   const result = displayed.isCheckmate() ? `Checkmate. ${side === 'White' ? 'Black' : 'White'} wins.`

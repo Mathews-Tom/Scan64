@@ -201,6 +201,45 @@ def test_unusable_nonterminal_output_is_unavailable(
     assert "try again" in response.json()["detail"]
 
 
+def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session, "analysis-owner")
+    engine = AsyncMock()
+    engine.id = {"name": "deterministic"}
+    score = chess.engine.PovScore(chess.engine.Cp(25), chess.WHITE)
+    engine.analyse.side_effect = [
+        [{"score": score, "pv": [chess.Move.from_uci("e2e4"), chess.Move.from_uci("e2e3")]}],
+        [{"score": score, "pv": [chess.Move.from_uci("e2e4"), chess.Move.from_uci("e7e5")]}],
+    ]
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    body = {"player_id": "analysis-owner", "fen": chess.STARTING_FEN}
+
+    failed = client.post(ENDPOINT, headers=headers, json=body)
+    assert failed.status_code == 503
+    assert "try again" in failed.json()["detail"]
+    assert engine.analyse.await_count == 1
+
+    retried = client.post(ENDPOINT, headers=headers, json=body)
+    assert retried.status_code == 200, retried.text
+    assert retried.json() == {
+        "fen": chess.STARTING_FEN,
+        "lines": [
+            {
+                "score_cp": 25,
+                "mate": None,
+                "moves": [{"uci": "e2e4", "san": "e4"}, {"uci": "e7e5", "san": "e5"}],
+            }
+        ],
+    }
+    assert engine.analyse.await_count == 2
+
+    cached = client.post(ENDPOINT, headers=headers, json=body)
+    assert cached.status_code == 200, cached.text
+    assert cached.json() == retried.json()
+    assert engine.analyse.await_count == 2
+
+
 @pytest.mark.parametrize(
     "fen",
     [

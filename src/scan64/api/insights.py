@@ -210,7 +210,14 @@ async def analyze_position(
         )
     try:
         analysis = await manager.analyze_hint(fen)
-        return PositionAnalysisRead(fen=fen, lines=_analysis_lines(board, analysis))
+        try:
+            lines = _analysis_lines(board, analysis)
+        except ValueError:
+            # Hint consumers can use output that lacks a complete legal PV.
+            # Evict only when free-analysis conversion rejects it, so Retry searches again.
+            manager.invalidate_hint(fen)
+            raise
+        return PositionAnalysisRead(fen=fen, lines=lines)
     except TimeoutError:
         raise HTTPException(
             status_code=503, detail="Analysis capacity is busy; try again shortly"

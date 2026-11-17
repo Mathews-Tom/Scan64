@@ -184,6 +184,23 @@ describe('CoachBoard', () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])('reports repetition only in the selected move prefix (editableReplay=%s)', editableReplay => {
+    const game = new Chess();
+    for (const san of ['Nf3', 'Nf6', 'Ng1', 'Ng8', 'Nf3', 'Nf6', 'Ng1', 'Ng8']) game.move(san);
+    const props = { fen: new Chess().fen(), pgn: game.pgn(), editableReplay, onMove: vi.fn() };
+    const view = render(<CoachBoard {...props} selectedPly={8} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 8. Draw.');
+
+    view.rerender(<CoachBoard {...props} selectedPly={4} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 4. White to move.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Draw.');
+
+    view.rerender(<CoachBoard {...props} selectedPly={0} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 0. White to move.');
+    view.rerender(<CoachBoard {...props} selectedPly={8} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 8. Draw.');
+  });
+
   it('edits only the selected position when controlled replay explicitly opts in', async () => {
     const onMove = vi.fn();
     const view = render(<CoachBoard editableReplay flippable fen={new Chess().fen()}
