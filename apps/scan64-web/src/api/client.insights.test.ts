@@ -21,3 +21,27 @@ describe('getPositionInsight', () => {
     await expect(ApiClient.getPositionInsight({ player_id: 'p', fen: 'position', step: 2 })).rejects.toThrow('Hint engine is disabled');
   });
 });
+
+describe('analyzePosition', () => {
+  it('posts a standalone FEN with the player bearer token and preserves typed lines', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    const result = { fen: 'position', lines: [{ score_cp: null, mate: -3, moves: [{ uci: 'e7e5', san: 'e5' }] }] };
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal('fetch', fetch);
+    expect(await ApiClient.analyzePosition({ player_id: 'p', fen: 'position' })).toEqual(result);
+    expect(fetch).toHaveBeenCalledWith('/v1/analysis/position', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer secret' },
+      body: JSON.stringify({ player_id: 'p', fen: 'position' }),
+    });
+  });
+
+  it('preserves busy status and the retryable server explanation', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Busy', json: async () => ({ detail: 'Engine busy. Retry shortly.' }) });
+    vi.stubGlobal('fetch', fetch);
+    await expect(ApiClient.analyzePosition({ player_id: 'p', fen: 'position' })).rejects.toMatchObject({
+      status: 503, message: 'Failed to analyse position: Engine busy. Retry shortly.',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});

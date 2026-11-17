@@ -74,6 +74,53 @@
   gap: var(--space-2);
 }
 
+.analysis-variations,
+.analysis-engine-lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.analysis-variations {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.analysis-variation-origin {
+  display: block;
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.analysis-variations button {
+  max-width: 100%;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.analysis-variations button[aria-current='step'] {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.analysis-engine-lines > li {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-block: var(--space-2);
+}
+
+.analysis-engine-lines .working-actions > button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .working-list {
   display: grid;
   gap: var(--space-4);

@@ -1,7 +1,9 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AnalysisScreen } from './AnalysisScreen';
-import { ApiClient } from '../api/client';
+import { ApiClient, ApiRequestError } from '../api/client';
+import { Chess } from 'chess.js';
+import type { PositionAnalysisRead } from '../api/types';
 
 vi.mock('chessground', () => ({
   Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
@@ -11,6 +13,7 @@ vi.mock('../api/client', () => ({
   ApiClient: {
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
+    analyzePosition: vi.fn(),
   },
   ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
@@ -27,14 +30,230 @@ vi.mock('../api/client', () => ({
 describe('AnalysisScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ApiClient.analyzePosition).mockReset();
+    vi.mocked(ApiClient.analyzePosition).mockImplementation(async ({ fen }) => {
+      const move = new Chess(fen).moves({ verbose: true })[0];
+      return { fen, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
+    });
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('preserves prior branches and exported PGN when the backend rejects a parseable illegal FEN', async () => {
+    render(<AnalysisScreen />);
+    const enter = async (move: string) => {
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: move } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      await waitFor(() => expect(screen.getByLabelText('Move (UCI or SAN)')).toHaveValue(''));
+    };
+    await enter('e4'); await enter('e5');
+    fireEvent.click(screen.getByRole('button', { name: 'First' }));
+    await enter('d4');
+    await screen.findByLabelText('Line 1 evaluation +0.20');
+    const illegal = 'rnbqkbnr/pppppppp/8/8/8/P7/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    expect(new Chess(illegal).fen()).toBe(illegal);
+    vi.mocked(ApiClient.analyzePosition).mockRejectedValueOnce(new ApiRequestError('Invalid chess position', 422));
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: illegal } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid FEN');
+    const variations = within(screen.getByRole('list', { name: 'Retained variations' }));
+    expect(variations.getByRole('button', { name: '1... e5' })).toBeInTheDocument();
+    expect(variations.getByRole('button', { name: 'Variation: 1. d4' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByText('d4: White pawn')).toBeInTheDocument();
+    let exported: Blob | undefined;
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn((blob: Blob) => { exported = blob; return 'blob:analysis'; }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Download PGN' }));
+    const file = Promise.withResolvers<string>();
+    const reader = new FileReader();
+    reader.onload = () => file.resolve(String(reader.result));
+    reader.onerror = () => file.reject(reader.error);
+    reader.readAsText(exported!);
+    const pgn = await file.promise;
+    expect(pgn).toContain('1. e4 (1. d4) 1... e5 *');
+    expect(pgn).not.toContain(illegal);
   });
 
-  it('renders gracefully without a gameId', () => {
+  it('ignores a successful pending FEN load after the user makes a move in the existing tree', async () => {
+    render(<AnalysisScreen />);
+    await screen.findByLabelText('Line 1 evaluation +0.20');
+    const pending = Promise.withResolvers<PositionAnalysisRead>();
+    vi.mocked(ApiClient.analyzePosition).mockReturnValueOnce(pending.promise);
+    const candidate = '7k/4P3/8/8/8/8/8/K7 w - - 0 1';
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: candidate } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenLastCalledWith({ player_id: 'player-1', fen: candidate }));
+    expect(screen.getByText('e2: White pawn')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make move' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    const position = new Chess(); position.move('e4');
+    await waitFor(() => expect(screen.getByLabelText('FEN')).toHaveValue(position.fen()));
+    await act(async () => pending.resolve({ fen: candidate, lines: [{
+      score_cp: 950, mate: null, moves: [{ uci: 'e7e8q', san: 'e8=Q+' }],
+    }] }));
+    expect(screen.getByLabelText('FEN')).toHaveValue(position.fen());
+    expect(screen.getByText('e4: White pawn')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Line 1 evaluation +9.50')).not.toBeInTheDocument();
+  });
+
+  it('loads a server-validated busy FEN without immediately issuing a duplicate search', async () => {
+    render(<AnalysisScreen />);
+    await screen.findByLabelText('Line 1 evaluation +0.20');
+    const candidate = '7k/4P3/8/8/8/8/8/K7 w - - 0 1';
+    vi.mocked(ApiClient.analyzePosition).mockRejectedValueOnce(new ApiRequestError('Engine busy', 503));
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: candidate } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByText('e7: White pawn')).toBeInTheDocument();
+    expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await screen.findByLabelText('Line 1 evaluation +0.20');
+    expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    new ApiRequestError('Player authorization required', 401),
+    new Error('Network unavailable'),
+  ])('keeps the existing tree if a candidate FEN cannot be validated: %s', async failure => {
+    render(<AnalysisScreen />);
+    await screen.findByLabelText('Line 1 evaluation +0.20');
+    vi.mocked(ApiClient.analyzePosition).mockRejectedValueOnce(failure);
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: '7k/4P3/8/8/8/8/8/K7 w - - 0 1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(failure.message);
+    expect(screen.getByText('e2: White pawn')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Retained variations' })).toHaveTextContent('Initial position');
+    expect(screen.queryByText('e7: White pawn')).not.toBeInTheDocument();
+  });
+
+  it('plays the entire legal prefix through a clicked PV move and refreshes the selected position', async () => {
+    const initial = new Chess().fen();
+    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ fen: initial, lines: [{
+      score_cp: 34, mate: null,
+      moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }, { uci: 'g1f3', san: 'Nf3' }],
+    }, { score_cp: null, mate: -4, moves: [{ uci: 'd2d4', san: 'd4' }] }] });
+    render(<AnalysisScreen />);
+    expect(await screen.findByLabelText('Line 1 evaluation +0.34')).toBeInTheDocument();
+    expect(screen.getByLabelText('Line 2 evaluation −M4')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Play line 1 through 2: e5' }));
+    const position = new Chess();
+    position.move('e4'); position.move('e5');
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenLastCalledWith({ player_id: 'player-1', fen: position.fen() }));
+    expect(screen.getByLabelText('FEN')).toHaveValue(position.fen());
+    const variations = within(screen.getByRole('list', { name: 'Retained variations' }));
+    expect(variations.getByRole('button', { name: '1. e4' })).toBeInTheDocument();
+    expect(variations.getByRole('button', { name: '1... e5' })).toHaveAttribute('aria-current', 'step');
+    expect(variations.queryByRole('button', { name: /Nf3/ })).not.toBeInTheDocument();
+  });
+
+  it('retains and selects sibling lines, reuses a child move and only replaces the tree on valid FEN load', async () => {
+    render(<AnalysisScreen />);
+    const enter = async (san: string) => {
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: san } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      await waitFor(() => expect(screen.getByLabelText('Move (UCI or SAN)')).toHaveValue(''));
+    };
+    await enter('e4');
+    await enter('e5');
+    fireEvent.click(screen.getByRole('button', { name: 'First' }));
+    await enter('d4');
+    await enter('d5');
+    const variations = within(screen.getByRole('list', { name: 'Retained variations' }));
+    expect(variations.getByRole('button', { name: '1... e5' })).toBeInTheDocument();
+    expect(variations.getByRole('button', { name: 'Variation: 1... d5' })).toHaveAttribute('aria-current', 'step');
+    fireEvent.click(variations.getByRole('button', { name: '1. e4' }));
+    expect(screen.getByText('e4: White pawn')).toBeInTheDocument();
+    await enter('e5');
+    expect(variations.getAllByRole('button', { name: '1... e5' })).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: 'not a FEN' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    expect(variations.getByRole('button', { name: 'Variation: 1. d4' })).toBeInTheDocument();
+    expect(variations.getByRole('button', { name: '1... e5' })).toHaveAttribute('aria-current', 'step');
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: new Chess().fen() } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    await waitFor(() => expect(variations.getAllByRole('button')).toHaveLength(1));
+    expect(screen.getByText('Position loaded. Started a new variation tree.')).toBeInTheDocument();
+  });
+
+  it('ignores stale results even after returning to the same FEN (ABA)', async () => {
+    const firstA = Promise.withResolvers<PositionAnalysisRead>();
+    const positionB = Promise.withResolvers<PositionAnalysisRead>();
+    const secondA = Promise.withResolvers<PositionAnalysisRead>();
+    vi.mocked(ApiClient.analyzePosition)
+      .mockReturnValueOnce(firstA.promise)
+      .mockReturnValueOnce(positionB.promise)
+      .mockReturnValueOnce(secondA.promise);
+    render(<AnalysisScreen />);
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(2));
+    const blackFen = vi.mocked(ApiClient.analyzePosition).mock.calls[1][0].fen;
+    fireEvent.click(screen.getByRole('button', { name: 'First' }));
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(3));
+    await act(async () => secondA.resolve({ fen: new Chess().fen(), lines: [{
+      score_cp: 55, mate: null, moves: [{ uci: 'e2e4', san: 'e4' }],
+    }] }));
+    expect(screen.getByLabelText('Line 1 evaluation +0.55')).toBeInTheDocument();
+    await act(async () => {
+      firstA.resolve({ fen: new Chess().fen(), lines: [{
+        score_cp: 111, mate: null, moves: [{ uci: 'd2d4', san: 'd4' }],
+      }] });
+      positionB.resolve({ fen: blackFen, lines: [{
+        score_cp: null, mate: -5, moves: [{ uci: 'e7e5', san: 'e5' }],
+      }] });
+    });
+    expect(screen.getByLabelText('Line 1 evaluation +0.55')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Line 1 evaluation +1.11')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Line 1 evaluation −M5')).not.toBeInTheDocument();
+  });
+
+  it('keeps the board usable while evaluating and retries busy responses only on demand', async () => {
+    const pending = Promise.withResolvers<PositionAnalysisRead>();
+    vi.mocked(ApiClient.analyzePosition).mockReturnValueOnce(pending.promise);
+    render(<AnalysisScreen />);
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Make move' })).toBeEnabled();
+    await act(async () => pending.reject(new ApiRequestError('All search slots are occupied. Retry shortly.', 503)));
+    expect(screen.getByRole('alert')).toHaveTextContent('Engine busy or unavailable.');
+    expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+    expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(2);
+  });
+
+  it('discards a stale failure after selecting a newer position', async () => {
+    const pending = Promise.withResolvers<PositionAnalysisRead>();
+    vi.mocked(ApiClient.analyzePosition).mockReturnValueOnce(pending.promise);
+    render(<AnalysisScreen />);
+    await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'd4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    expect(await screen.findByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+    await act(async () => pending.reject(new ApiRequestError('Old search busy', 503)));
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+  });
+
+  it('explains terminal positions without fabricating engine lines', async () => {
+    render(<AnalysisScreen />);
+    const fen = '7k/6Q1/5K2/8/8/8/8/8 b - - 0 42';
+    fireEvent.change(screen.getByLabelText('FEN'), { target: { value: fen } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    expect(await screen.findByText('No legal continuation: this position has ended.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Play line/ })).not.toBeInTheDocument();
+  });
+
+  it('requests authenticated analysis without a gameId', async () => {
     render(<AnalysisScreen />);
     expect(screen.getByText('Analysis Board')).toBeInTheDocument();
-    expect(screen.getByText('No engine analysis available for this position.')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+    expect(ApiClient.analyzePosition).toHaveBeenCalledWith({ player_id: 'player-1', fen: new Chess().fen() });
   });
-  it('allows setting arbitrary FEN positions', () => {
+  it('allows setting arbitrary FEN positions without repeating the accepted evaluation', async () => {
     render(<AnalysisScreen />);
 
     const fenInput = screen.getByPlaceholderText('Paste FEN here');
@@ -44,7 +263,8 @@ describe('AnalysisScreen', () => {
     fireEvent.change(fenInput, { target: { value: testFen } });
     fireEvent.click(loadBtn);
 
-    expect(fenInput).toHaveValue(testFen);
+    await waitFor(() => expect(fenInput).toHaveValue(new Chess(testFen).fen()));
+    expect(vi.mocked(ApiClient.analyzePosition).mock.calls.filter(([data]) => data.fen === new Chess(testFen).fen())).toHaveLength(1);
     expect(screen.queryByText('Invalid FEN')).not.toBeInTheDocument();
   });
 
@@ -69,6 +289,7 @@ describe('AnalysisScreen', () => {
     render(<AnalysisScreen />);
     fireEvent.change(screen.getByLabelText('FEN'), { target: { value: '7k/4P3/8/8/8/8/8/K7 w - - 0 1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Load FEN' }));
+    await screen.findByText('Position loaded. Started a new variation tree.');
     fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e7e8' } });
     fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
     expect(screen.getByRole('group', { name: 'Choose promotion piece' })).toBeInTheDocument();

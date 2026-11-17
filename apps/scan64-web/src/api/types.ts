@@ -13,6 +13,27 @@ export type PositionInsightRequest = { player_id: string; step: 1 | 2 | 3 } & (
   { fen: string; play_session_id?: never } | { play_session_id: string; fen?: never }
 );
 
+export interface PositionAnalysisRequest {
+  player_id: string;
+  fen: string;
+}
+
+export interface PositionAnalysisMove {
+  uci: string;
+  san: string;
+}
+
+export interface PositionAnalysisLine {
+  score_cp: number | null;
+  mate: number | null;
+  moves: PositionAnalysisMove[];
+}
+
+export interface PositionAnalysisRead {
+  fen: string;
+  lines: PositionAnalysisLine[];
+}
+
 export interface MoveInsight {
   step: 3;
   fen: string;
