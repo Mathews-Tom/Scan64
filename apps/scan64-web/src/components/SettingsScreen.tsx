@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ListRow, Panel, SegmentedControl, StatusLine } from './Primitives';
 import { applyBoardAppearance, BOARD_THEME_OPTIONS, PIECE_SET_OPTIONS, readBoardAppearance, saveBoardChoice } from '../boardAppearance';
 import type { BoardTheme, PieceSet } from '../boardAppearance';
+import { readBoardSounds, saveBoardSounds } from '../boardSounds';
 
 export type Appearance = 'system' | 'light' | 'dark';
 
@@ -43,6 +44,8 @@ export function SettingsScreen() {
   const [boardAppearance, setBoardAppearance] = useState(readBoardAppearance);
   const [pieceSaveError, setPieceSaveError] = useState(false);
   const [boardSaveError, setBoardSaveError] = useState(false);
+  const [sounds, setSounds] = useState(readBoardSounds);
+  const [soundSaveError, setSoundSaveError] = useState(false);
 
   useEffect(() => {
     applyBoardAppearance(boardAppearance);
@@ -94,6 +97,12 @@ export function SettingsScreen() {
         {pieceSaveError ? <StatusLine kind="error">Piece set changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
         <SegmentedControl label="Board palette" value={boardAppearance.boardTheme} options={BOARD_THEME_OPTIONS} onChange={changeBoardTheme} />
         {boardSaveError ? <StatusLine kind="error">Board palette changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
+        <label><input type="checkbox" checked={sounds} onChange={event => {
+          setSounds(event.target.checked);
+          setSoundSaveError(!saveBoardSounds(event.target.checked));
+        }} /> Move sounds</label>
+        <p>Synthesised move, capture, check and game-end sounds start after your first interaction. No audio is downloaded.</p>
+        {soundSaveError ? <StatusLine kind="error">Sounds changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
       </Panel>
       <UpdatesPanel />
       <ProgressReset />

@@ -123,6 +123,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     fen: chessRef.current.fen(), pgn: chessRef.current.pgn(),
   }));
   const [movePending, setMovePending] = useState(false);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine);
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    return () => {
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    };
+  }, []);
   const [resigning, setResigning] = useState(false);
   const [resigned, setResigned] = useState(false);
   const [hintPreview, setHintPreview] = useState<HintPreview | null>(null);
@@ -586,6 +596,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         testId="chessground-board"
         preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
         orientation={sessionPlayerColor(session) ?? 'white'}
+        flippable gameEnded={session.status !== 'active'}
+        premoveColor={online && session.status === 'active' && !resigning && !takingBack &&
+          criticalInterruption === null && !currentHint && !queuedMoveNeedsRefreshRef.current.has(session.id)
+          ? sessionPlayerColor(session) : undefined}
         disabled={session.status !== 'active' || movePending || resigning || takingBack ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||

@@ -49,6 +49,13 @@ An empty puzzle library shows setup across the main content area instead of rese
 
 Open **Settings → Chessboard** to choose Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Slate, Sage, Graphite, Walnut or Sand board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
 
+### Board controls
+
+- **Premove (Play only):** while the bot thinks, drag your next move. It is queued locally, then checked against the bot's reply and submitted only if legal. An illegal premove is discarded. Use **Cancel premove**, Escape inside the board controls, or right-click the board to cancel. Promotion choices appear when the premove becomes legal. Premoves are disabled during coach interruptions, hint previews, offline play or queued-move synchronization, and in puzzles and lessons.
+- **Your annotations:** right-drag on any board for a purple arrow; right-click a square for a purple circle. Click the board to clear your drawings. These unnumbered marks stay on your device and are separate from numbered coach/hint arrows; clearing them does not remove server annotations.
+- **Flip board:** Play, Review, Analysis and Puzzles each have a **Flip board** button. It reverses the pieces and coordinates for that board without changing the position, your playing colour or legal moves. **Read board position** reports the same position and viewing side.
+- **Move sounds:** **Settings → Chessboard → Move sounds** is on by default. Moves, captures, checks and game endings use locally synthesised sounds, with no audio files or downloads. Sound starts after a keyboard or pointer interaction. Turn it off to silence the app; the setting survives restarts.
+
 ### Reset learning progress
 
 Open **Settings → Reset learning progress** to start fresh without deleting your account, saved games and analyses, imported libraries or settings. Reset clears puzzle and lesson results, learning ratings and strength estimates, streaks, mastery, achievements and review schedules, including active learning sessions. Configured goals are kept. The confirmation screen lists the boundary and requires the exact phrase **RESET PROGRESS** before **Permanently reset learning progress** becomes available.

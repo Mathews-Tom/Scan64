@@ -7,6 +7,7 @@ import type { Visualization } from '../api/types';
 import { BoardVisualizations, VisualizationDescriptions } from './BoardVisualizations';
 import { linePosition } from './linePosition';
 import { resolveMove } from './moveEntry';
+import { playBoardSound, playMoveSound } from '../boardSounds';
 
 import 'chessground/assets/chessground.base.css';
 import './Board.css';
@@ -18,6 +19,9 @@ interface CoachBoardProps {
   fen: string;
   pgn?: string;
   orientation?: 'white' | 'black';
+  flippable?: boolean;
+  premoveColor?: 'white' | 'black';
+  gameEnded?: boolean;
   disabled?: boolean;
   preview?: boolean;
   resetAfterAttempt?: boolean;
@@ -35,8 +39,11 @@ function position(fen: string, pgn?: string): Chess {
 }
 
 export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, preview = false,
-  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange,
+  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange, flippable = false, premoveColor, gameEnded = false,
   testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
+  const [flipped, setFlipped] = useState(false);
+  const viewOrientation = flipped ? orientation === 'white' ? 'black' : 'white' : orientation;
+  const [premove, setPremove] = useState<string | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
   const entry = useRef<HTMLInputElement>(null);
@@ -54,14 +61,16 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   }, [fen, pgn, controlled]);
   const [initialPosition] = useState(() => position(fen, pgn));
   const chess = useRef(initialPosition);
-  const latest = useRef({ fen, pgn, orientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay });
-  latest.current = { fen, pgn, orientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay };
+  const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, premoveColor });
+  latest.current = { fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, premoveColor };
   const moving = useRef(false);
   const promotion = useRef<{ from: Key; to: Key } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
   const [moves, setMoves] = useState<Move[]>(() => chess.current.history({ verbose: true }));
   const committedHistory = useRef(moves);
   const [announcement, setAnnouncement] = useState('');
+  const soundedFen = useRef(initialPosition.fen());
+  const ended = useRef(gameEnded);
   const submittedMove = useRef(false);
   const [ready, setReady] = useState(false);
   const [animation, setAnimation] = useState<{ fen: string; step: number } | null>(null);
@@ -86,11 +95,18 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       }
     }
     const color = game.turn() === 'w' ? 'white' : 'black';
+    const canPremove = !!latest.current.premoveColor && !latest.current.preview && !replay && navigator.onLine
+      && promotion.current === null && animationRef.current === undefined;
+    const waitingForOpponent = canPremove && color !== latest.current.premoveColor;
     board.current?.set({
       fen: animationRef.current ?? game.fen(), orientation: latest.current.orientation, turnColor: color,
       lastMove: last ? [last.from as Key, last.to as Key] : [],
-      movable: { color: blocked ? undefined : color, dests: blocked ? undefined : dests },
+      movable: { color: waitingForOpponent ? latest.current.premoveColor : blocked ? undefined : color, dests: blocked ? undefined : dests },
+      premovable: { enabled: canPremove },
+      // Reconfiguring the same position (e.g. flipping) must not erase local drawings.
+      drawable: { shapes: board.current?.state?.drawable.shapes ?? [] },
     });
+    if (!canPremove) board.current?.cancelPremove?.();
     setMoves(history);
   }, []);
 
@@ -143,14 +159,24 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     const prefixMatches = previous.every((move, index) => history[index]?.after === move.after);
     const committed = prefixMatches ? history.slice(previous.length) : [];
     if (committed.length) {
+      if (submittedMove.current || committed.length === 1) committed.forEach((move, index) => playMoveSound(move, index * 0.18));
       const announced = submittedMove.current ? committed : committed.slice(-1);
       setAnnouncement(`${!submittedMove.current && committed.length > 1 ? 'Position loaded. Last move: ' : ''}${announced.map(
         move => `${move.color === 'w' ? 'White' : 'Black'} played ${move.san}.`,
       ).join(' ')}`);
     } else if (previous.length && !prefixMatches) setAnnouncement('Position changed.');
+    if (!committed.length && !pgn && soundedFen.current !== chess.current.fen()) {
+      const transition = new Chess(soundedFen.current).moves({ verbose: true }).find(move => move.after === chess.current.fen());
+      if (transition) playMoveSound(transition);
+    }
+    soundedFen.current = chess.current.fen();
     submittedMove.current = false;
     committedHistory.current = history;
-  }, [moves, controlled, preview, animationFen]);
+  }, [moves, controlled, preview, animationFen, pgn]);
+  useEffect(() => {
+    if (gameEnded && !ended.current) playBoardSound('end', 0.36);
+    ended.current = gameEnded;
+  }, [gameEnded]);
   useEffect(() => { setAnimation(null); }, [fen, pgn, selectedPly, visualizations]);
   useEffect(() => { draw(); }, [animationFen, draw]);
   useEffect(() => {
@@ -161,7 +187,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     if (resetAfterAttempt && !disabled && !moving.current) restore();
     else draw();
     requestAnimationFrame(() => board.current?.redrawAll());
-  }, [disabled, orientation, resetAfterAttempt, draw, restore]);
+  }, [disabled, viewOrientation, premoveColor, resetAfterAttempt, draw, restore]);
 
   const requestMove = useCallback((from: Key, to: Key, piece?: Promotion) => {
     if (latest.current.disabled || latest.current.preview || !latest.current.onMove || latest.current.replay !== null
@@ -177,6 +203,25 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       draw();
     } else void applyMove(from, to, piece);
   }, [applyMove, draw]);
+
+  const cancelPremove = useCallback(() => {
+    board.current?.cancelPremove?.();
+    setPremove(null);
+  }, []);
+  useEffect(() => {
+    const pending = board.current?.state?.premovable.current;
+    if (!pending || disabled || moving.current || !premoveColor) return;
+    if (!navigator.onLine || preview || controlled || animationFen) { cancelPremove(); return; }
+    if ((chess.current.turn() === 'w' ? 'white' : 'black') !== premoveColor) return;
+    const [from, to] = pending;
+    cancelPremove();
+    // Revalidate against the server reply, never against the speculative bot turn.
+    if (chess.current.moves({ verbose: true }).some(move => move.from === from && move.to === to)) requestMove(from, to);
+  }, [moves, disabled, premoveColor, preview, controlled, animationFen, requestMove, cancelPremove]);
+  useEffect(() => {
+    window.addEventListener('offline', cancelPremove);
+    return () => window.removeEventListener('offline', cancelPremove);
+  }, [cancelPremove]);
 
   const cancelPromotion = () => {
     promotion.current = null;
@@ -226,11 +271,16 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     board.current = Chessground(element.current, {
       fen: chess.current.fen(), orientation: latest.current.orientation,
       animation: { enabled: !motion?.matches },
-      drawable: { brushes: {
-        green: { key: 'green', color: 'var(--annotation-best)', opacity: 0.8, lineWidth: 10 },
-        red: { key: 'red', color: 'var(--annotation-threat)', opacity: 0.8, lineWidth: 10 },
-        blue: { key: 'blue', color: 'var(--annotation-alternative)', opacity: 0.8, lineWidth: 10 },
-        yellow: { key: 'yellow', color: 'var(--annotation-alternative)', opacity: 0.8, lineWidth: 10 },
+      disableContextMenu: true,
+      drawable: { enabled: true, visible: true, eraseOnClick: true, defaultSnapToValidMove: false, brushes: {
+        green: { key: 'green', color: '#a855f7', opacity: 0.9, lineWidth: 10 },
+        red: { key: 'red', color: '#a855f7', opacity: 0.9, lineWidth: 10 },
+        blue: { key: 'blue', color: '#a855f7', opacity: 0.9, lineWidth: 10 },
+        yellow: { key: 'yellow', color: '#a855f7', opacity: 0.9, lineWidth: 10 },
+      } },
+      premovable: { enabled: false, events: {
+        set: (from, to) => setPremove(`${from}${to}`),
+        unset: () => setPremove(null),
       } },
       movable: {
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',
@@ -256,14 +306,21 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       : `${side} to move.${displayed.isCheck() ? ' Check.' : ''}`;
   const names = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' } as const;
 
-  return <div className="coach-board">
+  return <div className="coach-board" onKeyDown={event => {
+    if (event.key === 'Escape' && premove) { event.preventDefault(); cancelPremove(); }
+  }}>
     <div className="coach-board__frame">
       <div ref={element} data-testid={testId}
         aria-hidden="true"
         aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
         className="coach-board__ground" />
-      <BoardVisualizations visualizations={visualizations} orientation={orientation} fen={chess.current.fen()} />
+      <BoardVisualizations visualizations={visualizations} orientation={viewOrientation} fen={chess.current.fen()} />
     </div>
+    {flippable && <button className="btn btn--secondary" type="button" aria-pressed={flipped}
+      onClick={() => setFlipped(value => !value)}>Flip board</button>}
+    {premove && <div role="status">Premove {premove.slice(0, 2)} to {premove.slice(2)} queued.
+      <button type="button" onClick={cancelPremove}>Cancel premove</button>
+    </div>}
     <VisualizationDescriptions visualizations={visualizations} fen={chess.current.fen()} />
     <p role="status" aria-atomic="true">{moving.current ? 'Submitting move.' : <>
       {animationFen || preview ? 'Line preview. ' : controlled ? `Review position ${selectedPly}. ` : ''}
@@ -271,7 +328,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     </>}</p>
     <details>
       <summary>Read board position</summary>
-      <p>Coordinates identify each occupied square. Board viewed from {orientation === 'white' ? 'White' : 'Black'}.</p>
+      <p>Coordinates identify each occupied square. Board viewed from {viewOrientation === 'white' ? 'White' : 'Black'}.</p>
       <ul aria-label="Pieces by square">
         {displayed.board().flat().filter(piece => piece !== null).map(piece => <li key={piece.square}>
           {piece.square}: {piece.color === 'w' ? 'White' : 'Black'} {names[piece.type]}

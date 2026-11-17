@@ -84,7 +84,7 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     <p role="status">{loading ? 'Loading...' : status}</p>
     <div className="board-workspace">
       <div className="board-workspace__board">
-        <CoachBoard fen={fen} pgn={chess.pgn()} onMove={handleMove} disabled={loading} testId="free-analysis-board" />
+        <CoachBoard flippable fen={fen} pgn={chess.pgn()} onMove={handleMove} disabled={loading} testId="free-analysis-board" />
       </div>
       <Panel className="board-workspace__side working-controls" aria-label="Analysis controls">
         <Button variant="primary" onClick={playFromHere} disabled={loading || !onPlayFromHere} data-testid="play-from-here">{loading ? 'Starting...' : 'Play from here'}</Button>

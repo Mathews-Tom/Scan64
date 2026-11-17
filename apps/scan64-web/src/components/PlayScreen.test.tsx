@@ -1261,11 +1261,11 @@ describe('PlayScreen', () => {
     expect(ApiClient.resignPlaySession).toHaveBeenCalledWith('reload-black');
   });
 
-  it('locks an explicit Black session when the authoritative board is on the bot turn', async () => {
+  it('allows only Black premoves, not bot moves, while an explicit Black session awaits the bot', async () => {
     render(<PlayScreen initialSession={{ id: 'black-wait', player_id: 'test-player', opponent_config: {},
       player_color: 'black', status: 'active', coach_mode: false }} />);
     expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      movable: expect.objectContaining({ color: undefined }) }));
+      movable: expect.objectContaining({ color: 'black', dests: undefined }), premovable: { enabled: true } }));
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
     expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
