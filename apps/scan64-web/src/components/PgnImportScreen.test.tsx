@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PgnImportScreen } from './PgnImportScreen';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPlayerId } from '../api/client';
+import type { OnlineGameImportResponse } from '../api/types';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
     createGame: vi.fn(),
+    importOnlineGames: vi.fn(),
     getPlayerProfile: vi.fn(),
     createPlayer: vi.fn(),
     getLearningOpportunities: vi.fn(),
@@ -24,6 +26,112 @@ describe('PgnImportScreen', () => {
     vi.mocked(getOrCreatePlayerId).mockReturnValue('player-1');
     vi.mocked(getStoredPlayerId).mockReturnValue('player-1');
     vi.mocked(ensurePlayerAuthorization).mockResolvedValue('recovered-player-2');
+  });
+
+  const emptyImport = { imported_count: 0, duplicate_count: 0, skipped_count: 0, games: [], message: 'No public standard games found.' };
+  const fillOnline = (source = 'lichess', count = '10') => {
+    fireEvent.change(screen.getByLabelText('Source'), { target: { value: source } });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'Alice_1' } });
+    fireEvent.change(screen.getByLabelText('Number of games'), { target: { value: count } });
+  };
+
+  it('does not authorize or import on mount, edits, source switches or profile completion', async () => {
+    render(<PgnImportScreen />);
+    fillOnline('chesscom', '3');
+    fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'lichess' } });
+    await act(async () => {});
+    expect(ApiClient.getPlayerProfile).toHaveBeenCalledOnce();
+    expect(ensurePlayerAuthorization).not.toHaveBeenCalled();
+    expect(ApiClient.importOnlineGames).not.toHaveBeenCalled();
+    expect(ApiClient.createGame).not.toHaveBeenCalled();
+  });
+
+  it.each([['lichess', '1'], ['chesscom', '50']])('submits %s with bounded count %s only after authorization', async (source, count) => {
+    const authorization = Promise.withResolvers<string>();
+    vi.mocked(ensurePlayerAuthorization).mockReturnValue(authorization.promise);
+    vi.mocked(ApiClient.importOnlineGames).mockResolvedValue(emptyImport);
+    render(<PgnImportScreen />);
+    fillOnline(source, count);
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    expect(ensurePlayerAuthorization).toHaveBeenCalledWith('player-1');
+    expect(ApiClient.importOnlineGames).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Importing online games…' })).toBeDisabled();
+    await act(async () => { authorization.resolve('recovered-player-2'); });
+    await screen.findByText(emptyImport.message);
+    expect(ApiClient.importOnlineGames).toHaveBeenCalledExactlyOnceWith({ source, username: 'Alice_1', max_games: Number(count) });
+    expect(ApiClient.createAnalysisJob).not.toHaveBeenCalled();
+  });
+
+  it.each(['', '0', '51', '2.5', '-1'])('rejects invalid count %s before authorization', async count => {
+    render(<PgnImportScreen />);
+    fillOnline('lichess', count);
+    fireEvent.submit(screen.getByRole('button', { name: 'Import online games' }).closest('form')!);
+    expect(await screen.findByRole('alert')).toHaveTextContent('whole number of games from 1 to 50');
+    expect(ensurePlayerAuthorization).not.toHaveBeenCalled();
+    expect(ApiClient.importOnlineGames).not.toHaveBeenCalled();
+  });
+
+  it.each(['a', 'https://lichess.org/Alice', 'alice.name', 'alice name', 'a'.repeat(31)])('rejects unsafe username %s', async username => {
+    render(<PgnImportScreen />);
+    fillOnline();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: username } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('not a URL');
+    expect(ensurePlayerAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('reports counts, prevents duplicate submits and reviews each new game without another job', async () => {
+    const pending = Promise.withResolvers<OnlineGameImportResponse>();
+    vi.mocked(ApiClient.importOnlineGames).mockReturnValue(pending.promise);
+    const onOpenGame = vi.fn();
+    render(<PgnImportScreen onOpenGame={onOpenGame} />);
+    fillOnline();
+    const form = screen.getByRole('button', { name: 'Import online games' }).closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await waitFor(() => expect(ApiClient.importOnlineGames).toHaveBeenCalledOnce());
+    await act(async () => {
+      pending.resolve({ imported_count: 2, duplicate_count: 3, skipped_count: 1, message: 'Skipped a non-standard game.',
+        games: [
+          { id: 'online-1', white: 'Alice_1', black: 'Bob', result: '1-0', owner_color: 'white', analysis_job_id: 'job-1' },
+          { id: 'online-2', white: 'Carol', black: 'Alice_1', result: '0-1', owner_color: 'black', analysis_job_id: 'job-2' },
+        ] });
+    });
+    expect(screen.getByText('2 new · 3 duplicate · 1 skipped')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Review Alice_1 vs Bob' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review Carol vs Alice_1' }));
+    expect(onOpenGame.mock.calls).toEqual([['online-1'], ['online-2']]);
+    expect(ApiClient.createAnalysisJob).not.toHaveBeenCalled();
+    expect(ApiClient.createGame).not.toHaveBeenCalled();
+    vi.mocked(ApiClient.importOnlineGames).mockResolvedValue({ ...emptyImport, duplicate_count: 2, message: 'All games already imported.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    await screen.findByText('0 new · 2 duplicate · 0 skipped');
+    expect(screen.queryByRole('button', { name: /^Review / })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [0, 'No public standard games found.'],
+    [3, 'Skipped 3 non-standard games; no standard games found.'],
+  ])('shows empty and variant-only results (%s skipped)', async (skipped_count, message) => {
+    vi.mocked(ApiClient.importOnlineGames).mockResolvedValue({ ...emptyImport, skipped_count, message });
+    render(<PgnImportScreen onOpenGame={vi.fn()} />);
+    fillOnline();
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByText(`0 new · 0 duplicate · ${skipped_count} skipped`)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Review / })).not.toBeInTheDocument();
+  });
+
+  it.each(['Lichess username not found.', 'Chess.com rate limit; try again later.', 'Upstream network unavailable.', 'Malformed public PGN.'])('preserves actionable error and supports retry: %s', async message => {
+    vi.mocked(ApiClient.importOnlineGames).mockRejectedValueOnce(new Error(message)).mockResolvedValueOnce(emptyImport);
+    render(<PgnImportScreen />);
+    fillOnline('chesscom');
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Chess.com: ${message}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    await screen.findByText(emptyImport.message);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(ApiClient.importOnlineGames).toHaveBeenCalledTimes(2);
   });
 
   it.each(['White', 'Black'] as const)('pre-selects %s from the player id', async header => {

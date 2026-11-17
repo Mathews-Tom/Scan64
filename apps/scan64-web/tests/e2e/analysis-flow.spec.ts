@@ -75,3 +75,48 @@ test('renders a non-disclosing not-found state for a non-owned analysis deep lin
   await expect(page.getByText('Game analysis was not found.')).toBeVisible();
   await expect(page.getByTestId('review-move-list').locator('li')).toHaveCount(0);
 });
+
+for (const source of ['lichess', 'chesscom']) {
+  test(`imports ${source} only on submit and opens owned Review without a second job`, async ({ page }) => {
+    const gameId = '00000000-0000-4000-8000-000000000088';
+    let imports = 0;
+    let jobs = 0;
+    await page.route('**/v1/players/*/profile', route => route.fulfill({ json: { player_id: 'player-1', rating: 1500, display_name: 'Alice' } }));
+    await page.route('**/v1/games/import-online', async route => {
+      imports += 1;
+      expect(route.request().headers().authorization).toBe('Bearer test-token');
+      expect(route.request().postDataJSON()).toEqual({ source, username: 'Alice', max_games: 3 });
+      await route.fulfill({ json: {
+        imported_count: imports === 1 ? 1 : 0, duplicate_count: imports === 1 ? 0 : 1, skipped_count: 1,
+        games: imports === 1 ? [{ id: gameId, white: 'Alice', black: 'Bob', result: '1-0', owner_color: 'white', analysis_job_id: 'job-88' }] : [],
+        message: 'Skipped 1 non-standard game.',
+      } });
+    });
+    await page.route('**/v1/analysis-jobs', async route => { jobs += 1; await route.fulfill({ status: 500 }); });
+    await page.route(`**/v1/games/${gameId}/review`, async route => {
+      expect(route.request().headers().authorization).toBe('Bearer test-token');
+      await route.fulfill({ json: makeGameReview({ game_id: gameId }) });
+    });
+    await page.route(`**/v1/games/${gameId}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
+    await page.goto('/import');
+    await page.getByLabel('Source', { exact: true }).selectOption(source);
+    await page.getByLabel('Username', { exact: true }).fill('Alice');
+    await page.getByLabel('Number of games').fill('3');
+    await expect(page.getByLabel('PGN game text')).toBeVisible();
+    expect(imports).toBe(0);
+    await page.getByRole('button', { name: 'Import online games', exact: true }).click();
+    await expect(page.getByText('1 new · 0 duplicate · 1 skipped')).toBeVisible();
+    await page.getByRole('button', { name: 'Review Alice vs Bob' }).click();
+    await expect(page).toHaveURL(new RegExp(`/games/${gameId}/analysis$`));
+    await expect(page.getByRole('heading', { name: 'Analysis Board' })).toBeVisible();
+    expect(jobs).toBe(0);
+    await page.goBack();
+    await page.getByLabel('Source', { exact: true }).selectOption(source);
+    await page.getByLabel('Username', { exact: true }).fill('Alice');
+    await page.getByLabel('Number of games').fill('3');
+    await page.getByRole('button', { name: 'Import online games', exact: true }).click();
+    await expect(page.getByText('0 new · 1 duplicate · 1 skipped')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Review Alice vs Bob' })).toHaveCount(0);
+    expect(jobs).toBe(0);
+  });
+}

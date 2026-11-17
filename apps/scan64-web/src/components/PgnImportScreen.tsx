@@ -1,16 +1,50 @@
 import { useState, useRef, useEffect } from 'react';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPlayerId } from '../api/client';
-import type { LessonSpec } from '../api/types';
+import type { LessonSpec, OnlineGameImportResponse, OnlineGameSource } from '../api/types';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import { diagnosisName } from './diagnosisName';
 import { Button, Panel } from './Primitives';
 
 interface PgnImportScreenProps {
   onExploreAnalysis?: (gameId: string) => void;
+  onOpenGame?: (gameId: string) => void;
 }
 
 
-export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
+export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScreenProps) {
+  const [source, setSource] = useState<OnlineGameSource>('lichess');
+  const [username, setUsername] = useState('');
+  const [maxGames, setMaxGames] = useState('10');
+  const [onlinePending, setOnlinePending] = useState(false);
+  const onlineInFlight = useRef(false);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [onlineResult, setOnlineResult] = useState<OnlineGameImportResponse | null>(null);
+  const handleOnlineImport = async () => {
+    if (onlineInFlight.current) return;
+    const sourceName = source === 'lichess' ? 'Lichess' : 'Chess.com';
+    setOnlineError(null);
+    setOnlineResult(null);
+    if (!/^[A-Za-z0-9_-]{2,30}$/.test(username)) {
+      setOnlineError(`${sourceName}: Enter a username of 2–30 letters, digits, underscores or hyphens, not a URL.`);
+      return;
+    }
+    const count = Number(maxGames);
+    if (!/^\d+$/.test(maxGames) || !Number.isInteger(count) || count < 1 || count > 50) {
+      setOnlineError('Enter a whole number of games from 1 to 50.');
+      return;
+    }
+    onlineInFlight.current = true;
+    setOnlinePending(true);
+    try {
+      await ensurePlayerAuthorization(getOrCreatePlayerId());
+      setOnlineResult(await ApiClient.importOnlineGames({ source, username, max_games: count }));
+    } catch (error: unknown) {
+      setOnlineError(`${sourceName}: ${error instanceof Error ? error.message : 'Import failed. Please try again.'}`);
+    } finally {
+      onlineInFlight.current = false;
+      setOnlinePending(false);
+    }
+  };
   const [pgn, setPgn] = useState('');
   const [ownerColor, setOwnerColor] = useState<'white' | 'black'>('white');
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -148,6 +182,44 @@ export function PgnImportScreen({ onExploreAnalysis }: PgnImportScreenProps) {
   return (
     <section className="pgn-import working-screen" data-testid="pgn-import">
       <h1>Import game</h1>
+      <Panel className="import-controls" aria-label="Import public online games">
+        <h2>Import public online games</h2>
+        <p>Fetch recent standard games only when you submit. Your side is matched to the username; analysis is queued automatically.</p>
+        <form noValidate onSubmit={event => { event.preventDefault(); void handleOnlineImport(); }}>
+          <fieldset disabled={onlinePending}>
+            <legend>Online source</legend>
+            <label htmlFor="online-source">Source</label>
+            <select id="online-source" value={source} onChange={event => setSource(event.target.value as OnlineGameSource)}>
+              <option value="lichess">Lichess</option>
+              <option value="chesscom">Chess.com</option>
+            </select>
+            <label htmlFor="online-username">Username</label>
+            <input id="online-username" value={username} onChange={event => setUsername(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby="online-privacy" />
+            <label htmlFor="online-count">Number of games</label>
+            <input id="online-count" type="number" min={1} max={50} step={1} value={maxGames} onChange={event => setMaxGames(event.target.value)} />
+            <p id="online-privacy">On submit, Scan64 sends this username and requested count to lichess.org or api.chess.com. Public games only; no OAuth, private games or background sync.</p>
+            <Button type="submit" disabled={onlinePending}>{onlinePending ? 'Importing online games…' : 'Import online games'}</Button>
+          </fieldset>
+        </form>
+        {onlinePending && <p role="status">Fetching public games and queuing analysis…</p>}
+        {onlineError && <p className="error" role="alert">{onlineError}</p>}
+        {onlineResult && (
+          <>
+            <div role="status">
+              <p>{onlineResult.imported_count} new · {onlineResult.duplicate_count} duplicate · {onlineResult.skipped_count} skipped</p>
+              <p>{onlineResult.message}</p>
+            </div>
+            <ul>
+              {onlineResult.games.map(game => (
+                <li key={game.id}>
+                  {game.white} vs {game.black} · {game.result} · Your side: {game.owner_color}
+                  {onOpenGame && <Button variant="secondary" onClick={() => onOpenGame(game.id)} aria-label={`Review ${game.white} vs ${game.black}`}>Review</Button>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Panel>
       <Panel className="import-controls" aria-label="Import your game">
       <label>Your side
         <select aria-label="Your side" value={ownerColor} onChange={e => { sideChosenManually.current = true; setOwnerColor(e.target.value as 'white' | 'black'); }}>

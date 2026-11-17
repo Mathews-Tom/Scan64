@@ -151,6 +151,46 @@ describe('ApiClient', () => {
     expect(res.id).toBe('123');
   });
 
+  it.each(['lichess', 'chesscom'] as const)('imports %s under the active token without sending a player id', async source => {
+    localStorage.setItem('scan64_player_id', 'recovered-owner');
+    localStorage.setItem('scan64_player_token:recovered-owner', 'owner-token');
+    const result = { imported_count: 0, duplicate_count: 2, skipped_count: 1, games: [], message: 'Already imported.' };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => result });
+    await expect(ApiClient.importOnlineGames({ source, username: 'Alice', max_games: 3 })).resolves.toEqual(result);
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith('/v1/games/import-online', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner-token' },
+      body: JSON.stringify({ source, username: 'Alice', max_games: 3 }),
+    });
+  });
+
+  it('refuses online import without an authorized active owner', async () => {
+    await expect(ApiClient.importOnlineGames({ source: 'lichess', username: 'Alice', max_games: 3 }))
+      .rejects.toThrow('Player authorization is required');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [404, 'Lichess username not found.'],
+    [429, 'Chess.com rate limit reached. Try again later.'],
+    [502, 'Lichess could not be reached. Try again.'],
+    [422, 'Malformed PGN from Chess.com.'],
+  ])('preserves online import error %s and detail', async (status, detail) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({ ok: false, status, json: async () => ({ detail }) });
+    await expect(ApiClient.importOnlineGames({ source: 'lichess', username: 'Alice', max_games: 3 }))
+      .rejects.toMatchObject({ message: detail, status });
+  });
+
+  it('explains a local network failure without hiding the selected source', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await expect(ApiClient.importOnlineGames({ source: 'chesscom', username: 'Alice', max_games: 3 }))
+      .rejects.toThrow('Could not reach Scan64 to import from Chess.com');
+  });
+
   it('getGame calls GET /v1/games/{id}', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');

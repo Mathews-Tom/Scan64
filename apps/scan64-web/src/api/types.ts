@@ -332,6 +332,29 @@ export interface GameCreate {
   player_id: string;
 }
 
+export type OnlineGameSource = 'lichess' | 'chesscom';
+
+export interface OnlineGameImportRequest {
+  source: OnlineGameSource;
+  username: string;
+  max_games: number;
+}
+
+export interface OnlineGameImportResponse {
+  imported_count: number;
+  duplicate_count: number;
+  skipped_count: number;
+  games: {
+    id: string;
+    white: string;
+    black: string;
+    result: string;
+    owner_color: 'white' | 'black';
+    analysis_job_id: string;
+  }[];
+  message: string;
+}
+
 export interface GameRead {
   id: string;
   pgn: string;

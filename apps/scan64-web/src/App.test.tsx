@@ -41,6 +41,8 @@ vi.mock('./api/client', async (importOriginal) => {
       getFamousGames: vi.fn().mockResolvedValue([]),
       getCoachDashboard: vi.fn().mockResolvedValue({ coach_id: 'player-1', students: [] }),
       createGame: vi.fn(),
+      importOnlineGames: vi.fn(),
+      createAnalysisJob: vi.fn(),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
       getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),
@@ -93,6 +95,25 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('opens online imports in owned Review without submitting another analysis job', async () => {
+    const gameId = '00000000-0000-4000-8000-000000000088';
+    vi.mocked(ApiClient.importOnlineGames).mockResolvedValue({
+      imported_count: 1, duplicate_count: 0, skipped_count: 0, message: 'Imported 1 new game.',
+      games: [{ id: gameId, white: 'Alice', black: 'Bob', result: '1-0', owner_color: 'white', analysis_job_id: 'job-88' }],
+    });
+    vi.mocked(ApiClient.getGameAnalysisStatus).mockResolvedValue({ status: 'completed' });
+    window.history.replaceState(null, '', '/import');
+    render(<App />);
+    expect(ApiClient.importOnlineGames).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'Alice' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review Alice vs Bob' }));
+    expect(window.location.pathname).toBe(`/games/${gameId}/analysis`);
+    await waitFor(() => expect(ApiClient.getGameReview).toHaveBeenCalledWith(gameId));
+    expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
+    expect(ApiClient.createAnalysisJob).not.toHaveBeenCalled();
+    expect(ApiClient.createGame).not.toHaveBeenCalled();
+  });
   it('renders Today by default for a stored identity', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument();
