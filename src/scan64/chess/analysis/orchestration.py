@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 
 import chess
@@ -7,10 +8,40 @@ from scan64.chess.boards import board_from
 from scan64.providers.stockfish.adapter import EngineAdapter
 
 
+async def _analyze_positions(
+    adapter: EngineAdapter,
+    fens: list[str],
+    *,
+    nodes: int,
+    multipv: int = 1,
+    concurrency: int,
+) -> list[EngineAnalysis]:
+    if concurrency < 1:
+        raise ValueError("Analysis concurrency must be at least 1")
+    pending = iter(enumerate(fens))
+    results: dict[int, EngineAnalysis] = {}
+
+    async def worker() -> None:
+        for index, fen in pending:
+            results[index] = await adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
+
+    workers = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(fens)))]
+    try:
+        await asyncio.gather(*workers)
+    except BaseException:
+        # A failed/cancelled pass must return every checked-out engine before its caller exits.
+        for task in workers:
+            task.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
+        raise
+    return [results[index] for index in range(len(fens))]
+
+
 @dataclass
 class FastPassConfig:
     nodes: int = 100000
     swing_threshold_cp: int = 150  # 1.5 pawns
+    concurrency: int = 1
 
 
 @dataclass
@@ -41,19 +72,13 @@ class FastPassOrchestrator:
         """
         board = board_from(initial_fen)
 
-        # We need the FEN before the move, and the FEN after the move.
-        # But to be efficient, we can just evaluate every position reached.
-        evaluations: list[EngineAnalysis] = []
-
-        # Evaluate initial position
-        eval_pos = await self.adapter.analyze_position(board.fen(), nodes=self.config.nodes)
-        evaluations.append(eval_pos)
-
+        fens = [board.fen()]
         for move_str in pgn_moves:
-            move = board.parse_san(move_str)
-            board.push(move)
-            eval_pos = await self.adapter.analyze_position(board.fen(), nodes=self.config.nodes)
-            evaluations.append(eval_pos)
+            board.push_san(move_str)
+            fens.append(board.fen())
+        evaluations = await _analyze_positions(
+            self.adapter, fens, nodes=self.config.nodes, concurrency=self.config.concurrency
+        )
 
         candidates = []
         board = board_from(initial_fen)
@@ -111,6 +136,7 @@ class FastPassOrchestrator:
 class FocusedPassConfig:
     nodes: int = 1000000
     multipv: int = 4
+    concurrency: int = 1
 
 
 class FocusedPassOrchestrator:
@@ -122,10 +148,10 @@ class FocusedPassOrchestrator:
         """
         Runs a focused pass over a list of candidate positions to get deep MultiPV analysis.
         """
-        results = []
-        for candidate in candidates:
-            analysis = await self.adapter.analyze_position(
-                candidate.fen, nodes=self.config.nodes, multipv=self.config.multipv
-            )
-            results.append(analysis)
-        return results
+        return await _analyze_positions(
+            self.adapter,
+            [candidate.fen for candidate in candidates],
+            nodes=self.config.nodes,
+            multipv=self.config.multipv,
+            concurrency=self.config.concurrency,
+        )

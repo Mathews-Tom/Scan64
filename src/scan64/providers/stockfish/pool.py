@@ -14,7 +14,6 @@ from scan64.chess.opponents.protocols import OpponentContext
 from scan64.providers.stockfish.adapter import StockfishConfig
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
-DEFAULT_BATCH_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
@@ -45,9 +44,11 @@ def interactive_concurrency() -> int:
 
 
 def batch_concurrency() -> int:
-    """Batch-pool engine count. ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` overrides
-    the default of ``2``; bulk imports and analysis jobs draw from this pool."""
-    return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", DEFAULT_BATCH_CONCURRENCY)
+    """Batch size reserves the interactive engines and one CPU for the application."""
+    affinity = getattr(os, "sched_getaffinity", None)
+    available_cpus = len(affinity(0)) if affinity is not None else (os.cpu_count() or 1)
+    default = max(2, available_cpus - interactive_concurrency() - 1)
+    return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", default)
 
 
 def engine_pool_enabled() -> bool:
@@ -175,6 +176,7 @@ class EnginePool:
         self.config = config
         self.concurrency = concurrency
         self._queue: asyncio.Queue[PooledStockfishAdapter] = asyncio.Queue()
+        self._adapters: list[PooledStockfishAdapter] = []
         self._initialized = False
         self.closed = False
 
@@ -186,25 +188,30 @@ class EnginePool:
         async with self._initialize_lock:
             if self._initialized:
                 return
-            adapters = []
+            # A previous startup rollback can itself have been cancelled.
+            await self._close_adapters()
             try:
                 for _ in range(self.concurrency):
                     adapter = PooledStockfishAdapter(self.config)
-                    adapters.append(adapter)
+                    self._adapters.append(adapter)
                     await adapter.ensure_started()
             except BaseException:
-                # Includes cancellation from the hint's wall deadline.
-                for adapter in adapters:
-                    await adapter.quit()
+                # Retain ownership until quit completes, even if cleanup is cancelled again.
+                await self._close_adapters()
                 raise
-            for adapter in adapters:
+            for adapter in self._adapters:
                 self._queue.put_nowait(adapter)
             self._initialized = True
 
-    async def close(self) -> None:
+    async def _close_adapters(self) -> None:
+        while self._adapters:
+            await self._adapters[-1].quit()
+            self._adapters.pop()
         while not self._queue.empty():
-            adapter = self._queue.get_nowait()
-            await adapter.quit()
+            self._queue.get_nowait()
+
+    async def close(self) -> None:
+        await self._close_adapters()
         self.closed = True
 
     @asynccontextmanager
@@ -254,10 +261,9 @@ class EnginePoolManager:
 
     @classmethod
     def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
-        """Build a manager sized from ``SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY``
-        and ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` (both default ``2``). This is
-        the constructor the FastAPI lifespan uses; direct callers (tests, the
-        CLI) that want explicit concurrency keep using ``__init__``."""
+        """Size the interactive pool from its override (default 2), and the batch
+        pool from its override or available CPUs minus interactive capacity and
+        one application CPU (minimum 2). Direct constructors keep explicit sizes."""
         return cls(
             config,
             interactive_concurrency=interactive_concurrency(),
