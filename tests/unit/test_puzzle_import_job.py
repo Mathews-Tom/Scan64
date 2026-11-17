@@ -39,7 +39,9 @@ PAYLOAD = zstandard.ZstdCompressor().compress(CSV.encode())
 @pytest.fixture
 def engine(tmp_path: Path) -> Iterator[Engine]:
     database = create_engine(f"sqlite:///{tmp_path / 'catalog.db'}")
-    SQLModel.metadata.create_all(database, tables=[SQLModel.metadata.tables["contentitem"]])
+    SQLModel.metadata.create_all(
+        database, tables=[SQLModel.metadata.tables[name] for name in ("contentitem", "puzzletheme")]
+    )
     yield database
     database.dispose()
 

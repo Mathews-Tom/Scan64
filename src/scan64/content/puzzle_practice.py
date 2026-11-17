@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import String, cast, func, or_, update
+from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from scan64.api.models import Player
-from scan64.content.models import ContentAttempt, ContentItem
+from scan64.content.models import ContentAttempt, ContentItem, PuzzleTheme
 from scan64.content.puzzle_practice_models import (
     PuzzleDailySet,
     PuzzleDailySlot,
@@ -116,8 +116,9 @@ def _pool(player_id: str, rating: float, now: datetime, session: Session) -> lis
         for theme, value in weak_themes.items()
         if classify_priority_bucket(False, value) == "mistakes"
     }
-    theme_column = func.coalesce(cast(col(ContentItem.payload)["themes"], String), "")
-    weak_filter = or_(False, *(theme_column.contains(f'"{theme}"') for theme in weak_themes))
+    weak_filter = col(ContentItem.id).in_(
+        select(PuzzleTheme.item_id).where(col(PuzzleTheme.theme).in_(weak_themes))
+    )
     for bucket in ("mistakes", "exploration"):
         selected: set[str] = set()
         for width in (200, 400, None):

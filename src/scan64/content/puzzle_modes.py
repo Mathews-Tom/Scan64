@@ -1,13 +1,12 @@
 """Unrated unseen selection and streaks derived solely from terminal mode runs."""
 
-import json
 from typing import Literal
 
 from pydantic import BaseModel
-from sqlalchemy import String, cast, func
+from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from scan64.content.models import ContentAttempt, ContentItem
+from scan64.content.models import ContentAttempt, ContentItem, PuzzleTheme
 from scan64.content.puzzle_mode_models import PuzzleModeBinding
 from scan64.content.puzzle_practice import rating_for
 from scan64.content.puzzle_practice_models import PuzzleDailySet, PuzzleDailySlot
@@ -48,17 +47,8 @@ def streak_for(player_id: str, session: Session) -> PuzzleStreakRead:
 
 
 def source_themes(session: Session) -> list[str]:
-    """Stream metadata only, once per request; never deserialize lesson specs."""
-    rows = session.exec(
-        select(col(ContentItem.payload)["themes"])
-        .where(ContentItem.domain == "puzzles")
-        .execution_options(yield_per=500)
-    )
-    themes: set[str] = set()
-    for metadata in rows:
-        if isinstance(metadata, list):
-            themes.update(theme for theme in metadata if isinstance(theme, str) and theme)
-    return sorted(themes)
+    """Read the covering theme index, without touching catalogue payloads."""
+    return list(session.exec(select(PuzzleTheme.theme).distinct().order_by(PuzzleTheme.theme)))
 
 
 def select_mode_item(
@@ -79,8 +69,11 @@ def select_mode_item(
             ~col(ContentItem.id).in_(reserved),
         )
         if theme is not None:
-            metadata = func.coalesce(cast(col(ContentItem.payload)["themes"], String), "")
-            statement = statement.where(metadata.contains(json.dumps(theme), autoescape=True))
+            statement = statement.where(
+                col(ContentItem.id).in_(
+                    select(PuzzleTheme.item_id).where(PuzzleTheme.theme == theme)
+                )
+            )
         if width is not None:
             statement = statement.where(
                 ContentItem.difficulty_estimate >= rating - width,

@@ -22,6 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from scan64.content.models import ContentItem
+from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.content.validate import validate_solution_line
 
 DEFAULT_PUZZLE_URL = "https://database.lichess.org/lichess_db_puzzle.csv.zst"
@@ -341,6 +342,7 @@ def import_puzzles(
                         if ids
                         else {}
                     )
+                    changed_items: list[ContentItem] = []
                     for row in rows:
                         if summary.accepted >= filters.limit:
                             break
@@ -367,6 +369,7 @@ def import_puzzles(
                             session.add(item)
                             existing[row.item_id] = item
                             summary.inserted += 1
+                            changed_items.append(item)
                         else:
                             summary.existing += 1
                             if any(
@@ -380,6 +383,8 @@ def import_puzzles(
                                 }
                                 item.difficulty_estimate = float(row.metadata["rating"])
                                 session.add(item)
+                                changed_items.append(item)
+                    replace_puzzle_themes(session, changed_items)
                     session.commit()
                     if progress is not None:
                         progress(

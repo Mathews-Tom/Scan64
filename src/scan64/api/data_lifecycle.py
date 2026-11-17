@@ -51,6 +51,7 @@ from scan64.content.puzzle_practice_models import (
     elo_after,
 )
 from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
+from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.content.validate import validate_solution_line
 from scan64.learning.diagnosis.trust import HISTORICALLY_TRUSTED_CODES
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
@@ -2272,6 +2273,7 @@ def import_player_data(
     # Existing rows (including metadata) are never overwritten.
     for puzzle_item in missing_puzzles:
         session.add(puzzle_item)
+    replace_puzzle_themes(session, missing_puzzles)
     session.flush()
     session.add(player)
     session.add(PlayerCredential(player_id=player_id, token_hash=token_hash))

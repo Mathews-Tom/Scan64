@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
 
 
@@ -12,6 +12,8 @@ class ContentItem(SQLModel, table=True):
     Structured chess content (opening, tactic, endgame, famous game)
     with versioning, provenance, licence, and skill-mapping metadata.
     """
+
+    __table_args__ = (Index("ix_contentitem_domain_difficulty", "domain", "difficulty_estimate"),)
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     domain: str = Field(index=True)  # e.g. "tactics", "endgames", "openings"
@@ -35,6 +37,15 @@ class ContentItem(SQLModel, table=True):
 
     # Difficulty estimate (e.g. Elo-like)
     difficulty_estimate: float = Field(default=1500.0)
+
+
+class PuzzleTheme(SQLModel, table=True):
+    """Searchable source metadata; the payload remains the export authority."""
+
+    __table_args__ = (Index("ix_puzzletheme_theme_item", "theme", "item_id"),)
+
+    item_id: str = Field(foreign_key="contentitem.id", primary_key=True, ondelete="CASCADE")
+    theme: str = Field(primary_key=True)
 
 
 class StudySession(SQLModel, table=True):

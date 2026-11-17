@@ -21,7 +21,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from scan64.cli import puzzles as puzzles_cli
 from scan64.cli.main import main
-from scan64.content.models import ContentItem
+from scan64.content.models import ContentItem, PuzzleTheme
 from scan64.content.puzzle_import import (
     DEFAULT_PUZZLE_URL,
     ImportFilters,
@@ -88,7 +88,9 @@ def save_csv(tmp_path: Path, rows: list[dict[str, str]]) -> Path:
 @pytest.fixture
 def database() -> Iterator[Engine]:
     engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(engine, tables=[ContentItem.__table__])
+    SQLModel.metadata.create_all(
+        engine, tables=[SQLModel.metadata.tables[name] for name in ("contentitem", "puzzletheme")]
+    )
     yield engine
     engine.dispose()
 
@@ -538,7 +540,7 @@ def test_desktop_import_rolls_back_batches_and_metadata(
     path = save_csv(
         tmp_path,
         [
-            puzzle("original", Rating=1200),
+            puzzle("original", Rating=1200, Themes="fork pin"),
             *[puzzle(f"new{i}") for i in range(300)],
         ],
     )
@@ -557,6 +559,7 @@ def test_desktop_import_rolls_back_batches_and_metadata(
         items = session.exec(select(ContentItem)).all()
         assert len(items) == 1
         assert items[0].payload["rating"] == 1000
+        assert set(session.exec(select(PuzzleTheme.theme)).all()) == {"opening", "short"}
 
 
 def test_desktop_import_success_and_precancel(database: Engine, tmp_path: Path) -> None:
@@ -571,6 +574,7 @@ def test_desktop_import_success_and_precancel(database: Engine, tmp_path: Path) 
     assert any("batch 1" in message for message in messages)
     with Session(database) as session:
         assert len(session.exec(select(ContentItem)).all()) == 1
+        assert set(session.exec(select(PuzzleTheme.theme)).all()) == {"opening", "short"}
 
 
 def test_app_distribution(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -584,7 +588,9 @@ def test_app_distribution(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_desktop_staging_keeps_live_database_writable(tmp_path: Path) -> None:
     live = create_engine(f"sqlite:///{tmp_path / 'live.db'}", connect_args={"timeout": 0.1})
-    SQLModel.metadata.create_all(live, tables=[ContentItem.__table__])
+    SQLModel.metadata.create_all(
+        live, tables=[SQLModel.metadata.tables[name] for name in ("contentitem", "puzzletheme")]
+    )
     path = save_csv(tmp_path, [puzzle(f"row{i}") for i in range(300)])
     wrote = False
 
@@ -818,3 +824,54 @@ def test_cli_quiet_writes_no_progress(
     captured = capsys.readouterr()
     assert captured.err == ""
     assert "accepted 1 unique rows" in captured.out
+
+
+@pytest.mark.parametrize("desktop", [False, True])
+def test_all_catalogue_writers_replace_themes_on_metadata_refresh(
+    database: Engine, tmp_path: Path, desktop: bool
+) -> None:
+    def write(rows: list[dict[str, str]]) -> None:
+        path = save_csv(tmp_path, rows)
+        if desktop:
+            run_import(database, path, Event(), lambda _: None)
+        else:
+            with Session(database) as session:
+                import_puzzles(session, path)
+
+    def assert_projection() -> None:
+        with Session(database) as session:
+            expected = {
+                (item.id, theme)
+                for item in session.exec(select(ContentItem))
+                for theme in item.payload["themes"]
+            }
+            assert set(session.exec(select(PuzzleTheme.item_id, PuzzleTheme.theme))) == expected
+
+    write([puzzle("one"), puzzle("two", Themes="fork fork pin")])
+    assert_projection()
+    write([puzzle("one", Themes="mateIn1"), puzzle("two", Themes="")])
+    assert_projection()
+    # Idempotent imports do not duplicate the projection or change identity.
+    write([puzzle("one", Themes="mateIn1"), puzzle("two", Themes="")])
+    assert_projection()
+
+
+def test_cancel_after_live_theme_merge_rolls_back_catalogue_and_themes(
+    database: Engine, tmp_path: Path
+) -> None:
+    path = save_csv(tmp_path, [puzzle("original")])
+    run_import(database, path, Event(), lambda _: None)
+    path = save_csv(tmp_path, [puzzle("original", Themes="fork"), puzzle("new")])
+    cancel = Event()
+
+    def before_commit(summary) -> None:
+        cancel.set()
+
+    with pytest.raises(ImportCancelled):
+        run_import(database, path, cancel, lambda _: None, before_commit=before_commit)
+    with Session(database) as session:
+        assert [item.id for item in session.exec(select(ContentItem))] == ["lichess:original"]
+        assert set(session.exec(select(PuzzleTheme.item_id, PuzzleTheme.theme))) == {
+            ("lichess:original", "opening"),
+            ("lichess:original", "short"),
+        }
