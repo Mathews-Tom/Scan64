@@ -44,6 +44,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   const [flipped, setFlipped] = useState(false);
   const viewOrientation = flipped ? orientation === 'white' ? 'black' : 'white' : orientation;
   const [premove, setPremove] = useState<string | null>(null);
+  const premovePly = useRef<number | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
   const entry = useRef<HTMLInputElement>(null);
@@ -214,9 +215,10 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     if (!navigator.onLine || preview || controlled || animationFen) { cancelPremove(); return; }
     if ((chess.current.turn() === 'w' ? 'white' : 'black') !== premoveColor) return;
     const [from, to] = pending;
+    const replyArrived = premovePly.current !== null && chess.current.history().length > premovePly.current;
     cancelPremove();
-    // Revalidate against the server reply, never against the speculative bot turn.
-    if (chess.current.moves({ verbose: true }).some(move => move.from === from && move.to === to)) requestMove(from, to);
+    // A rejected player move rolls back to our turn without an opponent reply.
+    if (replyArrived && chess.current.moves({ verbose: true }).some(move => move.from === from && move.to === to)) requestMove(from, to);
   }, [moves, disabled, premoveColor, preview, controlled, animationFen, requestMove, cancelPremove]);
   useEffect(() => {
     window.addEventListener('offline', cancelPremove);
@@ -279,8 +281,11 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
         yellow: { key: 'yellow', color: '#a855f7', opacity: 0.9, lineWidth: 10 },
       } },
       premovable: { enabled: false, events: {
-        set: (from, to) => setPremove(`${from}${to}`),
-        unset: () => setPremove(null),
+        set: (from, to) => {
+          premovePly.current = chess.current.history().length;
+          setPremove(`${from}${to}`);
+        },
+        unset: () => { premovePly.current = null; setPremove(null); },
       } },
       movable: {
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',

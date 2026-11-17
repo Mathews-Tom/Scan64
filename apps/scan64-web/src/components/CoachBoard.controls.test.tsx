@@ -64,6 +64,18 @@ describe('Board controls', () => {
     expect(ground.state.premovable.current).toBeUndefined();
   });
 
+  it('clears a legal premove after the player move is rejected without a bot reply', () => {
+    const chess = new Chess(); chess.move('e4');
+    const onMove = vi.fn();
+    const view = render(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} premoveColor="white" disabled onMove={onMove} />);
+    queue('g1', 'f3');
+    chess.undo();
+    view.rerender(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} premoveColor="white" onMove={onMove} />);
+    expect(onMove).not.toHaveBeenCalled();
+    expect(ground.state.premovable.current).toBeUndefined();
+    expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
+  });
+
   it('discards a premove made illegal by the reply', () => {
     const chess = new Chess(); chess.move('e4');
     const onMove = vi.fn();
