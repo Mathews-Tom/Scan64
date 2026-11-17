@@ -192,9 +192,11 @@ def test_mode_start_creates_daily_first_and_theme_metadata_only(
     finally:
         event.remove(bind, "before_cursor_execute", observe)
     content_reads = [statement for statement in statements if "FROM contentitem" in statement]
-    assert len(content_reads) == 1
-    assert "JSON_QUOTE(JSON_EXTRACT(contentitem.payload" in content_reads[0]
-    assert "contentitem.id" not in content_reads[0]
+    assert not content_reads
+    theme_reads = [statement for statement in statements if "FROM puzzletheme" in statement]
+    assert len(theme_reads) == 1
+    assert "DISTINCT puzzletheme.theme" in theme_reads[0]
+    assert "payload" not in theme_reads[0]
     run = start(client, auth)["run"]
     slots = db_session.exec(select(PuzzleDailySlot)).all()
     assert len(slots) == 10

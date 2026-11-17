@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections.abc import Generator
 from os import environ
 from pathlib import Path
+from sqlite3 import Connection as SQLiteConnection
 from typing import Final
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy import event, inspect
+from sqlalchemy.engine import Connection, Engine, make_url
+from sqlalchemy.pool import ConnectionPoolEntry
 from sqlmodel import Session, create_engine
 
 from scan64.learning.diagnosis.taxonomy.migration import (
@@ -33,8 +35,28 @@ def database_url_from_environment() -> str:
 
 sqlite_url: str = database_url_from_environment()
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, echo=False, connect_args=connect_args)
+
+def _configure_sqlite(connection: SQLiteConnection, _: ConnectionPoolEntry) -> None:
+    cursor = connection.cursor()
+    try:
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA journal_mode=WAL")
+    finally:
+        cursor.close()
+
+
+def create_database_engine(database_url: str) -> Engine:
+    """Configure only SQLite; other database drivers retain their own defaults."""
+    if make_url(database_url).get_backend_name() != "sqlite":
+        return create_engine(database_url, echo=False)
+    database_engine = create_engine(
+        database_url, echo=False, connect_args={"check_same_thread": False}
+    )
+    event.listen(database_engine, "connect", _configure_sqlite)
+    return database_engine
+
+
+engine = create_database_engine(sqlite_url)
 
 
 def _migration_config(database_engine: Engine) -> Config:

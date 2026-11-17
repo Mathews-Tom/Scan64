@@ -18,6 +18,7 @@ from scan64.content.puzzle_practice_models import (
     elo_after,
 )
 from scan64.content.puzzle_runs import PuzzleRun
+from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from tests.integration.test_puzzle_runs import _action, _auth, _seed, _start
@@ -36,6 +37,7 @@ def seed(
     item.difficulty_estimate = rating
     item.payload = {**item.payload, "rating": rating, "themes": themes or []}
     session.add(item)
+    replace_puzzle_themes(session, [item])
     session.commit()
 
 

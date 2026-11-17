@@ -30,7 +30,13 @@ from scan64.chess.games.assistance import SessionHintReveal
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
-from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
+from scan64.content.models import (
+    ContentAttempt,
+    ContentItem,
+    LessonAttempt,
+    PuzzleTheme,
+    StudySession,
+)
 from scan64.content.puzzle_mode_models import PuzzleModeBinding
 from scan64.content.puzzle_practice_models import (
     PuzzleDailySet,
@@ -102,6 +108,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
 GLOBAL_REFERENCE_TABLES = frozenset(
     {
         ContentItem.__tablename__,
+        PuzzleTheme.__tablename__,
         TransferPosition.__tablename__,
     }
 )

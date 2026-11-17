@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from scan64.api.models import Player
-from scan64.content.models import ContentAttempt, ContentItem, StudySession
+from scan64.content.models import ContentAttempt, ContentItem, PuzzleTheme, StudySession
 from scan64.content.puzzle_runs import PuzzleRun
 
 
@@ -113,12 +113,17 @@ def test_fresh_restore_inserts_puzzle_dependencies(client: TestClient, db_sessio
     assert item is not None
     db_session.delete(item)
     db_session.commit()
+    archive["puzzle_content_items"][0]["payload"]["themes"] = ["fork", "pin", "fork"]
     response = client.post("/v1/imports", json=archive, headers=headers)
     assert response.status_code == 200, response.text
     db_session.expire_all()
     assert db_session.get(ContentItem, "lichess:lifecycle") is not None
     assert db_session.get(PuzzleRun, archive["puzzle_runs"][0]["id"]) is not None
     assert db_session.get(ContentAttempt, archive["content_attempts"][0]["id"]) is not None
+    assert set(db_session.exec(select(PuzzleTheme.item_id, PuzzleTheme.theme))) == {
+        ("lichess:lifecycle", "fork"),
+        ("lichess:lifecycle", "pin"),
+    }
 
 
 def test_restore_keeps_existing_global_metadata(client: TestClient, db_session: Session) -> None:

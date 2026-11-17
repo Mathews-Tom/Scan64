@@ -60,7 +60,10 @@ def run_import(
     checkpoint()
     with TemporaryDirectory(prefix="scan64-puzzles-") as temporary:
         staging = create_engine(f"sqlite:///{Path(temporary) / 'catalog.db'}")
-        SQLModel.metadata.create_all(staging, tables=[SQLModel.metadata.tables["contentitem"]])
+        SQLModel.metadata.create_all(
+            staging,
+            tables=[SQLModel.metadata.tables[name] for name in ("contentitem", "puzzletheme")],
+        )
         try:
             with engine.connect() as connection:
                 connection.exec_driver_sql(
@@ -72,6 +75,9 @@ def run_import(
                     # while parsing/validating the potentially very large CSV.
                     connection.exec_driver_sql(
                         "INSERT INTO puzzle_stage.contentitem SELECT * FROM main.contentitem"
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO puzzle_stage.puzzletheme SELECT * FROM main.puzzletheme"
                     )
                     connection.exec_driver_sql(
                         "CREATE TABLE puzzle_stage.original AS SELECT id, payload "
@@ -98,6 +104,21 @@ def run_import(
                         "ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, "
                         "difficulty_estimate = excluded.difficulty_estimate"
                     )
+                    connection.exec_driver_sql(
+                        "DELETE FROM main.puzzletheme WHERE item_id IN ("
+                        "SELECT staged.id FROM puzzle_stage.contentitem AS staged "
+                        "LEFT JOIN puzzle_stage.original AS original ON original.id = staged.id "
+                        "WHERE staged.domain = 'puzzles' AND "
+                        "(original.id IS NULL OR original.payload != staged.payload))"
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO main.puzzletheme "
+                        "SELECT themes.* FROM puzzle_stage.puzzletheme AS themes "
+                        "JOIN puzzle_stage.contentitem AS staged ON staged.id = themes.item_id "
+                        "LEFT JOIN puzzle_stage.original AS original ON original.id = staged.id "
+                        "WHERE staged.domain = 'puzzles' AND "
+                        "(original.id IS NULL OR original.payload != staged.payload)"
+                    )
                     checkpoint()
                     # Serialize cancellation with the irreversible commit. Once committed,
                     # a late Cancel cannot report that the catalog was left unchanged.
@@ -105,6 +126,7 @@ def run_import(
                         checkpoint()
                         if before_commit is not None:
                             before_commit(summary)
+                        checkpoint()
                         connection.commit()
                         if committed is not None:
                             committed.set()
