@@ -48,3 +48,25 @@ export async function attemptMovePiece(
   await page.mouse.move(destination.x, destination.y);
   await page.mouse.up();
 }
+
+/** Checks local drawings independently of the server annotation overlay. */
+export async function checkUserDrawing(page: Page, board: Locator): Promise<void> {
+  await expect(board.locator('cg-board')).toBeVisible();
+  await board.scrollIntoViewIfNeeded();
+  const overlay = board.locator('..').locator('.board-visualizations');
+  const serverAnnotations = await overlay.innerHTML();
+  const bounds = (await board.boundingBox())!;
+  const x = bounds.x + bounds.width * 0.4375;
+  const y = bounds.y + bounds.height * 0.4375;
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(x + bounds.width / 4, y - bounds.height / 4, { steps: 8 });
+  await page.mouse.up({ button: 'right' });
+  await expect(board.locator('svg.cg-shapes line')).toHaveCount(1);
+  // Chessground resolves a circle's square on its animation frame before mouseup.
+  await page.mouse.click(x, y, { button: 'right', delay: 50 });
+  await expect(board.locator('svg.cg-shapes circle')).toHaveCount(1);
+  await page.mouse.click(x, y);
+  await expect(board.locator('svg.cg-shapes line, svg.cg-shapes circle')).toHaveCount(0);
+  expect(await overlay.innerHTML()).toBe(serverAnnotations);
+}

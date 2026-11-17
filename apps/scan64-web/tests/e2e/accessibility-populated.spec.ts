@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { prepareToday } from './today';
 import { strengthFixture } from '../../src/components/strength.test-fixtures';
+import { checkUserDrawing } from './board';
 
 const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const long = 'LongUnbrokenPlayerAndEvidenceName'.repeat(5);
@@ -72,6 +73,7 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
       await page.getByTestId('request-hint-button').click();
       await expect(page.getByTestId('lesson-hint')).toBeVisible();
       await capture(page, info, 'training-hint');
+      await checkUserDrawing(page, page.getByTestId('lesson-board'));
       await page.getByRole('textbox', { name: 'Move (UCI or SAN)' }).fill('e4');
       await page.getByRole('button', { name: 'Make move' }).click();
       await expect(page.getByTestId('lesson-explanation')).toBeVisible();
@@ -80,10 +82,12 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
       await page.getByRole('button', { name: 'Opera Game' }).click();
       await expect(page.getByLabel('Your move')).toBeVisible();
       await capture(page, info, 'famous-study');
+      await checkUserDrawing(page, page.getByTestId('famous-game-board'));
       await page.goto('/explorer');
       await page.getByRole('button', { name: 'Italian Game' }).click();
       await expect(page.getByTestId('family-details')).toBeVisible();
       await capture(page, info, 'explorer-family');
+      await checkUserDrawing(page, page.getByTestId('chessground-board'));
       await page.goto('/play');
       await page.getByTestId('start-btn').click();
       await expect(page.getByTestId('session-info')).toContainText('Status: active');

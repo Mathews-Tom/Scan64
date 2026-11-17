@@ -6,10 +6,12 @@ import { registerSW } from 'virtual:pwa-register'
 import { initializeDesktop, isDesktop } from './platform'
 import { DesktopHost } from './components/DesktopHost'
 import { initializeBoardAppearance } from './boardAppearance'
+import { initializeBoardSounds } from './boardSounds'
 
 if (!isDesktop()) registerSW({ immediate: true })
 
 initializeBoardAppearance()
+initializeBoardSounds()
 
 const rootElement = document.getElementById('root')!
 const root = createRoot(rootElement)

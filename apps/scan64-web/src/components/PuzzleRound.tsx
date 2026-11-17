@@ -164,7 +164,7 @@ export function PuzzleRound({ run, pending, needsRefresh, onMove, onRunChange, c
 
   return <div ref={frame} className={`board-workspace puzzle-round${showingAttempt ? ' puzzle-round--attempt' : ''}`} role="region" aria-label="Puzzle workspace">
     <div className="board-workspace__board">
-      <CoachBoard fen={replay?.fen ?? attempt?.after ?? practice?.fen ?? run.fen}
+      <CoachBoard flippable fen={replay?.fen ?? attempt?.after ?? practice?.fen ?? run.fen}
         pgn={replay?.pgn} selectedPly={replay?.ply}
         onSelectedPlyChange={replay ? ply => setReplay({ ...replay, ply }) : undefined}
         orientation={solverBlack ? 'black' : 'white'}

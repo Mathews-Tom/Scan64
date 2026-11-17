@@ -143,7 +143,7 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
     {review && <>
       <div className="board-workspace">
         <section className="board-workspace__board owned-review-board" aria-label="Selected game position">
-          <CoachBoard fen={review.initial_fen} pgn={pgn} selectedPly={selectedPly}
+          <CoachBoard flippable fen={review.initial_fen} pgn={pgn} selectedPly={selectedPly}
             onSelectedPlyChange={setSelectedPly} orientation={review.owner_color ?? 'white'} disabled testId="review-board" />
           <p data-testid="review-selected-position">{selectedPly === 0 ? 'Initial position'
             : `Ply ${selectedPly}: ${selectedMove?.san}${selectedPly === lastPly ? ' (final position)' : ''}`}</p>

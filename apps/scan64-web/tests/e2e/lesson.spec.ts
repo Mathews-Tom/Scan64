@@ -4,6 +4,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { LessonSpec } from '../../src/api/types';
 import { prepareToday } from './today';
+import { checkUserDrawing } from './board';
 
 test.beforeEach(async ({ page }) => { await prepareToday(page); });
 
@@ -85,6 +86,7 @@ test.describe('Lesson Review Flow', () => {
     // Hint 1 should be visible
     const hintEl0 = page.getByTestId('hint-0');
     await expect(hintEl0).toContainText(lessonSpec.hints[0].text);
+    await checkUserDrawing(page, page.getByTestId('lesson-board'));
 
     // Step 4 -> 5 -> 6 (Assist until Answer)
     for (let i = 1; i < lessonSpec.hints.length; i++) {

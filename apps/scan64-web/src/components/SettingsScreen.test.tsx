@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeAppearance, SettingsScreen } from './SettingsScreen';
 import { Button, Dialog, EmptyState, Field, ListRow, Panel, ProgressBar, SegmentedControl, StatusLine } from './Primitives';
 import { initializeBoardAppearance } from '../boardAppearance';
+import { saveBoardSounds } from '../boardSounds';
 
 beforeEach(() => {
   localStorage.clear();
+  saveBoardSounds(true);
   delete document.documentElement.dataset.appearance;
   delete document.documentElement.dataset.pieceSet;
   delete document.documentElement.dataset.boardTheme;
@@ -22,6 +24,26 @@ afterEach(() => {
 });
 
 describe('Settings', () => {
+  it('defaults move sounds on, persists mute and restores it when reopened', () => {
+    const view = render(<SettingsScreen />);
+    const toggle = screen.getByRole('checkbox', { name: 'Move sounds' });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(localStorage.getItem('scan64-board-sounds')).toBe('false');
+    view.unmount();
+    render(<SettingsScreen />);
+    expect(screen.getByRole('checkbox', { name: 'Move sounds' })).not.toBeChecked();
+  });
+
+  it('keeps a session mute and explains when storage cannot save it', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Move sounds' }));
+    expect(screen.getByRole('checkbox', { name: 'Move sounds' })).not.toBeChecked();
+    expect(screen.getByRole('alert')).toHaveTextContent('Sounds changed for this session');
+  });
+
   it('offers named appearance controls and bundled licences without a player identity', () => {
     render(<SettingsScreen />);
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
