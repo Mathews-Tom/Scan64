@@ -11,6 +11,8 @@ import type {
   GameCreate,
   GameAnalysisStatusRead,
   GameRead,
+  OnlineGameImportRequest,
+  OnlineGameImportResponse,
   GameLearningSessionRead,
   GameReviewRead,
   LessonAttemptCreate,
@@ -292,6 +294,28 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as GameRead;
+  }
+
+  static async importOnlineGames(data: OnlineGameImportRequest): Promise<OnlineGameImportResponse> {
+    const sourceName = data.source === 'lichess' ? 'Lichess' : 'Chess.com';
+    let response: Response;
+    try {
+      response = await apiFetch(`${apiBase()}/games/import-online`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getActivePlayerAuthorizationHeader() },
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      if (error instanceof ApiRequestError) throw error;
+      throw new Error(`Could not reach Scan64 to import from ${sourceName}. Check the connection and try again.`);
+    }
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : `Import failed (${response.status}). Please try again.`;
+      throw new ApiRequestError(detail, response.status);
+    }
+    return await response.json() as OnlineGameImportResponse;
   }
 
   static async getGame(gameId: string): Promise<GameRead> {

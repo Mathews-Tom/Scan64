@@ -218,6 +218,7 @@ function App() {
     case '/import':
       screen = (
         <PgnImportScreen
+          onOpenGame={(gameId) => navigate(`/games/${encodeURIComponent(gameId)}/analysis`)}
           onExploreAnalysis={(gameId) => {
             setActiveAnalysisGameId(gameId);
             navigate('/analysis');

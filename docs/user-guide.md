@@ -598,6 +598,12 @@ This measures the product's transfer signal. It does not prove Scan64 improves o
 
 Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. The desktop app checks GitHub Releases for updates ten seconds after launch and every 24 hours; that request carries only normal connection information. Browser and container installs never check for updates.
 
+In **Library → Import**, choose **Lichess** or **Chess.com**, enter the public username and a whole-number count from 1 to 50, then select **Import online games**. Scan64 reports new, duplicate and skipped games; **Review** opens each new owned game with analysis already queued. Repeating an import does not add duplicate games. PGN paste and its manual side selection remain available below.
+
+Online game import contacts only `https://lichess.org/api/games/user/{username}` or `https://api.chess.com/pub/player/{username}/games/…`, server-side and **only on explicit online form submission**. Opening Import, typing, changing the source or fetching the local player profile does not contact these hosts. The local API receives your selected source, public username and requested count; the selected host receives that username and public-game requests (with the count used to bound retrieval), plus normal connection information such as your IP address. Your Scan64 player token, progress and local games are not sent upstream. Only standard public games are imported: no OAuth, private games or background sync.
+
+The desktop app does not use system proxies or custom certificate authorities; its server clears those environment settings and verifies TLS using the supported default trust configuration. Networks requiring a system proxy or custom CA may therefore prevent online imports.
+
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
 The API supports player-scoped export, import, and deletion. Treat deletion as destructive. Use a disposable player and database before testing it.
