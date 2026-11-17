@@ -96,7 +96,6 @@ def test_engine_pool_manager_lifecycle_binds_state_and_closes_on_shutdown(
         manager = app.state.engine_pool_manager
         assert isinstance(manager, EnginePoolManager)
         assert manager.interactive_pool.concurrency == 2
-        assert manager.batch_pool.concurrency == 2
         assert manager.closed is False
         assert client.portal is not None
         client.portal.call(start_queued_work)

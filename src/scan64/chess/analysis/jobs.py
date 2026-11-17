@@ -123,7 +123,12 @@ async def run_analysis_for_game(
         else StockfishAdapter(StockfishConfig())
     )
     orchestrator = FastPassOrchestrator(
-        adapter, FastPassConfig(nodes=REVIEW_NODES, swing_threshold_cp=150)
+        adapter,
+        FastPassConfig(
+            nodes=REVIEW_NODES,
+            swing_threshold_cp=150,
+            concurrency=pool_manager.batch_pool.concurrency if pool_manager is not None else 1,
+        ),
     )
     detectors = _resolve_pattern_detectors(registry)
     ctx = PlayerContext(player_id=game.owner_player_id)
@@ -133,7 +138,12 @@ async def run_analysis_for_game(
     fast_pass = await orchestrator.run_fast_pass(san_moves, initial_fen)
     candidates = fast_pass.candidates
     focused_orchestrator = FocusedPassOrchestrator(
-        adapter, FocusedPassConfig(nodes=1_000_000, multipv=4)
+        adapter,
+        FocusedPassConfig(
+            nodes=1_000_000,
+            multipv=4,
+            concurrency=pool_manager.batch_pool.concurrency if pool_manager is not None else 1,
+        ),
     )
     focused_analyses = await focused_orchestrator.run_focused_pass(candidates)
     if len(focused_analyses) != len(candidates):
@@ -427,7 +437,11 @@ async def backfill_game_review(
             else StockfishAdapter(StockfishConfig())
         )
         fast_pass = await FastPassOrchestrator(
-            adapter, FastPassConfig(nodes=REVIEW_NODES)
+            adapter,
+            FastPassConfig(
+                nodes=REVIEW_NODES,
+                concurrency=pool_manager.batch_pool.concurrency if pool_manager is not None else 1,
+            ),
         ).run_fast_pass(
             uci_moves_to_san(game.moves, game.headers.get("FEN")), game.headers.get("FEN")
         )

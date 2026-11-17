@@ -102,6 +102,8 @@ Player-derived records participate in export, import, and deletion. Deletion is 
 
 Stockfish work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected.
 
+Fast and focused analysis passes keep at most the batch pool's engine count of searches in flight, preserve position order, and cancel and await outstanding searches before returning a failure. Without a pool, analysis remains serial and starts only one engine at a time.
+
 Runtime controls:
 
 | Variable | Default | Effect |
@@ -111,7 +113,7 @@ Runtime controls:
 | `SCAN64_WEB_DIST` | `apps/scan64-web/dist` in a source checkout | Built web-client directory; Docker and the macOS app set their bundled paths. |
 | `SCAN64_ANALYSIS_DAILY_QUOTA` | `50` | Immediately admitted analysis games per player per day; `0` queues every job. |
 | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | `2` | Interactive Stockfish pool size. |
-| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `2` | Batch Stockfish pool size. |
+| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, CPU count − interactive pool size − 1)` | Batch Stockfish pool size; an unknown CPU count uses the minimum of 2. |
 | `SCAN64_ENGINE_POOL_ENABLED` | enabled | Set `0`, `false`, `no`, or `off` to construct engines per call. |
 | `SCAN64_MAIA_CONFIG` | unset | Operator-owned Maia configuration file. |
 | `SCAN64_LLM_CONFIG` | unset | Optional explanation-provider configuration file. |

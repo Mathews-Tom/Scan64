@@ -14,7 +14,6 @@ from scan64.chess.opponents.protocols import OpponentContext
 from scan64.providers.stockfish.adapter import StockfishConfig
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
-DEFAULT_BATCH_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
@@ -45,9 +44,9 @@ def interactive_concurrency() -> int:
 
 
 def batch_concurrency() -> int:
-    """Batch-pool engine count. ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` overrides
-    the default of ``2``; bulk imports and analysis jobs draw from this pool."""
-    return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", DEFAULT_BATCH_CONCURRENCY)
+    """Batch size reserves the interactive engines and one CPU for the application."""
+    default = max(2, (os.cpu_count() or 1) - interactive_concurrency() - 1)
+    return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", default)
 
 
 def engine_pool_enabled() -> bool:
@@ -254,10 +253,9 @@ class EnginePoolManager:
 
     @classmethod
     def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
-        """Build a manager sized from ``SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY``
-        and ``SCAN64_ENGINE_POOL_BATCH_CONCURRENCY`` (both default ``2``). This is
-        the constructor the FastAPI lifespan uses; direct callers (tests, the
-        CLI) that want explicit concurrency keep using ``__init__``."""
+        """Size the interactive pool from its override (default 2), and the batch
+        pool from its override or available CPUs minus interactive capacity and
+        one application CPU (minimum 2). Direct constructors keep explicit sizes."""
         return cls(
             config,
             interactive_concurrency=interactive_concurrency(),
