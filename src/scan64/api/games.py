@@ -4,7 +4,7 @@ from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
 
@@ -20,6 +20,12 @@ from scan64.chess.analysis.models import (
     PersistedLessonOpportunity,
 )
 from scan64.chess.games.models import Game
+from scan64.chess.games.online_import import (
+    OnlineImportError,
+    Source,
+    fetch_online_games,
+    source_identity,
+)
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
 from scan64.learning.diagnosis.visibility import visible_game_lesson
@@ -47,6 +53,31 @@ class AnalysisJobRead(BaseModel):
     id: UUID
     game_id: UUID
     status: str
+
+
+class OnlineImportCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Source
+    username: str = Field(min_length=2, max_length=30, pattern=r"^[A-Za-z0-9_-]+$")
+    max_games: int = Field(default=10, ge=1, le=50, strict=True)
+
+
+class OnlineImportGameRead(BaseModel):
+    id: UUID
+    white: str
+    black: str
+    result: str
+    owner_color: Literal["white", "black"]
+    analysis_job_id: UUID
+
+
+class OnlineImportRead(BaseModel):
+    imported_count: int
+    duplicate_count: int
+    skipped_count: int
+    games: list[OnlineImportGameRead]
+    message: str
 
 
 class GameLearningSessionRead(BaseModel):
@@ -102,6 +133,88 @@ def create_game(
     session.commit()
     session.refresh(game)
     return game
+
+
+@router.post("/v1/games/import-online", response_model=OnlineImportRead)
+async def import_online_games(
+    game_in: OnlineImportCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+) -> OnlineImportRead:
+    player_id = require_authenticated_player(request, session)
+    try:
+        fetched = await fetch_online_games(game_in.source, game_in.username, game_in.max_games)
+    except OnlineImportError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+
+    identities = {
+        identity
+        for headers in session.exec(select(Game.headers).where(Game.owner_player_id == player_id))
+        if (identity := source_identity(headers)) is not None
+    }
+    imported: list[OnlineImportGameRead] = []
+    rows: list[Game | AnalysisJob] = []
+    duplicates = 0
+    for candidate in fetched.games:
+        identity = source_identity(candidate.headers)
+        if identity is not None and identity in identities:
+            duplicates += 1
+            continue
+        if identity is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Online PGN is missing a supported game Site or Link identity.",
+            )
+        identities.add(identity)
+        game = Game(
+            pgn=candidate.pgn,
+            headers=candidate.headers,
+            moves=candidate.moves,
+            white=candidate.headers["White"],
+            black=candidate.headers["Black"],
+            result=candidate.headers["Result"],
+            date=candidate.headers.get("Date"),
+            owner_player_id=player_id,
+            owner_color=candidate.owner_color,
+        )
+        job = AnalysisJob(game_id=game.id)
+        rows.extend((game, job))
+        imported.append(
+            OnlineImportGameRead(
+                id=game.id,
+                white=game.white,
+                black=game.black,
+                result=game.result,
+                owner_color=candidate.owner_color,
+                analysis_job_id=job.id,
+            )
+        )
+    session.add_all(rows)
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+    for game_read in imported:
+        background_tasks.add_task(
+            submit_analysis_job, player_id, game_read.analysis_job_id, pool_manager
+        )
+    message = f"Imported {len(imported)} new game{'s' if len(imported) != 1 else ''}."
+    if duplicates:
+        message += f" {duplicates} duplicate game(s) already in your library."
+    if fetched.skipped_count:
+        message += f" Skipped {fetched.skipped_count} non-standard game(s)."
+    if not fetched.games:
+        message += " No standard games were found."
+    return OnlineImportRead(
+        imported_count=len(imported),
+        duplicate_count=duplicates,
+        skipped_count=fetched.skipped_count,
+        games=imported,
+        message=message,
+    )
 
 
 @router.get("/v1/games", response_model=PaginatedResponse[GameRead])
