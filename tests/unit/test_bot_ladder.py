@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import chess
@@ -155,13 +158,18 @@ async def test_default_nodes_match_production_and_calibration() -> None:
 @pytest.mark.asyncio
 async def test_pool_resets_strength_for_analysis_and_legacy_play(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     engine = AsyncMock()
     engine.id = {"name": "Stockfish test"}
+    engine.config = {}
+    engine.options = {}
     engine.analyse.return_value = candidates()
     engine.play.return_value = chess.engine.PlayResult(chess.Move.from_uci("e2e4"), None)
     monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
-    adapter = PooledStockfishAdapter(StockfishConfig(threads=2))
+    binary = tmp_path / "stockfish"
+    binary.write_bytes(b"deterministic UCI test double")
+    adapter = PooledStockfishAdapter(StockfishConfig(binary_path=str(binary), threads=2))
     try:
         await adapter.reset()
         first_token = adapter.game_token
