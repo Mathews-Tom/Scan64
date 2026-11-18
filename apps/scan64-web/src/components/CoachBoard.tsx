@@ -28,6 +28,8 @@ interface CoachBoardProps {
   onMove?: (uci: string) => void | Promise<void>;
   selectedPly?: number;
   onSelectedPlyChange?: (ply: number) => void;
+  /** Free analysis only: controlled replay remains read-only unless explicitly enabled. */
+  editableReplay?: boolean;
   testId?: string;
   visualizations?: Visualization[];
 }
@@ -39,7 +41,7 @@ function position(fen: string, pgn?: string): Chess {
 }
 
 export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, preview = false,
-  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange, flippable = false, premoveColor, gameEnded = false,
+  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange, editableReplay = false, flippable = false, premoveColor, gameEnded = false,
   testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
   const [flipped, setFlipped] = useState(false);
   const viewOrientation = flipped ? orientation === 'white' ? 'black' : 'white' : orientation;
@@ -60,16 +62,25 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     const moves = game.history({ verbose: true });
     return { moves, initialFen: moves[0]?.before ?? game.fen() };
   }, [fen, pgn, controlled]);
+  const selectedPosition = useMemo(() => {
+    if (!replay) return null;
+    const game = new Chess(replay.initialFen);
+    const ply = Math.max(0, Math.min(selectedPly ?? 0, replay.moves.length));
+    for (let index = 0; index < ply; index++) game.move(replay.moves[index]);
+    return game;
+  }, [replay, selectedPly]);
+  const selectedFen = selectedPosition?.fen();
   const [initialPosition] = useState(() => position(fen, pgn));
   const chess = useRef(initialPosition);
-  const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, premoveColor });
-  latest.current = { fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, premoveColor };
+  const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, editableReplay, premoveColor });
+  latest.current = { fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, editableReplay, premoveColor };
   const moving = useRef(false);
   const promotion = useRef<{ from: Key; to: Key } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
   const [moves, setMoves] = useState<Move[]>(() => chess.current.history({ verbose: true }));
   const committedHistory = useRef(moves);
   const [announcement, setAnnouncement] = useState('');
+  const announcedFen = useRef('');
   const soundedFen = useRef(initialPosition.fen());
   const ended = useRef(gameEnded);
   const submittedMove = useRef(false);
@@ -84,7 +95,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     const replay = latest.current.replay;
     const history = replay?.moves ?? game.history({ verbose: true });
     const last = replay ? history[(latest.current.selectedPly ?? 0) - 1] : history.at(-1);
-    const blocked = latest.current.disabled || latest.current.preview || latest.current.onMove === undefined || replay !== null
+    const blocked = latest.current.disabled || latest.current.preview || latest.current.onMove === undefined || (replay !== null && !latest.current.editableReplay)
       || moving.current || promotion.current !== null || animationRef.current !== undefined;
     const dests = new Map<Key, Key[]>();
     if (!blocked) {
@@ -122,7 +133,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   }, [draw]);
 
   const applyMove = useCallback(async (from: Key, to: Key, piece?: Promotion) => {
-    if (latest.current.disabled || latest.current.preview || !latest.current.onMove || latest.current.replay !== null
+    if (latest.current.disabled || latest.current.preview || !latest.current.onMove || (latest.current.replay !== null && !latest.current.editableReplay)
       || moving.current || promotion.current || animationRef.current !== undefined) return;
     let played: Move;
     try {
@@ -139,6 +150,11 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     draw();
     try {
       await latest.current.onMove?.(`${played.from}${played.to}${played.promotion ?? ''}`);
+      if (latest.current.replay && latest.current.editableReplay) {
+        playMoveSound(played);
+        announcedFen.current = played.after;
+        setAnnouncement(`${played.color === 'w' ? 'White' : 'Black'} played ${played.san}.`);
+      }
       setMoveText('');
     } catch {
       setEntryError('The move could not be committed. Check the game status and try again.');
@@ -188,10 +204,10 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     if (resetAfterAttempt && !disabled && !moving.current) restore();
     else draw();
     requestAnimationFrame(() => board.current?.redrawAll());
-  }, [disabled, viewOrientation, premoveColor, resetAfterAttempt, draw, restore]);
+  }, [disabled, viewOrientation, premoveColor, resetAfterAttempt, editableReplay, draw, restore]);
 
   const requestMove = useCallback((from: Key, to: Key, piece?: Promotion) => {
-    if (latest.current.disabled || latest.current.preview || !latest.current.onMove || latest.current.replay !== null
+    if (latest.current.disabled || latest.current.preview || !latest.current.onMove || (latest.current.replay !== null && !latest.current.editableReplay)
       || moving.current || promotion.current || animationRef.current !== undefined) return;
     const promotes = !piece && chess.current.moves({ verbose: true }).some(
       move => move.from === from && move.to === to && move.promotion !== undefined,
@@ -303,8 +319,10 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
     };
   }, [requestMove, draw]);
 
-  const displayed = useMemo(() => animationFen ? new Chess(animationFen) : null, [animationFen]) ?? chess.current;
-  const blocked = disabled || preview || !onMove || controlled || moving.current || pendingPromotion !== null || animationFen !== undefined;
+  const displayed = useMemo(() => {
+    return animationFen ? new Chess(animationFen) : selectedPosition;
+  }, [animationFen, selectedPosition]) ?? chess.current;
+  const blocked = disabled || preview || !onMove || (controlled && !editableReplay) || moving.current || pendingPromotion !== null || animationFen !== undefined;
   const side = displayed.turn() === 'w' ? 'White' : 'Black';
   const result = displayed.isCheckmate() ? `Checkmate. ${side === 'White' ? 'Black' : 'White'} wins.`
     : displayed.isStalemate() ? 'Draw by stalemate.' : displayed.isDraw() ? 'Draw.'
@@ -319,17 +337,17 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
         aria-hidden="true"
         aria-busy={!ready || disabled || moving.current || pendingPromotion !== null}
         className="coach-board__ground" />
-      <BoardVisualizations visualizations={visualizations} orientation={viewOrientation} fen={chess.current.fen()} />
+      <BoardVisualizations visualizations={visualizations} orientation={viewOrientation} fen={selectedFen ?? chess.current.fen()} />
     </div>
     {flippable && <button className="btn btn--secondary" type="button" aria-pressed={flipped}
       onClick={() => setFlipped(value => !value)}>Flip board</button>}
     {premove && <div role="status">Premove {premove.slice(0, 2)} to {premove.slice(2)} queued.
       <button type="button" onClick={cancelPremove}>Cancel premove</button>
     </div>}
-    <VisualizationDescriptions visualizations={visualizations} fen={chess.current.fen()} />
+    <VisualizationDescriptions visualizations={visualizations} fen={selectedFen ?? chess.current.fen()} />
     <p role="status" aria-atomic="true">{moving.current ? 'Submitting move.' : <>
       {animationFen || preview ? 'Line preview. ' : controlled ? `Review position ${selectedPly}. ` : ''}
-      {!controlled && !animationFen && !preview && announcement ? `${announcement} ` : ''}{result}
+      {(!controlled || (editableReplay && announcedFen.current === selectedFen)) && !animationFen && !preview && announcement ? `${announcement} ` : ''}{result}
     </>}</p>
     <details>
       <summary>Read board position</summary>
@@ -345,7 +363,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       <p>UCI uses source and destination squares, with q, r, b or n for promotion. English SAN is case-sensitive and includes disambiguation and check signs. Castling is O-O or O-O-O.</p>
       <p>{displayed.moves().join(', ') || 'No legal moves.'}</p>
     </details>
-    {onMove && !controlled && <form aria-label="Enter chess move" onSubmit={event => {
+    {onMove && (!controlled || editableReplay) && <form aria-label="Enter chess move" onSubmit={event => {
       event.preventDefault();
       if (blocked) return;
       const resolved = resolveMove(chess.current, moveText);

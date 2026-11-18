@@ -183,9 +183,70 @@ describe('CoachBoard', () => {
     await move('e7', 'e5');
     expect(onMove).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])('reports repetition only in the selected move prefix (editableReplay=%s)', editableReplay => {
+    const game = new Chess();
+    for (const san of ['Nf3', 'Nf6', 'Ng1', 'Ng8', 'Nf3', 'Nf6', 'Ng1', 'Ng8']) game.move(san);
+    const props = { fen: new Chess().fen(), pgn: game.pgn(), editableReplay, onMove: vi.fn() };
+    const view = render(<CoachBoard {...props} selectedPly={8} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 8. Draw.');
+
+    view.rerender(<CoachBoard {...props} selectedPly={4} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 4. White to move.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Draw.');
+
+    view.rerender(<CoachBoard {...props} selectedPly={0} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 0. White to move.');
+    view.rerender(<CoachBoard {...props} selectedPly={8} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 8. Draw.');
+  });
+
+  it('edits only the selected position when controlled replay explicitly opts in', async () => {
+    const onMove = vi.fn();
+    const view = render(<CoachBoard editableReplay flippable fen={new Chess().fen()}
+      pgn="1. e4 e5 2. Nf3 *" selectedPly={1} onMove={onMove} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Flip board' }));
+    await move('c7', 'c5');
+    expect(onMove).toHaveBeenLastCalledWith('c7c5');
+    expect(board.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      fen: new Chess('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1').fen(),
+      orientation: 'black',
+    }));
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e5' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Enter chess move' }));
+    await waitFor(() => expect(onMove).toHaveBeenLastCalledWith('e7e5'));
+    view.rerender(<CoachBoard flippable fen={new Chess().fen()} pgn="1. e4 e5 *" selectedPly={1} onMove={onMove} />);
+    expect(screen.queryByLabelText('Move (UCI or SAN)')).not.toBeInTheDocument();
+    await move('c7', 'c5');
+    expect(onMove).toHaveBeenCalledTimes(2);
+    expect(board.destroy).not.toHaveBeenCalled();
+  });
 });
 
 describe('accessible board announcements and focus', () => {
+  it('announces an editable replay move only at the position it describes', async () => {
+    const initial = new Chess().fen();
+    const game = new Chess();
+    const onMove = vi.fn();
+    const view = render(<CoachBoard editableReplay fen={initial} pgn="*" selectedPly={0} onMove={onMove} />);
+    await move('e2', 'e4');
+    game.move('e4');
+    view.rerender(<CoachBoard editableReplay fen={initial} pgn={game.pgn()} selectedPly={1} onMove={onMove} />);
+    expect(screen.getByRole('status')).toHaveTextContent('White played e4. Black to move.');
+
+    view.rerender(<CoachBoard editableReplay fen={initial} pgn={game.pgn()} selectedPly={0} onMove={onMove} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 0. White to move.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('played e4');
+
+    game.move('e5');
+    view.rerender(<CoachBoard editableReplay fen={initial} pgn={game.pgn()} selectedPly={2} onMove={onMove} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Review position 2. White to move.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('played e4');
+
+    view.rerender(<CoachBoard editableReplay fen={game.fen()} pgn="" selectedPly={0} onMove={onMove} />);
+    expect(screen.getByRole('status')).not.toHaveTextContent('played e4');
+  });
+
   it('announces a committed player move and reply together after the callback completes', async () => {
     const initial = new Chess().fen();
     const game = new Chess();

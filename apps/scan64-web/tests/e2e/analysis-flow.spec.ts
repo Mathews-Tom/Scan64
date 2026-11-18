@@ -2,8 +2,21 @@ import { test, expect } from '@playwright/test';
 import { movePiece } from './board';
 import { prepareToday } from './today';
 import { makeGameReview } from '../../src/components/review.test-fixtures';
+import { Chess } from 'chess.js';
+import { readFile } from 'node:fs/promises';
 
-test.beforeEach(async ({ page }) => { await prepareToday(page); });
+test.beforeEach(async ({ page }) => {
+  await prepareToday(page);
+  await page.route('**/v1/analysis/position', async route => {
+    const { fen } = route.request().postDataJSON() as { fen: string };
+    const game = new Chess(fen);
+    const lines = game.isGameOver() ? [] : game.moves({ verbose: true }).slice(0, 3).map(move => ({
+      score_cp: 25, mate: null,
+      moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }],
+    }));
+    await route.fulfill({ json: { fen: game.fen(), lines } });
+  });
+});
 
 test('analysis board accepts a real pointer move before starting a player-owned game', async ({ page }) => {
   await page.route('**/v1/players', async route => {
@@ -26,6 +39,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
   const fenInput = page.getByPlaceholder('Paste FEN here');
   await fenInput.fill('rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2');
   await page.getByRole('button', { name: 'Load FEN' }).click();
+  await expect(page.getByText('Position loaded. Started a new variation tree.')).toBeVisible();
   await movePiece(page, page.locator('.cg-wrap'), 'e4', 'e5');
   await expect(fenInput).toHaveValue(
     'rnbqkbnr/pp1ppppp/8/2p1P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2',
@@ -120,3 +134,121 @@ for (const source of ['lichess', 'chesscom']) {
     expect(jobs).toBe(0);
   });
 }
+
+test('shows three White-perspective engine lines and commits a clicked PV prefix on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const initialFen = new Chess().fen();
+  let authorization = '';
+  await page.route('**/v1/analysis/position', async route => {
+    const { fen } = route.request().postDataJSON() as { fen: string };
+    if (fen !== initialFen) return route.fallback();
+    authorization = route.request().headers().authorization ?? '';
+    await route.fulfill({ json: { fen, lines: [
+      { score_cp: 42, mate: null, moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }] },
+      { score_cp: -20, mate: null, moves: [{ uci: 'd2d4', san: 'd4' }, { uci: 'd7d5', san: 'd5' }] },
+      { score_cp: null, mate: -7, moves: [{ uci: 'g1f3', san: 'Nf3' }, { uci: 'd7d5', san: 'd5' }, { uci: 'g2g3', san: 'g3' }] },
+    ] } });
+  });
+  await page.goto('/analysis');
+  const engine = page.getByTestId('multipv-lines');
+  await expect(engine.getByLabel('Line 1 evaluation +0.42')).toBeVisible();
+  await expect(engine.getByLabel('Line 2 evaluation -0.20')).toBeVisible();
+  await expect(engine.getByLabel('Line 3 evaluation −M7')).toBeVisible();
+  expect(authorization).toBe('Bearer test-token');
+  await engine.getByRole('button', { name: 'Play line 3 through 3: g3' }).click();
+  const game = new Chess();
+  game.move('Nf3'); game.move('d5'); game.move('g3');
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(game.fen());
+  await expect(page.getByRole('list', { name: 'Retained variations' }).getByRole('button', { name: '2. g3' })).toHaveAttribute('aria-current', 'step');
+  await expect(engine.getByLabel('Line 1 evaluation +0.25')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('retains sibling lines and downloads setup PGN with black-to-move variations', async ({ page }) => {
+  await page.goto('/analysis');
+  const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 17';
+  await page.getByLabel('FEN', { exact: true }).fill(fen);
+  await page.getByRole('button', { name: 'Load FEN' }).click();
+  await expect(page.getByText('Position loaded. Started a new variation tree.')).toBeVisible();
+  await movePiece(page, page.locator('.cg-wrap'), 'e7', 'e5');
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 18',
+  );
+  await movePiece(page, page.locator('.cg-wrap'), 'g1', 'f3');
+  await expect(page.getByRole('button', { name: 'Make move' })).toBeEnabled();
+  await page.getByRole('button', { name: 'First', exact: true }).click();
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(fen);
+  await movePiece(page, page.locator('.cg-wrap'), 'c7', 'c5');
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(
+    'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 18',
+  );
+  await movePiece(page, page.locator('.cg-wrap'), 'b1', 'c3');
+  const variations = page.getByRole('list', { name: 'Retained variations' });
+  await expect(variations.getByRole('button', { name: '18. Nf3' })).toBeVisible();
+  await expect(variations.getByRole('button', { name: 'Variation: 18. Nc3' })).toHaveAttribute('aria-current', 'step');
+  await variations.getByRole('button', { name: '17... e5' }).click();
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 18',
+  );
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download PGN' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('analysis.pgn');
+  const path = await download.path();
+  expect(path).not.toBeNull();
+  const pgn = await readFile(path!, 'utf8');
+  expect(pgn).toContain('[SetUp "1"]');
+  expect(pgn).toContain(`[FEN "${fen}"]`);
+  expect(pgn).toContain('17... e5 (17... c5 18. Nc3) 18. Nf3 *');
+});
+
+test('keeps the board usable and requires manual retry after a busy engine response', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/v1/analysis/position', async route => {
+    requests += 1;
+    if (requests > 1) return route.fallback();
+    await route.fulfill({ status: 503, json: { detail: 'Engine busy. Retry shortly.' } });
+  });
+  await page.goto('/analysis');
+  await expect(page.getByRole('alert')).toContainText('Engine busy or unavailable.');
+  await expect(page.getByRole('button', { name: 'Make move' })).toBeEnabled();
+  expect(requests).toBe(1);
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByLabel('Line 1 evaluation +0.25')).toBeVisible();
+  expect(requests).toBe(2);
+  await movePiece(page, page.locator('.cg-wrap'), 'e2', 'e4');
+  await expect(page.getByLabel('FEN', { exact: true })).toHaveValue(
+    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+  );
+});
+
+test('ignores stale analysis after A to B to A navigation', async ({ page }) => {
+  const releases = Array.from({ length: 3 }, () => Promise.withResolvers<void>());
+  const completed = Array.from({ length: 3 }, () => Promise.withResolvers<void>());
+  let requests = 0;
+  await page.route('**/v1/analysis/position', async route => {
+    const index = requests++;
+    if (index >= releases.length) return route.fallback();
+    const { fen } = route.request().postDataJSON() as { fen: string };
+    await releases[index].promise;
+    const uci = index === 1 ? 'e7e5' : index === 0 ? 'd2d4' : 'e2e4';
+    const san = index === 1 ? 'e5' : index === 0 ? 'd4' : 'e4';
+    await route.fulfill({ json: { fen, lines: [{
+      score_cp: index === 2 ? 55 : 111, mate: null, moves: [{ uci, san }],
+    }] } });
+    completed[index].resolve();
+  });
+  await page.goto('/analysis');
+  await expect.poll(() => requests).toBe(1);
+  await expect(page.getByRole('button', { name: 'Make move' })).toBeEnabled();
+  await movePiece(page, page.locator('.cg-wrap'), 'e2', 'e4');
+  await expect.poll(() => requests).toBe(2);
+  await page.getByRole('button', { name: 'First', exact: true }).click();
+  await expect.poll(() => requests).toBe(3);
+  releases[2].resolve();
+  await expect(page.getByLabel('Line 1 evaluation +0.55')).toBeVisible();
+  releases[0].resolve(); releases[1].resolve();
+  await Promise.all(completed.map(item => item.promise));
+  await expect(page.getByLabel('Line 1 evaluation +0.55')).toBeVisible();
+  await expect(page.getByLabel('Line 1 evaluation +1.11')).toHaveCount(0);
+});

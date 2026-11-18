@@ -567,6 +567,14 @@ historical awards under new policy or refreshed catalog ratings.
 - **Library → Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
 - **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
 
+### Free analysis and variations
+
+Open **Review → Analysis Board** without selecting an owned game to study a position freely. Enter moves on the board or with **Move (UCI or SAN)**. The engine evaluates the current selected position and shows up to three legal continuations. Scores are always from White's perspective: positive favours White, negative favours Black, and **M** indicates mate. Select any move in an engine line to play the entire prefix through that move, not just its final move.
+
+Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variations** to revisit positions. Making a different move keeps the old continuation as a sibling variation; making the same move revisits its existing node. The first continuation remains the main line. **Download PGN** exports the whole tree, including recursive variations and a custom starting FEN when needed. **Copy FEN** and **Play from here** use the selected position.
+
+**Load FEN** validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select **Retry** manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.
+
 ### Move-by-move game review
 
 The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position; **Copy FEN** and **Download PGN** export the selected position or replay. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.

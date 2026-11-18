@@ -33,6 +33,8 @@ import type {
   PositionRead,
   PositionInsight,
   PositionInsightRequest,
+  PositionAnalysisRead,
+  PositionAnalysisRequest,
   PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
@@ -278,6 +280,21 @@ export class ApiClient {
       throw new ApiRequestError(`Failed to get hint: ${detail}`, response.status);
     }
     return await response.json() as PositionInsight;
+  }
+
+  static async analyzePosition(data: PositionAnalysisRequest): Promise<PositionAnalysisRead> {
+    const response = await apiFetch(`${apiBase()}/analysis/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(data.player_id) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Failed to analyse position: ${detail}`, response.status);
+    }
+    return await response.json() as PositionAnalysisRead;
   }
 
   static async createGame(data: GameCreate): Promise<GameRead> {

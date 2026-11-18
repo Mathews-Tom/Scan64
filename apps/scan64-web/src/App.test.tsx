@@ -43,6 +43,7 @@ vi.mock('./api/client', async (importOriginal) => {
       createGame: vi.fn(),
       importOnlineGames: vi.fn(),
       createAnalysisJob: vi.fn(),
+      analyzePosition: vi.fn().mockRejectedValue(new actual.ApiRequestError('Engine busy. Retry shortly.', 503)),
       createPlaySession: vi.fn(),
       resignPlaySession: vi.fn(),
       getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),

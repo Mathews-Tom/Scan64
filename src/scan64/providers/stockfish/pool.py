@@ -325,14 +325,8 @@ class EnginePoolManager:
 
     _hint_in_progress = False
 
-    async def analyze_hint(self, fen: str) -> EngineAnalysis:
-        """Admit one hint, leaving an interactive slot for opponent moves.
-
-        No hint queue: reject concurrent hints or a single-engine deployment.
-        Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
-        with a three-second wall deadline (including lazy engine startup).
-        """
-        key = (
+    def _hint_cache_key(self, fen: str) -> HintCacheKey:
+        return (
             fen,
             self.config.binary_path,
             self.config.threads,
@@ -341,6 +335,19 @@ class EnginePoolManager:
             HINT_TIME_MS,
             HINT_MULTIPV,
         )
+
+    def invalidate_hint(self, fen: str) -> None:
+        """Discard output rejected by a consumer's stricter validation."""
+        self._hint_cache.pop(self._hint_cache_key(fen), None)
+
+    async def analyze_hint(self, fen: str) -> EngineAnalysis:
+        """Admit one hint, leaving an interactive slot for opponent moves.
+
+        No hint queue: reject concurrent hints or a single-engine deployment.
+        Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
+        with a three-second wall deadline (including lazy engine startup).
+        """
+        key = self._hint_cache_key(fen)
         cached = self._hint_cache.get(key)
         if cached is not None:
             self._hint_cache.move_to_end(key)

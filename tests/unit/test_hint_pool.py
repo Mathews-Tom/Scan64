@@ -17,6 +17,28 @@ def manager(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_hint_invalidation_only_discards_requested_position(manager, monkeypatch):
+    # The pool must retain raw output even when a stricter consumer needs a score.
+    result = EngineAnalysis(raw_result=[{"pv": ["e2e4"]}])
+    analyze = AsyncMock(return_value=result)
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    other_fen = chess.STARTING_FEN.replace("0 1", "1 1")
+    await manager.analyze_hint(chess.STARTING_FEN)
+    await manager.analyze_hint(other_fen)
+    assert (await manager.analyze_hint(chess.STARTING_FEN)).raw_result == result.raw_result
+    assert analyze.await_count == 2
+
+    manager.invalidate_hint(chess.STARTING_FEN)
+    manager.invalidate_hint(chess.STARTING_FEN)
+    await manager.analyze_hint(other_fen)
+    assert analyze.await_count == 2
+    await manager.analyze_hint(chess.STARTING_FEN)
+    assert analyze.await_count == 3
+    await manager.analyze_hint(chess.STARTING_FEN)
+    assert analyze.await_count == 3
+
+
+@pytest.mark.asyncio
 async def test_hint_reserves_interactive_opponent_capacity(manager, monkeypatch):
     started = asyncio.Event()
     release = asyncio.Event()
