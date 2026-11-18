@@ -9,8 +9,7 @@ from chess_lesson_spec import Diagnosis, Explanation
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.composer import allowed_mate_line, hanging_piece_proof
 from scan64.learning.evidence.models import Evidence
-from scan64.learning.evidence.motifs import motif_payloads
-from scan64.learning.evidence.support import supports_saved_diagnosis
+from scan64.learning.evidence.support import validated_motif_line
 
 
 class ExplanationTemplateError(ValueError):
@@ -146,24 +145,10 @@ def _overloaded_defender_text(payload: Mapping[str, Any], code: str) -> str:
 
 
 def _motif_text(payload: Mapping[str, Any], code: str) -> str:
-    fen = _field(payload, "before_fen", code)
-    line = _field(payload, "fast_line", code)
-    if not isinstance(fen, str) or not isinstance(line, list) or not line:
-        raise ExplanationTemplateError("Motif has no source position and legal proving PV")
-    if not all(isinstance(uci, str) for uci in line) or not supports_saved_diagnosis(code, payload):
-        raise ExplanationTemplateError("Motif has no supported source proof")
-    try:
-        board = chess.Board(fen)
-        played = board.parse_san(_field(payload, "played_move", code))
-    except ValueError as error:
-        raise ExplanationTemplateError("Motif has an invalid source position or move") from error
-    if played.uci() == line[0] or not any(
-        f"tactics.{proof['tactic_type']}" == code
-        and all(payload.get(key) == value for key, value in proof.items())
-        for proof in motif_payloads(board, line, payload.get("source_score_mate"))
-    ):
+    line = validated_motif_line(code, payload)
+    if line is None:
         raise ExplanationTemplateError("The source PV does not prove the named motif")
-    best = _field(payload, "best_move", code)
+    best = line[0]
     played_text = payload["played_move"]
     if code == "tactics.skewer":
         return (

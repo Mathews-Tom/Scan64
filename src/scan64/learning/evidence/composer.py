@@ -581,7 +581,17 @@ def compose_candidate_evidence(
                 payload={**provenance, **opening},
             )
         )
-    if swing_cp >= 200 and fast_line and fast_line[0] != before_board.parse_san(played_move).uci():
+    try:
+        played: Move | None = before_board.parse_san(played_move)
+    except ValueError:
+        played = None
+    if (
+        swing_cp >= 200
+        and fast_line
+        and played
+        and played in before_board.legal_moves
+        and fast_line[0] != played.uci()
+    ):
         for payload in motif_payloads(
             before_board, fast_line, fast_analysis.raw_result[0].get("score_mate")
         ):

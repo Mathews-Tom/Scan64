@@ -24,7 +24,7 @@ def reference_labels(
     before: chess.Board, after: chess.Board, deep_source: list[dict[str, Any]]
 ) -> set[str]:
     """Label a missed source tactic; raw deep reply evidence is not a source PV."""
-    if not deep_source:
+    if not before.is_valid() or not deep_source:
         return set()
     raw = deep_source[0]
     pv = raw.get("pv")
@@ -127,10 +127,23 @@ def reference_labels(
             victim = positions[1].piece_at(target)
             if victim is None or victim.color == side or victim.piece_type == chess.PAWN:
                 continue
-            # Removing only the blocker from the source must open this very ray.
-            unblocked = before.copy(stack=False)
-            unblocked.remove_piece_at(first.from_square)
-            if target not in unblocked.attacks(origin):
+            # The root origin must lie strictly inside this slider-target segment.
+            # EP can clear a second blocker too; source-minus-origin is not the board
+            # after the move. The actual new attack above proves the opened ray.
+            dx = chess.square_file(target) - chess.square_file(origin)
+            dy = chess.square_rank(target) - chess.square_rank(origin)
+            if not (dx == 0 or dy == 0 or abs(dx) == abs(dy)):
+                continue
+            steps = max(abs(dx), abs(dy))
+            step_x, step_y = (dx > 0) - (dx < 0), (dy > 0) - (dy < 0)
+            segment = {
+                chess.square(
+                    chess.square_file(origin) + offset * step_x,
+                    chess.square_rank(origin) + offset * step_y,
+                )
+                for offset in range(1, steps)
+            }
+            if first.from_square not in segment:
                 continue
             if victim.piece_type == chess.KING:
                 proved = complete_mate

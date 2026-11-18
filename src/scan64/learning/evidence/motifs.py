@@ -1,7 +1,7 @@
 """M94 fast-source operational proofs. Capability is not measured trust.
 
 Only the first legal source PV is used. Definitions are preregistered in
- docs/evaluation/m94-motif-protocol.md; the deep oracle is implemented separately.
+ docs/evaluation/m94-motif-v2-protocol.md; the deep oracle is implemented separately.
 """
 
 from __future__ import annotations
@@ -11,9 +11,9 @@ from typing import Any
 import chess
 
 CAPABILITIES = {
-    "tactics.skewer": "m94-skewer-v1",
-    "tactics.discovered_attack": "m94-discovered-attack-v1",
-    "tactics.back_rank": "m94-back-rank-v1",
+    "tactics.skewer": "m94-skewer-v2",
+    "tactics.discovered_attack": "m94-discovered-attack-v2",
+    "tactics.back_rank": "m94-back-rank-v2",
 }
 _VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
 
@@ -26,6 +26,8 @@ def _material(board: chess.Board, color: chess.Color) -> int:
 
 
 def _boards(board: chess.Board, line: list[str]) -> list[chess.Board]:
+    if not board.is_valid():
+        return []
     result = [board.copy(stack=False)]
     for uci in line:
         try:

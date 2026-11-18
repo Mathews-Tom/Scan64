@@ -14,11 +14,14 @@ from typing import Any
 import chess.pgn
 
 ROOT = Path(__file__).resolve().parents[4]
-FREEZE = ROOT / "tests/fixtures/m94/source_revisions.json"
+FREEZE = ROOT / "tests/fixtures/m94/source_revisions_v2.json"
+PREFIX = "m94_v2_fresh80"
 CODES = frozenset({"tactics.skewer", "tactics.discovered_attack", "tactics.back_rank"})
-PROTOCOL: dict[str, Any] = {
-    "revision": "m94-motifs-v1",
-    "selection": "Next 80 qualifying games after original40, M78, M79 and M93; ordinal 281..360.",
+_DEFINITION: dict[str, Any] = {
+    "revision": "m94-motifs-v2",
+    "selection": (
+        "Next 80 qualifying games after original40, M78, M79, M93 and M94 v1; ordinal 361..440."
+    ),
     "qualifiers": "error-free PGN; both Elo 600..1600 inclusive; at least 20 plies",
     "source_url": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
     "source_sha256": "aa40b3671fa3cf1072eb182892cd90b0e1e003a4a5943492f64b77e7f3fd1635",
@@ -39,12 +42,26 @@ PROTOCOL: dict[str, Any] = {
     "minimum_support_tp_fp": 10,
     "codes": sorted(CODES),
     "oracle": "m94_reference.reference_labels; first independently searched deep source PV",
-    "revisions": json.loads(FREEZE.read_text()),
 }
 
 
-def protocol_digest() -> str:
-    return hashlib.sha256(json.dumps(PROTOCOL, sort_keys=True).encode()).hexdigest()
+def _load_protocol(root: Path = ROOT) -> tuple[dict[str, Any], bytes]:
+    freeze_path = FREEZE if root == ROOT else root / "tests/fixtures/m94/source_revisions_v2.json"
+    freeze_bytes = freeze_path.read_bytes()
+    revisions = json.loads(freeze_bytes)
+    if not isinstance(revisions, dict) or not revisions:
+        raise ValueError("M94 v2 source revisions must be a nonempty mapping")
+    return {**_DEFINITION, "revisions": revisions}, freeze_bytes
+
+
+def get_protocol(root: Path = ROOT) -> dict[str, Any]:
+    """Load the v2 freeze only when an M94 operation is explicitly requested."""
+    return _load_protocol(root)[0]
+
+
+def protocol_digest(protocol: dict[str, Any] | None = None) -> str:
+    loaded = get_protocol() if protocol is None else protocol
+    return hashlib.sha256(json.dumps(loaded, sort_keys=True).encode()).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -59,46 +76,67 @@ class MeasurementIdentity:
     source_revisions_sha256: str
 
 
-def validate_frozen_sources(root: Path = ROOT) -> None:
-    """Before any new search, require the entire preregistration to be committed."""
-    frozen = [
-        *PROTOCOL["revisions"],
-        "src/scan64/learning/evaluation/m94_protocol.py",
-        "tests/fixtures/m94/source_revisions.json",
-    ]
-    subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", *frozen], cwd=root, check=True)
-    for name in frozen:
-        # git diff alone does not see untracked files.
-        subprocess.run(
-            ["git", "ls-files", "--error-unmatch", name], cwd=root, check=True, capture_output=True
+def validate_frozen_sources(preregistration_commit: str, root: Path = ROOT) -> dict[str, Any]:
+    """Bind all recording sources to the caller's immutable preregistration SHA."""
+    if re.fullmatch(r"[0-9a-f]{40}", preregistration_commit) is None:
+        raise ValueError("M94 requires an explicit full preregistration commit SHA")
+    resolved = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--verify", f"{preregistration_commit}^{{commit}}"], cwd=root
         )
-    for name, digest in PROTOCOL["revisions"].items():
-        if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
+        .decode()
+        .strip()
+    )
+    if resolved != preregistration_commit:
+        raise ValueError("M94 preregistration must identify the exact commit")
+    protocol, freeze_bytes = _load_protocol(root)
+    bound = {
+        **protocol["revisions"],
+        "src/scan64/learning/evaluation/m94_protocol.py": None,
+        FREEZE.relative_to(ROOT).as_posix(): None,
+    }
+    for name, digest in bound.items():
+        if not isinstance(name, str) or Path(name).is_absolute() or ".." in Path(name).parts:
+            raise ValueError("Invalid frozen M94 source path")
+        current = (
+            freeze_bytes
+            if name == FREEZE.relative_to(ROOT).as_posix()
+            else (root / name).read_bytes()
+        )
+        committed = subprocess.check_output(
+            ["git", "show", f"{preregistration_commit}:{name}"], cwd=root
+        )
+        if current != committed or (
+            digest is not None and hashlib.sha256(current).hexdigest() != digest
+        ):
             raise ValueError(f"Frozen M94 implementation changed: {name}")
+    return protocol
 
 
 def validate_provenance(
     corpus: dict[str, Any], manifest: dict[str, Any], expected: MeasurementIdentity
 ) -> None:
+    protocol, freeze_bytes = _load_protocol()
+    digest = protocol_digest(protocol)
     provenance = corpus.get("provenance", {})
     preregistration = provenance.get("preregistration_commit", "")
     if (
-        provenance.get("protocol") != PROTOCOL
-        or provenance.get("protocol_sha256") != protocol_digest()
+        provenance.get("protocol") != protocol
+        or provenance.get("protocol_sha256") != digest
         or not isinstance(preregistration, str)
         or re.fullmatch(r"[0-9a-f]{40}", preregistration) is None
         or preregistration != expected.preregistration_commit
-        or protocol_digest() != expected.protocol_sha256
-        or hashlib.sha256(FREEZE.read_bytes()).hexdigest() != expected.source_revisions_sha256
+        or digest != expected.protocol_sha256
+        or hashlib.sha256(freeze_bytes).hexdigest() != expected.source_revisions_sha256
         or manifest.get("preregistration_commit") != preregistration
-        or manifest.get("protocol_sha256") != protocol_digest()
+        or manifest.get("protocol_sha256") != digest
         or manifest.get("source_revisions_sha256") != expected.source_revisions_sha256
         or manifest.get("recording_sha256") != expected.recording_sha256
         or manifest.get("pgn_sha256") != expected.pgn_sha256
         or len(corpus.get("games", [])) != 80
         or any(
             provenance.get(key) != value
-            for key, value in PROTOCOL.items()
+            for key, value in protocol.items()
             if key
             not in {
                 "revision",
@@ -120,16 +158,37 @@ def validate_recording(
     path: Path, prior_paths: tuple[Path, ...], expected: MeasurementIdentity
 ) -> dict[str, Any]:
     """Replay checks pinned artifacts without Git, engines or optional fallbacks."""
-    manifest_path = path.with_name("m94_fresh80_manifest.json")
-    pgn = path.with_name("m94_fresh80_real_games.pgn")
+    if path.name == "m94_fresh80_recorded.json":
+        raise ValueError(
+            "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
+        )
+    manifest_bytes = path.with_name(f"{PREFIX}_manifest.json").read_bytes()
+    recording_bytes = path.read_bytes()
+    pgn_bytes = path.with_name(f"{PREFIX}_real_games.pgn").read_bytes()
     if (
-        hashlib.sha256(manifest_path.read_bytes()).hexdigest() != expected.manifest_sha256
-        or hashlib.sha256(path.read_bytes()).hexdigest() != expected.recording_sha256
-        or hashlib.sha256(pgn.read_bytes()).hexdigest() != expected.pgn_sha256
+        hashlib.sha256(manifest_bytes).hexdigest() != expected.manifest_sha256
+        or hashlib.sha256(recording_bytes).hexdigest() != expected.recording_sha256
+        or hashlib.sha256(pgn_bytes).hexdigest() != expected.pgn_sha256
     ):
         raise ValueError("M94 artifact checksum differs from the pinned measurement identity")
-    manifest = json.loads(manifest_path.read_text())
-    corpus: dict[str, Any] = json.loads(path.read_text())
+    manifest = json.loads(manifest_bytes)
+    return validate_artifacts(recording_bytes, pgn_bytes, prior_paths, expected, manifest)
+
+
+def validate_artifacts(
+    recording_bytes: bytes,
+    pgn_bytes: bytes,
+    prior_paths: tuple[Path, ...],
+    expected: MeasurementIdentity,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate complete preserved buffers; also used by search-free finalization."""
+    if (
+        hashlib.sha256(recording_bytes).hexdigest() != expected.recording_sha256
+        or hashlib.sha256(pgn_bytes).hexdigest() != expected.pgn_sha256
+    ):
+        raise ValueError("M94 preserved artifact checksum mismatch")
+    corpus: dict[str, Any] = json.loads(recording_bytes)
     validate_provenance(corpus, manifest, expected)
     if corpus["provenance"].get("pgn_sha256") != manifest["pgn_sha256"]:
         raise ValueError("M94 PGN checksum differs from recording provenance")
@@ -139,7 +198,7 @@ def validate_recording(
     ids = [game["id"] for game in corpus["games"]]
     if len(set(ids)) != 80 or prior_ids.intersection(ids):
         raise ValueError("M94 holdout contains duplicate or previously exposed games")
-    with io.StringIO(pgn.read_text()) as stream:
+    with io.StringIO(pgn_bytes.decode("utf-8")) as stream:
         selected = []
         while (game := chess.pgn.read_game(stream)) is not None:
             if (
@@ -159,6 +218,22 @@ def validate_recording(
         for game, recorded in zip(selected, corpus["games"], strict=True)
     ):
         raise ValueError("M94 PGN games differ from the recording")
+    for game in corpus["games"]:
+        if (
+            len(game.get("fast", [])) != len(game["moves"]) + 1
+            or any(not isinstance(raw, list) or not raw for raw in game["fast"])
+            or not isinstance(game.get("focused"), dict)
+            or not isinstance(game.get("deep_before"), dict)
+            or game["focused"].keys() != game["deep_before"].keys()
+            or any(
+                not key.isdecimal()
+                or not 0 <= int(key) < len(game["moves"])
+                or not game["focused"][key]
+                or not game["deep_before"][key]
+                for key in game["focused"]
+            )
+        ):
+            raise ValueError("M94 recording is incomplete; STOP without another search")
     return corpus
 
 

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import chess
-
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.evidence.models import Evidence
-from scan64.learning.evidence.motifs import motif_payloads
-from scan64.learning.evidence.support import supports_saved_diagnosis
+from scan64.learning.evidence.support import validated_motif_line
 
 
 class _MotifDetector:
@@ -18,7 +15,10 @@ class _MotifDetector:
         player_context: PlayerContext,
     ) -> list[DiagnosisCandidate]:
         code = f"tactics.{self.tactic}"
-        if opportunity.engine_eval_before - opportunity.engine_eval_after < 2.0:
+        # Producers convert each integer-cp evaluation independently to pawns.
+        before_cp = round(opportunity.engine_eval_before * 100)
+        after_cp = round(opportunity.engine_eval_after * 100)
+        if before_cp - after_cp < 200:
             return []
         candidates = []
         for item in evidence:
@@ -26,31 +26,12 @@ class _MotifDetector:
             if (
                 item.kind != "missed_tactic"
                 or payload.get("tactic_type") != self.tactic
-                or not supports_saved_diagnosis(code, payload)
+                or validated_motif_line(code, payload, opportunity.played_move) is None
             ):
                 continue
-            fen, line = payload.get("before_fen"), payload.get("fast_line")
-            if not isinstance(fen, str) or not isinstance(line, list) or not line:
-                continue
-            if not all(isinstance(uci, str) for uci in line):
-                continue
-            try:
-                board = chess.Board(fen)
-                played = board.parse_san(opportunity.played_move)
-            except ValueError:
-                continue
-            if line[0] == played.uci() or payload.get("best_move") != line[0]:
-                continue
-            for proof in motif_payloads(board, line, payload.get("source_score_mate")):
-                if proof["tactic_type"] == self.tactic and all(
-                    payload.get(key) == value for key, value in proof.items()
-                ):
-                    candidates.append(
-                        DiagnosisCandidate(
-                            skill_id=code, confidence=1.0, evidence_ids=[item.evidence_id]
-                        )
-                    )
-                    break
+            candidates.append(
+                DiagnosisCandidate(skill_id=code, confidence=1.0, evidence_ids=[item.evidence_id])
+            )
         return candidates
 
 

@@ -289,22 +289,23 @@ async def test_report_runs_real_detectors_without_a_live_engine(
 ) -> None:
     import chess.engine
 
-    from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
     from scan64.learning.diagnosis.trust import TRUSTED_CODES
     from scan64.learning.evaluation.real_games import M79_CORPUS, MISSED_CAPTURE, measure
+    from scan64.learning.evidence.support import M48_SUPPORTED_CODES
 
     async def forbidden_engine(*args: object, **kwargs: object) -> None:
         raise AssertionError("The recorded report must not launch an engine")
 
     monkeypatch.setattr(chess.engine, "popen_uci", forbidden_engine)
     scores = await measure()
-    assert set(scores) == set(SEED_CODES)
+    assert set(scores) == M48_SUPPORTED_CODES
     assert sum(score.support for score in scores.values()) > 0
     assert check_scores(scores, ORIGINAL_GATED_CODES)
     fresh = await measure(FRESH_CORPUS)
     if ALLOWED_MATE in TRUSTED_CODES:
         assert fresh[ALLOWED_MATE].trusted
     m79 = await measure(M79_CORPUS)
+    assert set(fresh) == set(m79) == M48_SUPPORTED_CODES
     assert (MISSED_CAPTURE in TRUSTED_CODES) is m79[MISSED_CAPTURE].trusted
     assert len(TRUSTED_CODES) >= 3
     assert "board_awareness.hanging_piece" in TRUSTED_CODES

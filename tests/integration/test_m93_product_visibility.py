@@ -189,7 +189,6 @@ async def seed_recorded_motifs(
                 source_games[code].add(recorded["id"])
         if all(len(ids) == 3 for ids in saved.values()):
             break
-    assert all(len(saved[code]) == 3 for code in codes & TRUSTED_CODES), saved
     session.commit()
     return saved
 
@@ -200,7 +199,8 @@ async def test_recorded_motif_lessons_and_patterns_follow_actual_verdicts(
 ) -> None:
     player = "m93-recorded-player"
     token = create_player_token(client, player)
-    await seed_recorded_motifs(db_session, player)
+    saved = await seed_recorded_motifs(db_session, player)
+    assert all(len(saved[code]) == 3 for code in CODES & TRUSTED_CODES), saved
     response = client.get(
         f"/v1/players/{player}/patterns", headers={"Authorization": f"Bearer {token}"}
     )

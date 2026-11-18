@@ -69,6 +69,25 @@ def _evidence(
     )
 
 
+def _detector(code: str) -> PatternDetector:
+    registry = PluginRegistry()
+    register_seeded_detectors(registry)
+    detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
+    assert isinstance(detector, PatternDetector)
+    return detector
+
+
+def _opportunity(played: str, before_cp: int = 0, after_cp: int = -200) -> LearningOpportunity:
+    return LearningOpportunity(
+        opportunity_id="synthetic",
+        position_id="synthetic",
+        player_id="synthetic",
+        played_move=played,
+        engine_eval_before=before_cp / 100.0,
+        engine_eval_after=after_cp / 100.0,
+    )
+
+
 @pytest.mark.parametrize("case", CASES, ids=lambda case: str(case["code"]))
 @pytest.mark.parametrize("mirror", [False, True])
 @pytest.mark.asyncio
@@ -154,6 +173,7 @@ def test_per_code_capability_is_exact_and_not_global_trust(code: str) -> None:
         [],
         "m94",
         {code: "wrong"},
+        {code: CAPABILITIES[code].removesuffix("-v2") + "-v1"},
         {key: value for key, value in CAPABILITIES.items() if key != code},
     ):
         assert not supports_saved_diagnosis(code, {"diagnosis_capabilities": markers})
@@ -222,3 +242,162 @@ def test_back_rank_requires_exact_scored_mate_distance(mate: object) -> None:
     board, line, _ = _position(CASES[2])
     assert not motif_payloads(board, line, mate)
     assert not reference_labels(board, board, [{"pv": line, "score_mate": mate}])
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda case: str(case["code"]))
+@pytest.mark.parametrize(
+    "before_cp,after_cp,expected",
+    [
+        (435, 235, True),
+        (435, 236, False),
+        (0, -200, True),
+        (0, -199, False),
+        (-235, -435, True),
+        (-235, -434, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_detector_preserves_integer_cp_boundary(
+    case: dict[str, Any], before_cp: int, after_cp: int, expected: bool
+) -> None:
+    board, line, played = _position(case)
+    # Keep the source proof valid so the detector's own threshold is exercised.
+    evidence = _evidence(board, line, played, case["mate"])
+    candidates = await _detector(case["code"]).detect(
+        _opportunity(played, before_cp, after_cp),
+        evidence,
+        PlayerContext(player_id="synthetic"),
+    )
+    assert [candidate.skill_id for candidate in candidates] == ([case["code"]] if expected else [])
+
+
+@pytest.mark.parametrize(
+    "case_index,changes",
+    [
+        pytest.param(2, {"mate_in": True}, id="boolean-mate-distance"),
+        pytest.param(3, {"material_gain": False}, id="boolean-zero-material-gain"),
+        pytest.param(2, {"source_score_mate": True}, id="boolean-source-mate"),
+        pytest.param(2, {"best_move": "g1h2"}, id="best-move-not-pv-root"),
+        pytest.param(2, {"played_move": "Re8#"}, id="saved-played-pv-root"),
+        pytest.param(2, {"played_move": "--"}, id="saved-null-move"),
+        pytest.param(2, {"played_move": "Kh3"}, id="saved-illegal-move"),
+        pytest.param(2, {"played_move": True}, id="saved-non-string-move"),
+        pytest.param(2, {"fast_line": ["e1e8", "0000"]}, id="null-pv-move"),
+        pytest.param(
+            2,
+            {"diagnosis_capabilities": {"tactics.back_rank": "m94-back-rank-v1"}},
+            id="archived-capability",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_saved_motif_proof_rejected_by_detector_and_renderer(
+    case_index: int, changes: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = CASES[case_index]
+    board, line, played = _position(case)
+    code = case["code"]
+    evidence = _evidence(board, line, played, case["mate"])
+    matched = next(
+        item
+        for item in evidence
+        if item.payload.get("tactic_type") == code.removeprefix("tactics.")
+    )
+    matched.payload.update(changes)
+    assert not await _detector(code).detect(
+        _opportunity(played), evidence, PlayerContext(player_id="synthetic")
+    )
+    monkeypatch.setattr(provider, "TRUSTED_CODES", TRUSTED_CODES | {code})
+    diagnosis = Diagnosis(primary=code, confidence=1, evidence_refs=[matched.evidence_id])
+    with pytest.raises(provider.ExplanationTemplateError, match="does not prove"):
+        await provider.TemplateExplanationProvider().explain(diagnosis, evidence)
+
+
+@pytest.mark.parametrize(
+    "saved_played,opportunity_played,expected",
+    [
+        ("Kh2", "g1h2", True),
+        ("g1h2", "Kh2", True),
+        ("Kh2", "Kf1", False),
+        ("Kh2", "Re8#", False),
+        ("Kh2", "--", False),
+        ("Kh2", "Kh3", False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_opportunity_and_saved_played_moves_match_by_move_not_notation(
+    saved_played: str,
+    opportunity_played: str,
+    expected: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = CASES[2]
+    board, line, played = _position(case)
+    code = case["code"]
+    evidence = _evidence(board, line, played, case["mate"])
+    matched = next(item for item in evidence if item.payload.get("tactic_type") == "back_rank")
+    matched.payload["played_move"] = saved_played
+    candidates = await _detector(code).detect(
+        _opportunity(opportunity_played), evidence, PlayerContext(player_id="synthetic")
+    )
+    assert [candidate.skill_id for candidate in candidates] == ([code] if expected else [])
+    # A different opportunity cannot invalidate this otherwise valid saved proof.
+    monkeypatch.setattr(provider, "TRUSTED_CODES", TRUSTED_CODES | {code})
+    diagnosis = Diagnosis(primary=code, confidence=1, evidence_refs=[matched.evidence_id])
+    text = (await provider.TemplateExplanationProvider().explain(diagnosis, evidence)).text
+    assert "e1e8 starts a back-rank mate in 1" in text
+    assert f"Instead of {saved_played}" in text
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda case: str(case["code"]))
+def test_composer_rejects_null_played_move(case: dict[str, Any]) -> None:
+    board, line, _ = _position(case)
+    evidence = _evidence(board, line, "--", case["mate"])
+    assert not any(
+        item.payload.get("tactic_type") == case["code"].removeprefix("tactics.")
+        for item in evidence
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_source_board_cannot_compose_detect_or_render_skewer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    board = chess.Board("4q2r/8/8/8/8/8/8/R2K4 w - - 0 1")
+    line = ["a1a8", "e8e7", "a8h8"]
+    played = "Kc2"
+    assert not board.is_valid()
+    assert not motif_payloads(board, line, None)
+    assert not any(
+        item.payload.get("tactic_type") == "skewer" for item in _evidence(board, line, played, None)
+    )
+    # This formerly accepted proof names a queen-front skewer on a kingless board.
+    saved = Evidence(
+        evidence_id="invalid-source",
+        kind="missed_tactic",
+        position_id="synthetic",
+        engine_analysis_id="synthetic",
+        claim="a skewer needs a legal source position",
+        payload={
+            "diagnosis_capabilities": dict(CAPABILITIES),
+            "before_fen": board.fen(),
+            "fast_line": line,
+            "best_move": line[0],
+            "played_move": played,
+            "source_score_mate": None,
+            "tactic_type": "skewer",
+            "front_square": "e8",
+            "front_piece": "q",
+            "target_square": "h8",
+            "target_piece": "r",
+            "slider_square": "a8",
+            "material_gain": 5,
+        },
+    )
+    assert not await _detector("tactics.skewer").detect(
+        _opportunity(played), [saved], PlayerContext(player_id="synthetic")
+    )
+    monkeypatch.setattr(provider, "TRUSTED_CODES", TRUSTED_CODES | {"tactics.skewer"})
+    diagnosis = Diagnosis(primary="tactics.skewer", confidence=1, evidence_refs=[saved.evidence_id])
+    with pytest.raises(provider.ExplanationTemplateError, match="does not prove"):
+        await provider.TemplateExplanationProvider().explain(diagnosis, [saved])

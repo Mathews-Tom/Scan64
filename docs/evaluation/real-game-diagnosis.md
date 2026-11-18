@@ -755,3 +755,15 @@ Before FEN: `1Q3bnr/5ppp/p3pk2/8/2P5/2N1BN2/PP2PPPP/2KR1B1R b - - 0 16`.
   to two, but Black was already forced-mated in six before moving. The fast
   source again fails to resolve a mate while the reference does; shortening an
   already forced mate is outside the registered allowed-mate definition.
+
+## M94 v2 correction and separately authorized fresh80
+
+Status: **preregistration/source correction; v2 is not yet measured**. No v2 precision, support, verdict, or promotion is asserted here.
+
+The owner authorized one new disjoint holdout, qualifying ordinals **361–440**, under [the v2 protocol](m94-motif-v2-protocol.md). The precision >=0.80 and support (TP+FP) >=10 gates are unchanged, independently per code. No pooling, extension, restart, threshold tuning, or current-code rescoring of v1 is allowed.
+
+All historical rows above remain the outputs of their frozen implementations. In particular, reproduce M94 v1 only at immutable data commit `fa6dc9c15b643df702e4dcc472cd9ceff66619a3` with preregistration `4871a5aa99166e72489e606e3e2f5a9c2c151cd4`. Its three `m94_fresh80_*` artifacts, original protocol and original source manifest are unchanged.
+
+V2 independently corrects discovery geometry for en passant, exact-centipawn eligibility and saved-proof validation, binds preflight to an explicitly supplied immutable preregistration SHA, and makes replay consume the same bytes it hashes. The archive is hashed and decompressed from the same open descriptor. Relative corpus paths receive the same checks as absolute paths; archived v1 calls are rejected rather than reported as zeros or silently rescored. Historical sections omit new-code rows that were never measured on those corpora.
+
+New artifacts are exclusively named `m94_v2_fresh80_real_games.pgn`, `m94_v2_fresh80_recorded.json` and `m94_v2_fresh80_manifest.json`; the parent finalizes `source_revisions_v2.json` before recording and independently pins actual outputs before first replay. Until actual data exists, `M94_MEASUREMENT` is unset and v2 replay fails closed. Complete digest-bound outputs permit only search-free manifest finalization as specified in the v2 protocol; incomplete measurement is STOP, never permission to search again.
