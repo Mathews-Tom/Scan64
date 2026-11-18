@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -72,6 +73,7 @@ def test_real_adapter_scores_are_normalized_to_white(
     monkeypatch: pytest.MonkeyPatch,
     turn: chess.Color,
     score: chess.engine.Score,
+    tmp_path: Path,
 ) -> None:
     headers = register(db_session, "analysis-owner")
     board = chess.Board()
@@ -82,8 +84,12 @@ def test_real_adapter_scores_are_normalized_to_white(
         {"score": chess.engine.PovScore(score, turn), "pv": [chess.Move.from_uci(m) for m in pv]}
     ]
     engine.id = {"name": "deterministic"}
-    adapter = PooledStockfishAdapter(StockfishConfig())
-    monkeypatch.setattr(adapter, "_engine", engine)
+    engine.config = {}
+    engine.options = {}
+    binary = tmp_path / "stockfish"
+    binary.write_bytes(b"deterministic UCI test double")
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    adapter = PooledStockfishAdapter(StockfishConfig(binary_path=str(binary)))
     analyze = AsyncMock(side_effect=adapter.analyze_position)
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
     response = client.post(
@@ -202,11 +208,19 @@ def test_unusable_nonterminal_output_is_unavailable(
 
 
 def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
-    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     headers = register(db_session, "analysis-owner")
     engine = AsyncMock()
     engine.id = {"name": "deterministic"}
+    engine.config = {}
+    engine.options = {}
+    binary = tmp_path / "stockfish"
+    binary.write_bytes(b"deterministic UCI test double")
+    monkeypatch.setattr(app.state.engine_pool_manager.config, "binary_path", str(binary))
     score = chess.engine.PovScore(chess.engine.Cp(25), chess.WHITE)
     engine.analyse.side_effect = [
         [{"score": score, "pv": [chess.Move.from_uci("e2e4"), chess.Move.from_uci("e2e3")]}],

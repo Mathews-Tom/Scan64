@@ -9,18 +9,21 @@ import chess.pgn
 import pytest
 from chess_lesson_spec import Explanation, LessonSpec
 from sqlalchemy import event
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from scan64.chess.analysis import jobs
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.verification.verifier import LessonVerificationError
+from scan64.providers.stockfish.adapter import StockfishAdapter
+from tests.integration.test_analysis_reuse import IdentifiedAdapter
 
 
 def _install_candidates(
@@ -358,3 +361,72 @@ async def test_hidden_legacy_lessons_reserve_neither_slots_nor_sources(
     assert len(rows) == 10
     assert all(db_session.get(PersistedLessonOpportunity, row.id) is not None for row in legacy)
     assert all(visible_game_lesson(row, db_session) is None for row in legacy)
+
+
+@pytest.mark.asyncio
+async def test_discarded_widened_searches_survive_restart_without_moving_source_rows(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game, candidates, sources = _install_candidates(db_session, monkeypatch)
+    calls: list[tuple[str, int]] = []
+    identity = IdentifiedAdapter().identity
+
+    async def identify(_self: object) -> dict[str, Any]:
+        return identity
+
+    async def source_analysis(
+        _self: object,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis:
+        calls.append((fen, multipv))
+        assert not db_session.new and not db_session.dirty
+        # Every line is sound, including the played move: widen all the way
+        # to eight, then discard the candidate rather than create a lesson.
+        played = game.moves[candidates[sources.index(fen)].move_index]
+        moves = [played] + [
+            move.uci() for move in chess.Board(fen).legal_moves if move.uci() != played
+        ]
+        return EngineAnalysis(
+            position_id=None,
+            config=dict(identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv),
+            raw_result=[{"pv": [move], "score_cp": 0} for move in moves[:multipv]],
+        )
+
+    monkeypatch.setattr(StockfishAdapter, "analysis_identity", identify)
+    monkeypatch.setattr(StockfishAdapter, "analyze_position", source_analysis)
+    await jobs.run_analysis_for_game(game, db_session)
+    assert calls == [(fen, multipv) for fen in sources for multipv in (2, 4, 8)]
+    assert db_session.exec(select(PersistedLessonOpportunity)).all() == []
+    originals = {row.id: row.model_dump() for row in db_session.exec(select(EngineAnalysis)).all()}
+    source_ids = {
+        row.id
+        for row in db_session.exec(select(EngineAnalysis)).all()
+        if row.config.get("engine_version") == identity["engine_version"]
+    }
+    assert len(source_ids) == len(calls)
+    calls.clear()
+    with Session(db_session.get_bind()) as restarted:
+        duplicate, _, _ = _install_candidates(restarted, monkeypatch)
+        await jobs.run_analysis_for_game(duplicate, restarted)
+        assert calls == []
+        assert restarted.exec(select(PersistedLessonOpportunity)).all() == []
+        for row_id, snapshot in originals.items():
+            row = restarted.get(EngineAnalysis, row_id)
+            assert row is not None and row.model_dump() == snapshot
+        duplicate_position_ids = {
+            position.id
+            for position in restarted.exec(
+                select(Position).where(Position.game_id == duplicate.id)
+            ).all()
+        }
+        reused = restarted.exec(
+            select(EngineAnalysis).where(
+                col(EngineAnalysis.position_id).in_(duplicate_position_ids)
+            )
+        ).all()
+        assert len([row for row in reused if row.config.get("options")]) == len(source_ids)
+        assert source_ids.isdisjoint(row.id for row in reused)

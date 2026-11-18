@@ -25,6 +25,7 @@ from scan64.chess.analysis.orchestration import (
     FocusedPassConfig,
     FocusedPassOrchestrator,
 )
+from scan64.chess.analysis.reuse import BatchAnalysisAdapter
 from scan64.chess.analysis.review import (
     REVIEW_NODES,
     stage_game_review,
@@ -117,10 +118,12 @@ async def run_analysis_for_game(
     profile = session.get(PlayerProfile, game.owner_player_id)
     rating = profile.rating if profile is not None else 1500
 
-    adapter = (
+    adapter = BatchAnalysisAdapter(
         pool_manager.batch_adapter
         if pool_manager is not None
-        else StockfishAdapter(StockfishConfig())
+        else StockfishAdapter(StockfishConfig()),
+        game,
+        session,
     )
     orchestrator = FastPassOrchestrator(
         adapter,
@@ -330,6 +333,11 @@ async def run_analysis_for_game(
         prepared.append((item, source_analysis, lesson))
         chosen_skills[item.diagnosis.skill_id] += 1
 
+    # Include every completed call, even searches discarded by diagnosis,
+    # source widening/verification, sound-move filtering or an existing lesson.
+    for fen, analysis in adapter.completed:
+        stage_position_analysis(game, fen, analysis, positions_by_fen, analyses)
+
     # Only now begin the atomic write phase (_JobSession defers this commit
     # together with the job's completed marker during normal/recovered runs).
     # Match play's session-before-game lock order. A takeback or move during
@@ -431,10 +439,12 @@ async def backfill_game_review(
         )
         if existing_plies == set(range(1, len(game.moves) + 1)):
             return
-        adapter = (
+        adapter = BatchAnalysisAdapter(
             pool_manager.batch_adapter
             if pool_manager is not None
-            else StockfishAdapter(StockfishConfig())
+            else StockfishAdapter(StockfishConfig()),
+            game,
+            session,
         )
         fast_pass = await FastPassOrchestrator(
             adapter,
@@ -451,6 +461,8 @@ async def backfill_game_review(
         }
         analyses: dict[UUID, EngineAnalysis] = {}
         rows = stage_game_review(game, fast_pass.evaluations, positions, analyses, existing_plies)
+        for fen, analysis in adapter.completed:
+            stage_position_analysis(game, fen, analysis, positions, analyses)
         session.add_all(positions.values())
         session.add_all(analyses.values())
         session.add_all(rows)

@@ -104,6 +104,23 @@ Stockfish work uses separate interactive and batch pools by default. Interactive
 
 Fast and focused analysis passes keep at most the batch pool's engine count of searches in flight, preserve position order, and cancel and await outstanding searches before returning a failure. Without a pool, analysis remains serial and starts only one engine at a time.
 
+Batch game analysis and explicit review backfill reuse ordinary saved analyses
+only from positions linked to the same owner's games. Read-only projections are
+loaded in bounded FEN batches with autoflush disabled before searching. Keys
+include the full FEN (including clocks), executable SHA-256, external network
+content when present, all effective UCI defaults/overrides, exact nodes/depth/time
+limits and MultiPV. Each engine process identifies its executable once; legacy
+unknown or incomplete identities miss. The reported engine name stays unchanged.
+
+Hits create fresh detached analysis IDs and independent result/config payloads;
+source analyses, game links, review occurrences and lesson provenance never move.
+Every completed batch call, including intermediate MultiPV 2/4/8 verification
+and rejected/sound lesson candidates, is staged on its source position and saved
+only in the existing atomic final write phase. Failed or cancelled work does not
+publish partial cache rows. There is no cache table, migration, background writer
+or hint/opponent cache change; export, import and deletion use the existing
+analysis lifecycle.
+
 Runtime controls:
 
 | Variable | Default | Effect |
