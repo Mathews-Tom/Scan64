@@ -701,3 +701,32 @@ export interface WeeklyReport {
   active_mastery: Array<{ concept_code: string; name: string; mastery: number }>;
   top_recurring_diagnosis: DiagnosisPatternRead | null;
 }
+
+export interface RecurrencePeriod {
+  candidate_games: number;
+  games: number;
+  owner_moves: number;
+  occurrences: number | null;
+  per_100_moves: number | null;
+  wilson_95_per_100: [number, number] | null;
+  excluded: Record<string, number>;
+}
+
+export interface PatternRecurrence {
+  code: string;
+  name: string;
+  first_training_at: string | null;
+  status: 'comparison' | 'not_enough_games';
+  reason: string;
+  before: RecurrencePeriod;
+  after: RecurrencePeriod;
+}
+
+export interface PatternRecurrenceReport {
+  player_id: string;
+  minimum_games_per_period: number;
+  minimum_owner_moves_per_game: number;
+  coverage: Record<string, number>;
+  patterns: PatternRecurrence[];
+  caveat: string;
+}

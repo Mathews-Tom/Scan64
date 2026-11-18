@@ -4,6 +4,7 @@ import { OnboardingCard } from './OnboardingCard';
 import { StrengthSummary } from './StrengthSummary';
 import { HabitPanel } from './HabitPanel';
 import { Panel } from './Primitives';
+import { PatternRecurrencePanel } from './PatternRecurrencePanel';
 import type {
   EvidenceReport,
   PatternsReport,
@@ -139,6 +140,7 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
       </Panel>
       </div>
 
+      <PatternRecurrencePanel key={playerId} playerId={playerId} />
       <HabitPanel playerId={playerId} patterns={patterns} onNavigate={onNavigate} />
     </div>
   );

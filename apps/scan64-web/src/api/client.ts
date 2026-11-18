@@ -26,6 +26,7 @@ import type {
   OnboardingAction,
   StrengthRead,
   PlayerGamesPage,
+  PatternRecurrenceReport,
   PatternsReport,
   PlayerProfileRead,
   PlayerProgressReport,
@@ -662,6 +663,10 @@ export class ApiClient {
 
   static async getPlayerProgress(playerId: string): Promise<PlayerProgressReport> {
     return this.getPlayerResource<PlayerProgressReport>(playerId, 'progress');
+  }
+
+  static getPatternRecurrence(playerId: string): Promise<PatternRecurrenceReport> {
+    return this.getPlayerResource<PatternRecurrenceReport>(playerId, 'progress/pattern-recurrence');
   }
 
   static async getPlayerInsights(playerId: string): Promise<ProfileInsightsRead> {
