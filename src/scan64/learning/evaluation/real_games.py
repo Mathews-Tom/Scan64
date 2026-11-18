@@ -49,7 +49,14 @@ M93_PGN_SHA256 = "653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e400406
 M94_V1_CORPUS = CORPUS.with_name("m94_fresh80_recorded.json")
 M94_CORPUS = CORPUS.with_name("m94_v2_fresh80_recorded.json")
 # Only the actual measured-data phase may populate these independent byte pins.
-M94_MEASUREMENT: MeasurementIdentity | None = None
+M94_MEASUREMENT: MeasurementIdentity | None = MeasurementIdentity(
+    preregistration_commit="e42ddc06d1f12d105abc58114384ec48d1d595e5",
+    recording_sha256="a21143ad6af838b253cc26f3dd885952d60eba909a9e24436bdbde546d4834f2",
+    pgn_sha256="a8c82c5b12f9d1615be8c3c6ba045b10fc5fbfaa37752404c627775b73b01353",
+    manifest_sha256="dbe4ad371d872e7671bf23e7ffda54a2aee9d632900cb540172c135d71d43eb1",
+    protocol_sha256="2a3cb2ff7c860781500978c143a59b259a371dcfcd98d21e696ac96ba67c952f",
+    source_revisions_sha256="11a0e617fa5b667a9868514c287abc410a6059ebee8c375b7203f62583d4aee3",
+)
 ORIGINAL_GATED_CODES = frozenset(
     {
         "board_awareness.hanging_piece",

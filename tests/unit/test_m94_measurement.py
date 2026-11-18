@@ -28,6 +28,14 @@ async def test_single_measured_holdout_replays_without_engine_or_history(
     monkeypatch.setattr(m94_protocol.subprocess, "check_output", forbidden_git)
     assert real_games.M94_MEASUREMENT is not None
     scores = await real_games.measure(real_games.M94_CORPUS)
+    assert {
+        code: (scores[code].tp, scores[code].fp, scores[code].fn, scores[code].support)
+        for code in m94_protocol.CODES
+    } == {
+        "tactics.skewer": (1, 0, 1, 1),
+        "tactics.discovered_attack": (0, 0, 0, 0),
+        "tactics.back_rank": (0, 0, 0, 0),
+    }
     passing = {code for code in m94_protocol.CODES if scores[code].trusted}
     assert TRUSTED_CODES & m94_protocol.CODES == passing
     assert HISTORICALLY_TRUSTED_CODES & m94_protocol.CODES == passing

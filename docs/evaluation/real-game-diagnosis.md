@@ -758,7 +758,7 @@ Before FEN: `1Q3bnr/5ppp/p3pk2/8/2P5/2N1BN2/PP2PPPP/2KR1B1R b - - 0 16`.
 
 ## M94 v2 correction and separately authorized fresh80
 
-Status: **preregistration/source correction; v2 is not yet measured**. No v2 precision, support, verdict, or promotion is asserted here.
+Status: **measured once; all three v2 motifs remain below the unchanged support gate and hidden**. No code was promoted.
 
 The owner authorized one new disjoint holdout, qualifying ordinals **361–440**, under [the v2 protocol](m94-motif-v2-protocol.md). The precision >=0.80 and support (TP+FP) >=10 gates are unchanged, independently per code. No pooling, extension, restart, threshold tuning, or current-code rescoring of v1 is allowed.
 
@@ -766,4 +766,30 @@ All historical rows above remain the outputs of their frozen implementations. In
 
 V2 independently corrects discovery geometry for en passant, exact-centipawn eligibility and saved-proof validation, binds preflight to an explicitly supplied immutable preregistration SHA, and makes replay consume the same bytes it hashes. The archive is hashed and decompressed from the same open descriptor. Relative corpus paths receive the same checks as absolute paths; archived v1 calls are rejected rather than reported as zeros or silently rescored. Historical sections omit new-code rows that were never measured on those corpora.
 
-New artifacts are exclusively named `m94_v2_fresh80_real_games.pgn`, `m94_v2_fresh80_recorded.json` and `m94_v2_fresh80_manifest.json`; the parent finalizes `source_revisions_v2.json` before recording and independently pins actual outputs before first replay. Until actual data exists, `M94_MEASUREMENT` is unset and v2 replay fails closed. Complete digest-bound outputs permit only search-free manifest finalization as specified in the v2 protocol; incomplete measurement is STOP, never permission to search again.
+The preregistration froze `source_revisions_v2.json` before recording. Exactly one 80-game run produced `m94_v2_fresh80_real_games.pgn`, `m94_v2_fresh80_recorded.json` and `m94_v2_fresh80_manifest.json`; their actual identities were independently pinned in `M94_MEASUREMENT` before the first offline replay. The run completed without a finalization retry, replacement, restart or extension. Complete digest-bound outputs permit only search-free manifest finalization as specified in the v2 protocol; incomplete measurement is STOP, never permission to search again.
+
+### M94 v2 measured result
+
+The authorized 80-game holdout contains qualifying ordinals 361–440. Its first offline replay prohibited engine launches and Git-history access and produced:
+
+| Code | TP | FP | FN | Support (TP+FP) | Precision | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `tactics.skewer` | 1 | 0 | 1 | 1 | 1.000 | Below support 10; hidden |
+| `tactics.discovered_attack` | 0 | 0 | 0 | 0 | Not estimable | No emissions; hidden |
+| `tactics.back_rank` | 0 | 0 | 0 | 0 | Not estimable | No emissions; hidden |
+
+Zero emitted diagnoses do not establish precision; the evaluator's numeric zero convention does not change that limitation. The unchanged gate requires both precision >=0.80 and support >=10 per code. No M94 v2 code enters current trust, historical trust, recurring Patterns, training lessons or puzzle weak-skill weighting. Existing M93 fork trust and theme mapping remain unchanged. These are engine-derived operational-reference results, not independent human-coach validation or evidence of learning improvement. V1 and v2 remain separate; neither is pooled, and the second below-gate result does not authorize another sample or rule tuning.
+
+| Identity | Value |
+| --- | --- |
+| Immutable v2 preregistration | `e42ddc06d1f12d105abc58114384ec48d1d595e5` |
+| Recorded JSON SHA256 (1,160,318 bytes) | `a21143ad6af838b253cc26f3dd885952d60eba909a9e24436bdbde546d4834f2` |
+| Selected PGN SHA256 (62,345 bytes) | `a8c82c5b12f9d1615be8c3c6ba045b10fc5fbfaa37752404c627775b73b01353` |
+| Manifest SHA256 (423 bytes) | `dbe4ad371d872e7671bf23e7ffda54a2aee9d632900cb540172c135d71d43eb1` |
+| Protocol SHA256 | `2a3cb2ff7c860781500978c143a59b259a371dcfcd98d21e696ac96ba67c952f` |
+| Frozen source manifest SHA256 | `11a0e617fa5b667a9868514c287abc410a6059ebee8c375b7203f62583d4aee3` |
+
+### M94 v2 observed validation
+
+Ruff and formatting checks passed for all 16 touched Python files; strict mypy passed for the nine production files. All 371 scoped tests passed, including the real measured replay with engine and Git calls forbidden, all six missing/changed-artifact cases, all three recorded-v2 product-visibility cases, the eligible three-game synthetic trust controls, puzzle mapping/trust combinations, archive restoration and the M79/M93 regressions. No actual-data test was skipped or deselected. The complete `real_games --check` gate and historical Lichess `--version v2 --check` and `--version v3 --check` passed offline. The same primary reviewer cleared the corrected source before preregistration and the actual-data delta afterward; no important or critical findings remained.
+
