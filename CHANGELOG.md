@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-18
+
+### Added
+
+- Import public standard-chess games from Lichess or Chess.com by username, preserving available clocks and skipping duplicates. Imported games enter your owned game library and analysis queue.
+- Review → Analysis Board shows up to three legal Stockfish lines with contextual move notation and White-perspective evaluations. Select a line's move to play its prefix, retain alternative branches, and download a PGN containing those variations, including custom starting positions.
+- Premoves during play, right-drag arrows and right-click circles, a **Flip board** control that reverses pieces and coordinates, plus synthesized move, capture, check and game-end sounds.
+
+### Changed
+
+- Fast and focused game analysis use bounded parallel Stockfish searches while preserving interactive play capacity.
+- SQLite uses write-ahead logging, bounded lock waits and indexed puzzle-theme queries. Puzzle CSV imports, desktop library staging and archive restores update the theme index in the same transaction as the puzzles.
+
 ## [0.8.0] - 2026-11-16
 
 ### Added
