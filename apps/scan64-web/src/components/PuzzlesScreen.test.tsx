@@ -641,13 +641,18 @@ describe('interactive puzzle review', () => {
     const response = deferred<PuzzleMoveExplanationRead>();
     vi.mocked(ApiClient.explainPuzzleMove).mockReturnValue(response.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Explain this move' }));
-    vi.mocked(ApiClient.startPuzzleRun).mockResolvedValue({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily, streak });
+    const next = deferred<PuzzleStartRead>();
+    vi.mocked(ApiClient.startPuzzleRun).mockReturnValue(next.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Next puzzle' }));
-    await waitFor(() => expectBoard(SETUP));
-    await act(async () => response.resolve({
-      run: ended, move: 'a7a6', fen_before: SETUP, fen_after: afterMove(SETUP, 'a7a6'),
-      verdict: 'alternative', summary: 'Old explanation.', reply_line: ['g1f3'], visualizations: [],
-    }));
+    await act(async () => {
+      // Settle both requests before React unmounts the previous round.
+      next.resolve({ status: 'ready', run: run({ run_id: 'run-2' }), message: '', daily, streak });
+      await next.promise;
+      response.resolve({
+        run: ended, move: 'a7a6', fen_before: SETUP, fen_after: afterMove(SETUP, 'a7a6'),
+        verdict: 'alternative', summary: 'Old explanation.', reply_line: ['g1f3'], visualizations: [],
+      });
+    });
     expect(screen.queryByText('Old explanation.')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Move feedback' })).not.toBeInTheDocument();
     expectBoard(SETUP);

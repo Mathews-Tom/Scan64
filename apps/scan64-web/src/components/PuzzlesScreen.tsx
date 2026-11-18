@@ -274,7 +274,8 @@ export function PuzzlesScreen() {
       {patternUnavailable ? <p role="status">Related practice is unavailable. <a href="/puzzles">Daily puzzles — may be unrelated</a>. Today’s set may contain no related puzzle.</p> : null}
     </Panel>
     {showRun ? <PuzzleRound key={run.run_id} run={run} pending={pending} needsRefresh={needsRefresh}
-      onMove={move => mutate('move', move)} onRunChange={setRun}>
+      onMove={move => mutate('move', move)}
+      onRunChange={updated => setRun(current => current?.run_id === run.run_id ? updated : current)}>
         <h2 ref={puzzleHeading} tabIndex={-1}>Source puzzle</h2>
         <p>Mode: {run.mode}{run.theme ? ` · ${run.theme}` : ''}</p>
         <p>{run.rated ? 'Rated first exposure' : run.mode !== 'daily' ? 'Unrated mode practice' : 'Unrated review, repeat or earlier run'}</p>

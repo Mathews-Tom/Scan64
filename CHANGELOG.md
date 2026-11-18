@@ -19,6 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Fast and focused game analysis use bounded parallel Stockfish searches while preserving interactive play capacity.
 - SQLite uses write-ahead logging, bounded lock waits and indexed puzzle-theme queries. Puzzle CSV imports, desktop library staging and archive restores update the theme index in the same transaction as the puzzles.
 
+### Fixed
+
+- Keep the next puzzle active when an explanation for the previous puzzle finishes at the same time, rather than restoring the previous round.
+
 ## [0.8.0] - 2026-11-16
 
 ### Added
