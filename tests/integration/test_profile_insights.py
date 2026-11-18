@@ -195,6 +195,21 @@ def test_phase_uses_source_position(fen: str, phase: str, db_session: Session) -
     assert figures[phase].accuracy == 100
 
 
+def test_custom_start_is_not_classified_as_a_standard_opening(db_session: Session) -> None:
+    seed_game(
+        db_session,
+        "owner",
+        '[SetUp "1"]\n[FEN "7k/2p5/8/8/8/8/4P3/K7 w - - 0 11"]\n\n11. e4 c6 *',
+        "white",
+        [0.2],
+    )
+    openings = read_profile_insights("owner", db_session).openings
+    assert [
+        (figure.label, figure.accuracy, figure.scored_moves, figure.eligible_moves)
+        for figure in openings
+    ] == [("Unclassified opening", 80, 1, 1)]
+
+
 def test_imported_good_moments_ignore_award_caps_and_rank_mates(db_session: Session) -> None:
     recording = json.loads(
         (Path(__file__).parents[1] / "fixtures/m61_credit_cap_game.json").read_text()

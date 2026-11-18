@@ -113,7 +113,11 @@ def read_profile_insights(player_id: str, session: Session) -> ProfileInsightsRe
     }
     for game in games:
         board = board_from(game.headers.get("FEN"))
-        family_id = classify_opening_family(game.moves, families)
+        family_id = (
+            classify_opening_family(game.moves, families)
+            if board.fen() == chess.STARTING_FEN
+            else None
+        )
         opening = family_names[family_id] if family_id else "Unclassified opening"
         opening_key = f"opening:{opening}"
         opening_labels.add(opening_key)

@@ -66,6 +66,22 @@ describe('ProfileScreen recurring diagnoses', () => {
     expect(screen.getByText(/real-time TimeControl/)).toHaveTextContent('clock coverage: 4 / 7');
   });
 
+  it('preserves existing reports and retries when game insights fail', async () => {
+    vi.mocked(ApiClient.getPlayerInsights).mockRejectedValueOnce(new Error('Insights request failed'));
+    renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 3,
+      status: 'no_recurring_diagnosis', recurring_diagnoses: [],
+    });
+    const retry = await screen.findByRole('button', { name: 'Retry game insights' });
+    expect(screen.getByText('Game insights unavailable: Insights request failed')).toBeInTheDocument();
+    expect(await screen.findByText('Declared level: Developing.')).toBeInTheDocument();
+    expect(screen.getByText('Hanging piece: 0.25 (Uncertainty: 0.50)')).toBeInTheDocument();
+    expect(screen.getByText('No trusted diagnosis recurs across 3 distinct games.')).toBeInTheDocument();
+    fireEvent.click(retry);
+    expect(await screen.findByText(/Overall: 86.0%/)).toHaveTextContent('5 / 8 scored / eligible owner moves');
+    expect(screen.queryByRole('button', { name: 'Retry game insights' })).not.toBeInTheDocument();
+  });
+
   it('refreshes the separate strength report after changing the declaration', async () => {
     renderProfile({
       player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0, status: 'insufficient_data', recurring_diagnoses: [],

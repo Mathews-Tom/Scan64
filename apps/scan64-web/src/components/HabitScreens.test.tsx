@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PatternsReport } from '../api/types';
 import { TodayScreen } from './TodayScreen';
 import { ProfileScreen } from './ProfileScreen';
+import { insightsFixture } from './profile.test-fixtures';
 
 vi.mock('./OnboardingCard', () => ({ OnboardingCard: () => null }));
 vi.mock('./StrengthSummary', () => ({ StrengthSummary: () => null }));
@@ -32,6 +33,7 @@ vi.mock('../api/client', () => {
       getPuzzleDaily: vi.fn().mockResolvedValue({ rating: 1200, provisional: true, rated_count: 0, completed: 0, total: 0, remaining: 0, overdue_count: 0, message: 'No supply' }),
       getPlayerProgress: vi.fn().mockResolvedValue({ player_id: 'habit-owner', skills: [] }),
       getPlayerEvidence: vi.fn().mockResolvedValue({ player_id: 'habit-owner', evidence_items: [] }),
+      getPlayerInsights: vi.fn(async () => insightsFixture),
       getPlayerStrength: vi.fn().mockResolvedValue({}),
     },
   };
