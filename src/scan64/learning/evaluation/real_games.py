@@ -47,9 +47,16 @@ M93_PREREGISTRATION = "f97a476fd901cc8843c9fed168b5827a65e64b81"
 M93_RECORDING_SHA256 = "d4eb9a8ee322dbf73e6c2ef582526be12f69150e0241ce19d9ce578b02447c61"
 M93_PGN_SHA256 = "653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622"
 M94_CORPUS = CORPUS.with_name("m94_fresh80_recorded.json")
-# No measurement has been authorized yet. The data commit pins the complete observed
-# identity here; unmeasured input must never choose its own accepted provenance.
-M94_MEASUREMENT: MeasurementIdentity | None = None
+# Externally pinned identities from the single authorized, preregistered recording.
+# Input artifacts must never choose their own accepted provenance.
+M94_MEASUREMENT: MeasurementIdentity | None = MeasurementIdentity(
+    preregistration_commit="4871a5aa99166e72489e606e3e2f5a9c2c151cd4",
+    recording_sha256="1c965e1a3280763c30bff78adaf2b9a97c5101635c0696c216e35962a7523d2a",
+    pgn_sha256="47884b306bf1e7eb9469acf28041fa612286c69c08eba6c400070dfb294465bc",
+    manifest_sha256="ce42095bfc3cbf4651d709ac258392f706015c59a2cdfcde8d6b6f84c7096778",
+    protocol_sha256="b02c2e65efccaf0781916443aa0ab6a4ef665e4da7d0eb99d65b2bf7140fc24b",
+    source_revisions_sha256="80ac7ae56d7c60ae3bdeabf385a98f69c373fc1c0511f55fdea35eaf57c7aee0",
+)
 ORIGINAL_GATED_CODES = frozenset(
     {
         "board_awareness.hanging_piece",

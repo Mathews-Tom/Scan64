@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import chess
@@ -32,13 +33,20 @@ from tests.integration.test_puzzle_runs import _auth, _start
 from tests.integration.test_reports_from_real_data import create_player_token
 
 
-async def seed_recorded_motifs(session: Session, player_id: str) -> dict[str, list[str]]:
+async def seed_recorded_motifs(
+    session: Session,
+    player_id: str,
+    *,
+    corpus: Path = M93_CORPUS,
+    codes: frozenset[str] = CODES,
+    evidence_prefix: str = "m93",
+) -> dict[str, list[str]]:
     """Persist actual recorded emissions, including hidden hypotheses, without an engine."""
     registry = PluginRegistry()
     register_seeded_detectors(registry)
-    saved: dict[str, list[str]] = {code: [] for code in CODES}
-    source_games: dict[str, set[str]] = {code: set() for code in CODES}
-    for recorded in json.loads(M93_CORPUS.read_text())["games"]:
+    saved: dict[str, list[str]] = {code: [] for code in codes}
+    source_games: dict[str, set[str]] = {code: set() for code in codes}
+    for recorded in json.loads(corpus.read_text())["games"]:
         adapter = RecordedAdapter(recorded)
         fast = await FastPassOrchestrator(adapter, FastPassConfig(nodes=10_000)).run_fast_pass(
             recorded["moves"]
@@ -72,7 +80,7 @@ async def seed_recorded_motifs(session: Session, player_id: str) -> dict[str, li
                 engine_eval_before=0,
                 engine_eval_after=-candidate.swing_cp / 100,
             )
-            for code in sorted(CODES):
+            for code in sorted(codes):
                 if len(saved[code]) == 3 or recorded["id"] in source_games[code]:
                     continue
                 detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
@@ -124,7 +132,7 @@ async def seed_recorded_motifs(session: Session, player_id: str) -> dict[str, li
                 for item in evidence:
                     if item.evidence_id in primary.evidence_ids:
                         proof = Evidence(
-                            evidence_id=f"m93-{position.id}",
+                            evidence_id=f"{evidence_prefix}-{position.id}",
                             kind=item.kind,
                             position_id=str(position.id),
                             engine_analysis_id=str(verification.id),
@@ -181,7 +189,7 @@ async def seed_recorded_motifs(session: Session, player_id: str) -> dict[str, li
                 source_games[code].add(recorded["id"])
         if all(len(ids) == 3 for ids in saved.values()):
             break
-    assert all(len(saved[code]) == 3 for code in CODES & TRUSTED_CODES), saved
+    assert all(len(saved[code]) == 3 for code in codes & TRUSTED_CODES), saved
     session.commit()
     return saved
 

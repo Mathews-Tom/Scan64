@@ -1,26 +1,74 @@
 # Real-game diagnosis measurement
 
-## M94 freeze-ready source phase (not measured)
+## M94 measured motif result
 
-The preregistered operational definitions, separate fast/deep implementations,
-fixed ordinals **281–360**, source/search settings, unchanged gate and one-shot
-recording procedure are in [the M94 protocol](m94-motif-protocol.md).
-`learning/evaluation/m94_protocol.py` and
-`tests/fixtures/m94/source_revisions.json` carry the machine-readable freeze.
-Skewer, discovered attack and back-rank mate are implemented but **unpromoted**:
-none enters current trust, historical archive trust or puzzle weighting before
-an observed fresh-corpus verdict. No fresh recording or label inspection has
-occurred in this phase. Existing M93 protocol metadata and recordings are untouched.
+Preregistration commit: `4871a5aa99166e72489e606e3e2f5a9c2c151cd4`.
+The exact operational definitions, separate fast/deep implementations, fixed
+qualifying ordinals **281–360**, source/search settings and unchanged gate are in
+[the frozen M94 protocol](m94-motif-protocol.md). Its source-revision manifest and
+protocol module remain byte-identical to preregistration.
 
-New candidate evidence carries exact per-code capability revisions without a
-global m48 change. The saved-input helper distinguishes capability from trust;
-legacy m48 evidence cannot support new motifs. Original40, M78, M79 and M93
-retain their explicit original code-set gates. Offline reporting requires an
-externally pinned M94 measurement identity plus its recording, PGN and manifest;
-unpinned/missing/altered data fails closed. Record-time Git checks prove the frozen
-sources were committed; replay is engine- and history-free, including shallow or
-source-only checkouts. Historical Lichess v2/v3 detector eligibility and result rows
-retain their literal pre-M94 eleven-code universe.
+The single authorized real Stockfish 19 recording completed all 80 games. The
+external CI pause arrived while it was running; it was preserved to completion,
+not cancelled, restarted or extended. No labels were scored during the pause.
+After explicit resume, all six expected identities were pinned before the first
+engine-free replay. No detector, oracle, selection, search setting or threshold
+changed after preregistration or inspection of the results.
+
+| Code | TP | FP | FN | Support (TP+FP) | Precision | Verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `tactics.skewer` | 2 | 0 | 0 | 2 | 1.000 | FAIL; insufficient support; hidden |
+| `tactics.discovered_attack` | 0 | 1 | 3 | 1 | 0.000 | FAIL; precision and support; hidden |
+| `tactics.back_rank` | 1 | 0 | 0 | 1 | 1.000 | FAIL; insufficient support; hidden |
+
+**No new code passes precision >=0.80 AND support >=10.** Perfect precision on one
+or two emitted examples is not sufficient evidence for promotion. All three remain
+absent from current trust, historical archive trust and puzzle-theme weighting.
+There was no resampling, tuning or gate weakening to manufacture a passing result.
+The established knight-fork policy remains unchanged.
+
+Recorded artifact SHA256:
+
+- PGN: `47884b306bf1e7eb9469acf28041fa612286c69c08eba6c400070dfb294465bc`
+- Engine recording: `1c965e1a3280763c30bff78adaf2b9a97c5101635c0696c216e35962a7523d2a`
+- Measurement manifest: `ce42095bfc3cbf4651d709ac258392f706015c59a2cdfcde8d6b6f84c7096778`
+- Frozen source-revision manifest:
+  `80ac7ae56d7c60ae3bdeabf385a98f69c373fc1c0511f55fdea35eaf57c7aee0`
+- Frozen protocol envelope:
+  `b02c2e65efccaf0781916443aa0ab6a4ef665e4da7d0eb99d65b2bf7140fc24b`
+- Frozen protocol module:
+  `93cec325cd9102b62efa32060ce85217c818652c2039cb6c4b6806c880dc1468`
+
+The native recorder published `Recorded 80/80` and all three final artifacts.
+Its preserved decompressor broken-pipe diagnostic corresponds to intentional
+fixed-prefix stream closure, as in M93; it did not trigger another recording.
+
+The first `real_games --check` replay passed the original40 three-code, M78
+allowed-mate, M79 missed-capture and M93 promoted-motif gates unchanged, plus the
+declared M94 gate. Below-gate diagnoses remain reportable, not product-visible.
+Replay pins expected identities outside input artifacts, checks the complete
+protocol/revisions envelope, game identities, PGN qualifiers and moves, and needs
+neither a live engine nor Git history. Historical Lichess v2/v3 eligibility and
+output rows retain their literal eleven-code universe.
+
+Saved-input capability remains distinct from trust: global m48 is unchanged,
+new candidate evidence carries exact per-code revisions, and legacy m48 evidence
+cannot support the three new motifs. The recurrence consumer continues to use
+only `supports_saved_diagnosis(code, payload)`.
+
+This is an **engine-derived operational reference**, not independent human-coach
+validation. Shared search assumptions, small support and finite PVs limit these
+results; no instructional-efficacy or coaching-causality claim follows.
+
+Post-measurement scoped checks passed: Ruff, formatting, strict mypy for the
+changed evaluator, 136 targeted tests, and historical Lichess v2/v3 offline checks.
+An actual loopback HTTP proof used a disposable SQLite/data directory and real
+recorded diagnosis evidence. Each new code stayed absent from Patterns and
+training, with zero lessons and exploratory puzzle selection. The established
+knight fork remained visible, produced three recorded-evidence lessons, received
+weakness-weighted puzzle selection, and retained its historical target exactly
+through export/delete/import/re-export. All exercised HTTP responses were 200.
+Synthetic tagged practice items tested puzzle routing only, not motif accuracy.
 
 ## M93 frozen motif protocol
 
