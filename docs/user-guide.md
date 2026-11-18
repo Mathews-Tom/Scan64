@@ -593,7 +593,33 @@ For an older completed analysis without move-review rows, select **Backfill revi
 
 Up to three key moments explain one trusted cause each, rather than diagnosing every scored error. **Retry this moment** restores the position before that move and uses the same lesson attempt endpoint and three-step hint ladder as Daily Training. The displayed attempts used/remaining are lifetime counts shared with training; reopening a retry does not reset them. Hinted success keeps half credit. Exhausted moments show the explanation and accepted moves, with no further retry.
 
+**Key good moments** separately highlights up to three owner moves with a pure,
+legally replayed stored tactical proof, ranked mate first, then material gain and
+ply. Imported games qualify. Selecting a highlight loads the actual position
+after that move; the existing mistake lessons and retries remain unchanged.
+Highlights are display-only: no engine search, skill award, assistance claim or
+credit-cap change is made.
+
 A confirmed move allowing mate is never relabelled as a hanging piece, missed direct material threat or missed capture. If **Allowed checkmate** has not cleared its measured trust gate, that move remains scored but the trusted diagnosis pipeline abstains. If it is trusted and selected, its explanation shows the legally replayed engine mating line and its lesson starts before the mistake. Ignoring an avoidable existing mate threat qualifies; playing on when mate was already forced does not.
+
+### Profile game insights
+
+Profile pools the same probability losses across your moves, rather than averaging
+game percentages. Overall, phase, colour and curated opening-family figures each
+show scored / eligible owner-move coverage. Unclassified openings are explicit;
+unknown owner colours are excluded. No scored moves means **Unavailable**, not 0%.
+Phase uses the position before the move: the first ten full moves are opening;
+after that combined non-pawn, non-king material ≤26 means endgame (Q=9, R=5,
+B=N=3), otherwise middlegame.
+
+Time-pressure share is owner moves with a recorded post-move clock ≤30 seconds /
+owner moves with a valid clock. Its separate clock coverage is valid-clock /
+eligible owner moves in supported real-time TimeControl games (each stage under
+24 hours; correspondence, unknown and unlimited controls are excluded).
+Stored PGN clocks count only when its initial position and complete mainline
+match the game. Clockless or mismatched data is unavailable, never fabricated
+zero pressure. Profile reads launch no engines and write no learning records.
+
 
 
 ## Transfer measurement

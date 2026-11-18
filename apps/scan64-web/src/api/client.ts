@@ -15,6 +15,7 @@ import type {
   OnlineGameImportResponse,
   GameLearningSessionRead,
   GameReviewRead,
+  ProfileInsightsRead,
   LessonAttemptCreate,
   LessonAttemptRead,
   PlayMoveCreate,
@@ -661,6 +662,10 @@ export class ApiClient {
 
   static async getPlayerProgress(playerId: string): Promise<PlayerProgressReport> {
     return this.getPlayerResource<PlayerProgressReport>(playerId, 'progress');
+  }
+
+  static async getPlayerInsights(playerId: string): Promise<ProfileInsightsRead> {
+    return this.getPlayerResource<ProfileInsightsRead>(playerId, 'insights');
   }
 
   static async getWeeklyReport(playerId: string): Promise<WeeklyReport> {

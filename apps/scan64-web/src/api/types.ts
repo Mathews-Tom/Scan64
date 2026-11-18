@@ -315,6 +315,34 @@ export interface GameReviewKeyMoment {
   attempts_remaining: number;
 }
 
+export interface ReviewGoodMoment {
+  ply: number;
+  san: string;
+  skill_id: string;
+  explanation: string;
+  line: string[];
+}
+
+export interface AccuracyFigure {
+  label: string;
+  accuracy: number | null;
+  scored_moves: number;
+  eligible_moves: number;
+}
+
+export interface ProfileInsightsRead {
+  overall: AccuracyFigure;
+  phases: AccuracyFigure[];
+  colours: AccuracyFigure[];
+  openings: AccuracyFigure[];
+  time_pressure: {
+    share: number | null;
+    pressure_moves: number;
+    valid_clock_moves: number;
+    eligible_moves: number;
+  };
+}
+
 export interface GameReviewRead {
   game_id: string;
   owner_color: 'white' | 'black' | null;
@@ -326,6 +354,7 @@ export interface GameReviewRead {
   total_owner_moves: number;
   band_counts: Record<ReviewBand, number>;
   key_moments: GameReviewKeyMoment[];
+  good_moments: ReviewGoodMoment[];
   session_id: string | null;
   backfill_required: boolean;
   nodes: 10000;

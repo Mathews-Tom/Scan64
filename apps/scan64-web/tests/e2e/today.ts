@@ -1,7 +1,9 @@
 import type { Page } from '@playwright/test';
 import { onboardingFixture, strengthFixture } from '../../src/components/strength.test-fixtures';
+import { insightsFixture } from '../../src/components/profile.test-fixtures';
 
 export async function mockTodayReports(page: Page): Promise<void> {
+  await page.route('**/v1/players/*/insights', route => route.fulfill({ json: insightsFixture }));
   await page.route('**/v1/players/*/onboarding', route => route.fulfill({ json: { ...onboardingFixture, status: 'not_offered' } }));
   await page.route('**/v1/players/*/strength', route => route.fulfill({ json: strengthFixture }));
   await page.route('**/v1/players/*/bot-choice', route => {

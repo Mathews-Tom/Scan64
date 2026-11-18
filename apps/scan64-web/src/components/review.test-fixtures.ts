@@ -37,6 +37,7 @@ export function makeGameReview(overrides: Partial<GameReviewRead> = {}): GameRev
     game_id: 'game-1', owner_color: 'white', initial_fen: initialFen, initial_white_probability: 0.5,
     moves, accuracy: 95.6667, scored_moves: 3, total_owner_moves: 4,
     band_counts: { sound: 2, inaccuracy: 1, mistake: 0, blunder: 0, unscored: 1 },
+    good_moments: [],
     key_moments: [{ ply: 3, lesson_id: reviewLesson.lesson_id,
       lesson: { ...reviewLesson, source: { ...reviewLesson.source, fen: moves[2].source_fen } },
       attempts_used: 0, attempts_remaining: 3 }],
