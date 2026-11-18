@@ -35,8 +35,15 @@ async def test_m79_selects_only_qualifying_ordinals_121_through_200(
     def verified(_source: Path) -> Any:
         yield source
 
-    def no_engine(_config: object) -> Any:
-        raise RuntimeError("stop before recording any engine output")
+    class NoSearchAdapter:
+        async def reset(self) -> None:
+            raise RuntimeError("stop before recording any engine output")
+
+        async def quit(self) -> None:
+            return None
+
+    def no_engine(_config: object) -> NoSearchAdapter:
+        return NoSearchAdapter()
 
     original = [{"id": f"game-{ordinal}"} for ordinal in range(1, 41)]
     m78 = [{"id": f"game-{ordinal}"} for ordinal in range(41, 121)]
@@ -45,7 +52,9 @@ async def test_m79_selects_only_qualifying_ordinals_121_through_200(
     if mismatch == "m78":
         m78[0]["id"] = "wrong"
     for name, prefix in (("recorded", original), ("fresh80_recorded", m78)):
-        (tmp_path / f"{name}.json").write_text(json.dumps({"games": prefix}))
+        (tmp_path / f"{name}.json").write_text(
+            json.dumps({"games": prefix, "provenance": {"engine": "Stockfish 19"}})
+        )
     monkeypatch.setattr(recorder, "DEST", tmp_path)
     monkeypatch.setattr(recorder, "verified_pgn", verified)
     monkeypatch.setattr(recorder, "PooledStockfishAdapter", no_engine)
@@ -58,8 +67,8 @@ async def test_m79_selects_only_qualifying_ordinals_121_through_200(
             await recorder.record(tmp_path / "source.zst", m79_fresh80=True)
         with (tmp_path / "m79_fresh80_real_games.pgn").open() as stream:
             selected = []
-            while game := chess.pgn.read_game(stream):
-                selected.append(game.headers["Site"])
+            while selected_game := chess.pgn.read_game(stream):
+                selected.append(selected_game.headers["Site"])
         assert selected == [f"game-{ordinal}" for ordinal in range(121, 201)]
 
 

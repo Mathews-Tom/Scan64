@@ -44,9 +44,7 @@ def test_missed_capture_gate_uses_m79_not_development_corpora(
     monkeypatch.setattr("sys.argv", ["real_games", "--check"])
 
     async def measured(path: Path = real_games.CORPUS) -> dict[str, real_games.Score]:
-        scores = {
-            code: real_games.Score(tp=10) for code in declared | {capture} | real_games.M93_CODES
-        }
+        scores = {code: real_games.Score(tp=10) for code in real_games.SEED_CODES}
         scores[capture] = (
             real_games.Score(tp=8, fp=2)
             if path == real_games.M79_CORPUS and passes

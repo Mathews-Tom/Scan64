@@ -94,6 +94,54 @@ SEED_CODES: dict[str, SkillDefinition] = {
         incompatible_diagnoses=[],
         minimum_engine_evidence="Eval change >= 2.0",
     ),
+    "tactics.skewer": SkillDefinition(
+        skill_id="tactics.skewer",
+        name="Skewer",
+        parent_id="tactics",
+        tier=SkillTier.EVENT,
+        detection_requirements=(
+            "An omitted slider move newly attacks a higher-value front piece; "
+            "its retreat exposes a rear minor-or-higher piece won by that slider."
+        ),
+        positive_examples=["New king/queen-front ray, retreat, then profitable rear capture."],
+        counterexamples=["Pre-existing ray, pin, equal-value front, or an even rear exchange."],
+        confidence_calculation="1.0 with a legal PV and positive full and target-local gain.",
+        compatible_exercise_templates=["exact_replay"],
+        incompatible_diagnoses=[],
+        minimum_engine_evidence="Eval change >= 2.0",
+    ),
+    "tactics.discovered_attack": SkillDefinition(
+        skill_id="tactics.discovered_attack",
+        name="Discovered attack",
+        parent_id="tactics",
+        tier=SkillTier.EVENT,
+        detection_requirements=(
+            "An omitted blocker move opens a stationary friendly slider's new attack; "
+            "the slider wins that target next turn or the discovered check mates within three."
+        ),
+        positive_examples=["Blocker moves, opponent replies, stationary rook wins the queen."],
+        counterexamples=["Already open ray, moving slider, pawn target, or even exchange."],
+        confidence_calculation="1.0 with target-local gain or a complete legal mating PV.",
+        compatible_exercise_templates=["exact_replay"],
+        incompatible_diagnoses=[],
+        minimum_engine_evidence="Eval change >= 2.0",
+    ),
+    "tactics.back_rank": SkillDefinition(
+        skill_id="tactics.back_rank",
+        name="Back-rank mate",
+        parent_id="tactics",
+        tier=SkillTier.EVENT,
+        detection_requirements=(
+            "An omitted rook/queen home-rank check mates within three; at mate the king "
+            "is checked along its home rank and its forward neighbors are friendly-occupied."
+        ),
+        positive_examples=["Rook mates a home-rank king boxed in by its own pawns."],
+        counterexamples=["No mate, illegal/truncated PV, open forward flight, or diagonal mate."],
+        confidence_calculation="1.0 with a scored, complete legal mate-in-at-most-three PV.",
+        compatible_exercise_templates=["exact_replay"],
+        incompatible_diagnoses=[],
+        minimum_engine_evidence="Eval change >= 2.0",
+    ),
     "calculation.stopped_too_early": SkillDefinition(
         skill_id="calculation.stopped_too_early",
         name="Stopped calculation too early",

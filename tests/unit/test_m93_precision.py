@@ -114,7 +114,7 @@ def test_promoted_motifs_have_their_own_gate_not_original40(
     motif = "tactics.fork.knight"
 
     async def measured(path: Path = CORPUS) -> dict[str, Score]:
-        result = {code: Score(tp=10) for code in real_games.ESTABLISHED_GATED_CODES | CODES}
+        result = {code: Score(tp=10) for code in real_games.SEED_CODES}
         if path == CORPUS:
             result[motif] = Score(tp=0)
             if failing_gate == "original":

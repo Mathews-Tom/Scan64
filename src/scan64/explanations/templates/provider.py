@@ -9,6 +9,7 @@ from chess_lesson_spec import Diagnosis, Explanation
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.composer import allowed_mate_line, hanging_piece_proof
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.support import validated_motif_line
 
 
 class ExplanationTemplateError(ValueError):
@@ -143,6 +144,34 @@ def _overloaded_defender_text(payload: Mapping[str, Any], code: str) -> str:
     )
 
 
+def _motif_text(payload: Mapping[str, Any], code: str) -> str:
+    line = validated_motif_line(code, payload)
+    if line is None:
+        raise ExplanationTemplateError("The source PV does not prove the named motif")
+    best = line[0]
+    board = chess.Board(payload["before_fen"])
+    played_text = board.san(board.parse_san(payload["played_move"]))
+    if code == "tactics.skewer":
+        return (
+            f"Instead of {played_text}, {best} skewers the "
+            f"{_piece_name(payload['front_piece'])} on {payload['front_square']}; "
+            f"its retreat exposes the {_piece_name(payload['target_piece'])} on "
+            f"{payload['target_square']}, won net of exchanges in the engine line."
+        )
+    if code == "tactics.discovered_attack":
+        return (
+            f"Instead of {played_text}, {best} uncovers your "
+            f"{_piece_name(payload['slider_piece'])} on {payload['slider_square']} "
+            f"against the {_piece_name(payload['target_piece'])} on "
+            f"{payload['target_square']}. The engine line proves material gain or mate."
+        )
+    return (
+        f"Instead of {played_text}, {best} starts a back-rank mate in {payload['mate_in']}. "
+        f"The king on {payload['king_square']} is boxed in by its own pieces on "
+        f"{', '.join(payload['blocker_squares'])}. Line: {' '.join(line)}."
+    )
+
+
 def _stopped_calculation_early_text(payload: Mapping[str, Any], code: str) -> str:
     played_move = _field(payload, "played_move", code)
     sequence_plies = _field(payload, "sequence_plies", code)
@@ -182,6 +211,9 @@ _TEMPLATES: dict[str, Callable[[Mapping[str, Any], str], str]] = {
     "tactics.fork.knight": _knight_fork_text,
     "tactics.pin": _pin_text,
     "tactics.overloaded_defender": _overloaded_defender_text,
+    "tactics.skewer": _motif_text,
+    "tactics.discovered_attack": _motif_text,
+    "tactics.back_rank": _motif_text,
     "calculation.stopped_too_early": _stopped_calculation_early_text,
     "opening.delayed_development": _delayed_development_text,
     "positional.king_safety_neglect": _king_safety_neglect_text,

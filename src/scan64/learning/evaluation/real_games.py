@@ -29,6 +29,9 @@ from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evaluation.deep_reference import m79_reference_labels, reference_labels
 from scan64.learning.evaluation.m93_protocol import CODES as M93_CODES
 from scan64.learning.evaluation.m93_protocol import validate_provenance
+from scan64.learning.evaluation.m94_protocol import CODES as M94_CODES
+from scan64.learning.evaluation.m94_protocol import MeasurementIdentity, validate_recording
+from scan64.learning.evaluation.m94_reference import reference_labels as m94_reference_labels
 from scan64.learning.evidence.composer import allowed_mate_line, compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -43,6 +46,17 @@ M93_CORPUS = CORPUS.with_name("m93_fresh80_recorded.json")
 M93_PREREGISTRATION = "f97a476fd901cc8843c9fed168b5827a65e64b81"
 M93_RECORDING_SHA256 = "d4eb9a8ee322dbf73e6c2ef582526be12f69150e0241ce19d9ce578b02447c61"
 M93_PGN_SHA256 = "653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622"
+M94_V1_CORPUS = CORPUS.with_name("m94_fresh80_recorded.json")
+M94_CORPUS = CORPUS.with_name("m94_v2_fresh80_recorded.json")
+# Only the actual measured-data phase may populate these independent byte pins.
+M94_MEASUREMENT: MeasurementIdentity | None = MeasurementIdentity(
+    preregistration_commit="e42ddc06d1f12d105abc58114384ec48d1d595e5",
+    recording_sha256="a21143ad6af838b253cc26f3dd885952d60eba909a9e24436bdbde546d4834f2",
+    pgn_sha256="a8c82c5b12f9d1615be8c3c6ba045b10fc5fbfaa37752404c627775b73b01353",
+    manifest_sha256="dbe4ad371d872e7671bf23e7ffda54a2aee9d632900cb540172c135d71d43eb1",
+    protocol_sha256="2a3cb2ff7c860781500978c143a59b259a371dcfcd98d21e696ac96ba67c952f",
+    source_revisions_sha256="11a0e617fa5b667a9868514c287abc410a6059ebee8c375b7203f62583d4aee3",
+)
 ORIGINAL_GATED_CODES = frozenset(
     {
         "board_awareness.hanging_piece",
@@ -109,9 +123,41 @@ def check_scores(scores: dict[str, Score], trusted: frozenset[str]) -> bool:
 
 
 async def measure(path: Path = CORPUS) -> dict[str, Score]:
-    corpus = json.loads(path.read_text())
-    if path == M93_CORPUS:
-        if hashlib.sha256(path.read_bytes()).hexdigest() != M93_RECORDING_SHA256:
+    # Keep logical siblings even when the recording points to a renamed backup.
+    resolved_path = path.resolve()
+    is_m93 = resolved_path == M93_CORPUS.resolve()
+    is_m79 = resolved_path == M79_CORPUS.resolve()
+    is_fresh = resolved_path == FRESH_CORPUS.resolve()
+    is_m94 = (
+        resolved_path == M94_CORPUS.resolve()
+        or path.name == M94_CORPUS.name
+        or resolved_path.name == M94_CORPUS.name
+    )
+    if (
+        resolved_path == M94_V1_CORPUS.resolve()
+        or path.name == M94_V1_CORPUS.name
+        or resolved_path.name == M94_V1_CORPUS.name
+    ):
+        raise ValueError(
+            "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
+        )
+    if is_m94 and M94_MEASUREMENT is None:
+        raise ValueError("M94 measurement identity has not been pinned")
+    if is_m94:
+        assert M94_MEASUREMENT is not None
+        corpus = validate_recording(
+            path, (CORPUS, FRESH_CORPUS, M79_CORPUS, M93_CORPUS, M94_V1_CORPUS), M94_MEASUREMENT
+        )
+    else:
+        corpus_bytes = path.read_bytes()
+        corpus = json.loads(corpus_bytes)
+        revision = corpus.get("provenance", {}).get("protocol", {}).get("revision", "")
+        if isinstance(revision, str) and revision.startswith("m94-motifs-"):
+            raise ValueError(
+                "M94 artifacts require their pinned current corpus path; archived v1 is immutable"
+            )
+    if is_m93:
+        if hashlib.sha256(corpus_bytes).hexdigest() != M93_RECORDING_SHA256:
             raise ValueError("M93 recording checksum differs from the measured fixture")
         validate_provenance(corpus, M93_PREREGISTRATION)
         pgn = path.with_name("m93_fresh80_real_games.pgn")
@@ -128,13 +174,13 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
         ids = [game["id"] for game in corpus["games"]]
         if len(set(ids)) != 80 or prior_ids.intersection(ids):
             raise ValueError("M93 holdout contains duplicate or previously exposed games")
-    if path == FRESH_CORPUS and (
+    if is_fresh and (
         corpus["provenance"]["game_count"] != 80
         or len(corpus["games"]) != 80
         or corpus["provenance"].get("preregistration_commit") != "c4490fa"
     ):
         raise ValueError("Fresh holdout must contain exactly the preregistered next80")
-    if path == M79_CORPUS and (
+    if is_m79 and (
         corpus["provenance"]["game_count"] != 80
         or len(corpus["games"]) != 80
         or corpus["provenance"].get("preregistration_commit") != M79_PREREGISTRATION
@@ -144,7 +190,7 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
         raise ValueError("M79 holdout must contain exactly preregistered ordinals 121..200")
     registry = PluginRegistry()
     register_seeded_detectors(registry)
-    scores = {code: Score() for code in SEED_CODES}
+    scores = {code: Score() for code in SEED_CODES if is_m94 or code not in M94_CODES}
     # The synthetic reference game is exercised separately, not part of real-game precision.
     for game in corpus["games"][: corpus["provenance"]["game_count"]]:
         adapter = RecordedAdapter(game)
@@ -173,10 +219,14 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 played_move=game["moves"][candidate.move_index],
                 swing_cp=candidate.swing_cp,
             )
-            labeller = m79_reference_labels if path == M79_CORPUS else reference_labels
+            labeller = m79_reference_labels if is_m79 else reference_labels
             labels = labeller(
                 before, after, game["deep_before"][str(candidate.move_index)], focused.raw_result
             )
+            if is_m94:
+                labels |= m94_reference_labels(
+                    before, after, game["deep_before"][str(candidate.move_index)]
+                )
             opportunity = LearningOpportunity(
                 opportunity_id="recorded",
                 position_id="recorded",
@@ -237,11 +287,13 @@ def main() -> None:
     fresh_scores = asyncio.run(measure(FRESH_CORPUS))
     m79_scores = asyncio.run(measure(M79_CORPUS))
     m93_scores = asyncio.run(measure(M93_CORPUS))
+    m94_scores = asyncio.run(measure(M94_CORPUS))
     for name, measured in (
         ("original40 development post-fix", scores),
         ("M78 fresh80 development for missed capture", fresh_scores),
         ("M79 fresh80 missed-capture holdout", m79_scores),
         ("M93 fresh80 motif holdout", {code: m93_scores[code] for code in sorted(M93_CODES)}),
+        ("M94 v2 fresh80 motif holdout", {code: m94_scores[code] for code in sorted(M94_CODES)}),
     ):
         print(name)
         print("skill code                              precision support TP FP FN trusted")
@@ -261,7 +313,9 @@ def main() -> None:
             raise SystemExit("M79 fresh80 missed-capture precision/support regression")
         if not check_scores(m93_scores, TRUSTED_CODES & M93_CODES):
             raise SystemExit("M93 fresh80 motif precision/support regression")
-        if TRUSTED_CODES - ESTABLISHED_GATED_CODES - M93_CODES:
+        if not check_scores(m94_scores, TRUSTED_CODES & M94_CODES):
+            raise SystemExit("M94 fresh80 motif precision/support regression")
+        if TRUSTED_CODES - ESTABLISHED_GATED_CODES - M93_CODES - M94_CODES:
             raise SystemExit("Trusted code has no declared corpus gate")
         print("PASS: declared trust gates and confirmed-mate material suppression")
 

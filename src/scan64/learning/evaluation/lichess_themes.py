@@ -25,7 +25,6 @@ from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestr
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
-from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.composer import (
     compose_candidate_evidence,
     exchange_material_gain,
@@ -79,6 +78,21 @@ V1_SEED_CODES = (
     "calculation.stopped_too_early",
     "opening.delayed_development",
     "positional.king_safety_neglect",
+)
+# Historical v2/v3 reports and eligible-only arbitration share this literal universe.
+# Adding a live taxonomy code must not alter a frozen experiment's rows or winners.
+V2_SEED_CODES = (
+    "board_awareness.hanging_piece",
+    "threat_processing.missed_check",
+    "threat_processing.missed_capture",
+    "threat_processing.missed_direct_threat",
+    "tactics.fork.knight",
+    "tactics.pin",
+    "tactics.overloaded_defender",
+    "calculation.stopped_too_early",
+    "opening.delayed_development",
+    "positional.king_safety_neglect",
+    "threat_processing.allowed_mate",
 )
 Version = Literal["v1", "v2", "v3"]
 
@@ -511,7 +525,7 @@ async def diagnose(
         engine_eval_after=-candidate.swing_cp / 100,
     )
     candidates: list[DiagnosisCandidate] = []
-    for code in V1_SEED_CODES if version == "v1" else SEED_CODES:
+    for code in V1_SEED_CODES if version == "v1" else V2_SEED_CODES:
         detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
         assert isinstance(detector, PatternDetector)
         candidates.extend(
@@ -543,7 +557,7 @@ async def diagnose(
 def score(outcomes: list[Outcome], *, version: Version = "v1") -> dict[str, CodeScore]:
     mapping = code_themes(version)
     dispositions = (*mapping, *ABSTENTIONS)
-    seeds = V1_SEED_CODES if version == "v1" else SEED_CODES
+    seeds = V1_SEED_CODES if version == "v1" else V2_SEED_CODES
     trusted = V3_TRUSTED_CODES if version == "v3" else HISTORICAL_TRUSTED_CODES
     if len({outcome.puzzle_id for outcome in outcomes}) != len(outcomes):
         raise ValueError("Duplicate outcome ID")
@@ -821,7 +835,7 @@ def render_v2_results(
             "| --- | ---: | ---: |",
         ]
     )
-    for code in SEED_CODES:
+    for code in V2_SEED_CODES:
         if code not in HISTORICAL_TRUSTED_CODES:
             lines.append(f"| `{code}` | {untrusted[code]} | {untrusted[code] / n:.2%} |")
     lines.extend(
@@ -959,7 +973,7 @@ def render_v3_results(
             "| --- | ---: | ---: |",
         ]
     )
-    for code in SEED_CODES:
+    for code in V2_SEED_CODES:
         if code not in V3_TRUSTED_CODES:
             lines.append(f"| `{code}` | {untrusted[code]} | {untrusted[code] / n:.2%} |")
     lines.extend(

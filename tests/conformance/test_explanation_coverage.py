@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
+import chess
 import pytest
 from chess_lesson_spec import Diagnosis
 
@@ -14,6 +17,7 @@ from scan64.explanations.templates.provider import (
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.motifs import CAPABILITIES, motif_payloads
 
 # Representative payloads drawn from the real shapes M33's composer emits for
 # each seeded code (see learning/evidence/composer.py and
@@ -168,6 +172,21 @@ _FIXTURE_PAYLOADS: dict[str, dict[str, Any]] = {
     },
 }
 
+for _case in json.loads(
+    (Path(__file__).parents[1] / "fixtures/m94/synthetic_cases.json").read_text()
+):
+    _board = chess.Board(_case["fen"])
+    for _proof in motif_payloads(_board, _case["line"], _case["mate"]):
+        _FIXTURE_PAYLOADS[_case["code"]] = {
+            **_proof,
+            "before_fen": _case["fen"],
+            "fast_line": _case["line"],
+            "played_move": _case["played"],
+            "best_move": _case["line"][0],
+            "source_score_mate": _case["mate"],
+            "diagnosis_capabilities": dict(CAPABILITIES),
+        }
+
 # The concrete, literal fact each code's explanation must name, drawn straight
 # from the fixture payload above (a square or a UCI move/line).
 _REQUIRED_LITERAL: dict[str, str] = {
@@ -178,6 +197,9 @@ _REQUIRED_LITERAL: dict[str, str] = {
     "tactics.fork.knight": "e7",
     "tactics.pin": "f1b5",
     "tactics.overloaded_defender": "d7",
+    "tactics.skewer": "a1a8",
+    "tactics.discovered_attack": "a2b3",
+    "tactics.back_rank": "e3e8",
     "calculation.stopped_too_early": "d2d7 e8d7 c3d5",
     "opening.delayed_development": "2.5",
     "positional.king_safety_neglect": "d8h4",
