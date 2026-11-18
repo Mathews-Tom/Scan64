@@ -17,6 +17,7 @@ from scan64.learning.evaluation.real_games import (
     ALLOWED_MATE,
     CORPUS,
     FRESH_CORPUS,
+    ORIGINAL_GATED_CODES,
     Score,
     check_scores,
 )
@@ -40,10 +41,13 @@ def test_check_uses_fresh80_not_development_for_allowed_mate(
     async def recorded_measure(path: Path = CORPUS) -> dict[str, Score]:
         if path == FRESH_CORPUS:
             return {ALLOWED_MATE: Score(tp=10 if fresh_passes else 9)}
-        return {"legacy": Score(tp=10), ALLOWED_MATE: Score(tp=10 if not fresh_passes else 0)}
+        return {
+            **{code: Score(tp=10) for code in ORIGINAL_GATED_CODES | real_games.M93_CODES},
+            ALLOWED_MATE: Score(tp=10 if not fresh_passes else 0),
+        }
 
     monkeypatch.setattr(real_games, "measure", recorded_measure)
-    monkeypatch.setattr(trust, "TRUSTED_CODES", frozenset({"legacy", ALLOWED_MATE}))
+    monkeypatch.setattr(trust, "TRUSTED_CODES", ORIGINAL_GATED_CODES | {ALLOWED_MATE})
     monkeypatch.setattr("sys.argv", ["real_games", "--check"])
     if fresh_passes:
         real_games.main()
@@ -296,7 +300,7 @@ async def test_report_runs_real_detectors_without_a_live_engine(
     scores = await measure()
     assert set(scores) == set(SEED_CODES)
     assert sum(score.support for score in scores.values()) > 0
-    assert check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE, MISSED_CAPTURE})
+    assert check_scores(scores, ORIGINAL_GATED_CODES)
     fresh = await measure(FRESH_CORPUS)
     if ALLOWED_MATE in TRUSTED_CODES:
         assert fresh[ALLOWED_MATE].trusted

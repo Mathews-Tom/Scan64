@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 from typing import Any
 
 CODES = frozenset({"tactics.fork.knight", "tactics.pin", "tactics.overloaded_defender"})

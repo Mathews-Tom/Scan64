@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,8 @@ from scan64.learning.diagnosis.detectors.registration import register_seeded_det
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evaluation.deep_reference import m79_reference_labels, reference_labels
+from scan64.learning.evaluation.m93_protocol import CODES as M93_CODES
+from scan64.learning.evaluation.m93_protocol import validate_provenance
 from scan64.learning.evidence.composer import allowed_mate_line, compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -36,6 +39,18 @@ ALLOWED_MATE = "threat_processing.allowed_mate"
 MISSED_CAPTURE = "threat_processing.missed_capture"
 M79_CORPUS = CORPUS.with_name("m79_fresh80_recorded.json")
 M79_PREREGISTRATION = "4afbe47d09138606ecd7d3dbabc4659e1ef2c6ed"
+M93_CORPUS = CORPUS.with_name("m93_fresh80_recorded.json")
+M93_PREREGISTRATION = "f97a476fd901cc8843c9fed168b5827a65e64b81"
+M93_RECORDING_SHA256 = "d4eb9a8ee322dbf73e6c2ef582526be12f69150e0241ce19d9ce578b02447c61"
+M93_PGN_SHA256 = "653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622"
+ORIGINAL_GATED_CODES = frozenset(
+    {
+        "board_awareness.hanging_piece",
+        "threat_processing.missed_check",
+        "threat_processing.missed_direct_threat",
+    }
+)
+ESTABLISHED_GATED_CODES = ORIGINAL_GATED_CODES | {ALLOWED_MATE, MISSED_CAPTURE}
 
 
 class RecordedAdapter:
@@ -95,6 +110,24 @@ def check_scores(scores: dict[str, Score], trusted: frozenset[str]) -> bool:
 
 async def measure(path: Path = CORPUS) -> dict[str, Score]:
     corpus = json.loads(path.read_text())
+    if path == M93_CORPUS:
+        if hashlib.sha256(path.read_bytes()).hexdigest() != M93_RECORDING_SHA256:
+            raise ValueError("M93 recording checksum differs from the measured fixture")
+        validate_provenance(corpus, M93_PREREGISTRATION)
+        pgn = path.with_name("m93_fresh80_real_games.pgn")
+        if (
+            hashlib.sha256(pgn.read_bytes()).hexdigest() != M93_PGN_SHA256
+            or corpus["provenance"]["pgn_sha256"] != M93_PGN_SHA256
+        ):
+            raise ValueError("M93 PGN checksum differs from recording provenance")
+        prior_ids = {
+            game["id"]
+            for prior in (CORPUS, FRESH_CORPUS, M79_CORPUS)
+            for game in json.loads(prior.read_text())["games"]
+        }
+        ids = [game["id"] for game in corpus["games"]]
+        if len(set(ids)) != 80 or prior_ids.intersection(ids):
+            raise ValueError("M93 holdout contains duplicate or previously exposed games")
     if path == FRESH_CORPUS and (
         corpus["provenance"]["game_count"] != 80
         or len(corpus["games"]) != 80
@@ -203,10 +236,12 @@ def main() -> None:
     scores = asyncio.run(measure())
     fresh_scores = asyncio.run(measure(FRESH_CORPUS))
     m79_scores = asyncio.run(measure(M79_CORPUS))
+    m93_scores = asyncio.run(measure(M93_CORPUS))
     for name, measured in (
         ("original40 development post-fix", scores),
         ("M78 fresh80 development for missed capture", fresh_scores),
         ("M79 fresh80 missed-capture holdout", m79_scores),
+        ("M93 fresh80 motif holdout", {code: m93_scores[code] for code in sorted(M93_CODES)}),
     ):
         print(name)
         print("skill code                              precision support TP FP FN trusted")
@@ -218,12 +253,16 @@ def main() -> None:
     if args.check:
         from scan64.learning.diagnosis.trust import TRUSTED_CODES
 
-        if not check_scores(scores, TRUSTED_CODES - {ALLOWED_MATE, MISSED_CAPTURE}):
+        if not check_scores(scores, ORIGINAL_GATED_CODES):
             raise SystemExit("Original trusted-code precision/support regression")
         if ALLOWED_MATE in TRUSTED_CODES and not fresh_scores[ALLOWED_MATE].trusted:
             raise SystemExit("Fresh80 allowed-mate precision/support regression")
         if MISSED_CAPTURE in TRUSTED_CODES and not m79_scores[MISSED_CAPTURE].trusted:
             raise SystemExit("M79 fresh80 missed-capture precision/support regression")
+        if not check_scores(m93_scores, TRUSTED_CODES & M93_CODES):
+            raise SystemExit("M93 fresh80 motif precision/support regression")
+        if TRUSTED_CODES - ESTABLISHED_GATED_CODES - M93_CODES:
+            raise SystemExit("Trusted code has no declared corpus gate")
         print("PASS: declared trust gates and confirmed-mate material suppression")
 
 

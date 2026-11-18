@@ -15,10 +15,11 @@ import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 
 import chess.pgn
 
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
 from scan64.learning.evaluation.m93_protocol import PROTOCOL, protocol_digest
 from scan64.learning.exercises.sound_moves import analyze_lesson_source
@@ -39,7 +40,7 @@ def verified_pgn(source: Path) -> Iterator[TextIO]:
     with subprocess.Popen(["zstd", "-dc", str(source)], stdout=subprocess.PIPE, text=True) as proc:
         assert proc.stdout is not None
         try:
-            yield proc.stdout
+            yield cast(TextIO, proc.stdout)
         finally:
             proc.stdout.close()
             proc.terminate()
@@ -128,7 +129,7 @@ async def record(
         for name, digest in PROTOCOL["revisions"].items():
             if hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest:
                 raise ValueError(f"Frozen M93 implementation changed: {name}")
-    selected = []
+    selected: list[chess.pgn.Game] = []
     with verified_pgn(source) as stream:
         count = 280 if m93_fresh80 else 200 if m79_fresh80 else 120 if fresh80 else 40
         while len(selected) < count:
@@ -189,7 +190,9 @@ async def record(
         else None
     )
     try:
-        for index, game in enumerate(selected if fresh80 else [*selected, reference]):
+        for index, game in enumerate(
+            selected if fresh80 else [*selected, cast(chess.pgn.Game, reference)]
+        ):
             moves = list(game.mainline_moves())
             board = game.board()
             sans = []
@@ -209,9 +212,14 @@ async def record(
 
             # Use the production candidate calculation, backed by the recorded fast pass.
             class Replay:
-                async def analyze_position(self, fen: str, **kwargs: Any) -> Any:
-                    from scan64.chess.analysis.models import EngineAnalysis
-
+                async def analyze_position(
+                    self,
+                    fen: str,
+                    nodes: int | None = None,
+                    depth: int | None = None,
+                    time_ms: int | None = None,
+                    multipv: int = 1,
+                ) -> EngineAnalysis:
                     return EngineAnalysis(config={}, raw_result=fast[fens.index(fen)])
 
             fast_pass = await FastPassOrchestrator(
@@ -260,7 +268,7 @@ async def record(
             )
     finally:
         await adapter.quit()
-    data = {
+    data: dict[str, Any] = {
         "provenance": {
             "source_url": URL,
             "source_sha256": SHA256,
