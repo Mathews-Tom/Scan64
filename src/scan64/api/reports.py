@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -25,6 +26,7 @@ from scan64.content.puzzle_practice import THEME_SKILLS
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.pattern_recurrence import PatternRecurrenceReport, read_pattern_recurrence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.opening_rotation import classify_opening_family
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -126,6 +128,21 @@ def get_player_progress(
 ) -> ProgressReport:
     require_player_token(request, player_id, session)
     return read_player_progress(player_id, session)
+
+
+@router.get(
+    "/v1/players/{player_id}/progress/pattern-recurrence",
+    response_model=PatternRecurrenceReport,
+)
+def get_pattern_recurrence(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> PatternRecurrenceReport:
+    require_player_token(request, player_id, session)
+    # FastAPI runs this entire synchronous endpoint in one worker. Keep auth,
+    # session access and the detector coroutine off the ASGI request loop.
+    return asyncio.run(read_pattern_recurrence(player_id, session))
 
 
 def read_player_evidence(player_id: str, session: Session) -> EvidenceReport:

@@ -4,6 +4,7 @@ import { OnboardingCard } from './OnboardingCard';
 import { StrengthSummary } from './StrengthSummary';
 import { HabitPanel } from './HabitPanel';
 import { Panel } from './Primitives';
+import { PatternRecurrencePanel } from './PatternRecurrencePanel';
 import type {
   EvidenceReport,
   PatternsReport,
@@ -74,16 +75,12 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
     return () => { cancelled = true; };
   }, [playerId, insightsRequest]);
 
-  if (error) {
-    return <div role="alert" data-testid="profile-error">Profile unavailable: {error}</div>;
-  }
-
-  if (!progress || !evidence || !patterns) {
-    return <div role="status">Loading profile...</div>;
-  }
-
   return (
     <div className="profile-screen working-screen" data-testid="profile-screen">
+      <section aria-label="Profile reports">
+      {error ? <div role="alert" data-testid="profile-error">Profile unavailable: {error}</div>
+        : !progress || !evidence || !patterns ? <div role="status">Loading profile...</div>
+          : <>
       <h1>Profile</h1>
       <OnboardingCard onNavigate={onNavigate} onChange={refreshStrength} />
       <Panel title="Your strength record">
@@ -140,6 +137,9 @@ export function ProfileScreen({ onNavigate }: { onNavigate?: (path: string) => v
       </div>
 
       <HabitPanel playerId={playerId} patterns={patterns} onNavigate={onNavigate} />
+      </>}
+      </section>
+      <PatternRecurrencePanel key={playerId} playerId={playerId} />
     </div>
   );
 }

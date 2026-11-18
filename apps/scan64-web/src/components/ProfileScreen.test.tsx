@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ApiClient } from '../api/client';
-import type { PatternsReport } from '../api/types';
+import { ApiClient, getActivePlayerId } from '../api/client';
+import type { EvidenceReport, PatternRecurrenceReport, PatternsReport } from '../api/types';
 import type * as ClientModule from '../api/client';
 import { ProfileScreen } from './ProfileScreen';
 import { onboardingFixture, strengthFixture } from './strength.test-fixtures';
@@ -20,6 +20,7 @@ vi.mock('../api/client', async (importOriginal) => {
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
       getPlayerInsights: vi.fn(),
+      getPatternRecurrence: vi.fn(),
       getPlayerHabit: vi.fn().mockResolvedValue({
         utc_day: '2026-11-13', goal: 3, qualifying_solves: 0, remaining: 3,
         pending_goal: null, pending_effective_day: null, current_streak: 0, best_streak: 0,
@@ -29,11 +30,15 @@ vi.mock('../api/client', async (importOriginal) => {
       }),
       getPuzzleModes: vi.fn().mockResolvedValue({ themes: [], streak: { current: 0, best: 0, reset_reason: null } }),
     },
-    getActivePlayerId: () => 'profile-player',
+    getActivePlayerId: vi.fn(() => 'profile-player'),
   };
 });
 
-function renderProfile(patterns: PatternsReport): void {
+function renderProfile(patterns: PatternsReport) {
+  vi.mocked(ApiClient.getPatternRecurrence).mockResolvedValue({
+    player_id: 'profile-player', minimum_games_per_period: 3, minimum_owner_moves_per_game: 20,
+    coverage: {}, caveat: 'Independent recurrence report', patterns: [],
+  });
   vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
   vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue(strengthFixture);
   vi.mocked(ApiClient.getPlayerInsights).mockResolvedValue(insightsFixture);
@@ -46,14 +51,78 @@ function renderProfile(patterns: PatternsReport): void {
     evidence_items: [],
   });
   vi.spyOn(ApiClient, 'getPlayerPatterns').mockResolvedValue(patterns);
-  render(<ProfileScreen />);
+  return render(<ProfileScreen />);
 }
 
 afterEach(() => {
+  vi.mocked(getActivePlayerId).mockReturnValue('profile-player');
   vi.restoreAllMocks();
 });
 
 describe('ProfileScreen recurring diagnoses', () => {
+  it.each(['failed', 'pending'] as const)('loads and retries recurrence while evidence is %s', async (state) => {
+    if (state === 'failed') {
+      vi.mocked(ApiClient.getPlayerEvidence).mockRejectedValueOnce(new Error('Evidence request failed'));
+    } else {
+      vi.mocked(ApiClient.getPlayerEvidence).mockReturnValueOnce(Promise.withResolvers<EvidenceReport>().promise);
+    }
+    vi.mocked(ApiClient.getPatternRecurrence).mockRejectedValueOnce(new Error('Recurrence request failed'));
+    renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0,
+      status: 'insufficient_data', recurring_diagnoses: [],
+    });
+    const parentMessage = state === 'failed' ? 'Profile unavailable: Evidence request failed' : 'Loading profile...';
+    const retry = await screen.findByRole('button', { name: 'Retry pattern comparison' });
+    expect(screen.getByText(parentMessage)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Your game insights' })).not.toBeInTheDocument();
+    fireEvent.click(retry);
+    expect(await screen.findByText('Independent recurrence report')).toBeInTheDocument();
+    expect(screen.getByText(parentMessage)).toBeInTheDocument();
+    expect(screen.getAllByRole('region', { name: 'Progress: before/after patterns' })).toHaveLength(1);
+  });
+
+  it('clears recurrence immediately on owner change and ignores the previous owner response', async () => {
+    const previous = Promise.withResolvers<PatternRecurrenceReport>();
+    vi.mocked(ApiClient.getPlayerEvidence).mockReturnValueOnce(Promise.withResolvers<EvidenceReport>().promise);
+    const view = renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0,
+      status: 'insufficient_data', recurring_diagnoses: [],
+    });
+    expect(await screen.findByText('Independent recurrence report')).toBeInTheDocument();
+    vi.mocked(ApiClient.getPatternRecurrence).mockReturnValueOnce(previous.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh pattern comparison' }));
+    expect(await screen.findByText('Loading pattern comparison…')).toBeInTheDocument();
+    vi.mocked(getActivePlayerId).mockReturnValue('next-owner');
+    vi.mocked(ApiClient.getPatternRecurrence).mockResolvedValue({
+      player_id: 'next-owner', minimum_games_per_period: 3, minimum_owner_moves_per_game: 20,
+      coverage: {}, caveat: 'Next owner recurrence', patterns: [],
+    });
+    view.rerender(<ProfileScreen />);
+    expect(screen.queryByText('Independent recurrence report')).not.toBeInTheDocument();
+    expect(await screen.findByText('Next owner recurrence')).toBeInTheDocument();
+    previous.resolve({
+      player_id: 'profile-player', minimum_games_per_period: 3, minimum_owner_moves_per_game: 20,
+      coverage: {}, caveat: 'Stale owner recurrence', patterns: [],
+    });
+    await waitFor(() => expect(ApiClient.getPatternRecurrence).toHaveBeenLastCalledWith('next-owner'));
+    expect(screen.queryByText('Stale owner recurrence')).not.toBeInTheDocument();
+    expect(screen.getByText('Next owner recurrence')).toBeInTheDocument();
+  });
+
+  it('unmounts the loaded recurrence report synchronously when the owner changes', async () => {
+    const view = renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0,
+      status: 'insufficient_data', recurring_diagnoses: [],
+    });
+    expect(await screen.findByText('Independent recurrence report')).toBeInTheDocument();
+    vi.mocked(getActivePlayerId).mockReturnValue('next-owner');
+    vi.mocked(ApiClient.getPatternRecurrence).mockReturnValueOnce(Promise.withResolvers<PatternRecurrenceReport>().promise);
+    view.rerender(<ProfileScreen />);
+    expect(screen.queryByText('Independent recurrence report')).not.toBeInTheDocument();
+    expect(screen.getByText('Loading pattern comparison…')).toBeInTheDocument();
+    expect(screen.getAllByRole('region', { name: 'Progress: before/after patterns' })).toHaveLength(1);
+  });
+
   it('labels pooled accuracy, unavailable data and clock coverage', async () => {
     renderProfile({
       player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0,

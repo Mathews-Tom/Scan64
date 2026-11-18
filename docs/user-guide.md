@@ -283,6 +283,41 @@ Each supporting link opens your owned Review at that move. The pattern supplies 
 
 Pattern practice tries available same-code **Your mistakes** retries, then a mapped **Theme run** as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says **may be unrelated**. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.
 
+### Progress: before/after pattern recurrence
+
+On **Profile**, the **Progress: before/after patterns** section compares saved online
+games around your first completed, server-verified lesson or mapped puzzle attempt
+for each currently trusted pattern. Incorrect completed attempts count as training;
+starts, abandoned puzzles and client-reported success do not. Resetting learning
+removes earlier training anchors, not saved games. New training can compare those
+saved games again. This report does not change habit awards, ratings or mastery.
+
+Games need a validated, game-specific Lichess or Chess.com Site/Link, a matching
+stored PGN mainline and precise **UTCDate + UTCTime** headers. Date-only or local
+times are excluded, never replaced with import time. An old game imported after
+training still belongs before it. In-app play sessions and duplicate online game
+identities are excluded. Periods use the PGN start time; a game starting exactly
+at training is excluded as an ambiguous boundary.
+
+Each side needs **three finished, fully analysed games**, each with **at least
+20 of your moves**. The report joins uncapped saved candidate evidence to the
+actual move reviews, source/reached positions and saved analyses, and counts one
+trusted primary diagnosis per game/ply/code. Opponent moves and the five-retained-
+lesson cap do not enter these counts. Candidates use the existing >150cp fast-pass
+threshold; absence outside that threshold is not measured. Unsupported, missing or
+incompletely joined candidate evidence excludes that game for that pattern, not a
+zero-occurrence denominator. A fully scored game with no threshold candidates can
+contribute zero occurrences.
+
+Qualifying comparisons show occurrences per **100 owner moves**, raw occurrence,
+game and move counts, and **95% Wilson intervals** on the same scale. Wilson assumes
+independent moves, while moves within games are correlated. This is descriptive
+association, **not evidence that training caused a change**, permanent mastery or
+improved chess strength. Mapped puzzle themes are related recognition practice.
+Otherwise the section says **Not enough games**, gives available counts and
+exclusion coverage, and leaves rates unavailable rather than zero. Its retry
+button reloads only this section; other Profile panels remain usable.
+
 ## Daily goals and tracked pattern evidence
 
 Today and Profile show a **daily qualifying-solve goal**, default **three**, on the
@@ -374,7 +409,7 @@ The card says **Pattern practice target met**, separately from **not observed in
 the last five eligible games**. Inspect its practice count, game count, window
 coverage and saved evidence. The award's five-game evidence remains the same after
 export and restore. Absence is bounded by the chosen games and the
-**≥150cp fast-pass diagnosis swing threshold**; smaller or undetected errors can
+**>150cp fast-pass diagnosis swing threshold**; smaller or undetected errors can
 remain. It is not a permanent cure, cleared weakness, strength estimate, causal
 improvement result or mastery measurement.
 
