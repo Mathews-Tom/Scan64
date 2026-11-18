@@ -25,6 +25,23 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 describe('owned move-by-move review', () => {
+  it('selects display-only good moments without replacing mistake retries', async () => {
+    const review = makeGameReview();
+    review.good_moments = [{
+      ply: 7, san: 'Qxf7#', skill_id: 'threat_processing.missed_check',
+      explanation: 'The stored source analysis proves mate.', line: ['h5f7'],
+    }];
+    vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
+    render(<AnalysisScreen gameId="game-1" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Good moment at ply 7: Qxf7#' }));
+    expect(screen.getByTestId('review-move-7')).toHaveAttribute('aria-current', 'step');
+    await waitFor(() => expect(boards.get('review-board')!.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({ fen: review.moves[6].fen }),
+    ));
+    expect(screen.getByRole('button', { name: 'Retry this moment' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Key good moments' })).toHaveTextContent('do not award skill credit');
+  });
+
   it.each([[3, 3], [999, 7], [Number.NaN, 0], [-1, 0]])('opens a linked source ply %s safely at %s', async (initialPly, expectedPly) => {
     render(<AnalysisScreen gameId="game-1" initialPly={initialPly} />);
     await screen.findByTestId('review-move-list');

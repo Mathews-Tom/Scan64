@@ -5,6 +5,7 @@ import { ApiClient } from './api/client';
 import type { LessonSpec } from './api/types';
 import { makeGameReview } from './components/review.test-fixtures';
 import { onboardingFixture, strengthFixture } from './components/strength.test-fixtures';
+import { insightsFixture } from './components/profile.test-fixtures';
 
 vi.mock('./api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/client')>();
@@ -22,6 +23,7 @@ vi.mock('./api/client', async (importOriginal) => {
       getPlayerProgress: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
+      getPlayerInsights: vi.fn(),
       getPlayerHabit: vi.fn().mockResolvedValue({
         utc_day: '2026-11-13', goal: 3, qualifying_solves: 0, remaining: 3,
         pending_goal: null, pending_effective_day: null, current_streak: 0, best_streak: 0,
@@ -80,6 +82,7 @@ beforeEach(() => {
   }));
   vi.mocked(ApiClient.getPlayerProgress).mockResolvedValue({ player_id: 'player-1', skills: [] });
   vi.mocked(ApiClient.getPlayerEvidence).mockResolvedValue({ player_id: 'player-1', evidence_items: [] });
+  vi.mocked(ApiClient.getPlayerInsights).mockResolvedValue(insightsFixture);
   localStorage.setItem('scan64_player_token:player-1', 'test-token');
   vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({ items: [], next_cursor: null });
   vi.mocked(ApiClient.getWeeklyReport).mockResolvedValue({

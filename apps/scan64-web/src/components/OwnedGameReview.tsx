@@ -224,6 +224,17 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
           <p>{typeof move.credit?.explanation === 'string' ? move.credit.explanation : 'Stored tactical proof is available for this credited move.'}</p>
         </li>)}</ul>
       </section>
+      <section aria-label="Key good moments">
+        <h3>Key good moments</h3>
+        <p>Up to three owner moves with verified stored tactical proof, including imported games.
+          Display only: these highlights do not award skill credit or change its eligibility and caps.</p>
+        {review.good_moments.length === 0 && <p>No proved good moments are available.</p>}
+        <ul>{review.good_moments.map(moment => <li key={moment.ply}>
+          <button type="button" aria-current={selectedPly === moment.ply ? 'step' : undefined}
+            onClick={() => setSelectedPly(moment.ply)}>Good moment at ply {moment.ply}: {moment.san}</button>
+          <p>{moment.explanation}</p>
+        </li>)}</ul>
+      </section>
       <section className="review-key-moments" aria-label="Trusted key moments">
         <h3>Key moments</h3>
         <p className="muted">Up to three stored, reverified lessons explain one trusted cause each. Retry starts before the selected move and shares Daily Training's lifetime attempt cap and hinted half credit.</p>

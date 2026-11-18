@@ -5,6 +5,7 @@ import type { PatternsReport } from '../api/types';
 import type * as ClientModule from '../api/client';
 import { ProfileScreen } from './ProfileScreen';
 import { onboardingFixture, strengthFixture } from './strength.test-fixtures';
+import { insightsFixture } from './profile.test-fixtures';
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof ClientModule>();
@@ -18,6 +19,7 @@ vi.mock('../api/client', async (importOriginal) => {
       updatePlayerOnboarding: vi.fn(),
       getPlayerEvidence: vi.fn(),
       getPlayerPatterns: vi.fn(),
+      getPlayerInsights: vi.fn(),
       getPlayerHabit: vi.fn().mockResolvedValue({
         utc_day: '2026-11-13', goal: 3, qualifying_solves: 0, remaining: 3,
         pending_goal: null, pending_effective_day: null, current_streak: 0, best_streak: 0,
@@ -34,6 +36,7 @@ vi.mock('../api/client', async (importOriginal) => {
 function renderProfile(patterns: PatternsReport): void {
   vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
   vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue(strengthFixture);
+  vi.mocked(ApiClient.getPlayerInsights).mockResolvedValue(insightsFixture);
   vi.spyOn(ApiClient, 'getPlayerProgress').mockResolvedValue({
     player_id: 'profile-player',
     skills: [{ concept: 'board_awareness.hanging_piece', name: 'Hanging piece', mastery: 0.25, uncertainty: 0.5 }],
@@ -51,6 +54,18 @@ afterEach(() => {
 });
 
 describe('ProfileScreen recurring diagnoses', () => {
+  it('labels pooled accuracy, unavailable data and clock coverage', async () => {
+    renderProfile({
+      player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0,
+      status: 'insufficient_data', recurring_diagnoses: [],
+    });
+    expect(await screen.findByText(/Overall: 86.0%/)).toHaveTextContent('5 / 8 scored / eligible owner moves');
+    expect(screen.getByText(/Caro-Kann Defense: Unavailable/)).toHaveTextContent('0 / 1 scored / eligible owner moves');
+    expect(screen.getByText(/Middlegame: Unavailable/)).toHaveTextContent('0 / 0 scored / eligible owner moves');
+    expect(screen.getByText(/50.0% · 2/)).toHaveTextContent('≤30s recorded post-move clock');
+    expect(screen.getByText(/real-time TimeControl/)).toHaveTextContent('clock coverage: 4 / 7');
+  });
+
   it('refreshes the separate strength report after changing the declaration', async () => {
     renderProfile({
       player_id: 'profile-player', minimum_occurrences: 3, eligible_game_count: 0, status: 'insufficient_data', recurring_diagnoses: [],

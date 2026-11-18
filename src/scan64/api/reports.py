@@ -9,6 +9,7 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_player_token
 from scan64.api.models import Player
+from scan64.api.profile_insights import ProfileInsightsRead, read_profile_insights
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -460,3 +461,13 @@ def get_openings_report(
 ) -> OpeningsReport:
     require_player_token(request, player_id, session)
     return read_openings_report(player_id, session)
+
+
+@router.get("/v1/players/{player_id}/insights", response_model=ProfileInsightsRead)
+def get_profile_insights(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> ProfileInsightsRead:
+    require_player_token(request, player_id, session)
+    return read_profile_insights(player_id, session)

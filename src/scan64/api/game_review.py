@@ -9,11 +9,12 @@ from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from scan64.api.learning import _reverify_persisted_lesson
-from scan64.chess.analysis.credit import project_move_credits
+from scan64.chess.analysis.credit import _credit_priority, positive_move_proof, project_move_credits
 from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview, PersistedLessonOpportunity
 from scan64.chess.analysis.review import REVIEW_NODES
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -45,6 +46,14 @@ class ReviewKeyMomentRead(BaseModel):
     attempts_remaining: int
 
 
+class ReviewGoodMomentRead(BaseModel):
+    ply: int
+    san: str
+    skill_id: str
+    explanation: str
+    line: list[str]
+
+
 class GameReviewRead(BaseModel):
     game_id: UUID
     owner_color: str | None
@@ -56,6 +65,7 @@ class GameReviewRead(BaseModel):
     total_owner_moves: int
     band_counts: dict[str, int]
     key_moments: list[ReviewKeyMomentRead]
+    good_moments: list[ReviewGoodMomentRead]
     session_id: str | None
     backfill_required: bool
     nodes: int = REVIEW_NODES
@@ -142,6 +152,58 @@ def _key_moments(
         if len(moments) == 3:
             break
     return moments
+
+
+def _good_moments(
+    game: Game, moves: list[ReviewMoveRead], rows: dict[int, GameMoveReview], session: Session
+) -> list[ReviewGoodMomentRead]:
+    """Display proof, independent of session eligibility and prospective credit caps."""
+    positions = {
+        position.id: position
+        for position in session.exec(select(Position).where(Position.game_id == game.id)).all()
+    }
+    analyses = {
+        analysis.id: analysis
+        for analysis in session.exec(
+            select(EngineAnalysis).join(Position).where(Position.game_id == game.id)
+        ).all()
+    }
+    candidates = []
+    for move in moves:
+        row = rows.get(move.ply)
+        if not move.is_owner_move or row is None or row.move_uci != move.move_uci:
+            continue
+        source = positions.get(row.source_position_id)
+        analysis = analyses.get(row.before_analysis_id)
+        if source is None or analysis is None or source.fen != move.source_fen:
+            continue
+        previous = rows.get(move.ply - 1)
+        proof, _ = positive_move_proof(
+            row,
+            source,
+            analysis,
+            predecessor=positions.get(previous.source_position_id) if previous else None,
+            preceding_move_uci=previous.move_uci if previous else None,
+        )
+        if proof is None:
+            continue
+        # The award helper's assistance assertion is not a display-only claim.
+        explanation = str(proof["explanation"]).replace(
+            " No in-app hint was revealed at this position.", ""
+        )
+        candidates.append(
+            (
+                _credit_priority(proof, analysis),
+                ReviewGoodMomentRead(
+                    ply=move.ply,
+                    san=move.san,
+                    skill_id=proof["skill_id"],
+                    explanation=explanation,
+                    line=proof["line"],
+                ),
+            )
+        )
+    return [moment for _, moment in sorted(candidates, key=lambda item: item[0])[:3]]
 
 
 def build_game_review(
@@ -234,6 +296,7 @@ def build_game_review(
         total_owner_moves=total_owner_moves,
         band_counts=counts,
         key_moments=moments,
+        good_moments=_good_moments(game, moves, rows, session),
         session_id=study_session.id if study_session is not None else None,
         backfill_required=any(ply not in rows for ply in range(1, len(game.moves) + 1)),
     )
