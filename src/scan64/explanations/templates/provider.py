@@ -149,7 +149,8 @@ def _motif_text(payload: Mapping[str, Any], code: str) -> str:
     if line is None:
         raise ExplanationTemplateError("The source PV does not prove the named motif")
     best = line[0]
-    played_text = payload["played_move"]
+    board = chess.Board(payload["before_fen"])
+    played_text = board.san(board.parse_san(payload["played_move"]))
     if code == "tactics.skewer":
         return (
             f"Instead of {played_text}, {best} skewers the "

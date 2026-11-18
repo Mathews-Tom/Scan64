@@ -123,9 +123,21 @@ def check_scores(scores: dict[str, Score], trusted: frozenset[str]) -> bool:
 
 
 async def measure(path: Path = CORPUS) -> dict[str, Score]:
-    path = path.resolve()
-    is_m94 = path == M94_CORPUS.resolve() or path.name == M94_CORPUS.name
-    if path == M94_V1_CORPUS.resolve() or path.name == M94_V1_CORPUS.name:
+    # Keep logical siblings even when the recording points to a renamed backup.
+    resolved_path = path.resolve()
+    is_m93 = resolved_path == M93_CORPUS.resolve()
+    is_m79 = resolved_path == M79_CORPUS.resolve()
+    is_fresh = resolved_path == FRESH_CORPUS.resolve()
+    is_m94 = (
+        resolved_path == M94_CORPUS.resolve()
+        or path.name == M94_CORPUS.name
+        or resolved_path.name == M94_CORPUS.name
+    )
+    if (
+        resolved_path == M94_V1_CORPUS.resolve()
+        or path.name == M94_V1_CORPUS.name
+        or resolved_path.name == M94_V1_CORPUS.name
+    ):
         raise ValueError(
             "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
         )
@@ -144,7 +156,7 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
             raise ValueError(
                 "M94 artifacts require their pinned current corpus path; archived v1 is immutable"
             )
-    if path == M93_CORPUS:
+    if is_m93:
         if hashlib.sha256(corpus_bytes).hexdigest() != M93_RECORDING_SHA256:
             raise ValueError("M93 recording checksum differs from the measured fixture")
         validate_provenance(corpus, M93_PREREGISTRATION)
@@ -162,13 +174,13 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
         ids = [game["id"] for game in corpus["games"]]
         if len(set(ids)) != 80 or prior_ids.intersection(ids):
             raise ValueError("M93 holdout contains duplicate or previously exposed games")
-    if path == FRESH_CORPUS and (
+    if is_fresh and (
         corpus["provenance"]["game_count"] != 80
         or len(corpus["games"]) != 80
         or corpus["provenance"].get("preregistration_commit") != "c4490fa"
     ):
         raise ValueError("Fresh holdout must contain exactly the preregistered next80")
-    if path == M79_CORPUS and (
+    if is_m79 and (
         corpus["provenance"]["game_count"] != 80
         or len(corpus["games"]) != 80
         or corpus["provenance"].get("preregistration_commit") != M79_PREREGISTRATION
@@ -207,7 +219,7 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 played_move=game["moves"][candidate.move_index],
                 swing_cp=candidate.swing_cp,
             )
-            labeller = m79_reference_labels if path == M79_CORPUS else reference_labels
+            labeller = m79_reference_labels if is_m79 else reference_labels
             labels = labeller(
                 before, after, game["deep_before"][str(candidate.move_index)], focused.raw_result
             )

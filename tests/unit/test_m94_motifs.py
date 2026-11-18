@@ -134,6 +134,22 @@ async def test_source_proof_detector_oracle_and_ready_template(
         await provider.TemplateExplanationProvider().explain(diagnosis, evidence)
 
 
+@pytest.mark.parametrize("saved_played", ["Kh2", "g1h2", "Kh2#"])
+@pytest.mark.asyncio
+async def test_motif_template_renders_canonical_played_san(
+    monkeypatch: pytest.MonkeyPatch, saved_played: str
+) -> None:
+    case = next(item for item in CASES if item["code"] == "tactics.back_rank" and item["mate"] == 1)
+    board, line, played = _position(case)
+    evidence = _evidence(board, line, played, case["mate"])
+    matched = next(item for item in evidence if item.payload.get("tactic_type") == "back_rank")
+    matched.payload["played_move"] = saved_played
+    diagnosis = Diagnosis(primary=case["code"], confidence=1, evidence_refs=[matched.evidence_id])
+    monkeypatch.setattr(provider, "TRUSTED_CODES", TRUSTED_CODES | {case["code"]})
+    text = (await provider.TemplateExplanationProvider().explain(diagnosis, evidence)).text
+    assert f"Instead of {played}, {line[0]}" in text
+
+
 @pytest.mark.parametrize("case", CASES, ids=lambda case: str(case["code"]))
 def test_omission_threshold_and_whole_legal_pv_are_required(case: dict[str, Any]) -> None:
     board, line, played = _position(case)
@@ -346,7 +362,6 @@ async def test_opportunity_and_saved_played_moves_match_by_move_not_notation(
     diagnosis = Diagnosis(primary=code, confidence=1, evidence_refs=[matched.evidence_id])
     text = (await provider.TemplateExplanationProvider().explain(diagnosis, evidence)).text
     assert "e1e8 starts a back-rank mate in 1" in text
-    assert f"Instead of {saved_played}" in text
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: str(case["code"]))

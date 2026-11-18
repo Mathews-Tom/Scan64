@@ -762,6 +762,8 @@ Status: **measured once; all three v2 motifs remain below the unchanged support 
 
 The owner authorized one new disjoint holdout, qualifying ordinals **361–440**, under [the v2 protocol](m94-motif-v2-protocol.md). The precision >=0.80 and support (TP+FP) >=10 gates are unchanged, independently per code. No pooling, extension, restart, threshold tuning, or current-code rescoring of v1 is allowed.
 
+The linked v2 protocol is the immutable preregistration snapshot from `e42ddc06d1f12d105abc58114384ec48d1d595e5`; its “not yet measured” status describes the time of that freeze, not the current result. The measured result and later validation below supersede that status without rewriting the frozen protocol.
+
 All historical rows above remain the outputs of their frozen implementations. In particular, reproduce M94 v1 only at immutable data commit `fa6dc9c15b643df702e4dcc472cd9ceff66619a3` with preregistration `4871a5aa99166e72489e606e3e2f5a9c2c151cd4`. Its three `m94_fresh80_*` artifacts, original protocol and original source manifest are unchanged.
 
 V2 independently corrects discovery geometry for en passant, exact-centipawn eligibility and saved-proof validation, binds preflight to an explicitly supplied immutable preregistration SHA, and makes replay consume the same bytes it hashes. The archive is hashed and decompressed from the same open descriptor. Relative corpus paths receive the same checks as absolute paths; archived v1 calls are rejected rather than reported as zeros or silently rescored. Historical sections omit new-code rows that were never measured on those corpora.
@@ -792,4 +794,17 @@ Zero emitted diagnoses do not establish precision; the evaluator's numeric zero 
 ### M94 v2 observed validation
 
 Ruff and formatting checks passed for all 16 touched Python files; strict mypy passed for the nine production files. All 371 scoped tests passed, including the real measured replay with engine and Git calls forbidden, all six missing/changed-artifact cases, all three recorded-v2 product-visibility cases, the eligible three-game synthetic trust controls, puzzle mapping/trust combinations, archive restoration and the M79/M93 regressions. No actual-data test was skipped or deselected. The complete `real_games --check` gate and historical Lichess `--version v2 --check` and `--version v3 --check` passed offline. The same primary reviewer cleared the corrected source before preregistration and the actual-data delta afterward; no important or critical findings remained.
+
+
+### Explicitly deferred automatic-draw correction
+
+The owner selected `preserve_v2_defer_draw_fix` on 2026-11-19 after independent synthetic reproduction. Setting the mate-in-two back-rank fixture's halfmove clock to 149 makes `e3e8` reach the automatic 75-move draw without checkmate. The frozen v2 proof and independent oracle nevertheless accept the continuation `d8e8 e2e8` as a later mate. This is a known limitation of those measured operational definitions, not an independently validated chess-coaching result.
+
+Preserve the frozen v2 definitions, artifacts, pins and reported counts; do not rescore the consumed holdout under a changed draw rule. The correction is explicitly deferred to a future separately preregistered revision. All three M94 codes remain untrusted and hidden, and no new sample, threshold change, pooling or promotion is authorized. Other post-measurement boundary and presentation fixes do not change the motif/oracle rules.
+
+### Post-measurement boundary repair
+
+Later review corrections verify a private compressed-archive copy before decompression, write the exact hashed UTF-8 bytes in binary mode, and finalize complete outputs even when status printing fails while preserving meaningful errors. Saved analysis entries are validated as lists of dictionaries before replay/publication. Logical paths retain sibling-file lookup while resolved identities preserve historical provenance and labeller guards. Explanations render the validated played move as canonical SAN. These repairs leave the frozen motif/oracle rules, v1/v2 artifacts, measurement pins, counts and trust decisions unchanged.
+
+Ruff and formatting passed for the eight changed Python files; strict mypy passed for the four changed production files. All 455 distinct scoped cases passed across the full run and affected-file rerun: an obsolete raw-notation wording assertion was removed, then all 86 motif cases passed, with the other 369 scoped cases already passing. The complete `real_games --check` gate passed, retaining the recorded v2 verdicts and existing trust gates. No actual-data case was skipped. The same primary reviewer cleared the nine-file boundary repair and the test-only assertion removal.
 

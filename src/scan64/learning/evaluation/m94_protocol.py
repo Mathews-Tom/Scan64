@@ -220,8 +220,14 @@ def validate_artifacts(
         raise ValueError("M94 PGN games differ from the recording")
     for game in corpus["games"]:
         if (
-            len(game.get("fast", [])) != len(game["moves"]) + 1
-            or any(not isinstance(raw, list) or not raw for raw in game["fast"])
+            not isinstance(game.get("fast"), list)
+            or len(game["fast"]) != len(game["moves"]) + 1
+            or any(
+                not isinstance(raw, list)
+                or not raw
+                or any(not isinstance(line, dict) for line in raw)
+                for raw in game["fast"]
+            )
             or not isinstance(game.get("focused"), dict)
             or not isinstance(game.get("deep_before"), dict)
             or game["focused"].keys() != game["deep_before"].keys()
@@ -231,6 +237,13 @@ def validate_artifacts(
                 or not game["focused"][key]
                 or not game["deep_before"][key]
                 for key in game["focused"]
+            )
+            or any(
+                not isinstance(raw, list)
+                or not raw
+                or any(not isinstance(line, dict) for line in raw)
+                for field in ("focused", "deep_before")
+                for raw in game[field].values()
             )
         ):
             raise ValueError("M94 recording is incomplete; STOP without another search")

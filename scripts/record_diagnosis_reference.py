@@ -37,8 +37,14 @@ SHA256 = "aa40b3671fa3cf1072eb182892cd90b0e1e003a4a5943492f64b77e7f3fd1635"
 
 @contextmanager
 def verified_pgn(source: Path) -> Iterator[TextIO]:
-    with source.open("rb") as archive:
-        if hashlib.file_digest(archive, "sha256").hexdigest() != SHA256:
+    """Decompress a verified private snapshot, not the mutable source archive."""
+    with tempfile.TemporaryFile(mode="w+b") as archive:
+        digest = hashlib.sha256()
+        with source.open("rb") as original:
+            while chunk := original.read(1024 * 1024):
+                archive.write(chunk)
+                digest.update(chunk)
+        if digest.hexdigest() != SHA256:
             raise ValueError("Compressed source does not match the published SHA256")
         archive.seek(0)
         with subprocess.Popen(
@@ -53,10 +59,10 @@ def verified_pgn(source: Path) -> Iterator[TextIO]:
 
 
 def save_recording(data: dict[str, Any]) -> None:
-    output = json.dumps(data, separators=(",", ":")) + "\n"
-    if len(output.encode()) > 2_000_000:
+    output = (json.dumps(data, separators=(",", ":")) + "\n").encode("utf-8")
+    if len(output) > 2_000_000:
         raise ValueError("Recorded engine output exceeds 2 MB")
-    (DEST / "recorded.json").write_text(output)
+    (DEST / "recorded.json").write_bytes(output)
 
 
 async def augment_before(source: Path) -> None:
@@ -333,7 +339,7 @@ async def record(
                 for game in selected
             )
             + "\n"
-        )
+        ).encode("utf-8")
         pgn_path = DEST / (f"{prefix}_real_games.pgn" if fresh80 else "real_games.pgn")
         reference = None
         if not fresh80:
@@ -341,7 +347,7 @@ async def record(
                 reference = chess.pgn.read_game(stream)
             assert reference is not None
         # Wrong configuration or identity must not consume the one-shot holdout.
-        with pgn_path.open("x" if m93_fresh80 or m94_v2_fresh80 else "w") as output_pgn:
+        with pgn_path.open("xb" if m93_fresh80 or m94_v2_fresh80 else "wb") as output_pgn:
             output_pgn.write(pgn)
         for index, game in enumerate(
             selected if fresh80 else [*selected, cast(chess.pgn.Game, reference)]
@@ -451,7 +457,7 @@ async def record(
             "deep_before_nodes": 1_000_000,
             "deep_before_multipv": 4,
             "reset": "ucinewgame before each position",
-            "pgn_sha256": hashlib.sha256(pgn.encode()).hexdigest(),
+            "pgn_sha256": hashlib.sha256(pgn).hexdigest(),
         },
         "games": records,
     }
@@ -463,22 +469,25 @@ async def record(
             {"protocol": protocol, "protocol_sha256": m94_protocol.protocol_digest(protocol)}
         )
     if fresh80:
-        output = json.dumps(data, separators=(",", ":")) + "\n"
-        if len(output.encode()) > 8_000_000:
+        output = (json.dumps(data, separators=(",", ":")) + "\n").encode("utf-8")
+        if len(output) > 8_000_000:
             raise ValueError("Fresh80 recording exceeds 8 MB")
         with (DEST / f"{prefix}_recorded.json").open(
-            "x" if m93_fresh80 or m94_v2_fresh80 else "w"
+            "xb" if m93_fresh80 or m94_v2_fresh80 else "wb"
         ) as output_file:
             output_file.write(output)
         if m94_v2_fresh80:
-            recording_sha256 = hashlib.sha256(output.encode()).hexdigest()
-            pgn_sha256 = hashlib.sha256(pgn.encode()).hexdigest()
-            print(
-                f"Complete M94 v2 outputs: recording_sha256={recording_sha256} "
-                f"pgn_sha256={pgn_sha256} preregistration_commit={preregistration}",
-                flush=True,
-            )
-            await finalize_m94_manifest(preregistration, recording_sha256, pgn_sha256)
+            recording_sha256 = hashlib.sha256(output).hexdigest()
+            pgn_sha256 = hashlib.sha256(pgn).hexdigest()
+            # A failed status pipe must not strand complete outputs without a manifest.
+            try:
+                print(
+                    f"Complete M94 v2 outputs: recording_sha256={recording_sha256} "
+                    f"pgn_sha256={pgn_sha256} preregistration_commit={preregistration}",
+                    flush=True,
+                )
+            finally:
+                await finalize_m94_manifest(preregistration, recording_sha256, pgn_sha256)
     else:
         save_recording(data)
 

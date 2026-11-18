@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 from collections.abc import Iterator
@@ -30,6 +31,66 @@ def _previous_corpora(path: Path, original_engine: str = "Stockfish 19") -> None
                 }
             )
         )
+
+
+def _synthetic_recording_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
+    _previous_corpora(tmp_path)
+    freeze = tmp_path / "synthetic_revisions.json"
+    freeze.write_bytes(json.dumps({"synthetic.py": hashlib.sha256(b"source").hexdigest()}).encode())
+    monkeypatch.setattr(m94_protocol, "FREEZE", freeze)
+    monkeypatch.setattr(
+        m94_protocol, "validate_frozen_sources", lambda commit, root: m94_protocol.get_protocol()
+    )
+    moves = (
+        "1. Nf3 Nf6 2. Ng1 Ng8 3. Nf3 Nf6 4. Ng1 Ng8 5. Nf3 Nf6 "
+        "6. Ng1 Ng8 7. Nf3 Nf6 8. Ng1 Ng8 9. Nf3 Nf6 10. Ng1 Ng8 *"
+    )
+    pgn = "\n".join(
+        f'[Site "synthetic-{index}{("-José-棋" if index >= 360 else "")}"]\n'
+        f'[White "José"]\n[Black "棋"]\n[WhiteElo "1000"]\n[BlackElo "1000"]\n\n{moves}\n'
+        for index in range(440)
+    )
+    calls = {"source": 0, "engine": 0, "analysis": 0, "quit": 0}
+
+    @contextmanager
+    def source(_: Path) -> Iterator[TextIO]:
+        calls["source"] += 1
+        assert calls["source"] == 1, "Finalization reopened the source"
+        with io.StringIO(pgn) as stream:
+            yield stream
+
+    class SyntheticEngine:
+        async def analysis_identity(self) -> dict[str, Any]:
+            return {"engine_name": "Stockfish 19"}
+
+        async def reset(self) -> None:
+            assert calls["quit"] == 0, "Finalization reset the engine"
+
+        async def analyze_position(
+            self, fen: str, nodes: int, multipv: int = 1
+        ) -> recorder.EngineAnalysis:
+            assert calls["quit"] == 0, "Finalization performed a position search"
+            assert nodes == 10_000 and multipv == 1
+            calls["analysis"] += 1
+            return recorder.EngineAnalysis(
+                config={"engine_name": "Stockfish 19"}, raw_result=[{"score_cp": 0, "pv": []}]
+            )
+
+        async def quit(self) -> None:
+            calls["quit"] += 1
+
+    def engine(config: StockfishConfig) -> SyntheticEngine:
+        calls["engine"] += 1
+        assert calls["engine"] == 1, "Finalization opened another engine"
+        return SyntheticEngine()
+
+    monkeypatch.setattr(recorder, "DEST", tmp_path)
+    monkeypatch.setattr(recorder, "verified_pgn", source)
+    monkeypatch.setattr(
+        recorder, "StockfishConfig", lambda: StockfishConfig(threads=1, hash_size=16)
+    )
+    monkeypatch.setattr(recorder, "PooledStockfishAdapter", engine)
+    return calls
 
 
 @pytest.mark.asyncio
@@ -152,27 +213,29 @@ def test_later_clean_commit_cannot_replace_explicit_preregistration_bytes(
             m94_protocol.validate_frozen_sources("a" * 40, tmp_path)
 
 
-def test_verified_archive_decompresses_the_hashed_open_descriptor(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("mutation", ["in_place", "path_replacement"])
+def test_verified_archive_decompresses_private_copy_despite_original_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str
 ) -> None:
-    import hashlib
-
     source = tmp_path / "archive.zst"
     original = b"verified archive"
     source.write_bytes(original)
+    original_inode = source.stat().st_ino
     monkeypatch.setattr(recorder, "SHA256", hashlib.sha256(original).hexdigest())
-    file_digest = hashlib.file_digest
-
-    def swapped(archive: Any, algorithm: str) -> Any:
-        digest = file_digest(archive, algorithm)
-        source.rename(tmp_path / "preserved.zst")
-        source.write_bytes(b"replacement must not be decompressed")
-        return digest
+    archives: list[Any] = []
 
     class Decompressor:
         def __init__(self, command: list[str], **kwargs: Any) -> None:
             assert command == ["zstd", "-dc"]
-            assert kwargs["stdin"].read() == original
+            if mutation == "path_replacement":
+                source.rename(tmp_path / "preserved.zst")
+            source.write_bytes(b"replacement must not be decompressed")
+            if mutation == "in_place":
+                assert source.stat().st_ino == original_inode
+            archive = kwargs["stdin"]
+            archives.append(archive)
+            assert archive.tell() == 0
+            assert archive.read() == original
             self.stdout = io.StringIO("verified PGN stream")
 
         def __enter__(self) -> Decompressor:
@@ -184,10 +247,58 @@ def test_verified_archive_decompresses_the_hashed_open_descriptor(
         def terminate(self) -> None:
             pass
 
-    monkeypatch.setattr(hashlib, "file_digest", swapped)
     monkeypatch.setattr(recorder.subprocess, "Popen", Decompressor)
     with recorder.verified_pgn(source) as stream:
         assert stream.read() == "verified PGN stream"
+    assert len(archives) == 1
+    assert archives[0].closed
+
+
+@pytest.mark.parametrize("failure", ["checksum", "decompressor", "consumer"])
+def test_private_archive_closes_and_leaves_no_copy_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    source = tmp_path / "archive.zst"
+    original = b"verified archive"
+    source.write_bytes(original)
+    monkeypatch.setattr(
+        recorder,
+        "SHA256",
+        hashlib.sha256(b"wrong" if failure == "checksum" else original).hexdigest(),
+    )
+    temporary_file = recorder.tempfile.TemporaryFile
+    archives: list[Any] = []
+
+    def private_copy(*args: Any, **kwargs: Any) -> Any:
+        archive = temporary_file(*args, **kwargs, dir=tmp_path)
+        archives.append(archive)
+        return archive
+
+    class Decompressor:
+        def __init__(self, command: list[str], **kwargs: Any) -> None:
+            assert failure != "checksum", "Unverified archive reached the decompressor"
+            if failure == "decompressor":
+                raise RuntimeError("Synthetic decompressor failure")
+            self.stdout = io.StringIO("verified PGN stream")
+
+        def __enter__(self) -> Decompressor:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+        def terminate(self) -> None:
+            pass
+
+    monkeypatch.setattr(recorder.tempfile, "TemporaryFile", private_copy)
+    monkeypatch.setattr(recorder.subprocess, "Popen", Decompressor)
+    error = ValueError if failure == "checksum" else RuntimeError
+    with pytest.raises(error, match="SHA256|Synthetic"):
+        with recorder.verified_pgn(source):
+            raise RuntimeError("Synthetic consumer failure")
+    assert len(archives) == 1
+    assert archives[0].closed
+    assert list(tmp_path.iterdir()) == [source]
 
 
 @pytest.mark.asyncio
@@ -258,3 +369,115 @@ def test_v2_selection_is_exactly_disjoint_qualifying_ordinals_361_to_440(
                 m93_fresh80=False,
                 m94_v2_fresh80=True,
             )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("encoding,newline", [("utf-8", "\r\n"), ("cp1252", None)])
+async def test_recording_publishes_exact_utf8_bytes_independent_of_text_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    encoding: str,
+    newline: str | None,
+) -> None:
+    calls = _synthetic_recording_run(tmp_path, monkeypatch)
+    prefix = m94_protocol.PREFIX
+    modes: dict[str, str] = {}
+    path_open = Path.open
+    output_names = {f"{prefix}_real_games.pgn", f"{prefix}_recorded.json"}
+
+    def platform_open(path: Path, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        if path.name in output_names and mode[0] in "wx":
+            modes[path.name] = mode
+            if "b" not in mode:
+                kwargs.update(encoding=encoding, newline=newline)
+        return path_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", platform_open)
+    await recorder.record(
+        tmp_path / "synthetic-source", m94_v2_fresh80=True, preregistration_commit="a" * 40
+    )
+    recording = (tmp_path / f"{prefix}_recorded.json").read_bytes()
+    pgn = (tmp_path / f"{prefix}_real_games.pgn").read_bytes()
+    manifest = json.loads((tmp_path / f"{prefix}_manifest.json").read_bytes())
+    corpus = json.loads(recording)
+    assert modes == {name: "xb" for name in output_names}
+    assert "José-棋".encode() in pgn
+    assert b"\r" not in pgn and pgn.endswith(b"\n")
+    assert b"\r" not in recording and recording.endswith(b"\n")
+    assert corpus["games"][0]["id"] == "synthetic-360-José-棋"
+    assert corpus["games"][-1]["id"] == "synthetic-439-José-棋"
+    assert manifest["recording_sha256"] == hashlib.sha256(recording).hexdigest()
+    assert manifest["pgn_sha256"] == hashlib.sha256(pgn).hexdigest()
+    assert corpus["provenance"]["pgn_sha256"] == manifest["pgn_sha256"]
+    assert calls == {"source": 1, "engine": 1, "analysis": 80 * 21, "quit": 1}
+
+
+def test_original_recording_uses_binary_utf8_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = {"games": [{"id": "José-棋", "note": "first\nsecond"}]}
+    monkeypatch.setattr(recorder, "DEST", tmp_path)
+    path_open = Path.open
+    modes = []
+
+    def platform_open(path: Path, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        if path.name == "recorded.json" and mode[0] == "w":
+            modes.append(mode)
+            if "b" not in mode:
+                kwargs.update(encoding="cp1252", newline="\r\n")
+        return path_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", platform_open)
+    recorder.save_recording(data)
+    assert (tmp_path / "recorded.json").read_bytes() == (
+        json.dumps(data, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
+    assert modes == ["wb"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["status", "publication", "both"])
+async def test_completed_outputs_finalize_despite_status_failure_and_preserve_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    calls = _synthetic_recording_run(tmp_path, monkeypatch)
+    statuses: list[str] = []
+
+    def status(message: str, *, flush: bool) -> None:
+        if message.startswith("Complete M94 v2 outputs:"):
+            statuses.append(message)
+            if failure in {"status", "both"}:
+                raise BrokenPipeError("Synthetic status pipe failure")
+
+    def failed_publication(*args: Any, **kwargs: Any) -> None:
+        raise OSError("Synthetic manifest publication failure")
+
+    monkeypatch.setattr(recorder, "print", status, raising=False)
+    if failure in {"publication", "both"}:
+        monkeypatch.setattr(recorder.os, "link", failed_publication)
+    error = BrokenPipeError if failure == "status" else OSError
+    message = "status pipe" if failure == "status" else "manifest publication"
+    with pytest.raises(error, match=message) as caught:
+        await recorder.record(
+            tmp_path / "synthetic-source", m94_v2_fresh80=True, preregistration_commit="a" * 40
+        )
+    prefix = m94_protocol.PREFIX
+    recording = (tmp_path / f"{prefix}_recorded.json").read_bytes()
+    pgn = (tmp_path / f"{prefix}_real_games.pgn").read_bytes()
+    recording_digest = hashlib.sha256(recording).hexdigest()
+    pgn_digest = hashlib.sha256(pgn).hexdigest()
+    assert statuses == [
+        f"Complete M94 v2 outputs: recording_sha256={recording_digest} "
+        f"pgn_sha256={pgn_digest} preregistration_commit={'a' * 40}"
+    ]
+    manifest_path = tmp_path / f"{prefix}_manifest.json"
+    if failure == "status":
+        manifest = json.loads(manifest_path.read_bytes())
+        assert manifest["recording_sha256"] == recording_digest
+        assert manifest["pgn_sha256"] == pgn_digest
+    else:
+        assert not manifest_path.exists()
+        assert not list(tmp_path.glob(".m94-manifest-*"))
+        if failure == "both":
+            assert isinstance(caught.value.__context__, BrokenPipeError)
+    assert calls == {"source": 1, "engine": 1, "analysis": 80 * 21, "quit": 1}

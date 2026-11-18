@@ -462,3 +462,175 @@ async def test_manifest_finalization_is_bounded_and_never_repeats_search(
             identity.preregistration_commit, recording_digest, identity.pgn_sha256
         )
     assert not manifest_path.exists()
+
+
+def _synthetic_candidate_recording(
+    tmp_path: Path, field: str, raw: Any
+) -> tuple[Path, m94_protocol.MeasurementIdentity]:
+    path, identity = _synthetic_recording(tmp_path)
+    corpus = json.loads(path.read_bytes())
+    game = corpus["games"][0]
+    # One saved fast swing selects move zero without an engine or label oracle.
+    game["fast"][0] = [{"score_cp": 300}]
+    game["focused"] = {"0": [{"score_cp": 0}]}
+    game["deep_before"] = {"0": [{"score_cp": 0}]}
+    if field == "fast":
+        game["fast"][0] = raw
+    else:
+        game[field]["0"] = raw
+    recording_bytes = json.dumps(corpus).encode()
+    path.write_bytes(recording_bytes)
+    identity = replace(identity, recording_sha256=hashlib.sha256(recording_bytes).hexdigest())
+    manifest_bytes = json.dumps(_manifest(identity)).encode()
+    path.with_name("m94_v2_fresh80_manifest.json").write_bytes(manifest_bytes)
+    return path, replace(identity, manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("boundary", ["replay", "finalize"])
+@pytest.mark.parametrize("field", ["fast", "focused", "deep_before"])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(None, id="null"),
+        pytest.param({}, id="dictionary-not-list"),
+        pytest.param([], id="empty-list"),
+        pytest.param([None], id="null-line"),
+        pytest.param(["not-a-line"], id="string-line"),
+        pytest.param([0], id="number-line"),
+        pytest.param([True], id="boolean-line"),
+        pytest.param([{"score_cp": 0}, None], id="malformed-second-line"),
+    ],
+)
+async def test_malformed_analysis_is_rejected_before_replay_or_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    field: str,
+    raw: Any,
+) -> None:
+    path, identity = _synthetic_candidate_recording(tmp_path, field, raw)
+    if boundary == "replay":
+        with pytest.raises(ValueError, match="incomplete"):
+            m94_protocol.validate_recording(path, (), identity)
+        return
+    manifest_path = path.with_name("m94_v2_fresh80_manifest.json")
+    manifest_path.unlink()
+    for name in (
+        "recorded.json",
+        "fresh80_recorded.json",
+        "m79_fresh80_recorded.json",
+        "m93_fresh80_recorded.json",
+        "m94_fresh80_recorded.json",
+    ):
+        (tmp_path / name).write_text(json.dumps({"games": []}))
+    monkeypatch.setattr(recorder, "DEST", tmp_path)
+    monkeypatch.setattr(
+        m94_protocol, "validate_frozen_sources", lambda commit, root: m94_protocol.get_protocol()
+    )
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Malformed artifacts reached replay or another search")
+
+    monkeypatch.setattr(recorder, "PooledStockfishAdapter", forbidden)
+    monkeypatch.setattr(recorder, "verified_pgn", forbidden)
+    monkeypatch.setattr(recorder.FastPassOrchestrator, "run_fast_pass", forbidden)
+    with pytest.raises(ValueError, match="incomplete"):
+        await recorder.finalize_m94_manifest(
+            identity.preregistration_commit, identity.recording_sha256, identity.pgn_sha256
+        )
+    assert not manifest_path.exists()
+    assert not list(tmp_path.glob(".m94-manifest-*"))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["focused", "deep_before"])
+@pytest.mark.parametrize("raw", [[{}], [{"score_cp": 0}]])
+async def test_dictionary_analysis_without_pv_can_be_validated_and_finalized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, raw: Any
+) -> None:
+    path, identity = _synthetic_candidate_recording(tmp_path, field, raw)
+    corpus = m94_protocol.validate_recording(path, (), identity)
+    assert corpus["games"][0][field]["0"] == raw
+    manifest_path = path.with_name("m94_v2_fresh80_manifest.json")
+    manifest_path.unlink()
+    for name in (
+        "recorded.json",
+        "fresh80_recorded.json",
+        "m79_fresh80_recorded.json",
+        "m93_fresh80_recorded.json",
+        "m94_fresh80_recorded.json",
+    ):
+        (tmp_path / name).write_text(json.dumps({"games": []}))
+    monkeypatch.setattr(recorder, "DEST", tmp_path)
+    monkeypatch.setattr(
+        m94_protocol, "validate_frozen_sources", lambda commit, root: m94_protocol.get_protocol()
+    )
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Finalization attempted another engine/source read")
+
+    monkeypatch.setattr(recorder, "PooledStockfishAdapter", forbidden)
+    monkeypatch.setattr(recorder, "verified_pgn", forbidden)
+    await recorder.finalize_m94_manifest(
+        identity.preregistration_commit, identity.recording_sha256, identity.pgn_sha256
+    )
+    assert json.loads(manifest_path.read_bytes()) == _manifest(identity)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_manifest", [False, True])
+async def test_current_symlink_preserves_logical_siblings_and_pinned_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing_manifest: bool
+) -> None:
+    path, identity = _synthetic_recording(tmp_path)
+    backup = tmp_path / "nonstandard-backup.json"
+    path.rename(backup)
+    path.symlink_to(backup)
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(path)
+    for name in ("CORPUS", "FRESH_CORPUS", "M79_CORPUS", "M93_CORPUS", "M94_V1_CORPUS"):
+        prior = tmp_path / f"{name}.json"
+        prior.write_text(json.dumps({"games": []}))
+        monkeypatch.setattr(real_games, name, prior)
+    monkeypatch.setattr(real_games, "M94_CORPUS", path)
+    monkeypatch.setattr(real_games, "M94_MEASUREMENT", identity)
+    monkeypatch.chdir(tmp_path)
+    if missing_manifest:
+        path.with_name("m94_v2_fresh80_manifest.json").unlink()
+    for supplied in (path, alias, Path(path.name)):
+        if missing_manifest:
+            with pytest.raises(FileNotFoundError):
+                await real_games.measure(supplied)
+        else:
+            scores = await real_games.measure(supplied)
+            assert set(scores) == set(real_games.SEED_CODES)
+            assert all(score.support == score.fn == 0 for score in scores.values())
+
+
+@pytest.mark.asyncio
+async def test_archived_v1_symlink_and_alias_remain_immutable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    backup = tmp_path / "nonstandard-backup.json"
+    backup.write_text("must not be parsed")
+    logical = tmp_path / "m94_fresh80_recorded.json"
+    logical.symlink_to(backup)
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(logical)
+    monkeypatch.setattr(real_games, "M94_V1_CORPUS", logical)
+    monkeypatch.chdir(tmp_path)
+    for supplied in (logical, alias, Path(logical.name)):
+        with pytest.raises(ValueError, match="Archived M94 v1"):
+            await real_games.measure(supplied)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revision", ["m94-motifs-v1", "m94-motifs-v2"])
+async def test_renamed_m94_revision_artifacts_cannot_use_historical_replay(
+    tmp_path: Path, revision: str
+) -> None:
+    path = tmp_path / "renamed.json"
+    path.write_text(json.dumps({"provenance": {"protocol": {"revision": revision}}, "games": []}))
+    with pytest.raises(ValueError, match="pinned current corpus path"):
+        await real_games.measure(path)

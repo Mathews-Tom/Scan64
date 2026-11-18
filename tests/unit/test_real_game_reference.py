@@ -4,6 +4,7 @@ import ast
 import hashlib
 import inspect
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -362,3 +363,162 @@ def test_recorder_rejects_an_unverified_compressed_source(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="published SHA256"):
         with verified_pgn(source):
             pytest.fail("An unverified archive must never reach decompression")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("artifact", ["recording", "pgn"])
+@pytest.mark.parametrize("supplied_path", ["logical", "alias", "relative"])
+async def test_m93_symlink_rejects_changed_bytes_before_scoring(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact: str,
+    supplied_path: str,
+) -> None:
+    from scan64.learning.evaluation import real_games
+
+    source = real_games.M93_CORPUS
+    backup = tmp_path / "nonstandard-backup.json"
+    shutil.copyfile(source, backup)
+    logical = tmp_path / source.name
+    logical.symlink_to(backup)
+    pgn = logical.with_name("m93_fresh80_real_games.pgn")
+    shutil.copyfile(source.with_name(pgn.name), pgn)
+    changed = backup if artifact == "recording" else pgn
+    changed.write_bytes(changed.read_bytes() + b" ")
+    monkeypatch.setattr(real_games, "M93_CORPUS", logical)
+    monkeypatch.chdir(tmp_path)
+
+    async def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Changed historical artifacts reached scoring")
+
+    monkeypatch.setattr(real_games.FastPassOrchestrator, "run_fast_pass", forbidden)
+    supplied = logical
+    if supplied_path == "alias":
+        supplied = tmp_path / "alias.json"
+        supplied.symlink_to(logical)
+    elif supplied_path == "relative":
+        supplied = Path(logical.name)
+    message = "M93 recording checksum" if artifact == "recording" else "M93 PGN checksum"
+    with pytest.raises(ValueError, match=message):
+        await real_games.measure(supplied)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("corpus_name", ["M93_CORPUS", "M79_CORPUS", "FRESH_CORPUS"])
+async def test_historical_symlinks_aliases_and_relative_paths_preserve_scores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, corpus_name: str
+) -> None:
+    import chess.engine
+
+    from scan64.learning.evaluation import real_games
+
+    async def forbidden_engine(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Historical replay launched an engine")
+
+    monkeypatch.setattr(chess.engine, "popen_uci", forbidden_engine)
+    source = getattr(real_games, corpus_name)
+    expected = await real_games.measure(source)
+    backup = tmp_path / "nonstandard-backup.json"
+    shutil.copyfile(source, backup)
+    logical = tmp_path / source.name
+    logical.symlink_to(backup)
+    if corpus_name == "M93_CORPUS":
+        pgn_name = "m93_fresh80_real_games.pgn"
+        shutil.copyfile(source.with_name(pgn_name), logical.with_name(pgn_name))
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(logical)
+    monkeypatch.setattr(real_games, corpus_name, logical)
+    monkeypatch.chdir(tmp_path)
+    assert len(expected) == 11
+    for supplied in (logical, alias, Path(logical.name), Path(backup.name)):
+        assert await real_games.measure(supplied) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("supplied_path", ["logical", "alias", "relative"])
+async def test_m79_symlink_preserves_provenance_guard_before_scoring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supplied_path: str
+) -> None:
+    from scan64.learning.evaluation import real_games
+
+    source = real_games.M79_CORPUS
+    corpus = json.loads(source.read_bytes())
+    corpus["provenance"]["preregistration_commit"] = "changed"
+    backup = tmp_path / "nonstandard-backup.json"
+    backup.write_text(json.dumps(corpus))
+    logical = tmp_path / source.name
+    logical.symlink_to(backup)
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(logical)
+    monkeypatch.setattr(real_games, "M79_CORPUS", logical)
+    monkeypatch.chdir(tmp_path)
+
+    async def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Changed M79 provenance reached scoring")
+
+    monkeypatch.setattr(real_games.FastPassOrchestrator, "run_fast_pass", forbidden)
+    supplied = {"logical": logical, "alias": alias, "relative": Path(logical.name)}[supplied_path]
+    with pytest.raises(ValueError, match="M79 holdout"):
+        await real_games.measure(supplied)
+
+
+@pytest.mark.asyncio
+async def test_m79_symlink_uses_omitted_capture_labels_not_the_historical_oracle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scan64.learning.evaluation import real_games
+
+    games: list[dict[str, Any]] = [
+        {
+            "id": f"synthetic-{index}",
+            "moves": [],
+            "fast": [[{"score_cp": 0, "pv": []}]],
+            "focused": {},
+            "deep_before": {},
+            "sources": {},
+        }
+        for index in range(80)
+    ]
+    # The recorded move actually captures the free pawn: it was not omitted.
+    games[0].update(
+        {
+            "moves": ["e4", "d5", "exd5"],
+            "fast": [
+                [{"score_cp": 0, "pv": []}],
+                [{"score_cp": 0, "pv": []}],
+                [{"score_cp": 0, "pv": []}],
+                [{"score_cp": 300, "pv": []}],
+            ],
+            "focused": {"2": [{"score_cp": 0}]},
+            "deep_before": {"2": [{"score_cp": 100, "pv": ["e4d5"]}]},
+        }
+    )
+    corpus = {
+        "provenance": {
+            "game_count": 80,
+            "preregistration_commit": real_games.M79_PREREGISTRATION,
+            "selection": (
+                "Next 80 qualifying games after original40 and M78 fresh80; ordinal 121..200."
+            ),
+        },
+        "games": games,
+    }
+    backup = tmp_path / "nonstandard-backup.json"
+    backup.write_text(json.dumps(corpus))
+    logical = tmp_path / real_games.M79_CORPUS.name
+    logical.symlink_to(backup)
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(logical)
+    monkeypatch.setattr(real_games, "M79_CORPUS", logical)
+    monkeypatch.chdir(tmp_path)
+    for supplied in (logical, alias, Path(logical.name), Path(backup.name)):
+        scores = await real_games.measure(supplied)
+        score = scores[real_games.MISSED_CAPTURE]
+        assert score.tp + score.fn == 0
+        assert len(scores) == 11
+    # Identical synthetic bytes with no M79 identity retain the older oracle.
+    ordinary = tmp_path / "ordinary.json"
+    ordinary.write_bytes(backup.read_bytes())
+    historical = await real_games.measure(ordinary)
+    score = historical[real_games.MISSED_CAPTURE]
+    assert score.tp + score.fn == 1
