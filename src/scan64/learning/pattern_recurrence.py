@@ -6,6 +6,7 @@ import io
 import math
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from itertools import batched
 from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -25,15 +26,16 @@ from scan64.chess.analysis.models import (
 )
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game, PlaySession
-from scan64.chess.games.online_import import source_identity
+from scan64.chess.games.online_import import STANDARD_VARIANTS, source_identity
 from scan64.chess.positions.models import Position
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
-from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
+from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
 from scan64.learning.diagnosis.visibility import visible_game_lesson
+from scan64.learning.evidence.composer import compose_candidate_evidence, needs_mate_source
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.evidence.support import supports_saved_diagnosis
 from scan64.learning.plugins.host_registry import get_host_registry
@@ -224,8 +226,17 @@ def _first_training(player_id: str, session: Session) -> dict[str, datetime]:
             if board.fen() != run.fen or run.cursor != len(run.played_moves):
                 continue
             if run.state == "solved":
-                if not matches_completed_solution(
-                    run.played_moves, lesson.interaction.solution, board
+                line = lesson.interaction.solution
+                if not (
+                    run.played_moves
+                    and 0 <= run.wrong_attempts < 3
+                    and len(run.played_moves) <= len(line)
+                    and (
+                        run.played_moves == line
+                        or len(run.played_moves) % 2 == 1
+                        and run.played_moves[:-1] == line[: run.cursor - 1]
+                        and board.is_checkmate()
+                    )
                 ):
                     continue
             elif (
@@ -269,7 +280,7 @@ def _online_played_at(game: Game) -> tuple[datetime | None, str | None]:
             or stream.read().strip()
             or not parsed.board().is_valid()
             or parsed.board().chess960
-            or parsed.headers.get("Variant", "Standard") != "Standard"
+            or parsed.headers.get("Variant", "Standard").casefold() not in STANDARD_VARIANTS
             or game.white != parsed.headers.get("White")
             or game.black != parsed.headers.get("Black")
             or game.white.casefold() == game.black.casefold()
@@ -355,6 +366,7 @@ async def _game_occurrences(
     positions: dict[UUID, Position],
     analyses: dict[UUID, EngineAnalysis],
     evidence: dict[str, list[Evidence]],
+    mate_sources: dict[UUID, EngineAnalysis],
     detectors: tuple[PatternDetector, ...],
 ) -> tuple[int, dict[str, int], set[str], str | None]:
     board = board_from(game.headers.get("FEN"))
@@ -363,6 +375,7 @@ async def _game_occurrences(
         return 0, {}, set(), "incomplete_analysis"
     owner_moves = 0
     occurrences: Counter[str] = Counter()
+    history: list[str] = []
     supported = set(TRUSTED_CODES)
     for ply, uci in enumerate(game.moves, 1):
         row = reviews.get(ply)
@@ -375,6 +388,7 @@ async def _game_occurrences(
         mover = "white" if board.turn else "black"
         move = board.parse_uci(uci)
         san = board.san(move)
+        history.append(san)
         source_fen = board.fen()
         board.push(move)
         if (
@@ -435,6 +449,38 @@ async def _game_occurrences(
                     opportunity, saved, PlayerContext(player_id=opportunity.player_id)
                 )
             )
+        # Recompose only from saved searches, never an engine. Detectors require
+        # specific witness groups, not just a format-capable engine row. A
+        # missing positive witness must not silently become verified abstention.
+        engine_proof = next((item for item in saved if item.kind == "engine_analysis"), None)
+        mate_source = mate_sources.get(source.id)
+        if needs_mate_source(after) and mate_source is None:
+            supported.clear()
+        if engine_proof is not None:
+            expected = compose_candidate_evidence(
+                before_board=chess.Board(source_fen),
+                after_board=board.copy(stack=False),
+                history_san=history,
+                initial_fen=game.headers.get("FEN"),
+                position_id=str(reached.id),
+                fast_analysis=before,
+                reply_analysis=after,
+                focused_analysis=analyses[UUID(engine_proof.engine_analysis_id)],
+                mate_source_analysis=mate_source,
+                played_move=san,
+                swing_cp=swing,
+            )
+            required_codes = {
+                candidate.skill_id
+                for detector in detectors
+                for candidate in await detector.detect(
+                    opportunity, expected, PlayerContext(player_id=opportunity.player_id)
+                )
+                if candidate.skill_id in TRUSTED_CODES
+            }
+            if required_codes - {candidate.skill_id for candidate in candidates}:
+                # Missing a competing cause can also change primary arbitration.
+                supported.clear()
         # One primary cause per occurrence, exactly as in the producer. The
         # evidence join and per-code capability checks remain independent gates.
         selection = arbitrate_diagnoses(candidates, saved)
@@ -485,20 +531,23 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
     }
     games = session.exec(select(Game).where(Game.owner_player_id == player_id)).all()
     coverage: Counter[str] = Counter({"owned_saved_games": len(games)})
-    game_ids = [game.id for game in games]
-    if not game_ids:
+    if not games:
         return PatternRecurrenceReport(
             player_id=player_id, coverage=dict(coverage), patterns=list(patterns.values())
         )
     play_ids = set(
         session.exec(
-            select(PlaySession.game_id).where(col(PlaySession.game_id).in_(game_ids))
+            select(PlaySession.game_id)
+            .join(Game, col(Game.id) == col(PlaySession.game_id))
+            .where(Game.owner_player_id == player_id)
         ).all()
     )
     complete = set(
         session.exec(
-            select(AnalysisJob.game_id).where(
-                col(AnalysisJob.game_id).in_(game_ids),
+            select(AnalysisJob.game_id)
+            .join(Game, col(Game.id) == col(AnalysisJob.game_id))
+            .where(
+                Game.owner_player_id == player_id,
                 AnalysisJob.status == "completed",
                 col(AnalysisJob.completed_at).is_not(None),
             )
@@ -506,26 +555,41 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
     )
     positions = {
         row.id: row
-        for row in session.exec(select(Position).where(col(Position.game_id).in_(game_ids))).all()
+        for row in session.exec(
+            select(Position)
+            .join(Game, col(Game.id) == col(Position.game_id))
+            .where(Game.owner_player_id == player_id)
+        ).all()
     }
     analyses = {
         row.id: row
         for row in session.exec(
             select(EngineAnalysis)
             .join(Position, col(Position.id) == col(EngineAnalysis.position_id))
-            .where(col(Position.game_id).in_(game_ids))
+            .join(Game, col(Game.id) == col(Position.game_id))
+            .where(Game.owner_player_id == player_id)
         ).all()
+    }
+    mate_sources = {
+        row.position_id: row
+        for row in analyses.values()
+        if row.config.get("nodes") == 1_000_000 and row.config.get("multipv") == 4
     }
     reviews: dict[UUID, list[GameMoveReview]] = defaultdict(list)
     for row in session.exec(
-        select(GameMoveReview).where(col(GameMoveReview.game_id).in_(game_ids))
+        select(GameMoveReview)
+        .join(Game, col(Game.id) == col(GameMoveReview.game_id))
+        .where(Game.owner_player_id == player_id)
     ).all():
         reviews[row.game_id].append(row)
     evidence: dict[str, list[Evidence]] = defaultdict(list)
-    position_ids = [str(key) for key in positions]
-    if position_ids:
+    # Evidence stores hyphenated UUID text, unlike SQLite's UUID columns.
+    # Bound each text lookup rather than creating a library-sized bind array.
+    for position_ids in batched(positions, 64):
         for item in session.exec(
-            select(Evidence).where(col(Evidence.position_id).in_(position_ids))
+            select(Evidence).where(
+                col(Evidence.position_id).in_([str(key) for key in position_ids])
+            )
         ).all():
             evidence[item.position_id].append(item)
     registry = get_host_registry()
@@ -536,7 +600,7 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
             detector := registry.get(kind=PluginKind.PATTERN_DETECTOR, name=name), PatternDetector
         )
     )
-    seen_sources: set[str] = set()
+    online_games: dict[str, list[tuple[Game, datetime]]] = defaultdict(list)
     for game in sorted(games, key=lambda value: str(value.id)):
         when, reason = _online_played_at(game)
         identity = source_identity(game.headers)
@@ -544,24 +608,42 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
             reason = "not_imported"
         elif game.owner_color not in {"white", "black"}:
             reason = "unknown_owner_colour"
-        elif reason is None and identity in seen_sources:
-            reason = "duplicate_online_game"
         if reason is not None or when is None:
             coverage[reason or "ambiguous_played_time"] += 1
             continue
-        if identity is not None:
-            seen_sources.add(identity)
+        assert identity is not None
+        online_games[identity].append((game, when))
+    for copies in online_games.values():
+        if len(copies) > 1:
+            coverage["duplicate_online_game"] += len(copies) - 1
         coverage["dated_finished_online_games"] += 1
+        when = copies[0][1]
         owner_moves = 0
         counts: dict[str, int] = {}
         supported: set[str] = set()
         invalid: str | None = "incomplete_analysis"
-        if game.id in complete:
-            owner_moves, counts, supported, invalid = await _game_occurrences(
-                game, reviews[game.id], positions, analyses, evidence, detectors
+        best_rank = (False, -1)
+        for game, played_at in copies:
+            result: tuple[int, dict[str, int], set[str], str | None] = (
+                0,
+                {},
+                set(),
+                "incomplete_analysis",
             )
-        if invalid is None and owner_moves < 20:
-            invalid = "fewer_than_20_owner_moves"
+            if game.id in complete:
+                result = await _game_occurrences(
+                    game, reviews[game.id], positions, analyses, evidence, mate_sources, detectors
+                )
+            moves, found, supported_codes, exclusion = result
+            if exclusion is None and moves < 20:
+                exclusion = "fewer_than_20_owner_moves"
+            rank = (exclusion is None, len(supported_codes))
+            if rank > best_rank:
+                when = played_at
+                owner_moves, counts, supported, invalid = moves, found, supported_codes, exclusion
+                best_rank = rank
+            if exclusion is None and supported_codes == TRUSTED_CODES:
+                break
         for code, pattern in patterns.items():
             anchor = anchors.get(code)
             if anchor is None:

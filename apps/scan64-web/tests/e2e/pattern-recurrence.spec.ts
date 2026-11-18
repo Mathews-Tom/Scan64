@@ -4,7 +4,7 @@ import type { PatternRecurrenceReport } from '../../src/api/types';
 
 const report: PatternRecurrenceReport = {
   player_id: 'player-1', minimum_games_per_period: 3, minimum_owner_moves_per_game: 20,
-  coverage: { owned_saved_games: 8, ambiguous_played_time: 2 },
+  coverage: { owned_saved_games: 6, ambiguous_played_time: 2 },
   caveat: 'Descriptive association only, not causal. 95% Wilson intervals assume independent owner moves; moves within games are correlated.',
   patterns: [{ code: 'threat_processing.missed_capture', name: 'Missed capture',
     first_training_at: '2026-10-10T12:00:00Z', status: 'comparison', reason: 'Enough analysed games.',
@@ -45,3 +45,27 @@ test('Progress comparison, local retry and insufficient evidence preserve Profil
   await expect(progress.getByText('unsupported candidate evidence: 1')).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Your game insights' })).toBeVisible();
 });
+
+for (const evidenceState of ['failed', 'pending'] as const) {
+  test(`recurrence retries independently when parent evidence is ${evidenceState}`, async ({ page }) => {
+    await prepareToday(page);
+    await page.route('**/v1/players/*/progress', route => route.fulfill({ json: { player_id: 'player-1', skills: [] } }));
+    await page.route('**/v1/players/*/evidence', route => evidenceState === 'failed'
+      ? route.fulfill({ status: 503, json: { detail: 'Evidence unavailable' } })
+      : undefined);
+    let recurrenceFailed = true;
+    await page.route('**/v1/players/*/progress/pattern-recurrence', route => route.fulfill(recurrenceFailed
+      ? { status: 503, json: { detail: 'Temporarily unavailable' } }
+      : { json: report }));
+    await page.goto('/profile');
+    const progress = page.getByRole('region', { name: 'Progress: before/after patterns', exact: true });
+    const parent = page.getByRole('region', { name: 'Profile reports', exact: true });
+    await expect(parent).toContainText(evidenceState === 'failed' ? 'Profile unavailable:' : 'Loading profile...');
+    await expect(progress.getByRole('alert')).toContainText('Pattern comparison unavailable');
+    recurrenceFailed = false;
+    await progress.getByRole('button', { name: 'Retry pattern comparison' }).click();
+    await expect(progress.getByText('35.00 occurrences per 100 owner moves')).toBeVisible();
+    await expect(progress).toHaveCount(1);
+    await expect(parent).toContainText(evidenceState === 'failed' ? 'Profile unavailable:' : 'Loading profile...');
+  });
+}

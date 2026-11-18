@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -133,13 +134,15 @@ def get_player_progress(
     "/v1/players/{player_id}/progress/pattern-recurrence",
     response_model=PatternRecurrenceReport,
 )
-async def get_pattern_recurrence(
+def get_pattern_recurrence(
     player_id: str,
     request: Request,
     session: Session = Depends(get_session),
 ) -> PatternRecurrenceReport:
     require_player_token(request, player_id, session)
-    return await read_pattern_recurrence(player_id, session)
+    # FastAPI runs this entire synchronous endpoint in one worker. Keep auth,
+    # session access and the detector coroutine off the ASGI request loop.
+    return asyncio.run(read_pattern_recurrence(player_id, session))
 
 
 def read_player_evidence(player_id: str, session: Session) -> EvidenceReport:

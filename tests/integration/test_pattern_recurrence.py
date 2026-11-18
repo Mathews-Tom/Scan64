@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import io
+import sqlite3
 from datetime import UTC, datetime, timedelta
+from threading import get_ident
 from typing import Any, Literal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import chess
 import chess.pgn
@@ -12,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlmodel import Session, select
 
+from scan64.api import reports
 from scan64.api.models import Player
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -21,10 +25,13 @@ from scan64.chess.analysis.models import (
 )
 from scan64.chess.games.ingestion import ingest_fen
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
 from scan64.content.puzzle_practice import utc_now
+from scan64.content.puzzle_runs import PuzzleRun
 from scan64.learning.evidence.composer import compose_candidate_evidence
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.pattern_recurrence import PatternRecurrenceReport
 from scan64.learning.progress import RESET_AT_KEY
 from scan64.providers.stockfish.adapter import StockfishAdapter
 from scan64.providers.stockfish.pool import PoolBoundAdapter
@@ -42,6 +49,8 @@ def seed_online_game(
     candidates: int = 1,
     owner_color: Literal["white", "black"] = "white",
     moves: int = 20,
+    quiet_candidates: bool = False,
+    game_id: UUID | None = None,
 ) -> Game:
     """Synthetic legal PGN + saved analyses, not recorded engine/user outcomes."""
     node = chess.pgn.Game()
@@ -62,6 +71,7 @@ def seed_online_game(
     for uci in ucis:
         tail = tail.add_variation(chess.Move.from_uci(uci))
     game = Game(
+        id=game_id or uuid4(),
         pgn=str(node),
         headers=dict(node.headers),
         moves=ucis,
@@ -83,6 +93,8 @@ def seed_online_game(
         session.add(position)
         positions.append(position)
         best = "a1a2" if board.turn else (ucis[index] if index < len(ucis) else "e8f8")
+        if quiet_candidates and index < len(ucis):
+            best = ucis[index]
         analysis = EngineAnalysis(
             position_id=position.id,
             config={"nodes": 10000, "multipv": 1},
@@ -544,3 +556,425 @@ def test_earliest_verified_incorrect_lesson_precedes_puzzle(
     assert read_pattern(client, auth)["first_training_at"] == when.isoformat().replace(
         "+00:00", "Z"
     )
+
+
+def test_auth_and_complete_projection_share_one_worker_not_request_loop(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    seed_online_game(db_session, "recurrence-owner", TRAINING - timedelta(days=1))
+    assert client.portal is not None
+    request_thread = client.portal.call(get_ident)
+    request_loop = client.portal.call(asyncio.get_running_loop)
+    worker_threads: list[int] = []
+    sql_threads: list[int] = []
+    original_auth = reports.require_player_token
+    original_read = reports.read_pattern_recurrence
+
+    def tracked_auth(request: Any, player_id: str, session: Session) -> Any:
+        assert session is db_session  # Preserve dependency overrides.
+        worker_threads.append(get_ident())
+        return original_auth(request, player_id, session)
+
+    async def tracked_read(player_id: str, session: Session) -> PatternRecurrenceReport:
+        assert session is db_session
+        assert asyncio.get_running_loop() is not request_loop
+        worker_threads.append(get_ident())
+        return await original_read(player_id, session)
+
+    def track_sql(*_args: Any) -> None:
+        sql_threads.append(get_ident())
+
+    monkeypatch.setattr(reports, "require_player_token", tracked_auth)
+    monkeypatch.setattr(reports, "read_pattern_recurrence", tracked_read)
+    engine = db_session.get_bind()
+    event.listen(engine, "before_cursor_execute", track_sql)
+    try:
+        assert read_pattern(client, auth)["before"]["occurrences"] == 1
+    finally:
+        event.remove(engine, "before_cursor_execute", track_sql)
+    assert len(worker_threads) == 2
+    assert len(set(worker_threads)) == 1
+    assert worker_threads[0] != request_thread
+    assert sql_threads and set(sql_threads) == set(worker_threads)
+
+
+@pytest.mark.parametrize("corruption", ["unfinished", "off_line_mate"])
+def test_server_accepted_short_alternative_mate_anchors_but_corrupt_runs_do_not(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    corruption: str,
+) -> None:
+    auth = auth_player(client)
+    item = seed_puzzle(db_session)
+    initial = chess.Board("8/7k/5KQ1/8/8/8/8/8 b - - 0 1")
+    source = initial.copy()
+    source.push_uci("h7h8")
+    solution = ["g6h6", "h8g8", "h6g7"]
+    item.payload = {
+        **item.payload,
+        "fen": initial.fen(),
+        "setup": "h7h8",
+        "moves": ["h7h8", *solution],
+        "lesson": {
+            **item.payload["lesson"],
+            "source": {"kind": "external", "fen": source.fen()},
+            "interaction": {"input": "move", "maximum_attempts": 3, "solution": solution},
+        },
+    }
+    db_session.add(item)
+    db_session.commit()
+    monkeypatch.setattr("scan64.content.puzzle_practice.utc_now", lambda: TRAINING)
+    started = client.post("/v1/puzzles/runs", headers=auth)
+    assert started.status_code == 200, started.text
+    run = started.json()["run"]
+    solved = client.post(
+        f"/v1/puzzles/runs/{run['run_id']}/moves",
+        headers=auth,
+        json={
+            "move": "g6g7",
+            "expected_cursor": run["cursor"],
+            "expected_revision": run["revision"],
+        },
+    )
+    assert solved.status_code == 200, solved.text
+    assert solved.json()["state"] == "solved"
+    assert solved.json()["played_moves"] == ["g6g7"]
+    assert solved.json()["cursor"] < len(solution)
+    assert read_pattern(client, auth)["first_training_at"] == "2026-10-10T12:00:00Z"
+    persisted = db_session.get(PuzzleRun, run["run_id"])
+    assert persisted is not None
+    if corruption == "unfinished":
+        # A legal stored prefix is not a terminal solve unless it mates.
+        played = ["g6h6"]
+    else:
+        # A real final mate cannot excuse an earlier off-solution move.
+        played = solution
+        item.payload = {
+            **item.payload,
+            "lesson": {
+                **item.payload["lesson"],
+                "interaction": {
+                    "input": "move",
+                    "maximum_attempts": 3,
+                    "solution": ["g6h5", "h8g8", "h5h3"],
+                },
+            },
+        }
+        db_session.add(item)
+    replay = source.copy()
+    for move in played:
+        replay.push_uci(move)
+    assert replay.is_checkmate() is (corruption == "off_line_mate")
+    persisted.played_moves = played
+    persisted.cursor = len(played)
+    persisted.fen = replay.fen()
+    db_session.add(persisted)
+    db_session.commit()
+    assert read_pattern(client, auth)["first_training_at"] is None
+
+
+@pytest.mark.parametrize(
+    ("variant", "eligible"),
+    [
+        ("Chess", True),
+        ("standard", True),
+        ("Normal", True),
+        ("From Position", True),
+        ("Atomic", False),
+        ("Chess960", False),
+    ],
+)
+def test_standard_importer_variants_remain_report_eligible(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    variant: str,
+    eligible: bool,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    game = seed_online_game(db_session, "recurrence-owner", TRAINING - timedelta(days=1))
+    parsed = chess.pgn.read_game(io.StringIO(game.pgn))
+    assert parsed is not None
+    parsed.headers["Variant"] = variant
+    game.pgn = str(parsed)
+    game.headers = dict(parsed.headers)
+    db_session.add(game)
+    db_session.commit()
+    row = read_pattern(client, auth)
+    assert row["before"]["games"] == int(eligible)
+    assert row["before"]["occurrences"] == (1 if eligible else None)
+
+
+def test_missing_detector_witness_removes_game_instead_of_reporting_zero(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    games = [
+        seed_online_game(db_session, "recurrence-owner", TRAINING + timedelta(days=day))
+        for day in (-3, -2, -1, 1, 2, 3)
+    ]
+    assert read_pattern(client, auth)["status"] == "comparison"
+    victim = db_session.exec(
+        select(GameMoveReview).where(GameMoveReview.game_id == games[0].id, GameMoveReview.ply == 1)
+    ).one()
+    witness = db_session.exec(
+        select(Evidence).where(
+            Evidence.position_id == str(victim.reached_position_id),
+            Evidence.kind == "missed_opportunity",
+        )
+    ).one()
+    assert witness.payload["missed_type"] == "capture"
+    assert witness.payload["swing_cp"] == 300
+    db_session.delete(witness)
+    db_session.commit()
+    engine_proof = db_session.exec(
+        select(Evidence).where(
+            Evidence.position_id == str(victim.reached_position_id),
+            Evidence.kind == "engine_analysis",
+        )
+    ).one()
+    assert engine_proof is not None
+    row = read_pattern(client, auth)
+    assert row["status"] == "not_enough_games"
+    assert row["before"]["candidate_games"] == 3
+    assert row["before"]["games"] == 2
+    assert row["before"]["owner_moves"] == 40
+    assert row["before"]["occurrences"] == 2
+    assert row["before"]["excluded"] == {"unsupported_candidate_evidence": 1}
+    assert row["before"]["per_100_moves"] is None
+    assert row["before"]["wilson_95_per_100"] is None
+    assert row["after"]["games"] == 3
+
+
+def test_saved_candidate_verified_abstention_keeps_real_zero(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    for day in (-3, -2, -1, 1, 2, 3):
+        seed_online_game(
+            db_session,
+            "recurrence-owner",
+            TRAINING + timedelta(days=day),
+            quiet_candidates=True,
+        )
+    assert (
+        db_session.exec(select(Evidence).where(Evidence.kind == "missed_opportunity")).all() == []
+    )
+    row = read_pattern(client, auth)
+    assert row["status"] == "comparison"
+    for period in ("before", "after"):
+        assert row[period]["games"] == 3
+        assert row[period]["owner_moves"] == 60
+        assert row[period]["occurrences"] == 0
+        assert row[period]["per_100_moves"] == 0
+        assert row[period]["excluded"] == {}
+
+
+def test_owner_library_exceeding_sqlite_bind_limit_is_not_capped(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    for day in (-3, -2, -1, 1, 2, 3):
+        seed_online_game(db_session, "recurrence-owner", TRAINING + timedelta(days=day))
+    for _ in range(59):
+        seed_online_game(
+            db_session,
+            "recurrence-owner",
+            TRAINING + timedelta(days=4),
+            moves=1,
+        )
+    assert len(db_session.exec(select(Game)).all()) == 65
+    assert len(db_session.exec(select(Position)).all()) > 64
+    connection = db_session.connection().connection.driver_connection
+    assert isinstance(connection, sqlite3.Connection)
+    previous = connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, 64)
+    try:
+        response = client.get(
+            "/v1/players/recurrence-owner/progress/pattern-recurrence", headers=auth
+        )
+        assert response.status_code == 200, response.text
+    finally:
+        connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, previous)
+    report = response.json()
+    assert report["coverage"]["owned_saved_games"] == 65
+    assert report["coverage"]["dated_finished_online_games"] == 65
+    row = next(row for row in report["patterns"] if row["code"] == CODE)
+    assert row["status"] == "comparison"
+    assert row["before"]["games"] == row["after"]["games"] == 3
+    assert row["before"]["owner_moves"] == row["after"]["owner_moves"] == 60
+    assert row["before"]["occurrences"] == row["after"]["occurrences"] == 3
+    assert row["after"]["candidate_games"] == 62
+    assert row["after"]["excluded"] == {"fewer_than_20_owner_moves": 59}
+
+
+@pytest.mark.parametrize("earlier_copy", ["unanalysed", "unsupported", "eligible"])
+def test_online_duplicates_prefer_eligible_representative_before_consuming_identity(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    earlier_copy: str,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    earlier = seed_online_game(
+        db_session,
+        "recurrence-owner",
+        TRAINING - timedelta(days=3),
+        candidates=7,
+        game_id=UUID(int=1),
+    )
+    later = seed_online_game(
+        db_session,
+        "recurrence-owner",
+        TRAINING - timedelta(days=3),
+        game_id=UUID(int=2),
+    )
+    parsed = chess.pgn.read_game(io.StringIO(later.pgn))
+    assert parsed is not None
+    parsed.headers["Site"] = earlier.headers["Site"]
+    later.pgn = str(parsed)
+    later.headers = dict(parsed.headers)
+    db_session.add(later)
+    if earlier_copy == "unanalysed":
+        job = db_session.exec(select(AnalysisJob).where(AnalysisJob.game_id == earlier.id)).one()
+        job.status = "queued"
+        job.completed_at = None
+        db_session.add(job)
+    elif earlier_copy == "unsupported":
+        review = db_session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == earlier.id, GameMoveReview.ply == 1
+            )
+        ).one()
+        proof = db_session.exec(
+            select(Evidence).where(
+                Evidence.position_id == str(review.reached_position_id),
+                Evidence.kind == "engine_analysis",
+            )
+        ).one()
+        db_session.delete(proof)
+    db_session.commit()
+    for day in (-2, -1, 1, 2, 3):
+        seed_online_game(db_session, "recurrence-owner", TRAINING + timedelta(days=day))
+    response = client.get("/v1/players/recurrence-owner/progress/pattern-recurrence", headers=auth)
+    assert response.status_code == 200, response.text
+    report = response.json()
+    assert report["coverage"]["owned_saved_games"] == 7
+    assert report["coverage"]["duplicate_online_game"] == 1
+    assert report["coverage"]["dated_finished_online_games"] == 6
+    row = next(row for row in report["patterns"] if row["code"] == CODE)
+    assert row["status"] == "comparison"
+    assert row["before"]["candidate_games"] == row["before"]["games"] == 3
+    assert row["before"]["owner_moves"] == 60
+    assert row["before"]["occurrences"] == (9 if earlier_copy == "eligible" else 3)
+    assert row["before"]["excluded"] == {}
+    assert row["after"]["games"] == 3
+
+
+@pytest.mark.parametrize("missing_input", ["witness", "source"])
+def test_allowed_mate_requires_saved_witness_and_producer_source_search(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    missing_input: str,
+) -> None:
+    code = "threat_processing.allowed_mate"
+    # Moving the knight instead of capturing the queen allows rook-protected ...Qxg2#.
+    monkeypatch.setitem(globals(), "FEN", "4k1r1/8/8/8/8/8/q5PP/R5NK w - - 0 1")
+    auth = auth_player(client)
+    puzzle = seed_puzzle(db_session)
+    puzzle.skill_mapping = {code: 1.0}
+    db_session.add(puzzle)
+    db_session.commit()
+    monkeypatch.setattr("scan64.content.puzzle_practice.utc_now", lambda: TRAINING)
+    complete_failed_puzzle(client, auth)
+    games = [
+        seed_online_game(db_session, "recurrence-owner", TRAINING + timedelta(days=day))
+        for day in (-3, -2, -1, 1, 2, 3)
+    ]
+    review = db_session.exec(
+        select(GameMoveReview).where(GameMoveReview.game_id == games[0].id, GameMoveReview.ply == 1)
+    ).one()
+    source = db_session.get(Position, review.source_position_id)
+    reached = db_session.get(Position, review.reached_position_id)
+    before = db_session.get(EngineAnalysis, review.before_analysis_id)
+    after = db_session.get(EngineAnalysis, review.after_analysis_id)
+    assert source is not None and reached is not None and before is not None and after is not None
+    after.raw_result = [{"pv": ["a2g2"], "score_mate": 1}]
+    db_session.add(after)
+    focused = db_session.exec(
+        select(EngineAnalysis).where(
+            EngineAnalysis.position_id == reached.id,
+            EngineAnalysis.id != after.id,
+        )
+    ).one()
+    focused.raw_result = [{"pv": ["a2g2"], "score_mate": 1}]
+    db_session.add(focused)
+    mate_source = EngineAnalysis(
+        position_id=source.id,
+        config={"nodes": 1_000_000, "multipv": 4},
+        raw_result=[{"pv": ["a1a2"], "score_cp": 300}],
+    )
+    db_session.add(mate_source)
+    for proof in db_session.exec(
+        select(Evidence).where(Evidence.position_id == str(reached.id))
+    ).all():
+        db_session.delete(proof)
+    witnesses = compose_candidate_evidence(
+        before_board=chess.Board(source.fen),
+        after_board=chess.Board(reached.fen),
+        history_san=[review.san],
+        initial_fen=FEN,
+        position_id=str(reached.id),
+        fast_analysis=before,
+        reply_analysis=after,
+        focused_analysis=focused,
+        mate_source_analysis=mate_source,
+        played_move=review.san,
+        swing_cp=10_290,
+    )
+    db_session.add_all(witnesses)
+    db_session.commit()
+    response = client.get("/v1/players/recurrence-owner/progress/pattern-recurrence", headers=auth)
+    assert response.status_code == 200, response.text
+    row = next(row for row in response.json()["patterns"] if row["code"] == code)
+    assert row["status"] == "comparison"
+    assert row["before"]["games"] == row["after"]["games"] == 3
+    assert row["before"]["owner_moves"] == 60
+    assert row["before"]["occurrences"] == 1
+    assert row["after"]["occurrences"] == 0
+    assert row["before"]["excluded"] == {}
+    if missing_input == "witness":
+        proof = next(
+            proof for proof in witnesses if proof.payload.get("blunder_type") == "allowed_mate"
+        )
+        db_session.delete(proof)
+    else:
+        db_session.delete(mate_source)
+    db_session.commit()
+    response = client.get("/v1/players/recurrence-owner/progress/pattern-recurrence", headers=auth)
+    assert response.status_code == 200, response.text
+    row = next(row for row in response.json()["patterns"] if row["code"] == code)
+    assert row["status"] == "not_enough_games"
+    assert row["before"]["candidate_games"] == 3
+    assert row["before"]["games"] == 2
+    assert row["before"]["owner_moves"] == 40
+    assert row["before"]["occurrences"] == 0
+    assert row["before"]["excluded"] == {"unsupported_candidate_evidence": 1}
+    assert row["before"]["per_100_moves"] is None
+    assert row["before"]["wilson_95_per_100"] is None
