@@ -142,7 +142,7 @@ def _synthetic_recording(tmp_path: Path) -> tuple[Path, m94_protocol.Measurement
     output = json.dumps({"provenance": provenance, "games": games})
     path = tmp_path / "m94_v2_fresh80_recorded.json"
     path.write_text(output)
-    path.with_name("m94_v2_fresh80_real_games.pgn").write_text(pgn)
+    path.with_name("m94_v2_fresh80_real_games.pgn").write_bytes(pgn.encode())
     expected = replace(
         _identity(),
         recording_sha256=hashlib.sha256(output.encode()).hexdigest(),
