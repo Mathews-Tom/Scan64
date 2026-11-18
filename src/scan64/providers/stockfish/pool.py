@@ -12,6 +12,7 @@ from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.opponents.bot_policy import choose_ladder_move
 from scan64.chess.opponents.protocols import OpponentContext
 from scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.providers.stockfish.identity import analysis_identity, engine_identity
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
@@ -66,6 +67,7 @@ class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
         self._engine: chess.engine.UciProtocol | None = None
+        self._identity: dict[str, Any] | None = None
         self.game_token: object | None = None
 
     async def ensure_started(self) -> None:
@@ -74,6 +76,12 @@ class PooledStockfishAdapter:
             await self._engine.configure(
                 {"Threads": self.config.threads, "Hash": self.config.hash_size}
             )
+            self._identity = engine_identity(self._engine, self.config.binary_path)
+
+    async def analysis_identity(self) -> dict[str, Any]:
+        await self.ensure_started()
+        assert self._engine is not None and self._identity is not None
+        return analysis_identity(self._engine, self._identity, self.config.threads)
 
     async def reset(self) -> None:
         """Force the next UCI call to present a fresh game identity.
@@ -91,6 +99,7 @@ class PooledStockfishAdapter:
         if self._engine is not None:
             await self._engine.quit()
             self._engine = None
+            self._identity = None
 
     async def play_move(
         self, fen: str, skill_level: int, limit: chess.engine.Limit
@@ -157,16 +166,13 @@ class PooledStockfishAdapter:
                     res["score_cp"] = score.score()
             raw_result.append(res)
 
-        engine_name = engine.id.get("name", "Stockfish")
-
-        config_dict = {
-            "engine_name": engine_name,
-            "engine_version": "unknown",
-            "nodes": nodes,
-            "depth": depth,
-            "time_ms": time_ms,
-            "multipv": multipv,
-        }
+        config_dict = dict(
+            await self.analysis_identity(),
+            nodes=nodes,
+            depth=depth,
+            time_ms=time_ms,
+            multipv=multipv,
+        )
 
         return EngineAnalysis(position_id=None, config=config_dict, raw_result=raw_result)
 
@@ -233,6 +239,10 @@ class PoolBoundAdapter:
 
     def __init__(self, pool: EnginePool):
         self._pool = pool
+
+    async def analysis_identity(self) -> dict[str, Any]:
+        async with self._pool.acquire() as adapter:
+            return await adapter.analysis_identity()
 
     async def analyze_position(
         self,

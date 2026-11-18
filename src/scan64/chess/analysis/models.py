@@ -11,6 +11,7 @@ class EngineAnalysisConfig(BaseModel):
     engine_name: str
     engine_version: str
     network: str | None = None
+    options: dict[str, Any] = {}
     nodes: int | None = None
     depth: int | None = None
     time_ms: int | None = None

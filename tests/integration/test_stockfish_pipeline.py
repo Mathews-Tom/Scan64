@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from scan64.chess.analysis.orchestration import (
@@ -18,6 +20,10 @@ async def test_stockfish_fast_pass():
     result = await adapter.analyze_position(fen, nodes=1000)
 
     assert result.config["engine_name"].startswith("Stockfish")
+    assert result.config["engine_version"].startswith("sha256:")
+    assert result.config["options"]["Threads"] == 1
+    assert result.config["options"]["Hash"] == 16
+    assert result.config["options"]["Skill Level"] == 20
     assert result.config["nodes"] == 1000
     assert len(result.raw_result) == 1
     assert "score_cp" in result.raw_result[0] or "score_mate" in result.raw_result[0]
@@ -77,3 +83,20 @@ async def test_focused_pass_orchestrator():
     assert len(focused_results) == len(candidates)
     assert focused_results[-1].config["multipv"] == 4
     assert len(focused_results[-1].raw_result) > 1
+
+
+@pytest.mark.asyncio
+async def test_per_call_identity_does_not_reuse_a_removed_executable(tmp_path: Path) -> None:
+    import shutil
+
+    binary = tmp_path / "stockfish"
+    source = shutil.which(StockfishConfig().binary_path)
+    assert source is not None
+    shutil.copyfile(source, binary)
+    binary.chmod(0o755)
+    adapter = StockfishAdapter(StockfishConfig(binary_path=str(binary)))
+    identity = await adapter.analysis_identity()
+    assert identity["engine_name"].startswith("Stockfish")
+    binary.unlink()
+    with pytest.raises(FileNotFoundError):
+        await adapter.analysis_identity()

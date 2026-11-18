@@ -5,7 +5,13 @@ from typing import Any, Protocol, runtime_checkable
 import chess
 import chess.engine
 
-from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.providers.stockfish.identity import (
+    ExecutableSignature,
+    analysis_identity,
+    engine_identity,
+    executable_signature,
+)
 
 
 @runtime_checkable
@@ -25,6 +31,11 @@ class EngineAdapter(Protocol):
     ) -> EngineAnalysis: ...
 
 
+@runtime_checkable
+class IdentifiedEngineAdapter(EngineAdapter, Protocol):
+    async def analysis_identity(self) -> dict[str, Any]: ...
+
+
 @dataclass
 class StockfishConfig:
     binary_path: str = field(
@@ -37,6 +48,30 @@ class StockfishConfig:
 class StockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
+        self._identity: dict[str, Any] | None = None
+        self._identity_signature: ExecutableSignature | None = None
+
+    async def analysis_identity(self) -> dict[str, Any]:
+        # Unlike a live pooled process, a per-call adapter has no loaded build
+        # between calls. A replaced executable must invalidate its probe.
+        signature = executable_signature(self.config.binary_path)
+        if self._identity is None or self._identity_signature != signature:
+            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            try:
+                await engine.configure(
+                    {"Threads": self.config.threads, "Hash": self.config.hash_size}
+                )
+                self._identity = analysis_identity(
+                    engine, engine_identity(engine, self.config.binary_path), self.config.threads
+                )
+                self._identity_signature = signature
+            finally:
+                await engine.quit()
+        identity = dict(self._identity)
+        identity["options"] = dict(
+            identity["options"], Threads=self.config.threads, Hash=self.config.hash_size
+        )
+        return identity
 
     async def analyze_position(
         self,
@@ -46,9 +81,14 @@ class StockfishAdapter:
         time_ms: int | None = None,
         multipv: int = 1,
     ) -> EngineAnalysis:
+        signature = executable_signature(self.config.binary_path)
         _, engine = await chess.engine.popen_uci(self.config.binary_path)
         try:
             await engine.configure({"Threads": self.config.threads, "Hash": self.config.hash_size})
+            self._identity = analysis_identity(
+                engine, engine_identity(engine, self.config.binary_path), self.config.threads
+            )
+            self._identity_signature = signature
 
             board = chess.Board(fen)
             limit = chess.engine.Limit(
@@ -73,16 +113,9 @@ class StockfishAdapter:
                         res["score_cp"] = score.score()
                 raw_result.append(res)
 
-            engine_name = engine.id.get("name", "Stockfish")
-
-            config_dict = EngineAnalysisConfig(
-                engine_name=engine_name,
-                engine_version="unknown",  # We can try to parse from name
-                nodes=nodes,
-                depth=depth,
-                time_ms=time_ms,
-                multipv=multipv,
-            ).model_dump()
+            config_dict = dict(
+                self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
+            )
 
             return EngineAnalysis(
                 position_id=None,  # To be filled by the caller

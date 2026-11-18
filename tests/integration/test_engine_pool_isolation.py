@@ -1,5 +1,7 @@
 import asyncio
+from typing import Any
 
+import chess.engine
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
@@ -170,6 +172,7 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
     import scan64.chess.analysis.jobs as jobs
     from scan64.chess.analysis.models import EngineAnalysis
     from scan64.chess.analysis.orchestration import FastPassResult
+    from scan64.chess.analysis.reuse import BatchAnalysisAdapter
     from scan64.chess.games.models import Game
     from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
     from scan64.learning.plugins.registry import PluginRegistry
@@ -212,8 +215,10 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
         # Both orchestrator passes were built from the batch pool, not from a
         # per-call adapter or the interactive pool.
         assert len(captured_adapters) == 2
-        assert all(isinstance(adapter, PoolBoundAdapter) for adapter in captured_adapters)
-        assert all(adapter._pool is manager.batch_pool for adapter in captured_adapters)
+        assert all(isinstance(adapter, BatchAnalysisAdapter) for adapter in captured_adapters)
+        wrapped = [adapter.adapter for adapter in captured_adapters]
+        assert all(isinstance(adapter, PoolBoundAdapter) for adapter in wrapped)
+        assert all(adapter._pool is manager.batch_pool for adapter in wrapped)
 
         # Isolation: routing analysis through the batch pool never touches
         # the interactive pool, matching this milestone's acceptance that a
@@ -221,3 +226,40 @@ async def test_analysis_job_runs_on_the_batch_pool_in_isolation_from_interactive
         assert manager.interactive_pool._initialized is False
     finally:
         await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_actual_build_is_identified_once_per_pooled_engine_lifetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scan64.providers.stockfish import pool
+
+    identify = pool.engine_identity
+    identifications = 0
+
+    def counted_identity(engine: chess.engine.UciProtocol, binary_path: str) -> dict[str, Any]:
+        nonlocal identifications
+        identifications += 1
+        return identify(engine, binary_path)
+
+    monkeypatch.setattr(pool, "engine_identity", counted_identity)
+    adapter = pool.PooledStockfishAdapter(StockfishConfig())
+    try:
+        identity = await adapter.analysis_identity()
+        first = await adapter.analyze_position(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", nodes=1000
+        )
+        second = await adapter.analyze_position(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            nodes=2000,
+            multipv=2,
+        )
+        assert identifications == 1
+        assert identity["engine_version"] == first.config["engine_version"]
+        assert identity["options"] == first.config["options"] == second.config["options"]
+        await adapter.quit()
+        restarted = await adapter.analysis_identity()
+        assert restarted == identity
+        assert identifications == 2
+    finally:
+        await adapter.quit()
