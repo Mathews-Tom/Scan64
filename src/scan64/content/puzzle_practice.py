@@ -36,6 +36,8 @@ THEME_SKILLS: dict[str, frozenset[str]] = {
     ),
     "mateIn1": frozenset({"threat_processing.missed_check"}),
     "defensiveMove": frozenset({"threat_processing.missed_direct_threat"}),
+    # The broad fork tag is related recognition practice, not an all-piece diagnosis.
+    "fork": frozenset({"tactics.fork.knight"}),
 }
 CANDIDATE_LIMIT = 30
 DAILY_SIZE = 10

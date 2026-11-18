@@ -8,8 +8,9 @@ from sqlmodel import Session
 
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.learning.diagnosis.trust import TRUSTED_CODES
-from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION, hanging_piece_proof
+from scan64.learning.evidence.composer import hanging_piece_proof
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.support import supports_saved_diagnosis
 
 
 def visible_game_lesson(
@@ -29,10 +30,7 @@ def visible_game_lesson(
         if not isinstance(evidence_id, str):
             continue
         evidence = session.get(Evidence, evidence_id)
-        if (
-            evidence is not None
-            and evidence.payload.get("diagnosis_rule_version") == DIAGNOSIS_RULE_VERSION
-        ):
+        if evidence is not None and supports_saved_diagnosis(primary, evidence.payload):
             proof_evidence.append(evidence)
     if not proof_evidence:
         return None

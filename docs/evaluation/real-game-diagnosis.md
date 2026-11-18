@@ -1,5 +1,128 @@
 # Real-game diagnosis measurement
 
+## M93 frozen motif protocol
+
+This section and `learning/evaluation/m93_protocol.py` preregister the next
+measurement before any new engine search or label. Select exactly qualifying
+ordinals **201–280** from the checksum-verified January 2013 Lichess CC0 source.
+Ordinals 1–200 are exposed; **281–360 are reserved for M94**. Both Elo ratings
+remain 600–1600 inclusive, PGNs error-free and games at least 20 plies. Verify the
+complete established Site prefix (original40, M78 fresh80, M79 fresh80), not only
+disjointness. Never extend, replace, tune against or repeatedly sample this holdout.
+
+Run `BROWSER=/usr/bin/true uv run python scripts/record_diagnosis_reference.py
+/tmp/m78-lichess-2013-01.pgn.zst --m93-fresh80` at the preregistration commit.
+The recorder refuses either existing output, requires committed frozen revisions,
+embeds the exact HEAD and writes separate `m93_fresh80_real_games.pgn` and
+`m93_fresh80_recorded.json`. A partial recording consumes this selection: stop
+and disclose a protocol defect rather than quietly restarting or changing it.
+Stockfish 19, one thread, 16 MB hash, reset before each search, 10,000-node fast
+pass, and 1,000,000-node MultiPV-4 source/reply searches are unchanged.
+
+The production detectors, composer, arbitration and deep oracle remain unchanged;
+their exact SHA256 revisions are frozen in `m93_protocol.py`. Candidate selection
+uses the existing 150 cp fast-pass threshold. Arbitration evaluates each detector
+in isolation, without trust filtering or competing-cause suppression. Each motif
+requires a >=200 cp swing. Fork means **knight fork only**, not all-piece forks.
+The fast source PV must gain material and the knight attack two enemy pieces
+worth at least a minor piece, or the king. Pin evidence recognizes an absolute pin
+after the fast root move; overload evidence recognizes a defender of at least two
+attacked friendly targets. Those geometric detectors are hypotheses, not proof
+that a pre-existing pin was created or an overload was exploited.
+
+The unchanged `reference_labels` oracle uses only the first separately searched
+million-node source/reply PV. A knight fork requires material gain and two such
+targets after the deep root knight move. A pin requires positive full-line gain,
+a newly pinned non-king enemy piece, and its capture in that PV. Overload requires
+positive full-line gain, a non-king defender guarding at least two attacked
+non-king friendly pieces, and capture of at least two of those pieces in that PV.
+These intentionally stricter reference definitions are frozen, not fitted to
+the new results. No detector/oracle amendments are allowed after measurement.
+
+Report TP, FP, FN, support=TP+FP, precision and verdict independently for
+`tactics.fork.knight`, `tactics.pin`, `tactics.overloaded_defender`.
+**Promotion requires precision >=0.80 AND support >=10 on this corpus alone.**
+Failing codes remain hidden; that is a valid measured milestone outcome.
+Promote a passing code consistently in current trust, historical archive trust
+and puzzle-theme mappings; verify patterns, lessons, weighting and archive restore.
+Preserve the original40 gate on its explicit three established codes, M78's
+allowed-mate gate and M79's missed-capture gate. Add a separate offline M93 gate;
+missing or altered provenance must fail closed, never silently omit the corpus.
+
+This is an **engine-derived operational reference**, not independent human-coach
+review. Candidate and reference searches share engine/evaluation assumptions;
+finite PV endpoints, shallow disagreement and geometry can disagree without
+establishing coaching causality. No human-validation claim is permitted.
+
+
+### M93 measured result
+
+Preregistration commit: `f97a476fd901cc8843c9fed168b5827a65e64b81`.
+The single real Stockfish recording completed all 80 games. No detector, oracle,
+threshold or selection definition changed after that commit or measurement.
+The decompressor's broken-pipe diagnostic records intentional termination after
+the fixed prefix; the recorder exited successfully after recording game 80/80.
+
+| Code | TP | FP | FN | Support (TP+FP) | Precision | Verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `tactics.fork.knight` | 9 | 1 | 5 | 10 | 0.900 | PASS; promote knight fork only |
+| `tactics.pin` | 2 | 76 | 2 | 78 | 0.026 | FAIL; hidden |
+| `tactics.overloaded_defender` | 6 | 140 | 0 | 146 | 0.041 | FAIL; hidden |
+
+The fork result is exactly at the minimum emitted support, not a high-coverage
+or independently human-validated claim. No additional games were consumed to
+increase support. Pin and overloaded-defender geometric hypotheses remain
+untrusted despite their abundant emitted support; the gate was not weakened.
+
+Fixture SHA256:
+
+- `m93_fresh80_recorded.json`:
+  `d4eb9a8ee322dbf73e6c2ef582526be12f69150e0241ce19d9ce578b02447c61`
+- `m93_fresh80_real_games.pgn`:
+  `653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622`
+
+Offline replay pins both fixture digests, the exact preregistration SHA, every
+frozen protocol field and revision, game count and disjoint Site identities.
+The original40 three-code gate, M78 allowed-mate gate and M79 missed-capture gate
+remain explicit and unchanged. The separate M93 gate enforces promoted motifs;
+missing/altered provenance or an unmapped trusted code fails closed.
+
+Knight fork enters `TRUSTED_CODES`, `HISTORICALLY_TRUSTED_CODES` and the `fork`
+puzzle-theme mapping. The Lichess `fork` tag is broader than knight forks: it
+routes related recognition practice, not an all-piece-fork diagnosis or a new
+validation claim. Pin and overloaded defender enter none of those consumers.
+
+### M93 observed product and validation proof
+
+`real_games --check` exited 0 with
+`PASS: declared trust gates and confirmed-mate material suppression`.
+The targeted 207-case selection had 206 initial passes; its one archive-fixture
+failure (missing the required empty `secondary` list) passed after correcting the
+fixture. Targeted ruff, format checks and strict mypy passed after annotation,
+unused-import and formatting repairs only. These repairs changed no frozen
+detector, oracle, selection, search budget or threshold.
+
+A real disposable HTTP server on `127.0.0.1:18993` observed three recorded
+emissions per motif from distinct source games. Only knight-fork lessons were
+visible, and `/patterns` returned only `tactics.fork.knight` (HTTP 200).
+Creating that promoted pattern target, exporting, deleting and restoring the
+archive all succeeded; restored patterns and the historical target retained
+knight fork (HTTP 200). This exercises historical trust, not just current visibility.
+Actual puzzle-run requests selected `fork` as `weak`, while `pin` and `deflection`
+remained `exploration`, matching the two hidden verdicts. Both observation servers
+were shut down and temporary observation scripts removed. No owner data was used.
+
+
+### Saved-input capability contract
+
+`scan64.learning.evidence.support.supports_saved_diagnosis(code, payload)` accepts
+a diagnosis code and saved evidence payload. The explicit eleven m48-covered codes
+require `diagnosis_rule_version == "m48-fast-local-v1"`; unknown codes, absent
+markers and older versions return false. This is format capability, **not trust**:
+the product must still apply `TRUSTED_CODES`. Lesson visibility uses this helper.
+M94 extends it with per-code capability markers without a global m48 version bump;
+M95 consumes the same interface.
+
 ## M79 missed-capture investigation and preregistration
 
 The original40 and M78 fresh80 are now **development data for missed capture**,
