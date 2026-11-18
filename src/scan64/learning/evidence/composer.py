@@ -21,6 +21,7 @@ from chess import (
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.boards import board_from
 from scan64.learning.evidence.models import Evidence
+from scan64.learning.evidence.motifs import CAPABILITIES, motif_payloads
 
 _PIECE_VALUES = {
     PAWN: 1,
@@ -358,6 +359,11 @@ def compose_candidate_evidence(
         "fast_line": fast_line,
         "proving_line": reply_line,
         "diagnosis_rule_version": DIAGNOSIS_RULE_VERSION,
+        "diagnosis_capabilities": dict(CAPABILITIES),
+        "before_fen": before_board.fen(),
+        "source_score_mate": fast_analysis.raw_result[0].get("score_mate")
+        if fast_analysis.raw_result
+        else None,
         "focused_analysis_id": str(focused_analysis.id),
         "focused_multipv": focused_analysis.raw_result,
         "focused_line": focused_line,
@@ -575,4 +581,17 @@ def compose_candidate_evidence(
                 payload={**provenance, **opening},
             )
         )
+    if swing_cp >= 200 and fast_line and fast_line[0] != before_board.parse_san(played_move).uci():
+        for payload in motif_payloads(
+            before_board, fast_line, fast_analysis.raw_result[0].get("score_mate")
+        ):
+            evidence.append(
+                _evidence(
+                    kind="missed_tactic",
+                    position_id=position_id,
+                    engine_analysis_id=engine_analysis_id,
+                    claim="the fast source PV proves this omitted tactical sequence",
+                    payload={**provenance, **payload, "best_move": fast_line[0]},
+                )
+            )
     return evidence

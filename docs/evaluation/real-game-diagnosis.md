@@ -1,5 +1,27 @@
 # Real-game diagnosis measurement
 
+## M94 freeze-ready source phase (not measured)
+
+The preregistered operational definitions, separate fast/deep implementations,
+fixed ordinals **281–360**, source/search settings, unchanged gate and one-shot
+recording procedure are in [the M94 protocol](m94-motif-protocol.md).
+`learning/evaluation/m94_protocol.py` and
+`tests/fixtures/m94/source_revisions.json` carry the machine-readable freeze.
+Skewer, discovered attack and back-rank mate are implemented but **unpromoted**:
+none enters current trust, historical archive trust or puzzle weighting before
+an observed fresh-corpus verdict. No fresh recording or label inspection has
+occurred in this phase. Existing M93 protocol metadata and recordings are untouched.
+
+New candidate evidence carries exact per-code capability revisions without a
+global m48 change. The saved-input helper distinguishes capability from trust;
+legacy m48 evidence cannot support new motifs. Original40, M78, M79 and M93
+retain their explicit original code-set gates. Offline reporting requires an
+externally pinned M94 measurement identity plus its recording, PGN and manifest;
+unpinned/missing/altered data fails closed. Record-time Git checks prove the frozen
+sources were committed; replay is engine- and history-free, including shallow or
+source-only checkouts. Historical Lichess v2/v3 detector eligibility and result rows
+retain their literal pre-M94 eleven-code universe.
+
 ## M93 frozen motif protocol
 
 This section and `learning/evaluation/m93_protocol.py` preregister the next

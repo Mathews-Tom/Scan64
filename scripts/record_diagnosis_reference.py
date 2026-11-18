@@ -21,6 +21,7 @@ import chess.pgn
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.learning.evaluation import m94_protocol
 from scan64.learning.evaluation.m93_protocol import PROTOCOL, protocol_digest
 from scan64.learning.exercises.sound_moves import analyze_lesson_source
 from scan64.providers.stockfish.adapter import StockfishConfig
@@ -104,20 +105,36 @@ async def augment_before(source: Path) -> None:
 
 
 async def record(
-    source: Path, *, fresh80: bool = False, m79_fresh80: bool = False, m93_fresh80: bool = False
+    source: Path,
+    *,
+    fresh80: bool = False,
+    m79_fresh80: bool = False,
+    m93_fresh80: bool = False,
+    m94_fresh80: bool = False,
 ) -> None:
     DEST.mkdir(exist_ok=True)
-    fresh80 = fresh80 or m79_fresh80 or m93_fresh80
-    prefix = "m93_fresh80" if m93_fresh80 else "m79_fresh80" if m79_fresh80 else "fresh80"
+    fresh80 = fresh80 or m79_fresh80 or m93_fresh80 or m94_fresh80
+    prefix = (
+        "m94_fresh80"
+        if m94_fresh80
+        else "m93_fresh80"
+        if m93_fresh80
+        else "m79_fresh80"
+        if m79_fresh80
+        else "fresh80"
+    )
     preregistration = (
         subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-        if m79_fresh80 or m93_fresh80
+        if m79_fresh80 or m93_fresh80 or m94_fresh80
         else "c4490fa"
     )
-    if (m79_fresh80 or m93_fresh80) and any(
-        (DEST / f"{prefix}_{suffix}").exists() for suffix in ("recorded.json", "real_games.pgn")
+    if (m79_fresh80 or m93_fresh80 or m94_fresh80) and any(
+        (DEST / f"{prefix}_{suffix}").exists()
+        for suffix in ("recorded.json", "real_games.pgn", "manifest.json")
     ):
         raise ValueError("Refusing to overwrite a consumed holdout")
+    if m94_fresh80:
+        m94_protocol.validate_frozen_sources(ROOT)
     if m93_fresh80:
         # Verify frozen implementations before selecting or searching any new position.
         frozen = [
@@ -131,7 +148,17 @@ async def record(
                 raise ValueError(f"Frozen M93 implementation changed: {name}")
     selected: list[chess.pgn.Game] = []
     with verified_pgn(source) as stream:
-        count = 280 if m93_fresh80 else 200 if m79_fresh80 else 120 if fresh80 else 40
+        count = (
+            360
+            if m94_fresh80
+            else 280
+            if m93_fresh80
+            else 200
+            if m79_fresh80
+            else 120
+            if fresh80
+            else 40
+        )
         while len(selected) < count:
             game = chess.pgn.read_game(stream)
             if game is None:
@@ -149,20 +176,40 @@ async def record(
             game["id"] for game in original["games"][:40]
         ]:
             raise ValueError("Verified archive prefix differs from original40")
-        if m79_fresh80 or m93_fresh80:
+        if m79_fresh80 or m93_fresh80 or m94_fresh80:
             previous = json.loads((DEST / "fresh80_recorded.json").read_text())
             if [game.headers.get("Site") for game in selected[40:120]] != [
                 game["id"] for game in previous["games"]
             ]:
                 raise ValueError("Verified archive prefix differs from M78 fresh80")
-        if m93_fresh80:
+        if m93_fresh80 or m94_fresh80:
             previous = json.loads((DEST / "m79_fresh80_recorded.json").read_text())
             if [game.headers.get("Site") for game in selected[120:200]] != [
                 game["id"] for game in previous["games"]
             ]:
                 raise ValueError("Verified archive prefix differs from M79 fresh80")
-        start = 200 if m93_fresh80 else 120 if m79_fresh80 else 40
+        if m94_fresh80:
+            previous = json.loads((DEST / "m93_fresh80_recorded.json").read_text())
+            if [game.headers.get("Site") for game in selected[200:280]] != [
+                game["id"] for game in previous["games"]
+            ]:
+                raise ValueError("Verified archive prefix differs from M93 fresh80")
+        start = 280 if m94_fresh80 else 200 if m93_fresh80 else 120 if m79_fresh80 else 40
         selected = selected[start : start + 80]
+        if m94_fresh80:
+            selected_ids = [game.headers.get("Site") for game in selected]
+            prior_ids = {
+                game["id"]
+                for name in (
+                    "recorded.json",
+                    "fresh80_recorded.json",
+                    "m79_fresh80_recorded.json",
+                    "m93_fresh80_recorded.json",
+                )
+                for game in json.loads((DEST / name).read_text())["games"]
+            }
+            if len(set(selected_ids)) != 80 or prior_ids.intersection(selected_ids):
+                raise ValueError("M94 selection contains duplicate or exposed identities")
     pgn = (
         "\n\n".join(
             game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
@@ -171,16 +218,14 @@ async def record(
         + "\n"
     )
     pgn_path = DEST / (f"{prefix}_real_games.pgn" if fresh80 else "real_games.pgn")
-    with pgn_path.open("x" if m93_fresh80 else "w") as output_pgn:
-        output_pgn.write(pgn)
     reference = None
     if not fresh80:
         with (ROOT / "tests/fixtures/reference_amateur_game.pgn").open() as stream:
             reference = chess.pgn.read_game(stream)
         assert reference is not None
     config = StockfishConfig()
-    if m93_fresh80 and (config.threads != 1 or config.hash_size != 16):
-        raise ValueError("M93 requires one thread and 16 MB hash")
+    if (m93_fresh80 or m94_fresh80) and (config.threads != 1 or config.hash_size != 16):
+        raise ValueError("M93/M94 require one thread and 16 MB hash")
     adapter = PooledStockfishAdapter(config)
     records: list[dict[str, Any]] = []
     engine_name = ""
@@ -190,6 +235,13 @@ async def record(
         else None
     )
     try:
+        if m94_fresh80:
+            identity = await adapter.analysis_identity()
+            if identity.get("engine_name") != m94_protocol.PROTOCOL["engine"]:
+                raise ValueError("M94 requires the preregistered Stockfish 19 engine")
+        # Wrong configuration or identity must not consume the one-shot holdout.
+        with pgn_path.open("x" if m93_fresh80 or m94_fresh80 else "w") as output_pgn:
+            output_pgn.write(pgn)
         for index, game in enumerate(
             selected if fresh80 else [*selected, cast(chess.pgn.Game, reference)]
         ):
@@ -209,6 +261,8 @@ async def record(
                 engine_name = str(analysis.config["engine_name"])
                 if fresh80 and engine_name != original_engine:
                     raise ValueError("Fresh recording engine differs from original engine")
+                if m94_fresh80 and engine_name != m94_protocol.PROTOCOL["engine"]:
+                    raise ValueError("M94 requires the preregistered Stockfish 19 engine")
 
             # Use the production candidate calculation, backed by the recorded fast pass.
             class Replay:
@@ -276,7 +330,9 @@ async def record(
             "license": "CC0",
             "game_count": len(selected),
             "selection": (
-                PROTOCOL["selection"]
+                m94_protocol.PROTOCOL["selection"]
+                if m94_fresh80
+                else PROTOCOL["selection"]
                 if m93_fresh80
                 else "Next 80 qualifying games after original40 and M78 fresh80; ordinal 121..200."
                 if m79_fresh80
@@ -300,12 +356,33 @@ async def record(
     }
     if m93_fresh80:
         data["provenance"].update({"protocol": PROTOCOL, "protocol_sha256": protocol_digest()})
+    if m94_fresh80:
+        data["provenance"].update(
+            {
+                "protocol": m94_protocol.PROTOCOL,
+                "protocol_sha256": m94_protocol.protocol_digest(),
+            }
+        )
     if fresh80:
         output = json.dumps(data, separators=(",", ":")) + "\n"
         if len(output.encode()) > 8_000_000:
             raise ValueError("Fresh80 recording exceeds 8 MB")
-        with (DEST / f"{prefix}_recorded.json").open("x" if m93_fresh80 else "w") as output_file:
+        with (DEST / f"{prefix}_recorded.json").open(
+            "x" if m93_fresh80 or m94_fresh80 else "w"
+        ) as output_file:
             output_file.write(output)
+        if m94_fresh80:
+            manifest = {
+                "preregistration_commit": preregistration,
+                "protocol_sha256": m94_protocol.protocol_digest(),
+                "source_revisions_sha256": hashlib.sha256(
+                    m94_protocol.FREEZE.read_bytes()
+                ).hexdigest(),
+                "recording_sha256": hashlib.sha256(output.encode()).hexdigest(),
+                "pgn_sha256": hashlib.sha256(pgn.encode()).hexdigest(),
+            }
+            with (DEST / f"{prefix}_manifest.json").open("x") as manifest_file:
+                manifest_file.write(json.dumps(manifest, sort_keys=True) + "\n")
     else:
         save_recording(data)
 
@@ -318,6 +395,7 @@ if __name__ == "__main__":
     mode.add_argument("--fresh80", action="store_true")
     mode.add_argument("--m79-fresh80", action="store_true")
     mode.add_argument("--m93-fresh80", action="store_true")
+    mode.add_argument("--m94-fresh80", action="store_true")
     args = parser.parse_args()
     asyncio.run(
         augment_before(args.source)
@@ -327,5 +405,6 @@ if __name__ == "__main__":
             fresh80=args.fresh80,
             m79_fresh80=args.m79_fresh80,
             m93_fresh80=args.m93_fresh80,
+            m94_fresh80=args.m94_fresh80,
         )
     )

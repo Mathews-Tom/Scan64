@@ -18,6 +18,7 @@ from scan64.learning.evaluation.lichess_themes import (
     ROOT,
     V1_SEED_CODES,
     V2_CODE_THEMES,
+    V2_SEED_CODES,
     V3_PREREGISTRATION,
     CodeScore,
     Outcome,
@@ -325,6 +326,42 @@ async def test_v1_never_requests_appended_detectors(monkeypatch: pytest.MonkeyPa
     puzzle, record = example()
     assert await diagnose(puzzle, record, detectors, version="v1") == (HANGING, None)
     assert tuple(requested) == V1_SEED_CODES
+
+
+@pytest.mark.parametrize("version", ["v2", "v3"])
+@pytest.mark.asyncio
+async def test_historical_v2_v3_eligibility_never_requests_new_live_detectors(
+    monkeypatch: pytest.MonkeyPatch, version: str
+) -> None:
+    detectors = registry()
+    original_get = detectors.get
+    requested = []
+
+    def frozen_get(*, kind, name):
+        assert name in V2_SEED_CODES
+        requested.append(name)
+        return original_get(kind=kind, name=name)
+
+    monkeypatch.setattr(detectors, "get", frozen_get)
+    puzzle, record = example()
+    assert await diagnose(puzzle, record, detectors, version=version) == (HANGING, None)
+    assert tuple(requested) == V2_SEED_CODES
+
+
+@pytest.mark.parametrize("version", ["v2", "v3"])
+def test_historical_v2_v3_rows_and_untrusted_winners_exclude_new_live_codes(version: str) -> None:
+    baseline = [Outcome("a", frozenset(), "not_flagged")]
+    outcomes = [Outcome("a", frozenset(), "untrusted_only", "tactics.pin")]
+    if version == "v2":
+        output = render_v2_results(outcomes, baseline, provenance(), "hash")
+    else:
+        _, _, _, sources = mate_example()
+        output = render_v3_results(outcomes, baseline, baseline, provenance(), sources, "hash")
+    assert "| `tactics.pin` | 1 | 100.00% |" in output
+    for code in ("tactics.skewer", "tactics.discovered_attack", "tactics.back_rank"):
+        assert code not in output
+        with pytest.raises(ValueError, match="non-trusted code"):
+            score([Outcome("a", frozenset(), "untrusted_only", code)], version=version)
 
 
 def test_v2_untrusted_mate_is_an_abstention_not_an_emission(

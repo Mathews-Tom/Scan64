@@ -29,6 +29,9 @@ from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evaluation.deep_reference import m79_reference_labels, reference_labels
 from scan64.learning.evaluation.m93_protocol import CODES as M93_CODES
 from scan64.learning.evaluation.m93_protocol import validate_provenance
+from scan64.learning.evaluation.m94_protocol import CODES as M94_CODES
+from scan64.learning.evaluation.m94_protocol import MeasurementIdentity, validate_recording
+from scan64.learning.evaluation.m94_reference import reference_labels as m94_reference_labels
 from scan64.learning.evidence.composer import allowed_mate_line, compose_candidate_evidence
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
@@ -43,6 +46,10 @@ M93_CORPUS = CORPUS.with_name("m93_fresh80_recorded.json")
 M93_PREREGISTRATION = "f97a476fd901cc8843c9fed168b5827a65e64b81"
 M93_RECORDING_SHA256 = "d4eb9a8ee322dbf73e6c2ef582526be12f69150e0241ce19d9ce578b02447c61"
 M93_PGN_SHA256 = "653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622"
+M94_CORPUS = CORPUS.with_name("m94_fresh80_recorded.json")
+# No measurement has been authorized yet. The data commit pins the complete observed
+# identity here; unmeasured input must never choose its own accepted provenance.
+M94_MEASUREMENT: MeasurementIdentity | None = None
 ORIGINAL_GATED_CODES = frozenset(
     {
         "board_awareness.hanging_piece",
@@ -109,7 +116,13 @@ def check_scores(scores: dict[str, Score], trusted: frozenset[str]) -> bool:
 
 
 async def measure(path: Path = CORPUS) -> dict[str, Score]:
-    corpus = json.loads(path.read_text())
+    if path == M94_CORPUS and M94_MEASUREMENT is None:
+        raise ValueError("M94 measurement identity has not been pinned")
+    corpus = (
+        validate_recording(path, (CORPUS, FRESH_CORPUS, M79_CORPUS, M93_CORPUS), M94_MEASUREMENT)
+        if path == M94_CORPUS and M94_MEASUREMENT is not None
+        else json.loads(path.read_text())
+    )
     if path == M93_CORPUS:
         if hashlib.sha256(path.read_bytes()).hexdigest() != M93_RECORDING_SHA256:
             raise ValueError("M93 recording checksum differs from the measured fixture")
@@ -177,6 +190,10 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
             labels = labeller(
                 before, after, game["deep_before"][str(candidate.move_index)], focused.raw_result
             )
+            if path == M94_CORPUS:
+                labels |= m94_reference_labels(
+                    before, after, game["deep_before"][str(candidate.move_index)]
+                )
             opportunity = LearningOpportunity(
                 opportunity_id="recorded",
                 position_id="recorded",
@@ -186,6 +203,10 @@ async def measure(path: Path = CORPUS) -> dict[str, Score]:
                 engine_eval_after=-candidate.swing_cp / 100,
             )
             for code, score in scores.items():
+                # New labels are measured only on their preregistered fresh corpus.
+                # Established corpora and their reported scores remain unchanged.
+                if code in M94_CODES and path != M94_CORPUS:
+                    continue
                 detector = registry.get(kind=PluginKind.PATTERN_DETECTOR, name=code)
                 assert isinstance(detector, PatternDetector)
                 detected = await detector.detect(
@@ -237,11 +258,13 @@ def main() -> None:
     fresh_scores = asyncio.run(measure(FRESH_CORPUS))
     m79_scores = asyncio.run(measure(M79_CORPUS))
     m93_scores = asyncio.run(measure(M93_CORPUS))
+    m94_scores = asyncio.run(measure(M94_CORPUS))
     for name, measured in (
         ("original40 development post-fix", scores),
         ("M78 fresh80 development for missed capture", fresh_scores),
         ("M79 fresh80 missed-capture holdout", m79_scores),
         ("M93 fresh80 motif holdout", {code: m93_scores[code] for code in sorted(M93_CODES)}),
+        ("M94 fresh80 motif holdout", {code: m94_scores[code] for code in sorted(M94_CODES)}),
     ):
         print(name)
         print("skill code                              precision support TP FP FN trusted")
@@ -261,7 +284,9 @@ def main() -> None:
             raise SystemExit("M79 fresh80 missed-capture precision/support regression")
         if not check_scores(m93_scores, TRUSTED_CODES & M93_CODES):
             raise SystemExit("M93 fresh80 motif precision/support regression")
-        if TRUSTED_CODES - ESTABLISHED_GATED_CODES - M93_CODES:
+        if not check_scores(m94_scores, TRUSTED_CODES & M94_CODES):
+            raise SystemExit("M94 fresh80 motif precision/support regression")
+        if TRUSTED_CODES - ESTABLISHED_GATED_CODES - M93_CODES - M94_CODES:
             raise SystemExit("Trusted code has no declared corpus gate")
         print("PASS: declared trust gates and confirmed-mate material suppression")
 

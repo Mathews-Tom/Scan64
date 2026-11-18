@@ -1,5 +1,10 @@
 from scan64.learning.diagnosis.detectors.board_awareness import HangingPieceDetector
 from scan64.learning.diagnosis.detectors.calculation import StoppedCalculationEarlyDetector
+from scan64.learning.diagnosis.detectors.motifs import (
+    BackRankDetector,
+    DiscoveredAttackDetector,
+    SkewerDetector,
+)
 from scan64.learning.diagnosis.detectors.opening import DelayedDevelopmentDetector
 from scan64.learning.diagnosis.detectors.positional import KingSafetyNeglectDetector
 from scan64.learning.diagnosis.detectors.tactics import (
@@ -26,6 +31,9 @@ def register_seeded_detectors(registry: PluginRegistry) -> None:
         "tactics.fork.knight": KnightForkDetector(),
         "tactics.pin": PinDetector(),
         "tactics.overloaded_defender": OverloadedDefenderDetector(),
+        "tactics.skewer": SkewerDetector(),
+        "tactics.discovered_attack": DiscoveredAttackDetector(),
+        "tactics.back_rank": BackRankDetector(),
         "calculation.stopped_too_early": StoppedCalculationEarlyDetector(),
         "opening.delayed_development": DelayedDevelopmentDetector(),
         "positional.king_safety_neglect": KingSafetyNeglectDetector(),

@@ -42,7 +42,7 @@ def test_check_uses_fresh80_not_development_for_allowed_mate(
         if path == FRESH_CORPUS:
             return {ALLOWED_MATE: Score(tp=10 if fresh_passes else 9)}
         return {
-            **{code: Score(tp=10) for code in ORIGINAL_GATED_CODES | real_games.M93_CODES},
+            **{code: Score(tp=10) for code in real_games.SEED_CODES},
             ALLOWED_MATE: Score(tp=10 if not fresh_passes else 0),
         }
 

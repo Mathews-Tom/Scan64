@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
+from scan64.learning.evidence.motifs import CAPABILITIES
 
 # Explicit: adding a taxonomy entry must not make legacy saved input support it.
 M48_SUPPORTED_CODES = frozenset(
@@ -28,9 +29,12 @@ M48_SUPPORTED_CODES = frozenset(
 def supports_saved_diagnosis(code: str, payload: Mapping[str, Any]) -> bool:
     """Whether this saved evidence format can evaluate code, not whether it is trusted.
 
-    Unknown codes fail closed. M94 can add per-code capability markers here without
-    invalidating m48 evidence or changing this call interface for M95.
+    Unknown codes fail closed. New codes require an exact per-code revision;
+    neither global m48 nor another motif's marker grants that capability.
     """
+    if code in CAPABILITIES:
+        markers = payload.get("diagnosis_capabilities")
+        return isinstance(markers, Mapping) and markers.get(code) == CAPABILITIES[code]
     return (
         code in M48_SUPPORTED_CODES
         and payload.get("diagnosis_rule_version") == DIAGNOSIS_RULE_VERSION
