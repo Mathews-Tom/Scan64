@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from math import isclose, isfinite
 from sqlite3 import Connection as SQLiteConnection
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import chess
 from chess_lesson_spec import LessonSpec
@@ -97,6 +97,8 @@ class ExportArchive(BaseModel):
     onboarding: dict[str, Any] | None = None
     play_sessions: list[dict[str, Any]] = Field(default_factory=list)
     play_clocks: list[dict[str, Any]] = Field(default_factory=list)
+    # Archive completeness metadata, not a runtime clock inferred from legacy JSON.
+    timed_session_ids: list[UUID] = Field(default_factory=list)
     session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
     positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
     games: list[dict[str, Any]] = Field(default_factory=list)
@@ -138,20 +140,19 @@ def _validate_clock_archive(
     plays: list[PlaySession],
     games: list[Game],
     clocks: list[PlayClock],
+    timed_session_ids: list[UUID],
 ) -> None:
     plays_by_id = {play.id: play for play in plays}
     games_by_id = {game.id: game for game in games}
     clocks_by_id = {clock.session_id: clock for clock in clocks}
     if len(clocks_by_id) != len(clocks):
         raise ValueError("Duplicate play clocks")
+    declared_clock_ids = set(timed_session_ids)
+    if len(declared_clock_ids) != len(timed_session_ids):
+        raise ValueError("Duplicate timed session declarations")
+    if declared_clock_ids != clocks_by_id.keys():
+        raise ValueError("Timed session declarations do not match authoritative clocks")
     game_sessions = Counter(play.game_id for play in plays)
-    for configured_play in plays:
-        config = configured_play.clock_config or {}
-        if {
-            "initial_seconds",
-            "increment_seconds",
-        } & config.keys() and configured_play.id not in clocks_by_id:
-            raise ValueError("Timed session is missing its authoritative clock")
     for clock in clocks:
         play = plays_by_id.get(clock.session_id)
         if play is None or play.player_id != player_id or play.game_id is None:
@@ -2003,6 +2004,7 @@ def _export_player_snapshot(
             for play_session in play_sessions
         ],
         play_clocks=[clock.model_dump(mode="json") for clock in play_clocks],
+        timed_session_ids=[clock.session_id for clock in play_clocks],
         session_hint_reveals=[reveal.model_dump(mode="json") for reveal in session_hint_reveals],
         positive_move_credits=[credit.model_dump(mode="json") for credit in positive_move_credits],
         games=[game.model_dump(mode="json") for game in games],
@@ -2436,7 +2438,9 @@ def import_player_data(
             session_hint_reveals,
             positive_move_credits,
         )
-        _validate_clock_archive(session, player_id, play_sessions, games, play_clocks)
+        _validate_clock_archive(
+            session, player_id, play_sessions, games, play_clocks, archive.timed_session_ids
+        )
     except (ValueError, TypeError, AttributeError) as error:
         raise HTTPException(
             status_code=400, detail="Invalid archive: malformed assistance or credit provenance"

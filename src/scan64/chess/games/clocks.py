@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -10,6 +12,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Engine, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session, col, select
 
@@ -24,6 +27,9 @@ from scan64.chess.games.models import PlaySession
 
 if TYPE_CHECKING:
     from scan64.providers.stockfish.pool import EnginePoolManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class ClockConflict(ValueError):
@@ -204,39 +210,57 @@ class PlayClockRuntime:
         from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
         from scan64.providers.stockfish.adapter import StockfishConfig
 
+        retry_delay = 0.05
         while True:
             self._wake.clear()
-            with Session(self.engine) as session:
-                clock = session.exec(
-                    select(PlayClock)
-                    .join(PlaySession, col(PlaySession.id) == col(PlayClock.session_id))
-                    .where(col(PlaySession.status) == "active")
-                    .where(col(PlayClock.active_color).is_not(None))
-                    .where(col(PlayClock.deadline_at).is_not(None))
-                    .order_by(col(PlayClock.deadline_at))
-                    .limit(1)
-                ).first()
-                deadline = as_utc(clock.deadline_at) if clock and clock.deadline_at else None
-                session_id = clock.session_id if clock else None
-            if deadline is None:
-                await self._wake.wait()
-                continue
-            delay = (deadline - utc_now()).total_seconds()
-            if delay > 0:
-                try:
-                    await asyncio.wait_for(self._wake.wait(), timeout=delay)
+            try:
+                with Session(self.engine) as session:
+                    clock = session.exec(
+                        select(PlayClock)
+                        .join(PlaySession, col(PlaySession.id) == col(PlayClock.session_id))
+                        .where(col(PlaySession.status) == "active")
+                        .where(col(PlayClock.active_color).is_not(None))
+                        .where(col(PlayClock.deadline_at).is_not(None))
+                        .order_by(col(PlayClock.deadline_at))
+                        .limit(1)
+                    ).first()
+                    deadline = as_utc(clock.deadline_at) if clock and clock.deadline_at else None
+                    session_id = clock.session_id if clock else None
+                if deadline is None:
+                    retry_delay = 0.05
+                    await self._wake.wait()
                     continue
-                except TimeoutError:
-                    pass
-            with Session(self.engine) as session:
-                service = PlaySessionService(
-                    session,
-                    StockfishOpponentProvider(StockfishConfig(), self.pool_manager),
-                    engine_pool_manager=self.pool_manager,
-                    clock_runtime=self,
-                )
-                try:
-                    assert session_id is not None
-                    service.expire_clock(session_id)
-                except (ClockConflict, PlaySessionNotActive, PlaySessionNotFound):
-                    continue
+                delay = (deadline - utc_now()).total_seconds()
+                if delay > 0:
+                    retry_delay = 0.05
+                    try:
+                        await asyncio.wait_for(self._wake.wait(), timeout=delay)
+                        continue
+                    except TimeoutError:
+                        pass
+                with Session(self.engine) as session:
+                    service = PlaySessionService(
+                        session,
+                        StockfishOpponentProvider(StockfishConfig(), self.pool_manager),
+                        engine_pool_manager=self.pool_manager,
+                        clock_runtime=self,
+                    )
+                    try:
+                        assert session_id is not None
+                        service.expire_clock(session_id)
+                    except (ClockConflict, PlaySessionNotActive, PlaySessionNotFound):
+                        pass
+                retry_delay = 0.05
+            except OperationalError as error:
+                code = getattr(error.orig, "sqlite_errorcode", None)
+                if (
+                    not isinstance(error.orig, sqlite3.OperationalError)
+                    or code is None
+                    or (code & 0xFF) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
+                ):
+                    raise
+                # Closing the failed Session rolls back partial expiration work.
+                # Retry from a fresh deadline query, never a stale ORM snapshot.
+                logger.warning("Play clock scheduler database contention; retrying", exc_info=True)
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 1.0)

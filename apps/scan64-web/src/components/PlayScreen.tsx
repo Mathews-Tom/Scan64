@@ -225,7 +225,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setCriticalInterruption(null);
       setSession(newSession);
       chessRef.current.reset();
-      if (newSession.opponent_move) {
+      if (newSession.clock) {
+        if (newSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        chessRef.current.loadPgn(newSession.pgn);
+        setClockSnapshotAt(performance.now());
+        setServerResult(newSession.result ?? null);
+      } else if (newSession.opponent_move) {
         const move = newSession.opponent_move;
         chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
       }
@@ -310,7 +315,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
         throw new Error('Missing game record.');
       }
-      if (refreshedSession.game_id) {
+      if (refreshedSession.clock) {
+        if (refreshedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        refreshedChess.loadPgn(refreshedSession.pgn);
+        result = refreshedSession.result ?? null;
+      } else if (refreshedSession.game_id) {
         const game = await ApiClient.getGame(refreshedSession.game_id);
         if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return false;
         refreshedChess.loadPgn(game.pgn);
@@ -531,6 +540,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setResigning(true);
     try {
       const endedSession = await ApiClient.resignPlaySession(activeSession.id);
+      if (endedSession.clock) {
+        if (endedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        const endedChess = new Chess();
+        endedChess.loadPgn(endedSession.pgn);
+        chessRef.current = endedChess;
+        setClockSnapshotAt(performance.now());
+        setServerResult(endedSession.result ?? null);
+        updateBoard();
+      }
       sessionRef.current = endedSession;
       setSession(endedSession);
       if (activeSession.clock) await refreshQueuedSession(activeSession.id);
@@ -577,7 +595,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
         const resumedChess = new Chess();
         let result: string | null = null;
-        if (resumedSession.game_id) {
+        if (resumedSession.clock) {
+          if (resumedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+          resumedChess.loadPgn(resumedSession.pgn);
+          result = resumedSession.result ?? null;
+        } else if (resumedSession.game_id) {
           const game = await ApiClient.getGame(resumedSession.game_id);
           if (cancelled || sessionRef.current) return;
           result = game.result;

@@ -350,3 +350,100 @@ def test_attaching_play_session_records_chosen_owner_color(
     assert response.status_code == 200, response.text
     session.refresh(game)
     assert game.owner_color == "white"
+
+
+def test_session_projection_is_one_sqlite_snapshot_across_owner_advance(tmp_path):
+    import io
+    from datetime import timedelta
+
+    import chess
+    import chess.pgn
+    from sqlalchemy import event
+
+    from scan64.api.play import read_play_session
+    from scan64.chess.games.clock_models import PlayClock
+    from scan64.chess.games.clocks import utc_now
+    from scan64.chess.games.pgn import build_pgn
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'snapshot.db'}")
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA journal_mode=WAL")
+    SQLModel.metadata.create_all(engine)
+    now = utc_now()
+    with Session(engine) as owner:
+        owner.add(Player(id="snapshot-owner"))
+        game = Game(
+            pgn="",
+            moves=[],
+            white="Player",
+            black="Bot",
+            owner_player_id="snapshot-owner",
+            owner_color="white",
+        )
+        owner.add(game)
+        owner.flush()
+        play = PlaySession(
+            player_id="snapshot-owner", game_id=game.id, opponent_config={"player_color": "white"}
+        )
+        owner.add(play)
+        owner.flush()
+        clock = PlayClock(
+            session_id=play.id,
+            initial_seconds=180,
+            increment_seconds=0,
+            white_remaining_ms=180000,
+            black_remaining_ms=180000,
+            active_color="white",
+            deadline_at=now + timedelta(seconds=180),
+        )
+        owner.add(clock)
+        game.pgn = build_pgn(game)
+        owner.commit()
+        play_id, game_id = play.id, game.id
+
+    with Session(engine) as reader:
+        cached_play = reader.get(PlaySession, play_id)
+        reader.get(Game, game_id)
+        reader.get(PlayClock, play_id)
+        advanced = False
+
+        def advance_after_snapshot_select(connection, cursor, statement, parameters, context, many):
+            nonlocal advanced
+            if (
+                advanced
+                or not statement.lstrip().upper().startswith("SELECT")
+                or "JOIN playclock" not in statement
+            ):
+                return
+            advanced = True
+            with Session(engine) as writer:
+                game = writer.get(Game, game_id)
+                clock = writer.get(PlayClock, play_id)
+                game.moves = ["e2e4"]
+                game.pgn = build_pgn(game)
+                clock.active_color = "black"
+                clock.version = 1
+                writer.add(game)
+                writer.add(clock)
+                writer.commit()
+
+        event.listen(engine, "after_cursor_execute", advance_after_snapshot_select)
+        try:
+            before = read_play_session(cached_play, reader)
+        finally:
+            event.remove(engine, "after_cursor_execute", advance_after_snapshot_select)
+        assert advanced
+        board = chess.pgn.read_game(io.StringIO(before.pgn)).end().board()
+        assert board.turn == chess.WHITE
+        assert before.clock.active_color == "white"
+        assert before.clock.version == 0
+        # Legacy GET-game after GET-session can now see the next board.
+        with Session(engine) as later:
+            assert later.get(Game, game_id).moves == ["e2e4"]
+        after = read_play_session(cached_play, reader)
+        board = chess.pgn.read_game(io.StringIO(after.pgn)).end().board()
+        assert board.turn == chess.BLACK
+        assert after.clock.active_color == "black"
+        assert after.clock.version == 1
+        assert after.result == "*"
+    engine.dispose()

@@ -145,6 +145,7 @@ const timedClock: PlayClockRead = {
 const timedSession: PlaySessionRead = {
   id: 'timed-session', player_id: 'test-player', game_id: 'timed-game', player_color: 'white',
   opponent_config: {}, status: 'active', coach_mode: false, clock: timedClock,
+  pgn: '', result: '*',
 };
 const timedGame = { id: 'timed-game', pgn: '', white: 'test-player', black: 'Stockfish', result: '*' };
 
@@ -179,6 +180,25 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
   });
 
+  it('installs board, turn and clock from one DTO even if another owner request advances the game', async () => {
+    const snapshot = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(snapshot);
+    // A legacy second request would observe a later board with Black to move,
+    // but retain version 6 / White's clock and stall until its deadline.
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 2. Nf3 *' });
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Stale clock version', 409));
+    render(<PlayScreen initialSession={timedSession} />);
+    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
+    expect(chessgroundMock.set).toHaveBeenCalledWith(expect.objectContaining({
+      fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+    }));
+    expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active');
+    await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('timed-session', { move: 'g1f3', expected_clock_version: 6 });
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+  });
+
   it('offers only supported clock presets and posts a numeric control', async () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
@@ -204,7 +224,7 @@ describe('PlayScreen', () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     const pending = { ...timedSession, player_color: 'black' as const, opponent_move: null,
       clock: { ...timedClock, version: 0 } };
-    const after = { ...pending, opponent_move: 'e2e4',
+    const after = { ...pending, opponent_move: 'e2e4', pgn: '1. e4 *',
       clock: { ...timedClock, version: 1, active_color: 'black' as const } };
     const opponent = Promise.withResolvers<PlaySessionRead>();
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(pending);
@@ -240,7 +260,7 @@ describe('PlayScreen', () => {
   });
 
   it('uses authoritative increments and the latest exact clock version for each human move', async () => {
-    const after = { ...timedSession, clock: { ...timedClock, version: 6, white_remaining_ms: 181000, black_remaining_ms: 179000 } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6, white_remaining_ms: 181000, black_remaining_ms: 179000 } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockResolvedValue(after);
     vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 *' });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active', clock: after.clock });
@@ -250,8 +270,8 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(screen.getByTestId('white-clock')).toHaveTextContent('3:01'));
     expect(screen.getByTestId('black-clock')).toHaveTextContent('2:59');
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('timed-session', { move: 'e2e4', expected_clock_version: 4 });
-    expect(ApiClient.getGame).toHaveBeenCalledTimes(2);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 2. Nf3 Nc6 *' });
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...after, pgn: '1. e4 e5 2. Nf3 Nc6 *', clock: { ...after.clock, version: 8 } });
     await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
     expect(ApiClient.makePlaySessionMove).toHaveBeenLastCalledWith('timed-session', { move: 'g1f3', expected_clock_version: 6 });
     expect(queueMove).not.toHaveBeenCalled();
@@ -259,8 +279,8 @@ describe('PlayScreen', () => {
   });
 
   it('reconciles an accepted move after engine failure and resumes only the durable bot version', async () => {
-    const pending = { ...timedSession, clock: { ...timedClock, version: 5, active_color: 'black' as const, white_remaining_ms: 181000 } };
-    const after = { ...timedSession, clock: { ...timedClock, version: 6 } };
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const, white_remaining_ms: 181000 } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
     const opponent = Promise.withResolvers<PlaySessionRead>();
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockResolvedValueOnce(pending).mockResolvedValue(after);
     vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame)
@@ -283,7 +303,7 @@ describe('PlayScreen', () => {
   });
 
   it('refreshes a stale rejected move without replaying its version or its optimistic board', async () => {
-    const after = { ...timedSession, clock: { ...timedClock, version: 8 } };
+    const after = { ...timedSession, pgn: '1. d4 d5 *', clock: { ...timedClock, version: 8 } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockResolvedValue(after);
     vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame).mockResolvedValue({ ...timedGame, pgn: '1. d4 d5 *' });
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Stale clock version', 409));
@@ -304,7 +324,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(timedSession);
     vi.mocked(ApiClient.getGame).mockResolvedValue(timedGame);
     render(<PlayScreen initialSession={timedSession} />);
-    await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalled());
+    await waitFor(() => expect(ApiClient.getPlaySession).toHaveBeenCalled());
     expect(screen.getByText(/Timed moves require a connection/)).toBeInTheDocument();
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
     expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
@@ -314,8 +334,8 @@ describe('PlayScreen', () => {
 
   it('resumes a remounted bot turn once per version and offers an explicit failed-command retry', async () => {
     localStorage.setItem('scan64_active_play_session_id', timedSession.id);
-    const pending = { ...timedSession, clock: { ...timedClock, version: 5, active_color: 'black' as const } };
-    const after = { ...timedSession, clock: { ...timedClock, version: 6 } };
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(pending);
     vi.mocked(ApiClient.getGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 *' });
     vi.mocked(ApiClient.resumePlaySessionOpponentMove).mockRejectedValueOnce(new Error('Engine unavailable')).mockResolvedValue(after);
@@ -338,7 +358,7 @@ describe('PlayScreen', () => {
     vi.useFakeTimers();
     let now = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
-    const black = { ...timedSession, player_color: 'black' as const, clock: {
+    const black = { ...timedSession, pgn: '1. e4 *', player_color: 'black' as const, clock: {
       ...timedClock, active_color: 'black' as const, black_remaining_ms: 2500,
     } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(black).mockResolvedValue({
@@ -369,12 +389,10 @@ describe('PlayScreen', () => {
 
   it('keeps a premove pending until the canonical reply and then uses its new clock version', async () => {
     const response = Promise.withResolvers<{ opponent_move: string; status: string; clock: PlayClockRead }>();
-    const canonical = Promise.withResolvers<typeof timedGame>();
-    const after = { ...timedSession, clock: { ...timedClock, version: 6 } };
-    const next = { ...timedSession, clock: { ...timedClock, version: 8 } };
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockResolvedValueOnce(after).mockResolvedValue(next);
-    vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame).mockReturnValueOnce(canonical.promise)
-      .mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 2. Nf3 Nc6 *' });
+    const canonical = Promise.withResolvers<PlaySessionRead>();
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    const next = { ...timedSession, pgn: '1. e4 e5 2. Nf3 Nc6 *', clock: { ...timedClock, version: 8 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockReturnValueOnce(canonical.promise).mockResolvedValue(next);
     vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(response.promise)
       .mockResolvedValue({ opponent_move: 'b8c6', status: 'active', clock: next.clock });
     render(<PlayScreen initialSession={timedSession} />);
@@ -389,14 +407,14 @@ describe('PlayScreen', () => {
     await act(async () => { response.resolve({ opponent_move: 'e7e5', status: 'active', clock: after.clock }); });
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
-    await act(async () => { canonical.resolve({ ...timedGame, pgn: '1. e4 e5 *' }); await firstMove; });
+    await act(async () => { canonical.resolve(after); await firstMove; });
     await waitFor(() => expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(2));
     expect(ApiClient.makePlaySessionMove).toHaveBeenLastCalledWith('timed-session', { move: 'g1f3', expected_clock_version: 6 });
   });
 
   it('never queues an ambiguously accepted timed move when the connection drops during the request', async () => {
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
-    const pending = { ...timedSession, clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockResolvedValue(pending);
     vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 *' });
     vi.mocked(ApiClient.makePlaySessionMove).mockImplementation(async () => {
@@ -416,7 +434,7 @@ describe('PlayScreen', () => {
   });
 
   it('locks a timed failure until canonical refresh succeeds and never retries the stale move', async () => {
-    const after = { ...timedSession, clock: { ...timedClock, version: 6 } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession)
       .mockRejectedValueOnce(new Error('Refresh unavailable')).mockResolvedValue(after);
     vi.mocked(ApiClient.getGame).mockResolvedValueOnce(timedGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 *' });
@@ -430,12 +448,12 @@ describe('PlayScreen', () => {
     fireEvent.click(screen.getByTestId('retry-game-refresh'));
     await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
-    expect(ApiClient.getGame).toHaveBeenCalledTimes(2);
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
     expect(queueMove).not.toHaveBeenCalled();
   });
 
   it('renders the server flag result, including a draw, rather than deriving a client winner', async () => {
-    const ended = { ...timedSession, status: 'completed', clock: {
+    const ended = { ...timedSession, pgn: '1. e4 1/2-1/2', result: '1/2-1/2', status: 'completed', clock: {
       ...timedClock, version: 5, white_remaining_ms: 0, active_color: null, deadline_at: null,
       terminal_reason: 'flag' as const, flagged_color: 'white' as const,
     } };

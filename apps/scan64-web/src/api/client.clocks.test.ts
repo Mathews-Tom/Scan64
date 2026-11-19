@@ -36,8 +36,13 @@ describe('timed play API', () => {
 
   it('preserves explicit stale clock conflicts for both commands', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409, statusText: 'Conflict' }));
-    await expect(ApiClient.makePlaySessionMove('session-1', { move: 'e2e4', expected_clock_version: 1 }))
-      .rejects.toMatchObject({ status: 409 });
-    await expect(ApiClient.resumePlaySessionOpponentMove('session-1', 1)).rejects.toBeInstanceOf(ApiRequestError);
+    for (const command of [
+      () => ApiClient.makePlaySessionMove('session-1', { move: 'e2e4', expected_clock_version: 1 }),
+      () => ApiClient.resumePlaySessionOpponentMove('session-1', 1),
+    ]) {
+      const request = command();
+      await expect(request).rejects.toBeInstanceOf(ApiRequestError);
+      await expect(request).rejects.toMatchObject({ status: 409 });
+    }
   });
 });

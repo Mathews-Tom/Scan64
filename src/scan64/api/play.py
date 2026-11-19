@@ -85,6 +85,8 @@ class PlaySessionRead(BaseModel):
     player_color: Literal["white", "black"]
     opponent_move: str | None = None
     clock: PlayClockRead | None = None
+    pgn: str | None = None
+    result: str | None = None
 
 
 class PlayMoveCreate(BaseModel):
@@ -144,7 +146,21 @@ def _get_owned_play_session(session_id: UUID, request: Request, session: Session
 def read_play_session(
     play_session: PlaySession, session: Session, opponent_move: str | None = None
 ) -> PlaySessionRead:
-    game = session.get(Game, play_session.game_id) if play_session.game_id else None
+    # A single joined SELECT is a SQLite read snapshot even with the driver's
+    # legacy transaction mode. Refresh cached ORM rows from that same statement.
+    snapshot = session.exec(
+        select(PlaySession, Game, PlayClock)
+        .outerjoin(Game, col(Game.id) == col(PlaySession.game_id))
+        .outerjoin(PlayClock, col(PlayClock.session_id) == col(PlaySession.id))
+        .where(
+            col(PlaySession.id) == play_session.id,
+            col(PlaySession.player_id) == play_session.player_id,
+        )
+        .execution_options(populate_existing=True)
+    ).one_or_none()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="PlaySession not found")
+    play_session, game, clock = snapshot
     colour = player_color(
         game.headers.get("FEN") if game else None,
         game.moves if game else (),
@@ -160,11 +176,9 @@ def read_play_session(
         coach_mode=play_session.coach_mode,
         player_color="white" if colour else "black",
         opponent_move=opponent_move,
-        clock=(
-            project_clock(clock)
-            if (clock := session.get(PlayClock, play_session.id)) is not None
-            else None
-        ),
+        clock=project_clock(clock) if clock is not None else None,
+        pgn=game.pgn if game is not None else None,
+        result=game.result if game is not None else None,
     )
 
 

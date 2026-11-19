@@ -510,6 +510,8 @@ export interface PlaySessionRead {
   opponent_config: Record<string, string>;
   clock_config?: Record<string, string>;
   clock?: PlayClockRead | null;
+  pgn?: string | null;
+  result?: string | null;
   status: string;
   coach_mode: boolean;
   assistance_tracking_version?: number | null;

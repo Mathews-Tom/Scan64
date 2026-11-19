@@ -98,6 +98,7 @@ def test_owned_clock_roundtrip_and_reset_preserve_time_and_other_player(
     assert exported.status_code == 200
     archive = exported.json()
     assert len(archive["play_clocks"]) == 1
+    assert archive["timed_session_ids"] == [str(play_id)]
     saved_clock = archive["play_clocks"][0]
     assert saved_clock["session_id"] == str(play_id)
     assert saved_clock["version"] == (3 if completed else 2)
@@ -140,6 +141,81 @@ def test_owned_clock_roundtrip_and_reset_preserve_time_and_other_player(
     assert _retained_clock(db_session, other_id) == other_before
 
 
+@pytest.mark.parametrize("omit_timed_declaration", [False, True])
+@pytest.mark.parametrize(
+    "legacy_config",
+    [
+        {"initial_seconds": "180", "increment_seconds": "2", "time_remaining_ms": "1"},
+        {"initial_seconds": "180", "increment_seconds": "2"},
+        {"initial_seconds": "opaque", "increment_seconds": "historical"},
+        {"initial_seconds": "180"},
+    ],
+)
+def test_legacy_string_clock_config_roundtrips_without_a_running_clock(
+    client: TestClient,
+    db_session: Session,
+    legacy_config: dict[str, str],
+    omit_timed_declaration: bool,
+) -> None:
+    owner = "legacy-clock-lifecycle-owner"
+    headers = authorization_header(create_player_token(client, owner, owner))
+    game = Game(
+        pgn="",
+        headers={"TimeControl": "180+2"},
+        moves=["e2e4", "e7e5"],
+        owner_player_id=owner,
+        owner_color="white",
+        white=owner,
+        black="Stockfish",
+    )
+    game.pgn = build_pgn(game)
+    db_session.add(game)
+    db_session.flush()
+    play = PlaySession(
+        player_id=owner,
+        game_id=game.id,
+        opponent_config={"provider": "stockfish", "player_color": "white"},
+        clock_config=legacy_config,
+        assistance_tracking_version=1,
+    )
+    db_session.add(play)
+    db_session.commit()
+    play_id, game_id = play.id, game.id
+    exported = client.post("/v1/exports", headers=headers, json={"player_id": owner})
+    assert exported.status_code == 200
+    archive = exported.json()
+    assert archive["play_clocks"] == []
+    assert archive["timed_session_ids"] == []
+    assert archive["play_sessions"][0]["clock_config"] == legacy_config
+    if omit_timed_declaration:
+        archive.pop("timed_session_ids")
+    deleted = client.request(
+        "DELETE",
+        f"/v1/players/{owner}/data",
+        headers=headers,
+        json={"dry_run": False, "confirmation": f"delete-{owner}"},
+    )
+    assert deleted.status_code == 200
+    assert deleted.json()["affected_rows"]["play_clocks"] == 0
+    db_session.expire_all()
+    assert db_session.get(PlaySession, play_id) is None
+    assert db_session.get(Game, game_id) is None
+    restored = client.post("/v1/imports", headers=headers, json=archive)
+    assert restored.status_code == 200, restored.text
+    db_session.expire_all()
+    retained = db_session.get(PlaySession, play_id)
+    assert retained is not None
+    assert retained.clock_config == legacy_config
+    retained_game = db_session.get(Game, game_id)
+    assert retained_game is not None
+    assert retained_game.headers["TimeControl"] == "180+2"
+    assert db_session.get(PlayClock, play_id) is None
+    resumed = client.get(f"/v1/play-sessions/{play_id}", headers=headers)
+    assert resumed.status_code == 200
+    assert resumed.json()["clock"] is None
+    assert resumed.json()["clock_config"] == legacy_config
+
+
 @pytest.mark.parametrize(
     "tamper",
     [
@@ -156,6 +232,9 @@ def test_owned_clock_roundtrip_and_reset_preserve_time_and_other_player(
         "foreign-session",
         "duplicate-clock",
         "missing-clock",
+        "missing-clock-declaration",
+        "duplicate-clock-declaration",
+        "foreign-clock-declaration",
         "wrong-control",
         "wrong-game-control",
         "unearned-increment",
@@ -171,6 +250,7 @@ def test_invalid_clock_archive_fails_before_player_or_game_writes(
     headers = authorization_header(create_player_token(client, owner, owner))
     play_id, game_id = _seed_clock(db_session, owner)
     archive = client.post("/v1/exports", headers=headers, json={"player_id": owner}).json()
+    assert archive["timed_session_ids"] == [str(play_id)]
     assert (
         client.request(
             "DELETE",
@@ -207,6 +287,12 @@ def test_invalid_clock_archive_fails_before_player_or_game_writes(
         archive["play_clocks"].append(deepcopy(clock))
     elif tamper == "missing-clock":
         archive["play_clocks"] = []
+    elif tamper == "missing-clock-declaration":
+        archive.pop("timed_session_ids")
+    elif tamper == "duplicate-clock-declaration":
+        archive["timed_session_ids"].append(str(play_id))
+    elif tamper == "foreign-clock-declaration":
+        archive["timed_session_ids"] = [str(uuid4())]
     elif tamper == "wrong-control":
         archive["play_sessions"][0]["clock_config"]["initial_seconds"] = "601"
     elif tamper == "wrong-game-control":

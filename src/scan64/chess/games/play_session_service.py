@@ -4,6 +4,7 @@ from asyncio import sleep
 from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from uuid import UUID
 
 import chess
@@ -474,7 +475,7 @@ class PlaySessionService:
     def check_timed_turn(
         self, play: PlaySession, clock: PlayClock, expected_version: int | None
     ) -> None:
-        if play.status != "active" or clock.active_color is None:
+        if play.status != "active" or clock.active_color is None or clock.deadline_at is None:
             raise ClockConflict("Timed play session is already completed")
         if is_expired(clock, utc_now()):
             self.expire_clock(play.id)
@@ -532,13 +533,17 @@ class PlaySessionService:
         session_id = play.id
         coach_mode = play.coach_mode
         coach_game = Game(**game.model_dump()) if coach_mode else None
+        bot_version = clock.version + 1
         # Human move, increment, next deadline and snapshot fence are durable
         # before any engine or coaching await.
         self.commit_timed_move(play, game, clock, snapshot, board)
         if board.is_game_over():
             return PlayMoveResult(None, None)
-        bot_version = clock.version
-        assert clock.deadline_at is not None
+        # Commit expires ORM state: a concurrent resignation/flag may have
+        # stopped the freshly durable bot turn before these objects reload.
+        self.check_timed_turn(play, clock, bot_version)
+        if clock.deadline_at is None:
+            raise ClockConflict("Opponent clock is already stopped")
         bot_deadline = as_utc(clock.deadline_at)
         player_id = snapshot.player_id
         self.db.rollback()
@@ -619,14 +624,17 @@ class PlaySessionService:
         # survive while the engine is running.
         self.db.rollback()
         bot_timeout = asyncio.timeout(max(0, (bot_deadline - utc_now()).total_seconds()))
-        started = asyncio.get_running_loop().time()
+        started = monotonic()
         try:
             async with bot_timeout:
                 opponent_move = await self.play_opponent_move(
                     work_play, work_game, board, time_remaining_ms=remaining
                 )
-                elapsed = (asyncio.get_running_loop().time() - started) * 1000
-                delay = (target - elapsed) / 1000
+                elapsed = (monotonic() - started) * 1000
+                # Pacing is discretionary: leave time to persist an already
+                # returned move instead of sleeping through its hard deadline.
+                live_budget = (bot_deadline - utc_now()).total_seconds()
+                delay = min((target - elapsed) / 1000, max(0, live_budget - 0.010))
                 if delay > 0:
                     await sleep(delay)
         except TimeoutError:

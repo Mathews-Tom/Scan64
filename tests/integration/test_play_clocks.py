@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import chess
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, select
 
 import scan64.api.play as play_api
@@ -322,6 +324,52 @@ async def test_late_engine_result_cannot_overwrite_resignation(db_session, froze
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("terminal_reason", ["resignation", "flag"])
+async def test_stopped_bot_clock_after_human_commit_conflicts_before_engine_work(
+    db_session, frozen_time, monkeypatch, terminal_reason
+):
+    play, game, clock = seed_clock(db_session, frozen_time)
+    play.coach_mode = True
+    db_session.add(play)
+    db_session.commit()
+    session_id = play.id
+    opponent = ScriptedOpponent()
+    service = PlaySessionService(db_session, opponent)
+    commit_move = service.commit_timed_move
+    coach_calls = []
+
+    async def prepare(**kwargs):
+        coach_calls.append(kwargs)
+        raise AssertionError("A stopped bot turn must not start coaching")
+
+    def commit_then_stop(*args):
+        commit_move(*args)
+        with Session(db_session.get_bind()) as other:
+            terminal_service = PlaySessionService(other, ScriptedOpponent())
+            if terminal_reason == "resignation":
+                terminal_service.resign(session_id)
+            else:
+                frozen_time.advance(60_000)
+                terminal_service.expire_clock(session_id)
+
+    monkeypatch.setattr(service, "commit_timed_move", commit_then_stop)
+    monkeypatch.setattr(play_service, "prepare_coach_interruption", prepare)
+    with pytest.raises(ClockConflict, match="completed"):
+        await service.make_move(session_id, "e2e4", 0)
+    db_session.refresh(game)
+    db_session.refresh(clock)
+    assert game.moves == ["e2e4"]
+    assert game.result == ("0-1" if terminal_reason == "resignation" else "1-0")
+    assert clock.terminal_reason == terminal_reason
+    assert clock.deadline_at is None
+    assert clock.active_color is None
+    assert clock.version == 2
+    assert opponent.contexts == []
+    assert coach_calls == []
+    assert len(db_session.exec(select(AnalysisJob)).all()) == 1
+
+
+@pytest.mark.asyncio
 async def test_result_at_exact_deadline_flags_without_publishing_bot_move(db_session, frozen_time):
     play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",))
 
@@ -454,6 +502,157 @@ async def test_runtime_expires_without_browser_and_admits_analysis(
             assert other.get(Game, game.id).moves == ["e2e4"]
     finally:
         await runtime.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_stage", ["query", "write"])
+@pytest.mark.parametrize("error_code", [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED_SHAREDCACHE])
+async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounded_backoff(
+    db_session, frozen_time, monkeypatch, caplog, failure_stage, error_code
+):
+    play, game, _ = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    session_id, game_id = play.id, game.id
+    frozen_time.advance(60_000)
+    failed_sessions = []
+    delays = []
+    admitted = asyncio.Event()
+    real_sleep = asyncio.sleep
+
+    class ContendedSession(Session):
+        def exec(self, statement, *args, **kwargs):
+            fail_query = failure_stage == "query" and statement.is_select
+            fail_write = (
+                failure_stage == "write"
+                and statement.is_update
+                and statement.table.name == "playclock"
+            )
+            if len(failed_sessions) < 8 and (fail_query or fail_write):
+                failed_sessions.append(self)
+                original = sqlite3.OperationalError("database is locked")
+                original.sqlite_errorcode = error_code
+                raise OperationalError(str(statement), {}, original)
+            return super().exec(statement, *args, **kwargs)
+
+    async def backoff(seconds):
+        delays.append(seconds)
+        # Every failed query/write must release its transaction before retry.
+        assert not failed_sessions[-1].in_transaction()
+        await real_sleep(0)
+
+    async def submit(player_id, job_id, pool):
+        admitted.set()
+
+    monkeypatch.setattr(clocks, "Session", ContendedSession)
+    monkeypatch.setattr(clocks.asyncio, "sleep", backoff)
+    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime.start()
+    try:
+        await asyncio.wait_for(admitted.wait(), timeout=1)
+        assert delays == pytest.approx([0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.0])
+        assert len({id(session) for session in failed_sessions}) == 8
+        assert "scheduler database contention; retrying" in caplog.text
+        with Session(db_session.get_bind()) as other:
+            assert other.get(PlaySession, session_id).status == "completed"
+            assert other.get(PlayClock, session_id).terminal_reason == "flag"
+            assert other.get(PlayClock, session_id).version == 1
+            assert other.get(Game, game_id).moves == ["e2e4"]
+            assert len(other.exec(select(AnalysisJob)).all()) == 1
+    finally:
+        await runtime.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "original",
+    [
+        sqlite3.OperationalError("no such table: playclock"),
+        sqlite3.OperationalError("disk I/O error"),
+        RuntimeError("non-SQLite database is locked"),
+    ],
+)
+async def test_runtime_does_not_retry_nonretryable_database_failures(
+    db_session, monkeypatch, original
+):
+    if isinstance(original, sqlite3.OperationalError):
+        original.sqlite_errorcode = (
+            sqlite3.SQLITE_IOERR if "I/O" in str(original) else sqlite3.SQLITE_ERROR
+        )
+    else:
+        original.sqlite_errorcode = sqlite3.SQLITE_BUSY
+    failure = OperationalError("SELECT", {}, original)
+    attempts = []
+
+    class BrokenSession(Session):
+        def exec(self, statement, *args, **kwargs):
+            attempts.append(statement)
+            raise failure
+
+    monkeypatch.setattr(clocks, "Session", BrokenSession)
+    runtime = PlayClockRuntime(db_session.get_bind())
+    try:
+        with pytest.raises(OperationalError) as raised:
+            await runtime._run()
+        assert raised.value is failure
+        assert len(attempts) == 1
+    finally:
+        await runtime.stop()
+
+
+@pytest.mark.asyncio
+async def test_runtime_immediate_shutdown_cancels_before_query(db_session, monkeypatch):
+    queries = []
+
+    class UnexpectedSession(Session):
+        def exec(self, statement, *args, **kwargs):
+            queries.append(statement)
+            raise AssertionError("An immediately cancelled scheduler must not query")
+
+    monkeypatch.setattr(clocks, "Session", UnexpectedSession)
+    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime.start()
+    await runtime.stop()
+    assert runtime._task.cancelled()
+    assert queries == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_stage", ["query", "write"])
+async def test_runtime_shutdown_cancels_sqlite_retry_backoff(
+    db_session, frozen_time, monkeypatch, failure_stage
+):
+    play, _, _ = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    session_id = play.id
+    frozen_time.advance(60_000)
+    retrying = asyncio.Event()
+
+    class LockedSession(Session):
+        def exec(self, statement, *args, **kwargs):
+            if failure_stage == "query" or (
+                statement.is_update and statement.table.name == "playclock"
+            ):
+                original = sqlite3.OperationalError("database is locked")
+                original.sqlite_errorcode = sqlite3.SQLITE_LOCKED
+                raise OperationalError(str(statement), {}, original)
+            return super().exec(statement, *args, **kwargs)
+
+    async def wait_in_backoff(seconds):
+        retrying.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(clocks, "Session", LockedSession)
+    monkeypatch.setattr(clocks.asyncio, "sleep", wait_in_backoff)
+    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime.start()
+    try:
+        await asyncio.wait_for(retrying.wait(), timeout=1)
+    finally:
+        await runtime.stop()
+    assert runtime._task.cancelled()
+    with Session(db_session.get_bind()) as other:
+        assert other.get(PlaySession, session_id).status == "active"
+        assert other.get(PlayClock, session_id).version == 0
+        assert other.exec(select(AnalysisJob)).all() == []
 
 
 @pytest.mark.asyncio
@@ -697,18 +896,72 @@ async def test_bot_board_mate_stops_clock_and_enqueues_once(db_session, frozen_t
 
 @pytest.mark.asyncio
 async def test_engine_real_work_reduces_pacing_sleep(db_session, frozen_time, monkeypatch):
-    play, _, _ = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=3000, increment=0)
+    play, game, clock = seed_clock(
+        db_session, frozen_time, moves=("e2e4",), remaining=3000, increment=0
+    )
     slept = []
+    monkeypatch.setattr(play_service, "monotonic", lambda: frozen_time.now.timestamp())
+
+    async def engine_work():
+        frozen_time.advance(40)
 
     async def record_sleep(seconds):
         slept.append(seconds)
+        frozen_time.advance(round(seconds * 1000))
 
     monkeypatch.setattr(play_service, "sleep", record_sleep)
-    service = PlaySessionService(db_session, ScriptedOpponent())
-    await service.resume_opponent(play.id, 0)
-    assert len(slept) <= 1
-    # min(1500, max(100, 3000 // 30)) == 100 ms, less real engine overhead.
-    assert all(0 < delay <= 0.1 for delay in slept)
+    service = PlaySessionService(db_session, ScriptedOpponent(effect=engine_work))
+    assert await service.resume_opponent(play.id, 0) == "e7e5"
+    assert slept == pytest.approx([0.060], abs=0.000001)
+    db_session.refresh(game)
+    db_session.refresh(clock)
+    assert game.moves == ["e2e4", "e7e5"]
+    assert clock.black_remaining_ms == 2900
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("remaining", "work_ms", "expected_sleep", "expected_balance"),
+    [
+        (80, 0, 0.070, 10),
+        (80, 40, 0.030, 10),
+        (80, 75, None, 5),
+        (8, 0, None, 8),
+        (3000, 0, 0.100, 2900),
+        (3000, 120, None, 2880),
+    ],
+)
+async def test_pacing_leaves_deadline_margin_and_charges_actual_elapsed_time(
+    db_session, frozen_time, monkeypatch, remaining, work_ms, expected_sleep, expected_balance
+):
+    play, game, clock = seed_clock(
+        db_session, frozen_time, moves=("e2e4",), remaining=remaining, increment=0
+    )
+    slept = []
+    monkeypatch.setattr(play_service, "monotonic", lambda: frozen_time.now.timestamp())
+
+    async def engine_work():
+        frozen_time.advance(work_ms)
+
+    async def record_sleep(seconds):
+        slept.append(seconds)
+        frozen_time.advance(round(seconds * 1000))
+
+    monkeypatch.setattr(play_service, "sleep", record_sleep)
+    opponent = ScriptedOpponent(effect=engine_work)
+    assert await PlaySessionService(db_session, opponent).resume_opponent(play.id, 0) == "e7e5"
+    if expected_sleep is None:
+        assert slept == []
+    else:
+        assert slept == pytest.approx([expected_sleep], abs=0.000001)
+    db_session.refresh(game)
+    db_session.refresh(clock)
+    assert game.moves == ["e2e4", "e7e5"]
+    assert clock.black_remaining_ms == expected_balance
+    assert clock.version == 1
+    assert clock.active_color == "white"
+    assert clock.terminal_reason is None
+    assert len(opponent.contexts) == 1
 
 
 @pytest.mark.asyncio
