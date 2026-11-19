@@ -151,6 +151,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     try {
       const fresh = await ApiClient.getPlaySession(sessionId);
       if (sessionRef.current?.id !== sessionId) return;
+      // Initially linked terminal conversions still start at the source FEN.
+      if (initialSession?.sparring && initialSession.id === sessionId && initialSession.status !== 'active') {
+        if (!fresh.game_id) throw new Error('Conversion game record is unavailable.');
+        const game = await ApiClient.getGame(fresh.game_id);
+        if (sessionRef.current?.id !== sessionId) return;
+        const restoredChess = new Chess();
+        restoredChess.loadPgn(game.pgn);
+        chessRef.current = restoredChess;
+        updateBoard();
+      }
       sessionRef.current = fresh;
       setSession(fresh);
       setError(null);
@@ -161,7 +171,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     } finally {
       if (sessionRef.current?.id === sessionId) setConversionRefreshing(false);
     }
-  }, []);
+  }, [initialSession, updateBoard]);
   const isConversion = Boolean(session?.sparring);
   useEffect(() => {
     if (isConversion && currentSessionId && currentSessionStatus !== 'active') {
@@ -507,7 +517,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         const resumedSession = await ApiClient.getPlaySession(activeSessionId);
         sessionResolved = true;
         if (cancelled || sessionRef.current) return;
-        if (resumedSession.status !== 'active') {
+        if (resumedSession.status !== 'active' && !resumedSession.sparring) {
           if (localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) === activeSessionId) {
             localStorage.removeItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
           }
@@ -523,14 +533,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         }
         let hasQueuedMove = false;
         let queuedMoveError: string | null = null;
-        try {
-          const queuedMoves = await getQueuedMoves();
-          if (cancelled || sessionRef.current) return;
-          hasQueuedMove = queuedMoves.some((queuedMove) => queuedMove.sessionId === resumedSession.id);
-        } catch (error: unknown) {
-          queuedMoveError = `Unable to inspect queued moves: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`;
+        if (resumedSession.status === 'active') {
+          try {
+            const queuedMoves = await getQueuedMoves();
+            if (cancelled || sessionRef.current) return;
+            hasQueuedMove = queuedMoves.some((queuedMove) => queuedMove.sessionId === resumedSession.id);
+          } catch (error: unknown) {
+            queuedMoveError = `Unable to inspect queued moves: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`;
+          }
         }
         if (cancelled || sessionRef.current) return;
         const needsRefresh = hasQueuedMove || queuedMoveError !== null;

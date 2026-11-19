@@ -1727,6 +1727,7 @@ def _validate_sparring_archive(
         bot_game = (
             games_by_id.get(play.game_id) if play is not None and play.game_id is not None else None
         )
+        # Ordinary play may reuse this owned game with a different retained player colour.
         if (
             attempt.player_id != player_id
             or play is None
@@ -1737,10 +1738,12 @@ def _validate_sparring_archive(
             or bot_game is None
             or bot_game.id == original.id
             or bot_game.owner_player_id != player_id
-            or bot_game.owner_color != play.opponent_config.get("player_color")
-            or sum(item.game_id == bot_game.id for item in play_sessions) != 1
+            or bot_game.owner_color not in {"white", "black"}
         ):
             raise ValueError("Invalid sparring owner or game closure")
+        shared_game = any(
+            item.game_id == bot_game.id and item.id != play.id for item in play_sessions
+        )
         assert review is not None
         source = positions_by_id.get(review.source_position_id)
         reached = positions_by_id.get(review.reached_position_id)
@@ -1799,6 +1802,7 @@ def _validate_sparring_archive(
             bot_game.headers.get("FEN") != selected.fen
             or config.get("custom_start") != "true"
             or config.get("player_color") not in {"white", "black"}
+            or (not shared_game and bot_game.owner_color != config.get("player_color"))
             or config.get("provider") != "stockfish"
             or config.get("bot_level") not in {"1", "2", "3", "4", "5", "6", "7", "8"}
             or not seed
@@ -1818,13 +1822,17 @@ def _validate_sparring_archive(
             if move not in bot_board.legal_moves:
                 raise ValueError("Illegal sparring bot move")
             bot_board.push(move)
+        # A reused game's latest terminal facts need not belong to this retained attempt.
         terminal = (attempt.completed_at, attempt.result, attempt.outcome)
         if all(value is None for value in terminal):
-            if (
-                play.status != "active"
-                or bot_game.result != "*"
-                or bot_board.is_game_over()
-                or bot_board.turn != (config["player_color"] == "white")
+            # Another session can advance or finish the game without completing this attempt.
+            if play.status != "active" or (
+                not shared_game
+                and (
+                    bot_game.result != "*"
+                    or bot_board.is_game_over()
+                    or bot_board.turn != (config["player_color"] == "white")
+                )
             ):
                 raise ValueError("Active sparring has terminal session or game facts")
         else:
@@ -1841,9 +1849,14 @@ def _validate_sparring_archive(
                 or attempt.result not in {"1-0", "0-1", "1/2-1/2"}
                 or attempt.outcome != outcome
                 or play.status != "completed"
-                or bot_game.result != attempt.result
-                or bot_board.is_game_over()
-                and bot_board.result() != attempt.result
+                or (
+                    not shared_game
+                    and (
+                        bot_game.result != attempt.result
+                        or bot_board.is_game_over()
+                        and bot_board.result() != attempt.result
+                    )
+                )
                 or utc(attempt.completed_at) < utc(attempt.created_at)
             ):
                 raise ValueError("Invalid sparring terminal result or timestamp")
