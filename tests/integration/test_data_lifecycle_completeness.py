@@ -27,6 +27,7 @@ from scan64.chess.analysis.models import (
     PersistedLessonOpportunity,
 )
 from scan64.chess.games.assistance import SessionHintReveal
+from scan64.chess.games.clock_models import PlayClock
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
@@ -73,6 +74,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         PlayerCredential.__tablename__,
         Game.__tablename__,
         PlaySession.__tablename__,
+        PlayClock.__tablename__,
         SessionHintReveal.__tablename__,
         PositiveMoveCredit.__tablename__,
         Position.__tablename__,
@@ -121,6 +123,7 @@ ARCHIVE_FIELDS = {
     PlayerProfile.__tablename__: "profile",
     PlayerOnboarding.__tablename__: "onboarding",
     PlaySession.__tablename__: "play_sessions",
+    PlayClock.__tablename__: "play_clocks",
     SessionHintReveal.__tablename__: "session_hint_reveals",
     PositiveMoveCredit.__tablename__: "positive_move_credits",
     Game.__tablename__: "games",
@@ -510,6 +513,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "pattern_awards": 0,
         "pattern_award_evidence": 0,
         "play_sessions": 1,
+        "play_clocks": 0,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
         "games": 1,

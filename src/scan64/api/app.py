@@ -29,6 +29,7 @@ from scan64.api.strength import router as strength_router
 from scan64.api.web import mount_web_client, web_dist_directory
 from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.recovery import recover_analysis_jobs
+from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
 from scan64.persistence.database import create_db_and_tables, get_session
@@ -71,9 +72,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             download_url=os.environ.get("SCAN64_DEBUG_PUZZLE_URL", DEFAULT_PUZZLE_URL),
         )
     try:
+        app.state.play_clock_runtime = PlayClockRuntime(
+            database.engine, app.state.engine_pool_manager
+        )
+        app.state.play_clock_runtime.start()
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
+        await app.state.play_clock_runtime.stop()
+        del app.state.play_clock_runtime
         if shell_token is not None:
             await asyncio.to_thread(app.state.puzzle_import_job.close)
             del app.state.puzzle_import_job

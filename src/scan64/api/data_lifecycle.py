@@ -4,6 +4,7 @@ import hashlib
 from collections import Counter
 from datetime import UTC, date, datetime
 from math import isclose, isfinite
+from sqlite3 import Connection as SQLiteConnection
 from typing import Any
 from uuid import uuid4
 
@@ -23,7 +24,14 @@ from scan64.api.models import (
     PlayerOnboarding,
     PlayerProfile,
 )
-from scan64.api.onboarding import INTRO_TARGET, LEVEL_MAPPING, MAPPING_VERSION, read_onboarding, utc
+from scan64.api.onboarding import (
+    INTRO_TARGET,
+    LEVEL_MAPPING,
+    MAPPING_VERSION,
+    intro_runs,
+    project_onboarding_completion,
+    utc,
+)
 from scan64.chess.analysis.credit import MAX_POSITIVE_CREDITS_PER_GAME_SKILL, positive_move_proof
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
@@ -34,8 +42,11 @@ from scan64.chess.analysis.models import (
     PersistedLessonOpportunity,
 )
 from scan64.chess.games.assistance import SessionHintReveal, prefix_hash
+from scan64.chess.games.clock_models import PlayClock
+from scan64.chess.games.clocks import clock_control
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import player_color
+from scan64.chess.games.pgn import build_pgn
 from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
@@ -85,6 +96,7 @@ class ExportArchive(BaseModel):
     profile: dict[str, Any] | None = None
     onboarding: dict[str, Any] | None = None
     play_sessions: list[dict[str, Any]] = Field(default_factory=list)
+    play_clocks: list[dict[str, Any]] = Field(default_factory=list)
     session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
     positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
     games: list[dict[str, Any]] = Field(default_factory=list)
@@ -118,6 +130,145 @@ class ExportArchive(BaseModel):
     pattern_awards: list[dict[str, Any]] = Field(default_factory=list)
     pattern_award_evidence: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
+
+
+def _validate_clock_archive(
+    session: Session,
+    player_id: str,
+    plays: list[PlaySession],
+    games: list[Game],
+    clocks: list[PlayClock],
+) -> None:
+    plays_by_id = {play.id: play for play in plays}
+    games_by_id = {game.id: game for game in games}
+    clocks_by_id = {clock.session_id: clock for clock in clocks}
+    if len(clocks_by_id) != len(clocks):
+        raise ValueError("Duplicate play clocks")
+    game_sessions = Counter(play.game_id for play in plays)
+    for configured_play in plays:
+        config = configured_play.clock_config or {}
+        if {
+            "initial_seconds",
+            "increment_seconds",
+        } & config.keys() and configured_play.id not in clocks_by_id:
+            raise ValueError("Timed session is missing its authoritative clock")
+    for clock in clocks:
+        play = plays_by_id.get(clock.session_id)
+        if play is None or play.player_id != player_id or play.game_id is None:
+            raise ValueError("Clock is missing its owned session")
+        game = games_by_id.get(play.game_id)
+        if game is None or game.owner_player_id != player_id or game_sessions[game.id] != 1:
+            raise ValueError("Clock must reference one dedicated owned game")
+        if (
+            play.opponent_config.get("player_color") not in {"white", "black"}
+            or game.owner_color != play.opponent_config["player_color"]
+        ):
+            raise ValueError("Clock owner color disagrees with its dedicated game")
+        if session.get(PlayClock, clock.session_id) is not None:
+            raise ValueError("Clock conflicts with retained state")
+        if session.get(PlaySession, play.id) is not None:
+            raise ValueError("Clock conflicts with a retained session")
+        control = clock_control(play, clock)
+        if control is None:
+            raise ValueError("Clock has no time control")
+        generation = play.opponent_config.get("assistance_generation", "0")
+        if (
+            not generation.isascii()
+            or not generation.isdecimal()
+            or len(generation) > 19
+            or int(generation) > 9223372036854775807
+        ):
+            raise ValueError("Clock session has an invalid assistance generation")
+        if clock.version > len(game.moves) + 1:
+            raise ValueError("Clock version exceeds its retained turn boundaries")
+        if game.headers.get("TimeControl") != (
+            f"{control.initial_seconds}+{control.increment_seconds}"
+        ):
+            raise ValueError("Clock does not match game time-control metadata")
+        existing_game = session.get(Game, game.id)
+        if existing_game is not None and (
+            existing_game.model_dump(exclude={"created_at"})
+            != game.model_dump(exclude={"created_at"})
+            or utc(existing_game.created_at) != utc(game.created_at)
+        ):
+            raise ValueError("Clock conflicts with a retained game")
+        if (
+            session.exec(select(PlaySession.id).where(PlaySession.game_id == game.id)).first()
+            is not None
+        ):
+            raise ValueError("Clock game is already used by another session")
+        board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        if not board.is_valid():
+            raise ValueError("Clock game has an invalid initial position")
+        moves_by_color = {chess.WHITE: 0, chess.BLACK: 0}
+        for move in game.moves:
+            moves_by_color[board.turn] += 1
+            board.push_uci(move)
+        if game.pgn != build_pgn(game):
+            raise ValueError("Clock game PGN disagrees with its retained replay")
+        for piece_color, remaining in (
+            (chess.WHITE, clock.white_remaining_ms),
+            (chess.BLACK, clock.black_remaining_ms),
+        ):
+            maximum = (
+                control.initial_seconds + moves_by_color[piece_color] * control.increment_seconds
+            ) * 1000
+            if remaining > maximum:
+                raise ValueError("Clock balance exceeds its legal increments")
+        if play.status == "active":
+            active = "white" if board.turn == chess.WHITE else "black"
+            if (
+                clock.active_color != active
+                or clock.deadline_at is None
+                or clock.terminal_reason is not None
+                or clock.flagged_color is not None
+                or game.result != "*"
+                or board.is_game_over()
+            ):
+                raise ValueError("Active clock disagrees with the retained game")
+            balance = (
+                clock.white_remaining_ms if board.turn == chess.WHITE else clock.black_remaining_ms
+            )
+            clock.deadline_at = utc(clock.deadline_at)
+            if (clock.deadline_at - datetime.now(UTC)).total_seconds() * 1000 > balance:
+                raise ValueError("Clock deadline exceeds its retained balance")
+            continue
+        if (
+            play.status != "completed"
+            or clock.active_color is not None
+            or clock.deadline_at is not None
+            or clock.terminal_reason is None
+        ):
+            raise ValueError("Terminal clock disagrees with session status")
+        if clock.terminal_reason == "flag":
+            if (
+                clock.flagged_color is None
+                or board.is_game_over()
+                or (board.turn == chess.WHITE) != (clock.flagged_color == "white")
+            ):
+                raise ValueError("Invalid clock flag provenance")
+            flagged_white = clock.flagged_color == "white"
+            balance = clock.white_remaining_ms if flagged_white else clock.black_remaining_ms
+            expected = (
+                "1/2-1/2"
+                if board.has_insufficient_material(not flagged_white)
+                else "0-1"
+                if flagged_white
+                else "1-0"
+            )
+            if balance != 0 or game.result != expected:
+                raise ValueError("Flag result disagrees with mating material or balance")
+        elif clock.flagged_color is not None:
+            raise ValueError("Only a flag can retain a flagged color")
+        elif clock.terminal_reason == "board":
+            if not board.is_game_over() or game.result != board.result():
+                raise ValueError("Clock board result disagrees with the retained replay")
+        else:
+            color = play.opponent_config.get("player_color")
+            if color not in {"white", "black"} or board.is_game_over():
+                raise ValueError("Invalid clock resignation")
+            if game.result != ("0-1" if color == "white" else "1-0"):
+                raise ValueError("Clock resignation disagrees with the player's color")
 
 
 _HABIT_INVALIDATION_REASONS = frozenset(
@@ -1660,6 +1811,22 @@ def _validate_credit_archive(
 def export_player_data(
     request: Request, req: ExportRequest, session: Session = Depends(get_session)
 ) -> ExportArchive:
+    # SQLite's legacy SELECT mode does not itself establish a read snapshot.
+    # Keep Game, PlaySession and PlayClock in the same read-only generation.
+    with session.no_autoflush:
+        connection = session.connection()
+        if connection.dialect.name == "sqlite":
+            raw = connection.connection.driver_connection
+            if not isinstance(raw, SQLiteConnection):
+                raise RuntimeError("Unsupported SQLite connection for archive snapshot")
+            if not raw.in_transaction:
+                connection.exec_driver_sql("BEGIN")
+        return _export_player_snapshot(request, req, session)
+
+
+def _export_player_snapshot(
+    request: Request, req: ExportRequest, session: Session
+) -> ExportArchive:
     player_id = req.player_id
     credential_hash = require_player_token(request, player_id, session)
     player = session.get(Player, player_id)
@@ -1670,8 +1837,22 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    read_onboarding(player, session)
+    play_clocks = session.exec(
+        select(PlayClock)
+        .join(PlaySession, col(PlaySession.id) == PlayClock.session_id)
+        .where(PlaySession.player_id == player_id)
+    ).all()
     onboarding = session.get(PlayerOnboarding, player_id)
+    if onboarding is None:
+        onboarding = PlayerOnboarding(player_id=player_id, status="not_offered")
+    onboarding = project_onboarding_completion(
+        onboarding,
+        [
+            slot.closed_at
+            for _, slot in intro_runs(session, onboarding)
+            if slot.closed_at is not None
+        ],
+    )
     session_hint_reveals = session.exec(
         select(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id)
     ).all()
@@ -1821,6 +2002,7 @@ def export_player_data(
             else play_session.model_dump(mode="json")
             for play_session in play_sessions
         ],
+        play_clocks=[clock.model_dump(mode="json") for clock in play_clocks],
         session_hint_reveals=[reveal.model_dump(mode="json") for reveal in session_hint_reveals],
         positive_move_credits=[credit.model_dump(mode="json") for credit in positive_move_credits],
         games=[game.model_dump(mode="json") for game in games],
@@ -1926,6 +2108,7 @@ def import_player_data(
         player = Player.model_validate(archive.player)
         profile = PlayerProfile.model_validate(archive.profile) if archive.profile else None
         play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
+        play_clocks = [PlayClock.model_validate(data) for data in archive.play_clocks]
         games = [Game.model_validate(data) for data in archive.games]
         positions = [Position.model_validate(data) for data in archive.positions]
         engine_analyses = [EngineAnalysis.model_validate(data) for data in archive.engine_analyses]
@@ -2228,6 +2411,10 @@ def import_player_data(
                 raise HTTPException(status_code=400, detail="Invalid archive: conflicting analysis")
 
     try:
+        for data in archive.play_clocks:
+            deadline = data.get("deadline_at")
+            if deadline is not None and not isinstance(deadline, str):
+                raise ValueError("Invalid clock deadline encoding")
         for data in archive.play_sessions:
             version = data.get("assistance_tracking_version")
             if version is not None and type(version) is not int:
@@ -2249,6 +2436,7 @@ def import_player_data(
             session_hint_reveals,
             positive_move_credits,
         )
+        _validate_clock_archive(session, player_id, play_sessions, games, play_clocks)
     except (ValueError, TypeError, AttributeError) as error:
         raise HTTPException(
             status_code=400, detail="Invalid archive: malformed assistance or credit provenance"
@@ -2327,6 +2515,8 @@ def import_player_data(
     for play_session in play_sessions:
         session.add(play_session)
     session.flush()
+    for clock in play_clocks:
+        session.add(clock)
     for reveal in session_hint_reveals:
         session.add(reveal)
     for credit in positive_move_credits:
@@ -2380,6 +2570,10 @@ def import_player_data(
     session.add_all(pattern_award_evidence)
 
     session.commit()
+    app = request.scope.get("app")
+    runtime = getattr(app.state, "play_clock_runtime", None) if app is not None else None
+    if runtime is not None:
+        runtime.notify()
     return {"status": "imported"}
 
 
@@ -2414,6 +2608,11 @@ def delete_player_data(
 
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
+    ).all()
+    play_clocks = session.exec(
+        select(PlayClock)
+        .join(PlaySession, col(PlaySession.id) == PlayClock.session_id)
+        .where(PlaySession.player_id == player_id)
     ).all()
     game_ids = {
         play_session.game_id for play_session in play_sessions if play_session.game_id
@@ -2502,6 +2701,7 @@ def delete_player_data(
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "onboarding": int(session.get(PlayerOnboarding, player_id) is not None),
         "play_sessions": len(play_sessions),
+        "play_clocks": len(play_clocks),
         "games": len(owned_game_ids),
         "games_disowned": len(disowned_game_ids),
         "positions": len(positions),
@@ -2640,6 +2840,13 @@ def delete_player_data(
             | (col(CoachStudentLink.student_id) == player_id)
         )
     )
+    session.exec(
+        delete(PlayClock).where(
+            col(PlayClock.session_id).in_(
+                select(PlaySession.id).where(PlaySession.player_id == player_id)
+            )
+        )
+    )
     session.exec(delete(PlaySession).where(col(PlaySession.player_id) == player_id))
     if owned_game_ids:
         session.exec(delete(Game).where(col(Game.id).in_(owned_game_ids)))
@@ -2672,6 +2879,10 @@ def delete_player_data(
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
+    app = request.scope.get("app")
+    runtime = getattr(app.state, "play_clock_runtime", None) if app is not None else None
+    if runtime is not None:
+        runtime.notify()
     request.state.skip_idempotency_cache = True
 
     return DeletionResponse(dry_run=False, affected_rows=affected_rows, audit_id=audit_id)

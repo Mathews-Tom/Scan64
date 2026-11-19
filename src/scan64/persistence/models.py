@@ -5,7 +5,7 @@ def load_models() -> None:
     from scan64.api import middleware, models
     from scan64.chess.analysis import credit_models
     from scan64.chess.analysis import models as analysis_models
-    from scan64.chess.games import assistance
+    from scan64.chess.games import assistance, clock_models
     from scan64.chess.games import models as game_models
     from scan64.chess.positions import models as position_models
     from scan64.coach import models as coach_models
@@ -24,6 +24,7 @@ def load_models() -> None:
         credit_models,
         analysis_models,
         assistance,
+        clock_models,
         game_models,
         position_models,
         coach_models,

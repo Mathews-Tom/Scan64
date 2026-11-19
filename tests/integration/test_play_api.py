@@ -143,7 +143,7 @@ def test_create_and_get_play_session_api(client: TestClient, session: Session):
     req_body = {
         "player_id": "player_123",
         "opponent_config": {"bot_level": "1"},
-        "clock_config": {"time_remaining_ms": "60000"},
+        "clock_config": {"initial_seconds": 60, "increment_seconds": 0},
     }
     create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
     assert create_resp.status_code == 200, create_resp.text
@@ -289,6 +289,7 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
         "opponent_move": "d8h4",
         "status": "completed",
         "critical_interruption": None,
+        "clock": None,
     }
 
 
