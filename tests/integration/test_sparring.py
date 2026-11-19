@@ -142,6 +142,31 @@ def test_selected_opponent_move_launches_the_owner_winning_reached_position(
     assert selected["sparring"]["play_session_id"] == result["id"]
 
 
+def test_attempt_keeps_its_colour_when_ordinary_play_changes_the_source_colour(
+    client: TestClient, db_session: Session
+) -> None:
+    auth = _register(client)
+    original, _ = _source(db_session)
+    conversion = _start(client, auth, original.id)
+    ordinary = client.post(
+        "/v1/play-sessions",
+        headers=auth,
+        json={
+            "player_id": "sparring-owner",
+            "game_id": str(original.id),
+            "player_color": "white",
+        },
+    )
+    assert ordinary.status_code == 200, ordinary.text
+    assert ordinary.json()["player_color"] == "white"
+    resumed = client.get(f"/v1/play-sessions/{conversion['id']}", headers=auth)
+    assert resumed.status_code == 200
+    assert resumed.json()["sparring"]["player_color"] == "black"
+    review = client.get(f"/v1/games/{original.id}/review", headers=auth)
+    assert review.status_code == 200
+    assert review.json()["moves"][2]["sparring"]["player_color"] == "black"
+
+
 @pytest.mark.parametrize("ply", [True, 1.5, "3", -1, 20])
 def test_invalid_source_ordinal_is_rejected(
     client: TestClient, db_session: Session, ply: object

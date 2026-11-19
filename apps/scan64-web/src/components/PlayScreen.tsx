@@ -351,14 +351,6 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     })();
   }, [updateBoard]);
 
-  useEffect(() => {
-    // A resumed conversion may already contain moves beyond its source FEN.
-    // Reconstruct from the persisted custom game, never from the original review.
-    if (initialSession?.sparring && initialSession.status === 'active') {
-      refreshQueuedSession(initialSession.id);
-    }
-  }, [initialSession, refreshQueuedSession]);
-
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
     if (sessionRef.current?.id !== sessionId) return;
     const generation = ++refreshGenerationRef.current;
@@ -389,6 +381,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       }
     })();
   }, [refreshQueuedSession, updateBoard]);
+
+  useEffect(() => {
+    // A resumed conversion may already contain moves beyond its source FEN.
+    // Reconstruct from the persisted custom game, never from the original review.
+    if (initialSession?.sparring && initialSession.status === 'active') {
+      synchronizeQueuedSession(initialSession.id);
+    }
+  }, [initialSession, synchronizeQueuedSession]);
 
   const handleMove = useCallback(async (lan: string) => {
     const activeSession = sessionRef.current;

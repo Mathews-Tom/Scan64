@@ -1,5 +1,8 @@
 """Declaration-based orientation; puzzles do not calibrate playing strength."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -83,13 +86,23 @@ class OnboardingRead(BaseModel):
         return utc(value) if value is not None else None
 
 
+def onboarding_completion(
+    row: PlayerOnboarding, closed: Sequence[datetime]
+) -> tuple[str, datetime | None]:
+    """Project lazy completion without attaching or mutating an onboarding row."""
+    if len(closed) == INTRO_TARGET and row.status == "in_progress":
+        return "completed", max(closed, key=utc)
+    return row.status, row.completed_at
+
+
 def read_onboarding(player: Player, session: Session) -> OnboardingRead:
     row = onboarding_for(player.id, session)
     runs = intro_runs(session, row)
     closed = [slot.closed_at for _, slot in runs if slot.closed_at is not None]
-    if len(closed) == INTRO_TARGET and row.status == "in_progress":
-        row.status = "completed"
-        row.completed_at = max(closed, key=utc)
+    status, completed_at = onboarding_completion(row, closed)
+    if status != row.status:
+        row.status = status
+        row.completed_at = completed_at
         session.add(row)
     manual = manual_bot_level(player)
     return OnboardingRead(

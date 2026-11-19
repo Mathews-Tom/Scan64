@@ -234,11 +234,11 @@ def _read_attempt(
     play_session: PlaySession,
     review: GameMoveReview,
     position: Position,
-    game: Game,
     schedule: ReviewSchedule | None,
 ) -> SparringAttemptRead:
-    if game.owner_color not in {"white", "black"}:
-        raise ValueError("Sparring source owner colour is unavailable")
+    colour = play_session.opponent_config.get("player_color")
+    if colour not in {"white", "black"}:
+        raise ValueError("Sparring session owner colour is unavailable")
     return SparringAttemptRead(
         id=attempt.id,
         play_session_id=play_session.id,
@@ -248,7 +248,7 @@ def _read_attempt(
         source_analysis_id=attempt.source_analysis_id,
         source_ply=attempt.source_ply,
         source_fen=position.fen,
-        player_color="white" if game.owner_color == "white" else "black",
+        player_color="white" if colour == "white" else "black",
         seed=play_session.opponent_config["seed"],
         completed_at=_as_utc(attempt.completed_at) if attempt.completed_at else None,
         result=attempt.result,
@@ -273,7 +273,7 @@ def read_sparring(session: Session, play_session: PlaySession) -> SparringAttemp
         ReviewSchedule,
         (attempt.player_id, source_item_id(attempt.source_review_id, attempt.source_position_id)),
     )
-    return _read_attempt(attempt, play_session, review, position, game, schedule)
+    return _read_attempt(attempt, play_session, review, position, schedule)
 
 
 def project_sparring(
@@ -325,7 +325,6 @@ def project_sparring(
             play_session,
             review,
             position,
-            game,
             schedules.get(source_item_id(attempt.source_review_id, attempt.source_position_id)),
         )
     return projected
