@@ -48,6 +48,7 @@ import type {
   PuzzleMoveExplanationRead,
   ProgressResetRead,
   TrainingSessionRead,
+  TrainingMode,
   WeeklyReport,
 } from './types';
 
@@ -63,6 +64,15 @@ export class ApiRequestError extends Error {
   constructor(message: string, status: number) {
     super(message);
     this.status = status;
+  }
+}
+
+export class LessonAttemptLimitError extends ApiRequestError {
+  readonly attemptsUsed: number;
+
+  constructor(attemptsUsed: number) {
+    super('No scored attempts remain for this lesson.', 409);
+    this.attemptsUsed = attemptsUsed;
   }
 }
 
@@ -548,10 +558,10 @@ export class ApiClient {
     return json as unknown as AttemptRead;
   }
 
-  static async getTrainingSession(): Promise<TrainingSessionRead> {
+  static async getTrainingSession(mode: TrainingMode = 'review'): Promise<TrainingSessionRead> {
     let playerId = getOrCreatePlayerId();
     playerId = await ensurePlayerAuthorization(playerId);
-    const response = await apiFetch(`${apiBase()}/learning/session?player_id=${playerId}`, {
+    const response = await apiFetch(`${apiBase()}/learning/session?player_id=${encodeURIComponent(playerId)}&mode=${mode}`, {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {
@@ -570,7 +580,19 @@ export class ApiClient {
       body: JSON.stringify(attempt),
     });
     if (!response.ok) {
-      throw new Error(`Failed to record lesson attempt: ${response.statusText}`);
+      if (response.status === 409) {
+        const body = await response.json() as { detail?: unknown };
+        const detail = body.detail;
+        if (typeof detail === 'object' && detail !== null && 'code' in detail
+          && detail.code === 'lesson_attempt_limit_reached') {
+          const used = 'attempts_used' in detail ? detail.attempts_used : undefined;
+          if (typeof used !== 'number' || !Number.isInteger(used) || used < 0) {
+            throw new Error('Invalid lesson attempt budget response');
+          }
+          throw new LessonAttemptLimitError(used);
+        }
+      }
+      throw new ApiRequestError(`Failed to record lesson attempt: ${response.statusText}`, response.status);
     }
     return await response.json() as LessonAttemptRead;
   }

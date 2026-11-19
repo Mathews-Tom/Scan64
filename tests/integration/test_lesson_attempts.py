@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 import scan64.api.learning as learning_api
 from scan64.api.models import Player, PlayerCredential, PlayerProfile, issue_player_token
-from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
@@ -150,6 +150,7 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
         "success": True,
         "grading_status": "verified",
         "profile_update_result": "applied",
+        "attempts_used": 1,
     }
 
     attempt = db_session.get(LessonAttempt, response.json()["id"])
@@ -1129,3 +1130,331 @@ def test_correct_final_attempt_with_hints_keeps_half_credit_and_server_limit(
         ).status_code
         == 409
     )
+
+
+def _create_safe_or_blunder_lesson(
+    db_session: Session,
+    player_id: str,
+    *,
+    fen: str = "r3k3/8/8/8/8/8/q7/R3K3 w Qq - 0 1",
+) -> PersistedLessonOpportunity:
+    opportunity = create_persisted_lesson(db_session, player_id)
+    game = db_session.get(Game, opportunity.game_id)
+    position = db_session.get(Position, opportunity.source_position_id)
+    assert game is not None and position is not None
+    board = chess.Board(fen)
+    position.fen = fen
+    position.canonical_id = board.epd()
+    game.owner_color = "white"
+    game.moves = ["e1f1"]
+    game.headers = {"SetUp": "1", "FEN": fen, "Result": "*"}
+    game.pgn = f'[SetUp "1"]\n[FEN "{fen}"]\n\n1. Kf1 *'
+    analysis = EngineAnalysis(
+        position_id=position.id,
+        config={"engine_name": "fixture", "engine_version": "1", "nodes": 100_000, "multipv": 2},
+        raw_result=[
+            {"pv": ["a1a2", "a8a2"], "score_cp": 400},
+            {"pv": ["e1f1"], "score_cp": -900},
+        ],
+    )
+    board.push_uci("e1f1")
+    reached = Position(game_id=game.id, fen=board.fen(), canonical_id=board.epd(), side_to_move="b")
+    after_analysis = EngineAnalysis(
+        position_id=reached.id,
+        config=analysis.config,
+        raw_result=[{"pv": ["a2f2"], "score_cp": 900}],
+    )
+    review = GameMoveReview(
+        game_id=game.id,
+        ply=1,
+        source_position_id=position.id,
+        reached_position_id=reached.id,
+        before_analysis_id=analysis.id,
+        after_analysis_id=after_analysis.id,
+        move_uci="e1f1",
+        san="Kf1",
+        mover="white",
+        before_probability=0.8,
+        after_probability=0.9,
+    )
+    opportunity.lesson_spec = {
+        **opportunity.lesson_spec,
+        "source": {"kind": "player_game", "fen": fen},
+        "objective": {"type": "find_best_move", "instruction": "Find a sound move."},
+        "interaction": {
+            "input": "move",
+            "maximum_attempts": 3,
+            "accepted_moves": [{"san": "Rxa2"}],
+        },
+        "explanation": {"text": "Exchange the rook for the queen to win material."},
+    }
+    opportunity.verification_status = "verified"
+    opportunity.verification_analysis_id = analysis.id
+    evidence = db_session.get(Evidence, opportunity.lesson_spec["diagnosis"]["evidence_refs"][0])
+    assert evidence is not None
+    evidence.engine_analysis_id = str(analysis.id)
+    evidence.payload = {**evidence.payload, "played_move": "Kf1", "best_move": "a1a2"}
+    db_session.add_all(
+        [game, position, reached, analysis, after_analysis, review, opportunity, evidence]
+    )
+    db_session.commit()
+    return opportunity
+
+
+@pytest.mark.parametrize(("submitted_move", "success"), [("e1f1", False), ("a1a2", True)])
+def test_safe_or_blunder_grades_owned_choices_and_updates_existing_review(
+    client: TestClient, db_session: Session, submitted_move: str, success: bool
+) -> None:
+    player_id = "drill-owner"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    authorize(client, db_session, player_id)
+    response = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    )
+    assert response.status_code == 200
+    session = response.json()
+    assert {choice["uci"] for choice in session["move_choices"][str(opportunity.id)]} == {
+        "e1f1",
+        "a1a2",
+    }
+    outcome = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": session["session_id"],
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": submitted_move,
+            "elapsed_ms": 4200,
+            "hints_used": 0,
+        },
+    )
+    assert outcome.status_code == 200
+    assert outcome.json()["success"] is success
+    db_session.expire_all()
+    attempt = db_session.get(LessonAttempt, outcome.json()["id"])
+    schedule = db_session.get(ReviewSchedule, (player_id, str(opportunity.id)))
+    skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
+    assert attempt is not None and attempt.grading_status == "verified"
+    assert schedule is not None and schedule.last_reviewed_at == attempt.completed_at
+    assert schedule.next_review_at > schedule.last_reviewed_at
+    assert skill is not None
+    if success:
+        assert skill.alpha > skill.prior_alpha
+    else:
+        assert skill.beta > skill.prior_beta
+
+
+@pytest.mark.parametrize("invalid", ["foreign_game", "wrong_analysis", "sound_played"])
+def test_safe_or_blunder_omits_foreign_or_unproved_pairs(
+    client: TestClient, db_session: Session, invalid: str
+) -> None:
+    player_id = "drill-owner"
+    db_session.add(Player(id=player_id))
+    db_session.commit()
+    opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    if invalid == "foreign_game":
+        game = db_session.get(Game, opportunity.game_id)
+        assert game is not None
+        game.owner_player_id = "another-player"
+        db_session.add(game)
+    elif invalid == "wrong_analysis":
+        other = Position(
+            game_id=opportunity.game_id,
+            fen=chess.STARTING_FEN,
+            canonical_id="other",
+            side_to_move="w",
+        )
+        wrong = EngineAnalysis(position_id=other.id, raw_result=[{"pv": ["e2e4"], "score_cp": 400}])
+        db_session.add_all([other, wrong])
+        opportunity.verification_analysis_id = wrong.id
+        db_session.add(opportunity)
+    else:
+        review = db_session.exec(
+            select(GameMoveReview).where(GameMoveReview.game_id == opportunity.game_id)
+        ).one()
+        review.move_uci = "a1a2"
+        review.san = "Rxa2"
+        db_session.add(review)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    response = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    )
+    assert response.status_code == 200
+    assert response.json()["lessons"] == []
+    assert response.json()["move_choices"] == {}
+
+
+def test_safe_or_blunder_rejects_other_moves_and_keeps_the_existing_attempt_limit(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "drill-owner"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    authorize(client, db_session, player_id)
+    params = {"player_id": player_id, "mode": "safe_or_blunder"}
+    session = client.get("/v1/learning/session", params=params).json()
+    payload = {
+        "session_id": session["session_id"],
+        "lesson_id": str(opportunity.id),
+        "source_kind": "persisted_opportunity",
+        "submitted_move": "e1d1",
+        "elapsed_ms": 1000,
+        "hints_used": 0,
+    }
+    assert client.post("/v1/learning/lesson-attempts", json=payload).status_code == 422
+    assert db_session.exec(select(LessonAttempt)).all() == []
+    payload["submitted_move"] = "e1f1"
+    for _ in range(3):
+        assert client.post("/v1/learning/lesson-attempts", json=payload).status_code == 200
+    assert client.post("/v1/learning/lesson-attempts", json=payload).status_code == 409
+    assert client.get("/v1/learning/session", params=params).json()["lessons"] == []
+
+
+@pytest.mark.parametrize(
+    ("evidence", "available"),
+    [
+        ("legacy_unscored", False),
+        ("missing_played_score", False),
+        ("incomplete_bracket", False),
+        ("capped_unbracketed", False),
+        ("played_score_disagrees", False),
+        ("explicit_score", True),
+        ("complete_bracket", True),
+        ("duplicate_bracket", False),
+        ("unordered_bracket", False),
+        ("missing_middle_score", False),
+    ],
+)
+def test_safe_or_blunder_requires_stored_probability_loss_proof(
+    client: TestClient, db_session: Session, evidence: str, available: bool
+) -> None:
+    player_id = "proof-owner"
+    db_session.add(Player(id=player_id))
+    db_session.commit()
+    if evidence == "capped_unbracketed":
+        opportunity = _create_safe_or_blunder_lesson(
+            db_session, player_id, fen="r3k3/8/8/8/8/8/q6P/R3K3 w Qq - 0 1"
+        )
+    else:
+        opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    analysis = db_session.get(EngineAnalysis, opportunity.verification_analysis_id)
+    assert analysis is not None
+    best = {"pv": ["a1a2"], "score_cp": 400}
+    bad = {"pv": ["a1b1"], "score_cp": -900}
+    if evidence == "legacy_unscored":
+        analysis.raw_result = [{"pv": ["a1a2"]}]
+    elif evidence == "missing_played_score":
+        analysis.raw_result = [best, {"pv": ["e1f1"]}]
+    elif evidence == "incomplete_bracket":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [best, bad]
+    elif evidence == "capped_unbracketed":
+        board = chess.Board(opportunity.lesson_spec["source"]["fen"])
+        roots = ["a1a2"] + [
+            move.uci() for move in board.legal_moves if move.uci() not in {"a1a2", "e1f1"}
+        ]
+        assert len(roots) >= 8
+        analysis.config = {**analysis.config, "multipv": 8}
+        analysis.raw_result = [{"pv": [root], "score_cp": 400} for root in roots[:8]]
+    elif evidence == "played_score_disagrees":
+        analysis.raw_result = [best, {"pv": ["e1f1"], "score_cp": 390}]
+    elif evidence == "complete_bracket":
+        analysis.raw_result = [best, bad]
+    elif evidence == "duplicate_bracket":
+        analysis.raw_result = [best, {"pv": ["a1a2"], "score_cp": -900}]
+    elif evidence == "unordered_bracket":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [
+            best,
+            bad,
+            {"pv": ["a1c1"], "score_cp": 300},
+            {"pv": ["a1d1"], "score_cp": -900},
+        ]
+    elif evidence == "missing_middle_score":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [
+            best,
+            {"pv": ["a1c1"]},
+            bad,
+            {"pv": ["a1d1"], "score_cp": -900},
+        ]
+    db_session.add(analysis)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    response = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert [lesson["lesson_id"] for lesson in body["lessons"]] == (
+        [str(opportunity.id)] if available else []
+    )
+    assert body["attempts_used"] == ({str(opportunity.id): 0} if available else {})
+    if not available:
+        assert body["move_choices"] == {}
+        rejected = client.post(
+            "/v1/learning/lesson-attempts",
+            json={
+                "session_id": body["session_id"],
+                "lesson_id": str(opportunity.id),
+                "source_kind": "persisted_opportunity",
+                "submitted_move": "e1f1",
+                "elapsed_ms": 1000,
+                "hints_used": 0,
+            },
+        )
+        assert rejected.status_code == 409
+        assert db_session.exec(select(LessonAttempt)).all() == []
+
+
+def test_safe_or_blunder_reports_attempts_shared_with_review_and_prior_sessions(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "shared-attempt-owner"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    authorize(client, db_session, player_id)
+    lesson_id = str(opportunity.id)
+    review = client.get("/v1/learning/session", params={"player_id": player_id}).json()
+    assert review["attempts_used"] == {lesson_id: 0}
+    payload = {
+        "session_id": review["session_id"],
+        "lesson_id": lesson_id,
+        "source_kind": "persisted_opportunity",
+        "submitted_move": "e1f1",
+        "elapsed_ms": 1000,
+        "hints_used": 0,
+    }
+    first = client.post("/v1/learning/lesson-attempts", json=payload)
+    assert first.status_code == 200
+    assert first.json()["attempts_used"] == 1
+    drill = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    ).json()
+    assert drill["attempts_used"] == {lesson_id: 1}
+    payload["session_id"] = drill["session_id"]
+    for total in (2, 3):
+        outcome = client.post("/v1/learning/lesson-attempts", json=payload)
+        assert outcome.status_code == 200
+        assert outcome.json()["attempts_used"] == total
+    exhausted = client.post("/v1/learning/lesson-attempts", json=payload)
+    assert exhausted.status_code == 409
+    assert exhausted.json()["detail"] == {
+        "code": "lesson_attempt_limit_reached",
+        "attempts_used": 3,
+    }
+    reloaded = client.get("/v1/learning/session", params={"player_id": player_id}).json()
+    assert reloaded["attempts_used"] == {lesson_id: 3}
+    exhausted_drill = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    ).json()
+    assert exhausted_drill["lessons"] == []
+    assert exhausted_drill["attempts_used"] == {}

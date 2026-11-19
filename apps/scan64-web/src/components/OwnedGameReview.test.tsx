@@ -181,7 +181,7 @@ describe('owned move-by-move review', () => {
     review.key_moments[0].attempts_used = 2;
     review.key_moments[0].attempts_remaining = 1;
     vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
-    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied' });
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 3 });
     render(<AnalysisScreen gameId="game-1" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Retry this moment' }));
     const retry = screen.getByTestId('critical-moment-review');
@@ -208,6 +208,7 @@ describe('owned move-by-move review', () => {
     vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
     const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({
       id: 'last-attempt', success: true, grading_status: 'verified', profile_update_result: 'applied',
+      attempts_used: 3,
     });
     render(<AnalysisScreen gameId="game-1" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Retry this moment' }));

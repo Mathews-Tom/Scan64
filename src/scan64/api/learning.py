@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -15,7 +16,8 @@ from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.models import PlayerProfile
-from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview, PersistedLessonOpportunity
+from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.content.puzzle_practice import lock_puzzle_player
@@ -32,7 +34,7 @@ from scan64.learning.evaluation.transfer_measurement import (
     record_transfer_measurement,
 )
 from scan64.learning.exercises.hints import fill_lesson_hints
-from scan64.learning.exercises.sound_moves import analyze_lesson_source
+from scan64.learning.exercises.sound_moves import analyze_lesson_source, sound_moves
 from scan64.learning.habit import ensure_policy, record_lesson_credit
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_lesson_attempt
@@ -45,6 +47,7 @@ from scan64.learning.scheduling.priority import (
 )
 from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.tolerance import SOUND_MOVE_WIN_PROBABILITY_LOSS, review_loss, win_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
@@ -52,9 +55,16 @@ from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 router = APIRouter(prefix="/v1/learning", tags=["learning"])
 
 
+class SafeOrBlunderChoice(BaseModel):
+    uci: str
+    san: str
+
+
 class TrainingSessionRead(BaseModel):
     session_id: str
     lessons: list[LessonSpec]
+    move_choices: dict[str, list[SafeOrBlunderChoice]]
+    attempts_used: dict[str, int]
 
 
 class LessonAttemptCreate(BaseModel):
@@ -73,6 +83,7 @@ class LessonAttemptRead(BaseModel):
     success: bool | None
     grading_status: str
     profile_update_result: str
+    attempts_used: int
 
 
 class ObjectiveAnalysisUnavailable(Exception):
@@ -203,11 +214,126 @@ def _transfer_measurement_lesson(
     )
 
 
+def _stored_played_move_is_unsound(
+    board: chess.Board, analysis: EngineAnalysis, played: chess.Move
+) -> bool:
+    """Absence proves loss only in a complete, scored top-MultiPV bracket."""
+    lines = analysis.raw_result
+    if not lines:
+        return False
+    try:
+        best = win_probability(lines[0])
+        if best is None or not math.isfinite(best):
+            return False
+        roots: list[chess.Move] = []
+        probabilities: list[float] = []
+        for line in lines:
+            pv = line.get("pv")
+            if not isinstance(pv, list) or not pv or not isinstance(pv[0], str):
+                return False
+            root = board.parse_uci(pv[0])
+            if root not in board.legal_moves or root in roots:
+                return False
+            roots.append(root)
+            probability = win_probability(line)
+            if probability is None or not math.isfinite(probability):
+                return False
+            probabilities.append(probability)
+        if played in roots:
+            return best - probabilities[roots.index(played)] > SOUND_MOVE_WIN_PROBABILITY_LOSS
+        multipv = analysis.config.get("multipv")
+        return (
+            type(multipv) is int
+            and multipv in (2, 4, 8)
+            and len(roots) == min(multipv, board.legal_moves.count())
+            and all(a >= b for a, b in zip(probabilities, probabilities[1:]))
+            and best - probabilities[-1] > SOUND_MOVE_WIN_PROBABILITY_LOSS
+        )
+    except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
+def _safe_or_blunder_choices(
+    opportunity: PersistedLessonOpportunity, spec: LessonSpec, db: Session
+) -> list[SafeOrBlunderChoice] | None:
+    """Pair the owned occurrence's played move with a stored sound alternative."""
+    if (
+        opportunity.verification_status != "verified"
+        or spec.verification.status != "verified"
+        or spec.source.kind != "player_game"
+        or spec.diagnosis is None
+        or not spec.interaction.accepted_moves
+    ):
+        return None
+    position = db.get(Position, opportunity.source_position_id)
+    game = db.get(Game, opportunity.game_id)
+    if (
+        position is None
+        or position.game_id != opportunity.game_id
+        or position.fen != spec.source.fen
+        or game is None
+        or game.owner_player_id != opportunity.player_id
+        or game.owner_color not in {"white", "black"}
+    ):
+        return None
+    analysis = (
+        db.get(EngineAnalysis, opportunity.verification_analysis_id)
+        if opportunity.verification_analysis_id is not None
+        else None
+    )
+    if analysis is None or analysis.position_id != position.id:
+        return None
+    reviews = db.exec(
+        select(GameMoveReview)
+        .where(GameMoveReview.game_id == game.id)
+        .where(GameMoveReview.source_position_id == position.id)
+        .where(GameMoveReview.mover == game.owner_color)
+        .limit(2)
+    ).all()
+    if len(reviews) != 1:
+        return None
+    loss = review_loss(reviews[0].before_probability, reviews[0].after_probability)
+    if loss is None or loss <= SOUND_MOVE_WIN_PROBABILITY_LOSS:
+        return None
+    try:
+        board = _lesson_board(spec)
+        if ("white" if board.turn else "black") != game.owner_color:
+            return None
+        proved_moves = sound_moves(
+            board, analysis, avoid_mate=spec.diagnosis.primary == "threat_processing.allowed_mate"
+        )
+        played = board.parse_uci(reviews[0].move_uci)
+        sound = board.parse_san(spec.interaction.accepted_moves[0].san)
+    except (
+        LessonVerificationError,
+        AttributeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        OverflowError,
+    ):
+        return None
+    if (
+        played in proved_moves
+        or sound not in proved_moves
+        or not _stored_played_move_is_unsound(board, analysis, played)
+    ):
+        return None
+    choices = [
+        SafeOrBlunderChoice(uci=played.uci(), san=board.san(played)),
+        SafeOrBlunderChoice(uci=sound.uci(), san=board.san(sound)),
+    ]
+    if opportunity.id.int % 2:
+        choices.reverse()
+    return choices
+
+
 @router.get("/session", response_model=TrainingSessionRead)
 def get_training_session(
     player_id: str,
     request: Request,
     db: Session = Depends(get_session),
+    mode: Literal["review", "safe_or_blunder"] = "review",
 ) -> TrainingSessionRead:
     now = datetime.now(UTC)
     require_player_token(request, player_id, db)
@@ -218,6 +344,27 @@ def get_training_session(
     opportunities = db.exec(
         select(PersistedLessonOpportunity).where(PersistedLessonOpportunity.player_id == player_id)
     ).all()
+    move_choices: dict[str, list[SafeOrBlunderChoice]] = {}
+    attempt_counts: dict[UUID, int] = {}
+    other_attempt_counts: dict[tuple[str, str], int] = {}
+    for opportunity_id, source_kind, lesson_id, count in db.exec(
+        select(
+            LessonAttempt.opportunity_id,
+            LessonAttempt.source_kind,
+            LessonAttempt.lesson_id,
+            func.count(),
+        )
+        .where(LessonAttempt.player_id == player_id)
+        .group_by(
+            col(LessonAttempt.opportunity_id),
+            col(LessonAttempt.source_kind),
+            col(LessonAttempt.lesson_id),
+        )
+    ).all():
+        if opportunity_id is not None:
+            attempt_counts[opportunity_id] = attempt_counts.get(opportunity_id, 0) + int(count)
+        key = (source_kind, lesson_id)
+        other_attempt_counts[key] = other_attempt_counts.get(key, 0) + int(count)
     fallbacks_remaining = 1
     for opportunity in opportunities:
         schedule = state.active_reviews.get(str(opportunity.id))
@@ -226,7 +373,14 @@ def get_training_session(
         spec = visible_game_lesson(opportunity, db)
         if spec is None or opportunity.verification_status == "invalid":
             continue
-        if opportunity.verification_status != "verified" or not spec.hints:
+        if mode == "safe_or_blunder":
+            if attempt_counts.get(opportunity.id, 0) >= spec.interaction.maximum_attempts:
+                continue
+            choices = _safe_or_blunder_choices(opportunity, spec, db)
+            if choices is None:
+                continue
+            move_choices[str(opportunity.id)] = choices
+        elif opportunity.verification_status != "verified" or not spec.hints:
             reverified_spec, used_fallback = _reverify_persisted_lesson(
                 opportunity,
                 db,
@@ -256,31 +410,48 @@ def get_training_session(
             }
         )
     required_transfer_ids: list[str] = []
-    for measurement in due_transfer_measurements(db, player_id=player_id, now=now):
-        transfer_spec = _transfer_measurement_lesson(measurement)
-        if transfer_spec is None:
-            continue
-        if len(required_transfer_ids) == 5:
-            break
-        required_transfer_ids.append(measurement.id)
-        pool.append(
-            {
-                "id": measurement.id,
-                "type": "transfer",
-                "priority": 1.0,
-                "spec": transfer_spec,
-            }
-        )
+    if mode == "review":
+        for measurement in due_transfer_measurements(db, player_id=player_id, now=now):
+            transfer_spec = _transfer_measurement_lesson(measurement)
+            if transfer_spec is None:
+                continue
+            if len(required_transfer_ids) == 5:
+                break
+            required_transfer_ids.append(measurement.id)
+            pool.append(
+                {
+                    "id": measurement.id,
+                    "type": "transfer",
+                    "priority": 1.0,
+                    "spec": transfer_spec,
+                }
+            )
 
     composed_session = SessionComposer().compose_session(
         pool, session_size=5, required_item_ids=required_transfer_ids
     )
-    study_session = StudySession(player_id=player_id, domain="daily_training")
+    study_session = StudySession(
+        player_id=player_id,
+        domain="safe_or_blunder" if mode == "safe_or_blunder" else "daily_training",
+    )
     db.add(study_session)
     db.commit()
     return TrainingSessionRead(
         session_id=study_session.id,
         lessons=[item["spec"] for item in composed_session],
+        move_choices={
+            item["id"]: move_choices[item["id"]]
+            for item in composed_session
+            if item["id"] in move_choices
+        },
+        attempts_used={
+            item["id"]: (
+                attempt_counts.get(UUID(item["id"]), 0)
+                if item["type"] != "transfer"
+                else other_attempt_counts.get(("transfer_measurement", item["id"]), 0)
+            )
+            for item in composed_session
+        },
     )
 
 
@@ -309,6 +480,11 @@ def record_lesson_attempt(
     study_session = db.get(StudySession, attempt_in.session_id, populate_existing=True)
     if study_session is None or study_session.player_id != authenticated_player_id:
         raise HTTPException(status_code=404, detail="Study session not found")
+    if (
+        study_session.domain == "safe_or_blunder"
+        and attempt_in.source_kind != "persisted_opportunity"
+    ):
+        raise HTTPException(status_code=422, detail="This drill requires a persisted lesson")
     if attempt_in.source_kind == "opening_mission":
         attempt = LessonAttempt(
             session_id=study_session.id,
@@ -329,6 +505,14 @@ def record_lesson_attempt(
             success=attempt.success,
             grading_status=attempt.grading_status,
             profile_update_result=attempt.profile_update_result,
+            attempts_used=int(
+                db.exec(
+                    select(func.count())
+                    .where(LessonAttempt.player_id == study_session.player_id)
+                    .where(LessonAttempt.source_kind == "opening_mission")
+                    .where(LessonAttempt.lesson_id == attempt_in.lesson_id)
+                ).one()
+            ),
         )
 
     if attempt_in.source_kind == "transfer_measurement":
@@ -392,6 +576,7 @@ def record_lesson_attempt(
             success=attempt.success,
             grading_status=attempt.grading_status,
             profile_update_result=attempt.profile_update_result,
+            attempts_used=1,
         )
 
     try:
@@ -404,7 +589,9 @@ def record_lesson_attempt(
     schedule = db.get(ReviewSchedule, (study_session.player_id, str(opportunity.id)))
     if schedule is None:
         raise HTTPException(status_code=409, detail="Persisted lesson has no review schedule")
-    if opportunity.verification_status == "invalid":
+    if opportunity.verification_status == "invalid" or (
+        study_session.domain == "safe_or_blunder" and opportunity.verification_status != "verified"
+    ):
         raise HTTPException(status_code=409, detail="Persisted lesson is not verified")
     if opportunity.verification_status == "verified":
         spec = LessonSpec.model_validate(opportunity.lesson_spec)
@@ -417,6 +604,17 @@ def record_lesson_attempt(
         spec = reverified_spec
     if attempt_in.submitted_move is None:
         raise HTTPException(status_code=422, detail="Persisted lesson attempts require a move")
+    if study_session.domain == "safe_or_blunder":
+        visible_spec = visible_game_lesson(opportunity, db)
+        choices = (
+            _safe_or_blunder_choices(opportunity, visible_spec, db)
+            if visible_spec is not None and schedule.retired_at is None
+            else None
+        )
+        if choices is None:
+            raise HTTPException(status_code=409, detail="This drill is no longer available")
+        if attempt_in.submitted_move not in {choice.uci for choice in choices}:
+            raise HTTPException(status_code=422, detail="Choose one of the two drill moves")
     # Serialize first-attempt admission with every other outcome for this owner.
     # Policy initialization precedes the server completion timestamp.
     ensure_policy(study_session.player_id, db)
@@ -426,7 +624,10 @@ def record_lesson_attempt(
         .where(LessonAttempt.opportunity_id == opportunity.id)
     ).one()
     if attempt_count >= spec.interaction.maximum_attempts:
-        raise HTTPException(status_code=409, detail="Maximum attempts reached for persisted lesson")
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "lesson_attempt_limit_reached", "attempts_used": int(attempt_count)},
+        )
     success = _submitted_move_is_accepted(spec, attempt_in.submitted_move)
     observed_at = datetime.now(UTC)
     profile_update_result = (
@@ -488,6 +689,7 @@ def record_lesson_attempt(
         success=attempt.success,
         grading_status=attempt.grading_status,
         profile_update_result=attempt.profile_update_result,
+        attempts_used=int(attempt_count) + 1,
     )
 
 

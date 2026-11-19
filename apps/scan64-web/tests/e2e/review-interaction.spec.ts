@@ -40,7 +40,7 @@ async function routePlayerAndTraining(page: Page): Promise<void> {
     await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/learning/session?*', async route => {
-    await route.fulfill({ json: { session_id: 'study-1', lessons: [] } });
+    await route.fulfill({ json: { session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} } });
   });
 }
 
@@ -106,6 +106,7 @@ test.describe('Coach interruption interaction', () => {
           success: true,
           grading_status: 'verified',
           profile_update_result: 'applied',
+          attempts_used: 1,
         },
       });
     });

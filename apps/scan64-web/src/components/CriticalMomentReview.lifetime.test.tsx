@@ -11,7 +11,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 
 describe('critical-moment lifetime attempts', () => {
   it('resumes the idea after two spent attempts and spends only the last server-authorized attempt', async () => {
-    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: false, grading_status: 'verified', profile_update_result: 'applied' });
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: false, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 3 });
     const onRecorded = vi.fn();
     render(<CriticalMomentReview lesson={reviewLesson} opportunityId="opportunity-1" sessionId="study-1"
       initialAttemptsUsed={2} initialAttemptsRemaining={1} onAttemptRecorded={onRecorded} />);
@@ -26,7 +26,7 @@ describe('critical-moment lifetime attempts', () => {
   });
 
   it('uses the existing hint ladder and records assistance on a resumed correct answer', async () => {
-    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: true, grading_status: 'verified', profile_update_result: 'applied' });
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: true, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 2 });
     render(<CriticalMomentReview lesson={reviewLesson} opportunityId="opportunity-1" sessionId="study-1"
       initialAttemptsUsed={1} initialAttemptsRemaining={2} />);
     expect(screen.getByTestId('hint-0')).toHaveTextContent('Which piece needs attention?');
@@ -39,7 +39,7 @@ describe('critical-moment lifetime attempts', () => {
   });
 
   it('honours remaining attempts even when lower than the lesson maximum', async () => {
-    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: false, grading_status: 'verified', profile_update_result: 'applied' });
+    const record = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({ id: 'a', success: false, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 2 });
     render(<CriticalMomentReview lesson={reviewLesson} opportunityId="opportunity-1" sessionId="study-1"
       initialAttemptsUsed={1} initialAttemptsRemaining={1} />);
     fireEvent.click(screen.getByTestId('retry-move'));
