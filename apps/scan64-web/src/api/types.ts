@@ -484,6 +484,31 @@ export interface PlaySessionCreate {
   coach_mode?: boolean;
 }
 
+export type AssistanceMode = 'hint' | 'candidates' | 'guard';
+export type PlayAssistanceMode = Exclude<AssistanceMode, 'hint'>;
+
+export interface PlayAssistanceRequest {
+  player_id: string;
+  fen: string;
+  moves: string[];
+  mode: PlayAssistanceMode;
+}
+
+export interface PlayMoveGrade {
+  move: string;
+  san: string;
+  band: ReviewBand;
+  win_probability_loss: number;
+}
+
+export interface PlayAssistanceRead {
+  fen: string;
+  generation: number;
+  mode: PlayAssistanceMode;
+  grades: PlayMoveGrade[];
+  assistance_modes: AssistanceMode[];
+}
+
 export interface PlaySessionRead {
   player_color?: 'white' | 'black';
   opponent_move?: string | null;
@@ -494,12 +519,14 @@ export interface PlaySessionRead {
   clock_config?: Record<string, string>;
   status: string;
   coach_mode: boolean;
+  assistance_modes: AssistanceMode[];
   assistance_tracking_version?: number | null;
   credit_analysis_status?: string | null;
 }
 
 export interface PlayMoveCreate {
   move: string;
+  expected_generation?: number;
 }
 
 

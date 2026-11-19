@@ -244,7 +244,7 @@ describe('owned move-by-move review', () => {
 
   it('preserves play-from-here at the selected replay position', async () => {
     const review = makeGameReview();
-    const session = { id: 'play-1', player_id: 'player-1', game_id: 'new-game', opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false };
+    const session = { id: 'play-1', player_id: 'player-1', game_id: 'new-game', opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.spyOn(ApiClient, 'createGame').mockResolvedValue({ id: 'new-game', pgn: '', white: 'White', black: 'Black', result: '*' });
     vi.spyOn(ApiClient, 'createPlaySession').mockResolvedValue(session);
     const onPlay = vi.fn();

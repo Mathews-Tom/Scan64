@@ -173,8 +173,13 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
                 rating = session.get(PuzzleRating, "existing")
                 assert rating is not None and (rating.rating, rating.rated_count) == (1432, 12)
                 assert session.get(Player, "existing").preferences == {"preserved": True}
+                revision = (
+                    session.connection()
+                    .exec_driver_sql("SELECT version_num FROM alembic_version")
+                    .scalar_one()
+                )
             print(
-                f"{phase}: revision 20261117_18; 12 puzzles, 24 theme rows; "
+                f"{phase}: revision {revision}; 12 puzzles, 24 theme rows; "
                 "Today and ratings preserved"
             )
             if phase == "upgrade":

@@ -28,7 +28,9 @@ test('analysis board accepts a real pointer move before starting a player-owned 
     await route.fulfill({ json: { id: 'test-game' } });
   });
   await page.route('**/v1/play-sessions', async route => {
-    await route.fulfill({ json: { id: 'test-session', status: 'active' } });
+    const request = route.request().postDataJSON() as { player_id: string };
+    await route.fulfill({ json: { id: 'test-session', player_id: request.player_id,
+      opponent_config: {}, coach_mode: false, assistance_modes: [], status: 'active' } });
   });
 
   await page.goto('/');

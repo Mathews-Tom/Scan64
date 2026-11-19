@@ -7,7 +7,7 @@ test('under-promotes on the shared board, then resigns and opens game review', a
   await page.addInitScript(() => localStorage.setItem('scan64_active_play_session_id', 'promotion-session'));
   const gameId = '00000000-0000-4000-8000-000000000052';
   const session = { id: 'promotion-session', player_id: 'player-1', game_id: gameId,
-    opponent_config: { strength: '0' }, coach_mode: false, status: 'active' };
+    opponent_config: { strength: '0' }, coach_mode: false, assistance_modes: [], status: 'active' };
   let submittedMove: string | null = null;
   let resigned = false;
   await page.route('**/v1/play-sessions/promotion-session', route => route.fulfill({ json: session }));

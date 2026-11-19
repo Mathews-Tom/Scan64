@@ -9,7 +9,7 @@ for (const outcome of ['legal', 'illegal', 'cancelled'] as const) {
     await prepareToday(page);
     await page.addInitScript(() => localStorage.setItem('scan64_active_play_session_id', 'controls-play'));
     const session = { id: 'controls-play', player_id: 'player-1', game_id: 'controls-game',
-      player_color: 'white', coach_mode: false, opponent_config: {}, status: 'active' };
+      player_color: 'white', coach_mode: false, assistance_modes: [], opponent_config: {}, status: 'active' };
     await page.route('**/v1/play-sessions/controls-play', route => route.fulfill({ json: session }));
     await page.route('**/v1/games/controls-game', route => route.fulfill({ json: { id: 'controls-game', pgn: '*', result: '*' } }));
     const submitted: string[] = [];

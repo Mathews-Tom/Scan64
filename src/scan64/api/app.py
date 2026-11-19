@@ -20,6 +20,7 @@ from scan64.api.learning import router as learning_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.onboarding import router as onboarding_router
 from scan64.api.play import router as play_router
+from scan64.api.play_assistance import router as play_assistance_router
 from scan64.api.players import router as players_router
 from scan64.api.progress import router as progress_router
 from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
@@ -92,6 +93,7 @@ app = FastAPI(
 )
 app.include_router(content_router)
 app.include_router(play_router)
+app.include_router(play_assistance_router)
 app.include_router(learning_router)
 app.include_router(insights_router)
 app.include_router(puzzles_router)

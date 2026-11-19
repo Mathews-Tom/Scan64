@@ -1,19 +1,27 @@
-"""Durable hint provenance and shared play-session snapshot serialization."""
+"""Durable engine-help provenance and shared Play snapshot serialization."""
+
+from __future__ import annotations
 
 import hashlib
 import json
 from dataclasses import dataclass
+from typing import Literal
 from uuid import UUID
 
 import chess
-from sqlalchemy import update
+from pydantic import StrictBool
+from sqlalchemy import Boolean, func, update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import JSON, Column, Field, Session, SQLModel, col, select
 
 from scan64.chess.games.models import Game, PlaySession
 
+AssistanceMode = Literal["hint", "candidates", "guard"]
+
 
 class SessionHintReveal(SQLModel, table=True):
+    """Per-prefix hint steps and explicit Play disclosures, retained across takebacks."""
+
     session_id: UUID = Field(primary_key=True, foreign_key="playsession.id")
     player_id: str = Field(index=True)
     prefix_hash: str = Field(primary_key=True)
@@ -22,6 +30,17 @@ class SessionHintReveal(SQLModel, table=True):
     initial_fen: str
     moves: list[str] = Field(sa_column=Column(JSON, nullable=False))
     highest_step: int
+    candidate_used: StrictBool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="0")
+    )
+    guard_used: StrictBool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="0")
+    )
+
+    @property
+    def effective_step(self) -> int:
+        """Candidate grading and guard verdicts disclose full engine assessments."""
+        return 3 if self.candidate_used or self.guard_used else self.highest_step
 
 
 def prefix_hash(initial_fen: str, moves: list[str]) -> str:
@@ -45,7 +64,7 @@ class PlaySnapshot:
     moves: list[str]
 
     @classmethod
-    def capture(cls, play: PlaySession, game: Game | None) -> "PlaySnapshot":
+    def capture(cls, play: PlaySession, game: Game | None) -> PlaySnapshot:
         return cls(
             play.id,
             play.player_id,
@@ -98,11 +117,20 @@ def claim_snapshot(session: Session, snapshot: PlaySnapshot) -> dict[str, str]:
     return config
 
 
-def persist_hint_reveal(
-    session: Session, snapshot: PlaySnapshot, board: chess.Board, step: int
-) -> None:
-    """Commit provenance before any generated hint is disclosed."""
-    claim_snapshot(session, snapshot)
+def persist_assistance(
+    session: Session,
+    snapshot: PlaySnapshot,
+    board: chess.Board,
+    step: int,
+    *,
+    mode: AssistanceMode = "hint",
+) -> int:
+    """Commit exact-prefix provenance before disclosing help; return its generation."""
+    if (mode == "hint" and step not in (1, 2, 3)) or (
+        mode != "hint" and (mode not in ("candidates", "guard") or step != 0)
+    ):
+        raise ValueError("Invalid assistance disclosure")
+    config = claim_snapshot(session, snapshot)
     digest = prefix_hash(snapshot.initial_fen, snapshot.moves)
     reveal = session.get(SessionHintReveal, (snapshot.session_id, digest))
     if reveal is None:
@@ -115,8 +143,32 @@ def persist_hint_reveal(
             initial_fen=snapshot.initial_fen,
             moves=snapshot.moves,
             highest_step=step,
+            candidate_used=mode == "candidates",
+            guard_used=mode == "guard",
         )
     else:
         reveal.highest_step = max(reveal.highest_step, step)
+        reveal.candidate_used = reveal.candidate_used or mode == "candidates"
+        reveal.guard_used = reveal.guard_used or mode == "guard"
     session.add(reveal)
     session.commit()
+    return int(config["assistance_generation"])
+
+
+def assistance_modes(session: Session, session_id: UUID) -> list[AssistanceMode]:
+    """Project persisted source flags without loading each prefix's move history."""
+    hint_step, candidate_used, guard_used = session.exec(
+        select(
+            func.max(SessionHintReveal.highest_step),
+            func.max(SessionHintReveal.candidate_used),
+            func.max(SessionHintReveal.guard_used),
+        ).where(col(SessionHintReveal.session_id) == session_id)
+    ).one()
+    modes: list[AssistanceMode] = []
+    if hint_step:
+        modes.append("hint")
+    if candidate_used:
+        modes.append("candidates")
+    if guard_used:
+        modes.append("guard")
+    return modes

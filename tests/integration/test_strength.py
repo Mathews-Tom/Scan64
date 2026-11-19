@@ -138,9 +138,11 @@ def test_shared_session_exclusions_and_validated_level(
     assert strength(client, auth)["bot_cohorts"] == []
 
 
+@pytest.mark.parametrize("mode", ["hint", "candidates", "guard"])
 def test_hinted_import_unknown_result_and_custom_game_excluded(
     client: TestClient,
     db_session: Session,
+    mode: str,
 ) -> None:
     auth = _auth(client)
     game, play = add_game(db_session, 0)
@@ -153,7 +155,9 @@ def test_hinted_import_unknown_result_and_custom_game_excluded(
             ply=0,
             initial_fen=chess.STARTING_FEN,
             moves=[],
-            highest_step=1,
+            highest_step=1 if mode == "hint" else 0,
+            candidate_used=mode == "candidates",
+            guard_used=mode == "guard",
         )
     )
     add_game(db_session, 1, "*")

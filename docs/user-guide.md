@@ -182,6 +182,14 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 
 Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
 
+### Candidates and blunder guard
+
+Select one to three legal moves in **Candidates**, then **Grade candidates**. The board does not move while Scan64 evaluates your proposals. Choose a graded move explicitly to play it.
+
+**Blunder guard** is unchecked until you enable it. It checks each proposed move before playing it; a blunder warning requires **Play anyway** or **Cancel**. Other scored verdicts play your original proposal, never an engine replacement. Busy or failed checks do not play a move.
+
+Both features require a connection. Their protected moves never enter the offline queue. A changed position or expired verdict requires a fresh check. Candidates and guard verdicts count as full engine assistance before results appear, including after cancellation, reload or takeback; the session shows the recorded assistance modes. Assisted positions earn no good-move credit, and assisted games do not count toward bot strength. This records in-app assistance, not whether external help was used.
+
 ### Hints during play
 
 Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Candidates label engine-line-backed reasons **Tactical** and local move facts **Principle**; **engine preference** means neither applies. Principles describe development, castling, centre occupation or added control, rook files, king escape squares against back-rank mate, or passed-pawn advances. They describe what a move does, not why it is best or a promise of winning. Only moves inside the engine tolerance receive reasons. The first two responses do not disclose moves or their destination squares.

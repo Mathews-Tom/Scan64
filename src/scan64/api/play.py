@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import secrets
 from pathlib import Path
@@ -7,13 +9,14 @@ from uuid import UUID
 import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
 from scan64.chess.analysis.jobs import submit_analysis_job
+from scan64.chess.games.assistance import AssistanceMode, StalePlaySnapshot, assistance_modes
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants, player_color
 from scan64.chess.games.pgn import build_pgn
@@ -81,10 +84,12 @@ class PlaySessionRead(BaseModel):
     coach_mode: bool
     player_color: Literal["white", "black"]
     opponent_move: str | None = None
+    assistance_modes: list[AssistanceMode]
 
 
 class PlayMoveCreate(BaseModel):
     move: str
+    expected_generation: StrictInt | None = Field(default=None, ge=0)
 
 
 class CriticalInterruptionRead(BaseModel):
@@ -149,6 +154,7 @@ def read_play_session(
         coach_mode=play_session.coach_mode,
         player_color="white" if colour else "black",
         opponent_move=opponent_move,
+        assistance_modes=assistance_modes(session, play_session.id),
     )
 
 
@@ -293,7 +299,9 @@ async def create_move(
 ) -> PlayMoveResponse:
     play_session = _get_owned_play_session(session_id, request, session)
     try:
-        move_result = await service.make_move(session_id, move_in.move)
+        move_result = await service.make_move(
+            session_id, move_in.move, expected_generation=move_in.expected_generation
+        )
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
         schedule_pending_analysis(service, background_tasks, pool_manager)
         interruption = move_result.interruption
@@ -312,7 +320,7 @@ async def create_move(
         )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except PlaySessionNotActive as error:
+    except (PlaySessionNotActive, StalePlaySnapshot) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

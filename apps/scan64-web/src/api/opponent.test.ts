@@ -3,7 +3,7 @@ import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from './opponent';
 import type { PlaySessionRead } from './types';
 
 const session: PlaySessionRead = {
-  id: 'session', player_id: 'player', opponent_config: {}, status: 'active', coach_mode: false,
+  id: 'session', player_id: 'player', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [],
 };
 
 describe('bot session configuration', () => {

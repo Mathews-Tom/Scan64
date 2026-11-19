@@ -210,8 +210,10 @@ def test_imported_game_and_prefix_moves_are_not_positive_evidence(db_session: Se
     assert "unknown assistance" in str(project_move_credits(game, db_session)[row.ply][1])
 
 
+@pytest.mark.parametrize("mode", ["hint", "candidates", "guard"])
 def test_hint_on_canonical_revisit_excludes_despite_different_fen_counters(
     db_session: Session,
+    mode: str,
 ) -> None:
     game, play, row, source = _stage(db_session)
     hinted_board = chess.Board(source.fen)
@@ -227,17 +229,16 @@ def test_hint_on_canonical_revisit_excludes_despite_different_fen_counters(
             ply=row.ply + 8,
             initial_fen=chess.STARTING_FEN,
             moves=["e2e4"],
-            highest_step=1,
+            highest_step=1 if mode == "hint" else 0,
+            candidate_used=mode == "candidates",
+            guard_used=mode == "guard",
         )
     )
     db_session.commit()
     apply_positive_move_credits(game, db_session, rating=1500)
     db_session.commit()
     assert _credits(db_session) == []
-    assert project_move_credits(game, db_session)[row.ply] == (
-        None,
-        "in-app hint revealed at this position",
-    )
+    assert project_move_credits(game, db_session)[row.ply][0] is None
 
 
 @pytest.mark.parametrize("persisted", [False, True])
