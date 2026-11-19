@@ -48,6 +48,7 @@ import type {
   PuzzleMoveExplanationRead,
   ProgressResetRead,
   TrainingSessionRead,
+  TrainingMode,
   WeeklyReport,
 } from './types';
 
@@ -548,10 +549,10 @@ export class ApiClient {
     return json as unknown as AttemptRead;
   }
 
-  static async getTrainingSession(): Promise<TrainingSessionRead> {
+  static async getTrainingSession(mode: TrainingMode = 'review'): Promise<TrainingSessionRead> {
     let playerId = getOrCreatePlayerId();
     playerId = await ensurePlayerAuthorization(playerId);
-    const response = await apiFetch(`${apiBase()}/learning/session?player_id=${playerId}`, {
+    const response = await apiFetch(`${apiBase()}/learning/session?player_id=${encodeURIComponent(playerId)}&mode=${mode}`, {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {

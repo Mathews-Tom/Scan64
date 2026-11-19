@@ -277,9 +277,17 @@ export type LessonSpec = {
   | { source: Source & { kind: 'custom' | 'external' }; diagnosis?: Diagnosis | null }
 );
 
+export type TrainingMode = 'review' | 'safe_or_blunder';
+
+export interface SafeOrBlunderChoice {
+  uci: string;
+  san: string;
+}
+
 export interface TrainingSessionRead {
   session_id: string;
   lessons: LessonSpec[];
+  move_choices: Record<string, SafeOrBlunderChoice[]>;
 }
 
 export interface GameLearningSessionRead {

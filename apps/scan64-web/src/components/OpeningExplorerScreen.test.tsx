@@ -11,6 +11,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
     session_id: 'opening-study-1',
+    move_choices: {},
     lessons: [],
   });
 });
@@ -65,6 +66,7 @@ describe('OpeningExplorerScreen', () => {
   it('records an opening mission through the server-side attempt endpoint', async () => {
     vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
       session_id: 'opening-study-1',
+      move_choices: {},
       lessons: [],
     });
     const recordAttempt = vi.spyOn(ApiClient, 'recordLessonAttempt').mockResolvedValue({

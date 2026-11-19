@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { ApiClient } from '../api/client';
-import type { LessonSpec } from '../api/types';
+import type { LessonSpec, SafeOrBlunderChoice, TrainingMode } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { Button, Panel } from './Primitives';
 import './WorkingScreens.css';
 
 export const DailyTrainingScreen: React.FC = () => {
+  const [mode, setMode] = useState<TrainingMode>('review');
+  const [moveChoices, setMoveChoices] = useState<Record<string, SafeOrBlunderChoice[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -23,25 +25,58 @@ export const DailyTrainingScreen: React.FC = () => {
   }, [currentIndex]);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
-        const session = await ApiClient.getTrainingSession();
+        const session = await ApiClient.getTrainingSession(mode);
+        if (cancelled) return;
+        if (mode === 'safe_or_blunder' && session.lessons.some(
+          lesson => session.move_choices[lesson.lesson_id]?.length !== 2,
+        )) throw new Error('The server did not supply two drill choices');
         setSessionId(session.session_id);
         setSessionLessons(session.lessons);
+        setMoveChoices(session.move_choices);
         startedAt.current = performance.now();
       } catch (caught) {
+        if (cancelled) return;
         console.error('Failed to load training session:', caught);
         setError('Failed to load training session');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [mode]);
 
-  if (loading) return <div role="status" data-testid="loading-indicator">Loading your daily training...</div>;
-  if (error) return <div role="alert" data-testid="error-message">{error}</div>;
-  if (sessionLessons.length === 0) return <div data-testid="no-eligible-lessons"><h2>No training lessons available</h2><p>Analyse another game to generate a reviewable lesson.</p></div>;
-  if (currentIndex >= sessionLessons.length) return <div data-testid="session-complete"><h2 ref={heading} tabIndex={-1}>Training Complete!</h2></div>;
+  const selectMode = (next: TrainingMode) => {
+    setMode(next);
+    setLoading(true);
+    setError(null);
+    setSessionId(null);
+    setSessionLessons([]);
+    setMoveChoices({});
+    setCurrentIndex(0);
+    setHintIndex(-1);
+    setFeedback(null);
+    setAttemptCount(0);
+  };
+  const renderScreen = (content: React.ReactNode) => <div className="daily-training-screen working-screen">
+    <div role="group" aria-label="Training mode" className="working-controls">
+      <Button aria-pressed={mode === 'review'} disabled={submitting || mode === 'review'}
+        onClick={() => selectMode('review')}>Find a move</Button>
+      <Button aria-pressed={mode === 'safe_or_blunder'} disabled={submitting || mode === 'safe_or_blunder'}
+        onClick={() => selectMode('safe_or_blunder')}>Safe or blunder</Button>
+    </div>
+    {content}
+  </div>;
+
+  if (loading) return renderScreen(<div role="status" data-testid="loading-indicator">Loading your daily training...</div>);
+  if (error) return renderScreen(<div role="alert" data-testid="error-message">{error}</div>);
+  if (sessionLessons.length === 0) return renderScreen(<div data-testid="no-eligible-lessons">
+    <h2>{mode === 'safe_or_blunder' ? 'No safe-or-blunder drills available' : 'No training lessons available'}</h2>
+    <p>Analyse another game to generate a reviewable lesson.</p>
+  </div>);
+  if (currentIndex >= sessionLessons.length) return renderScreen(<div data-testid="session-complete"><h2 ref={heading} tabIndex={-1}>Training Complete!</h2></div>);
 
   const lesson = sessionLessons[currentIndex];
   const hint = hintIndex >= 0 ? lesson.hints[hintIndex] : undefined;
@@ -93,19 +128,27 @@ export const DailyTrainingScreen: React.FC = () => {
     startedAt.current = performance.now();
   };
 
-  return <div className="daily-training-screen working-screen">
-    <h2 ref={heading} tabIndex={-1}>Daily Training</h2>
+  return renderScreen(<>
+    <h2 ref={heading} tabIndex={-1}>{mode === 'safe_or_blunder' ? 'Safe or blunder' : 'Daily Training'}</h2>
     <div className="board-workspace">
       <div className="board-workspace__board">
         <CoachBoard key={lesson.lesson_id} fen={lesson.source.fen}
           orientation={lesson.source.fen.split(' ')[1] === 'b' ? 'black' : 'white'}
-          resetAfterAttempt testId="lesson-board" disabled={submitting || finished}
+          resetAfterAttempt testId="lesson-board" disabled={submitting || finished || mode === 'safe_or_blunder'}
           visualizations={finished ? lesson.explanation?.visualizations : hint?.visualizations}
           onMove={submitMove} />
       </div>
       <Panel className="board-workspace__side working-controls" aria-label="Training controls">
         <p role="status" aria-label="Lesson progress">Lesson {currentIndex + 1} of {sessionLessons.length}</p>
-        <div className="lesson-instruction" data-testid="lesson-instruction">{lesson.objective.instruction}</div>
+        <div className="lesson-instruction" data-testid="lesson-instruction">
+          {mode === 'safe_or_blunder' ? 'Choose the sound move. One option is the move you played.' : lesson.objective.instruction}
+        </div>
+        {mode === 'safe_or_blunder' && <div role="group" aria-label="Move choices" className="working-controls">
+          {moveChoices[lesson.lesson_id].map(choice => <Button key={choice.uci}
+            disabled={submitting || finished} onClick={() => void submitMove(choice.uci)}>
+            {choice.san}
+          </Button>)}
+        </div>}
         <div role="status" aria-atomic="true">{hint !== undefined && <p data-testid="lesson-hint">Hint: {hint.text}</p>}</div>
         <Button data-testid="request-hint-button"
           disabled={submitting || finished || hintIndex >= lesson.hints.length - 1}
@@ -117,5 +160,5 @@ export const DailyTrainingScreen: React.FC = () => {
         <Button variant="primary" data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</Button>
       </Panel>
     </div>
-  </div>;
+  </>);
 };

@@ -380,7 +380,7 @@ describe('ApiClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ session_id: 'study-1', lessons: [] }),
+        json: async () => ({ session_id: 'study-1', lessons: [], move_choices: {} }),
       });
 
     await ApiClient.getTrainingSession();
@@ -390,7 +390,7 @@ describe('ApiClient', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: 'player-1', display_name: 'Anonymous' }),
     });
-    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/learning/session?player_id=player-1', {
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/v1/learning/session?player_id=player-1&mode=review', {
       headers: { Authorization: 'Bearer token-1' },
     });
   });
@@ -406,7 +406,7 @@ describe('ApiClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ session_id: 'study-2', lessons: [] }),
+        json: async () => ({ session_id: 'study-2', lessons: [], move_choices: {} }),
       });
 
     await ApiClient.getTrainingSession();
@@ -424,7 +424,7 @@ describe('ApiClient', () => {
     );
     expect(mockFetch).toHaveBeenNthCalledWith(
       3,
-      '/v1/learning/session?player_id=00000000-0000-0000-0000-000000000002',
+      '/v1/learning/session?player_id=00000000-0000-0000-0000-000000000002&mode=review',
       { headers: { Authorization: 'Bearer token-2' } },
     );
   });

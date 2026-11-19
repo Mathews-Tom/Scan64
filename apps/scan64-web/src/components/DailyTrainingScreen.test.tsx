@@ -1,8 +1,8 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { vi, describe, beforeEach, afterEach, it, expect } from 'vitest';
 import { DailyTrainingScreen } from './DailyTrainingScreen';
 import { ApiClient } from '../api/client';
-import type { LessonSpec } from '../api/types';
+import type { LessonSpec, TrainingSessionRead } from '../api/types';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
@@ -71,6 +71,7 @@ describe('DailyTrainingScreen', () => {
     ];
     vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
       session_id: 'session-1',
+      move_choices: {},
       lessons: mockSession,
     });
   });
@@ -114,6 +115,7 @@ describe('DailyTrainingScreen', () => {
   it('orients each lesson to its solver, including Black', async () => {
     vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValueOnce({
       session_id: 'orientation-session',
+      move_choices: {},
       lessons: [
         { ...mockLesson, source: { ...mockLesson.source, fen: mockLesson.source.fen.replace(' w ', ' b ') } },
         { ...mockLesson, lesson_id: 'white-lesson' },
@@ -128,6 +130,7 @@ describe('DailyTrainingScreen', () => {
   it('shows an explicit no-eligible-lessons state', async () => {
     vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValueOnce({
       session_id: 'session-empty',
+      move_choices: {},
       lessons: [],
     });
 
@@ -141,6 +144,7 @@ describe('DailyTrainingScreen', () => {
   it('records a catalog transfer lesson as a transfer measurement', async () => {
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
       session_id: 'transfer-session',
+      move_choices: {},
       lessons: [{
         ...mockLesson,
         lesson_id: 'aab0f1be-b070-4c0c-bfe2-49d8cdb68bef',
@@ -179,6 +183,7 @@ describe('DailyTrainingScreen', () => {
     };
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
       session_id: 'session-hinted',
+      move_choices: {},
       lessons: [hintedLesson],
     });
     vi.mocked(ApiClient.recordLessonAttempt)
@@ -225,6 +230,7 @@ describe('DailyTrainingScreen', () => {
     };
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
       session_id: 'session-limited',
+      move_choices: {},
       lessons: [limitedLesson],
     });
     vi.mocked(ApiClient.recordLessonAttempt).mockResolvedValueOnce({
@@ -252,6 +258,7 @@ describe('DailyTrainingScreen', () => {
   it('shows Correct for a non-best accepted move and sends it for server grading', async () => {
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
       session_id: 'session-sound',
+      move_choices: {},
       lessons: [{
         ...mockLesson,
         interaction: {
@@ -299,6 +306,7 @@ describe('DailyTrainingScreen', () => {
     };
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
       session_id: 'ladder-session', lessons: [lesson],
+      move_choices: {},
     });
     const result = { id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied' };
     vi.mocked(ApiClient.recordLessonAttempt)
@@ -326,6 +334,7 @@ describe('DailyTrainingScreen', () => {
 
   it('lets a player request the entire ladder before attempting a move', async () => {
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValueOnce({
+      move_choices: {},
       session_id: 'manual-ladder', lessons: [{
         ...mockLesson,
         interaction: { input: 'move', maximum_attempts: 3, accepted_moves: [] },
@@ -339,5 +348,50 @@ describe('DailyTrainingScreen', () => {
     expect(hint).toBeDisabled();
     expect(ApiClient.recordLessonAttempt).not.toHaveBeenCalled();
     expect(screen.getByTestId('submit-daily-move')).not.toBeDisabled();
+  });
+  it('grades either drill choice on the server and locks a solved drill', async () => {
+    const lesson: LessonSpec = {
+      ...mockLesson,
+      interaction: { input: 'move', maximum_attempts: 3, accepted_moves: [{ san: 'e4' }] },
+    };
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({
+      session_id: 'choice-session',
+      lessons: [lesson],
+      move_choices: {
+        [lesson.lesson_id]: [{ uci: 'd2d4', san: 'd4' }, { uci: 'e2e4', san: 'e4' }],
+      },
+    });
+    vi.mocked(ApiClient.recordLessonAttempt).mockImplementation(async attempt => ({
+      id: 'choice-attempt',
+      success: attempt.submitted_move === 'e2e4',
+      grading_status: 'verified',
+      profile_update_result: 'applied',
+    }));
+    render(<DailyTrainingScreen />);
+    await screen.findByRole('heading', { name: 'Daily Training' });
+    fireEvent.click(screen.getByRole('button', { name: 'Safe or blunder' }));
+    await screen.findByRole('heading', { name: 'Safe or blunder' });
+    expect(screen.getByTestId('submit-daily-move')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'd4' }));
+    expect(await screen.findByTestId('lesson-feedback')).toHaveTextContent('Not accepted');
+    fireEvent.click(screen.getByRole('button', { name: 'e4' }));
+    await waitFor(() => expect(screen.getByTestId('lesson-feedback')).toHaveTextContent('Correct'));
+    expect(screen.getByRole('button', { name: 'd4' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'e4' })).toBeDisabled();
+  });
+
+  it('does not replace the chosen drill mode with a late previous session', async () => {
+    const first = Promise.withResolvers<TrainingSessionRead>();
+    vi.mocked(ApiClient.getTrainingSession)
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce({ session_id: 'empty-drill', lessons: [], move_choices: {} });
+    render(<DailyTrainingScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Safe or blunder' }));
+    await screen.findByRole('heading', { name: 'No safe-or-blunder drills available' });
+    await act(async () => {
+      first.resolve({ session_id: 'late-review', lessons: [mockLesson], move_choices: {} });
+    });
+    expect(screen.getByRole('heading', { name: 'No safe-or-blunder drills available' })).toBeInTheDocument();
+    expect(screen.queryByTestId('lesson-board')).not.toBeInTheDocument();
   });
 });

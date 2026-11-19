@@ -261,7 +261,7 @@ trust decision changes. This is engine-derived agreement, not coach validation.
 
 ## Train from diagnosed positions
 
-Open **Train** (Daily Training) after one or more owned games have generated eligible lessons.
+Open **Train** after one or more owned games have generated eligible lessons. **Find a move** keeps the standard Daily Training board interaction.
 
 - A lesson is served only with durable player-owned opportunity and study-session context.
 - Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows **Correct** and records a success.
@@ -270,6 +270,8 @@ Open **Train** (Daily Training) after one or more owned games have generated eli
 - Lessons have three attempts. A first wrong answer draws the nudge and a second draws the idea. **Next hint** reveals the next step at any time without spending an attempt, so you can see the moves before your final try. Hint usage is recorded with each answer; a hinted success keeps half credit. A third wrong answer ends the lesson with its explanation and drawings. Critical-moment review uses the same ladder, including for older lessons upgraded on read from their existing source-position analysis (at most one bounded engine fallback per read).
 - Opening Explorer missions are recorded separately and do not change this profile path.
 - An empty training screen means Scan64 has no eligible owned lesson for the active player.
+
+Select **Safe or blunder** to choose between the move you actually played and a distinct engine-verified sound move from the same diagnosed position. Answer with one of the two move buttons; the board is read-only. Feedback, hints, skill updates and the review schedule use the existing lesson-attempt path and its shared lifetime three-attempt limit. Already-exhausted, retired, unsupported or ambiguous positions are not offered; no eligible positions shows an explanatory empty state. Creating a drill reads saved evidence without starting an engine search.
 
 Open **Profile** to inspect active mastery, evidence, and recurring diagnoses after completing an attempt.
 
