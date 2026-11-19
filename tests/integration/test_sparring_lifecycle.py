@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import chess
 import pytest
@@ -18,6 +18,7 @@ from scan64.api.app import app
 from scan64.api.data_lifecycle import ExportArchive
 from scan64.api.models import Player
 from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview
+from scan64.chess.analysis.review import stage_game_review
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.pgn import build_pgn
 from scan64.chess.games.play_session_service import PlaySessionService
@@ -180,6 +181,113 @@ def snapshot(session: Session) -> dict[str, list[str]]:
     }
 
 
+@pytest.mark.parametrize("ordinary_resigned", [False, True])
+@pytest.mark.parametrize("completed", [False, True])
+def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learning_replay(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    completed: bool,
+    ordinary_resigned: bool,
+) -> None:
+    headers = register(client, OWNER)
+    original = Game(
+        pgn="1. f3 e5 *",
+        moves=["f2f3", "e7e5"],
+        owner_player_id=OWNER,
+        owner_color="black",
+    )
+    positions: dict[str, Position] = {}
+    analyses: dict[UUID, EngineAnalysis] = {}
+    reviews = stage_game_review(
+        original,
+        [
+            EngineAnalysis(raw_result=[{"score_cp": 0, "pv": ["f2f3"]}]),
+            EngineAnalysis(raw_result=[{"score_cp": 350, "pv": ["e7e5"]}]),
+            EngineAnalysis(raw_result=[{"score_cp": 0, "pv": ["g2g4"]}]),
+        ],
+        positions,
+        analyses,
+        set(),
+    )
+    db_session.add(original)
+    db_session.flush()
+    db_session.add_all(positions.values())
+    db_session.flush()
+    db_session.add_all(analyses.values())
+    db_session.flush()
+    db_session.add_all(reviews)
+    db_session.commit()
+    launched = client.post(
+        "/v1/play-sessions",
+        headers=headers,
+        json={
+            "player_id": OWNER,
+            "opponent_config": {"provider": "stockfish", "bot_level": "1"},
+            "sparring_source": {"game_id": str(original.id), "ply": 1},
+        },
+    )
+    assert launched.status_code == 200, launched.text
+    conversion = launched.json()
+    reused = client.post(
+        "/v1/play-sessions",
+        headers=headers,
+        json={
+            "player_id": OWNER,
+            "game_id": conversion["game_id"],
+            "player_color": "white",
+        },
+    )
+    assert reused.status_code == 200, reused.text
+    assert reused.json()["opponent_move"] is not None
+    if completed:
+        terminal = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=headers)
+        assert terminal.status_code == 200, terminal.text
+        assert terminal.json()["sparring"]["outcome"] == "loss"
+    if ordinary_resigned:
+        ordinary_terminal = client.post(
+            f"/v1/play-sessions/{reused.json()['id']}/resign", headers=headers
+        )
+        assert ordinary_terminal.status_code == 200, ordinary_terminal.text
+        assert ordinary_terminal.json()["status"] == "completed"
+    archive = export(client, headers)
+    bot = next(game for game in archive["games"] if game["id"] == conversion["game_id"])
+    assert bot["owner_color"] == "white"
+    assert bot["result"] == ("0-1" if ordinary_resigned else "1-0" if completed else "*")
+    archived_attempt = archive["sparring_attempts"][0]
+    assert archived_attempt["result"] == ("1-0" if completed else None)
+    assert archived_attempt["outcome"] == ("loss" if completed else None)
+    assert len(archive["play_sessions"]) == 2
+    retained = next(play for play in archive["play_sessions"] if play["id"] == conversion["id"])
+    assert retained["opponent_config"]["player_color"] == "black"
+    assert retained["status"] == ("completed" if completed else "active")
+    assert delete_owner(client, headers)["play_sessions"] == 2
+
+    def no_replay(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("Imported conversions must not replay learning")
+
+    monkeypatch.setattr(ReviewSchedule, "update", no_replay)
+    monkeypatch.setattr(SkillState, "apply_observation", no_replay)
+    imported = client.post("/v1/imports", json=archive, headers=headers)
+    assert imported.status_code == 200, imported.text
+    restored = client.get(f"/v1/play-sessions/{conversion['id']}", headers=headers)
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["sparring"]["player_color"] == "black"
+    assert restored.json()["sparring"]["verification_status"] == "historical"
+    assert restored.json()["sparring"]["result"] == ("1-0" if completed else None)
+    assert restored.json()["sparring"]["outcome"] == ("loss" if completed else None)
+    if not completed:
+        terminal = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=headers)
+        assert terminal.status_code == 200, terminal.text
+        assert terminal.json()["sparring"]["outcome"] == "loss"
+        assert terminal.json()["sparring"]["verification_status"] == "historical"
+    reexport = export(client, headers)
+    assert reexport["review_schedules"] == archive["review_schedules"]
+    assert reexport["positive_move_credits"] == []
+    assert db_session.exec(select(HabitCredit)).all() == []
+    assert db_session.exec(select(PatternAward)).all() == []
+
+
 @pytest.mark.parametrize("source_ply", [0, 1])
 @pytest.mark.parametrize("completed", [False, True])
 @pytest.mark.parametrize("source_colour", ["black", "white"])
@@ -333,6 +441,7 @@ def test_tampered_bot_config_is_rejected_atomically(
         "bot-fen",
         "bot-owner",
         "bot-color",
+        "bot-color-mismatch",
         "bot-result",
     ],
 )
@@ -384,6 +493,8 @@ def test_broken_closure_is_rejected_atomically(
     elif tamper == "bot-owner":
         bot["owner_player_id"] = OTHER
     elif tamper == "bot-color":
+        bot["owner_color"] = None
+    elif tamper == "bot-color-mismatch":
         bot["owner_color"] = "white"
     elif tamper == "bot-result":
         bot["result"] = "1-0"

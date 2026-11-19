@@ -32,7 +32,9 @@ def _register(client: TestClient, player_id: str = "sparring-owner") -> dict[str
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _source(session: Session, player_id: str = "sparring-owner") -> tuple[Game, GameMoveReview]:
+def _source(
+    session: Session, player_id: str = "sparring-owner", *, after_first_move_cp: int = 0
+) -> tuple[Game, GameMoveReview]:
     game = Game(
         pgn="1. f3 e5 2. g4 Nc6 *",
         moves=["f2f3", "e7e5", "g2g4", "b8c6"],
@@ -41,7 +43,7 @@ def _source(session: Session, player_id: str = "sparring-owner") -> tuple[Game, 
     )
     evaluations = [
         EngineAnalysis(raw_result=[{"score_cp": 0, "pv": ["f2f3"]}]),
-        EngineAnalysis(raw_result=[{"score_cp": 0, "pv": ["e7e5"]}]),
+        EngineAnalysis(raw_result=[{"score_cp": after_first_move_cp, "pv": ["e7e5"]}]),
         EngineAnalysis(raw_result=[{"score_cp": 0, "pv": ["g2g4"]}]),
         EngineAnalysis(raw_result=[{"score_mate": 1, "pv": ["d8h4"]}]),
         EngineAnalysis(raw_result=[{"score_cp": -350, "pv": ["a2a3"]}]),
@@ -165,6 +167,51 @@ def test_attempt_keeps_its_colour_when_ordinary_play_changes_the_source_colour(
     review = client.get(f"/v1/games/{original.id}/review", headers=auth)
     assert review.status_code == 200
     assert review.json()["moves"][2]["sparring"]["player_color"] == "black"
+
+
+def test_completion_keeps_retained_colour_after_ordinary_reuse_of_the_bot_game(
+    client: TestClient, db_session: Session
+) -> None:
+    auth = _register(client)
+    original, _ = _source(db_session, after_first_move_cp=350)
+    conversion = _start(client, auth, original.id, ply=1)
+    ordinary = client.post(
+        "/v1/play-sessions",
+        headers=auth,
+        json={
+            "player_id": "sparring-owner",
+            "game_id": conversion["game_id"],
+            "player_color": "white",
+        },
+    )
+    assert ordinary.status_code == 200, ordinary.text
+    assert ordinary.json()["player_color"] == "white"
+    assert ordinary.json()["opponent_move"] is not None
+    bot_game = db_session.get(Game, UUID(conversion["game_id"]))
+    assert bot_game is not None and bot_game.owner_color == "white"
+    completed = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=auth)
+    assert completed.status_code == 200, completed.text
+    attempt = completed.json()["sparring"]
+    assert (attempt["player_color"], attempt["result"], attempt["outcome"]) == (
+        "black",
+        "1-0",
+        "loss",
+    )
+    schedule = db_session.get(
+        ReviewSchedule,
+        (
+            "sparring-owner",
+            source_item_id(UUID(attempt["source_review_id"]), UUID(attempt["source_position_id"])),
+        ),
+    )
+    assert schedule is not None
+    assert schedule.interval_days == 1.0 and schedule.ease_factor == pytest.approx(2.3)
+    assert schedule.last_reviewed_at is not None
+    before = schedule.model_dump()
+    repeated = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=auth)
+    assert repeated.status_code == 409
+    db_session.refresh(schedule)
+    assert schedule.model_dump() == before
 
 
 @pytest.mark.parametrize("ply", [True, 1.5, "3", -1, 20])

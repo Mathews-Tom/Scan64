@@ -203,14 +203,15 @@ def complete_sparring(session: Session, play_session: PlaySession, game: Game, r
     # Reset deliberately deletes this link while preserving the ordinary play session.
     if attempt is None or attempt.completed_at is not None:
         return
+    colour = play_session.opponent_config.get("player_color")
     if (
         attempt.player_id != play_session.player_id
         or game.owner_player_id != attempt.player_id
-        or game.owner_color not in {"white", "black"}
+        or colour not in {"white", "black"}
         or result not in {"1-0", "0-1", "1/2-1/2"}
     ):
         raise ValueError("Sparring terminal ownership or result is invalid")
-    owner_result = "1-0" if game.owner_color == "white" else "0-1"
+    owner_result = "1-0" if colour == "white" else "0-1"
     outcome: Literal["win", "draw", "loss"] = (
         "draw" if result == "1/2-1/2" else "win" if result == owner_result else "loss"
     )

@@ -263,6 +263,63 @@ describe('PlayScreen', () => {
       fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2', movable: expect.objectContaining({ color: 'black' }) }));
   });
 
+  it.each(['initial', 'query', 'storage'] as const)(
+    'restores a completed conversion through %s from its final custom PGN without replaying queued moves',
+    async entry => {
+      const sourceFen = '7k/8/5KQ1/8/8/8/8/8 w - - 0 1';
+      const completed: PlaySessionRead = {
+        id: 'conversion-terminal', player_id: 'test-player', game_id: 'custom-terminal',
+        opponent_config: { bot_level: '8', player_color: 'white' }, player_color: 'white',
+        status: 'completed', coach_mode: false,
+        sparring: { id: 'attempt-terminal', play_session_id: 'conversion-terminal', source_game_id: 'original-game',
+          source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+          source_ply: 12, source_fen: sourceFen, player_color: 'white', seed: 'terminal-seed',
+          completed_at: '2026-11-19T10:00:00Z', result: '1-0', outcome: 'win',
+          verification_status: 'verified', next_review_at: '2026-11-22T10:00:00Z' },
+      };
+      if (entry === 'query') {
+        window.history.replaceState(null, '', '/play?session=conversion-terminal&mode=study#board');
+        localStorage.setItem('scan64_active_play_session_id', 'another-active');
+      } else if (entry === 'storage') {
+        localStorage.setItem('scan64_active_play_session_id', completed.id);
+      }
+      vi.mocked(ApiClient.getPlaySession).mockResolvedValue(completed);
+      vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-terminal',
+        pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n[Result "1-0"]\n\n1. Qg7# 1-0`,
+        white: 'human', black: 'bot', result: '1-0' });
+      vi.mocked(getQueuedMoves).mockResolvedValue([
+        { sessionId: completed.id, move: 'g6g7', timestamp: 1 },
+      ]);
+
+      render(entry === 'initial' ? <PlayScreen initialSession={{
+        ...completed, sparring: { ...completed.sparring!, outcome: null, result: null },
+      }} /> : <PlayScreen />);
+
+      await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+        orientation: 'white', fen: '7k/6Q1/5K2/8/8/8/8/8 b - - 1 1',
+        movable: expect.objectContaining({ color: undefined }),
+      })));
+      const result = screen.getByRole('region', { name: 'Conversion result' });
+      await waitFor(() => expect(result).toHaveTextContent('Verified conversion practice · win · 1-0'));
+      expect(result).toHaveTextContent('Next review: 2026-11-22T10:00:00Z');
+      expect(screen.getByTestId('session-info')).toHaveTextContent('Status: completed');
+      expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/custom-terminal/analysis');
+      expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith(completed.id);
+      expect(ApiClient.getPlaySession).not.toHaveBeenCalledWith('another-active');
+      expect(ApiClient.getGame).toHaveBeenCalledExactlyOnceWith('custom-terminal');
+      expect(getQueuedMoves).not.toHaveBeenCalled();
+      expect(syncQueuedMoves).not.toHaveBeenCalled();
+      expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBe(entry === 'query' ? 'another-active' : null);
+      if (entry === 'query') {
+        expect(window.location.search).toBe('?mode=study');
+        expect(window.location.hash).toBe('#board');
+      }
+    },
+  );
+
   it('keeps an initially linked conversion locked until its queued move is drained and reloaded', async () => {
     const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
     const active: PlaySessionRead = {
@@ -819,9 +876,10 @@ describe('PlayScreen', () => {
     });
   });
 
-  it('clears a terminal saved session without loading a game', async () => {
+  it('clears an ordinary terminal saved session without loading its game or result', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'completed', coach_mode: false });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'ordinary-ended-game',
+      opponent_config: {}, status: 'completed', coach_mode: false });
 
     render(<PlayScreen />);
 
@@ -831,6 +889,8 @@ describe('PlayScreen', () => {
     });
     expect(ApiClient.getGame).not.toHaveBeenCalled();
     expect(screen.queryByTestId('session-info')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
+    expect(screen.getByTestId('start-btn')).toBeInTheDocument();
   });
 
   it('removes an unresolvable saved session and reports its absence', async () => {
