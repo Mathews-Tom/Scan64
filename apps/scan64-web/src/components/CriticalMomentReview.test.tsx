@@ -109,6 +109,7 @@ describe('CriticalMomentReview', () => {
       success: false,
       grading_status: 'verified',
       profile_update_result: 'applied',
+      attempts_used: 1,
     });
     render(
       <CriticalMomentReview
@@ -153,10 +154,10 @@ describe('CriticalMomentReview', () => {
       })),
       explanation: { text: 'Final explanation', visualizations: drawings[2] },
     };
-    const result = { id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied' };
+    const result = { id: 'attempt', success: false, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 1 };
     const record = vi.spyOn(ApiClient, 'recordLessonAttempt')
-      .mockResolvedValueOnce(result).mockResolvedValueOnce(result)
-      .mockResolvedValueOnce({ ...result, success });
+      .mockResolvedValueOnce(result).mockResolvedValueOnce({ ...result, attempts_used: 2 })
+      .mockResolvedValueOnce({ ...result, success, attempts_used: 3 });
     render(<CriticalMomentReview lesson={lesson} opportunityId="opp" sessionId="study" />);
     const submit = screen.getByTestId('submit-lesson-move');
     for (let index = 0; index < 2; index += 1) {

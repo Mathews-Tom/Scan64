@@ -271,7 +271,7 @@ Open **Train** after one or more owned games have generated eligible lessons. **
 - Opening Explorer missions are recorded separately and do not change this profile path.
 - An empty training screen means Scan64 has no eligible owned lesson for the active player.
 
-Select **Safe or blunder** to choose between the move you actually played and a distinct engine-verified sound move from the same diagnosed position. Answer with one of the two move buttons; the board is read-only. Feedback, hints, skill updates and the review schedule use the existing lesson-attempt path and its shared lifetime three-attempt limit. Already-exhausted, retired, unsupported or ambiguous positions are not offered; no eligible positions shows an explanatory empty state. Creating a drill reads saved evidence without starting an engine search.
+Select **Safe or blunder** to choose between the move you actually played and a distinct engine-verified sound move from the same diagnosed position. Answer with one of the two move buttons; the board is read-only. Feedback, hints, skill updates and the review schedule use the existing lesson-attempt path and its shared lifetime three-attempt limit, including attempts used in another training mode. Only positions whose saved analysis proves the played move loses more than the sound-move tolerance are eligible; missing scores or an incomplete sound-set bound cannot establish a blunder. Already-exhausted, retired, unsupported or ambiguous positions are not offered; no eligible positions shows an explanatory empty state. Creating a drill reads saved evidence without starting an engine search.
 
 Open **Profile** to inspect active mastery, evidence, and recurring diagnoses after completing an attempt.
 

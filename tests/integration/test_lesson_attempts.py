@@ -150,6 +150,7 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
         "success": True,
         "grading_status": "verified",
         "profile_update_result": "applied",
+        "attempts_used": 1,
     }
 
     attempt = db_session.get(LessonAttempt, response.json()["id"])
@@ -1132,13 +1133,15 @@ def test_correct_final_attempt_with_hints_keeps_half_credit_and_server_limit(
 
 
 def _create_safe_or_blunder_lesson(
-    db_session: Session, player_id: str
+    db_session: Session,
+    player_id: str,
+    *,
+    fen: str = "r3k3/8/8/8/8/8/q7/R3K3 w Qq - 0 1",
 ) -> PersistedLessonOpportunity:
     opportunity = create_persisted_lesson(db_session, player_id)
     game = db_session.get(Game, opportunity.game_id)
     position = db_session.get(Position, opportunity.source_position_id)
     assert game is not None and position is not None
-    fen = "r3k3/8/8/8/8/8/q7/R3K3 w Qq - 0 1"
     board = chess.Board(fen)
     position.fen = fen
     position.canonical_id = board.epd()
@@ -1311,3 +1314,147 @@ def test_safe_or_blunder_rejects_other_moves_and_keeps_the_existing_attempt_limi
         assert client.post("/v1/learning/lesson-attempts", json=payload).status_code == 200
     assert client.post("/v1/learning/lesson-attempts", json=payload).status_code == 409
     assert client.get("/v1/learning/session", params=params).json()["lessons"] == []
+
+
+@pytest.mark.parametrize(
+    ("evidence", "available"),
+    [
+        ("legacy_unscored", False),
+        ("missing_played_score", False),
+        ("incomplete_bracket", False),
+        ("capped_unbracketed", False),
+        ("played_score_disagrees", False),
+        ("explicit_score", True),
+        ("complete_bracket", True),
+        ("duplicate_bracket", False),
+        ("unordered_bracket", False),
+        ("missing_middle_score", False),
+    ],
+)
+def test_safe_or_blunder_requires_stored_probability_loss_proof(
+    client: TestClient, db_session: Session, evidence: str, available: bool
+) -> None:
+    player_id = "proof-owner"
+    db_session.add(Player(id=player_id))
+    db_session.commit()
+    if evidence == "capped_unbracketed":
+        opportunity = _create_safe_or_blunder_lesson(
+            db_session, player_id, fen="r3k3/8/8/8/8/8/q6P/R3K3 w Qq - 0 1"
+        )
+    else:
+        opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    analysis = db_session.get(EngineAnalysis, opportunity.verification_analysis_id)
+    assert analysis is not None
+    best = {"pv": ["a1a2"], "score_cp": 400}
+    bad = {"pv": ["a1b1"], "score_cp": -900}
+    if evidence == "legacy_unscored":
+        analysis.raw_result = [{"pv": ["a1a2"]}]
+    elif evidence == "missing_played_score":
+        analysis.raw_result = [best, {"pv": ["e1f1"]}]
+    elif evidence == "incomplete_bracket":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [best, bad]
+    elif evidence == "capped_unbracketed":
+        board = chess.Board(opportunity.lesson_spec["source"]["fen"])
+        roots = ["a1a2"] + [
+            move.uci() for move in board.legal_moves if move.uci() not in {"a1a2", "e1f1"}
+        ]
+        assert len(roots) >= 8
+        analysis.config = {**analysis.config, "multipv": 8}
+        analysis.raw_result = [{"pv": [root], "score_cp": 400} for root in roots[:8]]
+    elif evidence == "played_score_disagrees":
+        analysis.raw_result = [best, {"pv": ["e1f1"], "score_cp": 390}]
+    elif evidence == "complete_bracket":
+        analysis.raw_result = [best, bad]
+    elif evidence == "duplicate_bracket":
+        analysis.raw_result = [best, {"pv": ["a1a2"], "score_cp": -900}]
+    elif evidence == "unordered_bracket":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [
+            best,
+            bad,
+            {"pv": ["a1c1"], "score_cp": 300},
+            {"pv": ["a1d1"], "score_cp": -900},
+        ]
+    elif evidence == "missing_middle_score":
+        analysis.config = {**analysis.config, "multipv": 4}
+        analysis.raw_result = [
+            best,
+            {"pv": ["a1c1"]},
+            bad,
+            {"pv": ["a1d1"], "score_cp": -900},
+        ]
+    db_session.add(analysis)
+    db_session.commit()
+    authorize(client, db_session, player_id)
+    response = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert [lesson["lesson_id"] for lesson in body["lessons"]] == (
+        [str(opportunity.id)] if available else []
+    )
+    assert body["attempts_used"] == ({str(opportunity.id): 0} if available else {})
+    if not available:
+        assert body["move_choices"] == {}
+        rejected = client.post(
+            "/v1/learning/lesson-attempts",
+            json={
+                "session_id": body["session_id"],
+                "lesson_id": str(opportunity.id),
+                "source_kind": "persisted_opportunity",
+                "submitted_move": "e1f1",
+                "elapsed_ms": 1000,
+                "hints_used": 0,
+            },
+        )
+        assert rejected.status_code == 409
+        assert db_session.exec(select(LessonAttempt)).all() == []
+
+
+def test_safe_or_blunder_reports_attempts_shared_with_review_and_prior_sessions(
+    client: TestClient, db_session: Session
+) -> None:
+    player_id = "shared-attempt-owner"
+    db_session.add(Player(id=player_id))
+    db_session.add(PlayerProfile(player_id=player_id, rating=1500))
+    db_session.commit()
+    opportunity = _create_safe_or_blunder_lesson(db_session, player_id)
+    authorize(client, db_session, player_id)
+    lesson_id = str(opportunity.id)
+    review = client.get("/v1/learning/session", params={"player_id": player_id}).json()
+    assert review["attempts_used"] == {lesson_id: 0}
+    payload = {
+        "session_id": review["session_id"],
+        "lesson_id": lesson_id,
+        "source_kind": "persisted_opportunity",
+        "submitted_move": "e1f1",
+        "elapsed_ms": 1000,
+        "hints_used": 0,
+    }
+    first = client.post("/v1/learning/lesson-attempts", json=payload)
+    assert first.status_code == 200
+    assert first.json()["attempts_used"] == 1
+    drill = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    ).json()
+    assert drill["attempts_used"] == {lesson_id: 1}
+    payload["session_id"] = drill["session_id"]
+    for total in (2, 3):
+        outcome = client.post("/v1/learning/lesson-attempts", json=payload)
+        assert outcome.status_code == 200
+        assert outcome.json()["attempts_used"] == total
+    exhausted = client.post("/v1/learning/lesson-attempts", json=payload)
+    assert exhausted.status_code == 409
+    assert exhausted.json()["detail"] == {
+        "code": "lesson_attempt_limit_reached",
+        "attempts_used": 3,
+    }
+    reloaded = client.get("/v1/learning/session", params={"player_id": player_id}).json()
+    assert reloaded["attempts_used"] == {lesson_id: 3}
+    exhausted_drill = client.get(
+        "/v1/learning/session", params={"player_id": player_id, "mode": "safe_or_blunder"}
+    ).json()
+    assert exhausted_drill["lessons"] == []
+    assert exhausted_drill["attempts_used"] == {}

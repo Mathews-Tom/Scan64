@@ -76,7 +76,7 @@ beforeEach(() => {
   localStorage.setItem('scan64_player_id', 'player-1');
   vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue({ ...onboardingFixture, status: 'not_offered' });
   vi.mocked(ApiClient.getPlayerStrength).mockResolvedValue(strengthFixture);
-  vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {} });
+  vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} });
   vi.mocked(ApiClient.getGameReview).mockImplementation(async gameId => makeGameReview({
     game_id: gameId, key_moments: [], session_id: null,
   }));
@@ -337,6 +337,7 @@ describe('App', () => {
     vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
       session_id: 'session-1',
       move_choices: {},
+      attempts_used: { 'lesson-1': 0 },
       lessons: [mockLesson],
     });
 

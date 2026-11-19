@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-import { ApiClient } from '../api/client';
+import { ApiClient, LessonAttemptLimitError } from '../api/client';
 import type { LessonSpec, SafeOrBlunderChoice, TrainingMode } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { Button, Panel } from './Primitives';
@@ -17,7 +17,8 @@ export const DailyTrainingScreen: React.FC = () => {
   const [hintIndex, setHintIndex] = useState(-1);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [attemptCount, setAttemptCount] = useState(0);
+  const [attemptsUsed, setAttemptsUsed] = useState<Record<string, number>>({});
+  const activeAttempt = useRef<{ sessionId: string; lessonId: string } | null>(null);
   const startedAt = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -33,9 +34,13 @@ export const DailyTrainingScreen: React.FC = () => {
         if (mode === 'safe_or_blunder' && session.lessons.some(
           lesson => session.move_choices[lesson.lesson_id]?.length !== 2,
         )) throw new Error('The server did not supply two drill choices');
+        if (session.lessons.some(
+          lesson => typeof session.attempts_used[lesson.lesson_id] !== 'number',
+        )) throw new Error('The server did not supply lesson attempt counts');
         setSessionId(session.session_id);
         setSessionLessons(session.lessons);
         setMoveChoices(session.move_choices);
+        setAttemptsUsed(session.attempts_used);
         startedAt.current = performance.now();
       } catch (caught) {
         if (cancelled) return;
@@ -45,10 +50,15 @@ export const DailyTrainingScreen: React.FC = () => {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      activeAttempt.current = null;
+    };
   }, [mode]);
 
   const selectMode = (next: TrainingMode) => {
+    if (submitting || activeAttempt.current !== null || next === mode) return;
+    activeAttempt.current = null;
     setMode(next);
     setLoading(true);
     setError(null);
@@ -58,7 +68,8 @@ export const DailyTrainingScreen: React.FC = () => {
     setCurrentIndex(0);
     setHintIndex(-1);
     setFeedback(null);
-    setAttemptCount(0);
+    setAttemptsUsed({});
+    setSubmitting(false);
   };
   const renderScreen = (content: React.ReactNode) => <div className="daily-training-screen working-screen">
     <div role="group" aria-label="Training mode" className="working-controls">
@@ -80,13 +91,17 @@ export const DailyTrainingScreen: React.FC = () => {
 
   const lesson = sessionLessons[currentIndex];
   const hint = hintIndex >= 0 ? lesson.hints[hintIndex] : undefined;
+  const attemptCount = attemptsUsed[lesson.lesson_id];
   const finished = feedback?.startsWith('Correct') === true || attemptCount >= lesson.interaction.maximum_attempts;
   const submitMove = async (move: string) => {
     if (
       sessionId === null
       || submitting
-      || attemptCount >= lesson.interaction.maximum_attempts
+      || activeAttempt.current !== null
+      || finished
     ) return;
+    const attempt = { sessionId, lessonId: lesson.lesson_id };
+    activeAttempt.current = attempt;
     setSubmitting(true);
     try {
       const sourceKind = lesson.verification.engine === 'transfer_catalog'
@@ -100,7 +115,8 @@ export const DailyTrainingScreen: React.FC = () => {
         elapsed_ms: Math.round(performance.now() - startedAt.current),
         hints_used: Math.max(hintIndex + 1, 0),
       });
-      setAttemptCount(count => count + 1);
+      if (activeAttempt.current !== attempt) return;
+      setAttemptsUsed(counts => ({ ...counts, [lesson.lesson_id]: result.attempts_used }));
       if (result.success) {
         setFeedback('Correct. Attempt recorded.');
       } else {
@@ -113,17 +129,26 @@ export const DailyTrainingScreen: React.FC = () => {
         );
       }
     } catch (caught) {
+      if (activeAttempt.current !== attempt) return;
+      if (caught instanceof LessonAttemptLimitError) {
+        setAttemptsUsed(counts => ({ ...counts, [lesson.lesson_id]: caught.attemptsUsed }));
+        setFeedback(`All ${caught.attemptsUsed} attempts used. Review the explanation before continuing.`);
+        return;
+      }
       console.error('Failed to record lesson attempt:', caught);
       setFeedback('Could not record this attempt.');
     } finally {
-      setSubmitting(false);
+      if (activeAttempt.current === attempt) {
+        activeAttempt.current = null;
+        setSubmitting(false);
+      }
     }
   };
 
   const nextLesson = () => {
+    if (submitting || activeAttempt.current !== null) return;
     setCurrentIndex(index => index + 1);
     setHintIndex(-1);
-    setAttemptCount(0);
     setFeedback(null);
     startedAt.current = performance.now();
   };
@@ -157,7 +182,8 @@ export const DailyTrainingScreen: React.FC = () => {
         </Button>
         <div role="status" aria-atomic="true">{feedback !== null && <p data-testid="lesson-feedback">{feedback}</p>}</div>
         {finished && <section data-testid="lesson-explanation"><h3>Explanation</h3><p>{lesson.explanation?.text}</p></section>}
-        <Button variant="primary" data-testid="next-lesson-button" onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</Button>
+        <Button variant="primary" data-testid="next-lesson-button" disabled={submitting}
+          onClick={nextLesson}>{currentIndex === sessionLessons.length - 1 ? 'Finish Session' : 'Next Lesson'}</Button>
       </Panel>
     </div>
   </>);

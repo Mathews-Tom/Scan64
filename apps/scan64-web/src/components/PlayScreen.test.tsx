@@ -120,7 +120,7 @@ vi.mock('../api/client', () => ({
     resignPlaySession: vi.fn(),
     getGame: vi.fn(),
     getPlaySession: vi.fn(),
-    getTrainingSession: vi.fn().mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {} }),
+    getTrainingSession: vi.fn().mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} }),
     recordLessonAttempt: vi.fn(),
   },
   setActivePlayerId: vi.fn(),
@@ -145,7 +145,7 @@ describe('PlayScreen', () => {
     chessgroundMock.set.mockReset();
     chessgroundMock.redrawAll.mockReset();
     chessgroundMock.destroy.mockReset();
-    vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {} });
+    vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} });
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
   });
 

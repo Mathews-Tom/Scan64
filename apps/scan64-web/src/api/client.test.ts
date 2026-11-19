@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiRequestError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
+import { ApiClient, ApiRequestError, LessonAttemptLimitError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
 import { onboardingFixture, strengthFixture } from '../components/strength.test-fixtures';
 
 describe('ApiClient', () => {
@@ -380,7 +380,7 @@ describe('ApiClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ session_id: 'study-1', lessons: [], move_choices: {} }),
+        json: async () => ({ session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} }),
       });
 
     await ApiClient.getTrainingSession();
@@ -406,7 +406,7 @@ describe('ApiClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ session_id: 'study-2', lessons: [], move_choices: {} }),
+        json: async () => ({ session_id: 'study-2', lessons: [], move_choices: {}, attempts_used: {} }),
       });
 
     await ApiClient.getTrainingSession();
@@ -427,6 +427,26 @@ describe('ApiClient', () => {
       '/v1/learning/session?player_id=00000000-0000-0000-0000-000000000002&mode=review',
       { headers: { Authorization: 'Bearer token-2' } },
     );
+  });
+
+  it('preserves the server attempt limit separately from other lesson conflicts', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    const attempt = { session_id: 'study-1', lesson_id: 'lesson-1', source_kind: 'persisted_opportunity' as const, submitted_move: 'e2e4', elapsed_ms: 10, hints_used: 0 };
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 409, statusText: 'Conflict',
+      json: async () => ({ detail: { code: 'lesson_attempt_limit_reached', attempts_used: 3 } }),
+    });
+    await expect(ApiClient.recordLessonAttempt(attempt)).rejects.toMatchObject({
+      constructor: LessonAttemptLimitError, status: 409, attemptsUsed: 3,
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 409, statusText: 'Conflict',
+      json: async () => ({ detail: 'This drill is no longer available' }),
+    });
+    await expect(ApiClient.recordLessonAttempt(attempt)).rejects.toMatchObject({
+      constructor: ApiRequestError, status: 409,
+    });
   });
 
   it('preserves the active identity when registration fails without a token', async () => {
