@@ -16,6 +16,30 @@ describe('ApiClient', () => {
     localStorage.clear();
   });
 
+  it.each([404, 409, 503])('preserves rejected assistance status %s without retrying or borrowing another actor token', async status => {
+    localStorage.setItem('scan64_player_id', 'other-player');
+    localStorage.setItem('scan64_player_token:other-player', 'other-token');
+    localStorage.setItem('scan64_player_token:player-1', 'owner-token');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status, statusText: 'Rejected', json: async () => ({ detail: 'Assistance unavailable' }),
+    });
+    await expect(ApiClient.gradePlayMoves('session-1', {
+      player_id: 'player-1', fen: '8/8/8/8/8/8/8/K6k w - - 0 1', moves: ['a1a2'], mode: 'guard',
+    })).rejects.toMatchObject({ status, message: 'Could not grade moves: Assistance unavailable' });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer owner-token');
+    expect(localStorage.getItem('scan64_player_id')).toBe('other-player');
+  });
+
+  it('refuses assistance when the requested actor has no stored token', async () => {
+    localStorage.setItem('scan64_player_id', 'other-player');
+    localStorage.setItem('scan64_player_token:other-player', 'other-token');
+    await expect(ApiClient.gradePlayMoves('session-1', {
+      player_id: 'player-1', fen: '8/8/8/8/8/8/8/K6k w - - 0 1', moves: ['a1a2'], mode: 'guard',
+    })).rejects.toThrow('No access token is stored for player player-1');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('reads owned onboarding and strength with the stored token', async () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => onboardingFixture });

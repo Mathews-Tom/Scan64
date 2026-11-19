@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, setActivePlayerId } from '../api/client';
-import type { LessonSpec, PlaySessionRead } from '../api/types';
+import type { LessonSpec, PlayAssistanceRead, PlaySessionRead } from '../api/types';
+import { Chess } from 'chess.js';
 import { onboardingFixture } from './strength.test-fixtures';
 import {
   getQueuedMoves,
@@ -117,6 +118,7 @@ vi.mock('../api/client', () => ({
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
+    gradePlayMoves: vi.fn(),
     resignPlaySession: vi.fn(),
     getGame: vi.fn(),
     getPlaySession: vi.fn(),
@@ -127,6 +129,16 @@ vi.mock('../api/client', () => ({
   ensurePlayerAuthorization: vi.fn(async (playerId: string) => playerId),
   getStoredPlayerId: () => localStorage.getItem('scan64_player_id'),
 }));
+
+const assistanceSession: PlaySessionRead = {
+  id: 'assisted-game', player_id: 'test-player', game_id: 'game-123',
+  opponent_config: {}, player_color: 'white', status: 'active', coach_mode: false, assistance_modes: [],
+};
+const startingFen = new Chess().fen();
+const blunderVerdict: PlayAssistanceRead = {
+  fen: startingFen, generation: 7, mode: 'guard', assistance_modes: ['guard'],
+  grades: [{ move: 'e2e4', san: 'e4', band: 'blunder', win_probability_loss: 0.35 }],
+};
 
 describe('PlayScreen', () => {
   beforeEach(() => {
@@ -161,7 +173,7 @@ describe('PlayScreen', () => {
     };
     const active: PlaySessionRead = { id: 'convert-1', player_id: 'test-player', game_id: 'custom-1',
       opponent_config: { provider: 'stockfish', bot_level: '1', initial_ply: '1' }, player_color: 'black',
-      status: 'active', coach_mode: false, opponent_move: 'g2f2', sparring: attempt };
+      status: 'active', coach_mode: false, assistance_modes: [], opponent_move: 'g2f2', sparring: attempt };
     const ended: PlaySessionRead = { ...active, status: 'completed', sparring: { ...attempt,
       result: '1/2-1/2', outcome: 'draw', completed_at: '2026-11-19T10:00:00Z', next_review_at: '2026-11-20T10:00:00Z' } };
     const fresh: PlaySessionRead = { ...active, id: 'convert-2', game_id: 'custom-2',
@@ -217,7 +229,7 @@ describe('PlayScreen', () => {
 
   it('refreshes a resigned conversion and keeps imported outcomes historical', async () => {
     const active: PlaySessionRead = { id: 'conversion-resign', player_id: 'test-player', game_id: 'custom-game',
-      opponent_config: { bot_level: '1' }, player_color: 'white', status: 'active', coach_mode: false,
+      opponent_config: { bot_level: '1' }, player_color: 'white', status: 'active', coach_mode: false, assistance_modes: [],
       sparring: { id: 'attempt-1', play_session_id: 'conversion-resign', source_game_id: 'original-game',
         source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
         source_ply: 2, source_fen: '7k/8/5KQ1/8/8/8/8/8 w - - 0 1', player_color: 'white', seed: 'seed',
@@ -246,7 +258,7 @@ describe('PlayScreen', () => {
     const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
       id: 'conversion-resume', player_id: 'test-player', game_id: 'custom-resume',
-      opponent_config: { bot_level: '8' }, player_color: 'black', status: 'active', coach_mode: false,
+      opponent_config: { bot_level: '8' }, player_color: 'black', status: 'active', coach_mode: false, assistance_modes: [],
       sparring: { id: 'attempt-1', play_session_id: 'conversion-resume', source_game_id: 'original-game',
         source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
         source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
@@ -270,7 +282,7 @@ describe('PlayScreen', () => {
       const completed: PlaySessionRead = {
         id: 'conversion-terminal', player_id: 'test-player', game_id: 'custom-terminal',
         opponent_config: { bot_level: '8', player_color: 'white' }, player_color: 'white',
-        status: 'completed', coach_mode: false,
+        status: 'completed', coach_mode: false, assistance_modes: [],
         sparring: { id: 'attempt-terminal', play_session_id: 'conversion-terminal', source_game_id: 'original-game',
           source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
           source_ply: 12, source_fen: sourceFen, player_color: 'white', seed: 'terminal-seed',
@@ -324,7 +336,7 @@ describe('PlayScreen', () => {
     const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
     const active: PlaySessionRead = {
       id: 'conversion-queued', player_id: 'test-player', game_id: 'custom-queued',
-      opponent_config: { bot_level: '1' }, player_color: 'black', status: 'active', coach_mode: false,
+      opponent_config: { bot_level: '1' }, player_color: 'black', status: 'active', coach_mode: false, assistance_modes: [],
       sparring: { id: 'attempt-queued', play_session_id: 'conversion-queued', source_game_id: 'original-game',
         source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
         source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
@@ -354,13 +366,283 @@ describe('PlayScreen', () => {
     }));
   });
 
+  it('grades three unique legal candidates without moving, then commits only the chosen generation-bound move', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const grading = Promise.withResolvers<PlayAssistanceRead>();
+    const commit = Promise.withResolvers<{ opponent_move: string; status: string }>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(grading.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(commit.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    const choose = screen.getByRole('combobox', { name: 'Add candidate move' });
+    for (const move of ['e2e4', 'd2d4', 'g1f3']) fireEvent.change(choose, { target: { value: move } });
+    expect(choose).toBeDisabled();
+    expect(screen.queryByRole('option', { name: 'e4' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+    expect(screen.getByText('Grading candidates… No move has been played.')).toBeInTheDocument();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: startingFen }));
+    await act(async () => grading.resolve({
+      fen: startingFen, generation: 11, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [
+        { move: 'e2e4', san: 'e4', band: 'sound', win_probability_loss: 0 },
+        { move: 'd2d4', san: 'd4', band: 'inaccuracy', win_probability_loss: 0.03 },
+        { move: 'g1f3', san: 'Nf3', band: 'mistake', win_probability_loss: 0.1 },
+      ],
+    }));
+    expect(ApiClient.gradePlayMoves).toHaveBeenCalledExactlyOnceWith('assisted-game', {
+      player_id: 'test-player', fen: startingFen, mode: 'candidates', moves: ['e2e4', 'd2d4', 'g1f3'],
+    });
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('Candidates');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole('button', { name: 'Play d4' }));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('assisted-game', {
+      move: 'd2d4', expected_generation: 11,
+    });
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: startingFen }));
+    const position = screen.getByTestId('chessground-board')
+      .closest('.coach-board')?.querySelector(':scope > p[role="status"][aria-atomic="true"]');
+    if (!position) throw new Error('Board move announcement is missing');
+    const announcements: string[] = [];
+    const observer = new MutationObserver(records => {
+      announcements.push(position.textContent ?? '');
+      for (const record of records) if (record.oldValue) announcements.push(record.oldValue);
+    });
+    observer.observe(position, {
+      subtree: true, childList: true, characterData: true, characterDataOldValue: true,
+    });
+    try {
+      await act(async () => commit.resolve({ opponent_move: 'd7d5', status: 'active' }));
+      await waitFor(() => expect(announcements.some(text => /\bd4\b/.test(text))).toBe(true));
+    } finally {
+      observer.disconnect();
+    }
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('d4');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('d5');
+    expect(screen.queryByRole('list', { name: 'Candidate grades' })).not.toBeInTheDocument();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it('holds a guarded blunder at the original board, preserves assistance on Cancel, and requires Play anyway', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    expect(screen.getByRole('alertdialog', { name: 'Blunder warning' })).toHaveTextContent('e4 is a blunder');
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: startingFen }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('blunder guard');
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Play anyway' }));
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('assisted-game', {
+      move: 'e2e4', expected_generation: 7,
+    });
+  });
+
+  it('commits a non-blunder guard verdict with its exact generation, without an optimistic board change', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const commit = Promise.withResolvers<{ opponent_move: string; status: string }>();
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, generation: 9,
+      grades: [{ move: 'e2e4', san: 'e4', band: 'mistake', win_probability_loss: 0.12 }],
+    });
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(commit.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('assisted-game', { move: 'e2e4', expected_generation: 9 });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: startingFen }));
+    await act(async () => commit.resolve({ opponent_move: 'e7e5', status: 'active' }));
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+  });
+
+  it.each([404, 409, 503])('never bypasses a rejected guard check (%s)', async status => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.gradePlayMoves).mockRejectedValue(new ApiRequestError('Check rejected', status));
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    expect(screen.getByRole('alert')).toHaveTextContent('No move was played');
+    expect(screen.getByRole('checkbox', { name: 'Blunder guard' })).toBeChecked();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+    if (status === 409) expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+  });
+
+  it('ignores a cancelled late guard verdict while a newer move is awaiting confirmation', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const older = Promise.withResolvers<PlayAssistanceRead>();
+    const newer = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel checking' }));
+    await act(async () => getRegisteredMoveHandler()('d2', 'd4'));
+    await act(async () => newer.resolve({
+      ...blunderVerdict, generation: 8,
+      grades: [{ move: 'd2d4', san: 'd4', band: 'blunder', win_probability_loss: 0.4 }],
+    }));
+    await act(async () => older.resolve({
+      ...blunderVerdict, grades: [{ move: 'e2e4', san: 'e4', band: 'sound', win_probability_loss: 0 }],
+    }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('d4 is a blunder');
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent('e4');
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+  });
+
+  it('rejects a guard response after ownership changes, rather than disclosing or playing it', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const grading = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(grading.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    localStorage.setItem('scan64_player_id', 'other-player');
+    await act(async () => grading.resolve(blunderVerdict));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('play-assistance-used')).not.toBeInTheDocument();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('game changed');
+  });
+
+  it('never queues a generation-bound confirmation when connectivity is lost during submission', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const commit = Promise.withResolvers<{ opponent_move: string; status: string }>();
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(commit.promise);
+    try {
+      render(<PlayScreen initialSession={assistanceSession} />);
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+      await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+      fireEvent.click(screen.getByRole('button', { name: 'Play anyway' }));
+      await act(async () => {
+        network.mockReturnValue(false);
+        window.dispatchEvent(new Event('offline'));
+        commit.reject(new TypeError('Connection lost'));
+      });
+      expect(queueMove).not.toHaveBeenCalled();
+      expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+      expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+    } finally { network.mockRestore(); }
+  });
+
+  it('restores permanent assistance provenance from the required session DTO on reload', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', assistanceSession.id);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, assistance_modes: ['candidates', 'guard'] });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
+    render(<PlayScreen />);
+    expect(await screen.findByTestId('play-assistance-used')).toHaveTextContent('Candidates, blunder guard');
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('permanently');
+    expect(ApiClient.gradePlayMoves).not.toHaveBeenCalled();
+  });
+  it('invalidates a rejected protected generation and requires canonical refresh instead of sending an ordinary move', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Position generation changed', 409));
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Play anyway' }));
+    await screen.findByTestId('retry-game-refresh');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('d2', 'd4'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('assisted-game', { move: 'e2e4', expected_generation: 7 });
+    expect(queueMove).not.toHaveBeenCalled();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+  });
+
+  it('does not revive old candidates after takeback and replay return to the identical FEN', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const oldGrades = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(oldGrades.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
+    vi.mocked(ApiClient.takebackPlaySession).mockResolvedValue(assistanceSession);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
+    render(<PlayScreen initialSession={assistanceSession} />);
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    const repeated = new Chess();
+    repeated.move('e4'); repeated.move('e5');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'g1f3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel checking' }));
+    fireEvent.click(screen.getByTestId('takeback-btn'));
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement());
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    await act(async () => oldGrades.resolve({
+      fen: repeated.fen(), generation: 1, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [{ move: 'g1f3', san: 'Nf3', band: 'sound', win_probability_loss: 0 }],
+    }));
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen: repeated.fen() }));
+    expect(screen.queryByRole('button', { name: 'Play Nf3' })).not.toBeInTheDocument();
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not commit or display a guard verdict after its screen is unmounted', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const pending = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(pending.promise);
+    const view = render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    view.unmount();
+    await act(async () => pending.resolve({
+      ...blunderVerdict, grades: [{ move: 'e2e4', san: 'e4', band: 'sound', win_probability_loss: 0 }],
+    }));
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an unscored guard verdict as permission to play', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, grades: [{ move: 'e2e4', san: 'e4', band: 'unscored', win_probability_loss: 0 }],
+    });
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('complete scored move grades');
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('blunder guard');
+  });
+  it('keeps a cancelled check undisclosed while showing assistance persisted before its response arrived', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const pending = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(pending.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel checking' }));
+    await act(async () => pending.resolve(blunderVerdict));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('blunder guard');
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+  });
+
+
+
   it('resumes the explicitly linked unfinished session instead of a different stored session', async () => {
     window.history.replaceState(null, '', '/play?session=blocked-session');
     localStorage.setItem('scan64_player_id', 'test-player');
     localStorage.setItem('scan64_active_play_session_id', 'different-session');
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
       id: 'blocked-session', player_id: 'test-player', game_id: 'blocked-game',
-      opponent_config: {}, status: 'active', coach_mode: false,
+      opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [],
     });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'blocked-game', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
@@ -380,7 +662,7 @@ describe('PlayScreen', () => {
     window.history.replaceState(null, '', '/play?session=stale&mode=study#board');
     localStorage.setItem('scan64_player_id', 'test-player');
     localStorage.setItem('scan64_active_play_session_id', 'stored-a');
-    const active: PlaySessionRead = { id: 'stored-a', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    const active: PlaySessionRead = { id: 'stored-a', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     if (reason === 'ended') vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce({ ...active, id: 'stale', status: 'completed' });
     else vi.mocked(ApiClient.getPlaySession).mockRejectedValueOnce(new ApiRequestError('Unavailable', Number(reason)));
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
@@ -399,7 +681,7 @@ describe('PlayScreen', () => {
     window.history.replaceState(null, '', '/play?session=missing&mode=study');
     localStorage.setItem('scan64_player_id', 'test-player');
     vi.mocked(ApiClient.getPlaySession).mockRejectedValueOnce(new ApiRequestError('Missing', 404));
-    const active: PlaySessionRead = { id: 'new-game', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    const active: PlaySessionRead = { id: 'new-game', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(active);
     const view = render(<PlayScreen />);
@@ -418,7 +700,7 @@ describe('PlayScreen', () => {
     window.history.replaceState(null, '', '/play?session=explicit-b&mode=study');
     localStorage.setItem('scan64_player_id', 'test-player');
     localStorage.setItem('scan64_active_play_session_id', 'stored-a');
-    const b: PlaySessionRead = { id: 'explicit-b', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false };
+    const b: PlaySessionRead = { id: 'explicit-b', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(b);
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...b, status: 'completed' });
     const view = render(<PlayScreen />);
@@ -488,7 +770,7 @@ describe('PlayScreen', () => {
   });
   it('resigns immediately and links to the completed game review', async () => {
     const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
-      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false };
+      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
     const onNavigate = vi.fn();
     render(<PlayScreen initialSession={session} onNavigate={onNavigate} />);
@@ -504,7 +786,7 @@ describe('PlayScreen', () => {
 
   it('resigns before the first move without creating or linking an empty game', async () => {
     const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
-      opponent_config: {}, status: 'active', coach_mode: false };
+      opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
     render(<PlayScreen initialSession={session} />);
     fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
@@ -516,7 +798,7 @@ describe('PlayScreen', () => {
 
   it('shows a terminal result immediately and fetches the lazily created game review id', async () => {
     const session: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
-      opponent_config: {}, status: 'active', coach_mode: false };
+      opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     const persistedSession = Promise.withResolvers<PlaySessionRead>();
     vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(persistedSession.promise);
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
@@ -538,7 +820,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
     render(<PlayScreen initialFen="7k/8/5KQ1/8/8/8/8/8 w - - 0 1"
       initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }} />);
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }} />);
     await act(async () => { await getRegisteredMoveHandler()('g6', destination); });
     expect(await screen.findByTestId('game-result')).toHaveTextContent(result);
     expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/game-123/analysis');
@@ -548,7 +830,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'a1b1', status: 'active' });
     render(<PlayScreen initialFen="8/P7/8/8/8/8/8/k6K w - - 0 1"
       initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }} />);
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }} />);
     await act(async () => { await getRegisteredMoveHandler()('a7', 'a8'); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Promote to rook' })); });
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('sess-123', { move: 'a7a8r' });
@@ -560,7 +842,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
     render(<PlayScreen initialFen="8/P7/8/8/8/8/8/k6K w - - 0 1"
       initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }} />);
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }} />);
     await act(async () => { await getRegisteredMoveHandler()('a7', 'a8'); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Promote to bishop' })); });
     expect(await screen.findByTestId('game-result')).toHaveTextContent('Draw.');
@@ -578,6 +860,7 @@ describe('PlayScreen', () => {
       player_id: 'test-player',
       status: 'active',
       coach_mode: false,
+      assistance_modes: [],
       opponent_config: {},
     });
 
@@ -618,7 +901,7 @@ describe('PlayScreen', () => {
     expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
 
     await act(async () => {
-      sessionRequest.resolve({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false });
+      sessionRequest.resolve({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     });
 
     await waitFor(() => {
@@ -629,7 +912,7 @@ describe('PlayScreen', () => {
   it('restores an active session at its persisted game position', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-    opponent_config: {}, status: 'active', coach_mode: false });
+    opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123',
       pgn: '1. e4 e5 *',
@@ -666,7 +949,7 @@ describe('PlayScreen', () => {
 
   it('locks moves and resign through queued acknowledgment, failed refresh and canonical retry', async () => {
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
-      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false };
+      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     const canonicalGame = { id: 'game-123', pgn: '1. e4 e5 *',
       white: 'test-player', black: 'Stockfish', result: '*' };
     const refresh = Promise.withResolvers<typeof canonicalGame>();
@@ -721,7 +1004,7 @@ describe('PlayScreen', () => {
 
   it('ignores an older synchronization finishing after a newer refresh and live move', async () => {
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
-      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false };
+      game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     const olderQueueRead = Promise.withResolvers<QueuedMove[]>();
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.mocked(ApiClient.makePlaySessionMove)
@@ -766,7 +1049,7 @@ describe('PlayScreen', () => {
       .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
       .mockResolvedValueOnce([]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-    opponent_config: {}, status: 'active', coach_mode: false });
+    opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     vi.mocked(ApiClient.getGame)
       .mockResolvedValueOnce({
         id: 'game-123',
@@ -806,7 +1089,7 @@ describe('PlayScreen', () => {
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1 },
     ]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-    opponent_config: {}, status: 'active', coach_mode: false });
+    opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123',
       pgn: '1. e4 e5 *',
@@ -832,7 +1115,7 @@ describe('PlayScreen', () => {
       .mockResolvedValueOnce([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }])
       .mockResolvedValueOnce([]);
     const resumedSession = { id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-    opponent_config: {}, status: 'active' as const, coach_mode: false };
+    opponent_config: {}, status: 'active' as const, coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.getPlaySession)
       .mockResolvedValueOnce(resumedSession)
       .mockRejectedValueOnce(new Error('temporary failure'))
@@ -879,7 +1162,7 @@ describe('PlayScreen', () => {
   it('clears an ordinary terminal saved session without loading its game or result', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'ordinary-ended-game',
-      opponent_config: {}, status: 'completed', coach_mode: false });
+      opponent_config: {}, status: 'completed', coach_mode: false, assistance_modes: [] });
 
     render(<PlayScreen />);
 
@@ -924,7 +1207,7 @@ describe('PlayScreen', () => {
   it('retains a saved session when its game lookup fails', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-    opponent_config: {}, status: 'active', coach_mode: false });
+    opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     vi.mocked(ApiClient.getGame).mockRejectedValue(
       new ApiRequestError('Not Found', 404),
     );
@@ -946,7 +1229,7 @@ describe('PlayScreen', () => {
     render(
       <PlayScreen
         initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }}
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }}
       />
     );
 
@@ -973,7 +1256,7 @@ describe('PlayScreen', () => {
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
       id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-      opponent_config: {}, status: 'active', coach_mode: true,
+      opponent_config: {}, status: 'active', coach_mode: true, assistance_modes: [],
     });
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
@@ -988,6 +1271,7 @@ describe('PlayScreen', () => {
           opponent_config: {},
           status: 'active',
           coach_mode: true,
+          assistance_modes: [],
         }}
       />,
     );
@@ -1062,6 +1346,7 @@ describe('PlayScreen', () => {
       opponent_config: {},
       status: 'active' as const,
       coach_mode: true,
+      assistance_modes: [],
     };
     vi.mocked(getQueuedMoves).mockResolvedValueOnce([queuedMove]).mockResolvedValueOnce([]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(resumedSession);
@@ -1131,6 +1416,7 @@ describe('PlayScreen', () => {
           opponent_config: {},
           status: 'active',
           coach_mode: true,
+          assistance_modes: [],
         }}
       />,
     );
@@ -1163,7 +1449,7 @@ describe('PlayScreen', () => {
       <PlayScreen
         initialFen="rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2"
         initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }}
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }}
       />,
     );
 
@@ -1194,7 +1480,7 @@ describe('PlayScreen', () => {
     render(
       <PlayScreen
         initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }}
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }}
       />,
     );
 
@@ -1232,7 +1518,7 @@ describe('PlayScreen', () => {
     render(
       <PlayScreen
         initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }}
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }}
       />,
     );
 
@@ -1271,6 +1557,7 @@ describe('PlayScreen', () => {
       status: 'active',
       opponent_config: {},
       coach_mode: true,
+      assistance_modes: [],
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
       opponent_move: null,
@@ -1332,6 +1619,7 @@ describe('PlayScreen', () => {
       player_id: 'test-player',
       status: 'active',
       coach_mode: true,
+      assistance_modes: [],
       opponent_config: {},
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
@@ -1361,6 +1649,7 @@ describe('PlayScreen', () => {
       player_id: 'test-player',
       status: 'active',
       coach_mode: false,
+      assistance_modes: [],
       opponent_config: {},
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
@@ -1394,7 +1683,7 @@ describe('PlayScreen', () => {
       <PlayScreen
         initialFen="rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
         initialSession={{ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
-        opponent_config: {}, status: 'active', coach_mode: false }}
+        opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }}
       />
     );
 
@@ -1419,7 +1708,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'black-start', player_id: 'test-player',
       opponent_config: { player_color: 'black' }, player_color: 'black', opponent_move: 'e2e4',
-      status: 'active', coach_mode: false });
+      status: 'active', coach_mode: false, assistance_modes: [] });
     render(<PlayScreen />);
     await screen.findByRole('option', { name: '8. Server expert' });
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
@@ -1440,7 +1729,7 @@ describe('PlayScreen', () => {
 
   it('offers random color without guessing the server chosen color', async () => {
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'random-start', player_id: 'test-player',
-      opponent_config: {}, player_color: 'black', opponent_move: 'd2d4', status: 'active', coach_mode: false });
+      opponent_config: {}, player_color: 'black', opponent_move: 'd2d4', status: 'active', coach_mode: false, assistance_modes: [] });
     render(<PlayScreen />);
     fireEvent.change(screen.getByTestId('player-id-input'), { target: { value: 'test-player' } });
     fireEvent.change(screen.getByTestId('player-color-select'), { target: { value: 'random' } });
@@ -1454,7 +1743,7 @@ describe('PlayScreen', () => {
   it('reloads persisted Black orientation and permits only human moves and resignation', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'reload-black');
     const session: PlaySessionRead = { id: 'reload-black', player_id: 'test-player', game_id: 'black-game',
-      opponent_config: { player_color: 'black' }, status: 'active', coach_mode: false };
+      opponent_config: { player_color: 'black' }, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(session);
     vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'black-game', pgn: '1. e4', white: 'bot', black: 'human', result: '*' });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'g1f3', status: 'active' });
@@ -1472,7 +1761,7 @@ describe('PlayScreen', () => {
 
   it('allows only Black premoves, not bot moves, while an explicit Black session awaits the bot', async () => {
     render(<PlayScreen initialSession={{ id: 'black-wait', player_id: 'test-player', opponent_config: {},
-      player_color: 'black', status: 'active', coach_mode: false }} />);
+      player_color: 'black', status: 'active', coach_mode: false, assistance_modes: [] }} />);
     expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
       movable: expect.objectContaining({ color: 'black', dests: undefined }), premovable: { enabled: true } }));
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
@@ -1482,7 +1771,7 @@ describe('PlayScreen', () => {
 
   it('takes back a pair and reloads the authoritative game', async () => {
     const session: PlaySessionRead = { id: 'undo', player_id: 'test-player', game_id: 'undo-game',
-      player_color: 'white', opponent_config: {}, status: 'active', coach_mode: false };
+      player_color: 'white', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
     vi.mocked(ApiClient.takebackPlaySession).mockResolvedValue(session);
     vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'undo-game', pgn: '', white: 'human', black: 'bot', result: '*' });
@@ -1499,7 +1788,7 @@ describe('PlayScreen', () => {
 
   it('refuses takeback when an offline move is queued, in both UI and handler', async () => {
     const session: PlaySessionRead = { id: 'queued-undo', player_id: 'test-player', game_id: 'queued-game',
-      opponent_config: {}, status: 'active', coach_mode: false };
+      opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
     render(<PlayScreen initialSession={session} />);
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
@@ -1519,14 +1808,14 @@ describe('PlayScreen', () => {
 
   it('does not offer takeback in coach mode', () => {
     render(<PlayScreen initialSession={{ id: 'coach-undo', player_id: 'test-player', opponent_config: {},
-      status: 'active', coach_mode: true }} />);
+      status: 'active', coach_mode: true, assistance_modes: [] }} />);
     expect(screen.queryByTestId('takeback-btn')).not.toBeInTheDocument();
   });
 
   it('disables takeback after a live offline move is queued', async () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValueOnce({ opponent_move: 'e7e5', status: 'active' });
     render(<PlayScreen initialSession={{ id: 'live-offline', player_id: 'test-player',
-      opponent_config: {}, status: 'active', coach_mode: false }} />);
+      opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] }} />);
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
     await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeEnabled());
     const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);

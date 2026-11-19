@@ -179,7 +179,7 @@ test('keyboard starts a game, receives opponent reply and opens/closes a hint', 
     await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/play-sessions', route => route.fulfill({ json: {
-    id: 'keyboard-play', player_id: 'player-1', opponent_config: {}, status: 'active',
+    id: 'keyboard-play', player_id: 'player-1', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [],
   } }));
   await page.route('**/v1/play-sessions/keyboard-play/moves', async route => {
     expect(route.request().postDataJSON().move).toBe('e2e4');

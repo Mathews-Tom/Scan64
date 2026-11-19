@@ -75,6 +75,24 @@ describe('CoachBoard', () => {
     expect(board.destroy).not.toHaveBeenCalled();
     expect(board.free).toBe(false);
   });
+  it('defers protected intents to the parent without showing an uncommitted move or remounting', async () => {
+    const fen = new Chess().fen();
+    const pending = Promise.withResolvers<void>();
+    const onMove = vi.fn(() => pending.promise);
+    const view = render(<CoachBoard fen={fen} deferMoveToParent onMove={onMove} />);
+    await move('e2', 'e4');
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('e2e4');
+    expect(board.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen, lastMove: [] }));
+    expect(screen.getByTestId('coach-board-san-move-list')).toBeEmptyDOMElement();
+    await act(async () => pending.resolve());
+    expect(board.set).toHaveBeenLastCalledWith(expect.objectContaining({ fen, lastMove: [] }));
+    const committed = new Chess();
+    committed.move('e4'); committed.move('e5');
+    view.rerender(<CoachBoard fen={committed.fen()} pgn={committed.pgn()} deferMoveToParent onMove={onMove} />);
+    expect(screen.getByTestId('coach-board-san-move-list')).toHaveTextContent('e5');
+    expect(board.destroy).not.toHaveBeenCalled();
+  });
+
 
   it('restores the legal position after an invalid move', async () => {
     const fen = new Chess().fen();

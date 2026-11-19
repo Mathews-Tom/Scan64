@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ from uuid import UUID, uuid4
 import chess
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 from starlette.requests import Request
 
@@ -99,18 +101,25 @@ def _seed_credit_records(session: Session, player_id: str) -> None:
                 reached_analysis_id=after.id,
                 proof=proof,
             ),
-            SessionHintReveal(
-                session_id=play.id,
-                player_id=player_id,
-                initial_fen=chess.STARTING_FEN,
-                moves=hint_moves,
-                prefix_hash=prefix_hash(chess.STARTING_FEN, hint_moves),
-                canonical_id=hint_board.epd(),
-                ply=3,
-                highest_step=3,
-            ),
             SkillState(player_id=player_id, concept_code=CHECK_SKILL, alpha=3.0, beta=2.0),
         ]
+    )
+    # Use the original columns: this fixture also seeds the revision-13 migration.
+    session.execute(
+        text(
+            "INSERT INTO sessionhintreveal "
+            "(session_id, player_id, initial_fen, moves, prefix_hash, "
+            "canonical_id, ply, highest_step) "
+            "VALUES (:session, :player, :fen, :moves, :prefix, :canonical, 3, 3)"
+        ),
+        {
+            "session": play.id.hex,
+            "player": player_id,
+            "fen": chess.STARTING_FEN,
+            "moves": json.dumps(hint_moves),
+            "prefix": prefix_hash(chess.STARTING_FEN, hint_moves),
+            "canonical": hint_board.epd(),
+        },
     )
     session.commit()
 

@@ -42,7 +42,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
     const session: PlaySessionRead = {
       id: 'test-session', status: 'active', player_id: request.player_id,
       game_id: request.game_id, opponent_config: request.opponent_config,
-      coach_mode: false, player_color: 'black', opponent_move: null, sparring: null,
+      coach_mode: false, player_color: 'black', opponent_move: null, sparring: null, assistance_modes: [],
     };
     await route.fulfill({ json: session });
   });

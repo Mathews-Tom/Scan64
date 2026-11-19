@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -264,7 +266,9 @@ class PlaySessionService:
         self.complete_session(play_session, game, "0-1" if conceded == chess.WHITE else "1-0")
         return play_session
 
-    async def make_move(self, session_id: UUID, player_move: str) -> PlayMoveResult:
+    async def make_move(
+        self, session_id: UUID, player_move: str, *, expected_generation: int | None = None
+    ) -> PlayMoveResult:
         """Process a player move and return its durable play outcome."""
         play_session = self.db.get(PlaySession, session_id)
         if not play_session:
@@ -274,10 +278,17 @@ class PlaySessionService:
             raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
 
         if not play_session.game_id:
+            snapshot = PlaySnapshot.capture(play_session, None)
+            if expected_generation is not None and expected_generation != int(
+                snapshot.config.get("assistance_generation", "0")
+            ):
+                raise StalePlaySnapshot("PlaySession changed; grade the current position again")
             try:
-                claim_snapshot(self.db, PlaySnapshot.capture(play_session, None))
+                claimed_config = claim_snapshot(self.db, snapshot)
             except StalePlaySnapshot as error:
                 raise PlaySessionNotActive(str(error)) from error
+            if expected_generation is not None:
+                expected_generation = int(claimed_config["assistance_generation"])
             white, black = participants(play_session.player_id, play_session.opponent_config)
             game = Game(
                 pgn="",
@@ -312,6 +323,10 @@ class PlaySessionService:
         before_board = board.copy()
         moves_before = list(fetched.moves)
         snapshot = PlaySnapshot.capture(play_session, fetched)
+        if expected_generation is not None and expected_generation != int(
+            snapshot.config.get("assistance_generation", "0")
+        ):
+            raise StalePlaySnapshot("PlaySession changed; grade the current position again")
 
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:

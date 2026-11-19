@@ -25,6 +25,8 @@ interface CoachBoardProps {
   disabled?: boolean;
   preview?: boolean;
   resetAfterAttempt?: boolean;
+  /** Protected Play intents: leave the position unchanged until the parent commits it. */
+  deferMoveToParent?: boolean;
   onMove?: (uci: string) => void | Promise<void>;
   selectedPly?: number;
   onSelectedPlyChange?: (ply: number) => void;
@@ -41,7 +43,7 @@ function position(fen: string, pgn?: string): Chess {
 }
 
 export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, preview = false,
-  resetAfterAttempt = false, onMove, selectedPly, onSelectedPlyChange, editableReplay = false, flippable = false, premoveColor, gameEnded = false,
+  resetAfterAttempt = false, deferMoveToParent = false, onMove, selectedPly, onSelectedPlyChange, editableReplay = false, flippable = false, premoveColor, gameEnded = false,
   testId = 'coach-board', visualizations = EMPTY_VISUALIZATIONS }: CoachBoardProps) {
   const [flipped, setFlipped] = useState(false);
   const viewOrientation = flipped ? orientation === 'white' ? 'black' : 'white' : orientation;
@@ -72,8 +74,8 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   const selectedFen = selectedPosition?.fen();
   const [initialPosition] = useState(() => position(fen, pgn));
   const chess = useRef(initialPosition);
-  const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, editableReplay, premoveColor });
-  latest.current = { fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, onMove, selectedPly, replay, editableReplay, premoveColor };
+  const latest = useRef({ fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, deferMoveToParent, onMove, selectedPly, replay, editableReplay, premoveColor });
+  latest.current = { fen, pgn, orientation: viewOrientation, disabled, preview, resetAfterAttempt, deferMoveToParent, onMove, selectedPly, replay, editableReplay, premoveColor };
   const moving = useRef(false);
   const promotion = useRef<{ from: Key; to: Key } | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Key; to: Key } | null>(null);
@@ -143,6 +145,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       draw();
       return;
     }
+    if (latest.current.deferMoveToParent) chess.current.undo();
     moving.current = true;
     setEntryError('');
     setAnnouncement('');
