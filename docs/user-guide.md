@@ -639,6 +639,14 @@ credit-cap change is made.
 
 A confirmed move allowing mate is never relabelled as a hanging piece, missed direct material threat or missed capture. If **Allowed checkmate** has not cleared its measured trust gate, that move remains scored but the trusted diagnosis pipeline abstains. If it is trusted and selected, its explanation shows the legally replayed engine mating line and its lesson starts before the mistake. Ignoring an avoidable existing mate threat qualifies; playing on when mate was already forced does not.
 
+### Convert the win
+
+Select a winning position in an owned game's review, choose a conversion bot level and select **Convert the win**. Eligibility uses that exact position's stored analysis: at least +300 centipawns from your colour's perspective or a winning mate score, with a legal principal-variation move. A good-moment highlight alone does not qualify. Terminal, unscored and foreign positions cannot start conversion practice. Your original game stays unchanged; the new game preserves the selected FEN, side to move and your owner colour.
+
+Completion displays the server-recorded win, draw or loss and the next review date. Only a win counts as successful conversion; draws and resignations reschedule an unsuccessful review. Retry the same source against the selected bot until converted. Each attempt records a fresh bot seed, although forced replies can remain identical. These custom-position games do not earn ordinary full-game strength credit.
+
+The review retains the latest result and review date after restart and can resume an unfinished attempt. Imported attempts are explicitly historical, never promoted into verified outcomes or replayed learning updates. Resetting progress clears conversion attempts and schedules while retaining the saved source games, reviews and play sessions; finishing a pre-reset session does not recreate deleted learning.
+
 ### Profile game insights
 
 Profile pools the same probability losses across your moves, rather than averaging

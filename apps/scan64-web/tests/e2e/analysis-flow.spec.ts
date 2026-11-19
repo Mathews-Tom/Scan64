@@ -4,6 +4,7 @@ import { prepareToday } from './today';
 import { makeGameReview } from '../../src/components/review.test-fixtures';
 import { Chess } from 'chess.js';
 import { readFile } from 'node:fs/promises';
+import type { GameRead, PlaySessionRead } from '../../src/api/types';
 
 test.beforeEach(async ({ page }) => {
   await prepareToday(page);
@@ -19,16 +20,31 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('analysis board accepts a real pointer move before starting a player-owned game', async ({ page }) => {
+  let createdGame: GameRead | null = null;
   await page.route('**/v1/players', async route => {
     const { id } = route.request().postDataJSON() as { id: string };
     await route.fulfill({ json: { id, preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/games', async route => {
-    expect(route.request().postDataJSON().owner_color).toBe('black');
-    await route.fulfill({ json: { id: 'test-game' } });
+    const request = route.request().postDataJSON() as { owner_color: string; pgn: string };
+    expect(request.owner_color).toBe('black');
+    createdGame = { id: 'test-game', pgn: request.pgn, white: 'White', black: 'Black', result: '*' };
+    await route.fulfill({ json: createdGame });
+  });
+  await page.route('**/v1/games/test-game', async route => {
+    if (!createdGame) throw new Error('Play requested the game before creating it');
+    await route.fulfill({ json: createdGame });
   });
   await page.route('**/v1/play-sessions', async route => {
-    await route.fulfill({ json: { id: 'test-session', status: 'active' } });
+    const request = route.request().postDataJSON() as {
+      player_id: string; game_id: string; opponent_config: Record<string, string>;
+    };
+    const session: PlaySessionRead = {
+      id: 'test-session', status: 'active', player_id: request.player_id,
+      game_id: request.game_id, opponent_config: request.opponent_config,
+      coach_mode: false, player_color: 'black', opponent_move: null, sparring: null,
+    };
+    await route.fulfill({ json: session });
   });
 
   await page.goto('/');

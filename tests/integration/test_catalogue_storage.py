@@ -174,8 +174,7 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
                 assert rating is not None and (rating.rating, rating.rated_count) == (1432, 12)
                 assert session.get(Player, "existing").preferences == {"preserved": True}
             print(
-                f"{phase}: revision 20261117_18; 12 puzzles, 24 theme rows; "
-                "Today and ratings preserved"
+                f"{phase}: migrated to head; 12 puzzles, 24 theme rows; Today and ratings preserved"
             )
             if phase == "upgrade":
                 command.downgrade(config, "20261113_17")
