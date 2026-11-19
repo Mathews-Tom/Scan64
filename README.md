@@ -97,18 +97,18 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
 
-**Download [Scan64 v0.7.0](https://github.com/Mathews-Tom/Scan64/releases/tag/v0.7.0)** for your OS below. These are published release installers, not temporary [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts.
+**Download [Scan64 v0.9.0](https://github.com/Mathews-Tom/Scan64/releases/tag/v0.9.0)** for your OS below. These are published release installers, not temporary [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts.
 
-**Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install v0.7.0 by hand. Its data is not migrated.
+**Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install the current desktop release by hand. Its data is not migrated.
 
 | Platform | Download | Install and open |
 | --- | --- | --- |
-| **macOS Apple silicon (arm64)** | [`.dmg`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_aarch64.dmg) | Open the disk image, drag **Scan64** into **Applications**, eject the image and launch Scan64 from Applications. |
-| **Windows x64** | [`-setup.exe`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_x64-setup.exe) | Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights. |
-| **Linux x64 — AppImage** | [`.AppImage`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_amd64.AppImage) | Run `chmod +x Scan64_0.7.0_amd64.AppImage`, then `./Scan64_0.7.0_amd64.AppImage` from your download folder. Requires FUSE support; otherwise use the Debian package. |
-| **Linux x64 — Debian/Ubuntu** | [`.deb`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/Scan64_0.7.0_amd64.deb) | From your download folder, run `sudo apt install ./Scan64_0.7.0_amd64.deb`, then launch Scan64 from the application menu. |
+| **macOS Apple silicon (arm64)** | [`.dmg`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_aarch64.dmg) | Open the disk image, drag **Scan64** into **Applications**, eject the image and launch Scan64 from Applications. |
+| **Windows x64** | [`-setup.exe`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_x64-setup.exe) | Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights. |
+| **Linux x64 — AppImage** | [`.AppImage`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_amd64.AppImage) | Run `chmod +x Scan64_0.9.0_amd64.AppImage`, then `./Scan64_0.9.0_amd64.AppImage` from your download folder. Requires FUSE support; otherwise use the Debian package. |
+| **Linux x64 — Debian/Ubuntu** | [`.deb`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_amd64.deb) | From your download folder, run `sudo apt install ./Scan64_0.9.0_amd64.deb`, then launch Scan64 from the application menu. |
 
-**All builds are unsigned.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. On Windows, SmartScreen may require **More info → Run anyway**. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
+**Installers lack platform code signing.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. Windows installers lack Authenticode signatures; SmartScreen may require **More info → Run anyway**. Update bundles carry separate authenticated updater signatures. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
 
 The desktop app includes signed in-app updates: **Settings → Updates** checks GitHub Releases, downloads in the background by default, and waits for **Restart to update**. It never restarts automatically. Linux `.deb` installs instead link to the release download. See the [updates guide](docs/user-guide.md#updates).
 

@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-19
+
+### Added
+
+- Profile accuracy breakdowns by game phase, playing colour and opening family, with scored/eligible move counts. Matched real-time PGN clocks show the share of owner moves with at most 30 seconds remaining; missing scores or clocks stay unavailable.
+- Review highlights up to three good moments, including in imported games. Selecting one shows the position after the move; these highlights do not award skill credit.
+- Profile compares trusted-pattern recurrence in imported online games before and after the first completed, server-verified mapped training attempt, including incorrect attempts. Each side requires three fully analysed games with at least 20 owner moves each; counts, coverage and 95% Wilson intervals are shown. Actual PGN play times determine the periods, and reset clears the training anchor without deleting games. This descriptive comparison is not proof that training caused improvement.
+- Knight forks enter trusted recurring patterns, lessons and related weak-skill puzzle selection after passing the preregistered precision/support gate. Measurement uses an engine-derived operational reference, not independent human-coach validation.
+
+### Changed
+
+- Batch analysis reuses saved engine evaluations only for the same owner, full position, engine build, effective options and exact search limits. Reused results create fresh occurrence records without changing source-game provenance or diagnosis budgets.
+- Pin, overloaded-defender, skewer, discovered-attack and back-rank diagnoses remain hidden because their fresh reports did not meet the unchanged promotion gate. The frozen skewer/discovery/back-rank report retains a documented automatic-75-move-draw continuation limitation; its correction requires a future separately preregistered revision, not rescoring or another sample in this release.
+
+### Fixed
+
+- Recorded diagnosis replay validates exact input bytes, source identities, legal moves and supported saved evidence, failing closed on changed or malformed artifacts while preserving historical reports.
+
 ## [0.9.0] - 2026-11-18
 
 ### Added

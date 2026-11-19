@@ -18,16 +18,16 @@ Scan64 is a local-first chess practice and learning application. It records game
 
 ## Start the application
 
-Follow the [root quickstart](../README.md#get-started) for source, Docker or the desktop app. From **v0.7.0** on, the desktop installers are attached to each release on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases/latest). Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. Scan64 0.6.1 and earlier shipped a different macOS app that opened a browser. It cannot update itself to 0.7.0: delete it, install 0.7.0 by hand, and optionally remove its data with `rm -rf ~/Library/Application\ Support/Scan64`.
+Follow the [root quickstart](../README.md#get-started) for source, Docker or the desktop app. From **v0.7.0** on, the desktop installers are attached to each release on [GitHub Releases](https://github.com/Mathews-Tom/Scan64/releases/latest). Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. Scan64 0.6.1 and earlier shipped a different macOS app that opened a browser. It cannot update itself to the unified desktop app: delete it, install the current desktop release by hand, and optionally remove its data with `rm -rf ~/Library/Application\ Support/Scan64`.
 
 ### Install on your OS
 
 - **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is unsigned/ad-hoc signed and not notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 - **Windows x64:** run the `-setup.exe` installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a trusted download, choose **More info → Run anyway**.
 - **Linux x64, AppImage:** make the downloaded file executable with `chmod +x /path/to/Scan64.AppImage`, then run `/path/to/Scan64.AppImage`, substituting the actual filename. AppImage needs FUSE support from your distribution. If that is unavailable, use the Debian package.
-- **Linux x64, Debian/Ubuntu:** install with `sudo apt install /path/to/scan64.deb`, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights. Linux builds are unsigned too.
+- **Linux x64, Debian/Ubuntu:** install with `sudo apt install /path/to/scan64.deb`, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights.
 
-Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed.
+Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed. Update bundles have authenticated updater signatures; these are separate from platform code signing.
 
 ### Desktop first run and data
 

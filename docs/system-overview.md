@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The application release prepared here is `0.9.0`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
+The application release prepared here is `0.10.0`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
 
 ## What works today
 
@@ -14,7 +14,7 @@ The application release prepared here is `0.9.0`. Its release record is [CHANGEL
 
 - Play Stockfish at eight relative bot levels, choose White, Black or Random, promote, resign, take back a move pair, and resume an active session after reload or navigation. Levels are not human Elo estimates.
 - Reveal a three-step hint ladder: a question and square, an idea and piece, then sound candidate moves. Tactical explanations use engine lines; positional principles describe local board facts.
-- Import a player-owned PGN with your playing colour and request analysis. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments and shared-budget lesson retries.
+- Import a player-owned PGN with your playing colour or public standard-chess games by Lichess/Chess.com username. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments, separate display-only good moments and shared-budget lesson retries.
 - Study opening-family missions and famous games through Library.
 
 ### Personalized training
@@ -27,6 +27,7 @@ The application release prepared here is `0.9.0`. Its release record is [CHANGEL
 - Import a Lichess CC0 puzzle catalog explicitly, then solve resumable multi-move puzzles. Stable daily sets, a separate puzzle rating, theme practice, an untimed solve streak and owned-mistake retries are implemented.
 - Inspect evidence-linked recurring diagnoses, set a next-day qualifying-solve goal, and track UTC calendar streaks and pattern practice targets. Lesson hints remain app-reported; these records do not establish independent solving or measured improvement.
 - Use Today for daily actions and evidence, onboarding for an overridable starting-level suggestion, and Profile for named skills, puzzle-rating history and separate bot-result cohorts.
+- Read Profile accuracy by phase, colour and opening, plus clock-pressure coverage where clocks exist. Compare trusted-pattern recurrence before and after first verified training in imported games, with game/move counts, intervals and explicit insufficient-data states; the comparison does not establish a training effect.
 
 ### Operational and privacy boundaries
 

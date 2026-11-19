@@ -1168,6 +1168,7 @@ describe('PlayScreen', () => {
     render(<PlayScreen />);
     fireEvent.click(screen.getByTestId('start-btn'));
     await screen.findByTestId('session-info');
+    await waitFor(() => expect(chessgroundMock.after).toBeDefined());
     await act(async () => {
       await getRegisteredMoveHandler()('e2', 'e4');
     });
