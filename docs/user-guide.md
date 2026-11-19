@@ -363,21 +363,7 @@ Ownership deletion is the exception: it removes that player's snapshots.
 Later review backfills do not rewrite a snapshot's original grading loss or create
 new historical credit.
 
-Habit evidence uses versioned policy **`habit-v1`** with a persisted effective
-timestamp (cutover). Results before cutover receive no retroactive credit. Player
-archives preserve policy/version/cutover, scheduled goals, daily source/trust
-snapshots, targets, practice/window references, invalidity reasons and awards. Each
-award keeps exactly five ordered game/analysis-job references with their server
-timestamps, plus any separate analysis barrier that released the award. Restore
-validates that saved evidence against the archive; it does not reconstruct a new
-window from today's game ordering. Missing or inconsistent award evidence is
-rejected. Restore rejects repeated game, position, engine-analysis, analysis-job,
-lesson-opportunity, lesson-attempt and evidence IDs before writing, even without
-positive-move credits. Restore uses the archived cutover, not the destination's
-migration time, and never replays rewards or recalculates Elo. Keep both a player
-archive and a stopped-server
-database copy before migration or rollback; retain legitimate learning and rating
-history rather than trying to subtract habit rewards.
+Habit evidence uses versioned policy **`habit-v1`** with a persisted effective timestamp (cutover). Results before cutover receive no retroactive credit. Player archives preserve policy/version/cutover, scheduled goals, daily source/trust snapshots, targets, practice/window references, invalidity reasons and awards. Each award keeps exactly five ordered game/analysis-job references with their server timestamps, plus any separate analysis barrier that released the award. Restore validates that saved evidence against the archive; it does not reconstruct a new window from today's game ordering. Lesson and pattern evidence may describe the position reached after the played move; restore checks its exact connection to the owned source move and stored analyses without rewriting the evidence or replaying rewards. Missing or inconsistent award evidence is rejected. Restore rejects repeated game, position, engine-analysis, analysis-job, lesson-opportunity, lesson-attempt and evidence IDs before writing, even without positive-move credits. Restore uses the archived cutover, not the destination's migration time, and never replays rewards or recalculates Elo. Keep both a player archive and a stopped-server database copy before migration or rollback; retain legitimate learning and rating history rather than trying to subtract habit rewards.
 
 ### Track a pattern without claiming a cure
 
