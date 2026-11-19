@@ -1,16 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UpdateStatus } from './platform';
 
 // Reload the adapter after installing each native/browser module boundary mock.
 
 const invoke = vi.fn();
+const listen = vi.fn();
+const unlisten = vi.fn();
 let desktop = true;
 beforeEach(() => {
   vi.resetModules();
   desktop = true;
   invoke.mockReset().mockResolvedValue(undefined);
+  unlisten.mockReset();
+  listen.mockReset().mockResolvedValue(unlisten);
   vi.doMock('@tauri-apps/api/core', () => ({ invoke, isTauri: () => desktop }));
+  vi.doMock('@tauri-apps/api/event', () => ({ listen }));
 });
-afterEach(() => { vi.doUnmock('@tauri-apps/api/core'); });
+afterEach(() => { vi.doUnmock('@tauri-apps/api/core'); vi.doUnmock('@tauri-apps/api/event'); });
 
 describe('update platform adapter', () => {
   it('passes the shell status through without inventing client state', async () => {
@@ -22,11 +28,13 @@ describe('update platform adapter', () => {
   });
   it('uses only the shared native commands, including both automatic preferences', async () => {
     const platform = await import('./platform');
-    await platform.checkUpdates();
-    await platform.downloadUpdate();
-    await platform.restartToUpdate();
-    await platform.setAutomaticUpdates(false);
-    await platform.setAutomaticUpdates(true);
+    const status = { ...platform.browserUpdateStatus, revision: 7 };
+    invoke.mockResolvedValue(status);
+    expect(await platform.checkUpdates()).toBe(status);
+    expect(await platform.downloadUpdate()).toBe(status);
+    expect(await platform.restartToUpdate()).toBe(status);
+    expect(await platform.setAutomaticUpdates(false)).toBe(status);
+    expect(await platform.setAutomaticUpdates(true)).toBe(status);
     expect(invoke.mock.calls).toEqual([
       ['check_updates'], ['download_update'], ['restart_to_update'],
       ['set_automatic_updates', { enabled: false }], ['set_automatic_updates', { enabled: true }],
@@ -54,11 +62,124 @@ describe('update platform adapter', () => {
     const platform = await import('./platform');
     expect(await platform.updateStatus()).toEqual(platform.browserUpdateStatus);
     expect(platform.browserUpdateStatus.state).toBe('unavailable');
-    await platform.checkUpdates();
-    await platform.downloadUpdate();
-    await platform.restartToUpdate();
-    await platform.setAutomaticUpdates(true);
+    expect(await platform.checkUpdates()).toBe(platform.browserUpdateStatus);
+    expect(await platform.downloadUpdate()).toBe(platform.browserUpdateStatus);
+    expect(await platform.restartToUpdate()).toBe(platform.browserUpdateStatus);
+    expect(await platform.setAutomaticUpdates(true)).toBe(platform.browserUpdateStatus);
     await platform.openReleaseUrl(platform.browserUpdateStatus.releaseNotesUrl);
     expect(invoke).not.toHaveBeenCalled();
+    expect(listen).not.toHaveBeenCalled();
+  });
+  it('installs the native listener before the snapshot and rejects late or duplicate revisions', async () => {
+    const platform = await import('./platform');
+    const snapshot = Promise.withResolvers<UpdateStatus>();
+    invoke.mockReturnValue(snapshot.promise);
+    const onStatus = vi.fn();
+    const abort = new AbortController();
+    const subscription = platform.subscribeUpdateStatus(onStatus, abort.signal);
+    expect(listen).toHaveBeenCalledWith('scan64-update-status', expect.any(Function));
+    expect(invoke).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('update_status');
+    const event = (revision: number) => listen.mock.calls[0][1]({ payload: { ...platform.browserUpdateStatus, revision } });
+    event(3);
+    snapshot.resolve({ ...platform.browserUpdateStatus, revision: 1 });
+    const dispose = await subscription;
+    event(2);
+    event(3);
+    event(4);
+    expect(onStatus.mock.calls.map(([status]) => status.revision)).toEqual([3, 4]);
+    dispose();
+    dispose();
+    abort.abort();
+    event(5);
+    expect(unlisten).toHaveBeenCalledOnce();
+    expect(onStatus).toHaveBeenCalledTimes(2);
+  });
+  it('delivers the current terminal snapshot and later failure events without polling', async () => {
+    const platform = await import('./platform');
+    const status = { ...platform.browserUpdateStatus, revision: 1, state: 'upToDate' as const };
+    invoke.mockResolvedValue(status);
+    const onStatus = vi.fn();
+    const dispose = await platform.subscribeUpdateStatus(onStatus, new AbortController().signal);
+    expect(onStatus).toHaveBeenCalledExactlyOnceWith(status);
+    const failed = { ...status, revision: 2, state: 'failed' as const, reason: 'Connection failed' };
+    listen.mock.calls[0][1]({ payload: failed });
+    expect(onStatus).toHaveBeenLastCalledWith(failed);
+    expect(invoke).toHaveBeenCalledOnce();
+    dispose();
+  });
+  it('does nothing when aborted before subscription', async () => {
+    const platform = await import('./platform');
+    const abort = new AbortController();
+    abort.abort();
+    const onStatus = vi.fn();
+    const dispose = await platform.subscribeUpdateStatus(onStatus, abort.signal);
+    dispose();
+    expect(listen).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(onStatus).not.toHaveBeenCalled();
+  });
+  it('unlistens exactly once when aborted before listener installation resolves', async () => {
+    const platform = await import('./platform');
+    const installed = Promise.withResolvers<() => void>();
+    listen.mockReturnValue(installed.promise);
+    const abort = new AbortController();
+    const onStatus = vi.fn();
+    const subscription = platform.subscribeUpdateStatus(onStatus, abort.signal);
+    abort.abort();
+    listen.mock.calls[0][1]({ payload: { ...platform.browserUpdateStatus, revision: 1 } });
+    installed.resolve(unlisten);
+    const dispose = await subscription;
+    dispose();
+    expect(unlisten).toHaveBeenCalledOnce();
+    expect(onStatus).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it('disposes immediately during a pending snapshot and suppresses its completion', async () => {
+    const platform = await import('./platform');
+    const snapshot = Promise.withResolvers<UpdateStatus>();
+    invoke.mockReturnValue(snapshot.promise);
+    const abort = new AbortController();
+    const remove = vi.spyOn(abort.signal, 'removeEventListener');
+    const onStatus = vi.fn();
+    const subscription = platform.subscribeUpdateStatus(onStatus, abort.signal);
+    await Promise.resolve();
+    abort.abort();
+    expect(unlisten).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+    snapshot.resolve(platform.browserUpdateStatus);
+    (await subscription)();
+    expect(onStatus).not.toHaveBeenCalled();
+    expect(unlisten).toHaveBeenCalledOnce();
+  });
+  it.each(['listen', 'snapshot'])('surfaces %s startup failures and cleans installed resources', async (stage) => {
+    const platform = await import('./platform');
+    const abort = new AbortController();
+    const remove = vi.spyOn(abort.signal, 'removeEventListener');
+    if (stage === 'listen') listen.mockRejectedValueOnce(new Error('Listener unavailable'));
+    else invoke.mockRejectedValueOnce(new Error('Snapshot unavailable'));
+    await expect(platform.subscribeUpdateStatus(vi.fn(), abort.signal)).rejects.toThrow('unavailable');
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(unlisten).toHaveBeenCalledTimes(stage === 'listen' ? 0 : 1);
+    abort.abort();
+    expect(unlisten).toHaveBeenCalledTimes(stage === 'listen' ? 0 : 1);
+  });
+  it('delivers browser unavailability once without touching native APIs', async () => {
+    desktop = false;
+    const platform = await import('./platform');
+    const onStatus = vi.fn();
+    const abort = new AbortController();
+    const dispose = await platform.subscribeUpdateStatus(onStatus, abort.signal);
+    expect(platform.browserUpdateStatus.revision).toBe(0);
+    expect(onStatus).toHaveBeenCalledExactlyOnceWith(platform.browserUpdateStatus);
+    dispose();
+    abort.abort();
+    const cancelled = new AbortController();
+    cancelled.abort();
+    await platform.subscribeUpdateStatus(onStatus, cancelled.signal);
+    expect(onStatus).toHaveBeenCalledOnce();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(listen).not.toHaveBeenCalled();
   });
 });

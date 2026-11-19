@@ -14,7 +14,6 @@ vi.mock('./platform', async importOriginal => ({
 
 vi.mock('./components/TodayScreen', () => ({ TodayScreen: () => <h1>Today</h1> }));
 vi.mock('./components/SettingsScreen', () => ({
-  initializeAppearance: () => undefined,
   SettingsScreen: () => <section><h1>Settings</h1><section id="puzzle-library" tabIndex={-1}>Puzzle library</section></section>,
 }));
 vi.mock('./components/PuzzleImport', async importOriginal => ({
@@ -107,13 +106,15 @@ describe('Sidebar', () => {
     expect(document.documentElement.style.overflow).not.toBe('hidden');
   });
 
-  it.each(['Library', 'Today'])('dismisses on %s selection and focuses the page, including the current page', name => {
+  it.each(['Library', 'Today'])('dismisses on %s selection and focuses the page, including the current page', async name => {
     resize(960);
     render(<App />);
+    await screen.findByRole('heading', { name: 'Today' });
     const main = screen.getByRole('main');
     fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name }));
     expect(window.location.pathname).toBe(name === 'Library' ? '/library' : '/');
+    expect(await screen.findByRole('heading', { name })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(main).toHaveFocus();
   });
@@ -137,23 +138,24 @@ describe('Sidebar', () => {
     expect(main).not.toHaveAttribute('inert');
   });
 
-  it('opens the existing Settings import panel without reloading the document', () => {
+  it('opens the existing Settings import panel without reloading the document', async () => {
     resize(960);
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open import activity' }));
     expect(window.location.pathname).toBe('/settings');
+    await screen.findByRole('heading', { name: 'Settings' });
     expect(document.getElementById('puzzle-library')).toHaveFocus();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-  it('keeps native navigation expandable on the left at phone-sized effective widths', () => {
+  it('keeps native navigation expandable on the left at phone-sized effective widths', async () => {
     vi.mocked(isDesktop).mockReturnValue(true);
     resize(390);
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     expect(screen.getByRole('dialog', { name: 'Navigation menu' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveFocus();
   });
 });

@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { createActivePlayer } from './api/client';
 
 interface DesktopConnection {
@@ -116,6 +117,7 @@ export async function choosePuzzleFile(): Promise<string | null> {
 }
 
 export interface UpdateStatus {
+  revision: number;
   state: 'idle' | 'checking' | 'upToDate' | 'available' | 'downloading' | 'ready' | 'installing' | 'failed' | 'unavailable';
   installedVersion: string;
   availableVersion: string | null;
@@ -128,7 +130,7 @@ export interface UpdateStatus {
 }
 
 export const browserUpdateStatus: UpdateStatus = {
-  state: 'unavailable', installedVersion: 'Browser version', availableVersion: null,
+  revision: 0, state: 'unavailable', installedVersion: 'Browser version', availableVersion: null,
   percent: null, lastChecked: null, automatic: false,
   reason: 'In-app updates are available in the Scan64 desktop app. Your browser uses the version served by your Scan64 server.',
   downloadUrl: 'https://github.com/Mathews-Tom/Scan64/releases/latest',
@@ -139,20 +141,62 @@ export async function updateStatus(): Promise<UpdateStatus> {
   return isDesktop() ? invoke<UpdateStatus>('update_status') : browserUpdateStatus;
 }
 
-export async function checkUpdates(): Promise<void> {
-  if (isDesktop()) await invoke('check_updates');
+/** Listen before reading the snapshot so updates during bootstrap cannot be lost. */
+export async function subscribeUpdateStatus(onStatus: (status: UpdateStatus) => void, signal: AbortSignal): Promise<() => void> {
+  let disposed = false;
+  let unlisten: UnlistenFn | undefined;
+  let revision = -1;
+  function cleanup() {
+    if (disposed) return;
+    disposed = true;
+    signal.removeEventListener('abort', cleanup);
+    const stop = unlisten;
+    unlisten = undefined;
+    stop?.();
+  }
+  function receive(status: UpdateStatus) {
+    if (disposed || status.revision <= revision) return;
+    revision = status.revision;
+    onStatus(status);
+  }
+  if (signal.aborted) {
+    cleanup();
+    return cleanup;
+  }
+  signal.addEventListener('abort', cleanup, { once: true });
+  try {
+    if (!isDesktop()) {
+      receive(browserUpdateStatus);
+      return cleanup;
+    }
+    const stop = await listen<UpdateStatus>('scan64-update-status', (event) => receive(event.payload));
+    if (disposed) {
+      stop();
+      return cleanup;
+    }
+    unlisten = stop;
+    receive(await updateStatus());
+    return cleanup;
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 }
 
-export async function downloadUpdate(): Promise<void> {
-  if (isDesktop()) await invoke('download_update');
+export async function checkUpdates(): Promise<UpdateStatus> {
+  return isDesktop() ? invoke<UpdateStatus>('check_updates') : browserUpdateStatus;
 }
 
-export async function restartToUpdate(): Promise<void> {
-  if (isDesktop()) await invoke('restart_to_update');
+export async function downloadUpdate(): Promise<UpdateStatus> {
+  return isDesktop() ? invoke<UpdateStatus>('download_update') : browserUpdateStatus;
 }
 
-export async function setAutomaticUpdates(enabled: boolean): Promise<void> {
-  if (isDesktop()) await invoke('set_automatic_updates', { enabled });
+export async function restartToUpdate(): Promise<UpdateStatus> {
+  return isDesktop() ? invoke<UpdateStatus>('restart_to_update') : browserUpdateStatus;
+}
+
+export async function setAutomaticUpdates(enabled: boolean): Promise<UpdateStatus> {
+  return isDesktop() ? invoke<UpdateStatus>('set_automatic_updates', { enabled }) : browserUpdateStatus;
 }
 
 /** Desktop links are opened by the shell; browser anchors retain their normal navigation. */

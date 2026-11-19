@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const bootstrapScripts = new Set<string>()
+
 // https://vite.dev/config/
 export default defineConfig({
   build: {
@@ -19,10 +21,36 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    {
+      name: 'precache-bootstrap-scripts',
+      generateBundle(_options, bundle) {
+        bootstrapScripts.clear()
+        const visit = (fileName: string) => {
+          if (bootstrapScripts.has(fileName)) return
+          const chunk = bundle[fileName]
+          if (chunk?.type !== 'chunk') return
+          bootstrapScripts.add(fileName)
+          chunk.imports.forEach(visit)
+        }
+        for (const chunk of Object.values(bundle)) {
+          if (chunk.type === 'chunk' && (chunk.isEntry || chunk.name.startsWith('workbox-window'))) visit(chunk.fileName)
+        }
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,txt,md}'],
+        // Cache route scripts when visited, not eagerly during worker installation.
+        manifestTransforms: [async entries => ({
+          manifest: entries.filter(entry => !entry.url.endsWith('.js') || !entry.url.startsWith('assets/') || bootstrapScripts.has(entry.url)),
+          warnings: [],
+        })],
+        runtimeCaching: [{
+          urlPattern: ({ request, sameOrigin }) => sameOrigin && request.destination === 'script',
+          handler: 'CacheFirst',
+          options: { cacheName: 'scan64-route-scripts', expiration: { maxEntries: 64 } },
+        }],
         navigateFallbackDenylist: [/^\/(?:v1|health|docs|openapi\.json|redoc)(?:[/?#]|$)/],
       },
       includeAssets: ['favicon.svg', 'logo.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png', 'apple-touch-icon.png', 'licenses.html'],
