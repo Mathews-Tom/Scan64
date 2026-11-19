@@ -66,6 +66,7 @@ from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
 )
+from scan64.learning.sparring import SparringAttempt
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 
 PLAYER_LIFECYCLE_TABLES = frozenset(
@@ -78,6 +79,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         PlaySession.__tablename__,
         SessionHintReveal.__tablename__,
         PositiveMoveCredit.__tablename__,
+        SparringAttempt.__tablename__,
         Position.__tablename__,
         EngineAnalysis.__tablename__,
         GameMoveReview.__tablename__,
@@ -127,6 +129,7 @@ ARCHIVE_FIELDS = {
     PlaySession.__tablename__: "play_sessions",
     SessionHintReveal.__tablename__: "session_hint_reveals",
     PositiveMoveCredit.__tablename__: "positive_move_credits",
+    SparringAttempt.__tablename__: "sparring_attempts",
     Game.__tablename__: "games",
     Position.__tablename__: "positions",
     EngineAnalysis.__tablename__: "engine_analyses",
@@ -532,6 +535,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "play_sessions": 1,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
+        "sparring_attempts": 0,
         "games": 1,
         "games_disowned": 0,
         "positions": 2,
@@ -590,6 +594,9 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         ).all(),
         "positive_move_credits": db_session.exec(
             select(PositiveMoveCredit).where(PositiveMoveCredit.player_id == player_id)
+        ).all(),
+        "sparring_attempts": db_session.exec(
+            select(SparringAttempt).where(SparringAttempt.player_id == player_id)
         ).all(),
         "position": db_session.exec(
             select(Position).where(Position.game_id == records["game_id"])

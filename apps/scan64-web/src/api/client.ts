@@ -477,7 +477,9 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error(`Failed to create play session: ${response.statusText}`);
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+      throw new ApiRequestError(typeof detail === 'string' ? detail : `Failed to create play session: ${response.statusText}`, response.status);
     }
     const json = await response.json();
     return json as unknown as PlaySessionRead;

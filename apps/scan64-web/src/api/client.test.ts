@@ -297,6 +297,29 @@ describe('ApiClient', () => {
     expect(res.id).toBe('sess-1');
   });
 
+  it('posts an owned conversion source without client FEN, colour or original game attachment', async () => {
+    localStorage.setItem('scan64_player_token:owner', 'owner-token');
+    const request = { player_id: 'owner', opponent_config: { provider: 'stockfish', bot_level: '8' },
+      sparring_source: { game_id: 'original-game', ply: 12 } };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'conversion-1', sparring: { seed: 'server-seed' } }) });
+    const session = await ApiClient.createPlaySession(request);
+    expect(mockFetch).toHaveBeenCalledWith('/v1/play-sessions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner-token' },
+      body: JSON.stringify(request),
+    });
+    expect(session.sparring?.seed).toBe('server-seed');
+  });
+
+  it('preserves conversion eligibility errors and their HTTP status', async () => {
+    localStorage.setItem('scan64_player_token:owner', 'owner-token');
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 422, statusText: 'Unprocessable Entity',
+      json: async () => ({ detail: 'This owned position is not eligible for conversion practice.' }) });
+    const request = ApiClient.createPlaySession({ player_id: 'owner',
+      opponent_config: { provider: 'stockfish', bot_level: '1' }, sparring_source: { game_id: 'original-game', ply: 12 } });
+    await expect(request).rejects.toBeInstanceOf(ApiRequestError);
+    await expect(request).rejects.toMatchObject({ status: 422, message: 'This owned position is not eligible for conversion practice.' });
+  });
+
   it('getPlaySession calls GET /v1/play-sessions/{id}', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');

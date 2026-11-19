@@ -9,7 +9,7 @@ import {
 } from '../api/offlineQueue';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiClient, ApiRequestError, getStoredPlayerId, setActivePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { BotRead, CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
@@ -36,14 +36,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [playerId, setPlayerId] = useState(() => getStoredPlayerId() ?? '');
   const [coachMode, setCoachMode] = useState(false);
   const [bots, setBots] = useState<BotRead[]>([]);
-  const [botLevel, setBotLevel] = useState(DEFAULT_BOT_LEVEL);
+  const [botLevel, setBotLevel] = useState(initialSession?.opponent_config.bot_level ?? DEFAULT_BOT_LEVEL);
   const [botChoiceReady, setBotChoiceReady] = useState(() => !getStoredPlayerId());
   const [botChoicePending, setBotChoicePending] = useState(false);
   const [botChoiceError, setBotChoiceError] = useState<string | null>(null);
   const [botChoiceRequest, setBotChoiceRequest] = useState(0);
   const botChoiceBusy = useRef(false);
   useEffect(() => {
-    if (!playerId || initialSession) return;
+    if (!playerId || initialSession || sessionRef.current?.sparring) return;
     let cancelled = false;
     setBotChoiceReady(false); setBotChoiceError(null);
     void ApiClient.getPlayerOnboarding(playerId).then(result => {
@@ -54,7 +54,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       if (!cancelled) setBotChoiceError(cause instanceof Error ? cause.message : 'Could not load bot choice.');
     });
     return () => { cancelled = true; };
-  }, [playerId, initialSession, botChoiceRequest]);
+  }, [playerId, initialSession, botChoiceRequest, session?.sparring]);
 
   const chooseBotLevel = async (value: string) => {
     if (botChoiceBusy.current) return;
@@ -83,6 +83,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [conversionRefreshing, setConversionRefreshing] = useState(false);
+  const [conversionRefreshFailed, setConversionRefreshFailed] = useState(false);
+  const [conversionRetrying, setConversionRetrying] = useState(false);
+  const conversionRetryPending = useRef(false);
   const [refreshSessionId, setRefreshSessionId] = useState<string | null>(null);
   const [requestedSessionId, setRequestedSessionId] = useState(() => new URLSearchParams(window.location.search).get('session'));
   const preservedSessionId = useRef(
@@ -111,7 +115,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     previousInterruption.current = criticalInterruption;
   }, [currentSessionId, criticalInterruption]);
   const [initialChess] = useState(() => {
-    const chess = new Chess(initialFen);
+    const chess = new Chess(initialSession?.sparring?.source_fen ?? initialFen);
     if (initialSession?.opponent_move) {
       const move = initialSession.opponent_move;
       chess.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
@@ -141,6 +145,66 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setBoardPosition({ fen: chessRef.current.fen(), pgn: chessRef.current.pgn() });
   }, []);
 
+  const refreshConversionResult = useCallback(async (sessionId: string) => {
+    setConversionRefreshing(true);
+    setConversionRefreshFailed(false);
+    try {
+      const fresh = await ApiClient.getPlaySession(sessionId);
+      if (sessionRef.current?.id !== sessionId) return;
+      sessionRef.current = fresh;
+      setSession(fresh);
+      setError(null);
+    } catch (caught) {
+      if (sessionRef.current?.id !== sessionId) return;
+      setConversionRefreshFailed(true);
+      setError(caught instanceof Error ? caught.message : 'Could not load conversion result.');
+    } finally {
+      if (sessionRef.current?.id === sessionId) setConversionRefreshing(false);
+    }
+  }, []);
+  const isConversion = Boolean(session?.sparring);
+  useEffect(() => {
+    if (isConversion && currentSessionId && currentSessionStatus !== 'active') {
+      void refreshConversionResult(currentSessionId);
+    }
+  }, [isConversion, currentSessionId, currentSessionStatus, refreshConversionResult]);
+
+  const retryConversion = async () => {
+    const previous = sessionRef.current;
+    if (!previous?.sparring || previous.status === 'active' || conversionRetryPending.current ||
+      conversionRefreshing || conversionRefreshFailed) return;
+    conversionRetryPending.current = true;
+    setConversionRetrying(true);
+    setError(null);
+    try {
+      const pid = await ensurePlayerAuthorization(previous.player_id);
+      const fresh = await ApiClient.createPlaySession({
+        player_id: pid,
+        opponent_config: { provider: 'stockfish', bot_level: botLevel },
+        sparring_source: { game_id: previous.sparring.source_game_id, ply: previous.sparring.source_ply },
+      });
+      if (!fresh.sparring) throw new Error('Conversion practice metadata is unavailable.');
+      const chess = new Chess(fresh.sparring.source_fen);
+      if (fresh.opponent_move) chess.move(fresh.opponent_move);
+      chessRef.current = chess;
+      sessionRef.current = fresh;
+      setSession(fresh);
+      setActivePlayerId(fresh.player_id);
+      setPlayerId(fresh.player_id);
+      setResigned(false);
+      setHintPreview(null);
+      setRefreshSessionId(null);
+      setSyncRetrySessionId(null);
+      criticalInterruptionRef.current = null;
+      setCriticalInterruption(null);
+      updateBoard();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not retry conversion practice.');
+    } finally {
+      conversionRetryPending.current = false;
+      setConversionRetrying(false);
+    }
+  };
 
 
   const startGame = async () => {
@@ -210,7 +274,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       const updatedSession = { ...currentSession, status: response.status };
       sessionRef.current = updatedSession;
       setSession(updatedSession);
-      if (response.status !== 'active' && !updatedSession.game_id) {
+      if (response.status !== 'active' && !updatedSession.game_id && !updatedSession.sparring) {
         void (async () => {
           try {
             const persistedSession = await ApiClient.getPlaySession(updatedSession.id);
@@ -286,6 +350,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       }
     })();
   }, [updateBoard]);
+
+  useEffect(() => {
+    // A resumed conversion may already contain moves beyond its source FEN.
+    // Reconstruct from the persisted custom game, never from the original review.
+    if (initialSession?.sparring && initialSession.status === 'active') {
+      refreshQueuedSession(initialSession.id);
+    }
+  }, [initialSession, refreshQueuedSession]);
 
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
     if (sessionRef.current?.id !== sessionId) return;
@@ -472,6 +544,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         }
         setSession(resumedSession);
         setActivePlayerId(resumedSession.player_id);
+        if (resumedSession.sparring) {
+          setPlayerId(resumedSession.player_id);
+          setBotLevel(resumedSession.opponent_config.bot_level ?? DEFAULT_BOT_LEVEL);
+        }
         updateBoard();
         setError(
           queuedMoveError ??
@@ -585,7 +661,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   return (
     <div className="play-screen working-screen" data-testid="play-screen">
-      <h1 ref={heading} tabIndex={-1}>Play against Scan64</h1>
+      <h1 ref={heading} tabIndex={-1}>{session?.sparring ? 'Convert the win — conversion practice' : 'Play against Scan64'}</h1>
       <div className="visually-hidden" role="status" aria-label="Game position">{sessionAnnouncement}</div>
       {resuming ? <div role="status" data-testid="resuming-game">Resuming game...</div> : null}
       <div className={session ? 'board-workspace' : 'play-setup'}>
@@ -680,6 +756,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       {session && <Panel title="Current game">
         <p>You play {sessionPlayerColor(session) ?? 'your chosen side'} against Scan64.</p>
         <p data-testid="session-info">Status: {session.status}</p>
+        {session.sparring && <p>Source game {session.sparring.source_game_id}, ply {session.sparring.source_ply}.
+          {' '}Your original side is preserved. Custom starts do not earn ordinary strength credit.</p>}
+        {session.sparring && <p>Stored analysis {session.sparring.source_analysis_id}
+          {' · '}Practice session {session.id} · seed {session.sparring.seed}</p>}
       </Panel>}
       {session?.status === 'active' && <HintPanel playerId={playerId} sessionId={session.id}
         fen={boardPosition.fen} onPreview={setHintPreview}
@@ -698,7 +778,28 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         {takingBack ? 'Taking back…' : 'Take back'}
       </button>}
       {session && session.status !== 'active' && <div role={resigned ? 'status' : undefined} data-testid="game-result">
-        {resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
+        {session.sparring ? <section aria-label="Conversion result">
+          {conversionRefreshing && <p role="status">Loading recorded conversion result…</p>}
+          {conversionRefreshFailed && <button type="button" onClick={() => void refreshConversionResult(session.id)}>Retry conversion result</button>}
+          {!conversionRefreshing && !conversionRefreshFailed && <>
+            <p>{session.sparring.verification_status === 'historical' ? 'Historical result (not verified)' : 'Verified conversion practice'}
+              {' · '}{session.sparring.outcome ?? 'Result not recorded'}{session.sparring.result ? ` · ${session.sparring.result}` : ''}</p>
+            {session.sparring.completed_at && <p>Completed: <time dateTime={session.sparring.completed_at}>{session.sparring.completed_at}</time></p>}
+            {session.sparring.next_review_at && <p>Next review: <time dateTime={session.sparring.next_review_at}>{session.sparring.next_review_at}</time></p>}
+          </>}
+          {(session.sparring.outcome !== 'win' || session.sparring.verification_status === 'historical') && <>
+            <label>Conversion bot level
+              <select value={botLevel} disabled={conversionRetrying || conversionRefreshing || conversionRefreshFailed}
+                onChange={event => setBotLevel(event.target.value)}>
+                {bots.map(bot => <option key={bot.level} value={String(bot.level)}>{bot.level}. {bot.name}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={() => void retryConversion()}
+              disabled={conversionRetrying || conversionRefreshing || conversionRefreshFailed || bots.length === 0}>
+              {conversionRetrying ? 'Starting...' : 'Retry conversion practice'}
+            </button>
+          </>}
+        </section> : resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
           ? `Checkmate. ${chessRef.current.turn() === 'w' ? 'Black' : 'White'} wins.`
           : chessRef.current.isStalemate() ? 'Draw by stalemate.'
           : chessRef.current.isDraw() ? 'Draw.' : 'Game ended.'}

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { ApiClient, ApiRequestError } from '../api/client';
-import type { GameAnalysisStatusRead, GameReviewRead, PlaySessionRead, ReviewBand } from '../api/types';
+import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
+import { DEFAULT_BOT_LEVEL } from '../api/opponent';
+import type { BotRead, GameAnalysisStatusRead, GameReviewRead, PlaySessionRead, ReviewBand } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import { ReviewProbabilityGraph } from './ReviewProbabilityGraph';
@@ -47,7 +48,9 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
   const [selectedPly, setSelectedPly] = useState(0);
   const [retryLessonId, setRetryLessonId] = useState<string | null>(null);
   const [openedRetries, setOpenedRetries] = useState<string[]>([]);
-  const [busy, setBusy] = useState<'load' | 'refresh' | 'analysis' | 'backfill' | 'play' | null>('load');
+  const [busy, setBusy] = useState<'load' | 'refresh' | 'analysis' | 'backfill' | 'play' | 'sparring' | null>('load');
+  const [bots, setBots] = useState<BotRead[]>([]);
+  const [botLevel, setBotLevel] = useState(DEFAULT_BOT_LEVEL);
   const [error, setError] = useState<string | null>(null);
   const retryPanel = useRef<HTMLDivElement>(null);
   const retryButton = useRef<HTMLButtonElement | null>(null);
@@ -116,6 +119,35 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
 
   const selectedMove = review?.moves.find(move => move.ply === selectedPly);
   const selectedFen = selectedMove?.fen ?? review?.initial_fen;
+  const sparringEligible = selectedPly === 0 ? review?.initial_sparring_eligible : selectedMove?.sparring_eligible;
+  const sparring = selectedPly === 0 ? review?.initial_sparring : selectedMove?.sparring;
+  useEffect(() => {
+    if (!sparringEligible) return;
+    let cancelled = false;
+    void ApiClient.getBots().then(result => { if (!cancelled) setBots(result); })
+      .catch(caught => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unable to load bots.'); });
+    return () => { cancelled = true; };
+  }, [sparringEligible, review]);
+
+  const convertTheWin = async (resume = false) => {
+    if (!onPlayFromHere || busy !== null) return;
+    setBusy('sparring');
+    setError(null);
+    try {
+      const playerId = await ensurePlayerAuthorization(getActivePlayerId());
+      const session = resume && sparring
+        ? await ApiClient.getPlaySession(sparring.play_session_id)
+        : await ApiClient.createPlaySession({
+          player_id: playerId,
+          opponent_config: { provider: 'stockfish', bot_level: botLevel },
+          sparring_source: { game_id: gameId, ply: selectedPly },
+        });
+      if (!session.sparring) throw new Error('Conversion practice metadata is unavailable. Refresh review before retrying.');
+      onPlayFromHere(session, session.sparring.source_fen);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to start conversion practice.');
+    } finally { setBusy(null); }
+  };
   const playFromHere = async () => {
     if (!onPlayFromHere || selectedFen === undefined) return;
     setBusy('play');
@@ -168,6 +200,30 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
               URL.revokeObjectURL(url);
             }}>Download PGN</button>
           </div>
+          {(sparringEligible || sparring) && <section aria-label="Convert the win">
+            <h3>Convert the win</h3>
+            <p>Conversion practice keeps your original side and leaves this game unchanged. Custom starts do not earn ordinary strength credit.</p>
+            {sparring && <>
+              <p>{sparring.verification_status === 'historical' ? 'Historical result (not verified)' : 'Verified conversion practice'}
+                {' · '}{sparring.outcome ?? 'In progress'}{sparring.result ? ` · ${sparring.result}` : ''}</p>
+              <p>Source: game {sparring.source_game_id}, ply {sparring.source_ply} · analysis {sparring.source_analysis_id}</p>
+              <p>Practice session {sparring.play_session_id} · seed {sparring.seed}</p>
+              {sparring.completed_at && <p>Completed: <time dateTime={sparring.completed_at}>{sparring.completed_at}</time></p>}
+              {sparring.next_review_at && <p>Next review: <time dateTime={sparring.next_review_at}>{sparring.next_review_at}</time></p>}
+              {!sparring.completed_at && sparring.verification_status === 'verified' && <button type="button"
+                disabled={busy !== null || !onPlayFromHere} onClick={() => void convertTheWin(true)}>Resume conversion practice</button>}
+            </>}
+            {sparringEligible && <>
+              <label>Conversion bot level
+                <select value={botLevel} disabled={busy !== null || bots.length === 0}
+                  onChange={event => setBotLevel(event.target.value)}>
+                  {bots.map(bot => <option key={bot.level} value={String(bot.level)}>{bot.level}. {bot.name}</option>)}
+                </select>
+              </label>
+              <button type="button" className="btn btn--primary" disabled={busy !== null || !onPlayFromHere || bots.length === 0}
+                onClick={() => void convertTheWin()}>{busy === 'sparring' ? 'Starting...' : 'Convert the win'}</button>
+            </>}
+          </section>}
           <section aria-label="Every game move" className="review-moves">
           <h3>Move by move</h3>
           <p className="muted">Select any move, not just a lesson. ★ marks a trusted key moment.</p>

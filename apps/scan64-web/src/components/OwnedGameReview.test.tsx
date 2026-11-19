@@ -4,7 +4,7 @@ import type { Key } from 'chessground/types';
 import { AnalysisScreen } from './AnalysisScreen';
 import { ApiClient, ApiRequestError } from '../api/client';
 import { makeGameReview, reviewLesson } from './review.test-fixtures';
-import type { GameReviewRead } from '../api/types';
+import type { GameReviewRead, PlaySessionRead, SparringAttemptRead } from '../api/types';
 
 const boards = vi.hoisted(() => new Map<string, { set: Mock; after?: (from: Key, to: Key) => void }>());
 vi.mock('chessground', () => ({ Chessground: (element: Element,
@@ -13,6 +13,16 @@ vi.mock('chessground', () => ({ Chessground: (element: Element,
   boards.set(element.getAttribute('data-testid') ?? '', board);
   return board;
 } }));
+
+function conversionAttempt(overrides: Partial<SparringAttemptRead> = {}): SparringAttemptRead {
+  return {
+    id: 'attempt-1', play_session_id: 'conversion-1', source_game_id: 'game-1',
+    source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+    source_ply: 3, source_fen: makeGameReview().moves[2].fen, player_color: 'black', seed: 'server-seed',
+    completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null,
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   boards.clear();
@@ -25,6 +35,76 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 describe('owned move-by-move review', () => {
+  it.each([0, 3])('starts conversion at selected ply %s without supplying FEN or the selected mover colour', async ply => {
+    const review = makeGameReview({ owner_color: 'black', initial_sparring_eligible: true });
+    review.moves[2].sparring_eligible = true;
+    review.moves[2].is_owner_move = false;
+    const attempt = conversionAttempt({ source_ply: ply, source_fen: ply === 0 ? review.initial_fen : review.moves[2].fen });
+    const session: PlaySessionRead = { id: attempt.play_session_id, player_id: 'player-1', game_id: 'custom-game',
+      player_color: 'black', opponent_config: { provider: 'stockfish', bot_level: '8' }, status: 'active',
+      coach_mode: false, sparring: attempt };
+    vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
+    vi.spyOn(ApiClient, 'getBots').mockResolvedValue([
+      { level: 1, name: 'Beginner', description: 'Friendly' }, { level: 8, name: 'Expert', description: 'Strong' },
+    ]);
+    vi.spyOn(ApiClient, 'createPlaySession').mockResolvedValue(session);
+    const createGame = vi.spyOn(ApiClient, 'createGame');
+    const onPlay = vi.fn();
+    render(<AnalysisScreen gameId="game-1" initialPly={ply} onPlayFromHere={onPlay} />);
+    const start = await screen.findByRole('button', { name: 'Convert the win' });
+    await waitFor(() => expect(start).toBeEnabled());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Conversion bot level' }), { target: { value: '8' } });
+    fireEvent.click(start);
+    await waitFor(() => expect(onPlay).toHaveBeenCalledWith(session, attempt.source_fen));
+    expect(ApiClient.createPlaySession).toHaveBeenCalledTimes(1);
+    expect(ApiClient.createPlaySession).toHaveBeenCalledWith({
+      player_id: 'player-1', opponent_config: { provider: 'stockfish', bot_level: '8' },
+      sparring_source: { game_id: 'game-1', ply },
+    });
+    expect(createGame).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Play from here' })).toBeInTheDocument();
+  });
+
+  it('retains historical outcome, provenance and due date on the selected source after remount', async () => {
+    const review = makeGameReview();
+    review.moves[2].sparring = conversionAttempt({
+      verification_status: 'historical', completed_at: '2026-11-19T10:00:00Z',
+      result: '1/2-1/2', outcome: 'draw', next_review_at: '2026-11-20T10:00:00Z',
+    });
+    vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
+    const view = render(<AnalysisScreen gameId="game-1" initialPly={3} />);
+    expect(await screen.findByRole('region', { name: 'Convert the win' })).toHaveTextContent('Historical result (not verified) · draw · 1/2-1/2');
+    fireEvent.click(screen.getByRole('button', { name: 'First' }));
+    expect(screen.queryByRole('region', { name: 'Convert the win' })).not.toBeInTheDocument();
+    view.unmount();
+    render(<AnalysisScreen gameId="game-1" initialPly={3} />);
+    const result = await screen.findByRole('region', { name: 'Convert the win' });
+    expect(result).toHaveTextContent('Source: game game-1, ply 3 · analysis analysis-1');
+    expect(result).toHaveTextContent('Next review: 2026-11-20T10:00:00Z');
+    expect(within(result).queryByText('Verified conversion practice')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume conversion practice' })).not.toBeInTheDocument();
+  });
+
+  it('resumes the retained active conversion via its session id after reloading review', async () => {
+    const review = makeGameReview();
+    review.moves[2].sparring = conversionAttempt();
+    const attempt = review.moves[2].sparring;
+    const session: PlaySessionRead = { id: attempt.play_session_id, player_id: 'player-1', game_id: 'custom-game',
+      player_color: 'black', opponent_config: {}, status: 'active', coach_mode: false, sparring: attempt };
+    vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
+    vi.spyOn(ApiClient, 'getPlaySession').mockResolvedValue(session);
+    const create = vi.spyOn(ApiClient, 'createPlaySession');
+    const onPlay = vi.fn();
+    const view = render(<AnalysisScreen gameId="game-1" initialPly={3} onPlayFromHere={onPlay} />);
+    await screen.findByRole('button', { name: 'Resume conversion practice' });
+    view.unmount();
+    render(<AnalysisScreen gameId="game-1" initialPly={3} onPlayFromHere={onPlay} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume conversion practice' }));
+    await waitFor(() => expect(onPlay).toHaveBeenCalledWith(session, attempt.source_fen));
+    expect(ApiClient.getPlaySession).toHaveBeenCalledWith('conversion-1');
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('selects display-only good moments without replacing mistake retries', async () => {
     const review = makeGameReview();
     review.good_moments = [{

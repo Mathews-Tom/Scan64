@@ -40,6 +40,7 @@ from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
 )
+from scan64.learning.sparring import SparringAttempt
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["progress"])
@@ -48,6 +49,7 @@ router = APIRouter(tags=["progress"])
 # move-credit proofs and hint reveals) intentionally are not learning state.
 CLEARED_MODELS: tuple[tuple[str, type[SQLModel]], ...] = (
     ("schedule_review_observations", ScheduleReviewObservation),
+    ("sparring_attempts", SparringAttempt),
     ("pattern_award_evidence", PatternAwardEvidence),
     ("pattern_awards", PatternAward),
     ("pattern_targets", PatternTarget),

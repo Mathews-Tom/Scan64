@@ -18,6 +18,7 @@ from scan64.chess.positions.models import Position
 from scan64.content.models import LessonAttempt, StudySession
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.sparring import SparringAttemptRead, project_sparring, winning_position
 from scan64.learning.tolerance import ReviewBand, review_band, review_loss
 
 
@@ -36,6 +37,8 @@ class ReviewMoveRead(BaseModel):
     is_owner_move: bool
     credit: dict[str, Any] | None = None
     credit_exclusion: str | None = None
+    sparring_eligible: bool = False
+    sparring: SparringAttemptRead | None = None
 
 
 class ReviewKeyMomentRead(BaseModel):
@@ -69,6 +72,8 @@ class GameReviewRead(BaseModel):
     session_id: str | None
     backfill_required: bool
     nodes: int = REVIEW_NODES
+    initial_sparring_eligible: bool = False
+    initial_sparring: SparringAttemptRead | None = None
 
 
 def _key_moments(
@@ -215,6 +220,18 @@ def build_game_review(
             select(GameMoveReview).where(GameMoveReview.game_id == game.id)
         ).all()
     }
+    positions = {
+        position.id: position
+        for position in session.exec(select(Position).where(Position.game_id == game.id)).all()
+    }
+    analyses = {
+        analysis.id: analysis
+        for analysis in session.exec(
+            select(EngineAnalysis).join(Position).where(Position.game_id == game.id)
+        ).all()
+    }
+    sparring = project_sparring(session, game, rows, positions)
+    initial_sparring_eligible = False
     credit_projection = project_move_credits(game, session)
     board = board_from(game.headers.get("FEN"))
     initial_fen = board.fen()
@@ -228,13 +245,35 @@ def build_game_review(
     counts = {"sound": 0, "inaccuracy": 0, "mistake": 0, "blunder": 0, "unscored": 0}
     owner_losses = []
     total_owner_moves = 0
+    legal_history = True
     for ply, uci in enumerate(game.moves, 1):
         source_fen = board.fen()
         mover = "white" if board.turn else "black"
         move = board.parse_uci(uci)
+        legal_history = legal_history and bool(move)
         san = board.san(move)
         board.push(move)
         row = rows.get(ply)
+        source = positions.get(row.source_position_id) if row else None
+        reached = positions.get(row.reached_position_id) if row else None
+        row_matches = (
+            row is not None
+            and legal_history
+            and source is not None
+            and reached is not None
+            and source.fen == source_fen
+            and reached.fen == board.fen()
+            and row.move_uci == uci
+            and row.san == san
+            and row.mover == mover
+        )
+        if ply == 1 and row is not None and row_matches:
+            initial_sparring_eligible = winning_position(
+                game,
+                board_from(initial_fen),
+                source,
+                analyses.get(row.before_analysis_id),
+            )
         before = row.before_probability if row is not None else None
         after = row.after_probability if row is not None else None
         loss = review_loss(before, after)
@@ -268,6 +307,12 @@ def build_game_review(
                 is_owner_move=is_owner,
                 credit=credit,
                 credit_exclusion=credit_exclusion,
+                sparring_eligible=bool(
+                    row is not None
+                    and row_matches
+                    and winning_position(game, board, reached, analyses.get(row.after_analysis_id))
+                ),
+                sparring=sparring.get(ply),
             )
         )
     moments = _key_moments(game, moves, rows, session) if include_key_moments else []
@@ -290,6 +335,8 @@ def build_game_review(
         owner_color=game.owner_color,
         initial_fen=initial_fen,
         initial_white_probability=initial_white_probability,
+        initial_sparring_eligible=initial_sparring_eligible,
+        initial_sparring=sparring.get(0),
         moves=moves,
         accuracy=100.0 * (1.0 - sum(owner_losses) / len(owner_losses)) if owner_losses else None,
         scored_moves=len(owner_losses),

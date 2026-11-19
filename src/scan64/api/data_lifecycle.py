@@ -72,6 +72,7 @@ from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
 )
+from scan64.learning.sparring import SparringAttempt
 from scan64.learning.tolerance import review_loss, review_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
@@ -90,6 +91,7 @@ class ExportArchive(BaseModel):
     play_sessions: list[dict[str, Any]] = Field(default_factory=list)
     session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
     positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
+    sparring_attempts: list[dict[str, Any]] = Field(default_factory=list)
     games: list[dict[str, Any]] = Field(default_factory=list)
     positions: list[dict[str, Any]] = Field(default_factory=list)
     engine_analyses: list[dict[str, Any]] = Field(default_factory=list)
@@ -1688,6 +1690,191 @@ def _validate_credit_archive(
             raise ValueError("Conflicting positive credit")
 
 
+def _validate_sparring_archive(
+    session: Session,
+    player_id: str,
+    attempts: list[SparringAttempt],
+    play_sessions: list[PlaySession],
+    games: list[Game],
+    positions: list[Position],
+    analyses: list[EngineAnalysis],
+    reviews: list[GameMoveReview],
+) -> None:
+    """Restore a closed historical graph, not current eligibility or learning events."""
+    if not attempts:
+        return
+    if len({item.id for item in attempts}) != len(attempts) or len(
+        {item.play_session_id for item in attempts}
+    ) != len(attempts):
+        raise ValueError("Duplicate sparring identity or session")
+    sessions_by_id = {item.id: item for item in play_sessions}
+    games_by_id = {item.id: item for item in games}
+    positions_by_id = {item.id: item for item in positions}
+    analyses_by_id = {item.id: item for item in analyses}
+    reviews_by_id = {item.id: item for item in reviews}
+    for attempt in attempts:
+        play = sessions_by_id.get(attempt.play_session_id)
+        review = reviews_by_id.get(attempt.source_review_id)
+        original = games_by_id.get(review.game_id) if review is not None else None
+        bot_game = (
+            games_by_id.get(play.game_id) if play is not None and play.game_id is not None else None
+        )
+        if (
+            attempt.player_id != player_id
+            or play is None
+            or play.player_id != player_id
+            or original is None
+            or original.owner_player_id != player_id
+            or original.owner_color not in {"white", "black"}
+            or bot_game is None
+            or bot_game.id == original.id
+            or bot_game.owner_player_id != player_id
+            or bot_game.owner_color != original.owner_color
+            or sum(item.game_id == bot_game.id for item in play_sessions) != 1
+        ):
+            raise ValueError("Invalid sparring owner or game closure")
+        assert review is not None
+        source = positions_by_id.get(review.source_position_id)
+        reached = positions_by_id.get(review.reached_position_id)
+        before_analysis = analyses_by_id.get(review.before_analysis_id)
+        after_analysis = analyses_by_id.get(review.after_analysis_id)
+        if (
+            source is None
+            or reached is None
+            or source.game_id != original.id
+            or reached.game_id != original.id
+            or before_analysis is None
+            or after_analysis is None
+            or before_analysis.position_id != source.id
+            or after_analysis.position_id != reached.id
+            or review.ply != max(1, attempt.source_ply)
+            or not 1 <= review.ply <= len(original.moves)
+            or attempt.source_ply < 0
+        ):
+            raise ValueError("Invalid sparring review occurrence")
+        selected = source if attempt.source_ply == 0 else reached
+        selected_analysis = before_analysis if attempt.source_ply == 0 else after_analysis
+        if (
+            attempt.source_position_id != selected.id
+            or attempt.source_analysis_id != selected_analysis.id
+        ):
+            raise ValueError("Invalid sparring source position or analysis")
+        board = chess.Board(original.headers.get("FEN", chess.STARTING_FEN))
+        if not board.is_valid():
+            raise ValueError("Invalid sparring original position")
+        selected_board = None
+        for ply, uci in enumerate(original.moves, 1):
+            move = board.parse_uci(uci)
+            if move not in board.legal_moves:
+                raise ValueError("Illegal sparring original move")
+            if ply == review.ply:
+                if (
+                    source.fen != board.fen()
+                    or review.move_uci != move.uci()
+                    or review.san != board.san(move)
+                    or review.mover != ("white" if board.turn else "black")
+                ):
+                    raise ValueError("Sparring review does not match legal history")
+                if attempt.source_ply == 0:
+                    selected_board = board.copy()
+            board.push(move)
+            if ply == review.ply:
+                if reached.fen != board.fen():
+                    raise ValueError("Sparring reached position does not match legal history")
+                if attempt.source_ply != 0:
+                    selected_board = board.copy()
+        if selected_board is None or selected_board.is_game_over():
+            raise ValueError("Invalid sparring starting position")
+        config = play.opponent_config
+        seed = config.get("seed", "")
+        if (
+            bot_game.headers.get("FEN") != selected.fen
+            or config.get("custom_start") != "true"
+            or config.get("player_color") != original.owner_color
+            or config.get("provider") != "stockfish"
+            or config.get("bot_level") not in {"1", "2", "3", "4", "5", "6", "7", "8"}
+            or not seed
+            or not seed.isascii()
+            or not seed.isdecimal()
+            or int(seed) >= 2**64
+            or config.get("initial_ply")
+            != ("0" if selected_board.turn == (original.owner_color == "white") else "1")
+            or len(bot_game.moves) < int(config["initial_ply"])
+            or play.coach_mode
+            or play.clock_config is not None
+        ):
+            raise ValueError("Invalid sparring custom-start configuration")
+        bot_board = chess.Board(selected.fen)
+        for uci in bot_game.moves:
+            move = bot_board.parse_uci(uci)
+            if move not in bot_board.legal_moves:
+                raise ValueError("Illegal sparring bot move")
+            bot_board.push(move)
+        terminal = (attempt.completed_at, attempt.result, attempt.outcome)
+        if all(value is None for value in terminal):
+            if (
+                play.status != "active"
+                or bot_game.result != "*"
+                or bot_board.is_game_over()
+                or bot_board.turn != (original.owner_color == "white")
+            ):
+                raise ValueError("Active sparring has terminal session or game facts")
+        else:
+            owner_result = "1-0" if original.owner_color == "white" else "0-1"
+            outcome = (
+                "draw"
+                if attempt.result == "1/2-1/2"
+                else "win"
+                if attempt.result == owner_result
+                else "loss"
+            )
+            if (
+                attempt.completed_at is None
+                or attempt.result not in {"1-0", "0-1", "1/2-1/2"}
+                or attempt.outcome != outcome
+                or play.status != "completed"
+                or bot_game.result != attempt.result
+                or bot_board.is_game_over()
+                and bot_board.result() != attempt.result
+                or utc(attempt.completed_at) < utc(attempt.created_at)
+            ):
+                raise ValueError("Invalid sparring terminal result or timestamp")
+        # Every reused parent must be exactly the row that was validated, including
+        # the unselected half of the immutable review and its analysis.
+        for model, parents in (
+            (Game, (original, bot_game)),
+            (Position, (source, reached)),
+            (EngineAnalysis, (before_analysis, after_analysis)),
+            (GameMoveReview, (review,)),
+        ):
+            for parent in parents:
+                existing_parent = session.get(model, parent.id)
+                if existing_parent is not None and existing_parent.model_dump(
+                    mode="json"
+                ) != parent.model_dump(mode="json"):
+                    raise ValueError("Conflicting sparring parent identity")
+        existing_review = session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == review.game_id, GameMoveReview.ply == review.ply
+            )
+        ).first()
+        if existing_review is not None and existing_review.id != review.id:
+            raise ValueError("Conflicting sparring review occurrence")
+        if (
+            session.get(SparringAttempt, attempt.id) is not None
+            or session.exec(
+                select(SparringAttempt).where(
+                    SparringAttempt.play_session_id == attempt.play_session_id
+                )
+            ).first()
+            is not None
+            or session.exec(select(PlaySession).where(PlaySession.game_id == bot_game.id)).first()
+            is not None
+        ):
+            raise ValueError("Conflicting sparring attempt or session linkage")
+        attempt.verification_status = "historical"
+
+
 @router.post("/v1/exports", response_model=ExportArchive)
 def export_player_data(
     request: Request, req: ExportRequest, session: Session = Depends(get_session)
@@ -1709,6 +1896,9 @@ def export_player_data(
     ).all()
     positive_move_credits = session.exec(
         select(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id)
+    ).all()
+    sparring_attempts = session.exec(
+        select(SparringAttempt).where(col(SparringAttempt.player_id) == player_id)
     ).all()
     games = session.exec(select(Game).where(col(Game.owner_player_id) == player_id)).all()
     game_ids = [game.id for game in games]
@@ -1860,6 +2050,7 @@ def export_player_data(
         ],
         session_hint_reveals=[reveal.model_dump(mode="json") for reveal in session_hint_reveals],
         positive_move_credits=[credit.model_dump(mode="json") for credit in positive_move_credits],
+        sparring_attempts=[attempt.model_dump(mode="json") for attempt in sparring_attempts],
         games=[game.model_dump(mode="json") for game in games],
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
@@ -2158,6 +2349,10 @@ def import_player_data(
         ]
         positive_move_credits = [
             PositiveMoveCredit.model_validate(data) for data in archive.positive_move_credits
+        ]
+        sparring_attempts = [
+            SparringAttempt.model_validate({**data, "verification_status": "historical"})
+            for data in archive.sparring_attempts
         ]
         for opportunity in lesson_opportunities:
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
@@ -2467,6 +2662,30 @@ def import_player_data(
             status_code=400, detail="Invalid archive: malformed assistance or credit provenance"
         ) from error
     try:
+        for data in archive.sparring_attempts:
+            if (
+                set(data) != set(SparringAttempt.model_fields)
+                or type(data.get("source_ply")) is not int
+            ):
+                raise ValueError("Invalid sparring fields or ply")
+            _habit_time(data.get("created_at"))
+            if data.get("completed_at") is not None:
+                _habit_time(data["completed_at"])
+        _validate_sparring_archive(
+            session,
+            player_id,
+            sparring_attempts,
+            play_sessions,
+            games,
+            positions,
+            engine_analyses,
+            review_moves,
+        )
+    except (ValueError, TypeError, AttributeError, OverflowError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed sparring provenance"
+        ) from error
+    try:
         (
             habit_policy,
             habit_goals,
@@ -2497,20 +2716,24 @@ def import_player_data(
     for game in games:
         if session.get(Game, game.id) is None:
             session.add(game)
+    session.flush()
 
     for position in positions:
         if session.get(Position, position.id) is None:
             session.add(position)
+    session.flush()
 
     for analysis in engine_analyses:
         if session.get(EngineAnalysis, analysis.id) is None:
             session.add(analysis)
+    session.flush()
     for move in review_moves:
         existing_move = session.get(GameMoveReview, move.id)
         if existing_move is not None and existing_move.model_dump() != move.model_dump():
             raise HTTPException(status_code=400, detail="Invalid archive: conflicting review move")
         if existing_move is None:
             session.add(move)
+    session.flush()
 
     for analysis_job in analysis_jobs:
         if session.get(AnalysisJob, analysis_job.id) is None:
@@ -2544,6 +2767,9 @@ def import_player_data(
         session.add(reveal)
     for credit in positive_move_credits:
         session.add(credit)
+    # Parents are flushed before the attempt's four foreign keys; no completion,
+    # reward, or scheduling hooks run when historical observations are restored.
+    session.add_all(sparring_attempts)
 
     for skill_state in skill_states:
         session.add(skill_state)
@@ -2788,6 +3014,11 @@ def delete_player_data(
             select(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id)
         ).all()
     )
+    affected_rows["sparring_attempts"] = len(
+        session.exec(
+            select(SparringAttempt).where(col(SparringAttempt.player_id) == player_id)
+        ).all()
+    )
     affected_rows["puzzle_rating"] = int(session.get(PuzzleRating, player_id) is not None)
     affected_rows["puzzle_daily_sets"] = len(
         session.exec(select(PuzzleDailySet).where(col(PuzzleDailySet.player_id) == player_id)).all()
@@ -2828,6 +3059,7 @@ def delete_player_data(
     session.exec(delete(HabitPolicy).where(col(HabitPolicy.player_id) == player_id))
     session.exec(delete(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id))
     session.exec(delete(PositiveMoveCredit).where(col(PositiveMoveCredit.player_id) == player_id))
+    session.exec(delete(SparringAttempt).where(col(SparringAttempt.player_id) == player_id))
     session.exec(delete(PuzzleModeBinding).where(col(PuzzleModeBinding.player_id) == player_id))
     session.exec(delete(PuzzleRatingEvent).where(col(PuzzleRatingEvent.player_id) == player_id))
     session.exec(delete(PuzzleDailySlot).where(col(PuzzleDailySlot.player_id) == player_id))
