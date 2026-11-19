@@ -255,7 +255,7 @@ test('keyboard Famous Game prediction converts UCI to canonical SAN without movi
 
 test('keyboard Opening Explorer shares legal entry and readable current position', async ({ page }, testInfo) => {
   await prepareToday(page);
-  await page.route('**/v1/learning/session?*', route => route.fulfill({ json: { session_id: 'opening-session', lessons: [] } }));
+  await page.route('**/v1/learning/session?*', route => route.fulfill({ json: { session_id: 'opening-session', lessons: [], move_choices: {}, attempts_used: {} } }));
   await page.goto('/explorer');
   const input = page.getByRole('textbox', { name: 'Move (UCI or SAN)' });
   await enter(page, input, 'e4');

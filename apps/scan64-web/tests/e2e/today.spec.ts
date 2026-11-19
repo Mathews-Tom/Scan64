@@ -60,7 +60,7 @@ for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.emulateMedia({ colorScheme });
       await prepareToday(page);
-      await page.route('**/v1/learning/session?*', route => route.fulfill({ json: { session_id: 'study-1', lessons: [] } }));
+      await page.route('**/v1/learning/session?*', route => route.fulfill({ json: { session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} } }));
       await page.route('**/v1/players/*/progress', route => route.fulfill({ json: { player_id: 'player-1', skills: [] } }));
       await page.route('**/v1/players/*/evidence', route => route.fulfill({ json: { player_id: 'player-1', evidence_items: [] } }));
       await page.route('**/v1/coaches/*/dashboard', route => route.fulfill({ json: { coach_id: 'player-1', students: [] } }));

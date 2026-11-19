@@ -26,11 +26,11 @@ test('records an accepted daily-training move from real board pointer input', as
     await route.fulfill({ json: { id: 'player-1', preferences: {}, access_token: 'test-token' } });
   });
   await page.route('**/v1/learning/session?*', async route => {
-    await route.fulfill({ json: { session_id: 'study-1', lessons: [lesson] } });
+    await route.fulfill({ json: { session_id: 'study-1', lessons: [lesson], move_choices: {}, attempts_used: { [lesson.lesson_id]: 0 } } });
   });
   await page.route('**/v1/learning/lesson-attempts', async route => {
     attempt = route.request().postDataJSON() as Record<string, unknown>;
-    await route.fulfill({ json: { id: 'attempt-1', success: true, grading_status: 'verified', profile_update_result: 'applied' } });
+    await route.fulfill({ json: { id: 'attempt-1', success: true, grading_status: 'verified', profile_update_result: 'applied', attempts_used: 1 } });
   });
 
   await page.goto('/');
