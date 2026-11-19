@@ -263,6 +263,40 @@ describe('PlayScreen', () => {
       fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2', movable: expect.objectContaining({ color: 'black' }) }));
   });
 
+  it('keeps an initially linked conversion locked until its queued move is drained and reloaded', async () => {
+    const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
+    const active: PlaySessionRead = {
+      id: 'conversion-queued', player_id: 'test-player', game_id: 'custom-queued',
+      opponent_config: { bot_level: '1' }, player_color: 'black', status: 'active', coach_mode: false,
+      sparring: { id: 'attempt-queued', play_session_id: 'conversion-queued', source_game_id: 'original-game',
+        source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+        source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
+        completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null },
+    };
+    vi.mocked(getQueuedMoves).mockResolvedValue([
+      { sessionId: active.id, move: 'a3a1', timestamp: 1 },
+    ]);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-queued',
+      pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`,
+      white: 'bot', black: 'human', result: '*' });
+    render(<PlayScreen initialSession={active} />);
+    await screen.findByTestId('retry-move-sync');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    const move = await waitFor(getRegisteredMoveHandler);
+    await act(async () => { await move('a3', 'a2'); });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+
+    vi.mocked(getQueuedMoves).mockResolvedValue([]);
+    fireEvent.click(screen.getByTestId('retry-move-sync'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      orientation: 'black', fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2',
+      movable: expect.objectContaining({ color: 'black' }),
+    }));
+  });
+
   it('resumes the explicitly linked unfinished session instead of a different stored session', async () => {
     window.history.replaceState(null, '', '/play?session=blocked-session');
     localStorage.setItem('scan64_player_id', 'test-player');

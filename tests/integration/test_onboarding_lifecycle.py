@@ -468,6 +468,9 @@ def test_completed_then_skipped_archive_retains_completion(
     db_session: Session,
 ) -> None:
     archive, headers = _owner_archive(client, db_session)
+    completed = client.get(f"/v1/players/{PLAYER_ID}/onboarding", headers=headers)
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
     skipped = client.post(
         f"/v1/players/{PLAYER_ID}/onboarding",
         headers=headers,
@@ -508,7 +511,10 @@ def test_onboarding_deletion_dry_run_rollback_and_audit_are_player_scoped(
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    archive, headers = _owner_archive(client, db_session)
+    _, headers = _owner_archive(client, db_session)
+    original = db_session.get(PlayerOnboarding, PLAYER_ID)
+    assert original is not None
+    before = original.model_dump(mode="json")
     other = client.post("/v1/players", json={"id": "other-onboarding-owner"})
     assert other.status_code == 200
     other_row = db_session.get(PlayerOnboarding, "other-onboarding-owner")
@@ -534,7 +540,7 @@ def test_onboarding_deletion_dry_run_rollback_and_audit_are_player_scoped(
             _delete(client, headers)
     db_session.rollback()
     row = db_session.get(PlayerOnboarding, PLAYER_ID)
-    assert row is not None and row.model_dump(mode="json") == archive["onboarding"]
+    assert row is not None and row.model_dump(mode="json") == before
     assert len(db_session.exec(select(PuzzleRatingEvent)).all()) == 7
     assert len(db_session.exec(select(SkillState)).all()) == 1
     assert db_session.exec(select(DeletionAudit)).all() == []

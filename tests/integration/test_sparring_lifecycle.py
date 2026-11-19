@@ -1,26 +1,34 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import chess
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 from sqlmodel import Session, SQLModel, select
 
+from scan64.api.app import app
 from scan64.api.data_lifecycle import ExportArchive
 from scan64.api.models import Player
 from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.pgn import build_pgn
+from scan64.chess.games.play_session_service import PlaySessionService
+from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
 from scan64.learning.habit_models import HabitCredit, PatternAward
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.sparring import SparringAttempt, source_item_id
+from scan64.persistence.database import create_database_engine, get_session
+from scan64.providers.stockfish.adapter import StockfishConfig
 
 OWNER = "sparring-lifecycle-owner"
 OTHER = "sparring-lifecycle-other"
@@ -174,16 +182,25 @@ def snapshot(session: Session) -> dict[str, list[str]]:
 
 @pytest.mark.parametrize("source_ply", [0, 1])
 @pytest.mark.parametrize("completed", [False, True])
+@pytest.mark.parametrize("source_colour", ["black", "white"])
 def test_roundtrip_restores_historical_graph_without_learning_replay(
     client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
     source_ply: int,
     completed: bool,
+    source_colour: str,
 ) -> None:
     headers = register(client, OWNER)
     attempt = seed_graph(db_session, source_ply=source_ply, completed=completed)
     attempt_id = attempt.id
+    source_review = db_session.get(GameMoveReview, attempt.source_review_id)
+    assert source_review is not None
+    original = db_session.get(Game, source_review.game_id)
+    assert original is not None
+    original.owner_color = source_colour
+    db_session.add(original)
+    db_session.commit()
     archive = export(client, headers)
     assert len(archive["sparring_attempts"]) == 1
     assert len(archive["games"]) == 2
@@ -598,3 +615,51 @@ def test_active_attempt_terminal_facts_must_agree(
     response = client.post("/v1/imports", json=archive, headers=headers)
     assert response.status_code == 400, response.text
     assert snapshot(db_session) == before
+
+
+def test_export_uses_one_wal_snapshot_when_a_conversion_completes_between_reads(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'snapshot.sqlite'}")
+    SQLModel.metadata.create_all(engine)
+
+    def isolated_session() -> Generator[Session, None, None]:
+        with Session(engine) as session:
+            yield session
+
+    monkeypatch.setitem(app.dependency_overrides, get_session, isolated_session)
+    headers = register(client, OWNER)
+    with Session(engine) as session:
+        attempt = seed_graph(session, completed=False)
+        attempt_id = attempt.id
+        play_id = attempt.play_session_id
+        play = session.get(PlaySession, play_id)
+        assert play is not None
+        bot_id = play.game_id
+    completed = False
+
+    def complete_during_export(_connection: Any, _cursor: Any, statement: str, *_args: Any) -> None:
+        nonlocal completed
+        if completed or "FROM sparringattempt" not in statement:
+            return
+        completed = True
+        with Session(engine) as writer:
+            PlaySessionService(writer, StockfishOpponentProvider(StockfishConfig())).resign(play_id)
+
+    event.listen(engine, "after_cursor_execute", complete_during_export)
+    try:
+        archive = export(client, headers)
+        assert completed
+        assert archive["sparring_attempts"][0]["completed_at"] is None
+        archived_bot = next(game for game in archive["games"] if game["id"] == str(bot_id))
+        assert archived_bot["result"] == "*"
+        with Session(engine) as session:
+            live = session.get(SparringAttempt, attempt_id)
+            assert live is not None
+            assert live.outcome == "loss" and live.result == "1-0"
+        delete_owner(client, headers)
+        restored = client.post("/v1/imports", json=archive, headers=headers)
+        assert restored.status_code == 200, restored.text
+    finally:
+        event.remove(engine, "after_cursor_execute", complete_during_export)
+        engine.dispose()

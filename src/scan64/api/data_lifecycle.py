@@ -4,6 +4,7 @@ import hashlib
 from collections import Counter
 from datetime import UTC, date, datetime
 from math import isclose, isfinite
+from sqlite3 import Connection as SQLiteConnection
 from typing import Any
 from uuid import uuid4
 
@@ -23,7 +24,14 @@ from scan64.api.models import (
     PlayerOnboarding,
     PlayerProfile,
 )
-from scan64.api.onboarding import INTRO_TARGET, LEVEL_MAPPING, MAPPING_VERSION, read_onboarding, utc
+from scan64.api.onboarding import (
+    INTRO_TARGET,
+    LEVEL_MAPPING,
+    MAPPING_VERSION,
+    intro_runs,
+    onboarding_completion,
+    utc,
+)
 from scan64.chess.analysis.credit import MAX_POSITIVE_CREDITS_PER_GAME_SKILL, positive_move_proof
 from scan64.chess.analysis.credit_models import PositiveMoveCredit
 from scan64.chess.analysis.models import (
@@ -1697,7 +1705,7 @@ def _validate_sparring_archive(
             or bot_game is None
             or bot_game.id == original.id
             or bot_game.owner_player_id != player_id
-            or bot_game.owner_color != original.owner_color
+            or bot_game.owner_color != play.opponent_config.get("player_color")
             or sum(item.game_id == bot_game.id for item in play_sessions) != 1
         ):
             raise ValueError("Invalid sparring owner or game closure")
@@ -1758,7 +1766,7 @@ def _validate_sparring_archive(
         if (
             bot_game.headers.get("FEN") != selected.fen
             or config.get("custom_start") != "true"
-            or config.get("player_color") != original.owner_color
+            or config.get("player_color") not in {"white", "black"}
             or config.get("provider") != "stockfish"
             or config.get("bot_level") not in {"1", "2", "3", "4", "5", "6", "7", "8"}
             or not seed
@@ -1766,7 +1774,7 @@ def _validate_sparring_archive(
             or not seed.isdecimal()
             or int(seed) >= 2**64
             or config.get("initial_ply")
-            != ("0" if selected_board.turn == (original.owner_color == "white") else "1")
+            != ("0" if selected_board.turn == (config["player_color"] == "white") else "1")
             or len(bot_game.moves) < int(config["initial_ply"])
             or play.coach_mode
             or play.clock_config is not None
@@ -1784,11 +1792,11 @@ def _validate_sparring_archive(
                 play.status != "active"
                 or bot_game.result != "*"
                 or bot_board.is_game_over()
-                or bot_board.turn != (original.owner_color == "white")
+                or bot_board.turn != (config["player_color"] == "white")
             ):
                 raise ValueError("Active sparring has terminal session or game facts")
         else:
-            owner_result = "1-0" if original.owner_color == "white" else "0-1"
+            owner_result = "1-0" if config["player_color"] == "white" else "0-1"
             outcome = (
                 "draw"
                 if attempt.result == "1/2-1/2"
@@ -1847,6 +1855,11 @@ def _validate_sparring_archive(
 def export_player_data(
     request: Request, req: ExportRequest, session: Session = Depends(get_session)
 ) -> ExportArchive:
+    connection = session.connection()
+    driver_connection = connection.connection.driver_connection
+    if isinstance(driver_connection, SQLiteConnection) and not driver_connection.in_transaction:
+        # sqlite3's legacy SELECT mode otherwise observes a new WAL snapshot per query.
+        connection.exec_driver_sql("BEGIN")
     player_id = req.player_id
     credential_hash = require_player_token(request, player_id, session)
     player = session.get(Player, player_id)
@@ -1857,8 +1870,19 @@ def export_player_data(
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
     ).all()
-    read_onboarding(player, session)
     onboarding = session.get(PlayerOnboarding, player_id)
+    onboarding_data = None
+    if onboarding is not None:
+        closed = [
+            slot.closed_at
+            for _, slot in intro_runs(session, onboarding)
+            if slot.closed_at is not None
+        ]
+        status, completed_at = onboarding_completion(onboarding, closed)
+        # Preserve the existing lazy projection without dirtying the read-only snapshot.
+        onboarding_data = onboarding.model_copy(
+            update={"status": status, "completed_at": completed_at}
+        ).model_dump(mode="json")
     session_hint_reveals = session.exec(
         select(SessionHintReveal).where(col(SessionHintReveal.player_id) == player_id)
     ).all()
@@ -2004,7 +2028,7 @@ def export_player_data(
     return ExportArchive(
         player=player.model_dump(mode="json"),
         profile=profile.model_dump(mode="json") if profile else None,
-        onboarding=onboarding.model_dump(mode="json") if onboarding else None,
+        onboarding=onboarding_data,
         play_sessions=[
             play_session.model_copy(update={"game_id": None}).model_dump(mode="json")
             if play_session.game_id not in archived_game_ids
