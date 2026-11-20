@@ -279,6 +279,44 @@ def _validate_habit_archive(
             ):
                 raise ValueError("Conflicting habit source")
 
+    def validate_lesson_evidence(
+        game: Game, position: Position, refs: list[str], source_replies: dict[str, str]
+    ) -> None:
+        for reference in refs:
+            proof = evidence.get(reference)
+            proof_analysis = analyses.get(proof.engine_analysis_id) if proof is not None else None
+            if (
+                proof is None
+                or proof_analysis is None
+                or str(proof_analysis.position_id) != proof.position_id
+            ):
+                raise ValueError("Forged habit evidence reference")
+            if proof.position_id == str(position.id):
+                continue
+            # Batch and interactive diagnoses bind focused evidence after the
+            # actual owned move; lessons and pattern snapshots start before it.
+            reached = positions.get(proof.position_id)
+            fast_id = proof.payload.get("fast_analysis_id")
+            reply_id = proof.payload.get("reply_analysis_id")
+            if not isinstance(fast_id, str) or not isinstance(reply_id, str):
+                raise ValueError("Forged habit evidence reference")
+            fast = analyses.get(fast_id)
+            reply = analyses.get(reply_id)
+            if (
+                reached is None
+                or reached.game_id != game.id
+                or reached.fen not in source_replies
+                or proof.payload.get("before_fen") != position.fen
+                or proof.payload.get("after_fen") != reached.fen
+                or source_replies[reached.fen] != proof.payload.get("played_move")
+                or fast is None
+                or fast.position_id != position.id
+                or reply is None
+                or reply.position_id != reached.id
+                or proof.payload.get("focused_analysis_id") != proof.engine_analysis_id
+            ):
+                raise ValueError("Forged habit evidence reference")
+
     def lesson_source(
         attempt_id: str,
         snapshot: dict[str, Any] | None = None,
@@ -354,25 +392,20 @@ def _validate_habit_archive(
         ):
             raise ValueError("Invalid habit server grade or source EPD")
         source_board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
-        source_found = False
+        source_replies: dict[str, str] = {}
         for move_uci in game.moves:
-            if (
+            is_source = (
                 source_board.fen() == position.fen
                 and ("white" if source_board.turn else "black") == game.owner_color
-            ):
-                source_found = True
-            source_board.push_uci(move_uci)
-        if not source_found:
+            )
+            played = source_board.parse_uci(move_uci)
+            played_san = source_board.san(played) if is_source else None
+            source_board.push(played)
+            if played_san is not None:
+                source_replies[source_board.fen()] = played_san
+        if not source_replies:
             raise ValueError("Habit source is not an owned game occurrence")
-        for reference in spec.diagnosis.evidence_refs:
-            proof = evidence.get(reference)
-            if (
-                proof is None
-                or proof.position_id != str(position.id)
-                or proof.engine_analysis_id not in analyses
-                or analyses[proof.engine_analysis_id].position_id != position.id
-            ):
-                raise ValueError("Forged habit evidence reference")
+        validate_lesson_evidence(game, position, spec.diagnosis.evidence_refs, source_replies)
         expected = {
             "opportunity_id": str(opportunity.id),
             "game_id": str(game.id),
@@ -727,16 +760,11 @@ def _validate_habit_archive(
             refs = diagnosis.get("evidence_refs")
             if type(refs) is not list or not refs:
                 raise ValueError("Pattern occurrence lacks evidence")
-            for reference in refs:
-                proof = evidence.get(reference)
-                if (
-                    proof is None
-                    or proof.position_id != str(position.id)
-                    or proof.engine_analysis_id not in analyses
-                    or analyses[proof.engine_analysis_id].position_id != position.id
-                ):
-                    raise ValueError("Forged pattern evidence")
-                source_refs.add(reference)
+            played = board.parse_uci(game.moves[move["ply"] - 1])
+            played_san = board.san(played)
+            board.push(played)
+            validate_lesson_evidence(game, position, refs, {board.fen(): played_san})
+            source_refs.update(refs)
             loss = move["loss"]
             matching_review = next(
                 (
