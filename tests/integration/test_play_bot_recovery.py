@@ -97,6 +97,7 @@ async def test_human_move_pgn_and_claim_are_visible_while_opponent_is_blocked(
             session, PlaySnapshot.capture(play, game), chess.Board(), 0, mode="guard"
         )
     started, release = asyncio.Event(), asyncio.Event()
+    coach_observations: list[tuple[list[str] | None, str | None]] = []
 
     async def reply(*_: object) -> MoveDecision:
         started.set()
@@ -106,10 +107,17 @@ async def test_human_move_pgn_and_claim_are_visible_while_opponent_is_blocked(
     async def diagnose(**_: object) -> None:
         with Session(recovery_engine) as observer:
             stored_play = observer.get(PlaySession, session_id)
-            assert stored_play is not None and stored_play.game_id is not None
-            stored_game = observer.get(Game, stored_play.game_id)
-            assert stored_game is not None and stored_game.moves == ["e2e4"]
-            assert "1. e4" in stored_game.pgn
+            stored_game = (
+                observer.get(Game, stored_play.game_id)
+                if stored_play is not None and stored_play.game_id is not None
+                else None
+            )
+            coach_observations.append(
+                (
+                    list(stored_game.moves) if stored_game is not None else None,
+                    stored_game.pgn if stored_game is not None else None,
+                )
+            )
 
     diagnostic = AsyncMock(side_effect=diagnose)
     monkeypatch.setattr(
@@ -137,6 +145,11 @@ async def test_human_move_pgn_and_claim_are_visible_while_opponent_is_blocked(
             result = await asyncio.wait_for(task, timeout=2)
     assert result.opponent_move == "e7e5" and result.status == "active"
     assert diagnostic.await_count == int(coach_mode)
+    assert len(coach_observations) == int(coach_mode)
+    if coach_mode:
+        coach_moves, coach_pgn = coach_observations[0]
+        assert coach_moves == ["e2e4"]
+        assert coach_pgn is not None and "1. e4" in coach_pgn
     position, context = opponent.await_args.args
     assert chess.Board(position.fen).turn == chess.BLACK and context.ply == 1
     with Session(recovery_engine) as observer:
