@@ -194,6 +194,8 @@ Your accepted move is saved before Scan64 waits for its bot reply. If the bot fa
 
 Queued moves are matched against the saved starting position and full move history before synchronization. A human move already saved is not sent again. Entries with an unknown or mismatched source position are retained and keep only their own session paused; other sessions can synchronize.
 
+For older queued moves without a recorded source position, choose **Discard legacy queued moves…** and review the warning. **Keep queued moves** cancels without deleting anything. **Discard and refresh** permanently removes only the confirmed older local moves from that game; saved games, other games' queued moves and entries with a recorded source are kept. Play remains locked until the saved game has refreshed successfully.
+
 ### Hints during play
 
 Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Candidates label engine-line-backed reasons **Tactical** and local move facts **Principle**; **engine preference** means neither applies. Principles describe development, castling, centre occupation or added control, rook files, king escape squares against back-rank mate, or passed-pawn advances. They describe what a move does, not why it is best or a promise of winning. Only moves inside the engine tolerance receive reasons. The first two responses do not disclose moves or their destination squares.

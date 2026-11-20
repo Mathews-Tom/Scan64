@@ -3,8 +3,10 @@ import {
   QUEUED_MOVE_SYNC_FAILED,
   QUEUED_MOVE_SYNC_SUCCEEDED,
   queueMove,
+  removeQueuedMove,
   syncQueuedMoves,
   type QueuedMoveSyncFailure,
+  type QueuedMove,
   type QueuedMoveSyncSuccess,
 } from '../api/offlineQueue';
 
@@ -89,6 +91,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return () => { cancelled = true; };
   }, []);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
+  const [legacyQueuedMoves, setLegacyQueuedMoves] = useState<QueuedMove[]>([]);
+  const [legacyDiscard, setLegacyDiscard] = useState<{
+    sessionId: string; playerId: string; moves: QueuedMove[];
+  } | null>(null);
+  const [discardingLegacy, setDiscardingLegacy] = useState(false);
+  const legacyDiscardPendingRef = useRef(false);
   const [criticalInterruption, setCriticalInterruption] =
     useState<CriticalInterruptionRead | null>(null);
   const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
@@ -366,17 +374,26 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setCriticalInterruption(null);
     updateBoard();
   }, [updateBoard]);
+  const canRefreshQueuedSession = useCallback((sessionId: string, generation: number, ownerId: string) => {
+    if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return false;
+    if (getStoredPlayerId() !== ownerId || sessionRef.current.player_id !== ownerId) {
+      setRefreshSessionId(sessionId);
+      setError('Return to the game owner to refresh this game.');
+      return false;
+    }
+    return true;
+  }, []);
+
   const refreshQueuedSession = useCallback((sessionId: string, generation = ++refreshGenerationRef.current) => {
     if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return;
+    const ownerId = sessionRef.current.player_id;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
     updateBoard();
+    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
     void (async () => {
       try {
         const refreshedSession = await ApiClient.getPlaySession(sessionId);
-        if (
-          refreshGenerationRef.current !== generation ||
-          sessionRef.current?.id !== sessionId
-        ) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
 
         const refreshedChess = new Chess();
         if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
@@ -386,10 +403,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         }
         if (refreshedSession.game_id) {
           const game = await ApiClient.getGame(refreshedSession.game_id);
-          if (
-            refreshGenerationRef.current !== generation ||
-            sessionRef.current?.id !== sessionId
-          ) return;
+          if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
           refreshedChess.loadPgn(game.pgn);
         }
 
@@ -397,16 +411,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         sessionRef.current = refreshedSession;
         queuedMoveNeedsRefreshRef.current.delete(sessionId);
         setSession(refreshedSession);
-        setActivePlayerId(refreshedSession.player_id);
         updateBoard();
         setSyncRetrySessionId(null);
         setRefreshSessionId(null);
         setError(null);
       } catch (error: unknown) {
-        if (
-          refreshGenerationRef.current !== generation ||
-          sessionRef.current?.id !== sessionId
-        ) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         setRefreshSessionId(sessionId);
         setError(
           `Unable to refresh the synchronized game: ${
@@ -415,20 +425,28 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         );
       }
     })();
-  }, [updateBoard]);
+  }, [canRefreshQueuedSession, updateBoard]);
 
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
-    if (sessionRef.current?.id !== sessionId) return;
+    if (sessionRef.current?.id !== sessionId || legacyDiscardPendingRef.current) return;
+    const ownerId = sessionRef.current.player_id;
     const generation = ++refreshGenerationRef.current;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
     updateBoard();
     setRefreshSessionId(null);
+    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
     void (async () => {
       try {
         await syncQueuedMoves();
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         const queuedMoves = await getQueuedMoves();
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
+        const legacyMoves = queuedMoves.filter(
+          queuedMove => queuedMove.sessionId === sessionId && typeof queuedMove.sourcePgn !== 'string',
+        );
+        setLegacyQueuedMoves(previous =>
+          previous.length === 0 && legacyMoves.length === 0 ? previous : legacyMoves,
+        );
         if (queuedMoves.some((queuedMove) => queuedMove.sessionId === sessionId)) {
           setSyncRetrySessionId(sessionId);
           setError('Queued move could not be synchronized. Reconnect to retry.');
@@ -437,7 +455,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         setSyncRetrySessionId(null);
         refreshQueuedSession(sessionId, generation);
       } catch (error: unknown) {
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         setSyncRetrySessionId(sessionId);
         setError(
           `Unable to synchronize queued moves: ${
@@ -446,7 +464,57 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         );
       }
     })();
-  }, [refreshQueuedSession, updateBoard]);
+  }, [canRefreshQueuedSession, refreshQueuedSession, updateBoard]);
+
+  const discardLegacyQueuedMoves = async () => {
+    const confirmation = legacyDiscard;
+    const current = sessionRef.current;
+    if (!confirmation || !current || current.id !== confirmation.sessionId ||
+      current.player_id !== confirmation.playerId || legacyDiscardPendingRef.current ||
+      !navigator.onLine) return;
+    if (getStoredPlayerId() !== confirmation.playerId) {
+      setError('Return to the game owner before discarding queued moves.');
+      return;
+    }
+    legacyDiscardPendingRef.current = true;
+    setDiscardingLegacy(true);
+    const generation = ++refreshGenerationRef.current;
+    const stillCurrent = () => refreshGenerationRef.current === generation &&
+      sessionRef.current?.id === confirmation.sessionId &&
+      sessionRef.current.player_id === confirmation.playerId &&
+      getStoredPlayerId() === confirmation.playerId;
+    try {
+      // Let any existing drain finish before removing only the confirmed local entries.
+      await syncQueuedMoves();
+      if (!stillCurrent()) return;
+      const queuedMoves = await getQueuedMoves();
+      if (!stillCurrent()) return;
+      const confirmedLegacyMoves = queuedMoves.filter(queuedMove =>
+        queuedMove.sessionId === confirmation.sessionId &&
+        typeof queuedMove.sourcePgn !== 'string' &&
+        confirmation.moves.some(confirmed =>
+          confirmed.sessionId === queuedMove.sessionId && confirmed.move === queuedMove.move &&
+          confirmed.timestamp === queuedMove.timestamp,
+        ),
+      );
+      for (const queuedMove of confirmedLegacyMoves) {
+        if (!stillCurrent()) return;
+        await removeQueuedMove(queuedMove.sessionId, queuedMove.move, queuedMove.timestamp);
+      }
+      if (!stillCurrent()) return;
+      setLegacyDiscard(null);
+    } catch (cause) {
+      if (stillCurrent()) setError(
+        `Unable to discard queued moves: ${cause instanceof Error ? cause.message : 'Unknown error'}`,
+      );
+      return;
+    } finally {
+      legacyDiscardPendingRef.current = false;
+      setDiscardingLegacy(false);
+    }
+    // Keep the existing move lock until remaining intents and the canonical game are checked.
+    synchronizeQueuedSession(confirmation.sessionId);
+  };
 
   useEffect(() => {
     // A resumed conversion may already contain moves beyond its source FEN.
@@ -981,19 +1049,44 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       )}
       {error && <div className="error" role="alert">{error}</div>}
       {syncRetrySessionId ? (
-        <button
-          type="button"
-          data-testid="retry-move-sync"
-          onClick={() => synchronizeQueuedSession(syncRetrySessionId)}
-        >
-          Retry move synchronization
-        </button>
+        <>
+          <button
+            type="button"
+            data-testid="retry-move-sync"
+            disabled={discardingLegacy || legacyDiscard?.sessionId === syncRetrySessionId}
+            onClick={() => synchronizeQueuedSession(syncRetrySessionId)}
+          >
+            Retry move synchronization
+          </button>
+          {session && legacyQueuedMoves.some(move => move.sessionId === session.id) && (
+            <button type="button" disabled={discardingLegacy || !online}
+              onClick={() => setLegacyDiscard({
+                sessionId: session.id, playerId: session.player_id, moves: legacyQueuedMoves,
+              })}>
+              Discard legacy queued moves…
+            </button>
+          )}
+        </>
       ) : null}
+      {legacyDiscard && legacyDiscard.sessionId === session?.id && (
+        <div role="region" aria-label="Confirm legacy move discard" aria-busy={discardingLegacy}>
+          <p>These older queued moves have no recorded source position and cannot be replayed safely.
+            Discard only the selected local moves and reload the saved game? Unsent moves will be lost.
+            Saved games and moves with a recorded source are kept.</p>
+          <button type="button" disabled={discardingLegacy || !online}
+            onClick={() => void discardLegacyQueuedMoves()}>
+            {discardingLegacy ? 'Discarding…' : 'Discard and refresh'}
+          </button>
+          <button type="button" disabled={discardingLegacy} onClick={() => setLegacyDiscard(null)}>
+            Keep queued moves
+          </button>
+        </div>
+      )}
       {refreshSessionId ? (
         <button
           type="button"
           data-testid="retry-game-refresh"
-          onClick={() => refreshQueuedSession(refreshSessionId)}
+          onClick={() => synchronizeQueuedSession(refreshSessionId)}
         >
           Retry game refresh
         </button>

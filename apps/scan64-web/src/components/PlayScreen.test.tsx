@@ -2,13 +2,14 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, setActivePlayerId } from '../api/client';
-import type { LessonSpec, PlayAssistanceRead, PlaySessionRead } from '../api/types';
+import type { GameRead, LessonSpec, PlayAssistanceRead, PlaySessionRead } from '../api/types';
 import { Chess } from 'chess.js';
 import { onboardingFixture } from './strength.test-fixtures';
 import {
   getQueuedMoves,
   QUEUED_MOVE_SYNC_SUCCEEDED,
   queueMove,
+  removeQueuedMove,
   syncQueuedMoves,
   type QueuedMove,
 } from '../api/offlineQueue';
@@ -50,6 +51,7 @@ vi.mock('../api/offlineQueue', () => ({
   getQueuedMoves: vi.fn(),
   syncQueuedMoves: vi.fn(),
   queueMove: vi.fn(),
+  removeQueuedMove: vi.fn(),
   QUEUED_MOVE_SYNC_FAILED: 'scan64-queued-move-sync-failed',
   QUEUED_MOVE_SYNC_SUCCEEDED: 'scan64-queued-move-sync-succeeded',
 }));
@@ -155,6 +157,9 @@ describe('PlayScreen', () => {
       { level: 8, name: 'Server expert', description: 'Expert bot' },
     ]);
     localStorage.clear();
+    vi.mocked(setActivePlayerId).mockImplementation(playerId => {
+      localStorage.setItem('scan64_player_id', playerId);
+    });
     chessgroundMock.after = undefined;
     chessgroundMock.color = undefined;
     chessgroundMock.set.mockReset();
@@ -165,6 +170,7 @@ describe('PlayScreen', () => {
   });
 
   it('refreshes authoritative conversion outcome after a move and retries the same source with the chosen bot and a fresh session', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     const sourceFen = '7k/8/8/8/8/r7/6K1/8 w - - 0 1';
     const attempt = {
       id: 'attempt-1', play_session_id: 'convert-1', source_game_id: 'original-game',
@@ -229,6 +235,7 @@ describe('PlayScreen', () => {
   });
 
   it('refreshes a resigned conversion and keeps imported outcomes historical', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     const active: PlaySessionRead = { id: 'conversion-resign', player_id: 'test-player', game_id: 'custom-game',
       opponent_config: { bot_level: '1' }, player_color: 'white', status: 'active', coach_mode: false, assistance_modes: [],
       sparring: { id: 'attempt-1', play_session_id: 'conversion-resign', source_game_id: 'original-game',
@@ -334,6 +341,7 @@ describe('PlayScreen', () => {
   );
 
   it('keeps an initially linked conversion locked until its queued move is drained and reloaded', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
     const active: PlaySessionRead = {
       id: 'conversion-queued', player_id: 'test-player', game_id: 'custom-queued',
@@ -1064,6 +1072,7 @@ describe('PlayScreen', () => {
   });
 
   it('locks moves and resign through queued acknowledgment, failed refresh and canonical retry', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
       game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     const canonicalGame = { id: 'game-123', pgn: '1. e4 e5 *',
@@ -1119,6 +1128,7 @@ describe('PlayScreen', () => {
   });
 
   it('ignores an older synchronization finishing after a newer refresh and live move', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
       game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     const olderQueueRead = Promise.withResolvers<QueuedMove[]>();
@@ -1225,6 +1235,139 @@ describe('PlayScreen', () => {
     expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
     expect(queueMove).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    'confirms legacy discard without removing recorded or other-session moves (recorded=%s)',
+    async retainRecorded => {
+      localStorage.setItem('scan64_player_id', 'test-player');
+      localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+      const legacy = { sessionId: 'sess-123', move: 'g1f3', timestamp: 1 };
+      const other = { sessionId: 'other-session', move: 'd2d4', timestamp: 2 };
+      const recorded = { sessionId: 'sess-123', move: 'b1c3', timestamp: 3, sourcePgn: '1. e4 e5 *' };
+      let queued: QueuedMove[] = [legacy, other, ...(retainRecorded ? [recorded] : [])];
+      vi.mocked(getQueuedMoves).mockImplementation(async () => queued);
+      vi.mocked(removeQueuedMove).mockImplementation(async (sessionId, move, timestamp) => {
+        queued = queued.filter(entry =>
+          entry.sessionId !== sessionId || entry.move !== move || entry.timestamp !== timestamp,
+        );
+      });
+      const resumed: PlaySessionRead = { ...assistanceSession, id: 'sess-123' };
+      const refreshed = Promise.withResolvers<PlaySessionRead>();
+      vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(resumed).mockReturnValue(refreshed.promise);
+      vi.mocked(ApiClient.getGame).mockResolvedValue({
+        id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
+      });
+      render(<PlayScreen />);
+      const discard = await screen.findByRole('button', { name: 'Discard legacy queued moves…' });
+      fireEvent.click(discard);
+      expect(screen.getByRole('region', { name: 'Confirm legacy move discard' })).toHaveTextContent(
+        'Unsent moves will be lost',
+      );
+      expect(removeQueuedMove).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Keep queued moves' }));
+      expect(removeQueuedMove).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+      fireEvent.click(discard);
+      fireEvent.click(screen.getByRole('button', { name: 'Discard and refresh' }));
+      await waitFor(() => expect(removeQueuedMove).toHaveBeenCalledExactlyOnceWith('sess-123', 'g1f3', 1));
+      expect(queued).toEqual([other, ...(retainRecorded ? [recorded] : [])]);
+      expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+      await act(async () => getRegisteredMoveHandler()('g1', 'f3'));
+      expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+      if (retainRecorded) {
+        expect(screen.getByTestId('retry-move-sync')).toBeInTheDocument();
+        expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
+      } else {
+        await waitFor(() => expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2));
+        await act(async () => refreshed.resolve(resumed));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+        expect(screen.queryByTestId('retry-move-sync')).not.toBeInTheDocument();
+        expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+      }
+    },
+  );
+
+  it('retains legacy queued moves when the actor changes after confirmation opens', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    vi.mocked(getQueuedMoves).mockResolvedValue([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }]);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    render(<PlayScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard legacy queued moves…' }));
+    localStorage.setItem('scan64_player_id', 'other-player');
+    fireEvent.click(screen.getByRole('button', { name: 'Discard and refresh' }));
+    expect(removeQueuedMove).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Return to the game owner');
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+  });
+
+  it('does not unlock or restore an old actor after a discarded queue waits for canonical refresh', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    let queued: QueuedMove[] = [{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }];
+    vi.mocked(getQueuedMoves).mockImplementation(async () => queued);
+    vi.mocked(removeQueuedMove).mockImplementation(async () => { queued = []; });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
+    const canonical = Promise.withResolvers<GameRead>();
+    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({
+      id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
+    }).mockReturnValue(canonical.promise);
+    render(<PlayScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard legacy queued moves…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard and refresh' }));
+    await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledTimes(2));
+    const activePlayerCalls = vi.mocked(setActivePlayerId).mock.calls.length;
+    localStorage.setItem('scan64_player_id', 'other-player');
+    await act(async () => canonical.resolve({
+      id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
+    }));
+    expect(setActivePlayerId).toHaveBeenCalledTimes(activePlayerCalls);
+    expect(localStorage.getItem('scan64_player_id')).toBe('other-player');
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    await act(async () => getRegisteredMoveHandler()('d2', 'd4'));
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    const refresh = screen.getByTestId('retry-game-refresh');
+    const sessionReads = vi.mocked(ApiClient.getPlaySession).mock.calls.length;
+    fireEvent.click(refresh);
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(sessionReads);
+    expect(localStorage.getItem('scan64_player_id')).toBe('other-player');
+    expect(screen.getByRole('alert')).toHaveTextContent('Return to the game owner');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    fireEvent.click(refresh);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
+      expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, ''])('keeps retained queue intent locked after owner recovery (source=%s)', async sourcePgn => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', 'sess-123');
+    const queued = [{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn }];
+    vi.mocked(getQueuedMoves).mockResolvedValue(queued);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    render(<PlayScreen />);
+    const retry = await screen.findByTestId('retry-move-sync');
+    localStorage.setItem('scan64_player_id', 'other-player');
+    fireEvent.click(retry);
+    const refresh = screen.getByTestId('retry-game-refresh');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    await act(async () => { fireEvent.click(refresh); });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+    expect(removeQueuedMove).not.toHaveBeenCalled();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+  });
+
   it('retries a failed canonical refresh after queued-move synchronization', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(getQueuedMoves)
@@ -1367,6 +1510,7 @@ describe('PlayScreen', () => {
   });
 
   it('keeps a queued coach interruption visible and the board locked until review completes', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValueOnce(new Error('offline'));
     vi.mocked(queueMove).mockResolvedValue();
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
