@@ -467,6 +467,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       !queuedMoveNeedsRefreshRef.current.has(source.sessionId);
   }, []);
 
+  const requireProtectedRefresh = useCallback((source: AssistanceSource) => {
+    if (sessionRef.current?.id !== source.sessionId || sessionRef.current.player_id !== source.playerId) return;
+    queuedMoveNeedsRefreshRef.current.add(source.sessionId);
+    setRefreshSessionId(source.sessionId);
+  }, []);
+
   const commitProtectedMove = useCallback(async (move: string, graded: AssistanceState) => {
     if (graded.pending || assistanceRef.current !== graded || movePendingRef.current) return;
     if (!sourceIsCurrent(graded.source) || !navigator.onLine) {
@@ -482,12 +488,18 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       const response = await ApiClient.makePlaySessionMove(graded.source.sessionId, {
         move, expected_generation: graded.result.generation,
       });
-      if (!sourceIsCurrent(graded.source)) return;
+      if (!sourceIsCurrent(graded.source)) {
+        requireProtectedRefresh(graded.source);
+        return;
+      }
       chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
       flushSync(updateBoard);
       applyMoveResponse(response);
     } catch (caught) {
-      if (!sourceIsCurrent(graded.source)) return;
+      if (!sourceIsCurrent(graded.source)) {
+        requireProtectedRefresh(graded.source);
+        return;
+      }
       // A stale generation or an uncertain commit must be reconciled, never queued or replayed.
       if (!(caught instanceof ApiRequestError) || caught.status === 409 || caught.status >= 500) {
         queuedMoveNeedsRefreshRef.current.add(graded.source.sessionId);
@@ -498,7 +510,42 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       movePendingRef.current = false;
       setMovePending(false);
     }
-  }, [applyMoveResponse, clearAssistance, sourceIsCurrent, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, requireProtectedRefresh, sourceIsCurrent, updateBoard]);
+
+  const resumeBotTurn = async () => {
+    const current = sessionRef.current;
+    const color = sessionPlayerColor(current);
+    if (!current || current.status !== 'active' || !current.game_id || color === undefined ||
+      chessRef.current.turn() === (color === 'white' ? 'w' : 'b') || !navigator.onLine ||
+      current.player_id !== getStoredPlayerId() || movePendingRef.current || resigning ||
+      takebackPendingRef.current || criticalInterruptionRef.current !== null ||
+      queuedMoveNeedsRefreshRef.current.has(current.id)) return;
+    const source: AssistanceSource = {
+      sessionId: current.id, playerId: current.player_id,
+      fen: chessRef.current.fen(), revision: positionRevision.current,
+    };
+    movePendingRef.current = true;
+    setMovePending(true);
+    clearAssistance();
+    try {
+      const response = await ApiClient.resumePlaySession(current.id, current.player_id);
+      if (sessionRef.current?.id !== source.sessionId ||
+        sessionRef.current.player_id !== source.playerId || getStoredPlayerId() !== source.playerId ||
+        chessRef.current.fen() !== source.fen || positionRevision.current !== source.revision) {
+        requireProtectedRefresh(source);
+        return;
+      }
+      applyMoveResponse(response);
+    } catch (caught) {
+      requireProtectedRefresh(source);
+      if (getStoredPlayerId() === source.playerId) {
+        setError(`${caught instanceof Error ? caught.message : 'Bot turn failed.'} Refresh the game before retrying; your move was not replayed.`);
+      }
+    } finally {
+      movePendingRef.current = false;
+      setMovePending(false);
+    }
+  };
 
   const gradeMoves = useCallback(async (mode: PlayAssistanceMode, moves: string[]) => {
     const activeSession = sessionRef.current;
@@ -523,8 +570,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         player_id: source.playerId, fen: source.fen, moves, mode,
       });
       // Cancellation hides the verdict, not assistance already durably recorded for this position.
-      if (sourceIsCurrent(source) && result.fen === source.fen && result.mode === mode) {
-        const current = sessionRef.current!;
+      const current = sessionRef.current;
+      if (current?.id === source.sessionId && current.player_id === source.playerId &&
+        getStoredPlayerId() === source.playerId && result.fen === source.fen && result.mode === mode) {
         const updated = { ...current, assistance_modes: [...new Set([...current.assistance_modes, ...result.assistance_modes])] };
         sessionRef.current = updated;
         setSession(updated);
@@ -574,6 +622,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     movePendingRef.current = true;
     let moveApplied = false;
     setMovePending(true);
+    const sourcePgn = chessRef.current.pgn();
     try {
       chessRef.current.move({ from: lan.slice(0, 2), to: lan.slice(2, 4), promotion: lan[4] });
       moveApplied = true;
@@ -583,7 +632,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         applyMoveResponse(response);
       } catch (error: unknown) {
         if (!navigator.onLine) {
-          await queueMove(activeSession.id, lan);
+          await queueMove(activeSession.id, lan, sourcePgn);
           queuedMoveNeedsRefreshRef.current.add(activeSession.id);
           setError('Offline. Move queued. Waiting for network to resume game...');
           return;
@@ -593,6 +642,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Unknown error');
       if (moveApplied) chessRef.current.undo();
+      if (moveApplied && sessionRef.current?.id === activeSession.id &&
+        (!(error instanceof ApiRequestError) || error.status === 409 || error.status >= 500)) {
+        queuedMoveNeedsRefreshRef.current.add(activeSession.id);
+        setRefreshSessionId(activeSession.id);
+      }
       updateBoard();
     } finally {
       setMovePending(false);
@@ -793,7 +847,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
       queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
-      applyMoveResponse(response);
+      if (response !== null) applyMoveResponse(response);
     };
     const handleSyncFailure = (event: Event) => {
       const { queuedMove, message } =
@@ -844,6 +898,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
       (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
     queuedMoveNeedsRefreshRef.current.has(session.id);
+  const botTurnPending = session?.status === 'active' && sessionPlayerColor(session) !== undefined &&
+    session.player_id === getStoredPlayerId() && chessRef.current.turn() !==
+      (sessionPlayerColor(session) === 'white' ? 'w' : 'b') &&
+    !queuedMoveNeedsRefreshRef.current.has(session.id);
 
   return (
     <div className="play-screen working-screen" data-testid="play-screen">
@@ -940,6 +998,13 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           Retry game refresh
         </button>
       ) : null}
+      {botTurnPending && <div role="status">
+        <p>{movePending ? 'Waiting for the bot…' : 'Your move is saved. Resume the bot turn without replaying it.'}</p>
+        <button type="button" onClick={() => void resumeBotTurn()}
+          disabled={movePending || resigning || takingBack || !online || criticalInterruption !== null}>
+          {movePending ? 'Waiting for bot…' : 'Resume bot turn'}
+        </button>
+      </div>}
       {session && <Panel title="Current game">
         <p>You play {sessionPlayerColor(session) ?? 'your chosen side'} against Scan64.</p>
         <p data-testid="session-info">Status: {session.status}</p>

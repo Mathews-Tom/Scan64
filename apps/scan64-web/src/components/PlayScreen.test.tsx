@@ -118,6 +118,7 @@ vi.mock('../api/client', () => ({
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
     makePlaySessionMove: vi.fn(),
+    resumePlaySession: vi.fn(),
     gradePlayMoves: vi.fn(),
     resignPlaySession: vi.fn(),
     getGame: vi.fn(),
@@ -499,6 +500,85 @@ describe('PlayScreen', () => {
     expect(screen.getByRole('alertdialog')).not.toHaveTextContent('e4');
     expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
     expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+  });
+
+  it('requires canonical refresh after a protected completion is discarded across an actor change', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const commit = Promise.withResolvers<{ opponent_move: string; status: string }>();
+    const refreshed = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(commit.promise);
+    vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(refreshed.promise);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '1. e4 e5 *', white: 'human', black: 'bot', result: '*',
+    });
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Play anyway' }));
+    localStorage.setItem('scan64_player_id', 'other-player');
+    await act(async () => commit.resolve({ opponent_move: 'e7e5', status: 'active' }));
+    expect(screen.getByTestId('retry-game-refresh')).toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    localStorage.setItem('scan64_player_id', 'test-player');
+    fireEvent.click(screen.getByTestId('retry-game-refresh'));
+    await act(async () => getRegisteredMoveHandler()('d2', 'd4'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('chessground-board-san-move-list')).toBeEmptyDOMElement();
+    await act(async () => refreshed.resolve({ ...assistanceSession, assistance_modes: ['guard'] }));
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5'));
+    expect(screen.queryByTestId('retry-game-refresh')).not.toBeInTheDocument();
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('blunder guard');
+  });
+
+  it('retains late durable disclosure after Cancel and an ordinary move without exposing stale grades', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const grading = Promise.withResolvers<PlayAssistanceRead>();
+    vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(grading.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'e2e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel checking' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    await act(async () => grading.resolve({
+      ...blunderVerdict, mode: 'candidates', assistance_modes: ['candidates'],
+    }));
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('Candidates');
+    expect(screen.queryByRole('list', { name: 'Candidate grades' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Play e4' })).not.toBeInTheDocument();
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('assisted-game', { move: 'e2e4' });
+  });
+
+  it('refreshes a failed protected move then explicitly resumes only the saved bot turn', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Engine failed', 500));
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, assistance_modes: ['guard'] });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '1. e4 *', white: 'human', black: 'bot', result: '*',
+    });
+    const reply = Promise.withResolvers<{ opponent_move: string; status: string }>();
+    vi.mocked(ApiClient.resumePlaySession).mockReturnValueOnce(reply.promise);
+    render(<PlayScreen initialSession={assistanceSession} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Blunder guard' }));
+    await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Play anyway' }));
+    fireEvent.click(await screen.findByTestId('retry-game-refresh'));
+    const resume = await screen.findByRole('button', { name: 'Resume bot turn' });
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4'));
+    expect(ApiClient.resumePlaySession).not.toHaveBeenCalled();
+    fireEvent.click(resume);
+    await act(async () => getRegisteredMoveHandler()('d2', 'd4'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    await act(async () => reply.resolve({ opponent_move: 'e7e5', status: 'active' }));
+    expect(ApiClient.resumePlaySession).toHaveBeenCalledExactlyOnceWith('assisted-game', 'test-player');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    expect(screen.queryByRole('button', { name: 'Resume bot turn' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('blunder guard');
+    expect(queueMove).not.toHaveBeenCalled();
   });
 
   it('rejects a guard response after ownership changes, rather than disclosing or playing it', async () => {
@@ -947,6 +1027,42 @@ describe('PlayScreen', () => {
     expect(screen.queryByText(/queued move|synchronizing game/i)).not.toBeInTheDocument();
   });
 
+  it('refreshes a reconciled offline human move and exposes only explicit bot recovery', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
+      player_color: 'white', game_id: 'game-123', opponent_config: {},
+      status: 'active', coach_mode: false, assistance_modes: [] };
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValueOnce(new Error('response lost'));
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(playSession);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '1. e4 *', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    vi.mocked(ApiClient.resumePlaySession).mockResolvedValue({
+      opponent_move: 'e7e5', status: 'active',
+    });
+    vi.mocked(syncQueuedMoves).mockImplementation(async () => {
+      window.dispatchEvent(new CustomEvent(QUEUED_MOVE_SYNC_SUCCEEDED, { detail: {
+        queuedMove: { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn: '' },
+        response: null,
+      } }));
+    });
+    render(<PlayScreen initialSession={playSession} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    expect(queueMove).toHaveBeenCalledWith('sess-123', 'e2e4', new Chess().pgn());
+    network.mockReturnValue(true);
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    const resume = await screen.findByRole('button', { name: 'Resume bot turn' });
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(ApiClient.resumePlaySession).not.toHaveBeenCalled();
+    fireEvent.click(resume);
+    await waitFor(() => expect(ApiClient.resumePlaySession).toHaveBeenCalledExactlyOnceWith('sess-123', 'test-player'));
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5'));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    network.mockRestore();
+  });
+
   it('locks moves and resign through queued acknowledgment, failed refresh and canonical retry', async () => {
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
       game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
@@ -967,7 +1083,7 @@ describe('PlayScreen', () => {
     });
     render(<PlayScreen initialSession={playSession} />);
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
-    expect(queueMove).toHaveBeenCalledWith('sess-123', 'e2e4');
+    expect(queueMove).toHaveBeenCalledWith('sess-123', 'e2e4', new Chess().pgn());
     network.mockReturnValue(true);
     await act(async () => { window.dispatchEvent(new Event('online')); });
     await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledTimes(1));
@@ -1279,7 +1395,7 @@ describe('PlayScreen', () => {
       await getRegisteredMoveHandler()('e2', 'e4');
     });
     await waitFor(() => {
-      expect(queueMove).toHaveBeenCalledWith('sess-123', 'e2e4');
+      expect(queueMove).toHaveBeenCalledWith('sess-123', 'e2e4', new Chess().pgn());
     });
 
     await act(async () => {
@@ -1822,7 +1938,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValueOnce(new Error('offline'));
     vi.mocked(queueMove).mockResolvedValue();
     await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
-    await waitFor(() => expect(queueMove).toHaveBeenCalledWith('live-offline', 'g1f3'));
+    await waitFor(() => expect(queueMove).toHaveBeenCalledWith('live-offline', 'g1f3', expect.stringContaining('1. e4 e5 *')));
     expect(screen.getByTestId('takeback-btn')).toBeDisabled();
     fireEvent.click(screen.getByTestId('takeback-btn'));
     expect(ApiClient.takebackPlaySession).not.toHaveBeenCalled();

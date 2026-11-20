@@ -531,6 +531,17 @@ export class ApiClient {
     return json as unknown as PlayMoveResponse;
   }
 
+
+  static async resumePlaySession(sessionId: string, playerId: string): Promise<PlayMoveResponse> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/resume`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(playerId),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resume bot turn: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayMoveResponse;
+  }
   static async resignPlaySession(sessionId: string): Promise<PlaySessionRead> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/resign`, {
       method: 'POST',

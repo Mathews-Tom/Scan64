@@ -31,6 +31,18 @@ describe('ApiClient', () => {
     expect(localStorage.getItem('scan64_player_id')).toBe('other-player');
   });
 
+  it.each([404, 409, 500])('keeps bot recovery bound to its explicit actor and surfaces status %s without replay', async status => {
+    localStorage.setItem('scan64_player_id', 'other-player');
+    localStorage.setItem('scan64_player_token:other-player', 'other-token');
+    localStorage.setItem('scan64_player_token:owner', 'owner-token');
+    mockFetch.mockResolvedValueOnce({ ok: false, status, statusText: 'Rejected' });
+    await expect(ApiClient.resumePlaySession('session-1', 'owner')).rejects.toMatchObject({ status });
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith('/v1/play-sessions/session-1/resume', {
+      method: 'POST', headers: { Authorization: 'Bearer owner-token' },
+    });
+    expect(localStorage.getItem('scan64_player_id')).toBe('other-player');
+  });
+
   it('refuses assistance when the requested actor has no stored token', async () => {
     localStorage.setItem('scan64_player_id', 'other-player');
     localStorage.setItem('scan64_player_token:other-player', 'other-token');
