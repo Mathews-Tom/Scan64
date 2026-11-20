@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlayMoveResponse } from './types';
 import { Chess } from 'chess.js';
 import { ApiClient } from './client';
-import { QUEUED_MOVE_SYNC_FAILED, QUEUED_MOVE_SYNC_SUCCEEDED, syncQueuedMoves } from './offlineQueue';
-import { get, set } from 'idb-keyval';
+import { getQueuedMoves, QUEUED_MOVE_SYNC_FAILED, QUEUED_MOVE_SYNC_SUCCEEDED, syncQueuedMoves } from './offlineQueue';
+import type { QueuedMove } from './offlineQueue';
+
+const storage = vi.hoisted(() => ({ queue: [] as QueuedMove[] }));
 
 vi.mock('./client', () => ({
   ApiClient: {
@@ -14,17 +16,24 @@ vi.mock('./client', () => ({
 }));
 
 vi.mock('idb-keyval', () => ({
-  get: vi.fn(),
-  set: vi.fn(),
+  get: vi.fn(async () => structuredClone(storage.queue)),
+  set: vi.fn(async (_key: IDBValidKey, value: QueuedMove[]) => {
+    storage.queue = structuredClone(value);
+  }),
+  update: vi.fn(async (
+    _key: IDBValidKey,
+    updater: (queue: QueuedMove[] | undefined) => QueuedMove[],
+  ) => {
+    storage.queue = updater(structuredClone(storage.queue));
+  }),
 }));
 
 describe('syncQueuedMoves', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(get).mockResolvedValue([
+    storage.queue = [
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn: '' },
-    ]);
-    vi.mocked(set).mockResolvedValue(undefined);
+    ];
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
       id: 'sess-123', player_id: 'player', game_id: 'game-123', status: 'active',
       opponent_config: { assistance_generation: '7' }, coach_mode: false, assistance_modes: [],
@@ -65,7 +74,7 @@ describe('syncQueuedMoves', () => {
       try {
         await syncQueuedMoves();
         expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
-        expect(set).toHaveBeenCalledWith('scan64_offline_moves', []);
+        expect(await getQueuedMoves()).toEqual([]);
         expect(acknowledged.mock.calls[0][0].detail.response).toBeNull();
       } finally {
         window.removeEventListener(QUEUED_MOVE_SYNC_SUCCEEDED, acknowledged);
@@ -84,14 +93,15 @@ describe('syncQueuedMoves', () => {
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('sess-123', {
       move: 'e2e4', expected_generation: 7,
     });
-    expect(set).toHaveBeenCalledWith('scan64_offline_moves', []);
+    expect(await getQueuedMoves()).toEqual([]);
   });
 
   it('retains a rejected submission when the human move was not saved', async () => {
+    const queuedBefore = await getQueuedMoves();
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new Error('position changed'));
     await syncQueuedMoves();
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
-    expect(set).not.toHaveBeenCalled();
+    expect(await getQueuedMoves()).toEqual(queuedBefore);
   });
 
   it.each([
@@ -99,9 +109,10 @@ describe('syncQueuedMoves', () => {
     { sourcePgn: '1. e4 e5 *', canonical: '' },
     { sourcePgn: undefined, canonical: '1. e4 *' },
   ])('retains unmatched or unknown queued intent ($sourcePgn)', async ({ sourcePgn, canonical }) => {
-    vi.mocked(get).mockResolvedValue([
+    const queuedMoves = [
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn },
-    ]);
+    ];
+    storage.queue = queuedMoves;
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123', pgn: canonical, white: 'player', black: 'Stockfish', result: '*',
     });
@@ -110,7 +121,7 @@ describe('syncQueuedMoves', () => {
     try {
       await syncQueuedMoves();
       expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
-      expect(set).not.toHaveBeenCalled();
+      expect(await getQueuedMoves()).toEqual(queuedMoves);
       expect(failed.mock.calls[0][0].detail.queuedMove.move).toBe('e2e4');
     } finally {
       window.removeEventListener(QUEUED_MOVE_SYNC_FAILED, failed);
@@ -121,7 +132,7 @@ describe('syncQueuedMoves', () => {
     const legacy = { sessionId: 'legacy-session', move: 'e2e4', timestamp: 1 };
     const later = { sessionId: 'legacy-session', move: 'd2d4', timestamp: 2, sourcePgn: '' };
     const independent = { sessionId: 'sess-123', move: 'e2e4', timestamp: 3, sourcePgn: '' };
-    vi.mocked(get).mockResolvedValue([legacy, later, independent]);
+    storage.queue = [legacy, later, independent];
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
       opponent_move: 'e7e5', status: 'active',
     });
@@ -130,7 +141,7 @@ describe('syncQueuedMoves', () => {
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith('sess-123', {
       move: 'e2e4', expected_generation: 7,
     });
-    expect(set).toHaveBeenCalledExactlyOnceWith('scan64_offline_moves', [legacy, later]);
+    expect(await getQueuedMoves()).toEqual([legacy, later]);
   });
 
   it('does not submit queued intent from a different history at the same FEN', async () => {
@@ -141,14 +152,15 @@ describe('syncQueuedMoves', () => {
     const second = new Chess();
     second.loadPgn(canonical);
     expect(first.fen()).toBe(second.fen());
-    vi.mocked(get).mockResolvedValue([
+    const queuedMoves = [
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn },
-    ]);
+    ];
+    storage.queue = queuedMoves;
     vi.mocked(ApiClient.getGame).mockResolvedValue({
       id: 'game-123', pgn: canonical, white: 'player', black: 'Stockfish', result: '*',
     });
     await syncQueuedMoves();
     expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
-    expect(set).not.toHaveBeenCalled();
+    expect(await getQueuedMoves()).toEqual(queuedMoves);
   });
 });

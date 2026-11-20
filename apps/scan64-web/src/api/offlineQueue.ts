@@ -1,7 +1,7 @@
 import { ApiClient } from './client';
 import type { PlayMoveResponse } from './types';
 
-import { get, set } from 'idb-keyval';
+import { get, set, update } from 'idb-keyval';
 import { Chess } from 'chess.js';
 
 const QUEUED_MOVES_KEY = 'scan64_offline_moves';
@@ -36,9 +36,11 @@ function dispatchSyncEvent<T>(name: string, detail: T): void {
 }
 
 export async function queueMove(sessionId: string, move: string, sourcePgn: string): Promise<void> {
-  const queue = (await get<QueuedMove[]>(QUEUED_MOVES_KEY)) ?? [];
-  queue.push({ sessionId, move, timestamp: Date.now(), sourcePgn });
-  await set(QUEUED_MOVES_KEY, queue);
+  await update<QueuedMove[]>(QUEUED_MOVES_KEY, storedQueue => {
+    const queue = storedQueue ?? [];
+    queue.push({ sessionId, move, timestamp: Date.now(), sourcePgn });
+    return queue;
+  });
 }
 
 export async function getQueuedMoves(): Promise<QueuedMove[]> {
@@ -54,16 +56,16 @@ export async function removeQueuedMove(
   move: string,
   timestamp: number,
 ): Promise<void> {
-  const queue = (await get<QueuedMove[]>(QUEUED_MOVES_KEY)) ?? [];
-  const filtered = queue.filter(
-    (queuedMove) =>
-      !(
-        queuedMove.sessionId === sessionId &&
-        queuedMove.move === move &&
-        queuedMove.timestamp === timestamp
-      ),
+  await update<QueuedMove[]>(QUEUED_MOVES_KEY, queue =>
+    (queue ?? []).filter(
+      queuedMove =>
+        !(
+          queuedMove.sessionId === sessionId &&
+          queuedMove.move === move &&
+          queuedMove.timestamp === timestamp
+        ),
+    ),
   );
-  await set(QUEUED_MOVES_KEY, filtered);
 }
 
 let activeMoveSync: Promise<void> | null = null;
