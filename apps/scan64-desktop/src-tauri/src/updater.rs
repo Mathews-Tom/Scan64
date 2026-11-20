@@ -7,11 +7,12 @@ use std::{
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 const DOWNLOAD_URL: &str = "https://github.com/Mathews-Tom/Scan64/releases/latest";
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+const STATUS_EVENT: &str = "scan64-update-status";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +46,7 @@ impl Phase {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateStatus {
+    revision: u64,
     state: Phase,
     installed_version: String,
     available_version: Option<String>,
@@ -59,6 +61,7 @@ pub struct UpdateStatus {
 impl UpdateStatus {
     fn new(version: String, automatic: bool, unavailable: Option<String>) -> Self {
         Self {
+            revision: 0,
             state: if unavailable.is_some() {
                 Phase::Unavailable
             } else {
@@ -128,7 +131,8 @@ fn save_preferences(path: &Path, automatic: bool) -> Result<(), String> {
     result.map_err(|_| "Cannot save the update preference".to_owned())
 }
 
-pub struct Controller {
+pub struct Controller<R: Runtime = tauri::Wry> {
+    app: AppHandle<R>,
     status: UpdateStatus,
     preferences: PathBuf,
     update: Option<Update>,
@@ -155,13 +159,24 @@ impl Controller {
         }
         Self {
             status,
+            app: app.clone(),
             preferences,
             update: None,
             bytes: None,
         }
     }
+}
 
-    fn publish(&self) {
+impl<R: Runtime> Controller<R> {
+    fn publish(&mut self) {
+        self.status.revision = self
+            .status
+            .revision
+            .checked_add(1)
+            .expect("Updater revision overflow");
+        if let Err(error) = self.app.emit(STATUS_EVENT, &self.status) {
+            eprintln!("Cannot emit updater status: {error}");
+        }
         #[cfg(feature = "updater-test")]
         smoke::snapshot(&self.status);
     }
@@ -556,7 +571,7 @@ pub fn start(app: AppHandle) {
 mod smoke;
 
 #[cfg(feature = "updater-test")]
-pub(crate) use smoke::prepare_smoke_launch;
+pub(crate) use smoke::{observe_page_load, observe_ui, prepare_smoke_launch};
 
 #[cfg(test)]
 #[path = "../updater_config.rs"]
@@ -565,6 +580,10 @@ mod updater_config_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::{
+        test::{mock_builder, mock_context, noop_assets, MockRuntime},
+        Listener,
+    };
 
     fn state(phase: Phase) -> UpdateStatus {
         let mut state = UpdateStatus::new("0.6.1".to_owned(), true, None);
@@ -572,13 +591,81 @@ mod tests {
         state
     }
 
-    fn controller(phase: Phase) -> Controller {
+    fn controller(phase: Phase) -> Controller<MockRuntime> {
+        let app = mock_builder().build(mock_context(noop_assets())).unwrap();
         Controller {
+            app: app.handle().clone(),
             status: state(phase),
             preferences: PathBuf::new(),
             update: None,
             bytes: None,
         }
+    }
+
+    #[test]
+    fn publishes_authoritative_snapshots_in_revision_order() {
+        let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let received = events.clone();
+        let listener = app.listen(STATUS_EVENT, move |event| {
+            received
+                .lock()
+                .unwrap()
+                .push(serde_json::from_str::<serde_json::Value>(event.payload()).unwrap());
+        });
+        let mut state = controller(Phase::Idle);
+        state.app = app.handle().clone();
+        assert_eq!(state.status.revision, 0);
+        assert!(state.begin_check());
+        assert!(!state.begin_check());
+        state.checked(None);
+        assert!(state.begin_check());
+        state.failed("Cannot check for updates.");
+        app.unlisten(listener);
+        let events = events.lock().unwrap();
+        assert_eq!(events.len(), 4);
+        for (index, event) in events.iter().enumerate() {
+            assert_eq!(event["revision"], (index + 1) as u64);
+            assert_eq!(event["installedVersion"], "0.6.1");
+            assert!(event.get("installed_version").is_none());
+        }
+        assert_eq!(events[0]["state"], "checking");
+        assert_eq!(events[1]["state"], "upToDate");
+        assert_eq!(events[2]["state"], "checking");
+        assert_eq!(events[3]["state"], "failed");
+        assert_eq!(events[3], serde_json::to_value(&state.status).unwrap());
+    }
+
+    #[test]
+    fn publishes_progress_only_when_percent_changes_and_preserves_verified_terminal_state() {
+        let mut state = controller(Phase::Downloading);
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let received = events.clone();
+        let listener = state.app.listen(STATUS_EVENT, move |event| {
+            received
+                .lock()
+                .unwrap()
+                .push(serde_json::from_str::<serde_json::Value>(event.payload()).unwrap());
+        });
+        state.progress(1, Some(1000));
+        state.progress(2, Some(1000));
+        state.progress(500, Some(1000));
+        state.progress(501, Some(1000));
+        state.progress(1000, Some(1000));
+        state.ready(vec![1, 2, 3]);
+        state.app.unlisten(listener);
+        let events = events.lock().unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event["percent"].as_u64().unwrap())
+                .collect::<Vec<_>>(),
+            vec![0, 50, 99, 100]
+        );
+        assert_eq!(state.status.revision, 4);
+        assert_eq!(events[3]["state"], "ready");
+        assert_eq!(events[3], serde_json::to_value(&state.status).unwrap());
+        assert_eq!(state.bytes.as_deref(), Some([1, 2, 3].as_slice()));
     }
 
     #[test]

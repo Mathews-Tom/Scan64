@@ -1,4 +1,5 @@
 import { apiBase, apiFetch } from '../platform';
+import { readProgress } from './progress';
 import type {
   AnalysisJobRead,
   BotRead,
@@ -450,6 +451,24 @@ export class ApiClient {
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;
+  }
+
+  static async watchAnalysisJob(
+    jobId: string,
+    onUpdate: (job: AnalysisJobRead) => void,
+    signal: AbortSignal,
+  ): Promise<AnalysisJobRead> {
+    const response = await apiFetch(`${apiBase()}/analysis-jobs/${jobId}/events`, {
+      headers: getActivePlayerAuthorizationHeader(),
+      signal,
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to watch analysis job: ${response.statusText}`, response.status);
+    }
+    return readProgress<AnalysisJobRead>(response, signal, job => {
+      if (!['pending', 'running', 'completed', 'failed'].includes(job.status)) throw new Error('Malformed analysis progress.');
+      onUpdate(job);
+    }, job => job.status === 'completed' || job.status === 'failed');
   }
 
   static async getBots(): Promise<BotRead[]> {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import socket
 import threading
@@ -31,6 +32,7 @@ class JobSummary(BaseModel):
 
 
 class ImportJobState(BaseModel):
+    revision: int
     status: Literal["idle", "running", "cancelling", "cancelled", "succeeded", "failed"] = "idle"
     phase: Literal["download", "read", "import", "save"] | None = None
     done: int = 0
@@ -97,6 +99,42 @@ def validate_puzzle_path(value: str) -> Path:
     return path.resolve()
 
 
+class ImportJobSubscription:
+    """One bounded wakeup slot; fields use the job's short-lived notifier lock."""
+
+    def __init__(self, job: PuzzleImportJob) -> None:
+        self._job = job
+        self._loop = asyncio.get_running_loop()
+        self._event = asyncio.Event()
+        self._pending = False
+        self._closed = False
+
+    def _notify_locked(self) -> None:
+        if not self._pending:
+            self._pending = True
+            try:
+                self._loop.call_soon_threadsafe(self._event.set)
+            except RuntimeError:
+                self._closed = True
+
+    async def next_state(self) -> ImportJobState | None:
+        await self._event.wait()
+        with self._job._notifier_lock:
+            self._event.clear()
+            self._pending = False
+            if self._closed:
+                return None
+            return self._job._published_state.model_copy(deep=True)
+
+    def close(self) -> None:
+        with self._job._notifier_lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._job._listeners.discard(self)
+            self._notify_locked()
+
+
 class PuzzleImportJob:
     def __init__(
         self, engine: Engine, data_dir: Path, *, download_url: str = DEFAULT_PUZZLE_URL
@@ -105,11 +143,17 @@ class PuzzleImportJob:
         self.data_dir = data_dir
         self.download_url = download_url
         self._lock = threading.Lock()
+        # Publishers take the job/commit lock before this lock, never the reverse.
+        # Async subscribers must not wait for SQLite's irreversible commit.
+        self._notifier_lock = threading.Lock()
         self._cancel = threading.Event()
         self._committed = threading.Event()
         self._thread: threading.Thread | None = None
         self._transport: _DownloadTransport | None = None
-        self._state = ImportJobState()
+        self._state = ImportJobState(revision=0)
+        # Replaced only at publication, never mutated or handed to a subscriber.
+        self._published_state = self._state.model_copy(deep=True)
+        self._listeners: set[ImportJobSubscription] = set()
         self._phase_started = 0.0
         self._result: JobSummary | None = None
         # One desktop server owns this data directory. Recover only its temporary
@@ -129,6 +173,22 @@ class PuzzleImportJob:
         with self._lock:
             return self._state.model_copy(deep=True)
 
+    def subscribe(self) -> tuple[ImportJobState, ImportJobSubscription]:
+        listener = ImportJobSubscription(self)
+        with self._notifier_lock:
+            self._listeners.add(listener)
+            return self._published_state.model_copy(deep=True), listener
+
+    def _publish_locked(self) -> None:
+        self._state.revision += 1
+        published = self._state.model_copy(deep=True)
+        with self._notifier_lock:
+            self._published_state = published
+            for listener in tuple(self._listeners):
+                listener._notify_locked()
+                if listener._closed:
+                    self._listeners.discard(listener)
+
     def start(self, source: Literal["download", "file"], path: str | None = None) -> ImportJobState:
         with self._lock:
             if self._state.status in {"running", "cancelling"}:
@@ -139,10 +199,20 @@ class PuzzleImportJob:
             self._result = None
             self._phase_started = time.monotonic()
             self._state = ImportJobState(
-                status="running", phase="download" if local is None else "read"
+                revision=self._state.revision,
+                status="running",
+                phase="download" if local is None else "read",
             )
+            self._publish_locked()
             self._thread = threading.Thread(target=self._run, args=(local,), daemon=True)
-            self._thread.start()
+            try:
+                self._thread.start()
+            except Exception as error:
+                self._thread = None
+                self._state.status = "failed"
+                self._state.error = self._error_message(error)
+                self._publish_locked()
+                raise
             return self._state.model_copy(deep=True)
 
     def cancel(self) -> ImportJobState:
@@ -150,6 +220,7 @@ class PuzzleImportJob:
             if self._state.status == "running" and not self._committed.is_set():
                 self._cancel.set()
                 self._state.status = "cancelling"
+                self._publish_locked()
             transport = self._transport
             result = self._state.model_copy(deep=True)
         if transport is not None and self._cancel.is_set():
@@ -158,6 +229,11 @@ class PuzzleImportJob:
 
     def close(self) -> None:
         self.cancel()
+        with self._notifier_lock:
+            for listener in self._listeners:
+                listener._closed = True
+                listener._notify_locked()
+            self._listeners.clear()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
 
@@ -168,25 +244,40 @@ class PuzzleImportJob:
         with self._lock:
             if phase != self._state.phase:
                 self._phase_started = time.monotonic()
-            self._state.phase = phase
-            self._state.done = update.done
-            self._state.total = update.total
-            self._state.unit = update.unit
             elapsed = time.monotonic() - self._phase_started
-            self._state.bytes_per_second = (
-                update.done / elapsed if update.unit == "bytes" and elapsed > 0 else None
-            )
+            rate = update.done / elapsed if update.unit == "bytes" and elapsed > 0 else None
+            if (
+                self._state.phase,
+                self._state.done,
+                self._state.total,
+                self._state.unit,
+                self._state.bytes_per_second,
+            ) != (phase, update.done, update.total, update.unit, rate):
+                self._state.phase = phase
+                self._state.done = update.done
+                self._state.total = update.total
+                self._state.unit = update.unit
+                self._state.bytes_per_second = rate
+                self._publish_locked()
         if self._cancel.is_set():
             raise ImportCancelled()
 
     def _message(self, message: str) -> None:
         if message.startswith("Saving"):
             with self._lock:
-                self._state.phase = "save"
-                self._state.done = 0
-                self._state.total = 1
-                self._state.unit = "puzzles"
-                self._state.bytes_per_second = None
+                if (
+                    self._state.phase,
+                    self._state.done,
+                    self._state.total,
+                    self._state.unit,
+                    self._state.bytes_per_second,
+                ) != ("save", 0, 1, "puzzles", None):
+                    self._state.phase = "save"
+                    self._state.done = 0
+                    self._state.total = 1
+                    self._state.unit = "puzzles"
+                    self._state.bytes_per_second = None
+                    self._publish_locked()
         if self._cancel.is_set():
             raise ImportCancelled()
 
@@ -208,6 +299,7 @@ class PuzzleImportJob:
         self._state.total = 1
         self._state.summary = self._result
         self._state.error = warning
+        self._publish_locked()
 
     def _run(self, local: Path | None) -> None:
         try:
@@ -254,6 +346,7 @@ class PuzzleImportJob:
                     self._state.status = "cancelled" if cancelled else "failed"
                     # Never expose paths, credentials, URLs or internal traces.
                     self._state.error = None if cancelled else self._error_message(error)
+                    self._publish_locked()
 
     @staticmethod
     def _error_message(error: Exception) -> str:

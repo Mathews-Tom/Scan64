@@ -97,6 +97,16 @@ async fn restart_server(state: tauri::State<'_, SharedServer>) -> Result<Connect
     .map_err(|_| "Server restart task failed".to_owned())?
 }
 
+#[cfg(feature = "updater-test")]
+#[tauri::command]
+fn updater_smoke_observed(
+    app: tauri::AppHandle,
+    stage: String,
+    text: String,
+) -> Result<(), String> {
+    updater::observe_ui(&app, stage, text)
+}
+
 #[tauri::command]
 fn smoke_complete(
     app: tauri::AppHandle,
@@ -179,7 +189,7 @@ fn main() {
         eprintln!("Invalid updater smoke launch arguments");
         std::process::exit(1);
     }
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
@@ -190,7 +200,10 @@ fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_process::init());
+    #[cfg(feature = "updater-test")]
+    let builder = builder.on_page_load(updater::observe_page_load);
+    let app = builder
         .on_menu_event(|app, event| {
             if event.id().as_ref() == "check-for-updates" {
                 let app = app.clone();
@@ -207,6 +220,8 @@ fn main() {
             release_links::open_release_url,
             smoke_complete,
             smoke_failed,
+            #[cfg(feature = "updater-test")]
+            updater_smoke_observed,
             updater::update_status,
             updater::check_updates,
             updater::download_update,
