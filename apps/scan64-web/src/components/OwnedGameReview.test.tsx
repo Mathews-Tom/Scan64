@@ -42,7 +42,7 @@ describe('owned move-by-move review', () => {
     const attempt = conversionAttempt({ source_ply: ply, source_fen: ply === 0 ? review.initial_fen : review.moves[2].fen });
     const session: PlaySessionRead = { id: attempt.play_session_id, player_id: 'player-1', game_id: 'custom-game',
       player_color: 'black', opponent_config: { provider: 'stockfish', bot_level: '8' }, status: 'active',
-      coach_mode: false, sparring: attempt };
+      coach_mode: false, assistance_modes: [], sparring: attempt };
     vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
     vi.spyOn(ApiClient, 'getBots').mockResolvedValue([
       { level: 1, name: 'Beginner', description: 'Friendly' }, { level: 8, name: 'Expert', description: 'Strong' },
@@ -90,7 +90,7 @@ describe('owned move-by-move review', () => {
     review.moves[2].sparring = conversionAttempt();
     const attempt = review.moves[2].sparring;
     const session: PlaySessionRead = { id: attempt.play_session_id, player_id: 'player-1', game_id: 'custom-game',
-      player_color: 'black', opponent_config: {}, status: 'active', coach_mode: false, sparring: attempt };
+      player_color: 'black', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [], sparring: attempt };
     vi.mocked(ApiClient.getGameReview).mockResolvedValue(review);
     vi.spyOn(ApiClient, 'getPlaySession').mockResolvedValue(session);
     const create = vi.spyOn(ApiClient, 'createPlaySession');
