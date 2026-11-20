@@ -87,9 +87,10 @@ def test_unused_upgrade_and_downgrade_preserve_exact_legacy_rows_and_references(
     assert _reveal(engine) == before
     assert sa.inspect(engine).get_foreign_keys("sessionhintreveal") == foreign_keys
     with engine.connect() as connection:
-        assert connection.execute(
-            sa.text("SELECT version_num FROM alembic_version")
-        ).scalar_one() == "20261119_20"
+        assert (
+            connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
+            == "20261119_20"
+        )
     assert {"schedulereviewobservation", "sparringattempt"} <= set(
         sa.inspect(engine).get_table_names()
     )
