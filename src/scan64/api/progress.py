@@ -36,7 +36,10 @@ from scan64.learning.habit_models import (
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.progress import RESET_AT_KEY, RESET_GENERATION_KEY
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import (
+    ReviewSchedule,
+    ScheduleReviewObservation,
+)
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["progress"])
@@ -44,6 +47,7 @@ router = APIRouter(tags=["progress"])
 # Child rows precede parents. Historical source artifacts (including positive
 # move-credit proofs and hint reveals) intentionally are not learning state.
 CLEARED_MODELS: tuple[tuple[str, type[SQLModel]], ...] = (
+    ("schedule_review_observations", ScheduleReviewObservation),
     ("pattern_award_evidence", PatternAwardEvidence),
     ("pattern_awards", PatternAward),
     ("pattern_targets", PatternTarget),

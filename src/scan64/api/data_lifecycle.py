@@ -10,7 +10,7 @@ from uuid import uuid4
 import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlmodel import Session, SQLModel, col, delete, select
 
@@ -68,7 +68,10 @@ from scan64.learning.habit_models import (
     PatternTarget,
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import (
+    ReviewSchedule,
+    ScheduleReviewObservation,
+)
 from scan64.learning.tolerance import review_loss, review_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
@@ -101,6 +104,7 @@ class ExportArchive(BaseModel):
     coach_student_links: list[dict[str, Any]] = Field(default_factory=list)
     skill_states: list[dict[str, Any]] = Field(default_factory=list)
     review_schedules: list[dict[str, Any]] = Field(default_factory=list)
+    schedule_review_observations: list[dict[str, Any]] = Field(default_factory=list)
     study_sessions: list[dict[str, Any]] = Field(default_factory=list)
     content_attempts: list[dict[str, Any]] = Field(default_factory=list)
     puzzle_runs: list[dict[str, Any]] = Field(default_factory=list)
@@ -1769,6 +1773,11 @@ def export_player_data(
     review_schedules = session.exec(
         select(ReviewSchedule).where(col(ReviewSchedule.player_id) == player_id)
     ).all()
+    schedule_review_observations = session.exec(
+        select(ScheduleReviewObservation).where(
+            col(ScheduleReviewObservation.player_id) == player_id
+        )
+    ).all()
     study_sessions = session.exec(
         select(StudySession).where(col(StudySession.player_id) == player_id)
     ).all()
@@ -1873,6 +1882,9 @@ def export_player_data(
         review_schedules=[
             review_schedule.model_dump(mode="json") for review_schedule in review_schedules
         ],
+        schedule_review_observations=[
+            observation.model_dump(mode="json") for observation in schedule_review_observations
+        ],
         study_sessions=[study_session.model_dump(mode="json") for study_session in study_sessions],
         content_attempts=[
             content_attempt.model_dump(mode="json") for content_attempt in content_attempts
@@ -1927,6 +1939,162 @@ def export_player_data(
     )
 
 
+def _archive_review_schedule(data: dict[str, Any]) -> ReviewSchedule:
+    fsrs_fields = {"fsrs_state", "fsrs_step", "fsrs_stability", "fsrs_difficulty"}
+    legacy_fields = {"interval_days", "ease_factor"}
+    modern_fields = fsrs_fields | {"legacy_interval_days", "legacy_ease_factor"}
+    if modern_fields.intersection(data):
+        if not fsrs_fields.issubset(data) or legacy_fields.intersection(data):
+            raise ValueError("Incomplete or mixed FSRS schedule state")
+        if type(data["fsrs_state"]) is not int or (
+            data["fsrs_step"] is not None and type(data["fsrs_step"]) is not int
+        ):
+            raise ValueError("Invalid FSRS state or step")
+        values = dict(data)
+    else:
+        if not legacy_fields.issubset(data):
+            raise ValueError("Missing legacy schedule state")
+        values = {key: value for key, value in data.items() if key not in legacy_fields}
+        # No historical ratings can be inferred from an SM-2 interval/ease pair.
+        values.update(
+            fsrs_state=1,
+            fsrs_step=0,
+            fsrs_stability=None,
+            fsrs_difficulty=None,
+            legacy_interval_days=data["interval_days"],
+            legacy_ease_factor=data["ease_factor"],
+        )
+    if set(values) - set(ReviewSchedule.model_fields):
+        raise ValueError("Unknown schedule fields")
+    for key in (
+        "fsrs_stability",
+        "fsrs_difficulty",
+        "legacy_interval_days",
+        "legacy_ease_factor",
+    ):
+        value = values.get(key)
+        if value is not None and (
+            type(value) not in (int, float) or not isfinite(value) or value <= 0
+        ):
+            raise ValueError("Invalid schedule parameters")
+    return ReviewSchedule.model_validate(values)
+
+
+def _archive_review_observation(data: dict[str, Any]) -> ScheduleReviewObservation:
+    if set(data) != set(ScheduleReviewObservation.model_fields):
+        raise ValueError("Incomplete or unknown schedule review fields")
+    if type(data["success"]) is not bool or type(data["rating"]) is not int:
+        raise ValueError("Invalid schedule review result or rating")
+    for key in ("hints_used", "elapsed_ms"):
+        if data[key] is not None and type(data[key]) is not int:
+            raise ValueError("Invalid schedule review inputs")
+    if any(
+        not isinstance(data[key], str) or not data[key]
+        for key in ("player_id", "item_id", "source_id")
+    ):
+        raise ValueError("Missing schedule review identity")
+    observation = ScheduleReviewObservation.model_validate(data)
+    # An archive is historical evidence, never a new server-verified review.
+    observation.verification_status = "historical"
+    return observation
+
+
+def _validate_schedule_review_archive(
+    session: Session,
+    player_id: str,
+    schedules: list[ReviewSchedule],
+    observations: list[ScheduleReviewObservation],
+    lesson_attempts: list[LessonAttempt],
+    puzzle_runs: list[PuzzleRun],
+    transfer_measurements: list[TransferMeasurement],
+) -> None:
+    schedule_items = {schedule.item_id for schedule in schedules}
+    if len(schedule_items) != len(schedules):
+        raise ValueError("Duplicate review schedules")
+    lessons = {attempt.id: attempt for attempt in lesson_attempts}
+    puzzles = {run.id: run for run in puzzle_runs}
+    transfers = {measurement.id: measurement for measurement in transfer_measurements}
+    if (
+        len(lessons) != len(lesson_attempts)
+        or len(puzzles) != len(puzzle_runs)
+        or len(transfers) != len(transfer_measurements)
+        or len({observation.id for observation in observations}) != len(observations)
+        or len({(row.source_kind, row.source_id) for row in observations}) != len(observations)
+    ):
+        raise ValueError("Duplicate schedule review sources")
+    for observation in observations:
+        if observation.player_id != player_id or observation.item_id not in schedule_items:
+            raise ValueError("Schedule review is missing its owned parent")
+        if (
+            session.get(ScheduleReviewObservation, observation.id) is not None
+            or session.exec(
+                select(ScheduleReviewObservation).where(
+                    col(ScheduleReviewObservation.source_kind) == observation.source_kind,
+                    col(ScheduleReviewObservation.source_id) == observation.source_id,
+                )
+            ).first()
+            is not None
+        ):
+            raise ValueError("Schedule review source already exists")
+        if observation.source_kind == "lesson":
+            attempt = lessons.get(observation.source_id)
+            if (
+                attempt is None
+                or attempt.player_id != player_id
+                or attempt.source_kind != "persisted_opportunity"
+                or attempt.grading_status != "verified"
+                or attempt.opportunity_id is None
+                or str(attempt.opportunity_id) != observation.item_id
+                or attempt.lesson_id != observation.item_id
+                or attempt.success is not observation.success
+                or attempt.hints_used != observation.hints_used
+                or attempt.elapsed_ms != observation.elapsed_ms
+                or utc(attempt.completed_at) != utc(observation.reviewed_at)
+                or session.get(LessonAttempt, attempt.id) is not None
+            ):
+                raise ValueError("Schedule review does not match its lesson attempt")
+        elif observation.source_kind == "puzzle":
+            run = puzzles.get(observation.source_id)
+            if (
+                run is None
+                or run.player_id != player_id
+                or run.item_id != observation.item_id
+                or run.state not in {"solved", "failed"}
+                or run.completed_at is None
+                or (run.state == "solved") is not observation.success
+                or sum(run.hint_steps.values()) != observation.hints_used
+                or int((utc(run.completed_at) - utc(run.started_at)).total_seconds() * 1000)
+                != observation.elapsed_ms
+                or utc(run.completed_at) != utc(observation.reviewed_at)
+                or session.get(PuzzleRun, run.id) is not None
+            ):
+                raise ValueError("Schedule review does not match its puzzle run")
+        else:
+            measurement = transfers.get(observation.source_id)
+            if (
+                measurement is None
+                or measurement.player_id != player_id
+                or measurement.id != observation.item_id
+                or measurement.completed_at is None
+                or measurement.succeeded is not observation.success
+                or utc(measurement.completed_at) != utc(observation.reviewed_at)
+                or session.get(TransferMeasurement, measurement.id) is not None
+            ):
+                raise ValueError("Schedule review does not match its transfer measurement")
+            for attempt in lesson_attempts:
+                if (
+                    attempt.source_kind == "transfer_measurement"
+                    and attempt.lesson_id == measurement.id
+                    and (
+                        attempt.success is not observation.success
+                        or attempt.hints_used != observation.hints_used
+                        or attempt.elapsed_ms != observation.elapsed_ms
+                        or utc(attempt.completed_at) != utc(observation.reviewed_at)
+                    )
+                ):
+                    raise ValueError("Schedule review does not match recorded transfer inputs")
+
+
 @router.post("/v1/imports")
 def import_player_data(
     request: Request, archive: ExportArchive, session: Session = Depends(get_session)
@@ -1977,8 +2145,9 @@ def import_player_data(
             CoachStudentLink.model_validate(data) for data in archive.coach_student_links
         ]
         skill_states = [SkillState.model_validate(data) for data in archive.skill_states]
-        review_schedules = [
-            ReviewSchedule.model_validate(data) for data in archive.review_schedules
+        review_schedules = [_archive_review_schedule(data) for data in archive.review_schedules]
+        schedule_review_observations = [
+            _archive_review_observation(data) for data in archive.schedule_review_observations
         ]
         study_sessions = [StudySession.model_validate(data) for data in archive.study_sessions]
         content_attempts = [
@@ -1992,7 +2161,7 @@ def import_player_data(
         ]
         for opportunity in lesson_opportunities:
             PersistedDiagnosis.model_validate(opportunity.lesson_spec.get("diagnosis"))
-    except ValidationError as error:
+    except (ValueError, TypeError, OverflowError) as error:
         raise HTTPException(status_code=400, detail="Invalid archive: malformed records") from error
 
     # Validation and first-write-wins persistence must resolve the same source.
@@ -2191,7 +2360,8 @@ def import_player_data(
             for item in evidence
         )
         or any(
-            opportunity.source_position_id not in positions_by_id
+            opportunity.player_id not in (None, player_id)
+            or opportunity.source_position_id not in positions_by_id
             or positions_by_id[opportunity.source_position_id].game_id != opportunity.game_id
             for opportunity in lesson_opportunities
         )
@@ -2236,6 +2406,21 @@ def import_player_data(
             status_code=400,
             detail="Invalid archive: records do not belong to the authorized player",
         )
+
+    try:
+        _validate_schedule_review_archive(
+            session,
+            player_id,
+            review_schedules,
+            schedule_review_observations,
+            lesson_attempts,
+            puzzle_runs,
+            transfer_measurements,
+        )
+    except (ValueError, TypeError, AttributeError) as error:
+        raise HTTPException(
+            status_code=400, detail="Invalid archive: malformed schedule review provenance"
+        ) from error
 
     review_keys = {(move.game_id, move.ply) for move in review_moves}
     if len(review_keys) != len(review_moves) or len({move.id for move in review_moves}) != len(
@@ -2391,6 +2576,8 @@ def import_player_data(
 
     for lesson_attempt in lesson_attempts:
         session.add(lesson_attempt)
+    session.flush()
+    session.add_all(schedule_review_observations)
     # Restore snapshots/cutover verbatim, without result or reward hooks.
     session.add(habit_policy)
     for habit_goal in habit_goals:
@@ -2570,6 +2757,13 @@ def delete_player_data(
                 select(ReviewSchedule).where(col(ReviewSchedule.player_id) == player_id)
             ).all()
         ),
+        "schedule_review_observations": len(
+            session.exec(
+                select(ScheduleReviewObservation).where(
+                    col(ScheduleReviewObservation.player_id) == player_id
+                )
+            ).all()
+        ),
         "study_sessions": len(
             session.exec(select(StudySession).where(col(StudySession.player_id) == player_id)).all()
         ),
@@ -2616,6 +2810,12 @@ def delete_player_data(
 
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
+
+    session.exec(
+        delete(ScheduleReviewObservation).where(
+            col(ScheduleReviewObservation.player_id) == player_id
+        )
+    )
 
     session.exec(
         delete(PatternAwardEvidence).where(col(PatternAwardEvidence.player_id) == player_id)

@@ -259,6 +259,8 @@ def record_transfer_measurement(
     player_id: str,
     succeeded: bool,
     now: datetime,
+    hints_used: int | None,
+    elapsed_ms: int | None,
     commit: bool = True,
 ) -> TransferMeasurement:
     """Record one completed transfer test and remove it from the review queue."""
@@ -284,7 +286,18 @@ def record_transfer_measurement(
     schedule = session.get(ReviewSchedule, (player_id, measurement.id))
     if schedule is None:
         raise TransferMeasurementError("Transfer measurement is missing its review schedule")
-    session.delete(schedule)
+    observation = schedule.update(
+        success=succeeded,
+        current_time=completion_time,
+        hints_used=hints_used,
+        elapsed_ms=elapsed_ms,
+        source_kind="transfer",
+        source_id=measurement.id,
+    )
+    schedule.retired_at = completion_time
+    schedule.retirement_reason = "transfer_measurement_completed"
+    session.add(schedule)
+    session.add(observation)
     if commit:
         session.commit()
         session.refresh(measurement)

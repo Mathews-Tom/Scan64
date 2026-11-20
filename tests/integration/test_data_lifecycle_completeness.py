@@ -62,7 +62,10 @@ from scan64.learning.habit_models import (
     PatternTarget,
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import (
+    ReviewSchedule,
+    ScheduleReviewObservation,
+)
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 
 PLAYER_LIFECYCLE_TABLES = frozenset(
@@ -84,6 +87,7 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         ProfileObservation.__tablename__,
         SkillState.__tablename__,
         ReviewSchedule.__tablename__,
+        ScheduleReviewObservation.__tablename__,
         StudySession.__tablename__,
         ContentAttempt.__tablename__,
         PuzzleRun.__tablename__,
@@ -133,6 +137,7 @@ ARCHIVE_FIELDS = {
     ProfileObservation.__tablename__: "profile_observations",
     SkillState.__tablename__: "skill_states",
     ReviewSchedule.__tablename__: "review_schedules",
+    ScheduleReviewObservation.__tablename__: "schedule_review_observations",
     StudySession.__tablename__: "study_sessions",
     ContentAttempt.__tablename__: "content_attempts",
     PuzzleRun.__tablename__: "puzzle_runs",
@@ -353,6 +358,20 @@ def _seed_player_lifecycle_records(
     session.commit()
     run = seed_puzzle_run(session, player_id, solved=True)
     assert run.completed_at is not None
+    schedule = ReviewSchedule(
+        player_id=player_id, item_id=run.item_id, next_review_at=run.completed_at
+    )
+    observation = schedule.update(
+        success=True,
+        current_time=run.completed_at,
+        hints_used=0,
+        elapsed_ms=0,
+        source_kind="puzzle",
+        source_id=run.id,
+    )
+    session.add(schedule)
+    session.flush()
+    session.add(observation)
     daily = PuzzleDailySet(
         player_id=player_id,
         utc_day=run.started_at.date().isoformat(),
@@ -481,6 +500,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert archive["transfer_positions"]
     assert archive["coach_student_links"]
     assert archive["puzzle_runs"]
+    assert len(archive["schedule_review_observations"]) == 1
     assert archive["puzzle_content_items"]
     assert archive["puzzle_rating"]["rated_count"] == 1
     assert len(archive["puzzle_daily_sets"]) == 1
@@ -524,7 +544,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "lesson_attempts": 1,
         "transfer_measurements": 1,
         "skill_states": 1,
-        "review_schedules": 1,
+        "review_schedules": 2,
+        "schedule_review_observations": 1,
         "study_sessions": 3,
         "puzzle_runs": 2,
         "content_attempts": 3,
@@ -598,6 +619,11 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         ).all(),
         "review_schedule": db_session.exec(
             select(ReviewSchedule).where(ReviewSchedule.player_id == player_id)
+        ).all(),
+        "schedule_review_observations": db_session.exec(
+            select(ScheduleReviewObservation).where(
+                ScheduleReviewObservation.player_id == player_id
+            )
         ).all(),
         "study_session": db_session.exec(
             select(StudySession).where(StudySession.player_id == player_id)

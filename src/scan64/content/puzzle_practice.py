@@ -360,23 +360,36 @@ def finish_practice(
     if state == "abandoned":
         return True
     schedule = session.get(ReviewSchedule, (run.player_id, run.item_id))
-    if independent:
-        if not slot.first_exposure and schedule is not None:
-            schedule.retired_at = completed_at
-            schedule.retirement_reason = "puzzle_review_passed"
-            schedule.last_reviewed_at = completed_at
-            session.add(schedule)
-    else:
-        if schedule is None:
-            schedule = ReviewSchedule(
-                player_id=run.player_id,
-                item_id=run.item_id,
-                next_review_at=completed_at,
-                skill_id=None,
-            )
-        schedule.retired_at = None
-        schedule.retirement_reason = None
-        schedule.skill_id = None
-        schedule.update(False, completed_at)
+    if independent and slot.first_exposure:
+        return True
+    if schedule is None:
+        if independent:
+            return True
+        schedule = ReviewSchedule(
+            player_id=run.player_id,
+            item_id=run.item_id,
+            next_review_at=completed_at,
+            skill_id=None,
+        )
         session.add(schedule)
+        session.flush()
+    schedule.retired_at = None
+    schedule.retirement_reason = None
+    schedule.skill_id = None
+    started_at = run.started_at
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=UTC)
+    observation = schedule.update(
+        success=state == "solved",
+        current_time=completed_at,
+        hints_used=sum(hint_steps.values()),
+        elapsed_ms=int((completed_at - started_at).total_seconds() * 1000),
+        source_kind="puzzle",
+        source_id=run.id,
+    )
+    if independent:
+        schedule.retired_at = completed_at
+        schedule.retirement_reason = "puzzle_review_passed"
+    session.add(schedule)
+    session.add(observation)
     return True

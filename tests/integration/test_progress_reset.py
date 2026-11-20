@@ -190,7 +190,23 @@ def seed(client: TestClient, session: Session) -> tuple[dict[str, str], dict[str
         ]
     )
     session.commit()
-    seed_puzzle_run(session, OTHER, solved=True)
+    other_run = seed_puzzle_run(session, OTHER, solved=True)
+    assert other_run.completed_at is not None
+    other_schedule = ReviewSchedule(
+        player_id=OTHER, item_id=other_run.item_id, next_review_at=other_run.completed_at
+    )
+    other_observation = other_schedule.update(
+        success=True,
+        current_time=other_run.completed_at,
+        hints_used=0,
+        elapsed_ms=0,
+        source_kind="puzzle",
+        source_id=other_run.id,
+    )
+    session.add(other_schedule)
+    session.flush()
+    session.add(other_observation)
+    session.commit()
     # Exercise an active run as well as the completed puzzle/lesson ledgers.
     seed_puzzle_run(session, OWNER)
     return owner_headers, other_headers

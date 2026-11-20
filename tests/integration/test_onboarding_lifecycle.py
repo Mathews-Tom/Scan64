@@ -30,7 +30,13 @@ from tests.integration.test_puzzle_lifecycle import puzzle_item
 PLAYER_ID = "onboarding-lifecycle-owner"
 
 
-def _seed_history(session: Session, player_id: str, *, active_index: int | None = None) -> datetime:
+def _seed_history(
+    session: Session,
+    player_id: str,
+    *,
+    active_index: int | None = None,
+    legacy_schedule: bool = False,
+) -> datetime:
     """Include pre-opt-in and non-daily history, six intro runs and an unstarted slot."""
     base = (datetime.now(UTC) - timedelta(days=3)).replace(
         hour=12, minute=0, second=0, microsecond=0
@@ -162,7 +168,23 @@ def _seed_history(session: Session, player_id: str, *, active_index: int | None 
             last_updated=base,
         )
     )
-    session.add(ReviewSchedule(player_id=player_id, item_id="measured-lesson", next_review_at=base))
+    if legacy_schedule:
+        session.execute(
+            text(
+                "INSERT INTO reviewschedule "
+                "(player_id,item_id,next_review_at,interval_days,ease_factor) "
+                "VALUES (:player,:item,:due,1.0,2.5)"
+            ),
+            {
+                "player": player_id,
+                "item": "measured-lesson",
+                "due": base.replace(tzinfo=None).isoformat(sep=" "),
+            },
+        )
+    else:
+        session.add(
+            ReviewSchedule(player_id=player_id, item_id="measured-lesson", next_review_at=base)
+        )
     session.commit()
     return clock
 
@@ -570,7 +592,7 @@ def test_onboarding_migration_preserves_history_and_downgrade_only_drops_onboard
         session.commit()
         session.add(PlayerProfile(player_id=PLAYER_ID))
         session.commit()
-        _seed_history(session, PLAYER_ID)
+        _seed_history(session, PLAYER_ID, legacy_schedule=True)
     tables = set(inspect(engine).get_table_names()) - {"alembic_version"}
 
     def snapshot() -> dict[str, list[tuple[Any, ...]]]:

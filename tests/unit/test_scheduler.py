@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -60,16 +62,24 @@ def test_session_fatigue_increases_measurably():
 
 
 def test_review_schedule_due_selection():
-    now = datetime(2026, 7, 14, 12, 0, 0)
+    now = datetime(2026, 7, 14, 12, 0, 0, tzinfo=UTC)
     schedule = ReviewSchedule(
         player_id="player1", item_id="item1", next_review_at=now - timedelta(hours=1)
     )
 
     assert schedule.is_due(now)
 
-    schedule.update(success=True, current_time=now)
+    observation = schedule.update(
+        success=True,
+        current_time=now,
+        hints_used=0,
+        elapsed_ms=5_000,
+        source_kind="lesson",
+        source_id="accepted-lesson-attempt",
+    )
     assert not schedule.is_due(now)
-    assert schedule.interval_days > 1.0
+    assert observation.rating == 4
+    assert schedule.fsrs_stability is not None
     assert schedule.next_review_at > now
 
     schedule_not_due = ReviewSchedule(
