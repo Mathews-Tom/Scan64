@@ -130,13 +130,7 @@ improvement outcome. New skill states still use the provisional **(3, 2)** seed:
 it is a prior, not observed ability. Measured skill evidence is preserved, as is the
 internal **1500** profile rating; onboarding changes none of those values.
 
-Bot result samples are separated by **Stockfish level and server-stamped policy
-version**, not mixed into puzzle Elo. Each cohort shows all eligible wins/draws/losses,
-latest-five and previous-five samples and their trend; fewer than five games in either
-window means insufficient data. Ordering uses game creation time and id, not analysis
-completion. Legacy tracked results use the separately disclosed `v1(unstamped)`
-cohort; Maia is excluded. Seed, colour and arbitrary client config keys do not define
-new cohorts.
+Bot result samples are separated by **Stockfish level, server-stamped policy version and exact time control**, not mixed into puzzle Elo. Untimed results retain their own history; 5+0 and 3+2 never share a cohort. Each cohort shows eligible wins/draws/losses, latest-five and previous-five samples and their trend; fewer than five games in either window means insufficient data. Ordering uses game creation time and id, not analysis completion. Legacy tracked results use the separately disclosed `v1(unstamped)` policy; Maia is excluded. Seed, colour and arbitrary client config keys do not define new cohorts.
 
 Only owned, tracked, completed games with terminal results, a standard start, no
 coach mode and **no recorded in-app hints** qualify. Imports, unknown assistance,
@@ -168,8 +162,8 @@ unplaced and opt-in.
 3. Keep the preselected **Bot level**, or explicitly change it to save your manual preference, and choose **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
 4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and use the labelled move field, source/destination taps or drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
-6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Offline moves stay queued until the connection returns. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
-7. Select **Resign**, or finish by checkmate or a draw. The result appears immediately. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move creates no empty game and has no review link.
+6. Reload or return to **Play** to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Untimed offline moves stay queued until the connection returns; timed moves require a live server response and are never queued. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use **Retry game refresh** before continuing. **Take back** undoes your last move and the bot's reply; it is unavailable in timed games, coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.
+7. Select **Resign**, or finish by checkmate, draw or timed flag-fall. The server decides the result. Once a game has moves, **Review game** links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move in an untimed game creates no empty game and has no review link.
 
 A tracked-pattern link can open a different unfinished game without replacing the
 browser's previously stored game. Return to **Play** without a `session` query to
@@ -181,6 +175,18 @@ Play offers eight server-defined levels from `GET /v1/bots`; Analysis Board's pl
 A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.
 
 Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
+
+### Timed play
+
+Choose **Untimed** (the default), **1+0**, **3+2**, **5+0** or **10+5** before starting. The first number is each side's initial minutes; the second is the seconds added after that side makes a legal move. Both White and Black clocks are visible, and only the active side runs. Bot turns consume actual thinking time with a bounded visible delay; the bot's existing playing policy is unchanged.
+
+The server owns balances, increments and flag-fall. A clock reaching zero on screen does not declare the result: the app refreshes the authoritative state. The opponent wins on a flag unless it lacks mating material, in which case the result is a draw. Reloading, navigating, closing the browser or restarting the server does not reset or pause a deadline. Hints, Candidates, blunder-guard checks and coach interruptions do not pause clocks. A failed connection can leave an already accepted human move awaiting the bot; refresh/resume uses the retained position and clock instead of replaying the move. Timed takebacks are unavailable.
+
+At zero, the single deadline refresh waits for the server's clock transaction to commit; it does not poll for clock status. If that wait exceeds 15 seconds, the board shows a refresh error and offers a retry. Time continues to run while waiting.
+
+Supported archives preserve and validate clock state; importing an active game retains its original deadline, so time spent outside the app still counts. Timed exports declare their timed session IDs alongside the clock rows; an incomplete declared clock set is rejected, while historical static clock settings remain untimed. Resetting learning progress preserves the game's clock without restarting it; deleting the player removes the clock. Before downgrading a database with retained timed games, use the reviewed pre-migration backup: the downgrade refuses to discard clock state. The desktop backup policy above still applies; source/CLI operators must retain their own pre-migration copy.
+
+**API compatibility:** new `clock_config` requests use numeric integer `initial_seconds` (1–86,400) and `increment_seconds` (0–60), not string values or the old static `time_remaining_ms` key. Timed move and opponent-resume commands carry `expected_clock_version` matching the returned `clock.version`; protected moves also retain their assistance-generation check. Move and opponent-resume commands return their own committed move/status/clock transition; retrieve the full current session with `GET /v1/play-sessions/{id}`. Historical archives without an authoritative clock row remain untimed.
 
 ### Candidates and blunder guard
 

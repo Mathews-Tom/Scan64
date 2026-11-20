@@ -515,6 +515,21 @@ export class ApiClient {
   }
 
 
+  static async resumePlaySessionOpponentMove(sessionId: string, expectedClockVersion: number): Promise<PlayMoveResponse> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/opponent-move`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(getActivePlayerId()),
+      },
+      body: JSON.stringify({ expected_clock_version: expectedClockVersion }),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resume opponent move: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayMoveResponse;
+  }
+
   static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/moves`, {
       method: 'POST',

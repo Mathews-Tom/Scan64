@@ -30,8 +30,9 @@ def test_fresh_sqlite_database_is_built_from_the_migration_chain(tmp_path: Path)
         "gamemovereview",
         "schedulereviewobservation",
         "sparringattempt",
+        "playclock",
     } <= tables
-    assert revision == "20261119_21"
+    assert revision == "20261119_22"
     opportunity_columns = {
         column["name"]: column
         for column in inspect(database_engine).get_columns("persistedlessonopportunity")
@@ -108,8 +109,9 @@ def test_populated_legacy_sqlite_database_is_stamped_without_data_loss(tmp_path:
     assert owner_column == "legacy-player"
     assert "persistedlessonopportunity" not in tables
     assert "sparringattempt" in tables
+    assert "playclock" in tables
     assert not coach_mode
-    assert revision == "20261119_21"
+    assert revision == "20261119_22"
 
 
 def _create_pre_m40_database(database_engine: Engine) -> tuple[str, str, str]:

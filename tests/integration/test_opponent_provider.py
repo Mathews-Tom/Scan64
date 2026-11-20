@@ -6,7 +6,7 @@ from sqlmodel.pool import StaticPool
 
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService
-from scan64.chess.opponents.protocols import OpponentContext
+from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
 from scan64.providers.stockfish.adapter import StockfishConfig
@@ -116,3 +116,43 @@ async def test_stockfish_opponent_completes_forced_mate(db_session: Session):
     db_session.refresh(game)
     assert game.result == "0-1"
     assert game.moves == [*prelude_moves, "g2g4", move_result.opponent_move]
+
+
+async def test_legacy_static_time_hint_is_not_a_live_opponent_clock(db_session: Session):
+    contexts: list[OpponentContext] = []
+
+    class RecordingOpponent(StockfishOpponentProvider):
+        async def choose_move(self, position: Position, context: OpponentContext) -> MoveDecision:
+            contexts.append(context)
+            return MoveDecision("e7e5")
+
+    game = Game(pgn="", moves=["e2e4"], white="Player", black="Opponent")
+    play = PlaySession(player_id="test_player", clock_config={"time_remaining_ms": "1000"})
+    service = PlaySessionService(db_session, RecordingOpponent(StockfishConfig()))
+    board = chess.Board()
+    board.push_uci("e2e4")
+    assert await service.play_opponent_move(play, game, board) == "e7e5"
+    assert contexts[0].time_remaining_ms is None
+
+
+async def test_live_clock_budget_reaches_opponent_context(db_session: Session):
+    contexts: list[OpponentContext] = []
+
+    class RecordingOpponent(StockfishOpponentProvider):
+        async def choose_move(self, position: Position, context: OpponentContext) -> MoveDecision:
+            contexts.append(context)
+            return MoveDecision("e7e5")
+
+    game = Game(pgn="", moves=["e2e4"], white="Player", black="Opponent")
+    play = PlaySession(
+        player_id="test_player",
+        opponent_config={"provider": "stockfish", "bot_level": "1", "seed": "42"},
+    )
+    service = PlaySessionService(db_session, RecordingOpponent(StockfishConfig()))
+    board = chess.Board()
+    board.push_uci("e2e4")
+    assert await service.play_opponent_move(play, game, board, time_remaining_ms=2345) == "e7e5"
+    assert contexts[0].time_remaining_ms == 2345
+    assert contexts[0].bot_level == 1
+    assert contexts[0].seed == 42
+    assert contexts[0].ply == 1

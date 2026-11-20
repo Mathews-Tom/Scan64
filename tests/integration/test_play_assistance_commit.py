@@ -230,6 +230,7 @@ def test_bot_failure_keeps_chosen_move_and_assistance_for_explicit_reload_recove
         "opponent_move": "e7e5",
         "status": "active",
         "critical_interruption": None,
+        "clock": None,
     }
     db_session.expire_all()
     recovered = db_session.get(Game, game_id)

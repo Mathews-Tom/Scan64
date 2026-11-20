@@ -10,6 +10,8 @@ from sqlmodel import Session
 
 from scan64.chess.boards import board_from
 from scan64.chess.games.assistance import PlaySnapshot
+from scan64.chess.games.clock_models import PlayClock
+from scan64.chess.games.clocks import is_expired, utc_now
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import player_color
 
@@ -27,6 +29,9 @@ def owned_play_position(
         raise HTTPException(status_code=409, detail="PlaySession is not active")
     if play.game_id is not None and game is None:
         raise HTTPException(status_code=404, detail="Game not found")
+    clock = session.get(PlayClock, session_id)
+    if clock is not None and is_expired(clock, utc_now()):
+        raise HTTPException(status_code=409, detail="PlaySession clock has expired")
     # Standard sessions gain a Game on their first move; custom starts already have one.
     snapshot = PlaySnapshot.capture(play, game)
     try:
