@@ -275,6 +275,12 @@ Select **Safe or blunder** to choose between the move you actually played and a 
 
 Open **Profile** to inspect active mastery, evidence, and recurring diagnoses after completing an attempt.
 
+### FSRS review scheduling
+
+Eligible lesson and daily-puzzle reviews use FSRS 6.3.3 with timing fuzz disabled. A verified failure is **Again**; a successful answer with recorded hints is **Hard**. An unassisted success is **Easy** only when hints are recorded as zero and solve time is recorded within 30 seconds for lessons/transfer tests or 60 seconds for puzzles; other successes are **Good**. Missing historical hints or time remain unknown, not zero, and cannot earn Easy. Lesson and transfer hints/time are app-reported; puzzle hints/time are server-recorded. Results remain server-verified. Fixed transfer-test timing, award rules and review-mode eligibility do not change.
+
+Upgrading an existing database or restoring a pre-0.11 player archive preserves every schedule's exact due date, last-review time and retirement state without inventing past grades. Current archives retain FSRS state and review observations; progress reset and account deletion clear them only for the selected player. A schema downgrade is refused after FSRS reviews have been recorded to prevent data loss; retain the pre-migration database backup and exported player data for recovery.
+
 ### The pattern with its evidence
 
 Today and Profile show the same ranked recurring diagnoses as the weekly summary. A pattern needs retained trusted lessons in at least three distinct owned games with completed analysis and a known playing colour; an unfinished (`*`) result still counts for presence. Opponent moves, invalid lessons, retired lesson schedules and retired skills do not count. Reads do not run an engine or update learning records; later invalidation or retirement removes supporting evidence on the next read.
