@@ -29,8 +29,8 @@ def owned_play_position(
         raise HTTPException(status_code=404, detail="Game not found")
     # Standard sessions gain a Game on their first move; custom starts already have one.
     snapshot = PlaySnapshot.capture(play, game)
-    board = board_from(snapshot.initial_fen)
     try:
+        board = board_from(snapshot.initial_fen)
         for uci in snapshot.moves:
             move = chess.Move.from_uci(uci)
             if not board.is_legal(move):
