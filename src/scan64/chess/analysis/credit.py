@@ -357,7 +357,7 @@ def project_move_credits(
         if exclusion is None and row.ply <= initial_ply:
             exclusion = "imported or previously studied history"
         if exclusion is None and source is not None and source.canonical_id in hinted:
-            exclusion = "in-app hint revealed at this position"
+            exclusion = "in-app assistance revealed at this position"
         if exclusion is not None:
             result[row.ply] = (None, exclusion)
             continue

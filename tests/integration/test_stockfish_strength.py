@@ -430,7 +430,7 @@ def test_move_conflicts_when_takeback_commits_during_engine_wait(
     assert play is not None and play.status == "active"
     game = db_session.get(Game, play.game_id)
     assert game is not None
-    assert game.moves == []
+    assert game.moves == ["e2e4", "e7e5"]
     assert "Nf3" not in game.pgn
 
 

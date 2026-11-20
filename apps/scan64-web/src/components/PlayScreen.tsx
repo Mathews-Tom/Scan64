@@ -3,16 +3,19 @@ import {
   QUEUED_MOVE_SYNC_FAILED,
   QUEUED_MOVE_SYNC_SUCCEEDED,
   queueMove,
+  removeQueuedMove,
   syncQueuedMoves,
   type QueuedMoveSyncFailure,
+  type QueuedMove,
   type QueuedMoveSyncSuccess,
 } from '../api/offlineQueue';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
-import type { BotRead, CriticalInterruptionRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
+import type { BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { HintPanel, type HintPreview } from './HintPanel';
 import { Chess } from 'chess.js';
@@ -20,7 +23,17 @@ import { Chess } from 'chess.js';
 import { Panel } from './Primitives';
 const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
 
+interface AssistanceSource {
+  sessionId: string;
+  playerId: string;
+  fen: string;
+  revision: number;
+}
 
+type AssistanceState = {
+  source: AssistanceSource;
+  mode: PlayAssistanceMode;
+} & ({ pending: true } | { pending: false; result: PlayAssistanceRead });
 
 export interface PlayScreenProps {
   initialSession?: PlaySessionRead;
@@ -78,6 +91,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return () => { cancelled = true; };
   }, []);
   const [syncRetrySessionId, setSyncRetrySessionId] = useState<string | null>(null);
+  const [legacyQueuedMoves, setLegacyQueuedMoves] = useState<QueuedMove[]>([]);
+  const [legacyDiscard, setLegacyDiscard] = useState<{
+    sessionId: string; playerId: string; moves: QueuedMove[];
+  } | null>(null);
+  const [discardingLegacy, setDiscardingLegacy] = useState(false);
+  const legacyDiscardPendingRef = useRef(false);
   const [criticalInterruption, setCriticalInterruption] =
     useState<CriticalInterruptionRead | null>(null);
   const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
@@ -127,6 +146,31 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     fen: chessRef.current.fen(), pgn: chessRef.current.pgn(),
   }));
   const [movePending, setMovePending] = useState(false);
+  const movePendingRef = useRef(false);
+  const positionRevision = useRef(0);
+  const assistanceRequest = useRef(0);
+  const [assistance, setAssistance] = useState<AssistanceState | null>(null);
+  const assistanceRef = useRef<AssistanceState | null>(null);
+  const [assistanceError, setAssistanceError] = useState<string | null>(null);
+  const [candidateMoves, setCandidateMoves] = useState<string[]>([]);
+  const [guardEnabled, setGuardEnabled] = useState(false);
+  const guardEnabledRef = useRef(guardEnabled);
+  guardEnabledRef.current = guardEnabled;
+  const guardToggle = useRef<HTMLInputElement>(null);
+  const guardCancel = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (assistance && !assistance.pending && assistance.mode === 'guard') guardCancel.current?.focus();
+  }, [assistance]);
+  useEffect(() => () => { positionRevision.current += 1; }, []);
+  const clearAssistance = useCallback(() => {
+    assistanceRequest.current += 1;
+    assistanceRef.current = null;
+    setAssistance(null);
+    setAssistanceError(null);
+  }, []);
+  const legalCandidates = useMemo(() => new Chess(boardPosition.fen).moves({ verbose: true }).map(move => ({
+    move: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san,
+  })), [boardPosition.fen]);
   const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => {
     const updateOnline = () => setOnline(navigator.onLine);
@@ -142,8 +186,28 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [hintPreview, setHintPreview] = useState<HintPreview | null>(null);
   const currentHint = hintPreview?.sourceFen === boardPosition.fen ? hintPreview : null;
   const updateBoard = useCallback(() => {
+    positionRevision.current += 1;
+    clearAssistance();
+    setCandidateMoves([]);
     setBoardPosition({ fen: chessRef.current.fen(), pgn: chessRef.current.pgn() });
-  }, []);
+  }, [clearAssistance]);
+  useEffect(() => {
+    clearAssistance();
+    setCandidateMoves([]);
+    if (!online) setAssistanceError('Candidates and blunder guard require a connection. Protected moves are never queued.');
+    return () => { assistanceRequest.current += 1; };
+  }, [online, currentSessionId, currentSessionStatus, session?.player_id, clearAssistance]);
+  const handleHintPreview = useCallback((preview: HintPreview | null) => {
+    setHintPreview(preview);
+    const activeSession = sessionRef.current;
+    if (!preview || !activeSession) return;
+    clearAssistance();
+    if (!activeSession.assistance_modes.includes('hint')) {
+      const updated = { ...activeSession, assistance_modes: [...activeSession.assistance_modes, 'hint' as const] };
+      sessionRef.current = updated;
+      setSession(updated);
+    }
+  }, [clearAssistance]);
 
   const refreshConversionResult = useCallback(async (sessionId: string) => {
     setConversionRefreshing(true);
@@ -310,17 +374,26 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setCriticalInterruption(null);
     updateBoard();
   }, [updateBoard]);
+  const canRefreshQueuedSession = useCallback((sessionId: string, generation: number, ownerId: string) => {
+    if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return false;
+    if (getStoredPlayerId() !== ownerId || sessionRef.current.player_id !== ownerId) {
+      setRefreshSessionId(sessionId);
+      setError('Return to the game owner to refresh this game.');
+      return false;
+    }
+    return true;
+  }, []);
+
   const refreshQueuedSession = useCallback((sessionId: string, generation = ++refreshGenerationRef.current) => {
     if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return;
+    const ownerId = sessionRef.current.player_id;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
     updateBoard();
+    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
     void (async () => {
       try {
         const refreshedSession = await ApiClient.getPlaySession(sessionId);
-        if (
-          refreshGenerationRef.current !== generation ||
-          sessionRef.current?.id !== sessionId
-        ) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
 
         const refreshedChess = new Chess();
         if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
@@ -330,10 +403,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         }
         if (refreshedSession.game_id) {
           const game = await ApiClient.getGame(refreshedSession.game_id);
-          if (
-            refreshGenerationRef.current !== generation ||
-            sessionRef.current?.id !== sessionId
-          ) return;
+          if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
           refreshedChess.loadPgn(game.pgn);
         }
 
@@ -341,16 +411,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         sessionRef.current = refreshedSession;
         queuedMoveNeedsRefreshRef.current.delete(sessionId);
         setSession(refreshedSession);
-        setActivePlayerId(refreshedSession.player_id);
         updateBoard();
         setSyncRetrySessionId(null);
         setRefreshSessionId(null);
         setError(null);
       } catch (error: unknown) {
-        if (
-          refreshGenerationRef.current !== generation ||
-          sessionRef.current?.id !== sessionId
-        ) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         setRefreshSessionId(sessionId);
         setError(
           `Unable to refresh the synchronized game: ${
@@ -359,20 +425,28 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         );
       }
     })();
-  }, [updateBoard]);
+  }, [canRefreshQueuedSession, updateBoard]);
 
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
-    if (sessionRef.current?.id !== sessionId) return;
+    if (sessionRef.current?.id !== sessionId || legacyDiscardPendingRef.current) return;
+    const ownerId = sessionRef.current.player_id;
     const generation = ++refreshGenerationRef.current;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
     updateBoard();
     setRefreshSessionId(null);
+    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
     void (async () => {
       try {
         await syncQueuedMoves();
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         const queuedMoves = await getQueuedMoves();
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
+        const legacyMoves = queuedMoves.filter(
+          queuedMove => queuedMove.sessionId === sessionId && typeof queuedMove.sourcePgn !== 'string',
+        );
+        setLegacyQueuedMoves(previous =>
+          previous.length === 0 && legacyMoves.length === 0 ? previous : legacyMoves,
+        );
         if (queuedMoves.some((queuedMove) => queuedMove.sessionId === sessionId)) {
           setSyncRetrySessionId(sessionId);
           setError('Queued move could not be synchronized. Reconnect to retry.');
@@ -381,7 +455,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         setSyncRetrySessionId(null);
         refreshQueuedSession(sessionId, generation);
       } catch (error: unknown) {
-        if (refreshGenerationRef.current !== generation || sessionRef.current?.id !== sessionId) return;
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
         setSyncRetrySessionId(sessionId);
         setError(
           `Unable to synchronize queued moves: ${
@@ -390,7 +464,57 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         );
       }
     })();
-  }, [refreshQueuedSession, updateBoard]);
+  }, [canRefreshQueuedSession, refreshQueuedSession, updateBoard]);
+
+  const discardLegacyQueuedMoves = async () => {
+    const confirmation = legacyDiscard;
+    const current = sessionRef.current;
+    if (!confirmation || !current || current.id !== confirmation.sessionId ||
+      current.player_id !== confirmation.playerId || legacyDiscardPendingRef.current ||
+      !navigator.onLine) return;
+    if (getStoredPlayerId() !== confirmation.playerId) {
+      setError('Return to the game owner before discarding queued moves.');
+      return;
+    }
+    legacyDiscardPendingRef.current = true;
+    setDiscardingLegacy(true);
+    const generation = ++refreshGenerationRef.current;
+    const stillCurrent = () => refreshGenerationRef.current === generation &&
+      sessionRef.current?.id === confirmation.sessionId &&
+      sessionRef.current.player_id === confirmation.playerId &&
+      getStoredPlayerId() === confirmation.playerId;
+    try {
+      // Let any existing drain finish before removing only the confirmed local entries.
+      await syncQueuedMoves();
+      if (!stillCurrent()) return;
+      const queuedMoves = await getQueuedMoves();
+      if (!stillCurrent()) return;
+      const confirmedLegacyMoves = queuedMoves.filter(queuedMove =>
+        queuedMove.sessionId === confirmation.sessionId &&
+        typeof queuedMove.sourcePgn !== 'string' &&
+        confirmation.moves.some(confirmed =>
+          confirmed.sessionId === queuedMove.sessionId && confirmed.move === queuedMove.move &&
+          confirmed.timestamp === queuedMove.timestamp,
+        ),
+      );
+      for (const queuedMove of confirmedLegacyMoves) {
+        if (!stillCurrent()) return;
+        await removeQueuedMove(queuedMove.sessionId, queuedMove.move, queuedMove.timestamp);
+      }
+      if (!stillCurrent()) return;
+      setLegacyDiscard(null);
+    } catch (cause) {
+      if (stillCurrent()) setError(
+        `Unable to discard queued moves: ${cause instanceof Error ? cause.message : 'Unknown error'}`,
+      );
+      return;
+    } finally {
+      legacyDiscardPendingRef.current = false;
+      setDiscardingLegacy(false);
+    }
+    // Keep the existing move lock until remaining intents and the canonical game are checked.
+    synchronizeQueuedSession(confirmation.sessionId);
+  };
 
   useEffect(() => {
     // A resumed conversion may already contain moves beyond its source FEN.
@@ -400,15 +524,173 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     }
   }, [initialSession, synchronizeQueuedSession]);
 
+  const sourceIsCurrent = useCallback((source: AssistanceSource) => {
+    const activeSession = sessionRef.current;
+    const color = sessionPlayerColor(activeSession);
+    return activeSession?.id === source.sessionId && activeSession.player_id === source.playerId &&
+      activeSession.status === 'active' && getStoredPlayerId() === source.playerId &&
+      chessRef.current.fen() === source.fen && positionRevision.current === source.revision &&
+      (color === undefined || chessRef.current.turn() === (color === 'white' ? 'w' : 'b')) &&
+      criticalInterruptionRef.current === null && !takebackPendingRef.current &&
+      !queuedMoveNeedsRefreshRef.current.has(source.sessionId);
+  }, []);
+
+  const requireProtectedRefresh = useCallback((source: AssistanceSource) => {
+    if (sessionRef.current?.id !== source.sessionId || sessionRef.current.player_id !== source.playerId) return;
+    queuedMoveNeedsRefreshRef.current.add(source.sessionId);
+    setRefreshSessionId(source.sessionId);
+  }, []);
+
+  const commitProtectedMove = useCallback(async (move: string, graded: AssistanceState) => {
+    if (graded.pending || assistanceRef.current !== graded || movePendingRef.current) return;
+    if (!sourceIsCurrent(graded.source) || !navigator.onLine) {
+      clearAssistance();
+      setAssistanceError('This checked move is no longer current. Reconnect or refresh, then check it again.');
+      return;
+    }
+    if (!graded.result.grades.some(grade => grade.move === move)) return;
+    movePendingRef.current = true;
+    setMovePending(true);
+    clearAssistance();
+    try {
+      const response = await ApiClient.makePlaySessionMove(graded.source.sessionId, {
+        move, expected_generation: graded.result.generation,
+      });
+      if (!sourceIsCurrent(graded.source)) {
+        requireProtectedRefresh(graded.source);
+        return;
+      }
+      chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+      flushSync(updateBoard);
+      applyMoveResponse(response);
+    } catch (caught) {
+      if (!sourceIsCurrent(graded.source)) {
+        requireProtectedRefresh(graded.source);
+        return;
+      }
+      // A stale generation or an uncertain commit must be reconciled, never queued or replayed.
+      if (!(caught instanceof ApiRequestError) || caught.status === 409 || caught.status >= 500) {
+        queuedMoveNeedsRefreshRef.current.add(graded.source.sessionId);
+        setRefreshSessionId(graded.source.sessionId);
+      }
+      setAssistanceError(`${caught instanceof Error ? caught.message : 'Move could not be committed.'} No move was queued. Refresh if needed, then check again.`);
+    } finally {
+      movePendingRef.current = false;
+      setMovePending(false);
+    }
+  }, [applyMoveResponse, clearAssistance, requireProtectedRefresh, sourceIsCurrent, updateBoard]);
+
+  const resumeBotTurn = async () => {
+    const current = sessionRef.current;
+    const color = sessionPlayerColor(current);
+    if (!current || current.status !== 'active' || !current.game_id || color === undefined ||
+      chessRef.current.turn() === (color === 'white' ? 'w' : 'b') || !navigator.onLine ||
+      current.player_id !== getStoredPlayerId() || movePendingRef.current || resigning ||
+      takebackPendingRef.current || criticalInterruptionRef.current !== null ||
+      queuedMoveNeedsRefreshRef.current.has(current.id)) return;
+    const source: AssistanceSource = {
+      sessionId: current.id, playerId: current.player_id,
+      fen: chessRef.current.fen(), revision: positionRevision.current,
+    };
+    movePendingRef.current = true;
+    setMovePending(true);
+    clearAssistance();
+    try {
+      const response = await ApiClient.resumePlaySession(current.id, current.player_id);
+      if (sessionRef.current?.id !== source.sessionId ||
+        sessionRef.current.player_id !== source.playerId || getStoredPlayerId() !== source.playerId ||
+        chessRef.current.fen() !== source.fen || positionRevision.current !== source.revision) {
+        requireProtectedRefresh(source);
+        return;
+      }
+      applyMoveResponse(response);
+    } catch (caught) {
+      requireProtectedRefresh(source);
+      if (getStoredPlayerId() === source.playerId) {
+        setError(`${caught instanceof Error ? caught.message : 'Bot turn failed.'} Refresh the game before retrying; your move was not replayed.`);
+      }
+    } finally {
+      movePendingRef.current = false;
+      setMovePending(false);
+    }
+  };
+
+  const gradeMoves = useCallback(async (mode: PlayAssistanceMode, moves: string[]) => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || movePendingRef.current || assistanceRef.current?.pending || resigning ||
+      takebackPendingRef.current || moves.length < 1 || moves.length > 3) return;
+    const source: AssistanceSource = {
+      sessionId: activeSession.id, playerId: activeSession.player_id,
+      fen: chessRef.current.fen(), revision: positionRevision.current,
+    };
+    clearAssistance();
+    if (!navigator.onLine || !sourceIsCurrent(source)) {
+      setAssistanceError('Move checking requires your active game, your turn, and a connection. No move was played.');
+      return;
+    }
+    const request = ++assistanceRequest.current;
+    const pending: AssistanceState = { source, mode, pending: true };
+    assistanceRef.current = pending;
+    setAssistance(pending);
+    setHintPreview(null);
+    try {
+      const result = await ApiClient.gradePlayMoves(source.sessionId, {
+        player_id: source.playerId, fen: source.fen, moves, mode,
+      });
+      // Cancellation hides the verdict, not assistance already durably recorded for this position.
+      const current = sessionRef.current;
+      if (current?.id === source.sessionId && current.player_id === source.playerId &&
+        getStoredPlayerId() === source.playerId && result.fen === source.fen && result.mode === mode) {
+        const updated = { ...current, assistance_modes: [...new Set([...current.assistance_modes, ...result.assistance_modes])] };
+        sessionRef.current = updated;
+        setSession(updated);
+      }
+      if (request !== assistanceRequest.current) return;
+      if (!sourceIsCurrent(source) || !navigator.onLine || result.fen !== source.fen || result.mode !== mode) {
+        clearAssistance();
+        setAssistanceError('The game changed while checking. No move was played. Check the current position again.');
+        return;
+      }
+      if (!Number.isSafeInteger(result.generation) || result.generation < 0 ||
+        result.grades.length !== moves.length || result.grades.some((grade, index) =>
+          grade.move !== moves[index] || !['sound', 'inaccuracy', 'mistake', 'blunder'].includes(grade.band))) {
+        throw new Error('The engine did not return complete scored move grades. Check again.');
+      }
+      const graded: AssistanceState = { source, mode, pending: false, result };
+      assistanceRef.current = graded;
+      setAssistance(graded);
+      if (mode === 'guard' && result.grades[0].band !== 'blunder') {
+        await commitProtectedMove(moves[0], graded);
+      }
+    } catch (caught) {
+      if (request !== assistanceRequest.current) return;
+      clearAssistance();
+      if (caught instanceof ApiRequestError && caught.status === 409) {
+        queuedMoveNeedsRefreshRef.current.add(source.sessionId);
+        setRefreshSessionId(source.sessionId);
+      }
+      setAssistanceError(caught instanceof ApiRequestError && caught.status === 503
+        ? 'The engine is busy or could not grade this position. No move was played. Try checking again.'
+        : `${caught instanceof Error ? caught.message : 'Move checking failed.'} No move was played.`);
+    }
+  }, [clearAssistance, commitProtectedMove, resigning, sourceIsCurrent]);
+
   const handleMove = useCallback(async (lan: string) => {
     const activeSession = sessionRef.current;
     const color = sessionPlayerColor(activeSession);
-    if (!activeSession || activeSession.status !== 'active' || takebackPendingRef.current ||
+    if (!activeSession || activeSession.status !== 'active' || takebackPendingRef.current || movePendingRef.current || assistanceRef.current !== null ||
       (color !== undefined && chessRef.current.turn() !== (color === 'white' ? 'w' : 'b')) ||
       criticalInterruptionRef.current !== null ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
+    if (guardEnabledRef.current) {
+      void gradeMoves('guard', [lan]);
+      return;
+    }
+    clearAssistance();
+    movePendingRef.current = true;
     let moveApplied = false;
     setMovePending(true);
+    const sourcePgn = chessRef.current.pgn();
     try {
       chessRef.current.move({ from: lan.slice(0, 2), to: lan.slice(2, 4), promotion: lan[4] });
       moveApplied = true;
@@ -418,7 +700,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         applyMoveResponse(response);
       } catch (error: unknown) {
         if (!navigator.onLine) {
-          await queueMove(activeSession.id, lan);
+          await queueMove(activeSession.id, lan, sourcePgn);
           queuedMoveNeedsRefreshRef.current.add(activeSession.id);
           setError('Offline. Move queued. Waiting for network to resume game...');
           return;
@@ -428,18 +710,25 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Unknown error');
       if (moveApplied) chessRef.current.undo();
+      if (moveApplied && sessionRef.current?.id === activeSession.id &&
+        (!(error instanceof ApiRequestError) || error.status === 409 || error.status >= 500)) {
+        queuedMoveNeedsRefreshRef.current.add(activeSession.id);
+        setRefreshSessionId(activeSession.id);
+      }
       updateBoard();
     } finally {
       setMovePending(false);
+      movePendingRef.current = false;
     }
-  }, [applyMoveResponse, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, gradeMoves, updateBoard]);
 
   const takeback = async () => {
     const activeSession = sessionRef.current;
     if (!activeSession || activeSession.status !== 'active' || activeSession.coach_mode ||
-      movePending || resigning || takebackPendingRef.current || !navigator.onLine ||
+      movePending || resigning || assistanceRef.current?.pending || takebackPendingRef.current || !navigator.onLine ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id) ||
       chessRef.current.history().length < 2) return;
+    clearAssistance();
     takebackPendingRef.current = true;
     setTakingBack(true);
     let needsAuthoritativeRefresh = false;
@@ -479,8 +768,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   const resign = async () => {
     const activeSession = sessionRef.current;
-    if (!activeSession || activeSession.status !== 'active' || movePending || resigning || takebackPendingRef.current ||
+    if (!activeSession || activeSession.status !== 'active' || movePending || resigning || assistanceRef.current?.pending || takebackPendingRef.current ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
+    clearAssistance();
     setResigning(true);
     try {
       const endedSession = await ApiClient.resignPlaySession(activeSession.id);
@@ -625,7 +915,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
       queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
-      applyMoveResponse(response);
+      if (response !== null) applyMoveResponse(response);
     };
     const handleSyncFailure = (event: Event) => {
       const { queuedMove, message } =
@@ -671,6 +961,16 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [sessionId]);
 
 
+  const assistanceBlocked = movePending || resigning || takingBack || !online ||
+    criticalInterruption !== null || !session || session.player_id !== getStoredPlayerId() ||
+    (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
+      (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
+    queuedMoveNeedsRefreshRef.current.has(session.id);
+  const botTurnPending = session?.status === 'active' && sessionPlayerColor(session) !== undefined &&
+    session.player_id === getStoredPlayerId() && chessRef.current.turn() !==
+      (sessionPlayerColor(session) === 'white' ? 'w' : 'b') &&
+    !queuedMoveNeedsRefreshRef.current.has(session.id);
+
   return (
     <div className="play-screen working-screen" data-testid="play-screen">
       <h1 ref={heading} tabIndex={-1}>{session?.sparring ? 'Convert the win — conversion practice' : 'Play against Scan64'}</h1>
@@ -685,10 +985,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
         orientation={sessionPlayerColor(session) ?? 'white'}
         flippable gameEnded={session.status !== 'active'}
+        deferMoveToParent={guardEnabled}
         premoveColor={online && session.status === 'active' && !resigning && !takingBack &&
-          criticalInterruption === null && !currentHint && !queuedMoveNeedsRefreshRef.current.has(session.id)
+          criticalInterruption === null && !currentHint && assistance === null && !queuedMoveNeedsRefreshRef.current.has(session.id)
           ? sessionPlayerColor(session) : undefined}
-        disabled={session.status !== 'active' || movePending || resigning || takingBack ||
+        disabled={session.status !== 'active' || movePending || resigning || takingBack || assistance !== null ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
           criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) ||
@@ -748,23 +1049,55 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       )}
       {error && <div className="error" role="alert">{error}</div>}
       {syncRetrySessionId ? (
-        <button
-          type="button"
-          data-testid="retry-move-sync"
-          onClick={() => synchronizeQueuedSession(syncRetrySessionId)}
-        >
-          Retry move synchronization
-        </button>
+        <>
+          <button
+            type="button"
+            data-testid="retry-move-sync"
+            disabled={discardingLegacy || legacyDiscard?.sessionId === syncRetrySessionId}
+            onClick={() => synchronizeQueuedSession(syncRetrySessionId)}
+          >
+            Retry move synchronization
+          </button>
+          {session && legacyQueuedMoves.some(move => move.sessionId === session.id) && (
+            <button type="button" disabled={discardingLegacy || !online}
+              onClick={() => setLegacyDiscard({
+                sessionId: session.id, playerId: session.player_id, moves: legacyQueuedMoves,
+              })}>
+              Discard legacy queued moves…
+            </button>
+          )}
+        </>
       ) : null}
+      {legacyDiscard && legacyDiscard.sessionId === session?.id && (
+        <div role="region" aria-label="Confirm legacy move discard" aria-busy={discardingLegacy}>
+          <p>These older queued moves have no recorded source position and cannot be replayed safely.
+            Discard only the selected local moves and reload the saved game? Unsent moves will be lost.
+            Saved games and moves with a recorded source are kept.</p>
+          <button type="button" disabled={discardingLegacy || !online}
+            onClick={() => void discardLegacyQueuedMoves()}>
+            {discardingLegacy ? 'Discarding…' : 'Discard and refresh'}
+          </button>
+          <button type="button" disabled={discardingLegacy} onClick={() => setLegacyDiscard(null)}>
+            Keep queued moves
+          </button>
+        </div>
+      )}
       {refreshSessionId ? (
         <button
           type="button"
           data-testid="retry-game-refresh"
-          onClick={() => refreshQueuedSession(refreshSessionId)}
+          onClick={() => synchronizeQueuedSession(refreshSessionId)}
         >
           Retry game refresh
         </button>
       ) : null}
+      {botTurnPending && <div role="status">
+        <p>{movePending ? 'Waiting for the bot…' : 'Your move is saved. Resume the bot turn without replaying it.'}</p>
+        <button type="button" onClick={() => void resumeBotTurn()}
+          disabled={movePending || resigning || takingBack || !online || criticalInterruption !== null}>
+          {movePending ? 'Waiting for bot…' : 'Resume bot turn'}
+        </button>
+      </div>}
       {session && <Panel title="Current game">
         <p>You play {sessionPlayerColor(session) ?? 'your chosen side'} against Scan64.</p>
         <p data-testid="session-info">Status: {session.status}</p>
@@ -772,20 +1105,87 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           {' '}Your original side is preserved. Custom starts do not earn ordinary strength credit.</p>}
         {session.sparring && <p>Stored analysis {session.sparring.source_analysis_id}
           {' · '}Practice session {session.id} · seed {session.sparring.seed}</p>}
+        {session.assistance_modes.length > 0 ? <p data-testid="play-assistance-used">
+          Engine assistance used: {session.assistance_modes.map(mode =>
+            mode === 'guard' ? 'blunder guard' : mode === 'candidates' ? 'Candidates' : 'hints').join(', ')}.
+          {' '}Recorded permanently, including after takeback or reload. Assisted positions do not earn good-move skill credit.
+        </p> : null}
       </Panel>}
-      {session?.status === 'active' && <HintPanel playerId={playerId} sessionId={session.id}
-        fen={boardPosition.fen} onPreview={setHintPreview}
-        disabled={movePending || resigning || takingBack || criticalInterruption !== null ||
+      {session?.status === 'active' && <Panel title="Move assistance" aria-label="Move assistance">
+        <p>Candidates and blunder guard use full engine assistance. Checking is recorded before results appear, even if you cancel.</p>
+        <label>
+          <input ref={guardToggle} type="checkbox" checked={guardEnabled} disabled={movePending || resigning || takingBack}
+            onChange={event => { clearAssistance(); setGuardEnabled(event.target.checked); }} />
+          Blunder guard
+        </label>
+        <p>Off by default. When enabled, your move is checked before it is played. Blunders need your confirmation.</p>
+        {!online ? <p role="status">Move assistance is online-only. Turn off blunder guard to use ordinary offline play.</p> : null}
+        <label>Add candidate move
+          <select aria-label="Add candidate move" value="" disabled={assistanceBlocked || assistance?.pending || candidateMoves.length >= 3}
+            onChange={event => {
+              const move = event.target.value;
+              if (!move || candidateMoves.includes(move) || candidateMoves.length >= 3) return;
+              clearAssistance();
+              setCandidateMoves(previous => [...previous, move]);
+            }}>
+            <option value="">Choose a legal move…</option>
+            {legalCandidates.filter(candidate => !candidateMoves.includes(candidate.move)).map(candidate =>
+              <option key={candidate.move} value={candidate.move}>{candidate.san}</option>)}
+          </select>
+        </label>
+        <p>Select one to three legal moves. The board stays unchanged until you choose Play.</p>
+        {candidateMoves.length > 0 ? <ul aria-label="Selected candidates">
+          {candidateMoves.map(move => <li key={move}>
+            {legalCandidates.find(candidate => candidate.move === move)?.san}
+            {' '}<button type="button" disabled={movePending || assistance?.pending}
+              onClick={() => { clearAssistance(); setCandidateMoves(previous => previous.filter(value => value !== move)); }}>
+              Remove {legalCandidates.find(candidate => candidate.move === move)?.san}
+            </button>
+          </li>)}
+        </ul> : null}
+        <button type="button" disabled={assistanceBlocked || assistance?.pending || candidateMoves.length === 0}
+          onClick={() => void gradeMoves('candidates', candidateMoves)}>Grade candidates</button>
+        {candidateMoves.length > 0 || assistance ? <button type="button" disabled={movePending}
+          onClick={() => { clearAssistance(); setCandidateMoves([]); }}>
+          {assistance?.pending ? 'Cancel checking' : 'Clear candidates and checks'}
+        </button> : null}
+        {assistance?.pending ? <p role="status" aria-live="polite">
+          {assistance.mode === 'guard' ? 'Checking your move…' : 'Grading candidates…'} No move has been played.
+        </p> : null}
+        {movePending ? <p role="status">Playing move…</p> : null}
+        {assistanceError ? <p role="alert">{assistanceError}</p> : null}
+        {assistance && !assistance.pending && assistance.mode === 'candidates' ? <ul aria-label="Candidate grades">
+          {assistance.result.grades.map(grade => <li key={grade.move}>
+            <strong>{grade.san}: {grade.band}</strong>
+            {' '}({Math.round(grade.win_probability_loss * 100)} percentage points of winning chance lost)
+            {' '}<button type="button" disabled={assistanceBlocked}
+              onClick={() => void commitProtectedMove(grade.move, assistance)}>Play {grade.san}</button>
+          </li>)}
+        </ul> : null}
+        {assistance && !assistance.pending && assistance.mode === 'guard' ? <div role="alertdialog"
+          aria-label="Blunder warning" aria-describedby="play-blunder-warning" onKeyDown={event => {
+            if (event.key === 'Escape') { clearAssistance(); guardToggle.current?.focus(); }
+          }}>
+          <p id="play-blunder-warning"><strong>{assistance.result.grades[0].san} is a blunder.</strong>
+            {' '}Your original position is unchanged. Cancel to choose another move, or explicitly play this move anyway.</p>
+          <button ref={guardCancel} type="button" onClick={() => { clearAssistance(); guardToggle.current?.focus(); }}>Cancel</button>
+          <button type="button" disabled={assistanceBlocked}
+            onClick={() => void commitProtectedMove(assistance.result.grades[0].move, assistance)}>Play anyway</button>
+        </div> : null}
+      </Panel>}
+      {session?.status === 'active' && <HintPanel playerId={session.player_id} sessionId={session.id}
+        fen={boardPosition.fen} onPreview={handleHintPreview}
+        disabled={movePending || resigning || takingBack || assistance !== null || criticalInterruption !== null ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
           queuedMoveNeedsRefreshRef.current.has(session.id)} />}
       {session?.status === 'active' && <button type="button" onClick={() => void resign()}
-        disabled={movePending || resigning || takingBack || queuedMoveNeedsRefreshRef.current.has(session.id)}>
+        disabled={movePending || resigning || takingBack || assistance?.pending || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {resigning ? 'Resigning…' : 'Resign'}
       </button>}
       {session?.status === 'active' && !session.coach_mode && <button type="button"
         data-testid="takeback-btn" onClick={() => void takeback()}
-        disabled={movePending || resigning || takingBack || !navigator.onLine ||
+        disabled={movePending || resigning || takingBack || assistance?.pending || !navigator.onLine ||
           chessRef.current.history().length < 2 || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {takingBack ? 'Taking back…' : 'Take back'}
       </button>}

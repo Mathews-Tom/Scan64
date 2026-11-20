@@ -167,7 +167,7 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
                     connection.exec_driver_sql(
                         "SELECT version_num FROM alembic_version"
                     ).scalar_one()
-                    == "20261119_20"
+                    == "20261119_21"
                 )
             with Session(engine) as session:
                 assert source_themes(session) == expected_themes
@@ -180,7 +180,15 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
                 rating = session.get(PuzzleRating, "existing")
                 assert rating is not None and (rating.rating, rating.rated_count) == (1432, 12)
                 assert session.get(Player, "existing").preferences == {"preserved": True}
-            print(f"{phase}: current head; 12 puzzles, 24 theme rows; Today and ratings preserved")
+                revision = (
+                    session.connection()
+                    .exec_driver_sql("SELECT version_num FROM alembic_version")
+                    .scalar_one()
+                )
+            print(
+                f"{phase}: revision {revision}; 12 puzzles, 24 theme rows; "
+                "Today and ratings preserved"
+            )
             if phase == "upgrade":
                 command.downgrade(config, "20261113_17")
                 assert "puzzletheme" not in inspect(engine).get_table_names()

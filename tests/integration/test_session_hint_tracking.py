@@ -15,7 +15,7 @@ from scan64.chess.games.assistance import (
     SessionHintReveal,
     StalePlaySnapshot,
     claim_snapshot,
-    persist_hint_reveal,
+    persist_assistance,
     prefix_hash,
 )
 from scan64.chess.games.models import Game, PlaySession
@@ -122,7 +122,7 @@ def test_stale_hint_snapshot_cannot_disclose_or_write(db_session: Session, chang
         claim_snapshot(db_session, snapshot)
     db_session.commit()
     with pytest.raises(StalePlaySnapshot):
-        persist_hint_reveal(db_session, snapshot, chess.Board(), 3)
+        persist_assistance(db_session, snapshot, chess.Board(), 3)
     assert db_session.exec(select(SessionHintReveal)).all() == []
 
 
@@ -133,7 +133,7 @@ def test_reveal_survives_takeback_and_counter_different_repetition(db_session: S
     play = PlaySession(player_id="owner", game_id=game.id)
     db_session.add(play)
     db_session.commit()
-    persist_hint_reveal(db_session, PlaySnapshot.capture(play, game), chess.Board(), 1)
+    persist_assistance(db_session, PlaySnapshot.capture(play, game), chess.Board(), 1)
     original_hash = prefix_hash(chess.STARTING_FEN, [])
     game.moves = ["g1f3", "g8f6", "f3g1", "f6g8"]
     db_session.commit()
@@ -141,14 +141,14 @@ def test_reveal_survives_takeback_and_counter_different_repetition(db_session: S
     for move in game.moves:
         board.push_uci(move)
     assert board.fen() != chess.STARTING_FEN
-    persist_hint_reveal(db_session, PlaySnapshot.capture(play, game), board, 2)
+    persist_assistance(db_session, PlaySnapshot.capture(play, game), board, 2)
     reveals = db_session.exec(select(SessionHintReveal)).all()
     assert len(reveals) == 2
     assert {row.canonical_id for row in reveals} == {chess.Board().epd()}
     assert len({row.prefix_hash for row in reveals}) == 2
     game.moves = []
     db_session.commit()
-    persist_hint_reveal(db_session, PlaySnapshot.capture(play, game), chess.Board(), 3)
+    persist_assistance(db_session, PlaySnapshot.capture(play, game), chess.Board(), 3)
     assert db_session.get(SessionHintReveal, (play.id, original_hash)).highest_step == 3
     assert len(db_session.exec(select(SessionHintReveal)).all()) == 2
 
@@ -183,7 +183,7 @@ def test_engine_work_race_returns_409_without_hint_data(
     db_session.add(play)
     db_session.commit()
 
-    async def concurrent_change(_fen: str) -> EngineAnalysis:
+    async def concurrent_change(_board: chess.Board) -> EngineAnalysis:
         if mutation == "complete":
             play.status = "completed"
         elif mutation == "first_game":

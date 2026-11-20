@@ -71,6 +71,7 @@ test.describe('Coach interruption interaction', () => {
           status: 'active',
           opponent_config: {},
           coach_mode: true,
+          assistance_modes: [],
         },
       });
     });
@@ -168,6 +169,7 @@ test.describe('Coach interruption interaction', () => {
           status: 'active',
           opponent_config: {},
           coach_mode: false,
+          assistance_modes: [],
         },
       });
     });
@@ -211,6 +213,7 @@ test.describe('Coach interruption interaction', () => {
           status: 'active',
           opponent_config: {},
           coach_mode: true,
+          assistance_modes: [],
         },
       });
     });

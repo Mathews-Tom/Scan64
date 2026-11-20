@@ -12,15 +12,13 @@ from pydantic import BaseModel, model_validator
 from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
+from scan64.api.play_position import owned_play_position
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.boards import board_from
 from scan64.chess.games.assistance import (
     PlaySnapshot,
     StalePlaySnapshot,
-    persist_hint_reveal,
+    persist_assistance,
 )
-from scan64.chess.games.models import Game, PlaySession
-from scan64.chess.games.participants import player_color
 from scan64.learning.insights import InsightStep, insight_step, position_insight
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -44,43 +42,17 @@ class PositionInsightRequest(BaseModel):
 def _position(
     body: PositionInsightRequest, session: Session
 ) -> tuple[chess.Board, PlaySnapshot | None]:
-    snapshot = None
     if body.play_session_id is not None:
-        play = session.get(PlaySession, body.play_session_id)
-        if play is None or play.player_id != body.player_id:
-            raise HTTPException(status_code=404, detail="PlaySession not found")
-        game = session.get(Game, play.game_id) if play.game_id else None
-        if play.status != "active" or (game is not None and game.result != "*"):
-            raise HTTPException(status_code=409, detail="PlaySession is not active")
-        if play.game_id is not None and game is None:
-            raise HTTPException(status_code=404, detail="Game not found")
-        # A new standard session has no Game row until its first move.
-        # Custom-start sessions already store their initial FEN on the Game.
-        snapshot = PlaySnapshot.capture(play, game)
-        board = board_from(snapshot.initial_fen)
-        try:
-            for uci in snapshot.moves:
-                board.push_uci(uci)
-        except ValueError:
-            raise HTTPException(status_code=409, detail="Stored game has illegal moves") from None
-        colour = player_color(
-            snapshot.initial_fen,
-            snapshot.moves,
-            stored_color=snapshot.config.get("player_color")
-            or (game.owner_color if game is not None else None),
-        )
-        if board.turn != colour:
-            raise HTTPException(status_code=409, detail="Wait for the opponent's move")
-    else:
-        try:
-            board = chess.Board(body.fen)
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Invalid FEN") from None
+        return owned_play_position(session, body.play_session_id, body.player_id)
+    try:
+        board = chess.Board(body.fen)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid FEN") from None
     if not board.is_valid():
         raise HTTPException(status_code=422, detail="Invalid chess position")
     if board.is_game_over():
         raise HTTPException(status_code=409, detail="Position is game over")
-    return board, snapshot
+    return board, None
 
 
 @router.post("/v1/insights/position", response_model=InsightStep)
@@ -100,10 +72,10 @@ async def insight_position(
             status_code=503, detail="Hints require at least two interactive engines"
         )
     try:
-        analysis = await manager.analyze_hint(board.fen())
+        analysis = await manager.analyze_hint(board)
         response = insight_step(board, position_insight(board, analysis), body.step)
         if snapshot is not None:
-            persist_hint_reveal(session, snapshot, board, body.step)
+            persist_assistance(session, snapshot, board, body.step)
         return response
     except StalePlaySnapshot:
         raise HTTPException(
@@ -209,13 +181,13 @@ async def analyze_position(
             detail="Analysis requires at least two interactive engines; try again when available",
         )
     try:
-        analysis = await manager.analyze_hint(fen)
+        analysis = await manager.analyze_hint(board)
         try:
             lines = _analysis_lines(board, analysis)
         except ValueError:
             # Hint consumers can use output that lacks a complete legal PV.
             # Evict only when free-analysis conversion rejects it, so Retry searches again.
-            manager.invalidate_hint(fen)
+            manager.invalidate_hint(board)
             raise
         return PositionAnalysisRead(fen=fen, lines=lines)
     except TimeoutError:

@@ -220,7 +220,7 @@ describe('App', () => {
   it('does not revive a completed play-from-here session after review and browser Back', async () => {
     const gameId = '00000000-0000-4000-8000-000000000052';
     const playSession = { id: 'session-52', player_id: 'player-1', game_id: gameId,
-      status: 'active', coach_mode: false, opponent_config: {} };
+      status: 'active', coach_mode: false, assistance_modes: [], opponent_config: {} };
     vi.mocked(ApiClient.createGame).mockResolvedValue({
       id: gameId, pgn: '', white: 'player-1', black: 'Stockfish', result: '*',
     });
@@ -251,7 +251,7 @@ describe('App', () => {
   ])('drops a completed play-from-here cache when leaving through %s', async (destination, path) => {
     const gameId = '00000000-0000-4000-8000-000000000052';
     const playSession = { id: 'session-52', player_id: 'player-1', game_id: gameId,
-      status: 'active', coach_mode: false, opponent_config: {} };
+      status: 'active', coach_mode: false, assistance_modes: [], opponent_config: {} };
     vi.mocked(ApiClient.createGame).mockResolvedValue({
       id: gameId, pgn: '', white: 'player-1', black: 'Stockfish', result: '*',
     });

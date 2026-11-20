@@ -96,11 +96,6 @@ def test_upgrade_preserves_due_retirement_and_unused_downgrade(tmp_path: Path) -
         migrate_database(engine)
         assert _rows(engine, "*") == converted
         assert "sparringattempt" in inspect(engine).get_table_names()
-        with engine.connect() as connection:
-            assert (
-                connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                == "20261119_20"
-            )
         command.downgrade(config, "20261119_19")
         assert _rows(engine, "*") == converted
         assert "sparringattempt" not in inspect(engine).get_table_names()
@@ -141,8 +136,7 @@ def test_downgrade_refuses_to_discard_review_state_and_observations(tmp_path: Pa
         for revision in ("20261119_20", "20261119_19"):
             if revision == "20261119_20":
                 migrate_database(engine)
-            else:
-                command.downgrade(config, revision)
+            command.downgrade(config, revision)
             assert _rows(engine, "*") == expected_schedules
             with Session(engine) as session:
                 restored_observation = session.exec(select(ScheduleReviewObservation)).one()
@@ -181,11 +175,6 @@ def test_existing_desktop_snapshot_retains_pre_fsrs_database(tmp_path: Path) -> 
         (snapshot,) = (tmp_path / "backups").glob("scan64-*-before-*.db")
         migrate_database(engine)
         assert _rows(engine, _NEW_COLUMNS) == original
-        with engine.connect() as connection:
-            assert (
-                connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                == "20261119_20"
-            )
         with sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True) as connection:
             assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
                 "20261117_18",

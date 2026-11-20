@@ -182,6 +182,20 @@ A live opponent move and a background analysis use separate Stockfish pools. Ana
 
 Run `uv run scan64-cli bots calibrate` to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.
 
+### Candidates and blunder guard
+
+Select one to three legal moves in **Candidates**, then **Grade candidates**. The board does not move while Scan64 evaluates your proposals. Choose a graded move explicitly to play it.
+
+**Blunder guard** is unchecked until you enable it. It checks each proposed move before playing it; a blunder warning requires **Play anyway** or **Cancel**. Other scored verdicts play your original proposal, never an engine replacement. Busy or failed checks do not play a move.
+
+Both features require a connection. Their protected moves never enter the offline queue. A changed position or expired verdict requires a fresh check. Candidates and guard verdicts count as full engine assistance before results appear, including after cancellation, reload or takeback; the session shows the recorded assistance modes. Assisted positions earn no good-move credit, and assisted games do not count toward bot strength. This records in-app assistance, not whether external help was used.
+
+Your accepted move is saved before Scan64 waits for its bot reply. If the bot fails or a protected completion becomes uncertain, use **Retry game refresh** to load the saved position, then **Resume bot turn** if the bot still has to move. This retries only the bot turn; it never replays your human move or reuses an expired grade. Reloading an active game also restores this recovery control.
+
+Queued moves are matched against the saved starting position and full move history before synchronization. A human move already saved is not sent again. Entries with an unknown or mismatched source position are retained and keep only their own session paused; other sessions can synchronize.
+
+For older queued moves without a recorded source position, choose **Discard legacy queued moves…** and review the warning. **Keep queued moves** cancels without deleting anything. **Discard and refresh** permanently removes only the confirmed older local moves from that game; saved games, other games' queued moves and entries with a recorded source are kept. Play remains locked until the saved game has refreshed successfully.
+
 ### Hints during play
 
 Select **Hint** beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Candidates label engine-line-backed reasons **Tactical** and local move facts **Principle**; **engine preference** means neither applies. Principles describe development, castling, centre occupation or added control, rook files, king escape squares against back-rank mate, or passed-pawn advances. They describe what a move does, not why it is best or a promise of winning. Only moves inside the engine tolerance receive reasons. The first two responses do not disclose moves or their destination squares.

@@ -18,6 +18,8 @@ import type {
   ProfileInsightsRead,
   LessonAttemptCreate,
   LessonAttemptRead,
+  PlayAssistanceRead,
+  PlayAssistanceRequest,
   PlayMoveCreate,
   PlayMoveResponse,
   PlayerCreate,
@@ -494,6 +496,24 @@ export class ApiClient {
     }
     return await response.json() as PlaySessionRead;
   }
+  static async gradePlayMoves(sessionId: string, request: PlayAssistanceRequest): Promise<PlayAssistanceRead> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/assistance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(request.player_id),
+      },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const error: unknown = await response.json().catch(() => null);
+      const detail = error !== null && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string'
+        ? error.detail : response.statusText;
+      throw new ApiRequestError(`Could not grade moves: ${detail}`, response.status);
+    }
+    return await response.json() as PlayAssistanceRead;
+  }
+
 
   static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/moves`, {
@@ -505,12 +525,23 @@ export class ApiClient {
       body: JSON.stringify(move),
     });
     if (!response.ok) {
-      throw new Error(`Failed to make move: ${response.statusText}`);
+      throw new ApiRequestError(`Failed to make move: ${response.statusText}`, response.status);
     }
     const json = await response.json();
     return json as unknown as PlayMoveResponse;
   }
 
+
+  static async resumePlaySession(sessionId: string, playerId: string): Promise<PlayMoveResponse> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/resume`, {
+      method: 'POST',
+      headers: getPlayerAuthorizationHeader(playerId),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resume bot turn: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayMoveResponse;
+  }
   static async resignPlaySession(sessionId: string): Promise<PlaySessionRead> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/resign`, {
       method: 'POST',

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import secrets
 from pathlib import Path
@@ -7,13 +9,14 @@ from uuid import UUID
 import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
 from scan64.chess.analysis.jobs import submit_analysis_job
+from scan64.chess.games.assistance import AssistanceMode, StalePlaySnapshot, assistance_modes
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants, player_color
 from scan64.chess.games.pgn import build_pgn
@@ -93,10 +96,12 @@ class PlaySessionRead(BaseModel):
     player_color: Literal["white", "black"]
     opponent_move: str | None = None
     sparring: SparringAttemptRead | None = None
+    assistance_modes: list[AssistanceMode]
 
 
 class PlayMoveCreate(BaseModel):
     move: str
+    expected_generation: StrictInt | None = Field(default=None, ge=0)
 
 
 class CriticalInterruptionRead(BaseModel):
@@ -162,6 +167,7 @@ def read_play_session(
         player_color="white" if colour else "black",
         opponent_move=opponent_move,
         sparring=read_sparring(session, play_session),
+        assistance_modes=assistance_modes(session, play_session.id),
     )
 
 
@@ -346,15 +352,17 @@ async def create_move(
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlayMoveResponse:
-    play_session = _get_owned_play_session(session_id, request, session)
+    _get_owned_play_session(session_id, request, session)
     try:
-        move_result = await service.make_move(session_id, move_in.move)
+        move_result = await service.make_move(
+            session_id, move_in.move, expected_generation=move_in.expected_generation
+        )
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
         schedule_pending_analysis(service, background_tasks, pool_manager)
         interruption = move_result.interruption
         return PlayMoveResponse(
             opponent_move=move_result.opponent_move,
-            status=play_session.status,
+            status=move_result.status,
             critical_interruption=(
                 CriticalInterruptionRead(
                     lesson=interruption.lesson,
@@ -367,12 +375,50 @@ async def create_move(
         )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except PlaySessionNotActive as error:
+    except (PlaySessionNotActive, StalePlaySnapshot) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/v1/play-sessions/{session_id}/resume", response_model=PlayMoveResponse)
+async def resume_play_session(
+    request: Request,
+    session_id: UUID,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+    service: PlaySessionService = Depends(get_play_session_service),
+) -> PlayMoveResponse:
+    _get_owned_play_session(session_id, request, session)
+    try:
+        move_result = await service.resume_bot_turn(session_id)
+        schedule_pending_analysis(
+            service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+        )
+        interruption = move_result.interruption
+        return PlayMoveResponse(
+            opponent_move=move_result.opponent_move,
+            status=move_result.status,
+            critical_interruption=(
+                CriticalInterruptionRead(
+                    lesson=interruption.lesson,
+                    opportunity_id=interruption.opportunity_id,
+                    study_session_id=interruption.study_session_id,
+                )
+                if interruption is not None
+                else None
+            ),
+        )
+    except PlaySessionNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (PlaySessionNotActive, StalePlaySnapshot) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
 
 
 @router.post("/v1/play-sessions/{session_id}/resign", response_model=PlaySessionRead)

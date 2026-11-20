@@ -1563,7 +1563,8 @@ def _validate_credit_archive(
         if (
             reveal.player_id != player_id
             or play_session is None
-            or not 1 <= reveal.highest_step <= 3
+            or not 0 <= reveal.highest_step <= 3
+            or reveal.effective_step < 1
             or reveal.ply != len(reveal.moves) + 1
         ):
             raise ValueError("Invalid hint reveal owner or snapshot")

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,7 +10,11 @@ from sqlalchemy import update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session, col, select
 
-from scan64.chess.analysis.coach_interruption import CoachInterruption, prepare_coach_interruption
+from scan64.chess.analysis.coach_interruption import (
+    CoachInterruption,
+    PreparedCoachInterruption,
+    prepare_coach_interruption,
+)
 from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.boards import uci_moves_to_san
 from scan64.chess.games.assistance import PlaySnapshot, StalePlaySnapshot, claim_snapshot
@@ -41,6 +47,7 @@ class TakebackNotAllowed(ValueError):
 class PlayMoveResult:
     opponent_move: str | None
     interruption: CoachInterruption | None
+    status: str
 
 
 class PlaySessionService:
@@ -156,6 +163,13 @@ class PlaySessionService:
             "assistance_generation": claimed_config["assistance_generation"],
         }
         pgn = build_pgn(game)
+        if snapshot.game_id is None:
+            game.pgn = pgn
+            self.db.add(game)
+            self.db.flush()
+            play_session.game_id = game.id
+            self.db.add(play_session)
+            return
         with self.db.no_autoflush:
             changed = self.db.exec(
                 update(Game)
@@ -187,12 +201,19 @@ class PlaySessionService:
             raise TakebackNotAllowed("Take-back is unavailable in coach mode")
         game = self.db.get(Game, play_session.game_id) if play_session.game_id else None
         initial_ply = int(play_session.opponent_config.get("initial_ply", "0"))
-        if game is None or len(game.moves) - initial_ply < 2:
+        if game is None or len(game.moves) <= initial_ply:
+            raise TakebackNotAllowed("No human move pair to take back")
+        board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        for move in game.moves:
+            board.push_uci(move)
+        # A reply may still be pending: undo that human move, not the prior bot move.
+        undo_plies = 1 if board.turn != self.human_color(play_session, game) else 2
+        if len(game.moves) - initial_ply < undo_plies:
             raise TakebackNotAllowed("No human move pair to take back")
         # Keep the opening bot move (and any imported history) intact.
         moves_before = list(game.moves)
         snapshot = PlaySnapshot.capture(play_session, game)
-        game.moves = moves_before[:-2]
+        game.moves = moves_before[:-undo_plies]
         self.persist_moves(play_session, game, moves_before, snapshot)
         self.db.commit()
         return play_session
@@ -264,22 +285,27 @@ class PlaySessionService:
         self.complete_session(play_session, game, "0-1" if conceded == chess.WHITE else "1-0")
         return play_session
 
-    async def make_move(self, session_id: UUID, player_move: str) -> PlayMoveResult:
-        """Process a player move and return its durable play outcome."""
+    async def make_move(
+        self, session_id: UUID, player_move: str, *, expected_generation: int | None = None
+    ) -> PlayMoveResult:
+        """Commit the legal human move before awaiting its opponent reply."""
         play_session = self.db.get(PlaySession, session_id)
-        if not play_session:
+        if play_session is None:
             raise PlaySessionNotFound("PlaySession not found")
-
         if play_session.status != "active":
             raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
 
-        if not play_session.game_id:
-            try:
-                claim_snapshot(self.db, PlaySnapshot.capture(play_session, None))
-            except StalePlaySnapshot as error:
-                raise PlaySessionNotActive(str(error)) from error
+        fetched = self.db.get(Game, play_session.game_id) if play_session.game_id else None
+        if play_session.game_id is not None and fetched is None:
+            raise ValueError("Game not found")
+        snapshot = PlaySnapshot.capture(play_session, fetched)
+        if expected_generation is not None and expected_generation != int(
+            snapshot.config.get("assistance_generation", "0")
+        ):
+            raise StalePlaySnapshot("PlaySession changed; grade the current position again")
+        if fetched is None:
             white, black = participants(play_session.player_id, play_session.opponent_config)
-            game = Game(
+            fetched = Game(
                 pgn="",
                 moves=[],
                 white=white,
@@ -291,17 +317,6 @@ class PlaySessionService:
                     else "white"
                 ),
             )
-            game.pgn = build_pgn(game)
-            self.db.add(game)
-            self.db.flush()
-            play_session.game_id = game.id
-            self.db.add(play_session)
-            self.db.commit()
-
-        assert play_session.game_id is not None
-        fetched = self.db.get(Game, play_session.game_id)
-        if not fetched:
-            raise ValueError("Game not found")
 
         initial_fen = fetched.headers.get("FEN") if fetched.headers else None
         board = chess.Board(initial_fen) if initial_fen else chess.Board()
@@ -311,70 +326,101 @@ class PlaySessionService:
             raise ValueError("It is not the player's turn")
         before_board = board.copy()
         moves_before = list(fetched.moves)
-        snapshot = PlaySnapshot.capture(play_session, fetched)
-
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
             raise ValueError(f"Illegal move: {player_move}")
 
         board.push(move)
-        player_position = board.copy()
         fetched.moves = [*moves_before, player_move]
+        self.persist_moves(play_session, fetched, moves_before, snapshot)
+        if board.is_game_over():
+            self.complete_session(play_session, fetched, board.result())
+            return PlayMoveResult(opponent_move=None, interruption=None, status="completed")
+
+        # Freeze exactly the committed human prefix before commit expires ORM state.
+        # Engine work must never reload a newer takeback/resignation into this reply.
+        reply_snapshot = PlaySnapshot.capture(play_session, fetched)
+        reply_play = PlaySession(**play_session.model_dump())
+        reply_game = Game(**fetched.model_dump())
+        self.db.commit()
 
         prepared_interruption = None
-        if play_session.coach_mode and not player_position.is_game_over():
+        if reply_play.coach_mode:
             try:
                 with self.db.no_autoflush:
                     prepared_interruption = await prepare_coach_interruption(
                         session=self.db,
-                        game=fetched,
-                        player_id=play_session.player_id,
+                        game=reply_game,
+                        player_id=reply_play.player_id,
                         before_board=before_board,
-                        after_board=player_position,
+                        after_board=board.copy(),
                         played_move=before_board.san(move),
-                        history_san=uci_moves_to_san([*moves_before, player_move], initial_fen),
+                        history_san=uci_moves_to_san(reply_game.moves, initial_fen),
                         pool_manager=self.engine_pool_manager,
                     )
             except Exception:
                 logger.exception(
                     "Coach diagnostic failed for play_session_id=%s move=%s; "
-                    "committing the legal player move without an interruption",
-                    play_session.id,
+                    "retaining the legal player move without an interruption",
+                    reply_play.id,
                     player_move,
                 )
+        # Coach preparation only reads/stages detached rows. Release its read
+        # transaction before engine work so terminal edits can commit meanwhile.
+        self.db.rollback()
+        return await self._finish_bot_turn(
+            reply_play, reply_game, board, reply_snapshot, prepared_interruption
+        )
 
-        if board.is_game_over():
-            self.persist_moves(play_session, fetched, moves_before, snapshot)
-            interruption = (
-                prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
-            )
-            self.complete_session(play_session, fetched, board.result())
-            return PlayMoveResult(
-                opponent_move=None,
-                interruption=interruption,
-            )
+    async def resume_bot_turn(self, session_id: UUID) -> PlayMoveResult:
+        """Reply to the canonical durable human prefix without replaying/grading it."""
+        play_session = self.db.get(PlaySession, session_id)
+        if play_session is None:
+            raise PlaySessionNotFound("PlaySession not found")
+        if play_session.status != "active":
+            raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
+        game = self.db.get(Game, play_session.game_id) if play_session.game_id else None
+        if game is None:
+            raise ValueError("No opponent turn to resume")
+        board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
+        for move in game.moves:
+            board.push_uci(move)
+        if not board.is_valid() or board.is_game_over():
+            raise ValueError("No active legal opponent turn to resume")
+        if board.turn == self.human_color(play_session, game):
+            raise ValueError("It is not the opponent's turn")
+        snapshot = PlaySnapshot.capture(play_session, game)
+        reply_play = PlaySession(**play_session.model_dump())
+        reply_game = Game(**game.model_dump())
+        self.db.rollback()
+        return await self._finish_bot_turn(reply_play, reply_game, board, snapshot)
 
-        opponent_move = await self.play_opponent_move(play_session, fetched, board)
-
-        if board.is_game_over():
-            self.persist_moves(play_session, fetched, moves_before, snapshot)
-            interruption = (
-                prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
-            )
-            self.complete_session(play_session, fetched, board.result())
-            return PlayMoveResult(
-                opponent_move=opponent_move,
-                interruption=interruption,
-            )
-
-        self.persist_moves(play_session, fetched, moves_before, snapshot)
-        self.db.add(play_session)
+    async def _finish_bot_turn(
+        self,
+        reply_play: PlaySession,
+        reply_game: Game,
+        board: chess.Board,
+        snapshot: PlaySnapshot,
+        prepared_interruption: PreparedCoachInterruption | None = None,
+    ) -> PlayMoveResult:
+        opponent_move = await self.play_opponent_move(reply_play, reply_game, board)
+        # Only detached copies changed across the await. The complete source CAS
+        # fences publication against other replies, takebacks and terminal edits.
+        with self.db.no_autoflush:
+            play_session = self.db.get(PlaySession, snapshot.session_id)
+            game = self.db.get(Game, snapshot.game_id)
+            if play_session is None or game is None:
+                raise PlaySessionNotActive("PlaySession changed while awaiting the opponent")
+            play_session.opponent_config = dict(reply_play.opponent_config)
+            game.moves = list(reply_game.moves)
+            self.persist_moves(play_session, game, snapshot.moves, snapshot)
         interruption = (
             prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
         )
-        self.db.commit()
-
-        return PlayMoveResult(
-            opponent_move=opponent_move,
-            interruption=interruption,
-        )
+        if board.is_game_over():
+            self.complete_session(play_session, game, board.result())
+            status = "completed"
+        else:
+            self.db.commit()
+            status = "active"
+        return PlayMoveResult(opponent_move=opponent_move, interruption=interruption, status=status)

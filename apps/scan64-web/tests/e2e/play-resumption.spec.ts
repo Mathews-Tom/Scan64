@@ -16,7 +16,7 @@ test('resumes an active game after reload and browser navigation', async ({ page
   await page.route('**/v1/play-sessions', async route => {
     ({ player_id: playerId } = route.request().postDataJSON() as { player_id: string });
     await route.fulfill({
-      json: { id: 'session-1', player_id: playerId, opponent_config: {}, status: 'active' },
+      json: { id: 'session-1', player_id: playerId, opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] },
     });
   });
   await page.route('**/v1/play-sessions/session-1', async route => {
@@ -28,6 +28,8 @@ test('resumes an active game after reload and browser navigation', async ({ page
         player_id: playerId,
         opponent_config: {},
         status: 'active',
+        coach_mode: false,
+        assistance_modes: [],
       },
     });
   });

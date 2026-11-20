@@ -100,7 +100,7 @@ describe('FamousGameStudyScreen', () => {
       hint_assisted: false,
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue({ id: 'session-1', player_id: 'player-1', game_id: 'game-1',
-    opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false });
+    opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false, assistance_modes: [] });
   });
 
   it('keeps public study available when player authorization fails', async () => {
