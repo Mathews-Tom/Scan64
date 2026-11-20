@@ -8,7 +8,7 @@ import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlmodel import Session
+from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
@@ -242,6 +242,15 @@ async def create_play_session(
         board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
         for move in game.moves:
             board.push_uci(move)
+        active_conversion = session.exec(
+            select(SparringAttempt.id)
+            .join(PlaySession, col(SparringAttempt.play_session_id) == col(PlaySession.id))
+            .where(PlaySession.game_id == game.id, PlaySession.status == "active")
+            .limit(1)
+        ).first()
+        if active_conversion is not None:
+            initial_fen = board.fen()
+            game = None
     else:
         board = chess.Board()
     requested_color = source.game.owner_color if source else session_in.player_color

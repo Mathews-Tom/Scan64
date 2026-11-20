@@ -256,6 +256,7 @@ def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learni
     )
     assert reused.status_code == 200, reused.text
     assert reused.json()["opponent_move"] is not None
+    assert reused.json()["game_id"] != conversion["game_id"]
     if completed:
         terminal = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=headers)
         assert terminal.status_code == 200, terminal.text
@@ -268,8 +269,15 @@ def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learni
         assert ordinary_terminal.json()["status"] == "completed"
     archive = export(client, headers)
     bot = next(game for game in archive["games"] if game["id"] == conversion["game_id"])
-    assert bot["owner_color"] == "white"
-    assert bot["result"] == ("0-1" if ordinary_resigned else "1-0" if completed else "*")
+    assert bot["owner_color"] == "black"
+    assert bot["headers"]["FEN"] == conversion["sparring"]["source_fen"]
+    assert bot["moves"] == []
+    assert bot["result"] == ("1-0" if completed else "*")
+    ordinary_game = next(
+        game for game in archive["games"] if game["id"] == reused.json()["game_id"]
+    )
+    assert ordinary_game["owner_color"] == "white"
+    assert ordinary_game["result"] == ("0-1" if ordinary_resigned else "*")
     archived_attempt = archive["sparring_attempts"][0]
     assert archived_attempt["result"] == ("1-0" if completed else None)
     assert archived_attempt["outcome"] == ("loss" if completed else None)
@@ -309,6 +317,15 @@ def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learni
     assert restored.json()["sparring"]["result"] == ("1-0" if completed else None)
     assert restored.json()["sparring"]["outcome"] == ("loss" if completed else None)
     if not completed:
+        moved = client.post(
+            f"/v1/play-sessions/{conversion['id']}/moves",
+            headers=headers,
+            json={"move": "e7e5"},
+        )
+        assert moved.status_code == 200, moved.text
+        db_session.expire_all()
+        conversion_game = db_session.get(Game, UUID(conversion["game_id"]))
+        assert conversion_game is not None and conversion_game.moves[0] == "e7e5"
         terminal = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=headers)
         assert terminal.status_code == 200, terminal.text
         assert terminal.json()["sparring"]["outcome"] == "loss"

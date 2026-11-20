@@ -191,8 +191,12 @@ def test_completion_keeps_retained_colour_after_ordinary_reuse_of_the_bot_game(
     assert ordinary.status_code == 200, ordinary.text
     assert ordinary.json()["player_color"] == "white"
     assert ordinary.json()["opponent_move"] is not None
+    assert ordinary.json()["game_id"] != conversion["game_id"]
+    ordinary_game = db_session.get(Game, UUID(ordinary.json()["game_id"]))
+    assert ordinary_game is not None and ordinary_game.owner_color == "white"
     bot_game = db_session.get(Game, UUID(conversion["game_id"]))
-    assert bot_game is not None and bot_game.owner_color == "white"
+    assert bot_game is not None and bot_game.owner_color == "black"
+    assert bot_game.moves == []
     completed = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=auth)
     assert completed.status_code == 200, completed.text
     attempt = completed.json()["sparring"]
