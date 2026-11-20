@@ -155,9 +155,11 @@ class PlayClockRuntime:
         self.pool_manager = pool_manager
         self._loop = asyncio.get_running_loop()
         self._wake = asyncio.Event()
+        self.change_event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._inflight: dict[UUID, asyncio.Task[object]] = {}
         self._admissions: set[asyncio.Task[None]] = set()
+        self._stopping: asyncio.Task[None] | None = None
         self._closed = False
 
     def start(self) -> None:
@@ -165,7 +167,18 @@ class PlayClockRuntime:
 
     def notify(self) -> None:
         if not self._closed and not self._loop.is_closed():
-            self._loop.call_soon_threadsafe(self._wake.set)
+            self._loop.call_soon_threadsafe(self._publish_change)
+
+    def _publish_change(self) -> None:
+        self.change_event.set()
+        self.change_event = asyncio.Event()
+        self._wake.set()
+
+    async def wait_for_change(self, observed: asyncio.Event) -> bool:
+        if self._closed:
+            return False
+        await observed.wait()
+        return not self._closed
 
     def admit_analysis(self, player_id: str, job_id: UUID) -> None:
         """Admit durable terminal work even when the command returns HTTP 409."""
@@ -192,16 +205,40 @@ class PlayClockRuntime:
 
     async def stop(self) -> None:
         self._closed = True
+        self.change_event.set()
+        if self._stopping is None:
+            for task in self._inflight.values():
+                task.cancel()
+            if self._task is not None:
+                self._task.cancel()
+            self._stopping = self._loop.create_task(self._stop())
+        try:
+            await asyncio.shield(self._stopping)
+        except asyncio.CancelledError:
+            # Cancellation must not abandon a SQLite call or its admissions.
+            while not self._stopping.done():
+                try:
+                    await asyncio.shield(self._stopping)
+                except asyncio.CancelledError:
+                    pass
+            self._stopping.result()
+            raise
+
+    async def _stop(self) -> None:
         tasks = [*self._inflight.values()]
         if self._task is not None:
             tasks.append(self._task)
-        for task in tasks:
-            task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         self._inflight.clear()
+        # The drained worker/commands may have queued thread-safe admissions.
+        # Let those callbacks register their tasks before taking the snapshot.
+        admissions_ready: asyncio.Future[None] = self._loop.create_future()
+        self._loop.call_soon(admissions_ready.set_result, None)
+        await admissions_ready
         await asyncio.gather(*self._admissions, return_exceptions=True)
 
-    async def _run(self) -> None:
+    def _check_deadline(self) -> datetime | None:
+        """Own all scheduler ORM/provider objects within one worker call."""
         from scan64.chess.games.play_session_service import (
             PlaySessionNotActive,
             PlaySessionNotFound,
@@ -210,47 +247,65 @@ class PlayClockRuntime:
         from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
         from scan64.providers.stockfish.adapter import StockfishConfig
 
+        with Session(self.engine) as session:
+            clock = session.exec(
+                select(PlayClock)
+                .join(PlaySession, col(PlaySession.id) == col(PlayClock.session_id))
+                .where(col(PlaySession.status) == "active")
+                .where(col(PlayClock.active_color).is_not(None))
+                .where(col(PlayClock.deadline_at).is_not(None))
+                .order_by(col(PlayClock.deadline_at))
+                .limit(1)
+            ).first()
+            deadline = as_utc(clock.deadline_at) if clock and clock.deadline_at else None
+            session_id = clock.session_id if clock else None
+        if deadline is not None and deadline <= utc_now():
+            with Session(self.engine) as session:
+                service = PlaySessionService(
+                    session,
+                    StockfishOpponentProvider(StockfishConfig(), self.pool_manager),
+                    engine_pool_manager=self.pool_manager,
+                    clock_runtime=self,
+                )
+                try:
+                    assert session_id is not None
+                    service.expire_clock(session_id)
+                except (ClockConflict, PlaySessionNotActive, PlaySessionNotFound):
+                    pass
+        return deadline
+
+    async def _run(self) -> None:
         retry_delay = 0.05
         while True:
             self._wake.clear()
             try:
-                with Session(self.engine) as session:
-                    clock = session.exec(
-                        select(PlayClock)
-                        .join(PlaySession, col(PlaySession.id) == col(PlayClock.session_id))
-                        .where(col(PlaySession.status) == "active")
-                        .where(col(PlayClock.active_color).is_not(None))
-                        .where(col(PlayClock.deadline_at).is_not(None))
-                        .order_by(col(PlayClock.deadline_at))
-                        .limit(1)
-                    ).first()
-                    deadline = as_utc(clock.deadline_at) if clock and clock.deadline_at else None
-                    session_id = clock.session_id if clock else None
+                # Only this waiter submits work, with at most one call in flight.
+                worker = self._loop.create_task(asyncio.to_thread(self._check_deadline))
+                try:
+                    deadline = await asyncio.shield(worker)
+                except asyncio.CancelledError:
+                    # A thread cannot be cancelled. Keep ownership until its
+                    # Session closes, including repeated shutdown cancellation.
+                    while not worker.done():
+                        try:
+                            await asyncio.shield(worker)
+                        except asyncio.CancelledError:
+                            pass
+                        except Exception:
+                            break
+                    if not worker.cancelled():
+                        worker.exception()
+                    raise
+                retry_delay = 0.05
                 if deadline is None:
-                    retry_delay = 0.05
                     await self._wake.wait()
                     continue
                 delay = (deadline - utc_now()).total_seconds()
                 if delay > 0:
-                    retry_delay = 0.05
                     try:
                         await asyncio.wait_for(self._wake.wait(), timeout=delay)
-                        continue
                     except TimeoutError:
                         pass
-                with Session(self.engine) as session:
-                    service = PlaySessionService(
-                        session,
-                        StockfishOpponentProvider(StockfishConfig(), self.pool_manager),
-                        engine_pool_manager=self.pool_manager,
-                        clock_runtime=self,
-                    )
-                    try:
-                        assert session_id is not None
-                        service.expire_clock(session_id)
-                    except (ClockConflict, PlaySessionNotActive, PlaySessionNotFound):
-                        pass
-                retry_delay = 0.05
             except OperationalError as error:
                 code = getattr(error.orig, "sqlite_errorcode", None)
                 if (

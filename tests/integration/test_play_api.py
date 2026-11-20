@@ -4,9 +4,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
-from sqlmodel.pool import StaticPool
 
-from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
 from scan64.api.models import (  # noqa: F401
     Player,
@@ -20,31 +18,11 @@ from scan64.chess.games.models import (
     PlaySession,
 )
 from scan64.chess.positions.models import Position  # noqa: F401
-from scan64.persistence.database import get_session
 
 
 @pytest.fixture(name="session")
-def session_fixture():
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    from scan64.persistence import database
-
-    database.engine = engine
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
-        return session
-
-    app.dependency_overrides[get_session] = get_session_override
-    with TestClient(app) as client:
-        yield client
-    app.dependency_overrides.clear()
+def session_fixture(db_session: Session) -> Session:
+    return db_session
 
 
 def _register(session: Session, player_id: str) -> dict[str, str]:
@@ -403,8 +381,9 @@ def test_session_projection_is_one_sqlite_snapshot_across_owner_advance(tmp_path
 
     with Session(engine) as reader:
         cached_play = reader.get(PlaySession, play_id)
-        reader.get(Game, game_id)
-        reader.get(PlayClock, play_id)
+        cached_game = reader.get(Game, game_id)
+        cached_clock = reader.get(PlayClock, play_id)
+        assert cached_play is not None and cached_game is not None and cached_clock is not None
         advanced = False
 
         def advance_after_snapshot_select(connection, cursor, statement, parameters, context, many):
@@ -445,5 +424,8 @@ def test_session_projection_is_one_sqlite_snapshot_across_owner_advance(tmp_path
         assert board.turn == chess.BLACK
         assert after.clock.active_color == "black"
         assert after.clock.version == 1
+        assert cached_game.moves == ["e2e4"]
+        assert cached_clock.active_color == "black"
+        assert cached_clock.version == 1
         assert after.result == "*"
     engine.dispose()

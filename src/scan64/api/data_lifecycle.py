@@ -203,8 +203,11 @@ def _validate_clock_archive(
             raise ValueError("Clock game has an invalid initial position")
         moves_by_color = {chess.WHITE: 0, chess.BLACK: 0}
         for move in game.moves:
+            parsed_move = board.parse_uci(move)
+            if not board.is_legal(parsed_move):
+                raise ValueError("Clock game contains an illegal move")
             moves_by_color[board.turn] += 1
-            board.push_uci(move)
+            board.push(parsed_move)
         if game.pgn != build_pgn(game):
             raise ValueError("Clock game PGN disagrees with its retained replay")
         for piece_color, remaining in (

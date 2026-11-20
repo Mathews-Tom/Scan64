@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import os
 import secrets
 from datetime import timedelta
@@ -16,7 +19,7 @@ from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.clock_models import PlayClock, PlayClockRead, TimeControl
-from scan64.chess.games.clocks import ClockConflict, project_clock, utc_now
+from scan64.chess.games.clocks import ClockConflict, PlayClockRuntime, project_clock, utc_now
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants, player_color
 from scan64.chess.games.pgn import build_pgn
@@ -35,6 +38,7 @@ from scan64.providers.stockfish.pool import EnginePoolManager
 router = APIRouter(tags=["play-sessions"])
 
 BOT_POLICY_VERSION = "stockfish-error-budget-v1"
+CLOCK_EXPIRY_WAIT_SECONDS = 15.0
 
 
 class PlaySessionCreate(BaseModel):
@@ -360,10 +364,53 @@ async def create_play_session(
 
 
 @router.get("/v1/play-sessions/{session_id}", response_model=PlaySessionRead)
-def get_play_session(
+async def get_play_session(
     session_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> PlaySessionRead:
-    return read_play_session(_get_owned_play_session(session_id, request, session), session)
+    engine = session.get_bind()
+    runtime: PlayClockRuntime | None = getattr(request.app.state, "play_clock_runtime", None)
+
+    def read_snapshot() -> PlaySessionRead:
+        # Every read owns and closes its transaction before the async wait.
+        with Session(engine) as reader:
+            owned = _get_owned_play_session(session_id, request, reader)
+            return read_play_session(owned, reader)
+
+    try:
+        async with asyncio.timeout(CLOCK_EXPIRY_WAIT_SECONDS):
+            while True:
+                # Subscribe before reading so a concurrent commit cannot be missed.
+                observed = runtime.change_event if runtime is not None else None
+                snapshot = await asyncio.to_thread(read_snapshot)
+                clock = snapshot.clock
+                if (
+                    snapshot.status != "active"
+                    or clock is None
+                    or clock.active_color is None
+                    or clock.deadline_at is None
+                ):
+                    return snapshot
+                remaining = (
+                    clock.white_remaining_ms
+                    if clock.active_color == "white"
+                    else clock.black_remaining_ms
+                )
+                if remaining > 0:
+                    return snapshot
+                if (
+                    runtime is None
+                    or observed is None
+                    or not await runtime.wait_for_change(observed)
+                ):
+                    raise HTTPException(
+                        status_code=503, detail="Clock expiration is pending; retry this read."
+                    )
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Clock expiration is pending; retry this read.",
+            headers={"Retry-After": "1"},
+        ) from error
 
 
 def schedule_pending_analysis(

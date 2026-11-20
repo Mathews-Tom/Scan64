@@ -237,6 +237,7 @@ def test_legacy_string_clock_config_roundtrips_without_a_running_clock(
         "foreign-clock-declaration",
         "wrong-control",
         "wrong-game-control",
+        "null-move",
         "unearned-increment",
         "extended-deadline",
     ],
@@ -297,6 +298,8 @@ def test_invalid_clock_archive_fails_before_player_or_game_writes(
         archive["play_sessions"][0]["clock_config"]["initial_seconds"] = "601"
     elif tamper == "wrong-game-control":
         archive["games"][0]["headers"]["TimeControl"] = "300+0"
+    elif tamper == "null-move":
+        archive["games"][0]["moves"] = ["0000"]
     elif tamper == "unearned-increment":
         clock["white_remaining_ms"] = 9999999
     else:

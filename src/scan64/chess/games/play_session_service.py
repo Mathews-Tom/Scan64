@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from asyncio import sleep
-from contextlib import nullcontext
+from collections.abc import Iterator
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
@@ -539,51 +540,59 @@ class PlaySessionService:
         self.commit_timed_move(play, game, clock, snapshot, board)
         if board.is_game_over():
             return PlayMoveResult(None, None)
-        # Commit expires ORM state: a concurrent resignation/flag may have
-        # stopped the freshly durable bot turn before these objects reload.
-        self.check_timed_turn(play, clock, bot_version)
-        if clock.deadline_at is None:
-            raise ClockConflict("Opponent clock is already stopped")
-        bot_deadline = as_utc(clock.deadline_at)
-        player_id = snapshot.player_id
-        self.db.rollback()
-        prepared = None
-        if coach_game is not None:
-            coach_timeout = asyncio.timeout(max(0, (bot_deadline - utc_now()).total_seconds()))
-            try:
-                # Preparation is read-only. AUTOCOMMIT prevents its historical
-                # lookups from holding a SQLite transaction over engine awaits.
-                bind = self.db.get_bind().execution_options(isolation_level="AUTOCOMMIT")
-                with Session(bind) as coach_db:
-                    async with coach_timeout:
-                        prepared = await prepare_coach_interruption(
-                            session=coach_db,
-                            game=coach_game,
-                            player_id=player_id,
-                            before_board=before_board,
-                            after_board=board.copy(),
-                            played_move=before_board.san(move),
-                            history_san=uci_moves_to_san(
-                                coach_game.moves, coach_game.headers.get("FEN")
-                            ),
-                            pool_manager=self.engine_pool_manager,
-                        )
-            except TimeoutError:
-                if coach_timeout.expired():
-                    self.expire_clock(session_id)
-                    raise ClockConflict("Opponent clock expired during coaching") from None
-                logger.exception("Coach diagnostic timed out for timed session %s", session_id)
-            except Exception:
-                logger.exception("Coach diagnostic failed for timed session %s", session_id)
-        opponent_move = await self.resume_opponent(session_id, bot_version)
-        interruption = None
-        if prepared is not None:
-            interruption = prepared.add_to(self.db)
-            self.db.commit()
-        return PlayMoveResult(opponent_move, interruption)
+        # Reserve the newly durable bot turn before coaching can yield to a
+        # second owned command, and retain it until its lesson is persisted.
+        with self._reserve_opponent(session_id):
+            # Commit expires ORM state: a concurrent resignation/flag may have
+            # stopped the freshly durable bot turn before these objects reload.
+            self.check_timed_turn(play, clock, bot_version)
+            if clock.deadline_at is None:
+                raise ClockConflict("Opponent clock is already stopped")
+            bot_deadline = as_utc(clock.deadline_at)
+            player_id = snapshot.player_id
+            self.db.rollback()
+            prepared = None
+            if coach_game is not None:
+                coach_timeout = asyncio.timeout(max(0, (bot_deadline - utc_now()).total_seconds()))
+                try:
+                    # Preparation is read-only. AUTOCOMMIT prevents its historical
+                    # lookups from holding a SQLite transaction over engine awaits.
+                    bind = self.db.get_bind().execution_options(isolation_level="AUTOCOMMIT")
+                    with Session(bind) as coach_db:
+                        async with coach_timeout:
+                            prepared = await prepare_coach_interruption(
+                                session=coach_db,
+                                game=coach_game,
+                                player_id=player_id,
+                                before_board=before_board,
+                                after_board=board.copy(),
+                                played_move=before_board.san(move),
+                                history_san=uci_moves_to_san(
+                                    coach_game.moves, coach_game.headers.get("FEN")
+                                ),
+                                pool_manager=self.engine_pool_manager,
+                            )
+                except TimeoutError:
+                    if coach_timeout.expired():
+                        self.expire_clock(session_id)
+                        raise ClockConflict("Opponent clock expired during coaching") from None
+                    logger.exception("Coach diagnostic timed out for timed session %s", session_id)
+                except Exception:
+                    logger.exception("Coach diagnostic failed for timed session %s", session_id)
+            opponent_move = await self._resume_opponent(session_id, bot_version)
+            interruption = None
+            if prepared is not None:
+                interruption = prepared.add_to(self.db)
+                self.db.commit()
+            return PlayMoveResult(opponent_move, interruption)
 
     async def resume_opponent(self, session_id: UUID, expected_version: int) -> str:
         """Resume only the durable bot turn; GET never enters this path."""
+        with self._reserve_opponent(session_id):
+            return await self._resume_opponent(session_id, expected_version)
+
+    @contextmanager
+    def _reserve_opponent(self, session_id: UUID) -> Iterator[None]:
         if session_id in self._opponent_inflight:
             raise ClockConflict("Opponent move is already in progress")
         reservation = (
@@ -592,7 +601,7 @@ class PlaySessionService:
         with reservation:
             self._opponent_inflight.add(session_id)
             try:
-                return await self._resume_opponent(session_id, expected_version)
+                yield
             finally:
                 self._opponent_inflight.discard(session_id)
 

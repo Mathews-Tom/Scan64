@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+from collections.abc import Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from threading import Event, get_ident
 from uuid import UUID
 
 import chess
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, event
 from sqlalchemy.exc import OperationalError
-from sqlmodel import Session, select
+from sqlmodel import Session, SQLModel, select
 
 import scan64.api.play as play_api
 import scan64.chess.games.clocks as clocks
@@ -23,6 +30,7 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService, TakebackNotAllowed
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
+from scan64.persistence.database import create_database_engine
 from scan64.providers.stockfish.adapter import StockfishConfig
 
 
@@ -68,6 +76,44 @@ def scripted_api():
     app.dependency_overrides[play_api.get_opponent_provider] = lambda: provider
     yield provider
     app.dependency_overrides.pop(play_api.get_opponent_provider, None)
+
+
+@pytest.fixture
+def clock_db_session(tmp_path: Path) -> Iterator[Session]:
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'clocks.db'}")
+    SQLModel.metadata.create_all(engine)
+    try:
+        # Configure separate writer/scheduler connections before taking locks.
+        with engine.connect() as first, engine.connect() as second:
+            assert first.connection is not second.connection
+        with Session(engine, expire_on_commit=False) as session:
+            yield session
+    finally:
+        engine.dispose()
+
+
+@contextmanager
+def held_sqlite_writer(engine: Engine, release: Event) -> Iterator[Future[bool]]:
+    ready = Event()
+
+    def hold() -> bool:
+        with engine.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            ready.set()
+            # Release independently of the app loop, even on the old blocking
+            # implementation, so a regression fails rather than hanging.
+            signalled = release.wait(timeout=3)
+            connection.rollback()
+            return signalled
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        writer = executor.submit(hold)
+        try:
+            assert ready.wait(timeout=3), "SQLite writer did not acquire its lock"
+            yield writer
+        finally:
+            release.set()
+            writer.result(timeout=5)
 
 
 def seed_clock(
@@ -480,9 +526,9 @@ async def test_legacy_static_clock_json_is_untimed(db_session):
 
 @pytest.mark.asyncio
 async def test_runtime_expires_without_browser_and_admits_analysis(
-    db_session, frozen_time, monkeypatch
+    clock_db_session, frozen_time, monkeypatch
 ):
-    play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    play, game, clock = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
     session_id = play.id
     frozen_time.advance(60_000)
     admitted = asyncio.Event()
@@ -492,11 +538,11 @@ async def test_runtime_expires_without_browser_and_admits_analysis(
         admitted.set()
 
     monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
-    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
     try:
         await asyncio.wait_for(admitted.wait(), timeout=1)
-        with Session(db_session.get_bind()) as other:
+        with Session(clock_db_session.get_bind()) as other:
             assert other.get(PlaySession, session_id).status == "completed"
             assert other.get(PlayClock, session_id).terminal_reason == "flag"
             assert other.get(Game, game.id).moves == ["e2e4"]
@@ -505,15 +551,329 @@ async def test_runtime_expires_without_browser_and_admits_analysis(
 
 
 @pytest.mark.asyncio
+async def test_runtime_sqlite_writer_contention_keeps_asgi_health_responsive(
+    clock_db_session, frozen_time, monkeypatch
+):
+    auth = register(clock_db_session)
+    play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
+    session_id, game_id = play.id, game.id
+    frozen_time.advance(60_000)
+    engine = clock_db_session.get_bind()
+    monkeypatch.setattr("scan64.persistence.database.engine", engine)
+    snapshot_read = Event()
+    original_read = play_api.read_play_session
+
+    def capture_snapshot(*args, **kwargs):
+        snapshot = original_read(*args, **kwargs)
+        snapshot_read.set()
+        return snapshot
+
+    monkeypatch.setattr(play_api, "read_play_session", capture_snapshot)
+    attempted, release_writer = Event(), Event()
+    admitted = asyncio.Event()
+    engine_calls = []
+    request_loop = asyncio.get_running_loop()
+
+    def capture_write(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("UPDATE"):
+            attempted.set()
+
+    async def submit(player_id, job_id, pool):
+        assert asyncio.get_running_loop() is request_loop
+        admitted.set()
+
+    async def unexpected_engine(self, position, context):
+        engine_calls.append(context)
+        raise AssertionError("Deadline/status work must never choose an opponent move")
+
+    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+    monkeypatch.setattr(StockfishOpponentProvider, "choose_move", unexpected_engine)
+    event.listen(engine, "before_cursor_execute", capture_write)
+    runtime = PlayClockRuntime(engine)
+    monkeypatch.setattr(app.state, "play_clock_runtime", runtime, raising=False)
+    try:
+        with held_sqlite_writer(engine, release_writer) as writer:
+            runtime.start()
+            try:
+                assert await asyncio.wait_for(asyncio.to_thread(attempted.wait, 2), timeout=3), (
+                    "Expiration did not attempt its SQLite write"
+                )
+                async with httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=app), base_url="http://test"
+                ) as client:
+                    response = await asyncio.wait_for(client.get("/health"), timeout=2)
+                    assert response.status_code == 200
+                    assert response.json() == {"status": "ok"}
+                    deadline_read = asyncio.create_task(
+                        client.get(f"/v1/play-sessions/{session_id}", headers=auth)
+                    )
+                    assert await asyncio.wait_for(
+                        asyncio.to_thread(snapshot_read.wait, 1), timeout=2
+                    ), "The deadline GET did not read its overdue snapshot"
+                    # Release only after the GET saw the still-active, zero clock.
+                    release_writer.set()
+                    assert await asyncio.wrap_future(writer), (
+                        "Writer released before health and the deadline read"
+                    )
+                    await asyncio.wait_for(admitted.wait(), timeout=2)
+                    final = await asyncio.wait_for(deadline_read, timeout=2)
+                    assert final.status_code == 200
+                    assert final.json()["status"] == "completed"
+                    assert final.json()["clock"]["terminal_reason"] == "flag"
+                    assert final.json()["clock"]["version"] == 1
+                    assert final.json()["result"] == "1-0"
+            finally:
+                release_writer.set()
+                await runtime.stop()
+        with Session(engine) as session:
+            assert session.get(PlaySession, session_id).status == "completed"
+            clock = session.get(PlayClock, session_id)
+            assert clock.terminal_reason == "flag"
+            assert clock.version == 1
+            assert session.get(Game, game_id).moves == ["e2e4"]
+            assert len(session.exec(select(AnalysisJob)).all()) == 1
+        assert engine_calls == []
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_write)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("interruption", "advance_us"),
+    [
+        ("timeout", 60_000_000),
+        ("timeout", 59_999_500),
+        ("shutdown", 60_000_000),
+        ("cancel", 60_000_000),
+    ],
+)
+async def test_overdue_read_interruptions_are_explicit_and_do_not_prevent_expiry(
+    clock_db_session, frozen_time, monkeypatch, interruption, advance_us
+):
+    auth = register(clock_db_session)
+    play, _, _ = seed_clock(clock_db_session, frozen_time)
+    session_id = play.id
+    frozen_time.now += timedelta(microseconds=advance_us)
+    engine = clock_db_session.get_bind()
+    monkeypatch.setattr("scan64.persistence.database.engine", engine)
+    runtime = PlayClockRuntime(engine)
+    monkeypatch.setattr(app.state, "play_clock_runtime", runtime, raising=False)
+    entered = asyncio.Event()
+    original_wait = runtime.wait_for_change
+
+    async def observe_wait(observed):
+        entered.set()
+        return await original_wait(observed)
+
+    async def submit(player_id, job_id, pool):
+        return None
+
+    monkeypatch.setattr(runtime, "wait_for_change", observe_wait)
+    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+    if interruption == "timeout":
+        monkeypatch.setattr(play_api, "CLOCK_EXPIRY_WAIT_SECONDS", 1.0)
+    pending = None
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            pending = asyncio.create_task(
+                client.get(f"/v1/play-sessions/{session_id}", headers=auth)
+            )
+            if interruption != "timeout":
+                await asyncio.wait_for(entered.wait(), timeout=2)
+            if interruption == "shutdown":
+                await runtime.stop()
+            if interruption == "cancel":
+                pending.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await pending
+                runtime.start()
+                final = await asyncio.wait_for(
+                    client.get(f"/v1/play-sessions/{session_id}", headers=auth), timeout=2
+                )
+                assert final.status_code == 200
+                assert final.json()["status"] == "completed"
+                assert final.json()["clock"]["terminal_reason"] == "flag"
+            else:
+                response = await asyncio.wait_for(pending, timeout=2)
+                assert response.status_code == 503
+                assert "expiration is pending" in response.json()["detail"]
+                if interruption == "timeout":
+                    assert response.headers["Retry-After"] == "1"
+                with Session(engine) as reader:
+                    assert reader.get(PlaySession, session_id).status == "active"
+                    assert reader.get(PlayClock, session_id).version == 0
+    finally:
+        if pending is not None:
+            pending.cancel()
+            await asyncio.gather(pending, return_exceptions=True)
+        await runtime.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cancellation", ["shutdown", "scheduler", "stop"])
+async def test_runtime_shutdown_drains_sqlite_worker_and_terminal_admissions(
+    clock_db_session, frozen_time, monkeypatch, cancellation
+):
+    play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
+    session_id, game_id = play.id, game.id
+    frozen_time.advance(60_000)
+    engine = clock_db_session.get_bind()
+    attempted, release_writer = Event(), Event()
+    admission_started, release_admission = asyncio.Event(), asyncio.Event()
+    expiry_closed = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    loop_thread = get_ident()
+    sessions, closed, providers, engine_calls, admissions = [], [], [], [], []
+
+    class WorkerSession(Session):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.owner_thread = get_ident()
+            self.wrote = False
+            sessions.append(self)
+            assert len(sessions) - len(closed) == 1
+
+        def exec(self, statement, *args, **kwargs):
+            assert get_ident() == self.owner_thread != loop_thread
+            if statement.is_update:
+                self.wrote = True
+            return super().exec(statement, *args, **kwargs)
+
+        def close(self):
+            assert get_ident() == self.owner_thread != loop_thread
+            super().close()
+            closed.append(self)
+            if self.wrote:
+                loop.call_soon_threadsafe(expiry_closed.set)
+
+    class WorkerOpponent(StockfishOpponentProvider):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            providers.append(get_ident())
+
+        async def choose_move(self, position, context):
+            engine_calls.append(context)
+            raise AssertionError("Expiration must not invoke an opponent engine")
+
+    def capture_write(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("UPDATE"):
+            attempted.set()
+
+    async def submit(player_id, job_id, pool):
+        assert asyncio.get_running_loop() is loop
+        admission_started.set()
+        await release_admission.wait()
+        admissions.append((player_id, job_id))
+
+    monkeypatch.setattr(clocks, "Session", WorkerSession)
+    monkeypatch.setattr(
+        "scan64.chess.opponents.stockfish_opponent.StockfishOpponentProvider", WorkerOpponent
+    )
+    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+    event.listen(engine, "before_cursor_execute", capture_write)
+    runtime = PlayClockRuntime(engine)
+    stopping = None
+    try:
+        with held_sqlite_writer(engine, release_writer) as writer:
+            runtime.start()
+            try:
+                assert await asyncio.wait_for(asyncio.to_thread(attempted.wait, 2), timeout=3)
+                if cancellation == "scheduler":
+                    runtime._task.cancel()
+                stopping = asyncio.create_task(runtime.stop())
+                stopped_turn = loop.create_future()
+                loop.call_soon(stopped_turn.set_result, None)
+                await stopped_turn
+                assert runtime._closed
+                if cancellation == "stop":
+                    stopping.cancel()
+                assert not stopping.done()
+                assert not expiry_closed.is_set()
+                release_writer.set()
+                assert await asyncio.wrap_future(writer), "Writer released before shutdown began"
+                await asyncio.wait_for(expiry_closed.wait(), timeout=2)
+                await asyncio.wait_for(admission_started.wait(), timeout=2)
+                assert not stopping.done()
+                assert sessions == closed
+                release_admission.set()
+                if cancellation == "stop":
+                    with pytest.raises(asyncio.CancelledError):
+                        await asyncio.wait_for(stopping, timeout=2)
+                else:
+                    await asyncio.wait_for(stopping, timeout=2)
+                assert runtime._task.cancelled()
+            finally:
+                release_writer.set()
+                release_admission.set()
+                await runtime.stop()
+                if stopping is not None:
+                    await asyncio.gather(stopping, return_exceptions=True)
+        assert len(sessions) == 2
+        assert sessions == closed
+        assert providers and all(thread != loop_thread for thread in providers)
+        assert engine_calls == []
+        with Session(engine) as session:
+            assert session.get(PlaySession, session_id).status == "completed"
+            assert session.get(PlayClock, session_id).terminal_reason == "flag"
+            assert session.get(Game, game_id).result == "1-0"
+            jobs = session.exec(select(AnalysisJob)).all()
+            assert len(jobs) == 1
+            assert admissions == [("alice", jobs[0].id)]
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_write)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "race_error",
+    [ClockConflict, play_service.PlaySessionNotActive, play_service.PlaySessionNotFound],
+)
+async def test_runtime_requeries_after_expiration_races(
+    clock_db_session, frozen_time, monkeypatch, race_error
+):
+    play, _, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
+    session_id = play.id
+    frozen_time.advance(60_000)
+    expire = PlaySessionService.expire_clock
+    attempts = []
+    admitted = asyncio.Event()
+
+    def race_once(service, target_id):
+        attempts.append(target_id)
+        if len(attempts) == 1:
+            raise race_error("Concurrent terminal change")
+        return expire(service, target_id)
+
+    async def submit(player_id, job_id, pool):
+        admitted.set()
+
+    monkeypatch.setattr(PlaySessionService, "expire_clock", race_once)
+    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+    runtime = PlayClockRuntime(clock_db_session.get_bind())
+    runtime.start()
+    try:
+        await asyncio.wait_for(admitted.wait(), timeout=2)
+        assert attempts == [session_id, session_id]
+    finally:
+        await runtime.stop()
+    with Session(clock_db_session.get_bind()) as session:
+        assert session.get(PlayClock, session_id).version == 1
+        assert session.get(PlaySession, session_id).status == "completed"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("failure_stage", ["query", "write"])
 @pytest.mark.parametrize("error_code", [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED_SHAREDCACHE])
 async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounded_backoff(
-    db_session, frozen_time, monkeypatch, caplog, failure_stage, error_code
+    clock_db_session, frozen_time, monkeypatch, caplog, failure_stage, error_code
 ):
-    play, game, _ = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
     session_id, game_id = play.id, game.id
     frozen_time.advance(60_000)
     failed_sessions = []
+    closed_failures = []
     delays = []
     admitted = asyncio.Event()
     real_sleep = asyncio.sleep
@@ -533,10 +893,16 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
                 raise OperationalError(str(statement), {}, original)
             return super().exec(statement, *args, **kwargs)
 
+        def close(self):
+            super().close()
+            if self in failed_sessions:
+                assert not self.in_transaction()
+                closed_failures.append(self)
+
     async def backoff(seconds):
         delays.append(seconds)
         # Every failed query/write must release its transaction before retry.
-        assert not failed_sessions[-1].in_transaction()
+        assert closed_failures[-1] is failed_sessions[-1]
         await real_sleep(0)
 
     async def submit(player_id, job_id, pool):
@@ -545,14 +911,14 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
     monkeypatch.setattr(clocks, "Session", ContendedSession)
     monkeypatch.setattr(clocks.asyncio, "sleep", backoff)
     monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
-    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
     try:
         await asyncio.wait_for(admitted.wait(), timeout=1)
         assert delays == pytest.approx([0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.0])
         assert len({id(session) for session in failed_sessions}) == 8
         assert "scheduler database contention; retrying" in caplog.text
-        with Session(db_session.get_bind()) as other:
+        with Session(clock_db_session.get_bind()) as other:
             assert other.get(PlaySession, session_id).status == "completed"
             assert other.get(PlayClock, session_id).terminal_reason == "flag"
             assert other.get(PlayClock, session_id).version == 1
@@ -619,9 +985,9 @@ async def test_runtime_immediate_shutdown_cancels_before_query(db_session, monke
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure_stage", ["query", "write"])
 async def test_runtime_shutdown_cancels_sqlite_retry_backoff(
-    db_session, frozen_time, monkeypatch, failure_stage
+    clock_db_session, frozen_time, monkeypatch, failure_stage
 ):
-    play, _, _ = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    play, _, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
     session_id = play.id
     frozen_time.advance(60_000)
     retrying = asyncio.Event()
@@ -642,14 +1008,14 @@ async def test_runtime_shutdown_cancels_sqlite_retry_backoff(
 
     monkeypatch.setattr(clocks, "Session", LockedSession)
     monkeypatch.setattr(clocks.asyncio, "sleep", wait_in_backoff)
-    runtime = PlayClockRuntime(db_session.get_bind())
+    runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
     try:
         await asyncio.wait_for(retrying.wait(), timeout=1)
     finally:
         await runtime.stop()
     assert runtime._task.cancelled()
-    with Session(db_session.get_bind()) as other:
+    with Session(clock_db_session.get_bind()) as other:
         assert other.get(PlaySession, session_id).status == "active"
         assert other.get(PlayClock, session_id).version == 0
         assert other.exec(select(AnalysisJob)).all() == []
@@ -657,18 +1023,29 @@ async def test_runtime_shutdown_cancels_sqlite_retry_backoff(
 
 @pytest.mark.asyncio
 async def test_runtime_restart_does_not_run_pending_engine_and_shutdown_cancels_work(
-    db_session, frozen_time
+    clock_db_session, frozen_time, monkeypatch
 ):
-    play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",))
+    play, game, clock = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
     session_id = play.id
-    runtime = PlayClockRuntime(db_session.get_bind())
+    read_done = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    class RestartSession(Session):
+        def close(self):
+            super().close()
+            loop.call_soon_threadsafe(read_done.set)
+
+    monkeypatch.setattr(clocks, "Session", RestartSession)
+    runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
-    await asyncio.sleep(0)
-    await runtime.stop()
-    db_session.refresh(clock)
+    try:
+        await asyncio.wait_for(read_done.wait(), timeout=2)
+    finally:
+        await runtime.stop()
+    clock_db_session.refresh(clock)
     assert clock.version == 0
     assert clock.active_color == "black"
-    restarted = PlayClockRuntime(db_session.get_bind())
+    restarted = PlayClockRuntime(clock_db_session.get_bind())
     restarted.start()
     entered = asyncio.Event()
 
@@ -677,13 +1054,13 @@ async def test_runtime_restart_does_not_run_pending_engine_and_shutdown_cancels_
         await asyncio.Event().wait()
 
     service = PlaySessionService(
-        db_session, ScriptedOpponent(effect=wait_forever), clock_runtime=restarted
+        clock_db_session, ScriptedOpponent(effect=wait_forever), clock_runtime=restarted
     )
     task = asyncio.create_task(service.resume_opponent(session_id, 0))
     await entered.wait()
     await restarted.stop()
     assert task.cancelled()
-    db_session.refresh(game)
+    clock_db_session.refresh(game)
     assert game.moves == ["e2e4"]
 
 
