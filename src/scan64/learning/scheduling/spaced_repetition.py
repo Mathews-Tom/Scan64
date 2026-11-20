@@ -11,12 +11,13 @@ from pydantic import model_validator
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-ReviewKind = Literal["lesson", "puzzle", "transfer"]
+ReviewKind = Literal["lesson", "puzzle", "transfer", "sparring"]
 _SCHEDULER = Scheduler(enable_fuzzing=False)
-_FAST_REVIEW_MS: dict[ReviewKind, int] = {
+_FAST_REVIEW_MS: dict[ReviewKind, int | None] = {
     "lesson": 30_000,
     "puzzle": 60_000,
     "transfer": 30_000,
+    "sparring": None,
 }
 
 
@@ -33,6 +34,8 @@ def review_rating(
     elapsed_ms: int | None,
     source_kind: ReviewKind,
 ) -> Rating:
+    if source_kind == "sparring" and (hints_used is not None or elapsed_ms is not None):
+        raise ValueError("Sparring hints and solve time are unavailable")
     if hints_used is not None and hints_used < 0:
         raise ValueError("hints_used must be nonnegative or unavailable")
     if elapsed_ms is not None and elapsed_ms < 0:
@@ -41,7 +44,13 @@ def review_rating(
         return Rating.Again
     if hints_used is not None and hints_used > 0:
         return Rating.Hard
-    if hints_used == 0 and elapsed_ms is not None and elapsed_ms <= _FAST_REVIEW_MS[source_kind]:
+    fast_review_ms = _FAST_REVIEW_MS[source_kind]
+    if (
+        hints_used == 0
+        and elapsed_ms is not None
+        and fast_review_ms is not None
+        and elapsed_ms <= fast_review_ms
+    ):
         return Rating.Easy
     return Rating.Good
 
@@ -75,7 +84,9 @@ class ScheduleReviewObservation(SQLModel, table=True):
 
     @model_validator(mode="after")
     def validate_observation(self) -> Self:
-        expected = "server_recorded" if self.source_kind == "puzzle" else "app_reported"
+        expected = (
+            "server_recorded" if self.source_kind in {"puzzle", "sparring"} else "app_reported"
+        )
         if self.input_provenance != expected:
             raise ValueError("Review input provenance does not match its source")
         if self.rating != int(
@@ -190,5 +201,7 @@ class ReviewSchedule(SQLModel, table=True):
             elapsed_ms=elapsed_ms,
             rating=int(log.rating),
             reviewed_at=log.review_datetime,
-            input_provenance="server_recorded" if source_kind == "puzzle" else "app_reported",
+            input_provenance=(
+                "server_recorded" if source_kind in {"puzzle", "sparring"} else "app_reported"
+            ),
         )

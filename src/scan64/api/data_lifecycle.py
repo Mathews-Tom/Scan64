@@ -80,7 +80,7 @@ from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
 )
-from scan64.learning.sparring import SparringAttempt
+from scan64.learning.sparring import SparringAttempt, source_item_id
 from scan64.learning.tolerance import review_loss, review_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
@@ -2235,6 +2235,7 @@ def _validate_schedule_review_archive(
     lesson_attempts: list[LessonAttempt],
     puzzle_runs: list[PuzzleRun],
     transfer_measurements: list[TransferMeasurement],
+    sparring_attempts: list[SparringAttempt],
 ) -> None:
     schedule_items = {schedule.item_id for schedule in schedules}
     if len(schedule_items) != len(schedules):
@@ -2242,10 +2243,12 @@ def _validate_schedule_review_archive(
     lessons = {attempt.id: attempt for attempt in lesson_attempts}
     puzzles = {run.id: run for run in puzzle_runs}
     transfers = {measurement.id: measurement for measurement in transfer_measurements}
+    sparring = {str(attempt.id): attempt for attempt in sparring_attempts}
     if (
         len(lessons) != len(lesson_attempts)
         or len(puzzles) != len(puzzle_runs)
         or len(transfers) != len(transfer_measurements)
+        or len(sparring) != len(sparring_attempts)
         or len({observation.id for observation in observations}) != len(observations)
         or len({(row.source_kind, row.source_id) for row in observations}) != len(observations)
     ):
@@ -2297,6 +2300,25 @@ def _validate_schedule_review_archive(
                 or session.get(PuzzleRun, run.id) is not None
             ):
                 raise ValueError("Schedule review does not match its puzzle run")
+        elif observation.source_kind == "sparring":
+            sparring_attempt = sparring.get(observation.source_id)
+            if (
+                sparring_attempt is None
+                or sparring_attempt.player_id != player_id
+                or source_item_id(
+                    sparring_attempt.source_review_id, sparring_attempt.source_position_id
+                )
+                != observation.item_id
+                or sparring_attempt.completed_at is None
+                or sparring_attempt.outcome not in {"win", "draw", "loss"}
+                or (sparring_attempt.outcome == "win") is not observation.success
+                or observation.hints_used is not None
+                or observation.elapsed_ms is not None
+                or observation.input_provenance != "server_recorded"
+                or utc(sparring_attempt.completed_at) != utc(observation.reviewed_at)
+                or session.get(SparringAttempt, sparring_attempt.id) is not None
+            ):
+                raise ValueError("Schedule review does not match its sparring attempt")
         else:
             measurement = transfers.get(observation.source_id)
             if (
@@ -2648,6 +2670,7 @@ def import_player_data(
             lesson_attempts,
             puzzle_runs,
             transfer_measurements,
+            sparring_attempts,
         )
     except (ValueError, TypeError, AttributeError) as error:
         raise HTTPException(

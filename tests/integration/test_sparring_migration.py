@@ -70,7 +70,10 @@ def test_upgrade_and_unused_downgrade_preserve_owned_source_review(tmp_path: Pat
         engine.dispose()
 
 
-def test_downgrade_refuses_to_discard_even_active_sparring_history(tmp_path: Path) -> None:
+@pytest.mark.parametrize("target_revision", ["20261119_19", "20261117_18"])
+def test_downgrade_refuses_to_discard_even_active_sparring_history(
+    tmp_path: Path, target_revision: str
+) -> None:
     engine = create_database_engine(f"sqlite:///{tmp_path / 'used.sqlite'}")
     try:
         migrate_database(engine)
@@ -112,7 +115,7 @@ def test_downgrade_refuses_to_discard_even_active_sparring_history(tmp_path: Pat
             attempt_id = attempt.id
             review_id = rows[0].id
         with pytest.raises(RuntimeError, match="Cannot downgrade with sparring attempts present"):
-            command.downgrade(_migration_config(engine), "20261117_18")
+            command.downgrade(_migration_config(engine), target_revision)
         with engine.connect() as connection:
             assert (
                 connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()

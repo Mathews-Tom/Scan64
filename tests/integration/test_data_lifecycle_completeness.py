@@ -68,6 +68,7 @@ from scan64.learning.scheduling.spaced_repetition import (
 )
 from scan64.learning.sparring import SparringAttempt
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
+from tests.integration.test_sparring_lifecycle import seed_graph
 
 PLAYER_LIFECYCLE_TABLES = frozenset(
     {
@@ -468,11 +469,14 @@ def _seed_player_lifecycle_records(
 def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     client: TestClient, db_session: Session
 ) -> None:
+    db_session.connection().exec_driver_sql("PRAGMA foreign_keys=ON")
     player_id = "m42-lifecycle-player"
     coach_id = "m42-lifecycle-coach"
     token = _create_player_token(client, player_id)
     _create_player_token(client, coach_id)
     records = _seed_player_lifecycle_records(db_session, player_id, coach_id)
+    sparring = seed_graph(db_session, player_id, with_observation=True)
+    sparring_id = sparring.id
     principal = sha256(f"Bearer {token}".encode()).hexdigest()
     db_session.add(
         IdempotencyRecord(
@@ -497,13 +501,20 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert archive["evidence"]
     assert archive["profile_observations"]
     assert archive["lesson_attempts"]
-    assert len(archive["review_moves"]) == 1
-    assert archive["review_moves"][0]["move_uci"] == "e2e4"
+    assert len(archive["sparring_attempts"]) == 1
+    assert len(archive["review_moves"]) == 2
+    archived_review = next(
+        row for row in archive["review_moves"] if row["id"] == str(records["review_move_id"])
+    )
+    assert archived_review["move_uci"] == "e2e4"
     assert archive["transfer_measurements"]
     assert archive["transfer_positions"]
     assert archive["coach_student_links"]
     assert archive["puzzle_runs"]
-    assert len(archive["schedule_review_observations"]) == 1
+    assert {row["source_kind"] for row in archive["schedule_review_observations"]} == {
+        "puzzle",
+        "sparring",
+    }
     assert archive["puzzle_content_items"]
     assert archive["puzzle_rating"]["rated_count"] == 1
     assert len(archive["puzzle_daily_sets"]) == 1
@@ -532,24 +543,24 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "pattern_targets": 0,
         "pattern_awards": 0,
         "pattern_award_evidence": 0,
-        "play_sessions": 1,
+        "play_sessions": 2,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
-        "sparring_attempts": 0,
-        "games": 1,
+        "sparring_attempts": 1,
+        "games": 3,
         "games_disowned": 0,
-        "positions": 2,
-        "engine_analyses": 2,
-        "review_moves": 1,
+        "positions": 4,
+        "engine_analyses": 4,
+        "review_moves": 2,
         "analysis_jobs": 1,
         "lesson_opportunities": 1,
         "evidence": 1,
         "profile_observations": 1,
         "lesson_attempts": 1,
         "transfer_measurements": 1,
-        "skill_states": 1,
-        "review_schedules": 2,
-        "schedule_review_observations": 1,
+        "skill_states": 2,
+        "review_schedules": 3,
+        "schedule_review_observations": 2,
         "study_sessions": 3,
         "puzzle_runs": 2,
         "content_attempts": 3,
@@ -567,7 +578,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         json={"dry_run": False, "confirmation": f"delete-{player_id}"},
         headers={**_authorization(token), "Idempotency-Key": "m42-delete"},
     )
-    assert deletion.json()["affected_rows"]["review_moves"] == 1
+    assert deletion.json()["affected_rows"]["review_moves"] == 2
     assert deletion.status_code == 200
     assert deletion.json()["affected_rows"]["player"] == 1
     audit_id = deletion.json()["audit_id"]
@@ -733,11 +744,32 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
     assert restored_onboarding.model_dump(mode="json") == archive["onboarding"]
     restored_review = db_session.get(GameMoveReview, records["review_move_id"])
     assert restored_review is not None
-    assert restored_review.model_dump(mode="json") == archive["review_moves"][0]
+    assert restored_review.model_dump(mode="json") == archived_review
     binding_data = archive["puzzle_mode_bindings"][0]
     restored_binding = db_session.get(PuzzleModeBinding, binding_data["run_id"])
     assert restored_binding is not None
     assert restored_binding.model_dump(mode="json") == binding_data
+    restored_sparring = db_session.get(SparringAttempt, sparring_id)
+    assert restored_sparring is not None
+    assert restored_sparring.model_dump(mode="json") == {
+        **archive["sparring_attempts"][0],
+        "verification_status": "historical",
+    }
+    reexported = client.post(
+        "/v1/exports", json={"player_id": player_id}, headers=_authorization(token)
+    )
+    assert reexported.status_code == 200, reexported.text
+    modern = reexported.json()
+    assert sorted(modern["review_schedules"], key=lambda row: row["item_id"]) == sorted(
+        archive["review_schedules"], key=lambda row: row["item_id"]
+    )
+    assert sorted(modern["schedule_review_observations"], key=lambda row: row["id"]) == sorted(
+        [
+            {**row, "verification_status": "historical"}
+            for row in archive["schedule_review_observations"]
+        ],
+        key=lambda row: row["id"],
+    )
 
 
 def test_deletion_preserves_shared_game_for_its_other_participant(

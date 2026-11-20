@@ -26,7 +26,10 @@ from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
 from scan64.learning.habit_models import HabitCredit, PatternAward
 from scan64.learning.profiling.models import SkillState
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import (
+    ReviewSchedule,
+    ScheduleReviewObservation,
+)
 from scan64.learning.sparring import SparringAttempt, source_item_id
 from scan64.persistence.database import create_database_engine, get_session
 from scan64.providers.stockfish.adapter import StockfishConfig
@@ -55,6 +58,7 @@ def seed_graph(
     *,
     source_ply: int = 1,
     completed: bool = True,
+    with_observation: bool = False,
 ) -> SparringAttempt:
     original = Game(
         pgn="",
@@ -138,16 +142,28 @@ def seed_graph(
         outcome="win" if completed else None,
     )
     session.add(attempt)
-    session.add(
-        ReviewSchedule(
-            player_id=player_id,
-            item_id=source_item_id(review.id, selected.id),
-            next_review_at=CREATED + timedelta(days=17),
-            last_reviewed_at=CREATED + timedelta(minutes=10),
-            interval_days=17,
-            ease_factor=2.7,
-        )
+    schedule = ReviewSchedule(
+        player_id=player_id,
+        item_id=source_item_id(review.id, selected.id),
+        next_review_at=CREATED + timedelta(days=17),
+        last_reviewed_at=None if with_observation else CREATED + timedelta(minutes=10),
+        legacy_interval_days=17,
+        legacy_ease_factor=2.7,
     )
+    session.add(schedule)
+    session.flush()
+    if with_observation:
+        assert attempt.completed_at is not None
+        session.add(
+            schedule.update(
+                success=attempt.outcome == "win",
+                current_time=attempt.completed_at,
+                hints_used=None,
+                elapsed_ms=None,
+                source_kind="sparring",
+                source_id=str(attempt.id),
+            )
+        )
     session.add(SkillState(player_id=player_id, concept_code="tactics.mate", alpha=7, beta=3))
     session.commit()
     return attempt
@@ -261,6 +277,22 @@ def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learni
     retained = next(play for play in archive["play_sessions"] if play["id"] == conversion["id"])
     assert retained["opponent_config"]["player_color"] == "black"
     assert retained["status"] == ("completed" if completed else "active")
+    observations = archive["schedule_review_observations"]
+    if completed:
+        assert len(observations) == 1
+        observation = observations[0]
+        assert observation["source_kind"] == "sparring"
+        assert observation["source_id"] == archived_attempt["id"]
+        assert observation["reviewed_at"] == archived_attempt["completed_at"]
+        assert observation["item_id"] == source_item_id(
+            UUID(archived_attempt["source_review_id"]), UUID(archived_attempt["source_position_id"])
+        )
+        assert observation["success"] is False
+        assert observation["rating"] == 1
+        assert observation["hints_used"] is None and observation["elapsed_ms"] is None
+        assert observation["input_provenance"] == "server_recorded"
+    else:
+        assert observations == []
     assert delete_owner(client, headers)["play_sessions"] == 2
 
     def no_replay(*args: Any, **kwargs: Any) -> None:
@@ -281,8 +313,13 @@ def test_api_reused_bot_game_roundtrips_with_the_conversion_colour_and_no_learni
         assert terminal.status_code == 200, terminal.text
         assert terminal.json()["sparring"]["outcome"] == "loss"
         assert terminal.json()["sparring"]["verification_status"] == "historical"
+    repeated = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=headers)
+    assert repeated.status_code == 409, repeated.text
     reexport = export(client, headers)
     assert reexport["review_schedules"] == archive["review_schedules"]
+    assert reexport["schedule_review_observations"] == [
+        {**row, "verification_status": "historical"} for row in observations
+    ]
     assert reexport["positive_move_credits"] == []
     assert db_session.exec(select(HabitCredit)).all() == []
     assert db_session.exec(select(PatternAward)).all() == []
@@ -300,7 +337,9 @@ def test_roundtrip_restores_historical_graph_without_learning_replay(
     source_colour: str,
 ) -> None:
     headers = register(client, OWNER)
-    attempt = seed_graph(db_session, source_ply=source_ply, completed=completed)
+    attempt = seed_graph(
+        db_session, source_ply=source_ply, completed=completed, with_observation=completed
+    )
     attempt_id = attempt.id
     source_review = db_session.get(GameMoveReview, attempt.source_review_id)
     assert source_review is not None
@@ -315,7 +354,9 @@ def test_roundtrip_restores_historical_graph_without_learning_replay(
     assert len(archive["positions"]) == len(archive["engine_analyses"]) == 2
     assert len(archive["review_moves"]) == len(archive["play_sessions"]) == 1
     assert archive["sparring_attempts"][0]["verification_status"] == "verified"
-    assert delete_owner(client, headers)["sparring_attempts"] == 1
+    deleted = delete_owner(client, headers)
+    assert deleted["sparring_attempts"] == 1
+    assert deleted["schedule_review_observations"] == int(completed)
 
     def no_replay(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("Historical restoration must not replay learning")
@@ -346,6 +387,10 @@ def test_roundtrip_restores_historical_graph_without_learning_replay(
     assert reexport["games"] == archive["games"]
     assert reexport["play_sessions"] == archive["play_sessions"]
     assert reexport["sparring_attempts"][0]["verification_status"] == "historical"
+    assert reexport["schedule_review_observations"] == [
+        {**row, "verification_status": "historical"}
+        for row in archive["schedule_review_observations"]
+    ]
 
 
 @pytest.mark.parametrize(
@@ -584,13 +629,17 @@ def test_legacy_omission_never_synthesizes_attempts_from_custom_sessions(
     assert export(client, headers)["review_schedules"] == archive["review_schedules"]
 
 
+@pytest.mark.parametrize("completed", [False, True])
 def test_owned_export_delete_counts_and_reset_preserve_source_closure(
-    client: TestClient, db_session: Session
+    client: TestClient, db_session: Session, completed: bool
 ) -> None:
     headers = register(client, OWNER)
-    register(client, OTHER)
-    attempt = seed_graph(db_session, completed=False)
-    other = seed_graph(db_session, OTHER)
+    other_headers = register(client, OTHER)
+    attempt = seed_graph(db_session, completed=completed, with_observation=completed)
+    other = seed_graph(db_session, OTHER, with_observation=True)
+    other_export = client.post("/v1/exports", json={"player_id": OTHER}, headers=other_headers)
+    assert other_export.status_code == 200, other_export.text
+    other_archive = other_export.json()
     other_id = other.id
     archive = export(client, headers)
     assert [row["id"] for row in archive["sparring_attempts"]] == [str(attempt.id)]
@@ -601,6 +650,8 @@ def test_owned_export_delete_counts_and_reset_preserve_source_closure(
     )
     assert dry_run.status_code == 200, dry_run.text
     counts = dry_run.json()["affected_rows"]
+    assert counts["review_schedules"] == 1
+    assert counts["schedule_review_observations"] == int(completed)
     assert {
         key: counts[key]
         for key in (
@@ -627,8 +678,14 @@ def test_owned_export_delete_counts_and_reset_preserve_source_closure(
     assert reset.status_code == 200, reset.text
     assert reset.json()["cleared"]["sparring_attempts"] == 1
     assert reset.json()["cleared"]["review_schedules"] == 1
+    assert reset.json()["cleared"]["schedule_review_observations"] == int(completed)
     after = export(client, headers)
-    assert after["sparring_attempts"] == after["review_schedules"] == []
+    assert (
+        after["sparring_attempts"]
+        == after["review_schedules"]
+        == after["schedule_review_observations"]
+        == []
+    )
     for collection in ("games", "positions", "engine_analyses", "review_moves", "play_sessions"):
         assert after[collection] == archive[collection]
     assert db_session.get(SparringAttempt, other_id) is not None
@@ -639,10 +696,16 @@ def test_owned_export_delete_counts_and_reset_preserve_source_closure(
         )
         is not None
     )
+    after_reset = client.post("/v1/exports", json={"player_id": OTHER}, headers=other_headers)
+    assert after_reset.status_code == 200, after_reset.text
+    assert after_reset.json() == other_archive
     deleted = delete_owner(client, headers)
     assert deleted["sparring_attempts"] == 0
     assert deleted["games"] == 2
     assert db_session.get(SparringAttempt, other_id) is not None
+    after_deletion = client.post("/v1/exports", json={"player_id": OTHER}, headers=other_headers)
+    assert after_deletion.status_code == 200, after_deletion.text
+    assert after_deletion.json() == other_archive
 
 
 @pytest.mark.parametrize(
@@ -702,6 +765,10 @@ def test_restored_active_attempt_remains_historical_when_completed(
     assert restored.completed_at is not None
     assert (restored.result, restored.outcome) == ("1-0", "loss")
     assert export(client, headers)["review_schedules"] == archive["review_schedules"]
+    repeated = client.post(f"/v1/play-sessions/{play_id}/resign", headers=headers)
+    assert repeated.status_code == 409, repeated.text
+    assert export(client, headers)["schedule_review_observations"] == []
+    assert db_session.exec(select(ScheduleReviewObservation)).all() == []
 
 
 @pytest.mark.parametrize("tamper", ["status", "result", "completion", "missing-opening"])
@@ -763,11 +830,16 @@ def test_export_uses_one_wal_snapshot_when_a_conversion_completes_between_reads(
         assert completed
         assert archive["sparring_attempts"][0]["completed_at"] is None
         archived_bot = next(game for game in archive["games"] if game["id"] == str(bot_id))
+        assert archive["schedule_review_observations"] == []
         assert archived_bot["result"] == "*"
         with Session(engine) as session:
             live = session.get(SparringAttempt, attempt_id)
             assert live is not None
             assert live.outcome == "loss" and live.result == "1-0"
+            observations = session.exec(select(ScheduleReviewObservation)).all()
+            assert len(observations) == 1
+            assert observations[0].source_id == str(attempt_id)
+            assert observations[0].success is False
         delete_owner(client, headers)
         restored = client.post("/v1/imports", json=archive, headers=headers)
         assert restored.status_code == 200, restored.text

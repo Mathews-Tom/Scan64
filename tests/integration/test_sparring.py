@@ -16,7 +16,11 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionNotActive, PlaySessionService
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule, _as_utc
+from scan64.learning.scheduling.spaced_repetition import (
+    ReviewSchedule,
+    ScheduleReviewObservation,
+    _as_utc,
+)
 from scan64.learning.sparring import (
     SparringAttempt,
     read_sparring,
@@ -205,8 +209,17 @@ def test_completion_keeps_retained_colour_after_ordinary_reuse_of_the_bot_game(
         ),
     )
     assert schedule is not None
-    assert schedule.interval_days == 1.0 and schedule.ease_factor == pytest.approx(2.3)
     assert schedule.last_reviewed_at is not None
+    observation = db_session.exec(
+        select(ScheduleReviewObservation).where(
+            ScheduleReviewObservation.source_kind == "sparring",
+            ScheduleReviewObservation.source_id == attempt["id"],
+        )
+    ).one()
+    assert observation.rating == 1 and not observation.success
+    assert observation.input_provenance == "server_recorded"
+    assert observation.hints_used is None and observation.elapsed_ms is None
+    assert _as_utc(observation.reviewed_at) == _as_utc(schedule.last_reviewed_at)
     before = schedule.model_dump()
     repeated = client.post(f"/v1/play-sessions/{conversion['id']}/resign", headers=auth)
     assert repeated.status_code == 409
@@ -295,6 +308,9 @@ async def test_terminal_win_persists_outcome_schedule_and_retry_without_strength
     seeds = iter([7, 8])
     monkeypatch.setattr("scan64.api.play.secrets.randbits", lambda bits: next(seeds))
     started = _start(client, auth, game.id)
+    connection = db_session.connection()
+    connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+    assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
     session_id = UUID(started["id"])
     service = _service(db_session)
     await service.make_move(session_id, "d8h4")
@@ -313,17 +329,36 @@ async def test_terminal_win_persists_outcome_schedule_and_retry_without_strength
     schedule = db_session.get(ReviewSchedule, ("sparring-owner", item_id))
     assert schedule is not None and schedule.last_reviewed_at is not None
     assert _as_utc(schedule.next_review_at) > _as_utc(schedule.last_reviewed_at)
+    observation = db_session.exec(
+        select(ScheduleReviewObservation).where(
+            ScheduleReviewObservation.source_kind == "sparring",
+            ScheduleReviewObservation.source_id == finished["sparring"]["id"],
+        )
+    ).one()
+    assert observation.rating == 3 and observation.success
+    assert observation.input_provenance == "server_recorded"
+    assert observation.hints_used is None and observation.elapsed_ms is None
+    assert _as_utc(observation.reviewed_at) == _as_utc(schedule.last_reviewed_at)
     with Session(db_session.get_bind()) as restarted:
         persisted = restarted.get(PlaySession, session_id)
         assert persisted is not None
         stored = read_sparring(restarted, persisted)
         assert stored is not None and stored.outcome == "win"
         assert stored.next_review_at == _as_utc(schedule.next_review_at)
+        saved_observation = restarted.get(ScheduleReviewObservation, observation.id)
+        assert saved_observation is not None and saved_observation.rating == 3
     before = schedule.next_review_at
     with pytest.raises(PlaySessionNotActive):
         service.resign(session_id)
     db_session.refresh(schedule)
     assert schedule.next_review_at == before
+    repeated_observation = db_session.exec(
+        select(ScheduleReviewObservation).where(
+            ScheduleReviewObservation.source_kind == "sparring",
+            ScheduleReviewObservation.source_id == finished["sparring"]["id"],
+        )
+    ).one()
+    assert repeated_observation.id == observation.id
     retry = _start(client, auth, game.id)
     assert retry["id"] != started["id"]
     assert (started["sparring"]["seed"], retry["sparring"]["seed"]) == ("7", "8")
@@ -343,7 +378,16 @@ def test_resignation_is_an_owner_loss_and_reschedules_once(
     schedule = db_session.get(
         ReviewSchedule, ("sparring-owner", source_item_id(review.id, review.reached_position_id))
     )
-    assert schedule is not None and schedule.interval_days == 1.0
+    assert schedule is not None and schedule.last_reviewed_at is not None
+    assert _as_utc(schedule.next_review_at) > _as_utc(schedule.last_reviewed_at)
+    observation = db_session.exec(
+        select(ScheduleReviewObservation).where(
+            ScheduleReviewObservation.source_kind == "sparring",
+            ScheduleReviewObservation.source_id == outcome["id"],
+        )
+    ).one()
+    assert observation.rating == 1 and not observation.success
+    assert observation.hints_used is None and observation.elapsed_ms is None
 
 
 @pytest.mark.asyncio
@@ -361,6 +405,7 @@ async def test_reset_session_completion_never_resurrects_deleted_learning(
     assert reset.status_code == 200, reset.text
     await _service(db_session).make_move(UUID(started["id"]), "d8h4")
     assert db_session.exec(select(SparringAttempt)).all() == []
+    assert db_session.exec(select(ScheduleReviewObservation)).all() == []
     assert (
         db_session.get(
             ReviewSchedule,
@@ -393,6 +438,7 @@ async def test_continuing_historical_session_cannot_promote_or_reschedule_it(
     schedule = db_session.get(ReviewSchedule, ("sparring-owner", item_id))
     assert schedule is not None and _as_utc(schedule.next_review_at) == due
     assert schedule.last_reviewed_at is None
+    assert db_session.exec(select(ScheduleReviewObservation)).all() == []
 
 
 def test_null_move_history_cannot_supply_an_otherwise_matching_review_source(

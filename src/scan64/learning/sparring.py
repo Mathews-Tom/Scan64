@@ -226,8 +226,16 @@ def complete_sparring(session: Session, play_session: PlaySession, game: Game, r
     schedule = session.get(ReviewSchedule, (attempt.player_id, item_id))
     if schedule is None:
         schedule = ReviewSchedule(player_id=attempt.player_id, item_id=item_id, next_review_at=now)
-    schedule.update(outcome == "win", now)
+    observation = schedule.update(
+        outcome == "win",
+        now,
+        hints_used=None,
+        elapsed_ms=None,
+        source_kind="sparring",
+        source_id=str(attempt.id),
+    )
     session.add(schedule)
+    session.add(observation)
 
 
 def _read_attempt(

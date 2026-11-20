@@ -16,12 +16,14 @@ from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
 )
+from scan64.learning.sparring import SparringAttempt, source_item_id
 from tests.integration.test_data_lifecycle_completeness import (
     _authorization,
     _create_player_token,
     _seed_player_lifecycle_records,
 )
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
+from tests.integration.test_sparring_lifecycle import seed_graph
 
 OWNER = "fsrs-archive-owner"
 
@@ -400,3 +402,200 @@ def test_lesson_and_transfer_source_mismatch_rejects_import(
     archive, headers = _lesson_and_transfer_archive(client, db_session)
     archive[collection][0][field] = value
     _assert_rejected(client, db_session, archive, headers)
+
+
+def _sparring_archive(
+    client: TestClient,
+    session: Session,
+    *,
+    source_ply: int = 1,
+    with_observation: bool = True,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    session.connection().exec_driver_sql("PRAGMA foreign_keys=ON")
+    headers = _authorization(_create_player_token(client, OWNER))
+    seed_graph(session, OWNER, source_ply=source_ply, with_observation=with_observation)
+    response = client.post("/v1/exports", json={"player_id": OWNER}, headers=headers)
+    assert response.status_code == 200, response.text
+    archive = response.json()
+    _delete(client, headers)
+    session.expire_all()
+    return archive, headers
+
+
+@pytest.mark.parametrize("source_ply", [0, 1])
+def test_sparring_card_and_review_roundtrip_without_replaying_terminal_attempt(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, source_ply: int
+) -> None:
+    archive, headers = _sparring_archive(client, db_session, source_ply=source_ply)
+    attempt = archive["sparring_attempts"][0]
+    observation = archive["schedule_review_observations"][0]
+    schedule = archive["review_schedules"][0]
+    assert observation["source_kind"] == "sparring"
+    assert observation["source_id"] == attempt["id"]
+    assert observation["item_id"] == source_item_id(
+        UUID(attempt["source_review_id"]), UUID(attempt["source_position_id"])
+    )
+    assert observation["success"] is True and observation["rating"] == 3
+    assert observation["reviewed_at"] == attempt["completed_at"]
+    assert observation["hints_used"] is None and observation["elapsed_ms"] is None
+    assert observation["input_provenance"] == "server_recorded"
+    assert schedule["fsrs_stability"] > 0 and schedule["fsrs_difficulty"] >= 1
+    assert datetime.fromisoformat(schedule["next_review_at"]) > datetime.fromisoformat(
+        attempt["completed_at"]
+    )
+
+    def no_replay(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("Archived sparring reviews must not run the scheduler")
+
+    monkeypatch.setattr(ReviewSchedule, "update", no_replay)
+    for _ in range(2):
+        response = client.post("/v1/imports", json=archive, headers=headers)
+        assert response.status_code == 200, response.text
+        resumed = client.get(f"/v1/play-sessions/{attempt['play_session_id']}", headers=headers)
+        assert resumed.status_code == 200, resumed.text
+        assert resumed.json()["sparring"]["verification_status"] == "historical"
+        assert resumed.json()["sparring"]["outcome"] == "win"
+        repeated = client.post(
+            f"/v1/play-sessions/{attempt['play_session_id']}/resign", headers=headers
+        )
+        assert repeated.status_code == 409, repeated.text
+        restored = client.post("/v1/exports", json={"player_id": OWNER}, headers=headers).json()
+        assert restored["review_schedules"] == archive["review_schedules"]
+        assert restored["schedule_review_observations"] == [
+            {**observation, "verification_status": "historical"}
+        ]
+        assert restored["sparring_attempts"] == [{**attempt, "verification_status": "historical"}]
+        assert restored["habit_credits"] == archive["habit_credits"] == []
+        assert restored["pattern_awards"] == archive["pattern_awards"] == []
+        assert restored["positive_move_credits"] == archive["positive_move_credits"] == []
+        _delete(client, headers)
+        archive = restored
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("player_id", "foreign-player"),
+        ("source_kind", "transfer"),
+        ("source_id", str(UUID(int=0))),
+        ("success", False),
+        ("hints_used", 0),
+        ("elapsed_ms", 0),
+        ("elapsed_ms", 600_000),
+        ("rating", 4),
+        ("reviewed_at", "2026-01-01T00:11:00"),
+        ("input_provenance", "app_reported"),
+    ],
+)
+def test_forged_sparring_review_is_rejected_atomically(
+    client: TestClient, db_session: Session, field: str, value: Any
+) -> None:
+    archive, headers = _sparring_archive(client, db_session)
+    observation = archive["schedule_review_observations"][0]
+    observation[field] = value
+    if field == "success":
+        # A self-consistent grade still cannot contradict the authoritative outcome.
+        observation["rating"] = 1
+    _assert_rejected(client, db_session, archive, headers)
+    assert (
+        db_session.exec(select(SparringAttempt).where(SparringAttempt.player_id == OWNER)).all()
+        == []
+    )
+
+
+def test_sparring_review_cannot_bind_a_different_owned_source_item(
+    client: TestClient, db_session: Session
+) -> None:
+    archive, headers = _sparring_archive(client, db_session)
+    attempt = archive["sparring_attempts"][0]
+    other_position = next(
+        row for row in archive["positions"] if row["id"] != attempt["source_position_id"]
+    )
+    wrong_item = source_item_id(UUID(attempt["source_review_id"]), UUID(other_position["id"]))
+    archive["review_schedules"][0]["item_id"] = wrong_item
+    archive["schedule_review_observations"][0]["item_id"] = wrong_item
+    _assert_rejected(client, db_session, archive, headers)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("completed_at", None),
+        ("completed_at", "2026-01-01T00:11:00"),
+        ("outcome", "loss"),
+        ("result", "1-0"),
+        ("source_review_id", str(UUID(int=0))),
+        ("source_position_id", str(UUID(int=0))),
+        ("source_analysis_id", str(UUID(int=0))),
+    ],
+)
+def test_sparring_review_requires_its_terminal_provenance_graph(
+    client: TestClient, db_session: Session, field: str, value: Any
+) -> None:
+    archive, headers = _sparring_archive(client, db_session)
+    archive["sparring_attempts"][0][field] = value
+    _assert_rejected(client, db_session, archive, headers)
+
+
+def test_sparring_review_requires_its_archived_attempt(
+    client: TestClient, db_session: Session
+) -> None:
+    archive, headers = _sparring_archive(client, db_session)
+    del archive["sparring_attempts"]
+    _assert_rejected(client, db_session, archive, headers)
+
+
+def test_existing_foreign_sparring_review_source_is_never_overwritten(
+    client: TestClient, db_session: Session
+) -> None:
+    archive, headers = _sparring_archive(client, db_session)
+    foreign_id = "fsrs-foreign-sparring"
+    foreign_headers = _authorization(_create_player_token(client, foreign_id))
+    foreign = seed_graph(db_session, foreign_id, with_observation=True)
+    before = client.post("/v1/exports", json={"player_id": foreign_id}, headers=foreign_headers)
+    assert before.status_code == 200, before.text
+    archive["sparring_attempts"][0]["id"] = str(foreign.id)
+    archive["schedule_review_observations"][0]["source_id"] = str(foreign.id)
+    _assert_rejected(client, db_session, archive, headers)
+    after = client.post("/v1/exports", json={"player_id": foreign_id}, headers=foreign_headers)
+    assert after.status_code == 200, after.text
+    assert after.json() == before.json()
+
+
+def test_pre_fsrs_sparring_archive_preserves_due_state_without_inventing_reviews(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive, headers = _sparring_archive(client, db_session, with_observation=False)
+    del archive["schedule_review_observations"]
+    schedule = archive["review_schedules"][0]
+    for field in ("fsrs_state", "fsrs_step", "fsrs_stability", "fsrs_difficulty"):
+        del schedule[field]
+    schedule["interval_days"] = schedule.pop("legacy_interval_days")
+    schedule["ease_factor"] = schedule.pop("legacy_ease_factor")
+    expected = {
+        key: value for key, value in schedule.items() if key not in {"interval_days", "ease_factor"}
+    }
+    expected.update(
+        fsrs_state=1,
+        fsrs_step=0,
+        fsrs_stability=None,
+        fsrs_difficulty=None,
+        legacy_interval_days=17.0,
+        legacy_ease_factor=2.7,
+    )
+
+    def no_replay(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("Legacy terminal attempts carry no recoverable FSRS grade")
+
+    monkeypatch.setattr(ReviewSchedule, "update", no_replay)
+    response = client.post("/v1/imports", json=archive, headers=headers)
+    assert response.status_code == 200, response.text
+    play_id = archive["sparring_attempts"][0]["play_session_id"]
+    repeated = client.post(f"/v1/play-sessions/{play_id}/resign", headers=headers)
+    assert repeated.status_code == 409, repeated.text
+    restored = client.post("/v1/exports", json={"player_id": OWNER}, headers=headers).json()
+    assert restored["review_schedules"] == [expected]
+    assert restored["schedule_review_observations"] == []
+    assert restored["sparring_attempts"] == [
+        {**archive["sparring_attempts"][0], "verification_status": "historical"}
+    ]

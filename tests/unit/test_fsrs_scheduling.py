@@ -30,6 +30,8 @@ from scan64.learning.scheduling.spaced_repetition import (
         ("puzzle", True, 3, 1_000, 2),
         ("transfer", True, 0, 30_000, 4),
         ("transfer", True, None, None, 3),
+        ("sparring", True, None, None, 3),
+        ("sparring", False, None, None, 1),
     ],
 )
 def test_grade_distinguishes_failure_assistance_time_and_unavailable(
@@ -51,6 +53,25 @@ def test_grade_distinguishes_failure_assistance_time_and_unavailable(
 def test_negative_observations_are_rejected(hints: int, elapsed: int) -> None:
     with pytest.raises(ValueError):
         review_rating(success=True, hints_used=hints, elapsed_ms=elapsed, source_kind="lesson")
+
+
+@pytest.mark.parametrize(("hints", "elapsed"), [(0, None), (None, 0), (1, 1_000)])
+def test_sparring_rejects_invented_observations_before_rescheduling(
+    hints: int | None, elapsed: int | None
+) -> None:
+    now = datetime(2026, 7, 14, 12, tzinfo=UTC)
+    schedule = ReviewSchedule(player_id="owner", item_id="sparring", next_review_at=now)
+    before = schedule.model_dump()
+    with pytest.raises(ValueError, match="unavailable"):
+        schedule.update(
+            True,
+            now,
+            hints_used=hints,
+            elapsed_ms=elapsed,
+            source_kind="sparring",
+            source_id="sparring-review",
+        )
+    assert schedule.model_dump() == before
 
 
 def test_review_continues_from_persisted_state_after_database_restart(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from alembic import command
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
@@ -71,9 +71,10 @@ def _rows(engine: Engine, columns: str) -> list[dict[str, object]]:
 
 def test_upgrade_preserves_due_retirement_and_unused_downgrade(tmp_path: Path) -> None:
     engine = _legacy_database(tmp_path / "legacy.db")
+    config = _migration_config(engine)
     try:
         original = _rows(engine, _OLD_COLUMNS)
-        migrate_database(engine)
+        command.upgrade(config, "20261119_19")
         assert _rows(engine, _NEW_COLUMNS) == original
         with Session(engine) as session:
             due = session.get(ReviewSchedule, ("migration-owner", "due"))
@@ -91,7 +92,21 @@ def test_upgrade_preserves_due_retirement_and_unused_downgrade(tmp_path: Path) -
                 for row in (due, future, retired)
             )
             assert session.exec(select(ScheduleReviewObservation)).all() == []
-        command.downgrade(_migration_config(engine), "20261117_18")
+        converted = _rows(engine, "*")
+        migrate_database(engine)
+        assert _rows(engine, "*") == converted
+        assert "sparringattempt" in inspect(engine).get_table_names()
+        with engine.connect() as connection:
+            assert (
+                connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+                == "20261119_20"
+            )
+        command.downgrade(config, "20261119_19")
+        assert _rows(engine, "*") == converted
+        assert "sparringattempt" not in inspect(engine).get_table_names()
+        with Session(engine) as session:
+            assert session.exec(select(ScheduleReviewObservation)).all() == []
+        command.downgrade(config, "20261117_18")
         assert _rows(engine, _OLD_COLUMNS) == original
         migrate_database(engine)
         assert _rows(engine, _NEW_COLUMNS) == original
@@ -102,7 +117,8 @@ def test_upgrade_preserves_due_retirement_and_unused_downgrade(tmp_path: Path) -
 def test_downgrade_refuses_to_discard_review_state_and_observations(tmp_path: Path) -> None:
     engine = _legacy_database(tmp_path / "reviewed.db")
     try:
-        migrate_database(engine)
+        config = _migration_config(engine)
+        command.upgrade(config, "20261119_19")
         with Session(engine) as session:
             schedule = session.get(ReviewSchedule, ("migration-owner", "due"))
             assert schedule is not None
@@ -120,8 +136,26 @@ def test_downgrade_refuses_to_discard_review_state_and_observations(tmp_path: Pa
             expected_due = schedule.next_review_at
             expected_stability = schedule.fsrs_stability
             observation_id = observation.id
-        with pytest.raises(RuntimeError):
-            command.downgrade(_migration_config(engine), "20261117_18")
+            expected_observation = observation.model_dump(mode="json")
+        expected_schedules = _rows(engine, "*")
+        for revision in ("20261119_20", "20261119_19"):
+            if revision == "20261119_20":
+                migrate_database(engine)
+            else:
+                command.downgrade(config, revision)
+            assert _rows(engine, "*") == expected_schedules
+            with Session(engine) as session:
+                restored_observation = session.exec(select(ScheduleReviewObservation)).one()
+                assert restored_observation.model_dump(mode="json") == expected_observation
+            with engine.connect() as connection:
+                assert (
+                    connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+                    == revision
+                )
+        assert "sparringattempt" not in inspect(engine).get_table_names()
+        with pytest.raises(RuntimeError, match="FSRS reviews exist"):
+            command.downgrade(config, "20261117_18")
+        assert _rows(engine, "*") == expected_schedules
         with Session(engine) as session:
             schedule = session.get(ReviewSchedule, ("migration-owner", "due"))
             observation = session.get(ScheduleReviewObservation, observation_id)
@@ -147,6 +181,11 @@ def test_existing_desktop_snapshot_retains_pre_fsrs_database(tmp_path: Path) -> 
         (snapshot,) = (tmp_path / "backups").glob("scan64-*-before-*.db")
         migrate_database(engine)
         assert _rows(engine, _NEW_COLUMNS) == original
+        with engine.connect() as connection:
+            assert (
+                connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+                == "20261119_20"
+            )
         with sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True) as connection:
             assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
                 "20261117_18",
