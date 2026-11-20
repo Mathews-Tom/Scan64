@@ -101,8 +101,9 @@ def held_sqlite_writer(engine: Engine, release: Event) -> Iterator[Future[bool]]
             connection.exec_driver_sql("BEGIN IMMEDIATE")
             ready.set()
             # Release independently of the app loop, even on the old blocking
-            # implementation, so a regression fails rather than hanging.
-            signalled = release.wait(timeout=3)
+            # implementation, so a regression fails rather than hanging. The
+            # watchdog must outlast the combined readiness/ASGI phase budgets.
+            signalled = release.wait(timeout=20)
             connection.rollback()
             return signalled
 
@@ -601,27 +602,35 @@ async def test_runtime_sqlite_writer_contention_keeps_asgi_health_responsive(
                 async with httpx.AsyncClient(
                     transport=httpx.ASGITransport(app=app), base_url="http://test"
                 ) as client:
-                    response = await asyncio.wait_for(client.get("/health"), timeout=2)
-                    assert response.status_code == 200
-                    assert response.json() == {"status": "ok"}
-                    deadline_read = asyncio.create_task(
-                        client.get(f"/v1/play-sessions/{session_id}", headers=auth)
-                    )
-                    assert await asyncio.wait_for(
-                        asyncio.to_thread(snapshot_read.wait, 1), timeout=2
-                    ), "The deadline GET did not read its overdue snapshot"
-                    # Release only after the GET saw the still-active, zero clock.
-                    release_writer.set()
-                    assert await asyncio.wrap_future(writer), (
-                        "Writer released before health and the deadline read"
-                    )
-                    await asyncio.wait_for(admitted.wait(), timeout=2)
-                    final = await asyncio.wait_for(deadline_read, timeout=2)
-                    assert final.status_code == 200
-                    assert final.json()["status"] == "completed"
-                    assert final.json()["clock"]["terminal_reason"] == "flag"
-                    assert final.json()["clock"]["version"] == 1
-                    assert final.json()["result"] == "1-0"
+                    deadline_read: asyncio.Task[httpx.Response] | None = None
+                    try:
+                        response = await asyncio.wait_for(client.get("/health"), timeout=2)
+                        assert response.status_code == 200
+                        assert response.json() == {"status": "ok"}
+                        deadline_read = asyncio.create_task(
+                            client.get(f"/v1/play-sessions/{session_id}", headers=auth)
+                        )
+                        assert await asyncio.wait_for(
+                            asyncio.to_thread(snapshot_read.wait, 1), timeout=2
+                        ), "The deadline GET did not read its overdue snapshot"
+                        # Release only after the GET saw the still-active, zero clock.
+                        release_writer.set()
+                        assert await asyncio.wrap_future(writer), (
+                            "Writer released before health and the deadline read"
+                        )
+                        await asyncio.wait_for(admitted.wait(), timeout=2)
+                        final = await asyncio.wait_for(deadline_read, timeout=2)
+                        assert final.status_code == 200
+                        assert final.json()["status"] == "completed"
+                        assert final.json()["clock"]["terminal_reason"] == "flag"
+                        assert final.json()["clock"]["version"] == 1
+                        assert final.json()["result"] == "1-0"
+                    finally:
+                        release_writer.set()
+                        if deadline_read is not None:
+                            if not deadline_read.done():
+                                deadline_read.cancel()
+                            await asyncio.gather(deadline_read, return_exceptions=True)
             finally:
                 release_writer.set()
                 await runtime.stop()

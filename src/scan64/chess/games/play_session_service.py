@@ -3,12 +3,13 @@ import logging
 from asyncio import sleep
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from time import monotonic
 from uuid import UUID
 
 import chess
+from pydantic import ConfigDict
 from sqlalchemy import update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session, col, select
@@ -17,7 +18,7 @@ from scan64.chess.analysis.coach_interruption import CoachInterruption, prepare_
 from scan64.chess.analysis.models import AnalysisJob
 from scan64.chess.boards import uci_moves_to_san
 from scan64.chess.games.assistance import PlaySnapshot, StalePlaySnapshot, claim_snapshot
-from scan64.chess.games.clock_models import PlayClock
+from scan64.chess.games.clock_models import PlayClock, PlayClockRead
 from scan64.chess.games.clocks import (
     ClockConflict,
     PlayClockRuntime,
@@ -52,10 +53,16 @@ class TakebackNotAllowed(ValueError):
     """The session has no undoable human move pair."""
 
 
+class _CommittedClockRead(PlayClockRead):
+    model_config = ConfigDict(frozen=True)
+
+
 @dataclass(frozen=True)
 class PlayMoveResult:
     opponent_move: str | None
     interruption: CoachInterruption | None
+    status: str
+    clock: PlayClockRead | None
 
 
 class PlaySessionService:
@@ -402,11 +409,14 @@ class PlaySessionService:
             interruption = (
                 prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
             )
-            self.complete_session(play_session, fetched, board.result())
-            return PlayMoveResult(
+            result = PlayMoveResult(
                 opponent_move=None,
                 interruption=interruption,
+                status="completed",
+                clock=None,
             )
+            self.complete_session(play_session, fetched, board.result())
+            return result
 
         opponent_move = await self.play_opponent_move(play_session, fetched, board)
 
@@ -415,23 +425,28 @@ class PlaySessionService:
             interruption = (
                 prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
             )
-            self.complete_session(play_session, fetched, board.result())
-            return PlayMoveResult(
+            result = PlayMoveResult(
                 opponent_move=opponent_move,
                 interruption=interruption,
+                status="completed",
+                clock=None,
             )
+            self.complete_session(play_session, fetched, board.result())
+            return result
 
         self.persist_moves(play_session, fetched, moves_before, snapshot)
         self.db.add(play_session)
         interruption = (
             prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
         )
-        self.db.commit()
-
-        return PlayMoveResult(
+        result = PlayMoveResult(
             opponent_move=opponent_move,
             interruption=interruption,
+            status=play_session.status,
+            clock=None,
         )
+        self.db.commit()
+        return result
 
     def expire_clock(self, session_id: UUID) -> PlaySession:
         """Adjudicate a persisted deadline through the one terminal transition."""
@@ -491,7 +506,8 @@ class PlaySessionService:
         clock: PlayClock,
         snapshot: PlaySnapshot,
         board: chess.Board,
-    ) -> None:
+        opponent_move: str | None,
+    ) -> PlayMoveResult:
         self.persist_moves(play, game, snapshot.moves, snapshot)
         claim_clock(
             self.db,
@@ -501,12 +517,21 @@ class PlaySessionService:
             next_color=None if board.is_game_over() else "white" if board.turn else "black",
             terminal_reason="board" if board.is_game_over() else None,
         )
+        # Freeze under the move/snapshot and clock write fences. Commit expires
+        # ORM objects and may be followed immediately by another owned command.
+        result = PlayMoveResult(
+            opponent_move=opponent_move,
+            interruption=None,
+            status="completed" if board.is_game_over() else play.status,
+            clock=_CommittedClockRead(**project_clock(clock).model_dump()),
+        )
         if board.is_game_over():
             self.complete_session(play, game, board.result())
         else:
             self.db.add(play)
             self.db.commit()
         self.notify_clock()
+        return result
 
     async def make_timed_move(
         self,
@@ -537,9 +562,9 @@ class PlaySessionService:
         bot_version = clock.version + 1
         # Human move, increment, next deadline and snapshot fence are durable
         # before any engine or coaching await.
-        self.commit_timed_move(play, game, clock, snapshot, board)
+        result = self.commit_timed_move(play, game, clock, snapshot, board, None)
         if board.is_game_over():
-            return PlayMoveResult(None, None)
+            return result
         # Reserve the newly durable bot turn before coaching can yield to a
         # second owned command, and retain it until its lesson is persisted.
         with self._reserve_opponent(session_id):
@@ -579,17 +604,19 @@ class PlaySessionService:
                     logger.exception("Coach diagnostic timed out for timed session %s", session_id)
                 except Exception:
                     logger.exception("Coach diagnostic failed for timed session %s", session_id)
-            opponent_move = await self._resume_opponent(session_id, bot_version)
-            interruption = None
+            result = await self._resume_opponent(session_id, bot_version)
             if prepared is not None:
                 interruption = prepared.add_to(self.db)
                 self.db.commit()
-            return PlayMoveResult(opponent_move, interruption)
+                result = replace(result, interruption=interruption)
+            return result
 
     async def resume_opponent(self, session_id: UUID, expected_version: int) -> str:
         """Resume only the durable bot turn; GET never enters this path."""
         with self._reserve_opponent(session_id):
-            return await self._resume_opponent(session_id, expected_version)
+            result = await self._resume_opponent(session_id, expected_version)
+            assert result.opponent_move is not None
+            return result.opponent_move
 
     @contextmanager
     def _reserve_opponent(self, session_id: UUID) -> Iterator[None]:
@@ -605,7 +632,7 @@ class PlaySessionService:
             finally:
                 self._opponent_inflight.discard(session_id)
 
-    async def _resume_opponent(self, session_id: UUID, expected_version: int) -> str:
+    async def _resume_opponent(self, session_id: UUID, expected_version: int) -> PlayMoveResult:
         self.db.expire_all()
         play = self.db.get(PlaySession, session_id)
         clock = self.db.get(PlayClock, session_id)
@@ -662,5 +689,4 @@ class PlaySessionService:
             raise ClockConflict("Timed Game was removed")
         play.opponent_config = work_play.opponent_config
         game.moves = work_game.moves
-        self.commit_timed_move(play, game, clock, snapshot, board)
-        return opponent_move
+        return self.commit_timed_move(play, game, clock, snapshot, board, opponent_move)

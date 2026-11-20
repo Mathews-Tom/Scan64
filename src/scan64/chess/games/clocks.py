@@ -300,10 +300,14 @@ class PlayClockRuntime:
                 if deadline is None:
                     await self._wake.wait()
                     continue
-                delay = (deadline - utc_now()).total_seconds()
-                if delay > 0:
+                while not self._wake.is_set():
+                    delay = (deadline - utc_now()).total_seconds()
+                    if delay <= 0:
+                        break
                     try:
-                        await asyncio.wait_for(self._wake.wait(), timeout=delay)
+                        # Recheck UTC without querying: asyncio timeouts are
+                        # monotonic, but persisted deadlines follow wall time.
+                        await asyncio.wait_for(self._wake.wait(), timeout=min(delay, 1.0))
                     except TimeoutError:
                         pass
             except OperationalError as error:

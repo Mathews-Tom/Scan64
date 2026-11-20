@@ -432,7 +432,7 @@ async def create_move(
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
 ) -> PlayMoveResponse:
-    play_session = _get_owned_play_session(session_id, request, session)
+    _get_owned_play_session(session_id, request, session)
     try:
         move_result = await service.make_move(
             session_id, move_in.move, move_in.expected_clock_version
@@ -442,7 +442,7 @@ async def create_move(
         interruption = move_result.interruption
         return PlayMoveResponse(
             opponent_move=move_result.opponent_move,
-            status=play_session.status,
+            status=move_result.status,
             critical_interruption=(
                 CriticalInterruptionRead(
                     lesson=interruption.lesson,
@@ -452,11 +452,7 @@ async def create_move(
                 if interruption is not None
                 else None
             ),
-            clock=(
-                project_clock(clock)
-                if (clock := session.get(PlayClock, session_id)) is not None
-                else None
-            ),
+            clock=move_result.clock,
         )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
