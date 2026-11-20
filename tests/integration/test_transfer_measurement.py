@@ -22,7 +22,7 @@ from scan64.learning.evaluation.transfer_measurement import (
     record_transfer_measurement,
 )
 from scan64.learning.exercises.transfer import TransferPosition
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule, ScheduleReviewObservation
 
 
 @pytest.fixture
@@ -103,6 +103,8 @@ def test_uncommitted_transfer_completion_rolls_back_measurement_and_schedule(
         measurement_id=pre_test.id,
         player_id=player_id,
         succeeded=True,
+        hints_used=None,
+        elapsed_ms=None,
         now=now,
         commit=False,
     )
@@ -112,6 +114,7 @@ def test_uncommitted_transfer_completion_rolls_back_measurement_and_schedule(
     assert restored is not None
     assert restored.completed_at is None
     assert session.get(ReviewSchedule, (player_id, pre_test.id)) is not None
+    assert not session.exec(select(ScheduleReviewObservation)).all()
 
 
 def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session) -> None:
@@ -152,6 +155,8 @@ def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session
         measurement_id=pre_test.id,
         player_id=first_player_id,
         succeeded=False,
+        hints_used=None,
+        elapsed_ms=None,
         now=now,
     )
     assert completed_pre_test.succeeded is False
@@ -161,6 +166,8 @@ def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session
             measurement_id=pre_test.id,
             player_id=first_player_id,
             succeeded=True,
+            hints_used=None,
+            elapsed_ms=None,
             now=now,
         )
     immediate_post_test, delayed_test = record_training_completion(
@@ -175,7 +182,15 @@ def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session
     assert immediate_post_test.scheduled_for is not None
     assert delayed_test.scheduled_for is not None
     assert delayed_test.scheduled_for - immediate_post_test.scheduled_for == timedelta(days=7)
-    assert session.get(ReviewSchedule, (first_player_id, pre_test.id)) is None
+    retired_pre_test = session.get(ReviewSchedule, (first_player_id, pre_test.id))
+    assert retired_pre_test is not None
+    assert retired_pre_test.retired_at is not None
+    observation = session.exec(
+        select(ScheduleReviewObservation).where(ScheduleReviewObservation.source_id == pre_test.id)
+    ).one()
+    assert observation.rating == 1
+    assert observation.hints_used is None and observation.elapsed_ms is None
+    assert observation.input_provenance == "app_reported"
     assert [
         measurement.measurement_point
         for measurement in due_transfer_measurements(
@@ -189,6 +204,8 @@ def test_instrumentation_schedules_pre_then_post_transfer_tests(session: Session
         measurement_id=immediate_post_test.id,
         player_id=first_player_id,
         succeeded=True,
+        hints_used=None,
+        elapsed_ms=None,
         now=now + timedelta(hours=1),
     )
     assert [
@@ -270,6 +287,8 @@ def test_reporting_aggregates_cohort_transfer_success(session: Session) -> None:
             measurement_id=pre_tests[player_id].id,
             player_id=player_id,
             succeeded=succeeded,
+            hints_used=None,
+            elapsed_ms=None,
             now=now,
         )
 
@@ -289,6 +308,8 @@ def test_reporting_aggregates_cohort_transfer_success(session: Session) -> None:
             measurement_id=measurement.id,
             player_id=measurement.player_id,
             succeeded=succeeded,
+            hints_used=None,
+            elapsed_ms=None,
             now=now + timedelta(hours=1),
         )
 
@@ -324,6 +345,8 @@ def test_reporting_aggregates_cohort_transfer_success(session: Session) -> None:
         measurement_id=delayed_test.id,
         player_id="player-a",
         succeeded=True,
+        hints_used=None,
+        elapsed_ms=None,
         now=now + timedelta(days=8),
     )
     partial_report = build_transfer_measurement_report(
@@ -407,6 +430,8 @@ def test_synthetic_cohort_transfer_measurement_pipeline(session: Session) -> Non
             measurement_id=pre_test.id,
             player_id=player_id,
             succeeded=pre_success,
+            hints_used=None,
+            elapsed_ms=None,
             now=now,
         )
         immediate_post_test, delayed_test = record_training_completion(
@@ -421,6 +446,8 @@ def test_synthetic_cohort_transfer_measurement_pipeline(session: Session) -> Non
             measurement_id=immediate_post_test.id,
             player_id=player_id,
             succeeded=immediate_success,
+            hints_used=None,
+            elapsed_ms=None,
             now=now + timedelta(hours=1),
         )
         record_transfer_measurement(
@@ -428,6 +455,8 @@ def test_synthetic_cohort_transfer_measurement_pipeline(session: Session) -> Non
             measurement_id=delayed_test.id,
             player_id=player_id,
             succeeded=delayed_success,
+            hints_used=None,
+            elapsed_ms=None,
             now=now + timedelta(days=8),
         )
 
@@ -540,8 +569,15 @@ def test_due_production_transfer_measurement_builds_a_lesson(session: Session) -
     assert lesson.interaction.accepted_moves
 
 
+@pytest.mark.parametrize(
+    "hints_used,elapsed_ms,expected_rating",
+    [(None, None, 3), (0, 30_000, 4), (0, 30_001, 3), (1, 1000, 2)],
+)
 def test_completed_production_transfer_measurement_moves_its_report(
     session: Session,
+    hints_used: int | None,
+    elapsed_ms: int | None,
+    expected_rating: int,
 ) -> None:
     now = datetime(2026, 7, 31, 12, 0, tzinfo=UTC)
     player_id = "player-a"
@@ -565,8 +601,16 @@ def test_completed_production_transfer_measurement_moves_its_report(
         measurement_id=pre_test.id,
         player_id=player_id,
         succeeded=True,
+        hints_used=hints_used,
+        elapsed_ms=elapsed_ms,
         now=now,
     )
+    observation = session.exec(select(ScheduleReviewObservation)).one()
+    assert observation.source_kind == "transfer"
+    assert observation.source_id == pre_test.id
+    assert observation.rating == expected_rating
+    assert observation.hints_used == hints_used
+    assert observation.elapsed_ms == elapsed_ms
     report = build_transfer_measurement_report(
         session,
         cohort_id=f"production-transfer:{player_id}:{skill_id}",

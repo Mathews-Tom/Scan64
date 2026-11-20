@@ -20,7 +20,7 @@ from scan64.content.puzzle_practice_models import (
 from scan64.content.puzzle_runs import PuzzleRun
 from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.learning.profiling.models import SkillState
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule, ScheduleReviewObservation
 from tests.integration.test_puzzle_runs import _action, _auth, _seed, _start
 
 NOW = datetime(2026, 11, 13, 12, tzinfo=UTC)
@@ -98,6 +98,18 @@ def test_first_exposure_terminal_rating_and_review_atomic(
     )
     assert db_session.get(PuzzleRating, "puzzle-player").rating == ledger.after
     assert bool(db_session.exec(select(ReviewSchedule)).all()) == schedule
+    observations = db_session.exec(select(ScheduleReviewObservation)).all()
+    assert len(observations) == int(schedule)
+    if schedule:
+        observation = observations[0]
+        persisted_run = db_session.get(PuzzleRun, terminal["run_id"])
+        assert persisted_run is not None
+        assert observation.source_id == persisted_run.id
+        assert observation.success is (outcome == "hint")
+        assert observation.rating == (2 if outcome == "hint" else 1)
+        assert observation.hints_used == sum(persisted_run.hint_steps.values())
+        assert observation.elapsed_ms is not None and observation.elapsed_ms >= 0
+        assert observation.input_provenance == "server_recorded"
     assert bool(db_session.exec(select(ContentAttempt)).all()) == (outcome != "abandon")
     assert not db_session.exec(select(SkillState)).all()
     duplicate = _action(client, auth, before, "abandon")
@@ -151,6 +163,10 @@ def test_failed_review_backlog_and_independent_retirement(
     run = _start(client, auth)
     run = _action(client, auth, run, "hints", step=1).json()
     _action(client, auth, run, "moves", move="e7e5")
+    schedule = db_session.exec(select(ReviewSchedule)).one()
+    schedule.next_review_at = NOW + timedelta(days=1)
+    db_session.add(schedule)
+    db_session.commit()
     clock(monkeypatch, NOW + timedelta(days=1, seconds=1))
     daily = client.get("/v1/puzzles/daily", headers=auth).json()
     assert daily["overdue_count"] == 1 and daily["actual_mix"]["due"] == 1
@@ -160,7 +176,17 @@ def test_failed_review_backlog_and_independent_retirement(
     _action(client, auth, review, "moves", move="e7e5")
     db_session.expire_all()
     schedule = db_session.exec(select(ReviewSchedule)).one()
-    assert schedule.retired_at is None and schedule.ease_factor == pytest.approx(2.1)
+    assert schedule.retired_at is None
+    assert schedule.fsrs_stability is not None
+    assert [
+        observation.rating
+        for observation in db_session.exec(
+            select(ScheduleReviewObservation).order_by(ScheduleReviewObservation.reviewed_at)
+        )
+    ] == [2, 2]
+    schedule.next_review_at = NOW + timedelta(days=2)
+    db_session.add(schedule)
+    db_session.commit()
     assert len(db_session.exec(select(PuzzleRatingEvent)).all()) == 1
     clock(monkeypatch, NOW + timedelta(days=3))
     review = _start(client, auth)
@@ -169,6 +195,7 @@ def test_failed_review_backlog_and_independent_retirement(
     db_session.expire_all()
     schedule = db_session.exec(select(ReviewSchedule)).one()
     assert schedule.retirement_reason == "puzzle_review_passed" and schedule.retired_at
+    assert len(db_session.exec(select(ScheduleReviewObservation)).all()) == 3
     clock(monkeypatch, NOW + timedelta(days=5))
     assert client.post("/v1/puzzles/runs", headers=auth).json()["status"] == "exhausted"
 

@@ -542,6 +542,8 @@ def record_lesson_attempt(
                 player_id=study_session.player_id,
                 succeeded=success,
                 now=completed_at,
+                hints_used=attempt_in.hints_used,
+                elapsed_ms=attempt_in.elapsed_ms,
                 commit=False,
             )
             if completed_measurement.measurement_point.value == "pre_test":
@@ -663,9 +665,6 @@ def record_lesson_attempt(
                 target_difficulty=profile.rating,
                 now=observed_at,
             )
-    if schedule.retired_at is None:
-        schedule.update(success=success, current_time=observed_at)
-        db.add(schedule)
     attempt = LessonAttempt(
         session_id=study_session.id,
         player_id=study_session.player_id,
@@ -680,6 +679,17 @@ def record_lesson_attempt(
         profile_update_result=profile_update_result,
         completed_at=observed_at,
     )
+    if schedule.retired_at is None:
+        observation = schedule.update(
+            success=success,
+            current_time=observed_at,
+            hints_used=attempt.hints_used,
+            elapsed_ms=attempt.elapsed_ms,
+            source_kind="lesson",
+            source_id=str(attempt.id),
+        )
+        db.add(schedule)
+        db.add(observation)
     db.add(attempt)
     record_lesson_credit(attempt, db)
     db.commit()

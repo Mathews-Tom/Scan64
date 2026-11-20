@@ -277,6 +277,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "transfer_measurements": 0,
         "skill_states": 0,
         "review_schedules": 0,
+        "schedule_review_observations": 0,
         "study_sessions": 0,
         "content_attempts": 0,
         "puzzle_runs": 0,

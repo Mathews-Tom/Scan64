@@ -26,7 +26,7 @@ from scan64.learning.evidence.composer import DIAGNOSIS_RULE_VERSION
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.exercises.transfer import TransferKind
 from scan64.learning.profiling.models import SkillState
-from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.scheduling.spaced_repetition import ReviewSchedule, ScheduleReviewObservation
 
 
 def lesson_spec() -> dict[str, object]:
@@ -114,8 +114,13 @@ def authorize(client: TestClient, db_session: Session, player_id: str) -> None:
 
 
 @pytest.mark.parametrize("schema_version", ["0.1.0", "0.2.0"])
+@pytest.mark.parametrize("elapsed_ms,expected_rating", [(4200, 4), (30_001, 3)])
 def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
-    client: TestClient, db_session: Session, schema_version: str
+    client: TestClient,
+    db_session: Session,
+    schema_version: str,
+    elapsed_ms: int,
+    expected_rating: int,
 ) -> None:
     player_id = "lesson-player"
     db_session.add(Player(id=player_id))
@@ -140,7 +145,7 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
             "lesson_id": str(opportunity.id),
             "source_kind": "persisted_opportunity",
             "submitted_move": "e2e4",
-            "elapsed_ms": 4200,
+            "elapsed_ms": elapsed_ms,
             "hints_used": 0,
         },
     )
@@ -160,6 +165,17 @@ def test_served_session_and_verified_lesson_attempt_update_profile_and_schedule(
     schedule = db_session.get(ReviewSchedule, (player_id, str(opportunity.id)))
     assert schedule is not None
     assert schedule.last_reviewed_at is not None
+    observation = db_session.exec(
+        select(ScheduleReviewObservation).where(
+            ScheduleReviewObservation.source_id == str(attempt.id)
+        )
+    ).one()
+    assert observation.source_kind == "lesson"
+    assert observation.success is True
+    assert observation.hints_used == 0
+    assert observation.elapsed_ms == elapsed_ms
+    assert observation.rating == expected_rating
+    assert observation.input_provenance == "app_reported"
     skill = db_session.get(SkillState, (player_id, "threat_processing.missed_capture"))
     assert skill is not None
     assert skill.alpha == skill.prior_alpha + 1.0
@@ -1202,8 +1218,13 @@ def _create_safe_or_blunder_lesson(
 
 
 @pytest.mark.parametrize(("submitted_move", "success"), [("e1f1", False), ("a1a2", True)])
+@pytest.mark.parametrize("hints_used", [0, 1])
 def test_safe_or_blunder_grades_owned_choices_and_updates_existing_review(
-    client: TestClient, db_session: Session, submitted_move: str, success: bool
+    client: TestClient,
+    db_session: Session,
+    submitted_move: str,
+    success: bool,
+    hints_used: int,
 ) -> None:
     player_id = "drill-owner"
     db_session.add(Player(id=player_id))
@@ -1228,7 +1249,7 @@ def test_safe_or_blunder_grades_owned_choices_and_updates_existing_review(
             "source_kind": "persisted_opportunity",
             "submitted_move": submitted_move,
             "elapsed_ms": 4200,
-            "hints_used": 0,
+            "hints_used": hints_used,
         },
     )
     assert outcome.status_code == 200
@@ -1240,6 +1261,12 @@ def test_safe_or_blunder_grades_owned_choices_and_updates_existing_review(
     assert attempt is not None and attempt.grading_status == "verified"
     assert schedule is not None and schedule.last_reviewed_at == attempt.completed_at
     assert schedule.next_review_at > schedule.last_reviewed_at
+    observation = db_session.exec(select(ScheduleReviewObservation)).one()
+    assert observation.source_id == str(attempt.id)
+    assert observation.success is success
+    assert observation.hints_used == hints_used
+    assert observation.elapsed_ms == 4200
+    assert observation.rating == (1 if not success else 2 if hints_used else 4)
     assert skill is not None
     if success:
         assert skill.alpha > skill.prior_alpha
