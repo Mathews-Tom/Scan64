@@ -4,9 +4,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
-from sqlmodel.pool import StaticPool
 
-from scan64.api.app import app
 from scan64.api.middleware import IdempotencyRecord  # noqa: F401
 from scan64.api.models import (  # noqa: F401
     Player,
@@ -20,31 +18,11 @@ from scan64.chess.games.models import (
     PlaySession,
 )
 from scan64.chess.positions.models import Position  # noqa: F401
-from scan64.persistence.database import get_session
 
 
 @pytest.fixture(name="session")
-def session_fixture():
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    from scan64.persistence import database
-
-    database.engine = engine
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
-        return session
-
-    app.dependency_overrides[get_session] = get_session_override
-    with TestClient(app) as client:
-        yield client
-    app.dependency_overrides.clear()
+def session_fixture(db_session: Session) -> Session:
+    return db_session
 
 
 def _register(session: Session, player_id: str) -> dict[str, str]:
@@ -143,7 +121,7 @@ def test_create_and_get_play_session_api(client: TestClient, session: Session):
     req_body = {
         "player_id": "player_123",
         "opponent_config": {"bot_level": "1"},
-        "clock_config": {"time_remaining_ms": "60000"},
+        "clock_config": {"initial_seconds": 60, "increment_seconds": 0},
     }
     create_resp = client.post("/v1/play-sessions", json=req_body, headers=headers)
     assert create_resp.status_code == 200, create_resp.text
@@ -289,6 +267,7 @@ def test_play_session_move_response_marks_opponent_checkmate_completed(
         "opponent_move": "d8h4",
         "status": "completed",
         "critical_interruption": None,
+        "clock": None,
     }
 
 
@@ -349,3 +328,104 @@ def test_attaching_play_session_records_chosen_owner_color(
     assert response.status_code == 200, response.text
     session.refresh(game)
     assert game.owner_color == "white"
+
+
+def test_session_projection_is_one_sqlite_snapshot_across_owner_advance(tmp_path):
+    import io
+    from datetime import timedelta
+
+    import chess
+    import chess.pgn
+    from sqlalchemy import event
+
+    from scan64.api.play import read_play_session
+    from scan64.chess.games.clock_models import PlayClock
+    from scan64.chess.games.clocks import utc_now
+    from scan64.chess.games.pgn import build_pgn
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'snapshot.db'}")
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA journal_mode=WAL")
+    SQLModel.metadata.create_all(engine)
+    now = utc_now()
+    with Session(engine) as owner:
+        owner.add(Player(id="snapshot-owner"))
+        game = Game(
+            pgn="",
+            moves=[],
+            white="Player",
+            black="Bot",
+            owner_player_id="snapshot-owner",
+            owner_color="white",
+        )
+        owner.add(game)
+        owner.flush()
+        play = PlaySession(
+            player_id="snapshot-owner", game_id=game.id, opponent_config={"player_color": "white"}
+        )
+        owner.add(play)
+        owner.flush()
+        clock = PlayClock(
+            session_id=play.id,
+            initial_seconds=180,
+            increment_seconds=0,
+            white_remaining_ms=180000,
+            black_remaining_ms=180000,
+            active_color="white",
+            deadline_at=now + timedelta(seconds=180),
+        )
+        owner.add(clock)
+        game.pgn = build_pgn(game)
+        owner.commit()
+        play_id, game_id = play.id, game.id
+
+    with Session(engine) as reader:
+        cached_play = reader.get(PlaySession, play_id)
+        cached_game = reader.get(Game, game_id)
+        cached_clock = reader.get(PlayClock, play_id)
+        assert cached_play is not None and cached_game is not None and cached_clock is not None
+        advanced = False
+
+        def advance_after_snapshot_select(connection, cursor, statement, parameters, context, many):
+            nonlocal advanced
+            if (
+                advanced
+                or not statement.lstrip().upper().startswith("SELECT")
+                or "JOIN playclock" not in statement
+            ):
+                return
+            advanced = True
+            with Session(engine) as writer:
+                game = writer.get(Game, game_id)
+                clock = writer.get(PlayClock, play_id)
+                game.moves = ["e2e4"]
+                game.pgn = build_pgn(game)
+                clock.active_color = "black"
+                clock.version = 1
+                writer.add(game)
+                writer.add(clock)
+                writer.commit()
+
+        event.listen(engine, "after_cursor_execute", advance_after_snapshot_select)
+        try:
+            before = read_play_session(cached_play, reader)
+        finally:
+            event.remove(engine, "after_cursor_execute", advance_after_snapshot_select)
+        assert advanced
+        board = chess.pgn.read_game(io.StringIO(before.pgn)).end().board()
+        assert board.turn == chess.WHITE
+        assert before.clock.active_color == "white"
+        assert before.clock.version == 0
+        # Legacy GET-game after GET-session can now see the next board.
+        with Session(engine) as later:
+            assert later.get(Game, game_id).moves == ["e2e4"]
+        after = read_play_session(cached_play, reader)
+        board = chess.pgn.read_game(io.StringIO(after.pgn)).end().board()
+        assert board.turn == chess.BLACK
+        assert after.clock.active_color == "black"
+        assert after.clock.version == 1
+        assert cached_game.moves == ["e2e4"]
+        assert cached_clock.active_color == "black"
+        assert cached_clock.version == 1
+        assert after.result == "*"
+    engine.dispose()

@@ -107,6 +107,7 @@ export interface StrengthRead {
     provider: 'stockfish';
     bot_level: number;
     bot_policy_version: string;
+    time_control: TimeControl | null;
     latest: BotResultsSample;
     previous: BotResultsSample;
     trend: 'improving' | 'steady' | 'declining' | 'insufficient_data';
@@ -474,12 +475,28 @@ export interface BotRead {
   description: string;
 }
 
+export interface TimeControl {
+  initial_seconds: number;
+  increment_seconds: number;
+}
+
+export interface PlayClockRead extends TimeControl {
+  white_remaining_ms: number;
+  black_remaining_ms: number;
+  active_color: 'white' | 'black' | null;
+  deadline_at: string | null;
+  server_now: string;
+  version: number;
+  terminal_reason: 'flag' | 'board' | 'resignation' | null;
+  flagged_color: 'white' | 'black' | null;
+}
+
 export interface PlaySessionCreate {
   player_color?: 'white' | 'black' | 'random';
   player_id: string;
   game_id?: string;
   opponent_config?: Record<string, string>;
-  clock_config?: Record<string, string>;
+  clock_config?: TimeControl;
   initial_fen?: string;
   coach_mode?: boolean;
 }
@@ -492,6 +509,9 @@ export interface PlaySessionRead {
   game_id?: string;
   opponent_config: Record<string, string>;
   clock_config?: Record<string, string>;
+  clock?: PlayClockRead | null;
+  pgn?: string | null;
+  result?: string | null;
   status: string;
   coach_mode: boolean;
   assistance_tracking_version?: number | null;
@@ -500,6 +520,7 @@ export interface PlaySessionRead {
 
 export interface PlayMoveCreate {
   move: string;
+  expected_clock_version?: number;
 }
 
 
@@ -512,6 +533,7 @@ export interface CriticalInterruptionRead {
 export interface PlayMoveResponse {
   opponent_move: string | null;
   status: string;
+  clock?: PlayClockRead | null;
   critical_interruption?: CriticalInterruptionRead | null;
 }
 

@@ -83,13 +83,23 @@ class OnboardingRead(BaseModel):
         return utc(value) if value is not None else None
 
 
+def project_onboarding_completion(
+    row: PlayerOnboarding, closed_at: list[datetime]
+) -> PlayerOnboarding:
+    """Project lazy completion without dirtying the attached database row."""
+    if len(closed_at) != INTRO_TARGET or row.status != "in_progress":
+        return row
+    return row.model_copy(update={"status": "completed", "completed_at": max(closed_at, key=utc)})
+
+
 def read_onboarding(player: Player, session: Session) -> OnboardingRead:
     row = onboarding_for(player.id, session)
     runs = intro_runs(session, row)
     closed = [slot.closed_at for _, slot in runs if slot.closed_at is not None]
-    if len(closed) == INTRO_TARGET and row.status == "in_progress":
-        row.status = "completed"
-        row.completed_at = max(closed, key=utc)
+    projected = project_onboarding_completion(row, closed)
+    if projected.status != row.status:
+        row.status = projected.status
+        row.completed_at = projected.completed_at
         session.add(row)
     manual = manual_bot_level(player)
     return OnboardingRead(

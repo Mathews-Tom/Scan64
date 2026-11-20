@@ -194,6 +194,8 @@ def _owner_archive(
         row.skipped_at = datetime.now(UTC) - timedelta(seconds=1)
     session.add(row)
     session.commit()
+    progress = client.get(f"/v1/players/{PLAYER_ID}/onboarding", headers=headers)
+    assert progress.status_code == 200, progress.text
     exported = client.post("/v1/exports", json={"player_id": PLAYER_ID}, headers=headers)
     assert exported.status_code == 200, exported.text
     session.commit()

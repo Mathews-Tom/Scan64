@@ -24,9 +24,9 @@ export function StrengthSummary({ strength }: { strength: StrengthRead }) {
       </ol> : <p>No rated puzzle events yet.</p>}
     </section>
     <section>
-      <h3>Stockfish results by level and policy</h3>
-      {strength.bot_cohorts.length ? <ul className="bot-cohorts">{strength.bot_cohorts.map(cohort => <li key={`${cohort.provider}-${cohort.bot_level}-${cohort.bot_policy_version}`}>
-        <h4>Stockfish level {cohort.bot_level} · policy {cohort.bot_policy_version}</h4>
+      <h3>Stockfish results by level, policy and time control</h3>
+      {strength.bot_cohorts.length ? <ul className="bot-cohorts">{strength.bot_cohorts.map(cohort => <li key={`${cohort.provider}-${cohort.bot_level}-${cohort.bot_policy_version}-${cohort.time_control ? `${cohort.time_control.initial_seconds}+${cohort.time_control.increment_seconds}` : 'untimed'}`}>
+        <h4>Stockfish level {cohort.bot_level} · policy {cohort.bot_policy_version} · {cohort.time_control ? `${cohort.time_control.initial_seconds}s + ${cohort.time_control.increment_seconds}s increment` : 'Untimed'}</h4>
         <p>Total sample: {sampleText(cohort)}.</p>
         <p>Latest five: {sampleText(cohort.latest)}.</p>
         <p>Previous five: {sampleText(cohort.previous)}.</p>
