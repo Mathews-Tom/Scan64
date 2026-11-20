@@ -69,6 +69,7 @@ from scan64.learning.plugins.registry import PluginRegistry
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.progress import RESET_AT_KEY, RESET_GENERATION_KEY, game_counts_for_progress
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.learning.sparring import SparringAttempt
 from scan64.persistence.database import get_session
 from tests.integration.test_data_lifecycle_completeness import _seed_player_lifecycle_records
 from tests.integration.test_lesson_attempts import (
@@ -127,6 +128,19 @@ def seed(client: TestClient, session: Session) -> tuple[dict[str, str], dict[str
     onboarding.declared_level = "club"
     onboarding.suggested_bot_level = 5
     session.add_all([profile, onboarding])
+    review_id = records["review_move_id"]
+    position_id = records["position_id"]
+    assert isinstance(review_id, UUID) and isinstance(position_id, UUID)
+    session.add(
+        SparringAttempt(
+            player_id=OWNER,
+            source_review_id=review_id,
+            source_position_id=position_id,
+            source_analysis_id=analysis_id,
+            source_ply=0,
+            play_session_id=play.id,
+        )
+    )
     target = PatternTarget(player_id=OWNER, code="tactics.hanging_piece")
     session.add(target)
     session.flush()

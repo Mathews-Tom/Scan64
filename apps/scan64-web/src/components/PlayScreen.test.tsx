@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
-import { ApiClient, ApiRequestError, setActivePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, ensurePlayerAuthorization, setActivePlayerId } from '../api/client';
 import type { LessonSpec, PlaySessionRead } from '../api/types';
 import { onboardingFixture } from './strength.test-fixtures';
 import {
@@ -124,6 +124,7 @@ vi.mock('../api/client', () => ({
     recordLessonAttempt: vi.fn(),
   },
   setActivePlayerId: vi.fn(),
+  ensurePlayerAuthorization: vi.fn(async (playerId: string) => playerId),
   getStoredPlayerId: () => localStorage.getItem('scan64_player_id'),
 }));
 
@@ -131,6 +132,7 @@ describe('PlayScreen', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/play');
     vi.resetAllMocks();
+    vi.mocked(ensurePlayerAuthorization).mockImplementation(async playerId => playerId);
     vi.mocked(ApiClient.getPlayerOnboarding).mockResolvedValue(onboardingFixture);
     vi.mocked(ApiClient.setPlayerBotChoice).mockImplementation(async (_playerId, botLevel) => ({
       ...onboardingFixture, manual_bot_level: botLevel, preferred_bot_level: botLevel,
@@ -147,6 +149,209 @@ describe('PlayScreen', () => {
     chessgroundMock.destroy.mockReset();
     vi.mocked(ApiClient.getTrainingSession).mockResolvedValue({ session_id: 'study-1', lessons: [], move_choices: {}, attempts_used: {} });
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
+  });
+
+  it('refreshes authoritative conversion outcome after a move and retries the same source with the chosen bot and a fresh session', async () => {
+    const sourceFen = '7k/8/8/8/8/r7/6K1/8 w - - 0 1';
+    const attempt = {
+      id: 'attempt-1', play_session_id: 'convert-1', source_game_id: 'original-game',
+      source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+      source_ply: 12, source_fen: sourceFen, player_color: 'black' as const, seed: 'server-seed-1',
+      completed_at: null, result: null, outcome: null, verification_status: 'verified' as const, next_review_at: null,
+    };
+    const active: PlaySessionRead = { id: 'convert-1', player_id: 'test-player', game_id: 'custom-1',
+      opponent_config: { provider: 'stockfish', bot_level: '1', initial_ply: '1' }, player_color: 'black',
+      status: 'active', coach_mode: false, opponent_move: 'g2f2', sparring: attempt };
+    const ended: PlaySessionRead = { ...active, status: 'completed', sparring: { ...attempt,
+      result: '1/2-1/2', outcome: 'draw', completed_at: '2026-11-19T10:00:00Z', next_review_at: '2026-11-20T10:00:00Z' } };
+    const fresh: PlaySessionRead = { ...active, id: 'convert-2', game_id: 'custom-2',
+      opponent_config: { provider: 'stockfish', bot_level: '8', initial_ply: '1' }, opponent_move: 'g2h2',
+      sparring: { ...attempt, id: 'attempt-2', play_session_id: 'convert-2', seed: 'server-seed-2' } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(active);
+    const terminal = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(terminal.promise);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-1',
+      pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1. Kf2 *`, white: 'bot', black: 'human', result: '*' });
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
+    vi.mocked(ApiClient.createPlaySession).mockRejectedValueOnce(new ApiRequestError('Conversion start unavailable', 503)).mockResolvedValue(fresh);
+    render(<PlayScreen initialSession={active} />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('conversion practice');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/r7/5K2/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) }));
+    await act(async () => { await getRegisteredMoveHandler()('a3', 'a1'); });
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('convert-1');
+    expect(screen.getByText('Loading recorded conversion result…')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Retry conversion practice' })).toBeDisabled();
+    await act(async () => { terminal.resolve(ended); });
+    const result = screen.getByRole('region', { name: 'Conversion result' });
+    expect(result).toHaveTextContent('Verified conversion practice · draw · 1/2-1/2');
+    expect(result).toHaveTextContent('Next review: 2026-11-20T10:00:00Z');
+    expect(result).not.toHaveTextContent('Game ended.');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Conversion bot level' }), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry conversion practice' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conversion start unavailable');
+    expect(screen.getByTestId('session-info')).toHaveTextContent('Status: completed');
+    expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry conversion practice' }));
+    await waitFor(() => expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active'));
+    expect(ApiClient.createPlaySession).toHaveBeenCalledWith({
+      player_id: 'test-player', opponent_config: { provider: 'stockfish', bot_level: '8' },
+      sparring_source: { game_id: 'original-game', ply: 12 },
+    });
+    expect(ApiClient.createPlayer).not.toHaveBeenCalled();
+    expect(ApiClient.createGame).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Conversion result' })).not.toBeInTheDocument();
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/r7/7K/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) }));
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe('convert-2');
+    expect(screen.getByText(/Practice session convert-2 · seed server-seed-2/)).toBeVisible();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...fresh, status: 'completed', sparring: {
+      ...fresh.sparring!, result: '0-1', outcome: 'win', completed_at: '2026-11-19T11:00:00Z', next_review_at: '2026-11-22T11:00:00Z',
+    } });
+    await act(async () => { await getRegisteredMoveHandler()('a3', 'a1'); });
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Conversion result' })).toHaveTextContent('win · 0-1'));
+    expect(screen.queryByRole('button', { name: 'Retry conversion practice' })).not.toBeInTheDocument();
+  });
+
+  it('refreshes a resigned conversion and keeps imported outcomes historical', async () => {
+    const active: PlaySessionRead = { id: 'conversion-resign', player_id: 'test-player', game_id: 'custom-game',
+      opponent_config: { bot_level: '1' }, player_color: 'white', status: 'active', coach_mode: false,
+      sparring: { id: 'attempt-1', play_session_id: 'conversion-resign', source_game_id: 'original-game',
+        source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+        source_ply: 2, source_fen: '7k/8/5KQ1/8/8/8/8/8 w - - 0 1', player_color: 'white', seed: 'seed',
+        completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(active);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-game',
+      pgn: `[SetUp "1"]\n[FEN "${active.sparring!.source_fen}"]\n\n*`, white: 'human', black: 'bot', result: '*' });
+    vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...active, status: 'completed' });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce({ ...active, status: 'completed', sparring: {
+      ...active.sparring!, outcome: 'loss', result: '0-1', completed_at: '2026-11-19T10:00:00Z',
+      verification_status: 'historical', next_review_at: '2026-11-20T10:00:00Z',
+    } });
+    render(<PlayScreen initialSession={active} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    const result = await screen.findByRole('region', { name: 'Conversion result' });
+    await waitFor(() => expect(result).toHaveTextContent('Historical result (not verified) · loss · 0-1'));
+    expect(result).toHaveTextContent('Next review: 2026-11-20T10:00:00Z');
+    expect(within(result).queryByText('Verified conversion practice')).not.toBeInTheDocument();
+    expect(result).not.toHaveTextContent('You resigned. Opponent wins.');
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconstructs an active conversion after restart from its custom game, not the original source', async () => {
+    localStorage.setItem('scan64_active_play_session_id', 'conversion-resume');
+    const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({
+      id: 'conversion-resume', player_id: 'test-player', game_id: 'custom-resume',
+      opponent_config: { bot_level: '8' }, player_color: 'black', status: 'active', coach_mode: false,
+      sparring: { id: 'attempt-1', play_session_id: 'conversion-resume', source_game_id: 'original-game',
+        source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+        source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
+        completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null },
+    });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-resume',
+      pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`, white: 'bot', black: 'human', result: '*' });
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(ApiClient.getGame).toHaveBeenCalledTimes(1);
+    expect(ApiClient.getGame).toHaveBeenCalledWith('custom-resume');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('conversion practice');
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2', movable: expect.objectContaining({ color: 'black' }) }));
+  });
+
+  it.each(['initial', 'query', 'storage'] as const)(
+    'restores a completed conversion through %s from its final custom PGN without replaying queued moves',
+    async entry => {
+      const sourceFen = '7k/8/5KQ1/8/8/8/8/8 w - - 0 1';
+      const completed: PlaySessionRead = {
+        id: 'conversion-terminal', player_id: 'test-player', game_id: 'custom-terminal',
+        opponent_config: { bot_level: '8', player_color: 'white' }, player_color: 'white',
+        status: 'completed', coach_mode: false,
+        sparring: { id: 'attempt-terminal', play_session_id: 'conversion-terminal', source_game_id: 'original-game',
+          source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+          source_ply: 12, source_fen: sourceFen, player_color: 'white', seed: 'terminal-seed',
+          completed_at: '2026-11-19T10:00:00Z', result: '1-0', outcome: 'win',
+          verification_status: 'verified', next_review_at: '2026-11-22T10:00:00Z' },
+      };
+      if (entry === 'query') {
+        window.history.replaceState(null, '', '/play?session=conversion-terminal&mode=study#board');
+        localStorage.setItem('scan64_active_play_session_id', 'another-active');
+      } else if (entry === 'storage') {
+        localStorage.setItem('scan64_active_play_session_id', completed.id);
+      }
+      vi.mocked(ApiClient.getPlaySession).mockResolvedValue(completed);
+      vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-terminal',
+        pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n[Result "1-0"]\n\n1. Qg7# 1-0`,
+        white: 'human', black: 'bot', result: '1-0' });
+      vi.mocked(getQueuedMoves).mockResolvedValue([
+        { sessionId: completed.id, move: 'g6g7', timestamp: 1 },
+      ]);
+
+      render(entry === 'initial' ? <PlayScreen initialSession={{
+        ...completed, sparring: { ...completed.sparring!, outcome: null, result: null },
+      }} /> : <PlayScreen />);
+
+      await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+        orientation: 'white', fen: '7k/6Q1/5K2/8/8/8/8/8 b - - 1 1',
+        movable: expect.objectContaining({ color: undefined }),
+      })));
+      const result = screen.getByRole('region', { name: 'Conversion result' });
+      await waitFor(() => expect(result).toHaveTextContent('Verified conversion practice · win · 1-0'));
+      expect(result).toHaveTextContent('Next review: 2026-11-22T10:00:00Z');
+      expect(screen.getByTestId('session-info')).toHaveTextContent('Status: completed');
+      expect(screen.getByRole('link', { name: 'Review game' })).toHaveAttribute('href', '/games/custom-terminal/analysis');
+      expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Resign' })).not.toBeInTheDocument();
+      expect(ApiClient.getPlaySession).toHaveBeenCalledWith(completed.id);
+      expect(ApiClient.getPlaySession).not.toHaveBeenCalledWith('another-active');
+      expect(ApiClient.getGame).toHaveBeenCalledExactlyOnceWith('custom-terminal');
+      expect(getQueuedMoves).not.toHaveBeenCalled();
+      expect(syncQueuedMoves).not.toHaveBeenCalled();
+      expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBe(entry === 'query' ? 'another-active' : null);
+      if (entry === 'query') {
+        expect(window.location.search).toBe('?mode=study');
+        expect(window.location.hash).toBe('#board');
+      }
+    },
+  );
+
+  it('keeps an initially linked conversion locked until its queued move is drained and reloaded', async () => {
+    const sourceFen = '7k/8/8/8/8/r7/6K1/8 b - - 0 1';
+    const active: PlaySessionRead = {
+      id: 'conversion-queued', player_id: 'test-player', game_id: 'custom-queued',
+      opponent_config: { bot_level: '1' }, player_color: 'black', status: 'active', coach_mode: false,
+      sparring: { id: 'attempt-queued', play_session_id: 'conversion-queued', source_game_id: 'original-game',
+        source_review_id: 'review-1', source_position_id: 'position-1', source_analysis_id: 'analysis-1',
+        source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
+        completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null },
+    };
+    vi.mocked(getQueuedMoves).mockResolvedValue([
+      { sessionId: active.id, move: 'a3a1', timestamp: 1 },
+    ]);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-queued',
+      pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`,
+      white: 'bot', black: 'human', result: '*' });
+    render(<PlayScreen initialSession={active} />);
+    await screen.findByTestId('retry-move-sync');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    const move = await waitFor(getRegisteredMoveHandler);
+    await act(async () => { await move('a3', 'a2'); });
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+
+    vi.mocked(getQueuedMoves).mockResolvedValue([]);
+    fireEvent.click(screen.getByTestId('retry-move-sync'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+      orientation: 'black', fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2',
+      movable: expect.objectContaining({ color: 'black' }),
+    }));
   });
 
   it('resumes the explicitly linked unfinished session instead of a different stored session', async () => {
@@ -671,9 +876,10 @@ describe('PlayScreen', () => {
     });
   });
 
-  it('clears a terminal saved session without loading a game', async () => {
+  it('clears an ordinary terminal saved session without loading its game or result', async () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', opponent_config: {}, status: 'completed', coach_mode: false });
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'ordinary-ended-game',
+      opponent_config: {}, status: 'completed', coach_mode: false });
 
     render(<PlayScreen />);
 
@@ -683,6 +889,8 @@ describe('PlayScreen', () => {
     });
     expect(ApiClient.getGame).not.toHaveBeenCalled();
     expect(screen.queryByTestId('session-info')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
+    expect(screen.getByTestId('start-btn')).toBeInTheDocument();
   });
 
   it('removes an unresolvable saved session and reports its absence', async () => {

@@ -18,6 +18,7 @@ from scan64.chess.games.pgn import CorruptGameError, build_pgn
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
+from scan64.learning.sparring import complete_sparring
 from scan64.providers.maia import MaiaConfig, MaiaConfigurationError, MaiaOpponentProvider
 from scan64.providers.stockfish.pool import EnginePoolManager
 
@@ -231,6 +232,7 @@ class PlaySessionService:
             game.date = game.date or game.created_at.strftime("%Y.%m.%d")
             game.pgn = build_pgn(game)
             self.db.add(game)
+            complete_sparring(self.db, play_session, game, result)
 
             if game.owner_player_id is not None and game.moves:
                 job = AnalysisJob(game_id=game.id)

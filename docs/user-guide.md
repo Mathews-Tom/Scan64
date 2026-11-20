@@ -277,7 +277,7 @@ Open **Profile** to inspect active mastery, evidence, and recurring diagnoses af
 
 ### FSRS review scheduling
 
-Eligible lesson and daily-puzzle reviews use FSRS 6.3.3 with timing fuzz disabled. A verified failure is **Again**; a successful answer with recorded hints is **Hard**. An unassisted success is **Easy** only when hints are recorded as zero and solve time is recorded within 30 seconds for lessons/transfer tests or 60 seconds for puzzles; other successes are **Good**. Missing historical hints or time remain unknown, not zero, and cannot earn Easy. Lesson and transfer hints/time are app-reported; puzzle hints/time are server-recorded. Results remain server-verified. Fixed transfer-test timing, award rules and review-mode eligibility do not change.
+Eligible lesson, daily-puzzle and conversion-sparring reviews use FSRS 6.3.3 with timing fuzz disabled. A verified failure is **Again**; a successful answer with recorded hints is **Hard**. An unassisted success is **Easy** only when hints are recorded as zero and solve time is recorded within 30 seconds for lessons/transfer tests or 60 seconds for puzzles; other successes are **Good**. Missing historical hints or time remain unknown, not zero, and cannot earn Easy. Lesson and transfer hints/time are app-reported; puzzle hints/time are server-recorded. Results remain server-verified. Fixed transfer-test timing, award rules and review-mode eligibility do not change.
 
 Upgrading an existing database or restoring a pre-0.11 player archive preserves every schedule's exact due date, last-review time and retirement state without inventing past grades. Current archives retain FSRS state and review observations; progress reset and account deletion clear them only for the selected player. A schema downgrade is refused after FSRS reviews have been recorded to prevent data loss; retain the pre-migration database backup and exported player data for recovery.
 
@@ -630,6 +630,14 @@ Highlights are display-only: no engine search, skill award, assistance claim or
 credit-cap change is made.
 
 A confirmed move allowing mate is never relabelled as a hanging piece, missed direct material threat or missed capture. If **Allowed checkmate** has not cleared its measured trust gate, that move remains scored but the trusted diagnosis pipeline abstains. If it is trusted and selected, its explanation shows the legally replayed engine mating line and its lesson starts before the mistake. Ignoring an avoidable existing mate threat qualifies; playing on when mate was already forced does not.
+
+### Convert the win
+
+Select a winning position in an owned game's review, choose a conversion bot level and select **Convert the win**. Eligibility uses that exact position's stored analysis: at least +300 centipawns from your colour's perspective or a winning mate score, with a legal principal-variation move. A good-moment highlight alone does not qualify. Terminal, unscored and foreign positions cannot start conversion practice. Your original game stays unchanged; the new game preserves the selected FEN, side to move and your owner colour.
+
+Completion displays the server-recorded win, draw or loss and the next FSRS review date. A verified win records **Good**; a draw, loss or resignation records **Again**. Sparring does not collect solve time or hints, so those inputs remain unknown and cannot earn Easy. Retry the same source against the selected bot until converted. Each attempt records a fresh bot seed, although forced replies can remain identical. Restored attempts and observations remain historical and do not replay a review; a new verified completion schedules its own result. These custom-position games do not earn ordinary full-game strength credit.
+
+The review retains the latest result and review date after restart and can resume an unfinished attempt. Imported attempts are explicitly historical, including unfinished attempts that are played to completion after restoration: they never become verified outcomes, create review observations or change the review schedule. Start a new conversion from the source for a verified result. Ordinary continuation from an active conversion creates a separate game, leaving that conversion's board, side and player colour unchanged. Resetting progress clears conversion attempts and schedules while retaining the saved source games, reviews and play sessions; finishing a pre-reset session does not recreate deleted learning.
 
 ### Profile game insights
 

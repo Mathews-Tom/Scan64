@@ -162,6 +162,13 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
     try:
         for phase in ("upgrade", "reupgrade"):
             command.upgrade(config, "head")
+            with engine.connect() as connection:
+                assert (
+                    connection.exec_driver_sql(
+                        "SELECT version_num FROM alembic_version"
+                    ).scalar_one()
+                    == "20261119_20"
+                )
             with Session(engine) as session:
                 assert source_themes(session) == expected_themes
                 assert len(session.exec(select(PuzzleTheme)).all()) == 24

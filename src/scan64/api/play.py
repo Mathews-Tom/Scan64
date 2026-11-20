@@ -8,7 +8,7 @@ import chess
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlmodel import Session
+from sqlmodel import Session, col, select
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
@@ -25,6 +25,16 @@ from scan64.chess.games.play_session_service import (
 )
 from scan64.chess.opponents.bots import BOT_LEVELS, get_bot_level
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
+from scan64.learning.sparring import (
+    IneligibleSparringSource,
+    SparringAttempt,
+    SparringAttemptRead,
+    SparringSource,
+    SparringSourceNotFound,
+    SparringSourceRequest,
+    load_source,
+    read_sparring,
+)
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -42,6 +52,7 @@ class PlaySessionCreate(BaseModel):
     initial_fen: str | None = None
     coach_mode: bool = False
     player_color: Literal["white", "black", "random"] | None = None
+    sparring_source: SparringSourceRequest | None = None
 
     @field_validator("opponent_config")
     @classmethod
@@ -81,6 +92,7 @@ class PlaySessionRead(BaseModel):
     coach_mode: bool
     player_color: Literal["white", "black"]
     opponent_move: str | None = None
+    sparring: SparringAttemptRead | None = None
 
 
 class PlayMoveCreate(BaseModel):
@@ -149,6 +161,7 @@ def read_play_session(
         coach_mode=play_session.coach_mode,
         player_color="white" if colour else "black",
         opponent_move=opponent_move,
+        sparring=read_sparring(session, play_session),
     )
 
 
@@ -177,6 +190,26 @@ async def create_play_session(
     authenticated_player_id = require_authenticated_player(request, session)
     if authenticated_player_id != session_in.player_id:
         raise HTTPException(status_code=403, detail="Player bearer token does not match")
+    source: SparringSource | None = None
+    if session_in.sparring_source is not None:
+        if (
+            session_in.game_id is not None
+            or session_in.initial_fen is not None
+            or session_in.player_color is not None
+            or session_in.clock_config is not None
+            or session_in.coach_mode
+            or session_in.opponent_config.get("provider", "stockfish") != "stockfish"
+        ):
+            raise HTTPException(
+                status_code=422, detail="Sparring source cannot override its position or play mode"
+            )
+        try:
+            source = load_source(session, authenticated_player_id, session_in.sparring_source)
+        except SparringSourceNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except IneligibleSparringSource as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+    initial_fen = source.position.fen if source else session_in.initial_fen
     config = dict(session_in.opponent_config)
     if config.get("provider", "stockfish") == "stockfish":
         config["provider"] = "stockfish"
@@ -187,7 +220,7 @@ async def create_play_session(
             # Continuing an analysed/studied position retains its existing level-1 default.
             config["bot_level"] = str(
                 (manual or suggestion or 1)
-                if session_in.initial_fen is None and session_in.game_id is None
+                if initial_fen is None and session_in.game_id is None
                 else 1
             )
         config["bot_policy_version"] = BOT_POLICY_VERSION
@@ -196,12 +229,12 @@ async def create_play_session(
     # Client-supplied internal values cannot select another seed or undo boundary.
     config["seed"] = str(secrets.randbits(64))
     config["custom_start"] = (
-        "true" if session_in.initial_fen is not None or session_in.game_id is not None else "false"
+        "true" if initial_fen is not None or session_in.game_id is not None else "false"
     )
     config["assistance_generation"] = "0"
     game = None
-    if session_in.initial_fen is not None:
-        board = chess.Board(session_in.initial_fen)
+    if initial_fen is not None:
+        board = chess.Board(initial_fen)
     elif session_in.game_id is not None:
         game = session.get(Game, session_in.game_id)
         if game is None or game.owner_player_id != authenticated_player_id:
@@ -209,9 +242,18 @@ async def create_play_session(
         board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
         for move in game.moves:
             board.push_uci(move)
+        active_conversion = session.exec(
+            select(SparringAttempt.id)
+            .join(PlaySession, col(SparringAttempt.play_session_id) == col(PlaySession.id))
+            .where(PlaySession.game_id == game.id, PlaySession.status == "active")
+            .limit(1)
+        ).first()
+        if active_conversion is not None:
+            initial_fen = board.fen()
+            game = None
     else:
         board = chess.Board()
-    requested_color = session_in.player_color
+    requested_color = source.game.owner_color if source else session_in.player_color
     if requested_color == "random":
         colour = bool(secrets.randbits(1))
     elif requested_color is None:
@@ -219,11 +261,11 @@ async def create_play_session(
     else:
         colour = requested_color == "white"
     config["player_color"] = "white" if colour else "black"
-    if game is None and (session_in.initial_fen is not None or board.turn != colour):
-        white, black = participants(session_in.player_id, config, session_in.initial_fen)
+    if game is None and (initial_fen is not None or board.turn != colour):
+        white, black = participants(session_in.player_id, config, initial_fen)
         game = Game(
             pgn="",
-            headers={"FEN": session_in.initial_fen} if session_in.initial_fen else {},
+            headers={"FEN": initial_fen} if initial_fen else {},
             white=white,
             black=black,
             owner_player_id=session_in.player_id,
@@ -244,6 +286,19 @@ async def create_play_session(
         coach_mode=session_in.coach_mode,
         assistance_tracking_version=1,
     )
+    if source is not None:
+        session.add(play_session)
+        session.flush()
+        session.add(
+            SparringAttempt(
+                player_id=authenticated_player_id,
+                source_review_id=source.review.id,
+                source_position_id=source.position.id,
+                source_analysis_id=source.analysis.id,
+                play_session_id=play_session.id,
+                source_ply=source.ply,
+            )
+        )
     first_move = None
     if game is not None and board.turn != colour and not board.is_game_over():
         first_move = await service.play_opponent_move(play_session, game, board)

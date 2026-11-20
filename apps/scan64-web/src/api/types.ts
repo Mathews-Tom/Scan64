@@ -314,6 +314,8 @@ export interface GameMoveReviewRead {
   is_owner_move: boolean;
   credit?: Record<string, unknown> | null;
   credit_exclusion?: string | null;
+  sparring_eligible?: boolean;
+  sparring?: SparringAttemptRead | null;
 }
 
 export interface GameReviewKeyMoment {
@@ -357,6 +359,8 @@ export interface GameReviewRead {
   owner_color: 'white' | 'black' | null;
   initial_fen: string;
   initial_white_probability: number | null;
+  initial_sparring_eligible?: boolean;
+  initial_sparring?: SparringAttemptRead | null;
   moves: GameMoveReviewRead[];
   accuracy: number | null;
   scored_moves: number;
@@ -482,6 +486,25 @@ export interface PlaySessionCreate {
   clock_config?: Record<string, string>;
   initial_fen?: string;
   coach_mode?: boolean;
+  sparring_source?: { game_id: string; ply: number };
+}
+
+export interface SparringAttemptRead {
+  id: string;
+  play_session_id: string;
+  source_game_id: string;
+  source_review_id: string;
+  source_position_id: string;
+  source_analysis_id: string;
+  source_ply: number;
+  source_fen: string;
+  player_color: 'white' | 'black';
+  seed: string;
+  completed_at: string | null;
+  result: '1-0' | '0-1' | '1/2-1/2' | null;
+  outcome: 'win' | 'draw' | 'loss' | null;
+  verification_status: 'verified' | 'historical';
+  next_review_at: string | null;
 }
 
 export interface PlaySessionRead {
@@ -496,6 +519,7 @@ export interface PlaySessionRead {
   coach_mode: boolean;
   assistance_tracking_version?: number | null;
   credit_analysis_status?: string | null;
+  sparring?: SparringAttemptRead | null;
 }
 
 export interface PlayMoveCreate {
