@@ -48,7 +48,7 @@ def test_recorded_insight_response(client: TestClient, db_session: Session, monk
         assert candidate["fallback"] == (not candidate["reasons"])
         for reason in candidate["reasons"]:
             assert reason["line"] == candidate["line"][: len(reason["line"])]
-    analyze.assert_awaited_once_with(record["fen"])
+    analyze.assert_awaited_once_with(chess.Board(record["fen"]))
 
 
 def test_authentication_ownership_and_not_found(client: TestClient, db_session: Session):
@@ -134,7 +134,7 @@ def test_active_session_uses_current_position(client: TestClient, db_session: Se
     body = {"player_id": "hint-owner", "play_session_id": str(play.id), "step": 3}
     response = client.post("/v1/insights/position", headers=headers, json=body)
     assert response.status_code == 200
-    analyze.assert_awaited_once_with(record["fen"])
+    analyze.assert_awaited_once_with(chess.Board(record["fen"]))
     game.moves = ["f1c4"]
     db_session.add(game)
     db_session.commit()
@@ -210,7 +210,7 @@ def test_hint_before_first_move_uses_session_start(
     )
     assert response.status_code == 200, response.text
     assert response.json()["fen"] == fen
-    analyze.assert_awaited_once_with(fen)
+    analyze.assert_awaited_once_with(chess.Board(fen))
     if initial_fen is None:
         assert play["game_id"] is None
         resumed = client.get(f"/v1/play-sessions/{play['id']}", headers=headers)
@@ -393,7 +393,8 @@ def test_black_hint_before_human_first_move_and_after_takeback(
     assert repeated.status_code == 200, repeated.text
     assert repeated.json()["fen"] == board.fen()
     assert analyze.await_count == 2
-    assert all(call.args == (board.fen(),) for call in analyze.await_args_list)
+    assert all(call.args == (board,) for call in analyze.await_args_list)
+    assert all(call.args[0].move_stack == board.move_stack for call in analyze.await_args_list)
 
 
 @pytest.mark.parametrize(

@@ -19,7 +19,7 @@ HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
-HintCacheKey = tuple[str, str, int, int, int, int, int]
+HintCacheKey = tuple[str, tuple[str, ...], bool, str, int, int, int, int, int]
 
 
 def _positive_int_from_env(env_var: str, default: int) -> int:
@@ -126,12 +126,13 @@ class PooledStockfishAdapter:
 
     async def analyze_position(
         self,
-        fen: str,
+        fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
         time_ms: int | None = None,
         multipv: int = 1,
     ) -> EngineAnalysis:
+        """Analyze an isolated FEN or a replay board without discarding its stack."""
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
@@ -143,7 +144,7 @@ class PooledStockfishAdapter:
                 "UCI_Elo": 1320,
             }
         )
-        board = chess.Board(fen)
+        board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
         limit = chess.engine.Limit(
             nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
         )
@@ -335,9 +336,11 @@ class EnginePoolManager:
 
     _hint_in_progress = False
 
-    def _hint_cache_key(self, fen: str) -> HintCacheKey:
+    def _hint_cache_key(self, board: chess.Board) -> HintCacheKey:
         return (
-            fen,
+            board.root().fen(en_passant="fen"),
+            tuple(move.uci() for move in board.move_stack),
+            board.chess960,
             self.config.binary_path,
             self.config.threads,
             self.config.hash_size,
@@ -346,18 +349,20 @@ class EnginePoolManager:
             HINT_MULTIPV,
         )
 
-    def invalidate_hint(self, fen: str) -> None:
-        """Discard output rejected by a consumer's stricter validation."""
-        self._hint_cache.pop(self._hint_cache_key(fen), None)
+    def invalidate_hint(self, board: chess.Board) -> None:
+        """Discard rejected output for this exact replay, not just its final FEN."""
+        self._hint_cache.pop(self._hint_cache_key(board), None)
 
-    async def analyze_hint(self, fen: str) -> EngineAnalysis:
+    async def analyze_hint(self, board: chess.Board) -> EngineAnalysis:
         """Admit one hint, leaving an interactive slot for opponent moves.
 
         No hint queue: reject concurrent hints or a single-engine deployment.
         Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
         with a three-second wall deadline (including lazy engine startup).
+        Replay history reaches the UCI position command and is part of cache identity.
         """
-        key = self._hint_cache_key(fen)
+        board = board.copy()
+        key = self._hint_cache_key(board)
         cached = self._hint_cache.get(key)
         if cached is not None:
             self._hint_cache.move_to_end(key)
@@ -373,7 +378,7 @@ class EnginePoolManager:
                     adapter = await lease.__aenter__()
                 try:
                     analysis = await adapter.analyze_position(
-                        fen, nodes=HINT_NODES, time_ms=HINT_TIME_MS, multipv=HINT_MULTIPV
+                        board, nodes=HINT_NODES, time_ms=HINT_TIME_MS, multipv=HINT_MULTIPV
                     )
                     self._hint_cache[key] = analysis.model_copy(deep=True)
                     if len(self._hint_cache) > HINT_CACHE_SIZE:

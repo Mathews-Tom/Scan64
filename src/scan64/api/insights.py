@@ -72,7 +72,7 @@ async def insight_position(
             status_code=503, detail="Hints require at least two interactive engines"
         )
     try:
-        analysis = await manager.analyze_hint(board.fen())
+        analysis = await manager.analyze_hint(board)
         response = insight_step(board, position_insight(board, analysis), body.step)
         if snapshot is not None:
             persist_assistance(session, snapshot, board, body.step)
@@ -181,13 +181,13 @@ async def analyze_position(
             detail="Analysis requires at least two interactive engines; try again when available",
         )
     try:
-        analysis = await manager.analyze_hint(fen)
+        analysis = await manager.analyze_hint(board)
         try:
             lines = _analysis_lines(board, analysis)
         except ValueError:
             # Hint consumers can use output that lacks a complete legal PV.
             # Evict only when free-analysis conversion rejects it, so Retry searches again.
-            manager.invalidate_hint(fen)
+            manager.invalidate_hint(board)
             raise
         return PositionAnalysisRead(fen=fen, lines=lines)
     except TimeoutError:

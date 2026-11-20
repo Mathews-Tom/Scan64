@@ -90,8 +90,8 @@ def _request(
     )
 
 
-def _witness(fen: str, score: int = 0) -> EngineAnalysis:
-    board = chess.Board(fen)
+def _witness(position: str | chess.Board, score: int = 0) -> EngineAnalysis:
+    board = position if isinstance(position, chess.Board) else chess.Board(position)
     return EngineAnalysis(
         raw_result=[{"pv": [next(iter(board.legal_moves)).uci()], "score_cp": score}]
     )
@@ -246,7 +246,7 @@ def test_snapshot_race_discloses_no_grades_or_new_provenance(
     play, game, board = _source(db_session, moves=["g1f3", "g8f6"])
     changed = False
 
-    async def racing_engine(fen: str) -> EngineAnalysis:
+    async def racing_engine(position: chess.Board) -> EngineAnalysis:
         nonlocal changed
         if not changed:
             changed = True
@@ -266,7 +266,7 @@ def test_snapshot_race_discloses_no_grades_or_new_provenance(
                 claim_snapshot(db_session, PlaySnapshot.capture(play, game))
                 game.moves = original
             db_session.commit()
-        return _witness(fen)
+        return _witness(position)
 
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", racing_engine)
     response = _request(client, play, headers, fen=board.fen(), mode="guard")
@@ -459,7 +459,7 @@ async def test_terminal_proposals_use_exact_outcomes_but_still_compare_with_base
         assert grade.win_probability_loss > 0.30
     else:
         assert grade.win_probability_loss == 0
-    analyze.assert_awaited_once_with(fen)
+    analyze.assert_awaited_once_with(board)
 
 
 @pytest.mark.asyncio
@@ -489,7 +489,7 @@ def test_multi_candidate_order_and_existing_hint_cache_budgets_are_shared_with_g
     headers = _register(db_session)
     play, game, _ = _source(db_session)
     monkeypatch.setattr(PooledStockfishAdapter, "ensure_started", AsyncMock())
-    analyze = AsyncMock(side_effect=lambda fen, **_kwargs: _witness(fen))
+    analyze = AsyncMock(side_effect=lambda board, **_kwargs: _witness(board))
     monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
     response = _request(client, play, headers, moves=["d2d4", "e2e4", "g1f3"])
     assert response.status_code == 200, response.text
@@ -519,13 +519,13 @@ async def test_grading_does_not_queue_behind_hint_or_consume_reserved_opponent_s
     entered, release = asyncio.Event(), asyncio.Event()
     searches = 0
 
-    async def held_search(fen: str, **_kwargs: Any) -> EngineAnalysis:
+    async def held_search(board: chess.Board, **_kwargs: Any) -> EngineAnalysis:
         nonlocal searches
         searches += 1
         if searches == 1:
             entered.set()
             await release.wait()
-        return _witness(fen)
+        return _witness(board)
 
     monkeypatch.setattr(PooledStockfishAdapter, "ensure_started", AsyncMock())
     monkeypatch.setattr(

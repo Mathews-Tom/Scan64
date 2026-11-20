@@ -49,8 +49,8 @@ async def test_identical_hints_reuse_engine_result(monkeypatch):
     monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
     manager = EnginePoolManager(StockfishConfig())
     try:
-        first = await manager.analyze_hint(chess.STARTING_FEN)
-        second = await manager.analyze_hint(chess.STARTING_FEN)
+        first = await manager.analyze_hint(chess.Board())
+        second = await manager.analyze_hint(chess.Board())
         assert first.raw_result == second.raw_result
         assert calls == 1
     finally:
@@ -144,14 +144,14 @@ async def test_hint_cache_keys_every_engine_input(monkeypatch, setting, value):
     monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
     manager = EnginePoolManager(StockfishConfig())
     try:
-        await manager.analyze_hint(chess.STARTING_FEN)
+        await manager.analyze_hint(chess.Board())
         if setting.startswith("HINT_"):
             monkeypatch.setattr(pool_module, setting, value)
         else:
             monkeypatch.setattr(manager.config, setting, value)
-        await manager.analyze_hint(chess.STARTING_FEN)
+        await manager.analyze_hint(chess.Board())
         assert analyze.await_count == 2
-        await manager.analyze_hint(chess.STARTING_FEN)
+        await manager.analyze_hint(chess.Board())
         assert analyze.await_count == 2
     finally:
         await manager.close()
@@ -164,19 +164,19 @@ async def test_hint_cache_is_bounded_lru_and_returns_independent_results(monkeyp
     monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
     monkeypatch.setattr(pool_module, "HINT_CACHE_SIZE", 2)
     manager = EnginePoolManager(StockfishConfig())
-    fens = [chess.STARTING_FEN.replace("0 1", f"{clock} 1") for clock in range(3)]
+    boards = [chess.Board(chess.STARTING_FEN.replace("0 1", f"{clock} 1")) for clock in range(3)]
     try:
-        first = await manager.analyze_hint(fens[0])
+        first = await manager.analyze_hint(boards[0])
         first.raw_result[0]["pv"] = ["a2a4"]
-        await manager.analyze_hint(fens[1])
-        cached = await manager.analyze_hint(fens[0])
+        await manager.analyze_hint(boards[1])
+        cached = await manager.analyze_hint(boards[0])
         assert cached.raw_result[0]["pv"] == ["e2e4"]
         cached.raw_result[0]["pv"] = ["h2h4"]
-        await manager.analyze_hint(fens[2])
+        await manager.analyze_hint(boards[2])
         assert len(manager._hint_cache) == 2
-        assert (await manager.analyze_hint(fens[0])).raw_result[0]["pv"] == ["e2e4"]
+        assert (await manager.analyze_hint(boards[0])).raw_result[0]["pv"] == ["e2e4"]
         assert analyze.await_count == 3
-        await manager.analyze_hint(fens[1])
+        await manager.analyze_hint(boards[1])
         assert analyze.await_count == 4
     finally:
         await manager.close()
@@ -193,8 +193,8 @@ async def test_failed_hint_is_not_cached(monkeypatch):
     manager = EnginePoolManager(StockfishConfig())
     try:
         with pytest.raises(OSError):
-            await manager.analyze_hint(chess.STARTING_FEN)
-        await manager.analyze_hint(chess.STARTING_FEN)
+            await manager.analyze_hint(chess.Board())
+        await manager.analyze_hint(chess.Board())
         assert analyze.await_count == 2
     finally:
         await manager.close()

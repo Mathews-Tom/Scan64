@@ -185,7 +185,7 @@ def test_active_explanation_compares_both_povs_and_records_only_assistance(
     for uci in body["reply_line"]:
         assert chess.Move.from_uci(uci) in board.legal_moves
         board.push_uci(uci)
-    assert [call.args[0] for call in analyze.await_args_list] == [
+    assert [call.args[0].fen() for call in analyze.await_args_list] == [
         body["fen_before"],
         body["fen_after"],
     ]
@@ -318,7 +318,7 @@ def test_explanation_releases_transaction_and_rejects_a_newer_run_after_await(
     run = _start(client, auth)
     calls = 0
 
-    async def analyze(_fen: str) -> EngineAnalysis:
+    async def analyze(_board: chess.Board) -> EngineAnalysis:
         nonlocal calls
         assert not db_session.in_transaction()
         calls += 1
@@ -536,7 +536,7 @@ def test_reset_disappearing_run_after_analysis_cannot_recreate_progress(
     run = _start(client, auth)
     calls = 0
 
-    async def analyze(_fen: str) -> EngineAnalysis:
+    async def analyze(_board: chess.Board) -> EngineAnalysis:
         nonlocal calls
         assert not db_session.in_transaction()
         calls += 1

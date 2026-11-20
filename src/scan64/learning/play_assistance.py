@@ -28,8 +28,7 @@ async def _scored_probability(board: chess.Board, manager: EnginePoolManager) ->
     terminal, _ = review_probability(board, {})
     if terminal is not None:
         return terminal
-    fen = board.fen()
-    analysis = await manager.analyze_hint(fen)
+    analysis = await manager.analyze_hint(board)
     try:
         if not isinstance(analysis.raw_result, list) or not analysis.raw_result:
             raise ValueError("The engine returned no scored witness")
@@ -57,7 +56,7 @@ async def _scored_probability(board: chess.Board, manager: EnginePoolManager) ->
             raise ValueError("The engine returned no usable score")
         return probability
     except (ValueError, OverflowError):
-        manager.invalidate_hint(fen)
+        manager.invalidate_hint(board)
         raise ValueError("The engine returned no scored legal witness") from None
 
 
@@ -66,8 +65,9 @@ async def grade_play_moves(
 ) -> list[PlayMoveGrade]:
     """Use one reserved source search and at most one search per proposed move.
 
-    Branches retain the replay stack for exact automatic outcomes. Engine calls
-    use the existing hint admission, budgets and cache, sequentially so this
+    Branches retain the replay stack for exact automatic outcomes, including
+    future repetitions inside engine searches. Calls use the existing hint
+    admission, budgets and replay-keyed cache, sequentially so this
     request never occupies the interactive slot reserved for opponent moves.
     """
     if not board.is_valid() or board.is_game_over(claim_draw=False):

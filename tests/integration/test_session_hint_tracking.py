@@ -183,7 +183,7 @@ def test_engine_work_race_returns_409_without_hint_data(
     db_session.add(play)
     db_session.commit()
 
-    async def concurrent_change(_fen: str) -> EngineAnalysis:
+    async def concurrent_change(_board: chess.Board) -> EngineAnalysis:
         if mutation == "complete":
             play.status = "completed"
         elif mutation == "first_game":

@@ -104,7 +104,7 @@ def test_real_adapter_scores_are_normalized_to_white(
         {"uci": pv[0], "san": "e4" if turn else "e5"},
         {"uci": pv[1], "san": "e5" if turn else "e4"},
     ]
-    analyze.assert_awaited_once_with(board.fen())
+    analyze.assert_awaited_once_with(board)
 
 
 @pytest.mark.parametrize(

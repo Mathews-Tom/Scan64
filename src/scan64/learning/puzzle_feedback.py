@@ -52,12 +52,12 @@ async def explain_puzzle_move(
     if manager is None or manager.interactive_pool.concurrency < 2:
         raise ValueError("Puzzle explanations require the reserved interactive engine pool")
 
-    baseline = await manager.analyze_hint(before.fen())
+    baseline = await manager.analyze_hint(before)
     # position_insight validates complete witness lines, not just their first ply.
     original = position_insight(before, baseline)
     if not original.candidates:
         raise ValueError("The engine returned no legal source continuation")
-    branch = await manager.analyze_hint(after.fen())
+    branch = await manager.analyze_hint(after)
     insight = position_insight(after, branch)
     if not insight.candidates:
         raise ValueError("The engine returned no legal reply continuation")
