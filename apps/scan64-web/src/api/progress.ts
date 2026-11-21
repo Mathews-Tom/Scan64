@@ -34,6 +34,7 @@ export async function readProgress<T>(
           throw new Error('Malformed progress record.', { cause: error });
         }
         onUpdate(state);
+        signal.throwIfAborted();
         if (isTerminal(state)) return state;
       }
       if (done) {

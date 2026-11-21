@@ -47,7 +47,11 @@ export default defineConfig({
           warnings: [],
         })],
         runtimeCaching: [{
-          urlPattern: ({ request, sameOrigin }) => sameOrigin && request.destination === 'script',
+          urlPattern: ({ request, sameOrigin, url }) => sameOrigin && (
+            request.destination === 'script'
+            // Workbox CACHE_URLS builds a GET without a script destination.
+            || (request.destination === '' && url.href === url.origin + url.pathname && /^\/assets\/[^/]+-[\w-]{8}\.js$/.test(url.pathname))
+          ),
           handler: 'CacheFirst',
           options: { cacheName: 'scan64-route-scripts', expiration: { maxEntries: 64 } },
         }],

@@ -25,6 +25,7 @@ interface Controller {
   download: () => void;
   chooseFile: () => void;
   cancel: () => void;
+  reconnect: (() => void) | null;
   startPuzzles: () => void;
 }
 const ImportContext = createContext<Controller | null>(null);
@@ -34,6 +35,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
   const [state, setState] = useState(idle);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const busy = useRef(false);
   const latest = useRef(idle);
   const revision = useRef(-1);
@@ -48,6 +50,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
     latest.current = next;
     setState(next);
     setError(null);
+    setStreamError(null);
   }, []);
   const request = useCallback(async (method: 'POST' | 'DELETE', body?: object) => {
     const response = await apiFetch(`${apiBase()}/app/puzzle-import`, {
@@ -64,6 +67,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
     stream.current?.abort();
     const controller = new AbortController();
     stream.current = controller;
+    setStreamError(null);
     try {
       const response = await apiFetch(`${apiBase()}/app/puzzle-import/events`, { signal: controller.signal });
       await readProgress<PuzzleImportState>(response, controller.signal, next => {
@@ -71,7 +75,7 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
       }, next => !activeJob(next));
     } catch (failure) {
       if (!controller.signal.aborted && mounted.current && stream.current === controller) {
-        setError(failure instanceof Error ? failure.message : 'Could not read puzzle import progress.');
+        setStreamError(failure instanceof Error ? failure.message : 'Could not read puzzle import progress.');
       }
     } finally {
       if (stream.current === controller) stream.current = null;
@@ -105,7 +109,10 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
       if (mounted.current) setPending(false);
     }
   };
-  return <ImportContext.Provider value={{ state, desktop, pending, error, download: () => void act('download'), chooseFile: () => void act('file'), cancel: () => void act('cancel'), startPuzzles: onStartPuzzles }}>{children}</ImportContext.Provider>;
+  const reconnect = running && streamError ? () => {
+    if (!stream.current) void connect();
+  } : null;
+  return <ImportContext.Provider value={{ state, desktop, pending, error: error ?? streamError, download: () => void act('download'), chooseFile: () => void act('file'), cancel: () => void act('cancel'), reconnect, startPuzzles: onStartPuzzles }}>{children}</ImportContext.Provider>;
 }
 
 export function usePuzzleImport() { return useContext(ImportContext); }
@@ -175,6 +182,10 @@ export function PuzzleLibraryControls() {
       <Button aria-disabled={pending} onClick={controller.chooseFile}>Choose a file…</Button>
     </>}
     {error ? <StatusLine ref={errorRef} tabIndex={-1} kind="error">{error}</StatusLine> : null}
+    {controller.reconnect ? <Button onClick={() => {
+      cancelRef.current?.focus();
+      controller.reconnect?.();
+    }}>Reconnect to import progress</Button> : null}
   </div>;
 }
 export function PuzzleLibraryPanel() { return <Panel id="puzzle-library" tabIndex={-1} title="Puzzle library"><PuzzleLibraryControls /></Panel>; }

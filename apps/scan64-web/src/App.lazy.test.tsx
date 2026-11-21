@@ -74,7 +74,7 @@ describe('lazy route loading', () => {
     expect(document.title).toBe('Today · Scan64');
   });
 
-  it('focuses the requested Settings panel only after its deferred route finishes loading', async () => {
+  it('focuses the requested Settings panel on deferred and cached visits', async () => {
     window.history.replaceState(null, '', '/library');
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 960 });
     render(<App />);
@@ -100,6 +100,13 @@ describe('lazy route loading', () => {
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(document.title).toBe('Settings · Scan64');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+    navigate('Library');
+    expect(screen.getByRole('main')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open import activity' }));
+    expect(screen.getByRole('region', { name: 'Puzzle library' })).toHaveFocus();
   });
 
   it('shows a rejected route error while keeping navigation usable and recovers on another route', async () => {

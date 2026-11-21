@@ -159,7 +159,7 @@ function App() {
       localStorage.setItem(sidebarPreferenceKey, String(expanded));
     }
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const titles: Record<string, string> = {
       '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
       '/training': 'Daily Training', '/puzzles': 'Puzzles', '/profile': 'Profile',

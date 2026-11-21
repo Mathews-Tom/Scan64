@@ -163,6 +163,39 @@ describe('Puzzle import', () => {
     await pushState({ status: 'cancelled' });
     expect(document.activeElement).toBe(screen.getByText('Import cancelled. Your puzzle library is unchanged.'));
   });
+  it.each(['cancelling', 'cancelled'] as const)('reconnects a cancelling job to a %s snapshot without repeating the command', async status => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel download' })); await settle();
+    await act(async () => { streams.at(-1)!.fail(new Error('Connection lost.')); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Connection lost.');
+    const cancel = screen.getByRole('button', { name: 'Cancel download' });
+    expect(cancel).toHaveAttribute('aria-disabled', 'true');
+
+    if (status === 'cancelled') state = { ...state, status, revision: state.revision + 1 };
+    vi.mocked(apiFetch).mockClear();
+    const retry = screen.getByRole('button', { name: 'Reconnect to import progress' });
+    retry.focus();
+    fireEvent.click(retry); await settle();
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/v1/app/puzzle-import/events', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(status === 'cancelling' ? cancel : screen.getByText('Import cancelled. Your puzzle library is unchanged.')).toHaveFocus();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it('clears a stale stream error when Cancel returns an already-completed import', async () => {
+    render(<Harness />); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();
+    await act(async () => { streams.at(-1)!.fail(new Error('Connection lost.')); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Connection lost.');
+
+    state = { ...state, status: 'succeeded', revision: state.revision + 1, summary: { accepted: 1, inserted: 1, existing: 0, read: 1 } };
+    vi.mocked(apiFetch).mockClear().mockResolvedValueOnce(new Response(JSON.stringify(state), { status: 200 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel download' })); await settle();
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/v1/app/puzzle-import', { method: 'DELETE' });
+    expect(screen.getByRole('button', { name: 'Start puzzles' })).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
   it('focuses Start puzzles after a successful import', async () => {
     render(<Harness />); await settle();
     fireEvent.click(screen.getByRole('button', { name: 'Download puzzles' })); await settle();

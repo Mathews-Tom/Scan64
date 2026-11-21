@@ -483,7 +483,7 @@ removes temporary downloads. Success deletes the downloaded file and offers
 controls. Browser/container users keep using the CLI commands above; the
 desktop import endpoints are not exposed there.
 
-Import progress is pushed from the server and remains visible in the sidebar across navigation. Reloading reads the current job state; too many concurrent progress streams or a disconnected stream reports an error without stopping the import.
+Import progress is pushed from the server and remains visible in the sidebar across navigation. A disconnected stream or too many concurrent listeners does not stop the import. While an import is running or cancelling, select **Reconnect to import progress** after a stream error to see the latest state without starting another import or sending another cancellation. Reloading also reads the current job state.
 
 `--download` saves the **entire** compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
 the complete file and a temporary replacement when downloading again. Interrupted downloads

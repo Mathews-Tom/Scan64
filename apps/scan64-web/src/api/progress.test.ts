@@ -146,6 +146,18 @@ describe('readProgress', () => {
     expect(stream.body.locked).toBe(false);
   });
 
+  it('stops delivering buffered records when an update aborts the stream', async () => {
+    const stream = progressStream();
+    const controller = new AbortController();
+    const updates = vi.fn((_state: Progress) => controller.abort());
+    const pending = readProgress<Progress>(stream.response, controller.signal, updates, terminal);
+    stream.push('{"status":"running"}\n{"status":"completed"}\n');
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(updates).toHaveBeenCalledExactlyOnceWith({ status: 'running' });
+    expect(stream.body.locked).toBe(false);
+  });
+
   it('does not acquire a reader when the signal is already aborted', async () => {
     const stream = progressStream();
     const controller = new AbortController();
