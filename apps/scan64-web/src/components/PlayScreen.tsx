@@ -505,6 +505,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       queuedMoveNeedsRefreshRef.current.delete(sessionId);
       setSession(refreshedSession);
       setClockSnapshotAt(receivedAt);
+      const refreshedClock = refreshedSession.clock;
+      if (refreshedSession.status === 'active' && refreshedClock?.active_color) {
+        const remaining = refreshedClock.active_color === 'white'
+          ? refreshedClock.white_remaining_ms : refreshedClock.black_remaining_ms;
+        if (remaining > 0) refreshedDeadlines.current.delete(`${sessionId}:${refreshedClock.version}`);
+      }
       setServerResult(result);
       setHintPreview(null);
       setOpponentRetry(!!refreshedSession.clock?.active_color && refreshedSession.status === 'active' &&
@@ -599,6 +605,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     if (!initialSession?.clock || initialClockRefreshed.current) return;
     initialClockRefreshed.current = true;
     void refreshQueuedSession(initialSession.id);
+    return () => { initialClockRefreshed.current = false; };
   }, [initialSession, refreshQueuedSession]);
 
   useEffect(() => {
