@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import math
 from collections import Counter, defaultdict
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from itertools import batched
 from typing import Literal
@@ -80,6 +81,18 @@ class PatternRecurrenceReport(BaseModel):
     coverage: dict[str, int]
     patterns: list[PatternRecurrence]
     caveat: str = CAVEAT
+
+
+@dataclass(frozen=True)
+class RecurrenceEvidence:
+    """A verified primary occurrence, projected only after cohort inclusion."""
+
+    code: str
+    game_id: str
+    ply: int
+    fen: str
+    move_uci: str
+    period: Literal["before", "after"] = "before"
 
 
 def _utc(value: datetime) -> datetime:
@@ -368,6 +381,7 @@ async def _game_occurrences(
     evidence: dict[str, list[Evidence]],
     mate_sources: dict[UUID, EngineAnalysis],
     detectors: tuple[PatternDetector, ...],
+    projected: list[RecurrenceEvidence] | None = None,
 ) -> tuple[int, dict[str, int], set[str], str | None]:
     board = board_from(game.headers.get("FEN"))
     reviews = {row.ply: row for row in rows}
@@ -492,6 +506,16 @@ async def _game_occurrences(
                 for ref in primary.evidence_ids
             ):
                 occurrences[primary.skill_id] += 1
+                if projected is not None:
+                    projected.append(
+                        RecurrenceEvidence(
+                            code=primary.skill_id,
+                            game_id=str(game.id),
+                            ply=ply,
+                            fen=source_fen,
+                            move_uci=uci,
+                        )
+                    )
             else:
                 supported.discard(primary.skill_id)
     return owner_moves, dict(occurrences), supported, None
@@ -515,7 +539,21 @@ async def read_pattern_recurrence(player_id: str, session: Session) -> PatternRe
         return await _read_pattern_recurrence(player_id, session)
 
 
-async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternRecurrenceReport:
+async def read_pattern_recurrence_evidence(
+    player_id: str, session: Session
+) -> tuple[PatternRecurrenceReport, list[RecurrenceEvidence]]:
+    """Use the exact report pass and its inclusion gates, without re-analysis."""
+    projected: list[RecurrenceEvidence] = []
+    with session.no_autoflush:
+        report = await _read_pattern_recurrence(player_id, session, projected)
+    return report, projected
+
+
+async def _read_pattern_recurrence(
+    player_id: str,
+    session: Session,
+    projected: list[RecurrenceEvidence] | None = None,
+) -> PatternRecurrenceReport:
     anchors = _first_training(player_id, session)
     patterns = {
         code: PatternRecurrence(
@@ -623,7 +661,9 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
         supported: set[str] = set()
         invalid: str | None = "incomplete_analysis"
         best_rank = (False, -1)
+        selected_evidence: list[RecurrenceEvidence] = []
         for game, played_at in copies:
+            game_evidence: list[RecurrenceEvidence] | None = [] if projected is not None else None
             result: tuple[int, dict[str, int], set[str], str | None] = (
                 0,
                 {},
@@ -632,7 +672,14 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
             )
             if game.id in complete:
                 result = await _game_occurrences(
-                    game, reviews[game.id], positions, analyses, evidence, mate_sources, detectors
+                    game,
+                    reviews[game.id],
+                    positions,
+                    analyses,
+                    evidence,
+                    mate_sources,
+                    detectors,
+                    game_evidence,
                 )
             moves, found, supported_codes, exclusion = result
             if exclusion is None and moves < 20:
@@ -642,6 +689,7 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
                 when = played_at
                 owner_moves, counts, supported, invalid = moves, found, supported_codes, exclusion
                 best_rank = rank
+                selected_evidence = game_evidence or []
             if exclusion is None and supported_codes == TRUSTED_CODES:
                 break
         for code, pattern in patterns.items():
@@ -660,6 +708,12 @@ async def _read_pattern_recurrence(player_id: str, session: Session) -> PatternR
             period.games += 1
             period.owner_moves += owner_moves
             period.occurrences = (period.occurrences or 0) + counts.get(code, 0)
+            if projected is not None:
+                projected.extend(
+                    replace(item, period="before" if when < anchor else "after")
+                    for item in selected_evidence
+                    if item.code == code
+                )
     for pattern in patterns.values():
         if pattern.first_training_at is None:
             continue
