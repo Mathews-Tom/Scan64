@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiBase, apiFetch, choosePuzzleFile, isDesktop } from '../platform';
+import { readProgress } from '../api/progress';
 import { Button, Panel, ProgressBar, StatusLine } from './Primitives';
 
 export interface PuzzleImportState {
+  revision: number;
   status: 'idle' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed';
   phase: 'download' | 'read' | 'import' | 'save' | null;
   done: number;
@@ -13,7 +15,7 @@ export interface PuzzleImportState {
   error: string | null;
   summary: { accepted: number; inserted: number; existing: number; read: number } | null;
 }
-const idle: PuzzleImportState = { status: 'idle', phase: null, done: 0, total: null, unit: 'puzzles', bytes_per_second: null, error: null, summary: null };
+const idle: PuzzleImportState = { revision: 0, status: 'idle', phase: null, done: 0, total: null, unit: 'puzzles', bytes_per_second: null, error: null, summary: null };
 const activeJob = (state: PuzzleImportState) => state.status === 'running' || state.status === 'cancelling';
 interface Controller {
   state: PuzzleImportState;
@@ -23,6 +25,7 @@ interface Controller {
   download: () => void;
   chooseFile: () => void;
   cancel: () => void;
+  reconnect: (() => void) | null;
   startPuzzles: () => void;
 }
 const ImportContext = createContext<Controller | null>(null);
@@ -32,10 +35,24 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
   const [state, setState] = useState(idle);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const busy = useRef(false);
-  const version = useRef(0);
-  const mounted = useRef(true);
-  const request = useCallback(async (method: 'GET' | 'POST' | 'DELETE', body?: object) => {
+  const latest = useRef(idle);
+  const revision = useRef(-1);
+  const stream = useRef<AbortController | null>(null);
+  const mounted = useRef(false);
+  const accept = useCallback((next: PuzzleImportState) => {
+    if (!Number.isSafeInteger(next.revision) || next.revision < 0 || !['idle', 'running', 'cancelling', 'cancelled', 'succeeded', 'failed'].includes(next.status)) {
+      throw new Error('Malformed puzzle import progress.');
+    }
+    if (!mounted.current || next.revision <= revision.current) return;
+    revision.current = next.revision;
+    latest.current = next;
+    setState(next);
+    setError(null);
+    setStreamError(null);
+  }, []);
+  const request = useCallback(async (method: 'POST' | 'DELETE', body?: object) => {
     const response = await apiFetch(`${apiBase()}/app/puzzle-import`, {
       method,
       ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
@@ -46,39 +63,45 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
     }
     return await response.json() as PuzzleImportState;
   }, []);
+  const connect = useCallback(async () => {
+    stream.current?.abort();
+    const controller = new AbortController();
+    stream.current = controller;
+    setStreamError(null);
+    try {
+      const response = await apiFetch(`${apiBase()}/app/puzzle-import/events`, { signal: controller.signal });
+      await readProgress<PuzzleImportState>(response, controller.signal, next => {
+        if (stream.current === controller) accept(next);
+      }, next => !activeJob(next));
+    } catch (failure) {
+      if (!controller.signal.aborted && mounted.current && stream.current === controller) {
+        setStreamError(failure instanceof Error ? failure.message : 'Could not read puzzle import progress.');
+      }
+    } finally {
+      if (stream.current === controller) stream.current = null;
+    }
+  }, [accept]);
   const running = activeJob(state);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; version.current += 1; };
-  }, []);
-  useEffect(() => {
-    if (!desktop) return;
-    let stopped = false;
-    let timer: number | undefined;
-    const poll = async () => {
-      const revision = version.current;
-      try {
-        const next = await request('GET');
-        if (!stopped && !busy.current && revision === version.current) { setState(next); setError(null); }
-      } catch (failure) {
-        if (!stopped && !busy.current && revision === version.current) setError(failure instanceof Error ? failure.message : 'Could not read puzzle import progress.');
-      } finally {
-        if (!stopped && running) timer = window.setTimeout(() => void poll(), 500);
-      }
+    if (desktop) void connect();
+    return () => {
+      mounted.current = false;
+      stream.current?.abort();
+      stream.current = null;
     };
-    void poll();
-    return () => { stopped = true; clearTimeout(timer); };
-  }, [desktop, running, request]);
+  }, [desktop, connect]);
   const act = async (action: 'download' | 'file' | 'cancel') => {
     if (!desktop || busy.current || (action !== 'cancel' && running) || (action === 'cancel' && state.status === 'cancelling')) return;
     busy.current = true; setPending(true); setError(null);
-    version.current += 1;
     try {
       const path = action === 'file' ? await choosePuzzleFile() : null;
       if (!mounted.current || (action === 'file' && path === null)) return;
       const next = await request(action === 'cancel' ? 'DELETE' : 'POST', action === 'cancel' ? undefined : action === 'file' ? { source: 'file', path } : { source: 'download' });
-      version.current += 1;
-      if (mounted.current) setState(next);
+      if (mounted.current) {
+        accept(next);
+        if (activeJob(latest.current) && (action !== 'cancel' || stream.current === null)) void connect();
+      }
     } catch (failure) {
       if (mounted.current) setError(failure instanceof Error ? failure.message : typeof failure === 'string' ? failure : 'Puzzle import failed. Try again.');
     } finally {
@@ -86,7 +109,10 @@ export function PuzzleImportProvider({ children, onStartPuzzles }: { children: R
       if (mounted.current) setPending(false);
     }
   };
-  return <ImportContext.Provider value={{ state, desktop, pending, error, download: () => void act('download'), chooseFile: () => void act('file'), cancel: () => void act('cancel'), startPuzzles: onStartPuzzles }}>{children}</ImportContext.Provider>;
+  const reconnect = running && streamError ? () => {
+    if (!stream.current) void connect();
+  } : null;
+  return <ImportContext.Provider value={{ state, desktop, pending, error: error ?? streamError, download: () => void act('download'), chooseFile: () => void act('file'), cancel: () => void act('cancel'), reconnect, startPuzzles: onStartPuzzles }}>{children}</ImportContext.Provider>;
 }
 
 export function usePuzzleImport() { return useContext(ImportContext); }
@@ -156,6 +182,10 @@ export function PuzzleLibraryControls() {
       <Button aria-disabled={pending} onClick={controller.chooseFile}>Choose a file…</Button>
     </>}
     {error ? <StatusLine ref={errorRef} tabIndex={-1} kind="error">{error}</StatusLine> : null}
+    {controller.reconnect ? <Button onClick={() => {
+      cancelRef.current?.focus();
+      controller.reconnect?.();
+    }}>Reconnect to import progress</Button> : null}
   </div>;
 }
 export function PuzzleLibraryPanel() { return <Panel id="puzzle-library" tabIndex={-1} title="Puzzle library"><PuzzleLibraryControls /></Panel>; }

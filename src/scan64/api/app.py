@@ -29,6 +29,7 @@ from scan64.api.reports import router as reports_router
 from scan64.api.strength import router as strength_router
 from scan64.api.web import mount_web_client, web_dist_directory
 from scan64.chess.analysis.admission import admission_controller
+from scan64.chess.analysis.notifications import close_analysis_subscriptions
 from scan64.chess.analysis.recovery import recover_analysis_jobs
 from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.content.transfer_catalog import seed_transfer_positions
@@ -84,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await app.state.play_clock_runtime.stop()
         finally:
             del app.state.play_clock_runtime
+            close_analysis_subscriptions(database.engine)
             if shell_token is not None:
                 await asyncio.to_thread(app.state.puzzle_import_job.close)
                 del app.state.puzzle_import_job

@@ -117,26 +117,11 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
       const job = await ApiClient.createAnalysisJob(game.id);
       if (signal.aborted) return;
 
-      let currentJob = job;
-      while (currentJob.status !== 'completed' && currentJob.status !== 'failed') {
-        setStatusText(`Analyzing game (status: ${currentJob.status})...`);
-        const { promise, resolve } = Promise.withResolvers<void>();
-        const timeoutId = setTimeout(resolve, 1000);
-        
-        const abortHandler = () => {
-          clearTimeout(timeoutId);
-          resolve();
-        };
-        
-        signal.addEventListener('abort', abortHandler, { once: true });
-        await promise;
-        signal.removeEventListener('abort', abortHandler);
-        
-        if (signal.aborted) return;
-
-        currentJob = await ApiClient.getAnalysisJob(job.id);
-        if (signal.aborted) return;
-      }
+      const currentJob = job.status === 'completed' || job.status === 'failed' ? job
+        : await ApiClient.watchAnalysisJob(job.id, next => {
+          if (!signal.aborted) setStatusText(`Analyzing game (status: ${next.status})...`);
+        }, signal);
+      if (signal.aborted) return;
 
       if (currentJob.status === 'failed') {
         throw new Error('Analysis job failed');
@@ -154,7 +139,7 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
       setLessons(verifiedLessons);
       setStatusText(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error occurred');
+      if (!signal.aborted) setError(e instanceof Error ? e.message : 'Unknown error occurred');
     } finally {
       if (!signal.aborted) {
         setLoading(false);

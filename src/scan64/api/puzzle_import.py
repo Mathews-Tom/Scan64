@@ -1,11 +1,19 @@
 """Shell-token protected import controls, registered only by the desktop server."""
 
+from collections.abc import AsyncIterator
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, model_validator
+from starlette.types import Receive, Scope, Send
 
-from scan64.puzzle_import_job import ImportJobState, JobAlreadyRunning, PuzzleImportJob
+from scan64.puzzle_import_job import (
+    ImportJobState,
+    ImportSubscriptionLimit,
+    JobAlreadyRunning,
+    PuzzleImportJob,
+)
 
 router = APIRouter(prefix="/v1/app/puzzle-import", tags=["app"])
 
@@ -33,6 +41,41 @@ def _job(request: Request) -> PuzzleImportJob:
 @router.get("", response_model=ImportJobState)
 def import_state(request: Request) -> ImportJobState:
     return _job(request).state()
+
+
+@router.get("/events")
+async def import_events(request: Request) -> StreamingResponse:
+    try:
+        state, listener = _job(request).subscribe()
+    except ImportSubscriptionLimit as error:
+        raise HTTPException(status_code=429, detail="Too many puzzle import streams") from error
+
+    async def events() -> AsyncIterator[str]:
+        try:
+            current = state
+            while True:
+                yield current.model_dump_json() + "\n"
+                if current.status not in {"running", "cancelling"}:
+                    return
+                while (update := await listener.next_state()) is not None:
+                    if update.revision > current.revision:
+                        current = update
+                        break
+                else:
+                    return
+        finally:
+            listener.close()
+
+    class ImportEventStream(StreamingResponse):
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            try:
+                await super().__call__(scope, receive, send)
+            finally:
+                listener.close()
+
+    return ImportEventStream(
+        events(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"}
+    )
 
 
 @router.post("", response_model=ImportJobState, status_code=202)

@@ -30,18 +30,21 @@ test.describe('Lesson Review Flow', () => {
       await route.fulfill({ json: { id: 'test-game-id', pgn: '1. e4', white: 'w', black: 'b', result: '*' } });
     });
 
-    let pollCount = 0;
     await page.route('/v1/games/test-game-id/analysis-jobs', async route => {
       if (route.request().method() === 'POST') {
         await route.fulfill({ json: { id: 'test-job-id', game_id: 'test-game-id', status: 'pending' } });
       }
     });
 
-    await page.route('/v1/analysis-jobs/test-job-id', async route => {
-      pollCount++;
-      // Return completed on the second poll to test the loop
-      const status = pollCount >= 2 ? 'completed' : 'pending';
-      await route.fulfill({ json: { id: 'test-job-id', game_id: 'test-game-id', status } });
+    await page.route('/v1/analysis-jobs/test-job-id/events', async route => {
+      await route.fulfill({
+        contentType: 'application/x-ndjson',
+        headers: { 'Cache-Control': 'no-store' },
+        body: [
+          { id: 'test-job-id', game_id: 'test-game-id', status: 'pending' },
+          { id: 'test-job-id', game_id: 'test-game-id', status: 'completed' },
+        ].map(state => JSON.stringify(state)).join('\n') + '\n',
+      });
     });
 
     await page.route('**/v1/games/test-game-id/learning-opportunities?*', async route => {

@@ -31,7 +31,9 @@ def serve_command(host: str, port: int, *, open_browser: bool) -> None:
     browser_host = {"0.0.0.0": "127.0.0.1", "::": "::1"}.get(host, host)
     if ":" in browser_host:
         browser_host = f"[{browser_host}]"
-    server = uvicorn.Server(uvicorn.Config("scan64.api.app:app", host=host, port=port))
+    server = uvicorn.Server(
+        uvicorn.Config("scan64.api.app:app", host=host, port=port, timeout_graceful_shutdown=10)
+    )
     try:
         asyncio.run(_run_server(server, f"http://{browser_host}:{port}", open_browser))
     except KeyboardInterrupt:

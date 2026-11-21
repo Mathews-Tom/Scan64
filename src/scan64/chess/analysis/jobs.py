@@ -19,6 +19,7 @@ from scan64.chess.analysis.models import (
     GameMoveReview,
     PersistedLessonOpportunity,
 )
+from scan64.chess.analysis.notifications import notify_analysis_job
 from scan64.chess.analysis.orchestration import (
     FastPassConfig,
     FastPassOrchestrator,
@@ -516,11 +517,13 @@ async def _execute_analysis_job_async(
             job.error = "Game not found"
             session.add(job)
             session.commit()
+            notify_analysis_job(engine, job_id)
             return
 
         job.status = "running"
         session.add(job)
         session.commit()
+        notify_analysis_job(engine, job_id)
 
         try:
             session.defer_commit = True
@@ -539,6 +542,8 @@ async def _execute_analysis_job_async(
             session.flush()
             if game.owner_player_id is not None:
                 advance_targets(game.owner_player_id, session)
+            session.add(job)
+            session.commit()
         except Exception as error:
             session.defer_commit = False
             session.rollback()
@@ -549,10 +554,10 @@ async def _execute_analysis_job_async(
             failed_job.error = str(error)
             session.add(failed_job)
             session.commit()
+            notify_analysis_job(engine, job_id)
             return
 
-        session.add(job)
-        session.commit()
+        notify_analysis_job(engine, job_id)
 
 
 def execute_analysis_job(job_id: UUID, pool_manager: EnginePoolManager | None = None) -> None:

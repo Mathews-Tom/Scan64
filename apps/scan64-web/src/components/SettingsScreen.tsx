@@ -7,35 +7,15 @@ import { applyBoardAppearance, BOARD_THEME_OPTIONS, PIECE_SET_OPTIONS, readBoard
 import type { BoardTheme, PieceSet } from '../boardAppearance';
 import { readBoardSounds, saveBoardSounds } from '../boardSounds';
 
-export type Appearance = 'system' | 'light' | 'dark';
+import { APPEARANCE_STORAGE_KEY, applyAppearance, readAppearance } from '../appearance';
+import type { Appearance } from '../appearance';
 
-const APPEARANCE_STORAGE_KEY = 'scan64-appearance';
 const APPEARANCE_OPTIONS = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ] as const;
 
-function readAppearance(): Appearance {
-  try {
-    const stored = window.localStorage.getItem(APPEARANCE_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
-  }
-  return 'system';
-}
-
-function applyAppearance(appearance: Appearance) {
-  if (typeof document !== 'undefined') document.documentElement.dataset.appearance = appearance;
-}
-
-/** System appearance and native control colour schemes follow the token CSS media query. */
-export function initializeAppearance(): Appearance {
-  const appearance = readAppearance();
-  applyAppearance(appearance);
-  return appearance;
-}
 
 export function SettingsScreen() {
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { initializeAppearance, SettingsScreen } from './SettingsScreen';
+import { SettingsScreen } from './SettingsScreen';
+import { initializeAppearance } from '../appearance';
 import { Button, Dialog, EmptyState, Field, ListRow, Panel, ProgressBar, SegmentedControl, StatusLine } from './Primitives';
 import { initializeBoardAppearance } from '../boardAppearance';
 import { saveBoardSounds } from '../boardSounds';

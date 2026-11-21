@@ -1,25 +1,50 @@
 import { PuzzleImportProvider, PuzzleImportFoot } from './components/PuzzleImport';
 import { UpdatesProvider, UpdatesFoot } from './components/Updates';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import './App.css';
-import { PlayScreen } from './components/PlayScreen';
-import { PgnImportScreen } from './components/PgnImportScreen';
-import { AnalysisScreen } from './components/AnalysisScreen';
-import { FamousGameStudyScreen } from './components/FamousGameStudyScreen';
-import { OpeningExplorerScreen } from './components/OpeningExplorerScreen';
 import type { PlaySessionRead } from './api/types';
-import { DailyTrainingScreen } from './components/DailyTrainingScreen';
-import { ProfileScreen } from './components/ProfileScreen';
-import { CoachDashboardScreen } from './components/CoachDashboardScreen';
-import { GamesListScreen } from './components/GamesListScreen';
 import { createActivePlayer, getStoredPlayerId } from './api/client';
-import { TodayScreen } from './components/TodayScreen';
-import { PuzzlesScreen } from './components/PuzzlesScreen';
-import { SettingsScreen, initializeAppearance } from './components/SettingsScreen';
 import { NavigationIcon } from './components/NavigationIcon';
 import { Button, Panel } from './components/Primitives';
 import { isDesktop } from './platform';
 import './components/WorkingScreens.css';
+import { initializeAppearance } from './appearance';
+
+const PlayScreen = lazy(() => import('./components/PlayScreen').then(module => ({ default: module.PlayScreen })));
+const PgnImportScreen = lazy(() => import('./components/PgnImportScreen').then(module => ({ default: module.PgnImportScreen })));
+const AnalysisScreen = lazy(() => import('./components/AnalysisScreen').then(module => ({ default: module.AnalysisScreen })));
+const FamousGameStudyScreen = lazy(() => import('./components/FamousGameStudyScreen').then(module => ({ default: module.FamousGameStudyScreen })));
+const OpeningExplorerScreen = lazy(() => import('./components/OpeningExplorerScreen').then(module => ({ default: module.OpeningExplorerScreen })));
+const DailyTrainingScreen = lazy(() => import('./components/DailyTrainingScreen').then(module => ({ default: module.DailyTrainingScreen })));
+const ProfileScreen = lazy(() => import('./components/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
+const CoachDashboardScreen = lazy(() => import('./components/CoachDashboardScreen').then(module => ({ default: module.CoachDashboardScreen })));
+const GamesListScreen = lazy(() => import('./components/GamesListScreen').then(module => ({ default: module.GamesListScreen })));
+const TodayScreen = lazy(() => import('./components/TodayScreen').then(module => ({ default: module.TodayScreen })));
+const PuzzlesScreen = lazy(() => import('./components/PuzzlesScreen').then(module => ({ default: module.PuzzlesScreen })));
+const SettingsScreen = lazy(() => import('./components/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
+
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  override state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error : new Error('Screen failed to load.') };
+  }
+
+  override render() {
+    if (this.state.error) {
+      return <Panel title="Screen unavailable">
+        <p role="alert">This screen could not be loaded. {this.state.error.message}</p>
+        <Button onClick={() => window.location.reload()}>Reload screen</Button>
+      </Panel>;
+    }
+    return this.props.children;
+  }
+}
+
+function RouteReady({ children, onReady }: { children: ReactNode; onReady: () => void }) {
+  useEffect(onReady, [onReady]);
+  return children;
+}
 
 function decodeRouteSegment(value: string): string | null {
   try {
@@ -134,7 +159,7 @@ function App() {
       localStorage.setItem(sidebarPreferenceKey, String(expanded));
     }
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const titles: Record<string, string> = {
       '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
       '/training': 'Daily Training', '/puzzles': 'Puzzles', '/profile': 'Profile',
@@ -147,12 +172,16 @@ function App() {
     }
     previousScreen.current = { pathname, hasIdentity };
   }, [pathname, hasIdentity]);
-  useEffect(() => {
+  const focusRequestedSettingsPanel = useCallback(() => {
     if (focusSettingsPanel.current && pathname === '/settings' && !drawerVisible) {
-      mainRef.current?.querySelector<HTMLElement>(`#${focusSettingsPanel.current}`)?.focus();
-      focusSettingsPanel.current = null;
+      const panel = mainRef.current?.querySelector<HTMLElement>(`#${focusSettingsPanel.current}`);
+      if (panel) {
+        panel.focus();
+        focusSettingsPanel.current = null;
+      }
     }
   }, [pathname, drawerVisible]);
+  useEffect(focusRequestedSettingsPanel, [focusRequestedSettingsPanel]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -179,8 +208,9 @@ function App() {
     setPathname(window.location.pathname);
   }, [dismissDrawer]);
   const openSettingsPanel = (id: 'puzzle-library' | 'app-updates') => {
-    if (pathname === '/settings' && !drawerVisible) mainRef.current?.querySelector<HTMLElement>(`#${id}`)?.focus();
-    else { focusSettingsPanel.current = id; navigate('/settings'); }
+    focusSettingsPanel.current = id;
+    if (pathname === '/settings' && !drawerVisible) focusRequestedSettingsPanel();
+    else navigate('/settings');
   };
   const gameAnalysisMatch = /^\/games\/([^/]+)\/analysis$/.exec(pathname);
   const gameAnalysisId = gameAnalysisMatch ? decodeRouteSegment(gameAnalysisMatch[1]) : null;
@@ -365,7 +395,11 @@ function App() {
                 <button onClick={() => navigate('/analysis')}>Analysis Board</button>
               </nav>
             ) : null}
-            {screen}
+            <RouteErrorBoundary key={pathname}>
+              <Suspense fallback={<p role="status">Loading screen…</p>}>
+                <RouteReady onReady={focusRequestedSettingsPanel}>{screen}</RouteReady>
+              </Suspense>
+            </RouteErrorBoundary>
           </>
         )}
         </div>

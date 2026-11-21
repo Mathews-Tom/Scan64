@@ -41,6 +41,7 @@ from scan64.chess.analysis.models import (
     PersistedDiagnosis,
     PersistedLessonOpportunity,
 )
+from scan64.chess.analysis.notifications import close_analysis_subscriptions
 from scan64.chess.games.assistance import SessionHintReveal, prefix_hash
 from scan64.chess.games.clock_models import PlayClock
 from scan64.chess.games.clocks import clock_control
@@ -3388,6 +3389,7 @@ def delete_player_data(
     audit_id = str(uuid4())
     session.add(DeletionAudit(id=audit_id, player_id=player_id, affected_rows=affected_rows))
     session.commit()
+    close_analysis_subscriptions(session.get_bind().engine, player_id=player_id)
     app = request.scope.get("app")
     runtime = getattr(app.state, "play_clock_runtime", None) if app is not None else None
     if runtime is not None:

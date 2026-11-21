@@ -5,7 +5,9 @@ use std::{
     env,
     io::Read,
     net::{Ipv4Addr, SocketAddrV4, TcpStream},
+    sync::mpsc::{self, Receiver, SyncSender},
 };
+use tauri::Listener;
 
 const FLAGS: [&str; 5] = [
     "--scan64-update-smoke-file",
@@ -53,7 +55,7 @@ fn launch_arguments(
         || !Path::new(&values[4]).is_absolute()
         || !matches!(
             values[1].to_str(),
-            Some("install" | "reject" | "unavailable")
+            Some("install" | "reject" | "unavailable" | "observe")
         )
         || values[2].is_empty()
         || values[3].is_empty()
@@ -89,7 +91,7 @@ pub(super) fn active() -> bool {
     file().is_some()
         && matches!(
             env::var("SCAN64_UPDATE_SMOKE_MODE").as_deref(),
-            Ok("install" | "reject" | "unavailable")
+            Ok("install" | "reject" | "unavailable" | "observe")
         )
 }
 
@@ -154,7 +156,158 @@ fn complete(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-async fn run(app: AppHandle) -> Result<(), String> {
+struct ObservationSender(Mutex<SyncSender<String>>);
+
+// Only compiled into updater-test builds. Observe the real Settings panel after
+// its ordinary native subscription renders; never inject state or synthetic events.
+pub(crate) fn observe_page_load(
+    webview: &tauri::Webview,
+    payload: &tauri::webview::PageLoadPayload<'_>,
+) {
+    if !active()
+        || env::var("SCAN64_UPDATE_SMOKE_MODE").as_deref() != Ok("observe")
+        || payload.event() != tauri::webview::PageLoadEvent::Finished
+        || webview.label() != "main"
+    {
+        return;
+    }
+    let result = webview.eval(
+        r#"
+(() => {
+  if (window.__scan64UpdateObservation) return;
+  window.__scan64UpdateObservation = true;
+  let stage = 'ready';
+  let reporting = false;
+  let navigated = false;
+  const observer = new MutationObserver(inspect);
+  function inspect() {
+    if (reporting) return;
+    const panel = document.getElementById('app-updates');
+    if (!panel) {
+      const settings = document.querySelector('button[aria-label="Settings"]');
+      if (settings && !navigated) { navigated = true; settings.click(); }
+      return;
+    }
+    panel.scrollIntoView({ block: 'center' });
+    const bounds = panel.getBoundingClientRect();
+    if (panel.closest('[inert]') || bounds.width === 0 || bounds.height === 0 ||
+        bounds.bottom <= 0 || bounds.top >= window.innerHeight) return;
+    const text = panel.querySelector('[role="status"]')?.textContent;
+    if ((stage === 'ready' && text === 'Ready to check for updates.') ||
+        (stage === 'terminal' && (text === 'Scan64 is up to date.' || text === 'Update failed.'))) {
+      reporting = true;
+      if (stage === 'terminal') observer.disconnect();
+      window.__TAURI_INTERNALS__.invoke('updater_smoke_observed', { stage, text }).then(() => {
+        stage = 'terminal';
+        reporting = false;
+        if (text === 'Ready to check for updates.') inspect();
+      }).catch((error) => console.error('Updater observation acknowledgement failed', error));
+    }
+  }
+  observer.observe(document, { childList: true, subtree: true, characterData: true });
+  inspect();
+})();
+"#,
+    );
+    if let Err(error) = result {
+        eprintln!("Cannot observe updater WebView: {error}");
+        webview.app_handle().exit(1);
+    }
+}
+
+pub(crate) fn observe_ui(app: &AppHandle, stage: String, text: String) -> Result<(), String> {
+    if !active() || env::var("SCAN64_UPDATE_SMOKE_MODE").as_deref() != Ok("observe") {
+        return Err("Updater observation mode is disabled".to_owned());
+    }
+    let shared = controller(app);
+    let state = shared.lock().map_err(|_| "Update state unavailable")?;
+    let expected = match (stage.as_str(), state.status.state) {
+        ("ready", Phase::Idle) => "Ready to check for updates.",
+        ("terminal", Phase::UpToDate) => "Scan64 is up to date.",
+        ("terminal", Phase::Failed) => "Update failed.",
+        _ => return Err("The WebView did not observe the authoritative updater state".to_owned()),
+    };
+    if text != expected {
+        return Err("The WebView updater text did not match the native state".to_owned());
+    }
+    append(&json!({
+        "event": "webview", "stage": stage, "text": expected,
+        "revision": state.status.revision,
+    }))?;
+    app.state::<ObservationSender>()
+        .inner()
+        .0
+        .lock()
+        .map_err(|_| "Updater observation state unavailable")?
+        .try_send(stage)
+        .map_err(|_| "Cannot acknowledge updater WebView observation".to_owned())
+}
+
+async fn observation_stage(
+    receiver: Receiver<String>,
+    expected: &'static str,
+) -> Result<Receiver<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let stage = receiver
+            .recv_timeout(Duration::from_secs(60))
+            .map_err(|_| "Timed out waiting for the actual updater WebView")?;
+        if stage != expected {
+            return Err("Updater WebView observations arrived out of order".to_owned());
+        }
+        Ok(receiver)
+    })
+    .await
+    .map_err(|_| "Updater WebView observation task failed".to_owned())?
+}
+
+async fn observe(app: AppHandle, receiver: Receiver<String>) -> Result<(), String> {
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let received = events.clone();
+    let listener = app.listen(STATUS_EVENT, move |event| {
+        // This reads the actual Tauri event payload, not the publish/snapshot hook.
+        match serde_json::from_str::<Value>(event.payload()) {
+            Ok(status) => received.lock().expect("observation lock").push(status),
+            Err(error) => eprintln!("Cannot decode observed updater event: {error}"),
+        }
+    });
+    let result = async {
+        let receiver = observation_stage(receiver, "ready").await?;
+        set_automatic_updates(app.clone(), false).await?;
+        let terminal = check_updates(app.clone()).await?;
+        if !matches!(terminal.state, Phase::UpToDate | Phase::Failed) {
+            return Err(
+                "Observation requires an empty or failing local manifest, not an update".to_owned(),
+            );
+        }
+        let _receiver = observation_stage(receiver, "terminal").await?;
+        let events = events
+            .lock()
+            .map_err(|_| "Updater observation state unavailable")?;
+        let expected =
+            serde_json::to_value(&terminal).map_err(|_| "Cannot encode updater observation")?;
+        if events.len() != 3
+            || events
+                .iter()
+                .enumerate()
+                .any(|(index, event)| event["revision"] != (index + 1) as u64)
+            || events.last() != Some(&expected)
+        {
+            return Err(
+                "Actual native updater events did not match authoritative revisions".to_owned(),
+            );
+        }
+        for status in events.iter() {
+            append(&json!({"event": "native-event", "status": status}))?;
+        }
+        Ok(())
+    }
+    .await;
+    app.unlisten(listener);
+    result?;
+    complete(&app)
+}
+
+async fn run(app: AppHandle, observation: Option<Receiver<String>>) -> Result<(), String> {
     let from = env::var("SCAN64_UPDATE_SMOKE_FROM").map_err(|_| "Missing smoke source version")?;
     let to = env::var("SCAN64_UPDATE_SMOKE_TO").map_err(|_| "Missing smoke destination version")?;
     let mode = env::var("SCAN64_UPDATE_SMOKE_MODE").map_err(|_| "Missing updater smoke mode")?;
@@ -172,7 +325,7 @@ async fn run(app: AppHandle) -> Result<(), String> {
     })
     .await
     .map_err(|_| "Smoke startup task failed")??;
-    if version == from {
+    if version == from && mode != "observe" {
         seed_player(&connection)?;
     }
     append(&json!({
@@ -180,6 +333,13 @@ async fn run(app: AppHandle) -> Result<(), String> {
         "port": connection.port, "shell_pid": std::process::id()
     }))?;
     snapshot(&update_status(app.clone())?);
+    if mode == "observe" {
+        return observe(
+            app,
+            observation.ok_or("Updater observation channel is missing")?,
+        )
+        .await;
+    }
     if version == to {
         if mode != "install" {
             return Err("A rejected update unexpectedly installed".to_owned());
@@ -233,8 +393,15 @@ pub(super) fn start(app: AppHandle) -> bool {
         app.exit(1);
         return true;
     }
+    let observation = if env::var("SCAN64_UPDATE_SMOKE_MODE").as_deref() == Ok("observe") {
+        let (sender, receiver) = mpsc::sync_channel(2);
+        app.manage(ObservationSender(Mutex::new(sender)));
+        Some(receiver)
+    } else {
+        None
+    };
     tauri::async_runtime::spawn(async move {
-        if let Err(reason) = run(app.clone()).await {
+        if let Err(reason) = run(app.clone(), observation).await {
             let _ = append(&json!({"event": "error", "reason": reason}));
             app.exit(1);
         }
@@ -273,6 +440,16 @@ mod tests {
         assert_eq!(values[2], "0.6.1");
         assert_eq!(values[3], "0.6.2");
         assert!(launch_arguments(&[]).unwrap().is_none());
+    }
+
+    #[test]
+    fn observation_mode_uses_the_same_isolated_launch_boundary() {
+        let mut args = arguments();
+        args[3] = "observe".into();
+        let values = launch_arguments(&args).unwrap().unwrap();
+        assert_eq!(values[1], "observe");
+        assert!(Path::new(&values[0]).is_absolute());
+        assert!(Path::new(&values[4]).is_absolute());
     }
 
     #[test]
