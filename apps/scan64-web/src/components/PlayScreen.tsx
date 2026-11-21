@@ -1375,8 +1375,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       {session?.clock && !online ? <p role="status">Timed moves require a connection and are never queued offline. The clock keeps running.</p> : null}
       {opponentPending ? <p role="status">Opponent thinking…</p> : null}
       {session?.clock && refreshing ? <p role="status">Refreshing game…</p> : null}
-      {opponentRetry && session?.status === 'active' ? <button type="button"
-        disabled={!online || opponentPending || queuedMoveNeedsRefreshRef.current.has(session.id)}
+      {opponentRetry && !opponentPending && session?.status === 'active' ? <button type="button"
+        disabled={!online || queuedMoveNeedsRefreshRef.current.has(session.id)}
         onClick={() => void resumeOpponent()}>Retry opponent move</button> : null}
       {session?.status === 'active' && <Panel title="Move assistance" aria-label="Move assistance">
         <p>Candidates and blunder guard use full engine assistance. Checking is recorded before results appear, even if you cancel.</p>

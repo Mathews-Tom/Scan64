@@ -2519,6 +2519,7 @@ describe('PlayScreen', () => {
     fireEvent.click(screen.getByTestId('coach-mode-toggle'));
     fireEvent.click(screen.getByTestId('start-btn'));
     await screen.findByTestId('session-info');
+    await waitFor(() => expect(chessgroundMock.after).toBeDefined());
     const move = getRegisteredMoveHandler();
     await act(async () => {
       await move('e2', 'e4');
