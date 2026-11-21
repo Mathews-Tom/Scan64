@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-21
+
+### Added
+
+- **Safe or blunder** in Train lets you choose between the move you played and a verified sound alternative from your own analysed game. Both drill modes share the same three-attempt budget.
+- **Convert the win** opens eligible positions from your reviews as separate practice games. Finish or resume the attempt without changing the original game; completed results schedule a review and do not count as ordinary full-game strength results.
+- In unrated Play, **Candidates** grades up to three legal proposals before you choose a move. An opt-in blunder guard warns before committing a costly move and leaves the choice to you. Assisted results are kept out of independent strength estimates.
+- Play offers server-owned Fischer clocks for 1+0, 3+2, 5+0 and 10+5. Profile separates results by exact time control. Untimed Play remains the default; timed games do not support takebacks or offline move queuing.
+
+### Changed
+
+- FSRS schedules lesson, transfer and eligible puzzle reviews. Existing due dates, retirement and last-review times are preserved on upgrade; missing past grades are not invented.
+- Screens load on first visit. Visited browser screens can reopen offline after their code is cached. PGN analysis, desktop puzzle imports and desktop updater status push progress instead of polling; interrupted puzzle progress can reconnect without restarting or cancelling the import again.
+- Back up the database and export player data before upgrading. Retained review, conversion, assistance or timing state can prevent downgrading; use the matching pre-upgrade backup for rollback. See [back up before upgrading or rolling back](docs/user-guide.md#back-up-before-upgrading-or-rolling-back).
+
+### Fixed
+
+- Restore player archives that contain valid lesson evidence from the position after a played move, preserving earned credit and review history without replaying rewards.
+
 ## [0.10.0] - 2026-11-19
 
 ### Added

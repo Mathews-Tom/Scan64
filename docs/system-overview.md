@@ -6,14 +6,15 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The application release prepared here is `0.10.0`. Its release record is [CHANGELOG.md](../CHANGELOG.md).
+The application release prepared here is `0.11.0`. See the [changelog](../CHANGELOG.md) and [latest published release](https://github.com/Mathews-Tom/Scan64/releases/latest).
 
 ## What works today
 
 ### Play, import, and review
 
-- Play Stockfish at eight relative bot levels, choose White, Black or Random, promote, resign, take back a move pair, and resume an active session after reload or navigation. Levels are not human Elo estimates.
+- Play Stockfish at eight relative bot levels, choose White, Black or Random, promote, resign, and resume an active session after reload or navigation. Untimed games allow pair takebacks; timed games use server-owned clocks and keep separate strength cohorts. Bot levels are not human Elo estimates.
 - Reveal a three-step hint ladder: a question and square, an idea and piece, then sound candidate moves. Tactical explanations use engine lines; positional principles describe local board facts.
+- In unrated Play, grade up to three candidate moves or turn on the blunder guard. Assisted results and conversion practice do not count as independent full-game strength results.
 - Import a player-owned PGN with your playing colour or public standard-chess games by Lichess/Chess.com username. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments, separate display-only good moments and shared-budget lesson retries.
 - Study opening-family missions and famous games through Library.
 
@@ -22,6 +23,7 @@ The application release prepared here is `0.10.0`. Its release record is [CHANGE
 - Persist player-attributed positions, analyses, evidence, diagnoses, lesson opportunities, review schedules, and attempts.
 - Compose Daily Training from active mastery, due review, verified attempt history, fatigue, and an exploration floor.
 - Verify moves on the server before advancing the matching review schedule and active skill.
+- Schedule lesson, transfer and eligible puzzle reviews with FSRS. Use Safe or blunder for supported evidence from your own games, and start separate conversion practice from eligible review positions.
 - Present transfer exercises after the implemented mastery threshold, then report their results separately from ordinary lesson attempts.
 - Run opt-in coach mode: a diagnosed practice move can return a durable interruption only after its lesson opportunity, review schedule, and study session exist.
 - Import a Lichess CC0 puzzle catalog explicitly, then solve resumable multi-move puzzles. Stable daily sets, a separate puzzle rating, theme practice, an untimed solve streak and owned-mistake retries are implemented.

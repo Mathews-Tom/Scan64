@@ -22,12 +22,12 @@ Follow the [root quickstart](../README.md#get-started) for source, Docker or the
 
 ### Install on your OS
 
-- **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is unsigned/ad-hoc signed and not notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
+- **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is ad-hoc signed, not Developer ID signed or notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
 - **Windows x64:** run the `-setup.exe` installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a trusted download, choose **More info → Run anyway**.
 - **Linux x64, AppImage:** make the downloaded file executable with `chmod +x /path/to/Scan64.AppImage`, then run `/path/to/Scan64.AppImage`, substituting the actual filename. AppImage needs FUSE support from your distribution. If that is unavailable, use the Debian package.
 - **Linux x64, Debian/Ubuntu:** install with `sudo apt install /path/to/scan64.deb`, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights.
 
-Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed. Update bundles have authenticated updater signatures; these are separate from platform code signing.
+Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed. The updater verifies separate signatures for the macOS `.app.tar.gz`, Windows `-setup.exe` and Linux `.AppImage` bundles. A `.sig` is not a platform code-signing certificate.
 
 ### Desktop first run and data
 

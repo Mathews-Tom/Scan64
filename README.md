@@ -97,16 +97,16 @@ Every lesson answer is checked by the engine or a tablebase before it can change
 
 The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
 
-**Download [Scan64 v0.9.0](https://github.com/Mathews-Tom/Scan64/releases/tag/v0.9.0)** for your OS below. These are published release installers, not temporary [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts.
+**Download the installer for your platform from the [latest published Scan64 release](https://github.com/Mathews-Tom/Scan64/releases/latest).** [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are test builds, not release installers.
 
 **Upgrading from 0.6.1 or earlier:** the old macOS app cannot update itself. Delete it and install the current desktop release by hand. Its data is not migrated.
 
-| Platform | Download | Install and open |
+| Platform | Release asset | Install and open |
 | --- | --- | --- |
-| **macOS Apple silicon (arm64)** | [`.dmg`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_aarch64.dmg) | Open the disk image, drag **Scan64** into **Applications**, eject the image and launch Scan64 from Applications. |
-| **Windows x64** | [`-setup.exe`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_x64-setup.exe) | Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights. |
-| **Linux x64 — AppImage** | [`.AppImage`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_amd64.AppImage) | Run `chmod +x Scan64_0.9.0_amd64.AppImage`, then `./Scan64_0.9.0_amd64.AppImage` from your download folder. Requires FUSE support; otherwise use the Debian package. |
-| **Linux x64 — Debian/Ubuntu** | [`.deb`](https://github.com/Mathews-Tom/Scan64/releases/download/v0.9.0/Scan64_0.9.0_amd64.deb) | From your download folder, run `sudo apt install ./Scan64_0.9.0_amd64.deb`, then launch Scan64 from the application menu. |
+| **macOS Apple silicon (arm64)** | `.dmg` | Open the disk image, drag **Scan64** into **Applications**, eject the image and launch Scan64 from Applications. |
+| **Windows x64** | `-setup.exe` | Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights. |
+| **Linux x64 — AppImage** | `.AppImage` | Make the downloaded AppImage executable, then run it from your download folder. Requires FUSE support; otherwise use the Debian package. |
+| **Linux x64 — Debian/Ubuntu** | `.deb` | [Install the downloaded package with `apt`](docs/user-guide.md#install-on-your-os), then launch Scan64 from the application menu. |
 
 **Installers lack platform code signing.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. Windows installers lack Authenticode signatures; SmartScreen may require **More info → Run anyway**. Update bundles carry separate authenticated updater signatures. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
 

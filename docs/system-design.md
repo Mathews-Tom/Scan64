@@ -1,10 +1,12 @@
 # Scan64 — System Design
 
-This document describes the current implementation, including M82's locally built desktop shell, not a future architecture proposal. Product behavior and operating instructions are in the [user guide](user-guide.md).
+This document describes the current implementation. Product behavior and operating instructions are in the [user guide](user-guide.md).
 
 ## Runtime
 
 The normal source entry point, `uv run scan64-cli serve`, serves the built React client and FastAPI on `http://127.0.0.1:8001`. Build the client first; `--host`, `--port` and `--no-browser` control binding and browser launch. `SCAN64_WEB_DIST` can select another built-client directory. API namespaces remain reserved, missing assets return 404, and extensionless client routes fall back to the application's HTML.
+
+The React shell loads screens on demand. In browsers, the service worker caches requested scripts so visited screens can reload offline. Analysis and desktop puzzle-import progress use authenticated streaming HTTP; the desktop updater pushes status through native events. Browsers do not run the updater.
 
 The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume.
 
@@ -88,7 +90,7 @@ Live-session hints persist server-side assistance before disclosure; that canoni
 
 ### Puzzles, orientation and habit evidence
 
-Puzzle catalogs are imported explicitly through `scan64-cli puzzles import`, or in the desktop window through Puzzles/Settings → Puzzle library. Desktop-only POST/GET/DELETE `/v1/app/puzzle-import` start, poll and cancel one staged job, protected by the shell token; browser/container servers return 404. Download → Read → Import → Save progress is polled twice a second and remains visible in the sidebar. Cancel/failure leaves the catalog unchanged, temporary downloads are removed, and selected local files remain untouched. Startup never downloads puzzles. Source-verified continuations, not Stockfish diagnoses, grade these multi-move runs. The server persists the active cursor, wrong-attempt budget and revealed hints, with revision checks for conflicting tabs. Daily sets are stable for a UTC day; first-exposure rating events use a separate 1200/K32 puzzle scale. Theme and solve-streak modes are unrated, and Your mistakes reuses owned lesson retries.
+Puzzle catalogs are imported explicitly through `scan64-cli puzzles import`, or in the desktop window through Puzzles/Settings → Puzzle library. Desktop-only POST/GET/DELETE `/v1/app/puzzle-import` start, read and cancel one staged job. `GET /v1/app/puzzle-import/events` pushes Download → Read → Import → Save progress to the UI and sidebar. These endpoints require the shell token; browser/container servers return 404. Cancel/failure leaves the catalog unchanged, temporary downloads are removed, and selected local files remain untouched. Startup never downloads puzzles. Source-verified continuations, not Stockfish diagnoses, grade these multi-move runs. The server persists the active cursor, wrong-attempt budget and revealed hints, with revision checks for conflicting tabs. Daily sets are stable for a UTC day; first-exposure rating events use a separate 1200/K32 puzzle scale. Theme and solve-streak modes are unrated, and Your mistakes reuses owned lesson retries.
 
 Onboarding maps declared experience to an overridable bot suggestion, not measured strength. Puzzle rating and Stockfish level/policy result cohorts remain separate. Recurring patterns project retained trusted evidence, while habit outcome writers record qualifying solves and bounded pattern-target awards. Reads do not mint habit rewards. Puzzle hints are server-tracked; lesson zero-hint status is app-reported. Goals, calendar streaks and targets grant no rating or mastery bonus. See the [user guide](user-guide.md#daily-goals-and-tracked-pattern-evidence) for qualification and coverage limits.
 
