@@ -210,10 +210,13 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.getGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 e5 2. Nf3 *' });
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Stale clock version', 409));
     render(<PlayScreen initialSession={timedSession} />);
-    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
-    expect(chessgroundMock.set).toHaveBeenCalledWith(expect.objectContaining({
-      fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
-    }));
+    await waitFor(() => {
+      expect(chessgroundMock.set).toHaveBeenCalledWith(expect.objectContaining({
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+      }));
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledExactlyOnceWith(timedSession.id);
     expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active');
     await act(async () => { await getRegisteredMoveHandler()('g1', 'f3'); });
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledWith('timed-session', { move: 'g1f3', expected_clock_version: 6 });
@@ -552,6 +555,48 @@ describe('PlayScreen', () => {
     view.unmount();
   });
 
+  it.each([false, true])('waits once for a live zero-millisecond clock version and preserves manual recovery (fails=%s)', async fails => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.useFakeTimers();
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    const live = { ...timedSession, clock: { ...timedClock, white_remaining_ms: 0 } };
+    const ended: PlaySessionRead = { ...live, status: 'completed', result: '0-1', clock: {
+      ...live.clock, version: 5, active_color: null, deadline_at: null,
+      terminal_reason: 'flag', flagged_color: 'white',
+    } };
+    const expiry = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockImplementation(async (_sessionId, afterVersion) =>
+      afterVersion === undefined ? live : expiry.promise);
+    render(<PlayScreen initialSession={live} />);
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(ApiClient.getPlaySession).toHaveBeenNthCalledWith(1, timedSession.id);
+    expect(ApiClient.getPlaySession).toHaveBeenNthCalledWith(2, timedSession.id, 4);
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('white-clock')).toHaveTextContent('0:00');
+    expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    if (fails) {
+      await act(async () => { expiry.reject(new ApiRequestError('Expiry still pending', 503)); });
+      expect(screen.getByRole('alert')).toHaveTextContent('Expiry still pending');
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+      vi.mocked(ApiClient.getPlaySession).mockResolvedValue(ended);
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' })); });
+      expect(ApiClient.getPlaySession).toHaveBeenNthCalledWith(3, timedSession.id);
+    } else {
+      await act(async () => { expiry.resolve(ended); });
+    }
+    expect(screen.getByTestId('game-result')).toHaveTextContent('Black wins. Time expired.');
+    expect(screen.queryByRole('button', { name: 'Retry game refresh' })).not.toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(fails ? 3 : 2);
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
   it('keeps a premove pending until the canonical reply and then uses its new clock version', async () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     const response = Promise.withResolvers<{ opponent_move: string; status: string; clock: PlayClockRead }>();
@@ -807,6 +852,64 @@ describe('PlayScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
     expect(await screen.findByTestId('critical-moment-review')).toHaveAttribute('data-opportunity-id', 'owner-fenced');
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { protectedMove: false, canonicalVersion: 6 },
+    { protectedMove: true, canonicalVersion: 6 },
+    { protectedMove: false, canonicalVersion: 8 },
+    { protectedMove: true, canonicalVersion: 8 },
+  ])('retains a committed timed coach lesson across an identity switch during POST without disclosing it: %j', async ({ protectedMove, canonicalVersion }) => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const coach = { ...timedSession, coach_mode: true };
+    const committed = Promise.withResolvers<PlayMoveResponse>();
+    const canonical = Promise.withResolvers<PlaySessionRead>();
+    const after = { ...coach, pgn: canonicalVersion === 6 ? '1. e4 e5 *' : '1. e4 e5 2. Nf3 Nc6 *',
+      clock: { ...timedClock, version: canonicalVersion } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(coach).mockReturnValueOnce(canonical.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValue(committed.promise);
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [{ ...blunderVerdict.grades[0], band: 'sound' }],
+    });
+    render(<PlayScreen initialSession={coach} />);
+    await act(async () => {});
+    if (protectedMove) {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'e2e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Play e4' }));
+    } else await act(async () => { getRegisteredMoveHandler()('e2', 'e4'); });
+    localStorage.setItem('scan64_player_id', 'other-player');
+    await act(async () => {
+      committed.resolve({
+        opponent_move: 'e7e5', status: 'active', clock: { ...timedClock, version: 6 },
+        critical_interruption: { lesson: serverLesson, opportunity_id: 'post-owner-fenced', study_session_id: 'post-owner-study' },
+      });
+    });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Return to the game owner');
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    localStorage.setItem('scan64_player_id', 'test-player');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    await act(async () => { canonical.resolve(after); });
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent(canonicalVersion === 6 ? 'e5' : 'Nc6');
+    if (canonicalVersion === 6) {
+      expect(screen.getByTestId('critical-moment-review')).toHaveAttribute('data-opportunity-id', 'post-owner-fenced');
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    } else {
+      expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    }
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith(timedSession.id, {
+      move: 'e2e4', expected_clock_version: 4, ...(protectedMove ? { expected_generation: 7 } : {}),
+    });
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
     expect(queueMove).not.toHaveBeenCalled();
   });
 
@@ -1449,6 +1552,83 @@ describe('PlayScreen', () => {
     render(<PlayScreen />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
     expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('stored-a');
+  });
+
+  it.each([false, true])('falls back from an ended timed link only when a different game is stored (same=%s)', async sameStoredGame => {
+    window.history.replaceState(null, '', '/play?session=explicit-b&mode=study#board');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', sameStoredGame ? 'explicit-b' : 'stored-a');
+    const ended: PlaySessionRead = { ...timedSession, id: 'explicit-b', pgn: '1. e4 1-0', result: '1-0', status: 'completed',
+      clock: { ...timedClock, version: 5, black_remaining_ms: 0, active_color: null, deadline_at: null,
+        terminal_reason: 'flag', flagged_color: 'black' } };
+    const active = { ...timedSession, id: 'stored-a', pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(ended).mockResolvedValue(active);
+    render(<PlayScreen />);
+    if (sameStoredGame) {
+      expect(await screen.findByTestId('game-result')).toHaveTextContent('White wins. Time expired.');
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBeNull();
+      expect(ApiClient.getPlaySession).toHaveBeenCalledExactlyOnceWith('explicit-b');
+      expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4');
+    } else {
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
+      expect(ApiClient.getPlaySession).toHaveBeenNthCalledWith(1, 'explicit-b');
+      expect(ApiClient.getPlaySession).toHaveBeenNthCalledWith(2, 'stored-a');
+      expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem('scan64_active_play_session_id')).toBe('stored-a');
+      expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    }
+    expect(window.location.search).toBe('?mode=study');
+    expect(window.location.hash).toBe('#board');
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+    expect(syncQueuedMoves).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { entry: 'storage', failure: '503' },
+    { entry: 'storage', failure: 'network' },
+    { entry: 'query', failure: '503' },
+    { entry: 'query', failure: 'network' },
+  ])('retries the initial saved timed read manually after a transient failure: %j', async ({ entry, failure }) => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const storedId = entry === 'query' ? 'preserved-a' : timedSession.id;
+    localStorage.setItem('scan64_active_play_session_id', storedId);
+    if (entry === 'query') window.history.replaceState(null, '', `/play?session=${timedSession.id}&mode=study#board`);
+    const cause = failure === '503' ? new ApiRequestError('Expiry temporarily pending', 503) : new Error('Connection lost');
+    const retry = Promise.withResolvers<PlaySessionRead>();
+    const saved = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    vi.mocked(ApiClient.getPlaySession).mockRejectedValueOnce(cause).mockRejectedValueOnce(cause)
+      .mockReturnValueOnce(retry.promise);
+    render(<PlayScreen />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Unable to resume game: ${cause.message}`);
+    expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe(storedId);
+    expect(ApiClient.getPlaySession).toHaveBeenCalledExactlyOnceWith(timedSession.id);
+    if (entry === 'query') expect(window.location.search).toBe(`?session=${timedSession.id}&mode=study`);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' })); });
+    expect(screen.getByRole('alert')).toHaveTextContent(cause.message);
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe(storedId);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+    expect(screen.getByTestId('resuming-game')).toBeInTheDocument();
+    await act(async () => { retry.resolve(saved); });
+    expect(screen.getByTestId('session-info')).toHaveTextContent('Status: active');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByRole('button', { name: 'Retry game refresh' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(localStorage.getItem('scan64_active_play_session_id')).toBe(storedId);
+    expect(vi.mocked(ApiClient.getPlaySession).mock.calls).toEqual([[timedSession.id], [timedSession.id], [timedSession.id]]);
+    expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(ApiClient.createPlaySession).not.toHaveBeenCalled();
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+    expect(syncQueuedMoves).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
   });
 
   it('allows a new game and reload after consuming an unavailable query', async () => {

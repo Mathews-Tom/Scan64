@@ -176,10 +176,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     requestedSessionId && localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) !== requestedSessionId
       ? localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) : null,
   );
+  const [restoreRetry, setRestoreRetry] = useState<{ sessionId: string } | null>(null);
   const consumeRequestedSession = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete('session');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    setRestoreRetry(null);
     setRequestedSessionId(null);
   }, []);
   const [resuming, setResuming] = useState(
@@ -544,7 +546,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     const key = `${current.id}:${current.clock.version}`;
     if (refreshedDeadlines.current.has(key)) return;
     refreshedDeadlines.current.add(key);
-    void refreshQueuedSession(current.id);
+    void refreshQueuedSession(current.id, undefined, current.clock.version);
   }, [refreshQueuedSession]);
 
   const resumeOpponent = useCallback(async () => {
@@ -707,7 +709,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     }
   }, [initialSession, synchronizeQueuedSession]);
   const retainTimedInterruption = useCallback((source: PlaySessionRead, response: PlayMoveResponse) => {
-    if (source.coach_mode && response.clock && response.critical_interruption) {
+    if (sessionRef.current?.id === source.id && sessionRef.current.player_id === source.player_id &&
+      source.coach_mode && response.clock && response.critical_interruption) {
       timedInterruptionRef.current = {
         sessionId: source.id, playerId: source.player_id,
         clockVersion: response.clock.version, interruption: response.critical_interruption,
@@ -753,12 +756,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       });
       if (graded.source.clockVersion !== undefined) {
         const current = sessionRef.current;
+        if (current?.id === graded.source.sessionId && current.player_id === graded.source.playerId) {
+          retainTimedInterruption(current, response);
+        }
         if (current?.id !== graded.source.sessionId || current.player_id !== graded.source.playerId ||
           getStoredPlayerId() !== graded.source.playerId) {
           requireProtectedRefresh(graded.source);
           return;
         }
-        retainTimedInterruption(current, response);
         await refreshQueuedSession(graded.source.sessionId);
       } else {
         if (!sourceIsCurrent(graded.source)) {
@@ -913,6 +918,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           ...(activeSession.clock ? { expected_clock_version: activeSession.clock.version } : {}),
         });
         if (activeSession.clock) {
+          retainTimedInterruption(activeSession, response);
           if (sessionRef.current?.id !== activeSession.id ||
             sessionRef.current.player_id !== activeSession.player_id || getStoredPlayerId() !== activeSession.player_id) {
             requireProtectedRefresh({
@@ -920,7 +926,6 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             });
             return;
           }
-          retainTimedInterruption(activeSession, response);
           await refreshQueuedSession(activeSession.id);
         } else applyMoveResponse(response);
       } catch (error: unknown) {
@@ -1034,13 +1039,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       return;
     }
 
-    const activeSessionId = requestedSessionId || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
+    const activeSessionId = restoreRetry?.sessionId || requestedSessionId || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
     if (!activeSessionId) {
       setResuming(false);
       return;
     }
 
     setResuming(true);
+    setRefreshSessionId(null);
+    setError(null);
     let cancelled = false;
     let sessionResolved = false;
     void (async () => {
@@ -1049,10 +1056,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         const receivedAt = performance.now();
         sessionResolved = true;
         if (cancelled || sessionRef.current) return;
-        if (resumedSession.status !== 'active' && !resumedSession.sparring && !resumedSession.clock) {
+        if (resumedSession.status !== 'active' && !resumedSession.sparring &&
+          (!resumedSession.clock || (requestedSessionId === activeSessionId && preservedSessionId.current))) {
           if (localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) === activeSessionId) {
             localStorage.removeItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
           }
+          setRestoreRetry(null);
           if (requestedSessionId) consumeRequestedSession();
           return;
         }
@@ -1118,10 +1127,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           if (localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) === activeSessionId) {
             localStorage.removeItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
           }
+          setRestoreRetry(null);
           if (requestedSessionId) consumeRequestedSession();
           setError('Previous game is no longer available.');
           return;
         }
+        setRefreshSessionId(activeSessionId);
         setError(`Unable to resume game: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         if (!cancelled) setResuming(false);
@@ -1131,7 +1142,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return () => {
       cancelled = true;
     };
-  }, [initialSession, requestedSessionId, consumeRequestedSession, synchronizeQueuedSession, updateBoard]);
+  }, [initialSession, requestedSessionId, restoreRetry, consumeRequestedSession, synchronizeQueuedSession, updateBoard]);
 
   useEffect(() => {
     if (!currentSessionId || !currentSessionStatus) return;
@@ -1251,7 +1262,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       />
       </div>}
       <div className="board-workspace__side">
-      {!session && !resuming && (
+      {!session && !resuming && !refreshSessionId && (
         <Panel className="player-setup" title="Your opponent">
           {!getStoredPlayerId() && <><label htmlFor="play-player-id">Player ID</label>
           <input 
@@ -1345,7 +1356,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         <button
           type="button"
           data-testid="retry-game-refresh"
-          onClick={() => synchronizeQueuedSession(refreshSessionId)}
+          onClick={() => {
+            if (sessionRef.current) synchronizeQueuedSession(refreshSessionId);
+            else setRestoreRetry({ sessionId: refreshSessionId });
+          }}
         >
           Retry game refresh
         </button>

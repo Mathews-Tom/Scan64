@@ -195,8 +195,12 @@ def _validate_clock_archive(
         ):
             raise ValueError("Clock session has an invalid initial ply")
         session_initial_ply = int(initial_ply)
-        if clock.version > len(game.moves) - session_initial_ply + 1:
-            raise ValueError("Clock version exceeds its retained turn boundaries")
+        timed_plies = len(game.moves) - session_initial_ply
+        expected_version = timed_plies + (
+            1 if clock.terminal_reason in ("flag", "resignation") else 0
+        )
+        if clock.version != expected_version:
+            raise ValueError("Clock version disagrees with its retained turn boundaries")
         if game.headers.get("TimeControl") != (
             f"{control.initial_seconds}+{control.increment_seconds}"
         ):

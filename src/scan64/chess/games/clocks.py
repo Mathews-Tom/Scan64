@@ -161,6 +161,7 @@ class PlayClockRuntime:
         self._admissions: set[asyncio.Task[None]] = set()
         self._stopping: asyncio.Task[None] | None = None
         self._closed = False
+        self._deadline_check_failed = False
 
     def start(self) -> None:
         self._task = self._loop.create_task(self._run(), name="play-clock-deadlines")
@@ -168,7 +169,9 @@ class PlayClockRuntime:
 
     @property
     def failed(self) -> bool:
-        return self._task is not None and self._task.done() and not self._closed
+        return not self._closed and (
+            self._deadline_check_failed or (self._task is not None and self._task.done())
+        )
 
     def _report_failure(self, task: asyncio.Task[None]) -> None:
         if self._closed:
@@ -184,10 +187,11 @@ class PlayClockRuntime:
         if not self._closed and not self._loop.is_closed():
             self._loop.call_soon_threadsafe(self._publish_change)
 
-    def _publish_change(self) -> None:
+    def _publish_change(self, *, wake_deadlines: bool = True) -> None:
         self.change_event.set()
         self.change_event = asyncio.Event()
-        self._wake.set()
+        if wake_deadlines:
+            self._wake.set()
 
     async def wait_for_change(self, observed: asyncio.Event) -> bool:
         if self._closed:
@@ -312,6 +316,9 @@ class PlayClockRuntime:
                         worker.exception()
                     raise
                 retry_delay = 0.05
+                if self._deadline_check_failed:
+                    self._deadline_check_failed = False
+                    self._publish_change(wake_deadlines=False)
                 if deadline is None:
                     await self._wake.wait()
                     continue
@@ -334,6 +341,9 @@ class PlayClockRuntime:
                     not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_IOERR)
                 ):
                     raise
+                if not self._deadline_check_failed:
+                    self._deadline_check_failed = True
+                    self._publish_change(wake_deadlines=False)
                 # Closing the failed Session rolls back partial expiration work.
                 # Retry from a fresh deadline query, never a stale ORM snapshot.
                 logger.warning(

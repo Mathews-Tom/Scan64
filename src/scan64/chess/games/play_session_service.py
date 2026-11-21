@@ -299,15 +299,17 @@ class PlaySessionService:
             if game.owner_player_id is not None and game.moves:
                 job = AnalysisJob(game_id=game.id)
                 self.db.add(job)
+                player_id, job_id = game.owner_player_id, job.id
+                clock_runtime = self.clock_runtime
+                if clock_runtime is not None and self.db.get(PlayClock, play_session.id) is None:
+                    clock_runtime = None
+                # Commit expires ORM state: admission must not depend on any
+                # subsequent refresh of the job, its owner or clock routing.
                 self.db.commit()
-                self.db.refresh(job)
-                if (
-                    self.clock_runtime is not None
-                    and self.db.get(PlayClock, play_session.id) is not None
-                ):
-                    self.clock_runtime.admit_analysis(game.owner_player_id, job.id)
+                if clock_runtime is not None:
+                    clock_runtime.admit_analysis(player_id, job_id)
                 else:
-                    self.pending_analysis.append((game.owner_player_id, job.id))
+                    self.pending_analysis.append((player_id, job_id))
                 return
 
         self.db.commit()
@@ -566,35 +568,37 @@ class PlaySessionService:
         opponent_move: str | None,
         prepared_interruption: PreparedCoachInterruption | None = None,
     ) -> PlayMoveResult:
-        self.persist_moves(play, game, snapshot.moves, snapshot)
-        claim_clock(
-            self.db,
-            clock,
-            utc_now(),
-            moved=True,
-            next_color=None if board.is_game_over() else "white" if board.turn else "black",
-            terminal_reason="board" if board.is_game_over() else None,
-        )
-        interruption = None
-        if prepared_interruption is not None:
-            try:
-                interruption = prepared_interruption.add_to(self.db)
-            except Exception:
-                self.db.rollback()
-                raise
-        # Freeze under the move/snapshot and clock write fences. Commit expires
-        # ORM objects and may be followed immediately by another owned command.
-        result = PlayMoveResult(
-            opponent_move=opponent_move,
-            interruption=interruption,
-            status="completed" if board.is_game_over() else play.status,
-            clock=_CommittedClockRead(**project_clock(clock).model_dump()),
-        )
-        if board.is_game_over():
-            self.complete_session(play, game, board.result())
-        else:
-            self.db.add(play)
-            self.db.commit()
+        try:
+            self.persist_moves(play, game, snapshot.moves, snapshot)
+            # Staging belongs to the bot's turn and the same move transaction.
+            # If it consumes that turn's budget, the clock CAS rolls it all back.
+            interruption = (
+                prepared_interruption.add_to(self.db) if prepared_interruption is not None else None
+            )
+            claim_clock(
+                self.db,
+                clock,
+                utc_now(),
+                moved=True,
+                next_color=None if board.is_game_over() else "white" if board.turn else "black",
+                terminal_reason="board" if board.is_game_over() else None,
+            )
+            # Freeze under the move/snapshot and clock write fences. Commit expires
+            # ORM objects and may be followed immediately by another owned command.
+            result = PlayMoveResult(
+                opponent_move=opponent_move,
+                interruption=interruption,
+                status="completed" if board.is_game_over() else play.status,
+                clock=_CommittedClockRead(**project_clock(clock).model_dump()),
+            )
+            if board.is_game_over():
+                self.complete_session(play, game, board.result())
+            else:
+                self.db.add(play)
+                self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         self.notify_clock()
         return result
 

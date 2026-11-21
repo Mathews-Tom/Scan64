@@ -80,17 +80,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
-        await app.state.play_clock_runtime.stop()
-        del app.state.play_clock_runtime
-        if shell_token is not None:
-            await asyncio.to_thread(app.state.puzzle_import_job.close)
-            del app.state.puzzle_import_job
-        await admission_controller.stop()
-        if app.state.engine_pool_manager is not None:
-            await app.state.engine_pool_manager.close()
-        clear_host_registry()
-        del app.state.plugin_registry
-        del app.state.engine_pool_manager
+        try:
+            await app.state.play_clock_runtime.stop()
+        finally:
+            del app.state.play_clock_runtime
+            if shell_token is not None:
+                await asyncio.to_thread(app.state.puzzle_import_job.close)
+                del app.state.puzzle_import_job
+            await admission_controller.stop()
+            if app.state.engine_pool_manager is not None:
+                await app.state.engine_pool_manager.close()
+            clear_host_registry()
+            del app.state.plugin_registry
+            del app.state.engine_pool_manager
 
 
 app = FastAPI(

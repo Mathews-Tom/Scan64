@@ -463,16 +463,13 @@ async def get_play_session(
                     or clock.deadline_at is None
                 ):
                     return snapshot
-                if runtime is not None and runtime.failed:
-                    raise HTTPException(
-                        status_code=503, detail="Play clock scheduler is unavailable."
-                    )
                 if clock.server_now < clock.deadline_at:
                     if (
                         after_clock_version != clock.version
                         or change_wait_finished
                         or runtime is None
                         or observed is None
+                        or runtime.failed
                     ):
                         return snapshot
                     if change_deadline is None:
@@ -490,6 +487,10 @@ async def get_play_session(
                     # Wake or bounded timeout: refresh the authoritative snapshot,
                     # including expiry handling if the deadline passed meanwhile.
                     continue
+                if runtime is not None and runtime.failed:
+                    raise HTTPException(
+                        status_code=503, detail="Play clock scheduler is unavailable."
+                    )
                 if (
                     runtime is None
                     or observed is None
