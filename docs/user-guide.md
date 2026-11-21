@@ -72,6 +72,8 @@ Open **Settings → Updates** for the installed version, last check time, **Chec
 
 **Download updates automatically** is on by default and persists across launches. A signed update downloads in the background; the sidebar shows its version and percentage, then **Restart to update**. Turn the switch off to see **Version X is available** and download only when you press **Download**. Neither setting installs or restarts the app by itself: you must explicitly press **Restart to update**, which stops the local server before installation and relaunch.
 
+Update progress is pushed directly from the native updater to the panel and sidebar; changing screens does not stop an update or create another progress poll.
+
 If checking, downloading or installation fails, the Updates panel explains the failure and offers **Retry**. Linux `.deb` installs cannot self-update; use the release download link to install the newer package. A read-only installation or macOS App Translocation also shows an explanation and a download link. On macOS, move the app to a writable Applications folder and launch it there.
 
 The app contacts **GitHub Releases** (`github.com/Mathews-Tom/Scan64`, with GitHub's release-asset download hosts) to check for and download updates. These requests disclose normal network metadata such as your IP address; they do not upload your games or database. Updates must pass signature verification against the app's compiled-in public key.
@@ -87,6 +89,8 @@ The one-port source command is `uv run scan64-cli serve` after building the web 
 On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
 
 **Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import PGN under **Library**. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
+
+Screen code loads when you first visit that screen. A loading status keeps navigation available, and a failed screen download offers **Reload screen**. Browser installs cache visited screen code for offline reuse rather than downloading every screen at startup; an uncached screen needs a connection. Cached code does not make live server operations available offline.
 
 ## Choose a starting point
 
@@ -222,6 +226,8 @@ Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactic
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
 5. Replay every move on the analysis board, including unflagged moves and the final position. Select a move, a graph point or a key-moment marker to keep the board and move list linked. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have review schedules; evidence and profile observations still include all diagnosed owner opportunities.
+
+PGN analysis progress arrives through a live authenticated stream, not repeated status requests. Leaving Import stops its listener without cancelling the server's saved analysis job; use Review to return to the saved game. Too many concurrent progress streams or a disconnected stream reports an error rather than silently polling. Deleting the player closes their open analysis streams.
 
 For a deterministic manual diagnosis walkthrough, import this game:
 
@@ -476,6 +482,8 @@ removes temporary downloads. Success deletes the downloaded file and offers
 **Start puzzles**. A selected local file is never deleted. There are no app filter
 controls. Browser/container users keep using the CLI commands above; the
 desktop import endpoints are not exposed there.
+
+Import progress is pushed from the server and remains visible in the sidebar across navigation. Reloading reads the current job state; too many concurrent progress streams or a disconnected stream reports an error without stopping the import.
 
 `--download` saves the **entire** compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
 the complete file and a temporary replacement when downloading again. Interrupted downloads

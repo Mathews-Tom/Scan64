@@ -1,12 +1,15 @@
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import String, case, cast, func
 from sqlmodel import Session, col, select
+from starlette.types import Receive, Scope, Send
 
 from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.game_review import GameReviewRead, build_game_review
@@ -19,6 +22,7 @@ from scan64.chess.analysis.models import (
     PersistedDiagnosis,
     PersistedLessonOpportunity,
 )
+from scan64.chess.analysis.notifications import AnalysisJobSubscription, AnalysisSubscriptionLimit
 from scan64.chess.games.models import Game
 from scan64.chess.games.online_import import (
     OnlineImportError,
@@ -393,7 +397,10 @@ def create_analysis_job(
 def get_analysis_job(
     job_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> AnalysisJob:
-    player_id = require_authenticated_player(request, session)
+    return _get_owned_analysis_job(job_id, require_authenticated_player(request, session), session)
+
+
+def _get_owned_analysis_job(job_id: UUID, player_id: str, session: Session) -> AnalysisJob:
     job = session.get(AnalysisJob, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Analysis job not found")
@@ -401,6 +408,74 @@ def get_analysis_job(
     if game is None or game.owner_player_id != player_id:
         raise HTTPException(status_code=404, detail="Analysis job not found")
     return job
+
+
+@router.get("/v1/analysis-jobs/{job_id}/events")
+async def analysis_job_events(
+    job_id: UUID, request: Request, session: Session = Depends(get_session)
+) -> StreamingResponse:
+    # Reject unauthenticated/foreign/missing access before starting the response.
+    # Do not retain the dependency's read transaction during the subscription.
+    try:
+        player_id = require_authenticated_player(request, session)
+        _get_owned_analysis_job(job_id, player_id, session)
+        engine = session.get_bind().engine
+    finally:
+        session.close()
+
+    try:
+        listener = AnalysisJobSubscription(engine, job_id, player_id)
+    except AnalysisSubscriptionLimit as error:
+        raise HTTPException(status_code=429, detail="Too many analysis streams") from error
+
+    def snapshot() -> AnalysisJobRead:
+        with Session(engine) as current:
+            job = get_analysis_job(job_id, request, current)
+            return AnalysisJobRead.model_validate(job, from_attributes=True)
+
+    try:
+        # Register BEFORE this fresh transaction so a racing commit cannot be
+        # lost between the current-state read and the first notification wait.
+        initial = snapshot()
+    except BaseException:
+        listener.close()
+        raise
+
+    async def events() -> AsyncIterator[str]:
+        try:
+            state = initial
+            while True:
+                yield state.model_dump_json() + "\n"
+                if state.status in {"completed", "failed"}:
+                    return
+                while await listener.wait():
+                    try:
+                        current = snapshot()
+                    except HTTPException as error:
+                        # Deletion may commit just before its close notification.
+                        if error.status_code in {401, 404}:
+                            return
+                        raise
+                    if current != state:
+                        state = current
+                        break
+                else:
+                    return
+        finally:
+            listener.close()
+
+    class JobEventStream(StreamingResponse):
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            try:
+                await super().__call__(scope, receive, send)
+            finally:
+                # Also covers disconnect while sending headers, before the
+                # body generator has entered its own finally-protected block.
+                listener.close()
+
+    return JobEventStream(
+        events(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"}
+    )
 
 
 class EngineAnalysisRead(BaseModel):

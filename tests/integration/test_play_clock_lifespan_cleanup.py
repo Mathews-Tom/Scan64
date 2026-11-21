@@ -3,14 +3,17 @@ from __future__ import annotations
 import asyncio
 import threading
 from datetime import datetime
+from uuid import uuid4
 
 import chess
 import pytest
 from sqlmodel import Session
 
 import scan64.api.app as app_module
+from scan64.chess.analysis.notifications import AnalysisJobSubscription
 from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.learning.plugins.host_registry import clear_host_registry, get_host_registry
+from scan64.persistence import database
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 
@@ -38,6 +41,7 @@ async def test_cancelled_clock_drain_still_closes_lifespan_dependencies(
     pool: EnginePoolManager = app_module.app.state.engine_pool_manager
     runtime: PlayClockRuntime = app_module.app.state.play_clock_runtime
     shutdown: asyncio.Task[bool | None] | None = None
+    subscriber = AnalysisJobSubscription(database.engine, uuid4(), "clock-test-owner")
     try:
         assert await asyncio.wait_for(asyncio.to_thread(entered.wait, 5), timeout=6)
         # Open a real Stockfish process so skipping cleanup leaks an owned resource.
@@ -60,10 +64,12 @@ async def test_cancelled_clock_drain_still_closes_lifespan_dependencies(
         release.set()
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(asyncio.shield(shutdown), timeout=5)
+        assert not await asyncio.wait_for(subscriber.wait(), timeout=5)
         assert pool.closed
         with pytest.raises(RuntimeError, match="not initialized"):
             get_host_registry()
     finally:
+        subscriber.close()
         release.set()
         if shutdown is None:
             await asyncio.wait_for(context.__aexit__(None, None, None), timeout=5)

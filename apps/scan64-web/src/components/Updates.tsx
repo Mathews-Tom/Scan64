@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { browserUpdateStatus, checkUpdates, downloadUpdate, isDesktop, openReleaseUrl, restartToUpdate, setAutomaticUpdates, updateStatus, type UpdateStatus } from '../platform';
+import { browserUpdateStatus, checkUpdates, downloadUpdate, isDesktop, openReleaseUrl, restartToUpdate, setAutomaticUpdates, subscribeUpdateStatus, type UpdateStatus } from '../platform';
 import { Button, Panel, StatusLine } from './Primitives';
 import './Updates.css';
 
@@ -9,33 +9,24 @@ function useUpdater() {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(false);
   const acting = useRef(false);
+  function receive(next: UpdateStatus) {
+    if (mounted.current) setStatus((current) => current === null || next.revision > current.revision ? next : current);
+  }
   useEffect(() => {
     mounted.current = true;
-    if (!isDesktop()) return () => { mounted.current = false; };
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    async function poll() {
-      try {
-        const next = await updateStatus();
-        if (!cancelled) setStatus(next);
-      } catch (failure) {
-        if (!cancelled) setError(String(failure));
-      } finally {
-        if (!cancelled) timer = setTimeout(() => { void poll(); }, 1000);
-      }
-    }
-    void poll();
-    return () => { cancelled = true; mounted.current = false; clearTimeout(timer); };
+    const controller = new AbortController();
+    void subscribeUpdateStatus(receive, controller.signal).catch((failure: unknown) => {
+      if (!controller.signal.aborted) setError(String(failure));
+    });
+    return () => { mounted.current = false; controller.abort(); };
   }, []);
-  async function act(action: () => Promise<void>) {
+  async function act(action: () => Promise<UpdateStatus>) {
     if (acting.current) return;
     acting.current = true;
     setBusy(true);
     setError(null);
     try {
-      await action();
-      const next = await updateStatus();
-      if (mounted.current) setStatus(next);
+      receive(await action());
     } catch (failure) {
       if (mounted.current) setError(String(failure));
     } finally {
@@ -58,7 +49,7 @@ interface Updater {
   status: UpdateStatus | null;
   busy: boolean;
   error: string | null;
-  act: (action: () => Promise<void>) => Promise<void>;
+  act: (action: () => Promise<UpdateStatus>) => Promise<void>;
   openRelease: (url: string) => Promise<void>;
 }
 const UpdatesContext = createContext<Updater | null>(null);

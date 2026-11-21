@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PgnImportScreen } from './PgnImportScreen';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId, getStoredPlayerId } from '../api/client';
-import type { OnlineGameImportResponse } from '../api/types';
+import type { AnalysisJobRead, OnlineGameImportResponse } from '../api/types';
+import { readProgress } from '../api/progress';
 
 vi.mock('../api/client', () => ({
   ApiClient: {
@@ -13,20 +15,52 @@ vi.mock('../api/client', () => ({
     getLearningOpportunities: vi.fn(),
     createAnalysisJob: vi.fn(),
     getAnalysisJob: vi.fn(),
+    watchAnalysisJob: vi.fn(),
   },
   ensurePlayerAuthorization: vi.fn(),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
   getStoredPlayerId: vi.fn(),
 }));
 
+function analysisStream() {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const cancel = vi.fn();
+  const body = new ReadableStream<Uint8Array>({
+    start(value) { controller = value; },
+    cancel,
+  });
+  return {
+    body,
+    cancel,
+    response: new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } }),
+    push: (status: string) => controller.enqueue(new TextEncoder().encode(`${JSON.stringify({ id: 'job-1', game_id: 'game-1', status })}\n`)),
+    close: () => controller.close(),
+  };
+}
+
 describe('PgnImportScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    events = analysisStream();
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*' });
+    vi.mocked(ApiClient.createAnalysisJob).mockResolvedValue({ id: 'job-1', game_id: 'game-1', status: 'pending' });
+    vi.mocked(ApiClient.getLearningOpportunities).mockResolvedValue({ session_id: 'study-1', lessons: [], next_cursor: null });
+    vi.mocked(ApiClient.watchAnalysisJob).mockImplementation((_jobId, onUpdate, signal) => readProgress<AnalysisJobRead>(
+      events.response, signal, onUpdate, job => job.status === 'completed' || job.status === 'failed',
+    ));
     vi.mocked(ApiClient.getPlayerProfile).mockResolvedValue({ player_id: 'player-1', rating: 1500, display_name: null });
     vi.mocked(getOrCreatePlayerId).mockReturnValue('player-1');
     vi.mocked(getStoredPlayerId).mockReturnValue('player-1');
     vi.mocked(ensurePlayerAuthorization).mockResolvedValue('recovered-player-2');
   });
+  let events: {
+    body: ReadableStream<Uint8Array>;
+    cancel: Mock;
+    response: Response;
+    push: (status: string) => void;
+    close: () => void;
+  };
+  afterEach(() => { cleanup(); vi.useRealTimers(); });
 
   const emptyImport = { imported_count: 0, duplicate_count: 0, skipped_count: 0, games: [], message: 'No public standard games found.' };
   const fillOnline = (source = 'lichess', count = '10') => {
@@ -210,9 +244,6 @@ describe('PgnImportScreen', () => {
     vi.mocked(ApiClient.createAnalysisJob).mockResolvedValueOnce({
       id: 'job-1', game_id: 'game-1', status: 'pending'
     });
-    vi.mocked(ApiClient.getAnalysisJob).mockResolvedValueOnce({
-      id: 'job-1', game_id: 'game-1', status: 'completed'
-    });
     vi.mocked(ApiClient.getLearningOpportunities).mockResolvedValueOnce({
       session_id: 'study-1',
       lessons: [
@@ -235,16 +266,123 @@ describe('PgnImportScreen', () => {
     fireEvent.change(textarea, { target: { value: '1. e4 e5' } });
     
     fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.watchAnalysisJob).toHaveBeenCalledOnce());
+    expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+    expect(screen.getByTestId('import-btn')).toBeDisabled();
+    await act(async () => { events.push('running'); });
+    expect(screen.getByRole('status')).toHaveTextContent('Analyzing game (status: running)...');
+    await act(async () => { events.push('completed'); });
     await waitFor(() => {
       expect(ensurePlayerAuthorization).toHaveBeenCalledWith('player-1');
       expect(ApiClient.createGame).toHaveBeenCalledWith({ owner_color: 'white',  pgn: '1. e4 e5', player_id: 'recovered-player-2' });
       expect(ApiClient.createAnalysisJob).toHaveBeenCalledWith('game-1');
-      expect(ApiClient.getAnalysisJob).toHaveBeenCalledWith('job-1');
+      expect(ApiClient.watchAnalysisJob).toHaveBeenCalledWith('job-1', expect.any(Function), expect.any(AbortSignal));
+      expect(ApiClient.getAnalysisJob).not.toHaveBeenCalled();
       expect(ApiClient.getLearningOpportunities).toHaveBeenCalledWith('game-1');
       expect(screen.getByTestId('lessons-list').textContent).toContain(label);
     }, { timeout: 3000 });
 
     fireEvent.click(screen.getByTestId('explore-analysis-btn'));
     expect(onExploreAnalysis).toHaveBeenCalledWith('game-1');
+  });
+
+  it.each(['pending', 'running'])('subscribes once to a newly created %s job and waits for pushed completion', async status => {
+    vi.mocked(ApiClient.createAnalysisJob).mockResolvedValueOnce({ id: 'job-1', game_id: 'game-1', status });
+    render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '1. d4 d5' } });
+    fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.watchAnalysisJob).toHaveBeenCalledOnce());
+    expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+    await act(async () => { events.push('running'); });
+    expect(screen.getByRole('status')).toHaveTextContent('Analyzing game (status: running)...');
+    expect(screen.getByTestId('import-btn')).toBeDisabled();
+    await act(async () => { events.push('completed'); });
+    await waitFor(() => expect(screen.getByTestId('import-btn')).toBeEnabled());
+    expect(ApiClient.getLearningOpportunities).toHaveBeenCalledExactlyOnceWith('game-1');
+    expect(ApiClient.getAnalysisJob).not.toHaveBeenCalled();
+    expect(events.cancel).toHaveBeenCalledOnce();
+    expect(events.body.locked).toBe(false);
+  });
+
+  it.each(['completed', 'failed'])('handles an already %s job without opening a subscription', async status => {
+    vi.mocked(ApiClient.createAnalysisJob).mockResolvedValueOnce({ id: 'job-1', game_id: 'game-1', status });
+    render(<PgnImportScreen onExploreAnalysis={vi.fn()} />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '1. d4 d5' } });
+    fireEvent.click(screen.getByTestId('import-btn'));
+    if (status === 'failed') {
+      expect(await screen.findByRole('alert')).toHaveTextContent('Analysis job failed');
+      expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('explore-analysis-btn')).toBeNull();
+    } else {
+      expect(await screen.findByTestId('explore-analysis-btn')).toBeInTheDocument();
+      expect(ApiClient.getLearningOpportunities).toHaveBeenCalledExactlyOnceWith('game-1');
+    }
+    expect(ApiClient.watchAnalysisJob).not.toHaveBeenCalled();
+    expect(ApiClient.getAnalysisJob).not.toHaveBeenCalled();
+    expect(screen.getByTestId('import-btn')).toBeEnabled();
+  });
+
+  it.each(['failed', 'disconnected'])('shows a %s analysis, never polls or reconnects, and allows an explicit retry', async outcome => {
+    render(<PgnImportScreen onExploreAnalysis={vi.fn()} />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '1. d4 d5' } });
+    fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.watchAnalysisJob).toHaveBeenCalledOnce());
+    await act(async () => {
+      events.push('running');
+      if (outcome === 'failed') events.push('failed');
+      else events.close();
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(outcome === 'failed' ? 'Analysis job failed' : 'Progress stream disconnected before completion.');
+    expect(screen.getByTestId('import-btn')).toBeEnabled();
+    expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('explore-analysis-btn')).toBeNull();
+    vi.useFakeTimers();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(ApiClient.watchAnalysisJob).toHaveBeenCalledOnce();
+    expect(ApiClient.createAnalysisJob).toHaveBeenCalledOnce();
+    expect(ApiClient.getAnalysisJob).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+
+    events = analysisStream();
+    fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.watchAnalysisJob).toHaveBeenCalledTimes(2));
+    await act(async () => { events.push('completed'); });
+    expect(await screen.findByTestId('explore-analysis-btn')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(ApiClient.createAnalysisJob).toHaveBeenCalledTimes(2);
+    expect(ApiClient.getLearningOpportunities).toHaveBeenCalledExactlyOnceWith('game-1');
+  });
+
+  it('aborts and releases the pending subscription on unmount without fetching lessons', async () => {
+    const view = render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '1. d4 d5' } });
+    fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.watchAnalysisJob).toHaveBeenCalledOnce());
+    await act(async () => { events.push('running'); });
+    const signal = vi.mocked(ApiClient.watchAnalysisJob).mock.calls[0][2];
+    expect(signal.aborted).toBe(false);
+    expect(events.body.locked).toBe(true);
+    view.unmount();
+    await act(async () => {});
+    expect(signal.aborted).toBe(true);
+    expect(events.cancel).toHaveBeenCalledExactlyOnceWith(signal.reason);
+    expect(events.body.locked).toBe(false);
+    expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+    expect(ApiClient.getAnalysisJob).not.toHaveBeenCalled();
+  });
+
+  it('does not subscribe when creation finishes after unmount', async () => {
+    const creation = Promise.withResolvers<AnalysisJobRead>();
+    vi.mocked(ApiClient.createAnalysisJob).mockReturnValueOnce(creation.promise);
+    const view = render(<PgnImportScreen />);
+    fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '1. d4 d5' } });
+    fireEvent.click(screen.getByTestId('import-btn'));
+    await waitFor(() => expect(ApiClient.createAnalysisJob).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => { creation.resolve({ id: 'job-1', game_id: 'game-1', status: 'pending' }); });
+    expect(ApiClient.watchAnalysisJob).not.toHaveBeenCalled();
+    expect(ApiClient.getLearningOpportunities).not.toHaveBeenCalled();
+    expect(events.body.locked).toBe(false);
   });
 });

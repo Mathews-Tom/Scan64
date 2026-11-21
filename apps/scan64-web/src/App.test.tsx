@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { ApiClient } from './api/client';
-import type { LessonSpec } from './api/types';
+import type { LessonSpec, TrainingSessionRead } from './api/types';
 import { makeGameReview } from './components/review.test-fixtures';
 import { onboardingFixture, strengthFixture } from './components/strength.test-fixtures';
 import { insightsFixture } from './components/profile.test-fixtures';
@@ -109,7 +109,7 @@ describe('App', () => {
     window.history.replaceState(null, '', '/import');
     render(<App />);
     expect(ApiClient.importOnlineGames).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'Alice' } });
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'Alice' } });
     fireEvent.click(screen.getByRole('button', { name: 'Import online games' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Review Alice vs Bob' }));
     expect(window.location.pathname).toBe(`/games/${gameId}/analysis`);
@@ -118,9 +118,9 @@ describe('App', () => {
     expect(ApiClient.createAnalysisJob).not.toHaveBeenCalled();
     expect(ApiClient.createGame).not.toHaveBeenCalled();
   });
-  it('renders Today by default for a stored identity', () => {
+  it('renders Today by default for a stored identity', async () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
   });
 
   it('shows separate puzzle progress on Today without starting a run and links to puzzles', async () => {
@@ -135,31 +135,31 @@ describe('App', () => {
     expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
   });
 
-  it('navigates to play screen and updates the URL', () => {
+  it('navigates to play screen and updates the URL', async () => {
     render(<App />);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Play' }));
 
     expect(window.location.pathname).toBe('/play');
-    expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+    expect(await screen.findByTestId('play-screen')).toBeInTheDocument();
     expect(screen.getByRole('main', { name: 'Study content' })).toHaveFocus();
     expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main-content');
     expect(document.title).toBe('Play · Scan64');
   });
 
-  it('renders a directly addressed screen from its URL', () => {
+  it('renders a directly addressed screen from its URL', async () => {
     window.history.replaceState({}, '', '/play');
 
     render(<App />);
 
-    expect(screen.getByTestId('play-screen')).toBeInTheDocument();
+    expect(await screen.findByTestId('play-screen')).toBeInTheDocument();
   });
 
   it('navigates to imported puzzles and preserves the known deep-link route', async () => {
     render(<App />);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Puzzles' }));
     expect(window.location.pathname).toBe('/puzzles');
-    expect(screen.getByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
     expect(await screen.findByText('Import puzzles to begin.')).toBeInTheDocument();
   });
 
@@ -175,7 +175,7 @@ describe('App', () => {
   it('only resumes active puzzles when a stored identity opens the deep link', async () => {
     window.history.replaceState({}, '', '/puzzles');
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Puzzles' })).toBeInTheDocument();
     await waitFor(() => expect(ApiClient.getActivePuzzleRun).toHaveBeenCalledWith());
     expect(ApiClient.startPuzzleRun).not.toHaveBeenCalled();
   });
@@ -209,6 +209,7 @@ describe('App', () => {
   it('follows browser Back navigation', async () => {
     render(<App />);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Play' }));
+    await screen.findByTestId('play-screen');
 
     window.history.back();
 
@@ -273,6 +274,8 @@ describe('App', () => {
         .getByRole('button', { name: destination }));
       expect(window.location.pathname).toBe(path);
     }
+    if (destination === 'browser Back') await screen.findByRole('heading', { name: 'Analysis Board' });
+    else await screen.findByRole('heading', { name: destination === 'Review' ? 'Your games' : 'Library' });
     expect(screen.queryByTestId('play-screen')).not.toBeInTheDocument();
     if (destination === 'browser Back') window.history.forward();
     else window.history.back();
@@ -302,11 +305,11 @@ describe('App', () => {
     expect(screen.getByTestId('not-found')).toHaveTextContent('Page not found');
   });
 
-  it('navigates to import screen', () => {
+  it('navigates to import screen', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Library' }));
     fireEvent.click(screen.getByText('Import PGN'));
-    expect(screen.getByTestId('pgn-import')).toBeInTheDocument();
+    expect(await screen.findByTestId('pgn-import')).toBeInTheDocument();
   });
 
   it('navigates to daily training screen and loads a lesson', async () => {
@@ -334,18 +337,21 @@ describe('App', () => {
       mastery: {} as unknown as LessonSpec['mastery']
     };
 
-    vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
-      session_id: 'session-1',
-      move_choices: {},
-      attempts_used: { 'lesson-1': 0 },
-      lessons: [mockLesson],
-    });
+    const training = Promise.withResolvers<TrainingSessionRead>();
+    vi.spyOn(ApiClient, 'getTrainingSession').mockReturnValue(training.promise);
 
     render(<App />);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: 'Train' }));
     
-    // Should show loading then the instruction
-    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+    expect(await screen.findByTestId('loading-indicator')).toBeInTheDocument();
+    await act(async () => {
+      training.resolve({
+        session_id: 'session-1',
+        move_choices: {},
+        attempts_used: { 'lesson-1': 0 },
+        lessons: [mockLesson],
+      });
+    });
     
     await waitFor(() => {
       expect(screen.getByTestId('lesson-instruction')).toBeInTheDocument();
@@ -410,7 +416,7 @@ it('asks once for a display name before creating the active player', async () =>
   });
   fireEvent.click(screen.getByRole('button', { name: 'Library' }));
   fireEvent.click(screen.getByRole('button', { name: 'Import PGN' }));
-  fireEvent.change(screen.getByTestId('pgn-textarea'), { target: { value: '[Black "Ada"]\n\n1. e4 *' } });
+  fireEvent.change(await screen.findByTestId('pgn-textarea'), { target: { value: '[Black "Ada"]\n\n1. e4 *' } });
   await waitFor(() => expect(screen.getByLabelText('Your side')).toHaveValue('black'));
   expect(ApiClient.getPlayerProfile).toHaveBeenCalledWith(playerId);
 });
@@ -459,24 +465,32 @@ it('links the latest analysed game and orders weakest skills by name without cod
 it('reaches every existing screen through the grouped navigation', async () => {
   render(<App />);
   const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-  for (const [label, path] of [
-    ['Play', '/play'], ['Review', '/games'], ['Train', '/training'],
-    ['Profile', '/profile'], ['Coach', '/coach'], ['Today', '/'],
+  for (const [label, path, marker] of [
+    ['Play', '/play', 'play-screen'], ['Review', '/games', 'games-list-screen'],
+    ['Train', '/training', 'no-eligible-lessons'], ['Profile', '/profile', 'profile-screen'],
+    ['Coach', '/coach', 'coach-dashboard'],
   ]) {
     fireEvent.click(within(nav).getByRole('button', { name: label }));
     expect(window.location.pathname).toBe(path);
+    expect(await screen.findByTestId(marker)).toBeInTheDocument();
   }
-  for (const [label, path] of [
-    ['Opening Explorer', '/explorer'], ['Famous Games', '/famous'], ['Import PGN', '/import'],
+  fireEvent.click(within(nav).getByRole('button', { name: 'Today' }));
+  expect(window.location.pathname).toBe('/');
+  expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
+  for (const [label, path, marker] of [
+    ['Opening Explorer', '/explorer', 'opening-explorer'],
+    ['Famous Games', '/famous', 'famous-games-catalogue'],
+    ['Import PGN', '/import', 'pgn-import'],
   ]) {
     fireEvent.click(within(nav).getByRole('button', { name: 'Library' }));
     fireEvent.click(screen.getByRole('button', { name: label }));
     expect(window.location.pathname).toBe(path);
+    expect(await screen.findByTestId(marker)).toBeInTheDocument();
   }
   fireEvent.click(within(nav).getByRole('button', { name: 'Review' }));
   fireEvent.click(screen.getByRole('button', { name: 'Analysis Board' }));
   expect(window.location.pathname).toBe('/analysis');
-  expect(screen.getByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
   await waitFor(() => expect(ApiClient.getFamousGames).toHaveBeenCalled());
 });
 
