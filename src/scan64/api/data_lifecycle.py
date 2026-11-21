@@ -186,7 +186,16 @@ def _validate_clock_archive(
             or int(generation) > 9223372036854775807
         ):
             raise ValueError("Clock session has an invalid assistance generation")
-        if clock.version > len(game.moves) + 1:
+        initial_ply = play.opponent_config.get("initial_ply", "0")
+        if (
+            not initial_ply.isascii()
+            or not initial_ply.isdecimal()
+            or len(initial_ply) > 19
+            or int(initial_ply) > len(game.moves)
+        ):
+            raise ValueError("Clock session has an invalid initial ply")
+        session_initial_ply = int(initial_ply)
+        if clock.version > len(game.moves) - session_initial_ply + 1:
             raise ValueError("Clock version exceeds its retained turn boundaries")
         if game.headers.get("TimeControl") != (
             f"{control.initial_seconds}+{control.increment_seconds}"
@@ -208,11 +217,12 @@ def _validate_clock_archive(
         if not board.is_valid():
             raise ValueError("Clock game has an invalid initial position")
         moves_by_color = {chess.WHITE: 0, chess.BLACK: 0}
-        for move in game.moves:
+        for ply, move in enumerate(game.moves):
             parsed_move = board.parse_uci(move)
             if not board.is_legal(parsed_move):
                 raise ValueError("Clock game contains an illegal move")
-            moves_by_color[board.turn] += 1
+            if ply >= session_initial_ply:
+                moves_by_color[board.turn] += 1
             board.push(parsed_move)
         if game.pgn != build_pgn(game):
             raise ValueError("Clock game PGN disagrees with its retained replay")

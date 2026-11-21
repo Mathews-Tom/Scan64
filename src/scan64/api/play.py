@@ -10,7 +10,7 @@ from uuid import UUID
 
 import chess
 from chess_lesson_spec import LessonSpec
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlmodel import Session, col, select
 
@@ -50,6 +50,7 @@ router = APIRouter(tags=["play-sessions"])
 
 BOT_POLICY_VERSION = "stockfish-error-budget-v1"
 CLOCK_EXPIRY_WAIT_SECONDS = 15.0
+CLOCK_CHANGE_WAIT_SECONDS = 5.0
 
 
 class PlaySessionCreate(BaseModel):
@@ -77,6 +78,11 @@ class PlaySessionCreate(BaseModel):
                     raise ValueError("bot_level must identify one of the eight bot levels")
                 get_bot_level(int(level))
                 opponent_config["bot_level"] = str(int(level))
+        elif "strength" in opponent_config:
+            try:
+                int(opponent_config["strength"])
+            except ValueError as error:
+                raise ValueError("Maia strength must be an integer rating") from error
         return opponent_config
 
     @field_validator("initial_fen")
@@ -426,10 +432,16 @@ async def create_play_session(
 
 @router.get("/v1/play-sessions/{session_id}", response_model=PlaySessionRead)
 async def get_play_session(
-    session_id: UUID, request: Request, session: Session = Depends(get_session)
+    session_id: UUID,
+    request: Request,
+    session: Session = Depends(get_session),
+    after_clock_version: int | None = Query(default=None, ge=0),
 ) -> PlaySessionRead:
     engine = session.get_bind()
     runtime: PlayClockRuntime | None = getattr(request.app.state, "play_clock_runtime", None)
+    loop = asyncio.get_running_loop()
+    change_deadline: float | None = None
+    change_wait_finished = False
 
     def read_snapshot() -> PlaySessionRead:
         # Every read owns and closes its transaction before the async wait.
@@ -451,13 +463,33 @@ async def get_play_session(
                     or clock.deadline_at is None
                 ):
                     return snapshot
-                remaining = (
-                    clock.white_remaining_ms
-                    if clock.active_color == "white"
-                    else clock.black_remaining_ms
-                )
-                if remaining > 0:
-                    return snapshot
+                if runtime is not None and runtime.failed:
+                    raise HTTPException(
+                        status_code=503, detail="Play clock scheduler is unavailable."
+                    )
+                if clock.server_now < clock.deadline_at:
+                    if (
+                        after_clock_version != clock.version
+                        or change_wait_finished
+                        or runtime is None
+                        or observed is None
+                    ):
+                        return snapshot
+                    if change_deadline is None:
+                        change_deadline = loop.time() + CLOCK_CHANGE_WAIT_SECONDS
+                    remaining_wait = change_deadline - loop.time()
+                    if remaining_wait <= 0:
+                        return snapshot
+                    try:
+                        changed = await asyncio.wait_for(
+                            runtime.wait_for_change(observed), timeout=remaining_wait
+                        )
+                        change_wait_finished = not changed
+                    except TimeoutError:
+                        change_wait_finished = True
+                    # Wake or bounded timeout: refresh the authoritative snapshot,
+                    # including expiry handling if the deadline passed meanwhile.
+                    continue
                 if (
                     runtime is None
                     or observed is None
@@ -629,6 +661,8 @@ async def resume_opponent_move(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:

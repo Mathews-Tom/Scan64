@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from sqlmodel import Session
 
 import scan64.persistence.database as database
@@ -128,7 +128,11 @@ if shell_token is not None:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(response: Response) -> dict[str, str]:
+    runtime: PlayClockRuntime | None = getattr(app.state, "play_clock_runtime", None)
+    if runtime is not None and runtime.failed:
+        response.status_code = 503
+        return {"status": "degraded", "play_clock_scheduler": "failed"}
     return {"status": "ok"}
 
 

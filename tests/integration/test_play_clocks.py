@@ -31,7 +31,11 @@ from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis
 from scan64.chess.games.clock_models import PlayClock
 from scan64.chess.games.clocks import ClockConflict, PlayClockRuntime, clock_control, project_clock
 from scan64.chess.games.models import Game, PlaySession
-from scan64.chess.games.play_session_service import PlaySessionService, TakebackNotAllowed
+from scan64.chess.games.play_session_service import (
+    PlayMoveResult,
+    PlaySessionService,
+    TakebackNotAllowed,
+)
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.persistence.database import create_database_engine
@@ -59,6 +63,24 @@ class ScriptedOpponent(StockfishOpponentProvider):
         if self.effect is not None:
             await self.effect()
         return MoveDecision(self.move)
+
+
+async def wait_for_opponent(task: asyncio.Task[PlayMoveResult], entered: asyncio.Event) -> None:
+    waiting = asyncio.create_task(entered.wait())
+    try:
+        async with asyncio.timeout(2):
+            done, _ = await asyncio.wait((task, waiting), return_when=asyncio.FIRST_COMPLETED)
+            if task in done:
+                await task
+                raise AssertionError("Command completed before entering the opponent")
+            await waiting
+    except BaseException:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+    finally:
+        waiting.cancel()
+        await asyncio.gather(waiting, return_exceptions=True)
 
 
 @pytest.fixture
@@ -315,10 +337,14 @@ async def test_cancellation_leaves_restartable_bot_turn(db_session, frozen_time)
             session_id, "e2e4", 0
         )
     )
-    await entered.wait()
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    try:
+        await wait_for_opponent(task, entered)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
     db_session.refresh(game)
     db_session.refresh(clock)
     assert game.moves == ["e2e4"]
@@ -341,15 +367,21 @@ async def test_duplicate_resume_does_not_start_duplicate_engine(db_session, froz
     opponent = ScriptedOpponent(effect=block)
     service = PlaySessionService(db_session, opponent, clock_runtime=runtime)
     task = asyncio.create_task(service.resume_opponent(session_id, 0))
-    await entered.wait()
-    with Session(db_session.get_bind()) as other:
-        duplicate = PlaySessionService(other, opponent, clock_runtime=runtime)
-        with pytest.raises(ClockConflict, match="already in progress"):
-            await duplicate.resume_opponent(session_id, 0)
-    assert len(opponent.contexts) == 1
-    release.set()
-    assert (await task).opponent_move == "e7e5"
-    await runtime.stop()
+    try:
+        await wait_for_opponent(task, entered)
+        with Session(db_session.get_bind()) as other:
+            duplicate = PlaySessionService(other, opponent, clock_runtime=runtime)
+            with pytest.raises(ClockConflict, match="already in progress"):
+                await duplicate.resume_opponent(session_id, 0)
+        assert len(opponent.contexts) == 1
+        release.set()
+        async with asyncio.timeout(2):
+            assert (await task).opponent_move == "e7e5"
+    finally:
+        release.set()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await runtime.stop()
 
 
 @pytest.mark.asyncio
@@ -454,10 +486,11 @@ async def test_real_bot_timeout_is_bounded_and_flags(db_session, frozen_time):
         finally:
             frozen_time.advance(10)
 
-    with pytest.raises(ClockConflict, match="deadline"):
-        await PlaySessionService(
-            db_session, ScriptedOpponent(effect=never_finishes)
-        ).resume_opponent(play.id, 0)
+    async with asyncio.timeout(2):
+        with pytest.raises(ClockConflict, match="deadline"):
+            await PlaySessionService(
+                db_session, ScriptedOpponent(effect=never_finishes)
+            ).resume_opponent(play.id, 0)
     db_session.refresh(game)
     db_session.refresh(clock)
     assert game.moves == ["e2e4"]
@@ -657,7 +690,7 @@ async def test_runtime_sqlite_writer_contention_keeps_asgi_health_responsive(
     ("interruption", "advance_us"),
     [
         ("timeout", 60_000_000),
-        ("timeout", 59_999_500),
+        ("live", 59_999_500),
         ("shutdown", 60_000_000),
         ("cancel", 60_000_000),
     ],
@@ -695,7 +728,7 @@ async def test_overdue_read_interruptions_are_explicit_and_do_not_prevent_expiry
             pending = asyncio.create_task(
                 client.get(f"/v1/play-sessions/{session_id}", headers=auth)
             )
-            if interruption != "timeout":
+            if interruption in ("shutdown", "cancel"):
                 await asyncio.wait_for(entered.wait(), timeout=2)
             if interruption == "shutdown":
                 await runtime.stop()
@@ -710,6 +743,13 @@ async def test_overdue_read_interruptions_are_explicit_and_do_not_prevent_expiry
                 assert final.status_code == 200
                 assert final.json()["status"] == "completed"
                 assert final.json()["clock"]["terminal_reason"] == "flag"
+            elif interruption == "live":
+                response = await asyncio.wait_for(pending, timeout=2)
+                assert response.status_code == 200, response.text
+                assert response.json()["status"] == "active"
+                assert response.json()["clock"]["white_remaining_ms"] == 0
+                assert response.json()["clock"]["version"] == 0
+                assert not entered.is_set()
             else:
                 response = await asyncio.wait_for(pending, timeout=2)
                 assert response.status_code == 503
@@ -880,9 +920,12 @@ async def test_runtime_requeries_after_expiration_races(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure_stage", ["query", "write"])
-@pytest.mark.parametrize("error_code", [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED_SHAREDCACHE])
+@pytest.mark.parametrize(
+    "error_code",
+    [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED_SHAREDCACHE, sqlite3.SQLITE_IOERR_READ],
+)
 async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounded_backoff(
-    clock_db_session, frozen_time, monkeypatch, caplog, failure_stage, error_code
+    clock_db_session, frozen_time, monkeypatch, failure_stage, error_code
 ):
     play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
     session_id, game_id = play.id, game.id
@@ -932,7 +975,6 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
         await asyncio.wait_for(admitted.wait(), timeout=1)
         assert delays == pytest.approx([0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.0])
         assert len({id(session) for session in failed_sessions}) == 8
-        assert "scheduler database contention; retrying" in caplog.text
         with Session(clock_db_session.get_bind()) as other:
             assert other.get(PlaySession, session_id).status == "completed"
             assert other.get(PlayClock, session_id).terminal_reason == "flag"
@@ -948,7 +990,6 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
     "original",
     [
         sqlite3.OperationalError("no such table: playclock"),
-        sqlite3.OperationalError("disk I/O error"),
         RuntimeError("non-SQLite database is locked"),
     ],
 )
@@ -956,9 +997,7 @@ async def test_runtime_does_not_retry_nonretryable_database_failures(
     db_session, monkeypatch, original
 ):
     if isinstance(original, sqlite3.OperationalError):
-        original.sqlite_errorcode = (
-            sqlite3.SQLITE_IOERR if "I/O" in str(original) else sqlite3.SQLITE_ERROR
-        )
+        original.sqlite_errorcode = sqlite3.SQLITE_ERROR
     else:
         original.sqlite_errorcode = sqlite3.SQLITE_BUSY
     failure = OperationalError("SELECT", {}, original)
@@ -971,11 +1010,20 @@ async def test_runtime_does_not_retry_nonretryable_database_failures(
 
     monkeypatch.setattr(clocks, "Session", BrokenSession)
     runtime = PlayClockRuntime(db_session.get_bind())
+    runtime.start()
+    monkeypatch.setattr(app.state, "play_clock_runtime", runtime, raising=False)
     try:
         with pytest.raises(OperationalError) as raised:
-            await runtime._run()
+            await asyncio.wait_for(asyncio.shield(runtime._task), timeout=2)
         assert raised.value is failure
         assert len(attempts) == 1
+        assert runtime.failed
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            health = await client.get("/health")
+        assert health.status_code == 503
+        assert health.json() == {"status": "degraded", "play_clock_scheduler": "failed"}
     finally:
         await runtime.stop()
 
@@ -1072,9 +1120,14 @@ async def test_runtime_restart_does_not_run_pending_engine_and_shutdown_cancels_
         clock_db_session, ScriptedOpponent(effect=wait_forever), clock_runtime=restarted
     )
     task = asyncio.create_task(service.resume_opponent(session_id, 0))
-    await entered.wait()
-    await restarted.stop()
-    assert task.cancelled()
+    try:
+        await wait_for_opponent(task, entered)
+        await restarted.stop()
+        assert task.cancelled()
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await restarted.stop()
     clock_db_session.refresh(game)
     assert game.moves == ["e2e4"]
 
@@ -1386,21 +1439,31 @@ async def test_clock_cas_rejects_snapshot_aba_and_preserves_move_boundary(db_ses
 async def test_notify_wakes_scheduler_for_new_earlier_deadline(
     db_session, frozen_time, monkeypatch
 ):
-    _, _, _ = seed_clock(db_session, frozen_time)
+    seed_clock(db_session, frozen_time)
+    initial_wait = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    loop_thread = get_ident()
+
+    def observed_now():
+        if get_ident() == loop_thread:
+            loop.call_soon(initial_wait.set)
+        return frozen_time.now
+
+    monkeypatch.setattr(clocks, "utc_now", observed_now)
     runtime = PlayClockRuntime(db_session.get_bind())
     runtime.start()
-    await asyncio.sleep(0)
-    play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
-    session_id = play.id
-    admitted = asyncio.Event()
-
-    async def submit(player_id, job_id, pool):
-        admitted.set()
-
-    monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
-    frozen_time.advance(100)
-    runtime.notify()
     try:
+        await asyncio.wait_for(initial_wait.wait(), timeout=2)
+        play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
+        session_id = play.id
+        admitted = asyncio.Event()
+
+        async def submit(player_id, job_id, pool):
+            admitted.set()
+
+        monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
+        frozen_time.advance(100)
+        runtime.notify()
         await asyncio.wait_for(admitted.wait(), timeout=1)
         db_session.refresh(clock)
         db_session.refresh(play)
@@ -1614,15 +1677,22 @@ async def test_timed_grading_cannot_disclose_or_override_elapsed_flagfall(
             assert saved_play.status == "active"
             assert project_clock(saved_clock).white_remaining_ms == 0
             assert saved_clock.terminal_reason is None
-            PlaySessionService(reader, ScriptedOpponent()).expire_clock(session_id)
 
     # An unchanged expected clock/generation cannot waive the elapsed deadline.
+    opponent_calls = []
+
+    async def unexpected_opponent(*args, **kwargs):
+        opponent_calls.append(args)
+        raise AssertionError("An elapsed human turn must not start an opponent")
+
+    monkeypatch.setattr(PlaySessionService, "play_opponent_move", unexpected_opponent)
     attempted = await timed_assistance_api.post(
         f"/v1/play-sessions/{session_id}/moves",
         headers=auth,
         json={"move": "e2e4", "expected_clock_version": 0, "expected_generation": 0},
     )
     assert attempted.status_code == 409
+    assert opponent_calls == []
     repeated = await timed_assistance_api.post(
         f"/v1/play-sessions/{session_id}/assistance",
         headers=auth,

@@ -164,6 +164,21 @@ class PlayClockRuntime:
 
     def start(self) -> None:
         self._task = self._loop.create_task(self._run(), name="play-clock-deadlines")
+        self._task.add_done_callback(self._report_failure)
+
+    @property
+    def failed(self) -> bool:
+        return self._task is not None and self._task.done() and not self._closed
+
+    def _report_failure(self, task: asyncio.Task[None]) -> None:
+        if self._closed:
+            return
+        error = None if task.cancelled() else task.exception()
+        logger.critical(
+            "Play clock scheduler stopped unexpectedly",
+            exc_info=(type(error), error, error.__traceback__) if error is not None else None,
+        )
+        self._publish_change()
 
     def notify(self) -> None:
         if not self._closed and not self._loop.is_closed():
@@ -315,11 +330,14 @@ class PlayClockRuntime:
                 if (
                     not isinstance(error.orig, sqlite3.OperationalError)
                     or code is None
-                    or (code & 0xFF) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
+                    or (code & 0xFF)
+                    not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_IOERR)
                 ):
                     raise
                 # Closing the failed Session rolls back partial expiration work.
                 # Retry from a fresh deadline query, never a stale ORM snapshot.
-                logger.warning("Play clock scheduler database contention; retrying", exc_info=True)
+                logger.warning(
+                    "Play clock scheduler recoverable database failure; retrying", exc_info=True
+                )
                 await asyncio.sleep(retry_delay)
                 retry_delay = min(retry_delay * 2, 1.0)

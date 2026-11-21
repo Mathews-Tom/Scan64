@@ -94,6 +94,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
   const movePendingRef = useRef(false);
   const opponentPendingRef = useRef(false);
+  const failedOpponentVersions = useRef(new Set<string>());
   const resumedClockVersions = useRef(new Set<string>());
   const refreshedDeadlines = useRef(new Set<string>());
   const initialClockRefreshed = useRef(false);
@@ -113,6 +114,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [botChoiceError, setBotChoiceError] = useState<string | null>(null);
   const [botChoiceRequest, setBotChoiceRequest] = useState(0);
   const botChoiceBusy = useRef(false);
+  const startPendingRef = useRef(false);
+  const [startingGame, setStartingGame] = useState(false);
   useEffect(() => {
     if (!playerId || initialSession || sessionRef.current?.sparring) return;
     let cancelled = false;
@@ -158,6 +161,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [criticalInterruption, setCriticalInterruption] =
     useState<CriticalInterruptionRead | null>(null);
   const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
+  const timedInterruptionRef = useRef<{
+    sessionId: string; playerId: string; clockVersion: number; interruption: CriticalInterruptionRead;
+  } | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [conversionRefreshing, setConversionRefreshing] = useState(false);
@@ -327,6 +333,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setRefreshSessionId(null);
       setSyncRetrySessionId(null);
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
       updateBoard();
     } catch (caught) {
@@ -339,7 +346,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
 
   const startGame = async () => {
-    if (!botChoiceReady || botChoicePending) return;
+    if (!botChoiceReady || botChoicePending || startPendingRef.current) return;
+    startPendingRef.current = true;
+    setStartingGame(true);
     try {
       setError(null);
       let pid = playerId;
@@ -360,6 +369,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       });
       sessionRef.current = newSession;
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
       setSession(newSession);
       chessRef.current.reset();
@@ -376,6 +386,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       if (newSession.clock) await refreshQueuedSession(newSession.id);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      startPendingRef.current = false;
+      setStartingGame(false);
     }
   };
 
@@ -436,6 +449,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [updateBoard]);
   const resumeAfterCriticalReview = useCallback(() => {
     criticalInterruptionRef.current = null;
+    timedInterruptionRef.current = null;
     setCriticalInterruption(null);
     updateBoard();
   }, [updateBoard]);
@@ -449,7 +463,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return true;
   }, []);
 
-  const refreshQueuedSession = useCallback(async (sessionId: string, generation = ++refreshGenerationRef.current) => {
+  const refreshQueuedSession = useCallback(async (
+    sessionId: string, generation = ++refreshGenerationRef.current, afterClockVersion?: number,
+  ) => {
     if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return false;
     const ownerId = sessionRef.current.player_id;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
@@ -460,9 +476,13 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       return false;
     }
     try {
-      const refreshedSession = await ApiClient.getPlaySession(sessionId);
+      const refreshedSession = await (afterClockVersion === undefined
+        ? ApiClient.getPlaySession(sessionId) : ApiClient.getPlaySession(sessionId, afterClockVersion));
       const receivedAt = performance.now();
       if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return false;
+      if (refreshedSession.id !== sessionId || refreshedSession.player_id !== ownerId) {
+        throw new Error('The refreshed game does not match its owner and session.');
+      }
       const refreshedChess = new Chess();
       let result: string | null = null;
       if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
@@ -487,8 +507,19 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setHintPreview(null);
       setOpponentRetry(!!refreshedSession.clock?.active_color && refreshedSession.status === 'active' &&
         refreshedSession.clock.active_color !== sessionPlayerColor(refreshedSession) &&
-        resumedClockVersions.current.has(`${sessionId}:${refreshedSession.clock.version}`));
-      if (refreshedSession.status !== 'active') {
+        failedOpponentVersions.current.has(`${sessionId}:${refreshedSession.clock.version}`));
+      const timedInterruption = timedInterruptionRef.current;
+      if (timedInterruption?.sessionId === sessionId && timedInterruption.playerId === ownerId) {
+        const matches = refreshedSession.status === 'active' && refreshedSession.coach_mode &&
+          refreshedSession.clock?.version === timedInterruption.clockVersion;
+        criticalInterruptionRef.current = matches ? timedInterruption.interruption : null;
+        setCriticalInterruption(criticalInterruptionRef.current);
+        if (refreshedSession.status !== 'active' || !refreshedSession.coach_mode ||
+          (refreshedSession.clock && refreshedSession.clock.version > timedInterruption.clockVersion)) {
+          timedInterruptionRef.current = null;
+        }
+      } else if (refreshedSession.status !== 'active') {
+        timedInterruptionRef.current = null;
         criticalInterruptionRef.current = null;
         setCriticalInterruption(null);
       }
@@ -524,21 +555,39 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       opponentPendingRef.current || movePendingRef.current ||
       queuedMoveNeedsRefreshRef.current.has(current.id)) return;
     resumedClockVersions.current.add(`${current.id}:${current.clock.version}`);
+    const clockVersion = current.clock.version;
+    const versionKey = `${current.id}:${current.clock.version}`;
+    failedOpponentVersions.current.delete(versionKey);
     opponentPendingRef.current = true;
     setOpponentPending(true);
     setOpponentRetry(false);
     setError(null);
     let failure: string | null = null;
+    let conflict = false;
     try {
       await ApiClient.resumePlaySessionOpponentMove(current.id, current.clock.version);
     } catch (cause) {
+      conflict = cause instanceof ApiRequestError && cause.status === 409;
       failure = cause instanceof Error ? cause.message : 'Could not resume opponent move.';
+      failedOpponentVersions.current.add(versionKey);
     }
-    const refreshed = await refreshQueuedSession(current.id);
-    if (sessionRef.current?.id === current.id) {
-      if (failure) setError(failure);
-      setOpponentRetry(failure !== null && refreshed && sessionRef.current.status === 'active' &&
-        sessionRef.current.clock?.active_color !== sessionPlayerColor(sessionRef.current));
+    let refreshed = await refreshQueuedSession(current.id);
+    const sameOpponentTurn = () => sessionRef.current?.id === current.id &&
+      sessionRef.current.player_id === current.player_id && getStoredPlayerId() === current.player_id &&
+      sessionRef.current.status === 'active' && sessionRef.current.clock?.version === clockVersion &&
+      sessionRef.current.clock.active_color !== null &&
+      sessionRef.current.clock.active_color !== sessionPlayerColor(sessionRef.current);
+    if (conflict && refreshed && sameOpponentTurn()) {
+      refreshed = await refreshQueuedSession(current.id, undefined, current.clock.version);
+      if (refreshed && sameOpponentTurn()) {
+        setOpponentRetry(true);
+        setRefreshSessionId(current.id);
+        setError('The opponent move is still pending. Retry game refresh to check the saved position.');
+      }
+    } else if (failure && !conflict && sessionRef.current?.id === current.id &&
+      sessionRef.current.player_id === current.player_id && getStoredPlayerId() === current.player_id) {
+      setError(failure);
+      setOpponentRetry(refreshed && sameOpponentTurn());
     }
     opponentPendingRef.current = false;
     setOpponentPending(false);
@@ -657,6 +706,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       synchronizeQueuedSession(initialSession.id);
     }
   }, [initialSession, synchronizeQueuedSession]);
+  const retainTimedInterruption = useCallback((source: PlaySessionRead, response: PlayMoveResponse) => {
+    if (source.coach_mode && response.clock && response.critical_interruption) {
+      timedInterruptionRef.current = {
+        sessionId: source.id, playerId: source.player_id,
+        clockVersion: response.clock.version, interruption: response.critical_interruption,
+      };
+    }
+  }, []);
+
 
   const sourceIsCurrent = useCallback((source: AssistanceSource) => {
     const activeSession = sessionRef.current;
@@ -671,7 +729,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       !queuedMoveNeedsRefreshRef.current.has(source.sessionId);
   }, []);
 
-  const requireProtectedRefresh = useCallback((source: AssistanceSource) => {
+  const requireProtectedRefresh = useCallback((source: Pick<AssistanceSource, 'sessionId' | 'playerId'>) => {
     if (sessionRef.current?.id !== source.sessionId || sessionRef.current.player_id !== source.playerId) return;
     queuedMoveNeedsRefreshRef.current.add(source.sessionId);
     setRefreshSessionId(source.sessionId);
@@ -693,17 +751,20 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         move, expected_generation: graded.result.generation,
         ...(graded.source.clockVersion !== undefined ? { expected_clock_version: graded.source.clockVersion } : {}),
       });
-      if (!sourceIsCurrent(graded.source)) {
-        requireProtectedRefresh(graded.source);
-        return;
-      }
       if (graded.source.clockVersion !== undefined) {
-        await refreshQueuedSession(graded.source.sessionId);
-        if (response.critical_interruption && sessionRef.current?.coach_mode && sessionRef.current.status === 'active') {
-          criticalInterruptionRef.current = response.critical_interruption;
-          setCriticalInterruption(response.critical_interruption);
+        const current = sessionRef.current;
+        if (current?.id !== graded.source.sessionId || current.player_id !== graded.source.playerId ||
+          getStoredPlayerId() !== graded.source.playerId) {
+          requireProtectedRefresh(graded.source);
+          return;
         }
+        retainTimedInterruption(current, response);
+        await refreshQueuedSession(graded.source.sessionId);
       } else {
+        if (!sourceIsCurrent(graded.source)) {
+          requireProtectedRefresh(graded.source);
+          return;
+        }
         chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
         flushSync(updateBoard);
         applyMoveResponse(response);
@@ -728,7 +789,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       movePendingRef.current = false;
       setMovePending(false);
     }
-  }, [applyMoveResponse, clearAssistance, refreshQueuedSession, requireProtectedRefresh, sourceIsCurrent, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, refreshQueuedSession, requireProtectedRefresh, retainTimedInterruption, sourceIsCurrent, updateBoard]);
 
   const resumeBotTurn = async () => {
     const current = sessionRef.current;
@@ -852,11 +913,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           ...(activeSession.clock ? { expected_clock_version: activeSession.clock.version } : {}),
         });
         if (activeSession.clock) {
-          await refreshQueuedSession(activeSession.id);
-          if (response.critical_interruption && activeSession.coach_mode && sessionRef.current?.status === 'active') {
-            criticalInterruptionRef.current = response.critical_interruption;
-            setCriticalInterruption(response.critical_interruption);
+          if (sessionRef.current?.id !== activeSession.id ||
+            sessionRef.current.player_id !== activeSession.player_id || getStoredPlayerId() !== activeSession.player_id) {
+            requireProtectedRefresh({
+              sessionId: activeSession.id, playerId: activeSession.player_id,
+            });
+            return;
           }
+          retainTimedInterruption(activeSession, response);
+          await refreshQueuedSession(activeSession.id);
         } else applyMoveResponse(response);
       } catch (error: unknown) {
         if (!activeSession.clock && !navigator.onLine) {
@@ -884,7 +949,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       movePendingRef.current = false;
       setMovePending(false);
     }
-  }, [applyMoveResponse, clearAssistance, gradeMoves, refreshQueuedSession, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, gradeMoves, refreshQueuedSession, requireProtectedRefresh, retainTimedInterruption, updateBoard]);
 
   const takeback = async () => {
     const activeSession = sessionRef.current;
@@ -952,6 +1017,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       if (activeSession.clock) await refreshQueuedSession(activeSession.id);
       setResigned(true);
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
       if (!activeSession.clock) setError(null);
     } catch (caught) {
@@ -1237,7 +1303,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
               {TIME_CONTROLS.map((choice, index) => <option key={choice.label} value={String(index)}>{choice.label}</option>)}
             </select>
           </label>
-          <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending} data-testid="start-btn">Start Game</button>
+          <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending || startingGame} data-testid="start-btn">Start Game</button>
         </Panel>
       )}
       {error && <div className="error" role="alert">{error}</div>}

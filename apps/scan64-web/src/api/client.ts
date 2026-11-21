@@ -487,8 +487,9 @@ export class ApiClient {
     return json as unknown as PlaySessionRead;
   }
 
-  static async getPlaySession(sessionId: string): Promise<PlaySessionRead> {
-    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}`, {
+  static async getPlaySession(sessionId: string, afterClockVersion?: number): Promise<PlaySessionRead> {
+    const query = afterClockVersion === undefined ? '' : `?after_clock_version=${afterClockVersion}`;
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}${query}`, {
       headers: getPlayerAuthorizationHeader(getActivePlayerId()),
     });
     if (!response.ok) {

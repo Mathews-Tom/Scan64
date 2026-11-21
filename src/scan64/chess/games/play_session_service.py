@@ -5,7 +5,7 @@ import logging
 from asyncio import sleep
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
 from uuid import UUID
@@ -169,7 +169,13 @@ class PlaySessionService:
             side_to_move="w" if board.turn == chess.WHITE else "b",
             canonical_id=board.fen().split(" ")[0],
         )
-        decision = await self.opponent_provider_for(config).choose_move(position, context)
+        try:
+            decision = await self.opponent_provider_for(config).choose_move(position, context)
+        except MaiaConfigurationError as error:
+            logger.exception("Maia opponent runtime is unavailable")
+            raise RuntimeError(
+                "Maia opponent is unavailable. Review the server configuration."
+            ) from error
         self.persist_maia_selection(play_session, strength)
         move = chess.Move.from_uci(decision.uci_move)
         if move not in board.legal_moves:
@@ -558,6 +564,7 @@ class PlaySessionService:
         snapshot: PlaySnapshot,
         board: chess.Board,
         opponent_move: str | None,
+        prepared_interruption: PreparedCoachInterruption | None = None,
     ) -> PlayMoveResult:
         self.persist_moves(play, game, snapshot.moves, snapshot)
         claim_clock(
@@ -568,11 +575,18 @@ class PlaySessionService:
             next_color=None if board.is_game_over() else "white" if board.turn else "black",
             terminal_reason="board" if board.is_game_over() else None,
         )
+        interruption = None
+        if prepared_interruption is not None:
+            try:
+                interruption = prepared_interruption.add_to(self.db)
+            except Exception:
+                self.db.rollback()
+                raise
         # Freeze under the move/snapshot and clock write fences. Commit expires
         # ORM objects and may be followed immediately by another owned command.
         result = PlayMoveResult(
             opponent_move=opponent_move,
-            interruption=None,
+            interruption=interruption,
             status="completed" if board.is_game_over() else play.status,
             clock=_CommittedClockRead(**project_clock(clock).model_dump()),
         )
@@ -661,12 +675,7 @@ class PlaySessionService:
                     logger.exception("Coach diagnostic timed out for timed session %s", session_id)
                 except Exception:
                     logger.exception("Coach diagnostic failed for timed session %s", session_id)
-            result = await self._resume_opponent(session_id, bot_version)
-            if prepared is not None:
-                interruption = prepared.add_to(self.db)
-                self.db.commit()
-                result = replace(result, interruption=interruption)
-            return result
+            return await self._resume_opponent(session_id, bot_version, prepared)
 
     async def resume_opponent(self, session_id: UUID, expected_version: int) -> PlayMoveResult:
         """Resume only the durable bot turn; retain its committed transition."""
@@ -688,7 +697,10 @@ class PlaySessionService:
                 self._opponent_inflight.discard(session_id)
 
     async def _resume_opponent(
-        self, session_id: UUID, expected_version: int | None
+        self,
+        session_id: UUID,
+        expected_version: int | None,
+        prepared_interruption: PreparedCoachInterruption | None = None,
     ) -> PlayMoveResult:
         self.db.expire_all()
         play = self.db.get(PlaySession, session_id)
@@ -746,4 +758,6 @@ class PlaySessionService:
             raise ClockConflict("Timed Game was removed")
         play.opponent_config = work_play.opponent_config
         game.moves = work_game.moves
-        return self.commit_timed_move(play, game, clock, snapshot, board, opponent_move)
+        return self.commit_timed_move(
+            play, game, clock, snapshot, board, opponent_move, prepared_interruption
+        )

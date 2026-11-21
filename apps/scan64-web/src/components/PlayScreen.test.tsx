@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayScreen } from './PlayScreen';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, setActivePlayerId } from '../api/client';
-import type { GameRead, LessonSpec, PlayAssistanceRead, PlayClockRead, PlayMoveResponse, PlaySessionRead } from '../api/types';
+import type { GameRead, LessonSpec, PlayAssistanceRead, PlayClockRead, PlayMoveResponse, PlaySessionRead, PlayerRead } from '../api/types';
 import { Chess } from 'chess.js';
 import { onboardingFixture } from './strength.test-fixtures';
 import {
@@ -243,6 +243,50 @@ describe('PlayScreen', () => {
     expect(screen.getByText('Takebacks are unavailable in timed games.')).toBeInTheDocument();
   });
 
+  it('guards repeated starts synchronously and disables Start Game throughout player and game creation', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const player = Promise.withResolvers<PlayerRead>();
+    const game = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.createPlayer).mockReturnValue(player.promise);
+    vi.mocked(ApiClient.createPlaySession).mockReturnValue(game.promise);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(timedSession);
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
+    act(() => {
+      fireEvent.click(screen.getByTestId('start-btn'));
+      fireEvent.click(screen.getByTestId('start-btn'));
+    });
+    expect(screen.getByTestId('start-btn')).toBeDisabled();
+    expect(ApiClient.createPlayer).toHaveBeenCalledTimes(1);
+    expect(ApiClient.createPlaySession).not.toHaveBeenCalled();
+    await act(async () => { player.resolve({ id: 'test-player', preferences: {} }); });
+    expect(screen.getByTestId('start-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('start-btn'));
+    expect(ApiClient.createPlaySession).toHaveBeenCalledTimes(1);
+    await act(async () => { game.resolve(timedSession); });
+    expect(screen.getByTestId('session-info')).toHaveTextContent('active');
+    expect(ApiClient.createPlayer).toHaveBeenCalledTimes(1);
+    expect(ApiClient.createPlaySession).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['player', 'session'] as const)('allows a fresh start after %s creation fails', async stage => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.mocked(ApiClient.createPlayer).mockResolvedValue({ id: 'test-player', preferences: {} });
+    vi.mocked(ApiClient.createPlaySession).mockResolvedValue(timedSession);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(timedSession);
+    if (stage === 'player') vi.mocked(ApiClient.createPlayer).mockRejectedValueOnce(new Error('Start unavailable'));
+    else vi.mocked(ApiClient.createPlaySession).mockRejectedValueOnce(new Error('Start unavailable'));
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByTestId('start-btn')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('start-btn'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Start unavailable');
+    expect(screen.getByTestId('start-btn')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('start-btn'));
+    expect(await screen.findByTestId('session-info')).toHaveTextContent('active');
+    expect(ApiClient.createPlayer).toHaveBeenCalledTimes(2);
+    expect(ApiClient.createPlaySession).toHaveBeenCalledTimes(stage === 'player' ? 1 : 2);
+  });
+
   it.each([false, true])('starts a durable bot-first timed turn and exposes a failed command retry: %s', async (failsFirst) => {
     localStorage.setItem('scan64_player_id', 'test-player');
     const pending = { ...timedSession, player_color: 'black' as const, opponent_move: null,
@@ -383,6 +427,86 @@ describe('PlayScreen', () => {
     expect(screen.queryByRole('button', { name: 'Retry opponent move' })).not.toBeInTheDocument();
   });
 
+  it('waits once for a remounted duplicate opponent command and installs its eventual canonical reply', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', timedSession.id);
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    const changed = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(pending).mockResolvedValueOnce(pending)
+      .mockReturnValueOnce(changed.promise);
+    vi.mocked(ApiClient.resumePlaySessionOpponentMove).mockRejectedValue(new ApiRequestError('Already in progress', 409));
+    render(<PlayScreen />);
+    await waitFor(() => expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith(timedSession.id, 5));
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+    expect(screen.getByText('Opponent thinking…')).toBeInTheDocument();
+    expect(screen.getByTestId('black-clock')).toHaveAccessibleName('Black clock, active');
+    expect(screen.queryByRole('button', { name: 'Retry opponent move' })).not.toBeInTheDocument();
+    await act(async () => { changed.resolve(after); });
+    expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active');
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+    expect(ApiClient.resumePlaySessionOpponentMove).toHaveBeenCalledExactlyOnceWith(timedSession.id, 5);
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it('retains opponent retry when a manual refresh still has the pending clock version', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', timedSession.id);
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    const boundedWait = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(pending).mockResolvedValueOnce(pending)
+      .mockReturnValueOnce(boundedWait.promise).mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce(pending).mockResolvedValue(after);
+    vi.mocked(ApiClient.resumePlaySessionOpponentMove).mockRejectedValue(new ApiRequestError('Already in progress', 409));
+    render(<PlayScreen />);
+    await waitFor(() => expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith(timedSession.id, 5));
+    await act(async () => { boundedWait.resolve(pending); });
+    expect(screen.getByRole('alert')).toHaveTextContent('still pending');
+    expect(screen.getByRole('button', { name: 'Retry opponent move' })).toBeEnabled();
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry game refresh' })).not.toBeInTheDocument());
+    expect(screen.getByTestId('black-clock')).toHaveAccessibleName('Black clock, active');
+    expect(screen.getByRole('button', { name: 'Retry opponent move' })).toBeEnabled();
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith(timedSession.id);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry opponent move' }));
+    await waitFor(() => expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active'));
+    expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith(timedSession.id, 5);
+    expect(ApiClient.resumePlaySessionOpponentMove).toHaveBeenCalledTimes(2);
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+  });
+
+  it.each(['initial refresh', 'version wait'] as const)('retains opponent retry after a failed %s', async (stage) => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    localStorage.setItem('scan64_active_play_session_id', timedSession.id);
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    const reads = vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(pending);
+    if (stage === 'version wait') reads.mockResolvedValueOnce(pending);
+    reads.mockRejectedValueOnce(new Error('Saved position temporarily unavailable'))
+      .mockResolvedValueOnce(pending).mockResolvedValueOnce(after);
+    vi.mocked(ApiClient.resumePlaySessionOpponentMove)
+      .mockRejectedValueOnce(new ApiRequestError('Already in progress', 409))
+      .mockResolvedValueOnce({
+        opponent_move: 'e7e5', status: 'active', critical_interruption: null,
+        clock: { ...timedClock, version: 6 },
+      });
+    render(<PlayScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry game refresh' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry opponent move' })).toBeEnabled());
+    expect(screen.getByTestId('black-clock')).toHaveAccessibleName('Black clock, active');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry opponent move' }));
+    await waitFor(() => expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active'));
+    expect(ApiClient.resumePlaySessionOpponentMove).toHaveBeenCalledTimes(2);
+    expect(ApiClient.makePlaySessionMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
   it('animates only the active side and refreshes once at zero without inventing a result', async () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     vi.useFakeTimers();
@@ -391,9 +515,8 @@ describe('PlayScreen', () => {
     const black = { ...timedSession, pgn: '1. e4 *', player_color: 'black' as const, clock: {
       ...timedClock, active_color: 'black' as const, black_remaining_ms: 2500,
     } };
-    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(black).mockResolvedValue({
-      ...black, clock: { ...black.clock, black_remaining_ms: 0 },
-    });
+    const deadlineRefresh = Promise.withResolvers<PlaySessionRead>();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(black).mockReturnValueOnce(deadlineRefresh.promise);
     vi.mocked(ApiClient.getGame).mockResolvedValue({ ...timedGame, pgn: '1. e4 *' });
     const view = render(<PlayScreen initialSession={black} />);
     await act(async () => {});
@@ -412,6 +535,18 @@ describe('PlayScreen', () => {
     expect(screen.getByTestId('session-info')).toHaveTextContent('active');
     expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
     now = 62600;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('game-result')).not.toBeInTheDocument();
+    await act(async () => {
+      deadlineRefresh.resolve({
+        ...black, status: 'completed', result: '1-0', clock: {
+          ...black.clock, version: 5, black_remaining_ms: 0, active_color: null, deadline_at: null,
+          terminal_reason: 'flag', flagged_color: 'black',
+        },
+      });
+    });
+    expect(screen.getByTestId('game-result')).toHaveTextContent('White wins. Time expired.');
     await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
     expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
     view.unmount();
@@ -441,6 +576,32 @@ describe('PlayScreen', () => {
     await act(async () => { canonical.resolve(after); await firstMove; });
     await waitFor(() => expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(2));
     expect(ApiClient.makePlaySessionMove).toHaveBeenLastCalledWith('timed-session', { move: 'g1f3', expected_clock_version: 6 });
+  });
+
+  it('cancels a timed premove when the deferred canonical snapshot replaces its source history', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const response = Promise.withResolvers<PlayMoveResponse>();
+    const canonical = Promise.withResolvers<PlaySessionRead>();
+    const replacement = { ...timedSession, pgn: '1. d4 d5 *', clock: { ...timedClock, version: 8 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(timedSession).mockReturnValueOnce(canonical.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValue(response.promise);
+    render(<PlayScreen initialSession={timedSession} />);
+    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
+    await act(async () => { getRegisteredMoveHandler()('e2', 'e4'); });
+    act(() => {
+      chessgroundMock.state.premovable.current = ['g1', 'f3'];
+      chessgroundMock.premoveSet?.('g1', 'f3');
+    });
+    expect(screen.getByRole('button', { name: 'Cancel premove' })).toBeInTheDocument();
+    await act(async () => { response.reject(new ApiRequestError('Stale clock version', 409)); });
+    expect(screen.getByRole('button', { name: 'Cancel premove' })).toBeInTheDocument();
+    await act(async () => { canonical.resolve(replacement); });
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('d5');
+    expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
   });
 
   it('never queues an ambiguously accepted timed move when the connection drops during the request', async () => {
@@ -517,6 +678,158 @@ describe('PlayScreen', () => {
     }));
     await waitFor(() => expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('Candidates'));
     expect(ApiClient.getGame).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it('refreshes a successful protected timed commit after a deadline refresh has already changed the source position', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    vi.useFakeTimers();
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const initial = { ...timedSession, clock: { ...timedClock, white_remaining_ms: 1 } };
+    const pending = { ...timedSession, pgn: '1. e4 *', clock: { ...timedClock, version: 5, active_color: 'black' as const } };
+    const after = { ...timedSession, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    const committed = Promise.withResolvers<PlayMoveResponse>();
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(initial).mockResolvedValueOnce(pending).mockResolvedValue(after);
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [{ ...blunderVerdict.grades[0], band: 'sound' }],
+    });
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValue(committed.promise);
+    render(<PlayScreen initialSession={initial} />);
+    await act(async () => {});
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'e2e4' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Play e4' }));
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith(timedSession.id, {
+      move: 'e2e4', expected_generation: 7, expected_clock_version: 4,
+    });
+    now = 2;
+    await act(async () => { await vi.advanceTimersByTimeAsync(2); });
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4');
+    expect(screen.getByTestId('black-clock')).toHaveAccessibleName('Black clock, active');
+    await act(async () => { committed.resolve({ opponent_move: 'e7e5', status: 'active', clock: after.clock }); });
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5');
+    expect(screen.getByTestId('white-clock')).toHaveAccessibleName('White clock, active');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByTestId('retry-game-refresh')).not.toBeInTheDocument();
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(3);
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(ApiClient.resumePlaySessionOpponentMove).not.toHaveBeenCalled();
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { protectedMove: false, canonicalVersion: 6 },
+    { protectedMove: true, canonicalVersion: 6 },
+    { protectedMove: false, canonicalVersion: 8 },
+    { protectedMove: true, canonicalVersion: 8 },
+  ])('retains a version-bound timed coach lesson across failed GET and retry: %j', async ({ protectedMove, canonicalVersion }) => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const coach = { ...timedSession, coach_mode: true };
+    const committed = Promise.withResolvers<PlayMoveResponse>();
+    const refresh = Promise.withResolvers<PlaySessionRead>();
+    const retry = Promise.withResolvers<PlaySessionRead>();
+    const after = { ...coach, pgn: canonicalVersion === 6 ? '1. e4 e5 *' : '1. e4 e5 2. Nf3 Nc6 *',
+      clock: { ...timedClock, version: canonicalVersion } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(coach).mockReturnValueOnce(refresh.promise)
+      .mockReturnValueOnce(retry.promise);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValue(committed.promise);
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [{ ...blunderVerdict.grades[0], band: 'sound' }],
+    });
+    render(<PlayScreen initialSession={coach} />);
+    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
+    if (protectedMove) {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'e2e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Play e4' }));
+    } else await act(async () => { getRegisteredMoveHandler()('e2', 'e4'); });
+    await act(async () => {
+      committed.resolve({
+        opponent_move: 'e7e5', status: 'active', clock: { ...timedClock, version: 6 },
+        critical_interruption: { lesson: serverLesson, opportunity_id: 'timed-opportunity', study_session_id: 'timed-study' },
+      });
+    });
+    expect(ApiClient.getPlaySession).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    await act(async () => { refresh.reject(new Error('Canonical refresh unavailable')); });
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    await act(async () => { retry.resolve(after); });
+    expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent(canonicalVersion === 6 ? 'e5' : 'Nc6');
+    if (canonicalVersion === 6) {
+      expect(screen.getByTestId('critical-moment-review')).toHaveAttribute('data-opportunity-id', 'timed-opportunity');
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    } else {
+      expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false');
+    }
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledExactlyOnceWith(timedSession.id, {
+      move: 'e2e4', expected_clock_version: 4, ...(protectedMove ? { expected_generation: 7 } : {}),
+    });
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('does not expose a timed coach lesson across an owner switch during canonical GET (protected=%s)', async protectedMove => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const coach = { ...timedSession, coach_mode: true };
+    const committed = Promise.withResolvers<PlayMoveResponse>();
+    const canonical = Promise.withResolvers<PlaySessionRead>();
+    const after = { ...coach, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(coach).mockReturnValueOnce(canonical.promise).mockResolvedValue(after);
+    vi.mocked(ApiClient.makePlaySessionMove).mockReturnValue(committed.promise);
+    vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue({
+      ...blunderVerdict, mode: 'candidates', assistance_modes: ['candidates'],
+      grades: [{ ...blunderVerdict.grades[0], band: 'sound' }],
+    });
+    render(<PlayScreen initialSession={coach} />);
+    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
+    if (protectedMove) {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Add candidate move' }), { target: { value: 'e2e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Grade candidates' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Play e4' }));
+    } else await act(async () => { getRegisteredMoveHandler()('e2', 'e4'); });
+    await act(async () => {
+      committed.resolve({
+        opponent_move: 'e7e5', status: 'active', clock: after.clock,
+        critical_interruption: { lesson: serverLesson, opportunity_id: 'owner-fenced', study_session_id: 'owner-study' },
+      });
+    });
+    localStorage.setItem('scan64_player_id', 'other-player');
+    await act(async () => { canonical.resolve(after); });
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Return to the game owner');
+    localStorage.setItem('scan64_player_id', 'test-player');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(await screen.findByTestId('critical-moment-review')).toHaveAttribute('data-opportunity-id', 'owner-fenced');
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    expect(queueMove).not.toHaveBeenCalled();
+  });
+
+  it.each(['id', 'player_id'] as const)('rejects a timed coach refresh with a mismatched %s before showing its lesson', async field => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const coach = { ...timedSession, coach_mode: true };
+    const canonical = Promise.withResolvers<PlaySessionRead>();
+    const after = { ...coach, pgn: '1. e4 e5 *', clock: { ...timedClock, version: 6 } };
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(coach).mockReturnValueOnce(canonical.promise).mockResolvedValue(after);
+    vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({
+      opponent_move: 'e7e5', status: 'active', clock: after.clock,
+      critical_interruption: { lesson: serverLesson, opportunity_id: 'matched-snapshot', study_session_id: 'matched-study' },
+    });
+    render(<PlayScreen initialSession={coach} />);
+    await waitFor(() => expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'false'));
+    await act(async () => { getRegisteredMoveHandler()('e2', 'e4'); });
+    await act(async () => { canonical.resolve({ ...after, [field]: 'different-owner-or-session' }); });
+    expect(screen.queryByTestId('critical-moment-review')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('does not match its owner and session');
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry game refresh' }));
+    expect(await screen.findByTestId('critical-moment-review')).toHaveAttribute('data-opportunity-id', 'matched-snapshot');
+    expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
     expect(queueMove).not.toHaveBeenCalled();
   });
 

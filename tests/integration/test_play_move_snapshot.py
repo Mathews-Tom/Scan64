@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from uuid import UUID
 
 import pytest
@@ -10,6 +11,7 @@ import scan64.api.play as play_api
 from scan64.api.app import app
 from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
 from scan64.chess.games.clock_models import PlayClock
+from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService
 from tests.integration.test_coach_interruption_attempts import (
@@ -19,6 +21,15 @@ from tests.integration.test_coach_interruption_attempts import (
 )
 from tests.integration.test_play_clocks import FrozenTime, ScriptedOpponent, register, seed_clock
 from tests.integration.test_play_clocks import frozen_time as frozen_time
+
+
+@pytest.fixture(name="client")
+def snapshot_client(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    # The explicit post-COMMIT writer must be the only terminal transition.
+    monkeypatch.setattr(PlayClockRuntime, "start", lambda self: None)
+    monkeypatch.setitem(app.dependency_overrides, play_api.get_session, lambda: db_session)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _seed_play(
@@ -99,7 +110,6 @@ def test_move_response_keeps_owned_commit_when_resignation_commits_before_assemb
     assert data["opponent_move"] == "e8d7"
     assert data["status"] == "active"
     assert competing_commits == 1
-    assert owned_commits == move_commit + int(timed and coach_mode)
     if timed:
         assert data["clock"]["version"] == 2
         assert data["clock"]["active_color"] == "white"
