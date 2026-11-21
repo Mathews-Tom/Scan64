@@ -116,6 +116,14 @@ export async function choosePuzzleFile(): Promise<string | null> {
   }
 }
 
+export async function saveCoachPacket(packet: ArrayBuffer): Promise<void> {
+  try {
+    await invoke('save_coach_packet', packet);
+  } catch (error) {
+    throw typeof error === 'string' ? new Error(error) : error;
+  }
+}
+
 export interface UpdateStatus {
   revision: number;
   state: 'idle' | 'checking' | 'upToDate' | 'available' | 'downloading' | 'ready' | 'installing' | 'failed' | 'unavailable';

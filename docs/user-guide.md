@@ -355,6 +355,26 @@ Otherwise the section says **Not enough games**, gives available counts and
 exclusion coverage, and leaves rates unavailable rather than zero. Its retry
 button reloads only this section; other Profile panels remain usable.
 
+**Download coach packet** explicitly saves one local `scan64-coach-packet.zip` for
+a human coach. In the desktop app, choose a new `.zip` filename in the save dialog;
+existing files are not overwritten. The packet contains only `summary.md` and
+`evidence.pgn`, not a personal archive. The summary preserves this report's
+coverage, denominators, raw counts, insufficient-sample status, Wilson intervals
+and descriptive caveat. The PGN
+contains the exact trusted primary occurrences included in each pattern's
+before/after samples, including sparse samples; excluded games and patterns
+without a verified training anchor add no positions. A zero-occurrence sample
+needs no PGN entry. No analysis or remote upload is started.
+
+Open the PGN with a chess viewer supporting **FEN / SetUp** positions. Each entry
+starts at its full source position and shows only the recorded owner move,
+annotated with the trusted pattern, not generated advice. The summary's **E**
+references locate PGN entries; **G** references identify games within this packet,
+with source ply indices to distinguish positions. Original names, online links,
+game metadata and credentials are omitted. Sharing the ZIP deliberately exposes
+those chess positions, training times and pattern statistics. Save it only where
+you intend to share it. A failed download can be retried without leaving Profile.
+
 ## Daily goals and tracked pattern evidence
 
 Today and Profile show a **daily qualifying-solve goal**, default **three**, on the
