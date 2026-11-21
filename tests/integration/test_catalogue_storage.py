@@ -167,7 +167,7 @@ def test_v080_copy_upgrade_downgrade_reupgrade_preserves_today_and_themes(tmp_pa
                     connection.exec_driver_sql(
                         "SELECT version_num FROM alembic_version"
                     ).scalar_one()
-                    == "20261119_21"
+                    == "20261119_22"
                 )
             with Session(engine) as session:
                 assert source_themes(session) == expected_themes

@@ -262,6 +262,7 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "pattern_awards": 0,
         "pattern_award_evidence": 0,
         "play_sessions": 1,
+        "play_clocks": 0,
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
         "sparring_attempts": 0,

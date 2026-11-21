@@ -12,6 +12,8 @@ from sqlmodel import Session, col, select
 from scan64.api.models import PlayerOnboarding
 from scan64.api.onboarding import owned_player
 from scan64.chess.games.assistance import SessionHintReveal
+from scan64.chess.games.clock_models import PlayClock, TimeControl
+from scan64.chess.games.clocks import clock_control
 from scan64.chess.games.eligibility import session_exclusion
 from scan64.chess.games.models import Game, PlaySession
 from scan64.content.puzzle_practice_models import INITIAL_RATING, PuzzleRating, PuzzleRatingEvent
@@ -27,7 +29,7 @@ DISCLOSURE = (
     "tracked, standard-start, non-coach Stockfish games without recorded hints; "
     "resignations count. Takebacks and external help are not certified. "
     "Trends compare the latest five with the previous five games within one level "
-    "and policy version; unstamped tracked sessions are v1 (unstamped). "
+    "and policy version and exact time control; unstamped tracked sessions are v1 (unstamped). "
     "No automatic level changes. New-skill priors remain provisional (3,2); internal 1500 is not "
     "a measured chess rating."
 )
@@ -44,6 +46,7 @@ class BotCohort(ResultsWindow):
     provider: Literal["stockfish"] = "stockfish"
     bot_level: int
     bot_policy_version: str
+    time_control: TimeControl | None = None
     latest: ResultsWindow
     previous: ResultsWindow
     trend: Literal["improving", "steady", "declining", "insufficient_data"]
@@ -93,25 +96,26 @@ def read_strength(player_id: str, session: Session) -> StrengthRead:
     )
     # A resumed/continued game can have several sessions. Count each game once and
     # conservatively reject it if any associated session is ineligible or hinted.
-    games: dict[str, tuple[Game, list[PlaySession]]] = {}
+    games: dict[str, tuple[Game, list[tuple[PlaySession, PlayClock | None]]]] = {}
     boundary = progress_reset_at(player_id, session)
     rows = session.exec(
-        select(Game, PlaySession)
+        select(Game, PlaySession, PlayClock)
         .join(PlaySession, col(PlaySession.game_id) == Game.id)
+        .outerjoin(PlayClock, col(PlayClock.session_id) == PlaySession.id)
         .where(
             Game.owner_player_id == player_id,
             Game.created_at >= boundary if boundary is not None else True,
         )
         .order_by(col(Game.created_at).desc(), col(Game.id).desc())
     ).all()
-    for game, play in rows:
+    for game, play, joined_clock in rows:
         entry = games.setdefault(str(game.id), (game, []))
-        entry[1].append(play)
-    cohorts: dict[tuple[int, str], list[float]] = defaultdict(list)
+        entry[1].append((play, joined_clock))
+    cohorts: dict[tuple[int, str, int, int], list[float]] = defaultdict(list)
     for game, plays in games.values():
         if len(plays) != 1:
             continue
-        play = plays[0]
+        play, clock = plays[0]
         if session_exclusion(game, play) is not None or play.id in hinted:
             continue
         config = play.opponent_config
@@ -126,14 +130,20 @@ def read_strength(player_id: str, session: Session) -> StrengthRead:
         version = config.get("bot_policy_version", LEGACY_POLICY)
         if not version:
             continue
+        try:
+            control = clock_control(play, clock)
+        except ValueError:
+            continue
         score = (
             0.5
             if game.result == "1/2-1/2"
             else float(game.result == ("1-0" if color == "white" else "0-1"))
         )
-        cohorts[(int(level), version)].append(score)
+        initial = control.initial_seconds if control is not None else 0
+        increment = control.increment_seconds if control is not None else 0
+        cohorts[(int(level), version, initial, increment)].append(score)
     projected: list[BotCohort] = []
-    for (level_number, version), scores in sorted(cohorts.items()):
+    for (level_number, version, initial, increment), scores in sorted(cohorts.items()):
         latest, previous = scores[:5], scores[5:10]
         trend: Literal["improving", "steady", "declining", "insufficient_data"]
         if len(scores) < 10:
@@ -149,6 +159,11 @@ def read_strength(player_id: str, session: Session) -> StrengthRead:
                 **results_window(scores).model_dump(),
                 bot_level=level_number,
                 bot_policy_version=version,
+                time_control=(
+                    TimeControl(initial_seconds=initial, increment_seconds=increment)
+                    if initial
+                    else None
+                ),
                 latest=results_window(latest),
                 previous=results_window(previous),
                 trend=trend,

@@ -14,6 +14,8 @@ from sqlalchemy import Boolean, func, update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import JSON, Column, Field, Session, SQLModel, col, select
 
+from scan64.chess.games.clock_models import PlayClock
+from scan64.chess.games.clocks import is_expired, utc_now
 from scan64.chess.games.models import Game, PlaySession
 
 AssistanceMode = Literal["hint", "candidates", "guard"]
@@ -131,6 +133,10 @@ def persist_assistance(
     ):
         raise ValueError("Invalid assistance disclosure")
     config = claim_snapshot(session, snapshot)
+    clock = session.get(PlayClock, snapshot.session_id)
+    if clock is not None and is_expired(clock, utc_now()):
+        session.rollback()
+        raise StalePlaySnapshot("PlaySession clock expired while generating assistance")
     digest = prefix_hash(snapshot.initial_fen, snapshot.moves)
     reveal = session.get(SessionHintReveal, (snapshot.session_id, digest))
     if reveal is None:

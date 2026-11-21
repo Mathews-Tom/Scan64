@@ -15,19 +15,66 @@ import { flushSync } from 'react-dom';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
-import type { BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlaySessionRead, PlayMoveResponse } from '../api/types';
+import type { BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlayClockRead, PlaySessionRead, PlayMoveResponse, TimeControl } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { HintPanel, type HintPreview } from './HintPanel';
 import { Chess } from 'chess.js';
 
 import { Panel } from './Primitives';
 const ACTIVE_PLAY_SESSION_STORAGE_KEY = 'scan64_active_play_session_id';
+const TIME_CONTROLS: { label: string; control: TimeControl | null }[] = [
+  { label: 'Untimed', control: null },
+  { label: '1+0', control: { initial_seconds: 60, increment_seconds: 0 } },
+  { label: '3+2', control: { initial_seconds: 180, increment_seconds: 2 } },
+  { label: '5+0', control: { initial_seconds: 300, increment_seconds: 0 } },
+  { label: '10+5', control: { initial_seconds: 600, increment_seconds: 5 } },
+];
+
+function PlayClocks({ clock, snapshotAt, onDeadline }: {
+  clock: PlayClockRead; snapshotAt: number; onDeadline: (version: number) => void;
+}) {
+  const [elapsed, setElapsed] = useState(() => Math.max(0, performance.now() - snapshotAt));
+  useEffect(() => {
+    let frame = 0;
+    let deadline: number | undefined;
+    setElapsed(Math.max(0, performance.now() - snapshotAt));
+    if (clock.active_color && clock.deadline_at && !clock.terminal_reason) {
+      const remaining = clock.active_color === 'white' ? clock.white_remaining_ms : clock.black_remaining_ms;
+      const tick = () => {
+        const nextElapsed = Math.max(0, performance.now() - snapshotAt);
+        setElapsed(nextElapsed);
+        if (nextElapsed < remaining) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+      deadline = window.setTimeout(() => onDeadline(clock.version),
+        Math.max(0, remaining - (performance.now() - snapshotAt)));
+    }
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(deadline);
+    };
+  }, [clock, snapshotAt, onDeadline]);
+  return <section aria-label="Game clocks">
+    <p>{clock.initial_seconds}s per side · +{clock.increment_seconds}s increment. Hints and coach review do not pause the clock.</p>
+    {(['white', 'black'] as const).map(color => {
+      const active = clock.active_color === color;
+      const balance = color === 'white' ? clock.white_remaining_ms : clock.black_remaining_ms;
+      const seconds = Math.ceil(Math.max(0, balance - (active ? elapsed : 0)) / 1000);
+      const label = color === 'white' ? 'White' : 'Black';
+      return <div key={color} aria-label={`${label} clock${active ? ', active' : ''}`} data-testid={`${color}-clock`}>
+        <strong>{label}{active ? ' · active' : ''}</strong>{' '}
+        <time>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</time>
+      </div>;
+    })}
+  </section>;
+}
 
 interface AssistanceSource {
   sessionId: string;
   playerId: string;
   fen: string;
   revision: number;
+  clockVersion?: number;
 }
 
 type AssistanceState = {
@@ -45,6 +92,18 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [session, setSession] = useState<PlaySessionRead | null>(initialSession || null);
   const sessionRef = useRef<PlaySessionRead | null>(initialSession || null);
   const queuedMoveNeedsRefreshRef = useRef(new Set<string>());
+  const movePendingRef = useRef(false);
+  const opponentPendingRef = useRef(false);
+  const failedOpponentVersions = useRef(new Set<string>());
+  const resumedClockVersions = useRef(new Set<string>());
+  const refreshedDeadlines = useRef(new Set<string>());
+  const initialClockRefreshed = useRef(false);
+  const [opponentPending, setOpponentPending] = useState(false);
+  const [opponentRetry, setOpponentRetry] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [serverResult, setServerResult] = useState<string | null>(null);
+  const [clockSnapshotAt, setClockSnapshotAt] = useState(() => performance.now());
+  const [timeControlChoice, setTimeControlChoice] = useState('0');
   const refreshGenerationRef = useRef(0);
   const [playerId, setPlayerId] = useState(() => getStoredPlayerId() ?? '');
   const [coachMode, setCoachMode] = useState(false);
@@ -55,6 +114,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [botChoiceError, setBotChoiceError] = useState<string | null>(null);
   const [botChoiceRequest, setBotChoiceRequest] = useState(0);
   const botChoiceBusy = useRef(false);
+  const startPendingRef = useRef(false);
+  const [startingGame, setStartingGame] = useState(false);
   useEffect(() => {
     if (!playerId || initialSession || sessionRef.current?.sparring) return;
     let cancelled = false;
@@ -100,6 +161,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const [criticalInterruption, setCriticalInterruption] =
     useState<CriticalInterruptionRead | null>(null);
   const criticalInterruptionRef = useRef<CriticalInterruptionRead | null>(null);
+  const timedInterruptionRef = useRef<{
+    sessionId: string; playerId: string; clockVersion: number; interruption: CriticalInterruptionRead;
+  } | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [conversionRefreshing, setConversionRefreshing] = useState(false);
@@ -112,10 +176,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     requestedSessionId && localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) !== requestedSessionId
       ? localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) : null,
   );
+  const [restoreRetry, setRestoreRetry] = useState<{ sessionId: string } | null>(null);
   const consumeRequestedSession = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete('session');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    setRestoreRetry(null);
     setRequestedSessionId(null);
   }, []);
   const [resuming, setResuming] = useState(
@@ -135,7 +201,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [currentSessionId, criticalInterruption]);
   const [initialChess] = useState(() => {
     const chess = new Chess(initialSession?.sparring?.source_fen ?? initialFen);
-    if (initialSession?.opponent_move) {
+    if (initialSession?.opponent_move && !initialSession.clock) {
       const move = initialSession.opponent_move;
       chess.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
     }
@@ -146,7 +212,6 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     fen: chessRef.current.fen(), pgn: chessRef.current.pgn(),
   }));
   const [movePending, setMovePending] = useState(false);
-  const movePendingRef = useRef(false);
   const positionRevision = useRef(0);
   const assistanceRequest = useRef(0);
   const [assistance, setAssistance] = useState<AssistanceState | null>(null);
@@ -270,6 +335,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setRefreshSessionId(null);
       setSyncRetrySessionId(null);
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
       updateBoard();
     } catch (caught) {
@@ -282,7 +348,9 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
 
   const startGame = async () => {
-    if (!botChoiceReady || botChoicePending) return;
+    if (!botChoiceReady || botChoicePending || startPendingRef.current) return;
+    startPendingRef.current = true;
+    setStartingGame(true);
     try {
       setError(null);
       let pid = playerId;
@@ -293,24 +361,36 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       await ApiClient.createPlayer({ id: pid, display_name: playerName || 'Anonymous' });
       setActivePlayerId(pid);
       
+      const control = TIME_CONTROLS[Number(timeControlChoice)].control;
       const newSession = await ApiClient.createPlaySession({
         player_id: pid,
         opponent_config: { provider: 'stockfish', bot_level: botLevel },
         player_color: playerColor,
         coach_mode: coachMode,
+        ...(control ? { clock_config: control } : {}),
       });
       sessionRef.current = newSession;
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
       setSession(newSession);
       chessRef.current.reset();
-      if (newSession.opponent_move) {
+      if (newSession.clock) {
+        if (newSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        chessRef.current.loadPgn(newSession.pgn);
+        setClockSnapshotAt(performance.now());
+        setServerResult(newSession.result ?? null);
+      } else if (newSession.opponent_move) {
         const move = newSession.opponent_move;
         chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
       }
       updateBoard();
+      if (newSession.clock) await refreshQueuedSession(newSession.id);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      startPendingRef.current = false;
+      setStartingGame(false);
     }
   };
 
@@ -371,6 +451,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [updateBoard]);
   const resumeAfterCriticalReview = useCallback(() => {
     criticalInterruptionRef.current = null;
+    timedInterruptionRef.current = null;
     setCriticalInterruption(null);
     updateBoard();
   }, [updateBoard]);
@@ -384,51 +465,162 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return true;
   }, []);
 
-  const refreshQueuedSession = useCallback((sessionId: string, generation = ++refreshGenerationRef.current) => {
-    if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return;
+  const refreshQueuedSession = useCallback(async (
+    sessionId: string, generation = ++refreshGenerationRef.current, afterClockVersion?: number,
+  ) => {
+    if (sessionRef.current?.id !== sessionId || refreshGenerationRef.current !== generation) return false;
     const ownerId = sessionRef.current.player_id;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
+    setRefreshing(true);
     updateBoard();
-    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
-    void (async () => {
-      try {
-        const refreshedSession = await ApiClient.getPlaySession(sessionId);
-        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
-
-        const refreshedChess = new Chess();
-        if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
-          setRefreshSessionId(sessionId);
-          setError('Unable to refresh the synchronized game: missing game record.');
-          return;
-        }
-        if (refreshedSession.game_id) {
-          const game = await ApiClient.getGame(refreshedSession.game_id);
-          if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
-          refreshedChess.loadPgn(game.pgn);
-        }
-
-        chessRef.current = refreshedChess;
-        sessionRef.current = refreshedSession;
-        queuedMoveNeedsRefreshRef.current.delete(sessionId);
-        setSession(refreshedSession);
-        updateBoard();
-        setSyncRetrySessionId(null);
-        setRefreshSessionId(null);
-        setError(null);
-      } catch (error: unknown) {
-        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return;
-        setRefreshSessionId(sessionId);
-        setError(
-          `Unable to refresh the synchronized game: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
+    if (!canRefreshQueuedSession(sessionId, generation, ownerId)) {
+      setRefreshing(false);
+      return false;
+    }
+    try {
+      const refreshedSession = await (afterClockVersion === undefined
+        ? ApiClient.getPlaySession(sessionId) : ApiClient.getPlaySession(sessionId, afterClockVersion));
+      const receivedAt = performance.now();
+      if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return false;
+      if (refreshedSession.id !== sessionId || refreshedSession.player_id !== ownerId) {
+        throw new Error('The refreshed game does not match its owner and session.');
       }
-    })();
+      const refreshedChess = new Chess();
+      let result: string | null = null;
+      if (!refreshedSession.game_id && chessRef.current.history().length > 0) {
+        throw new Error('Missing game record.');
+      }
+      if (refreshedSession.clock) {
+        if (refreshedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        refreshedChess.loadPgn(refreshedSession.pgn);
+        result = refreshedSession.result ?? null;
+      } else if (refreshedSession.game_id) {
+        const game = await ApiClient.getGame(refreshedSession.game_id);
+        if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return false;
+        refreshedChess.loadPgn(game.pgn);
+        result = game.result;
+      }
+      chessRef.current = refreshedChess;
+      sessionRef.current = refreshedSession;
+      queuedMoveNeedsRefreshRef.current.delete(sessionId);
+      setSession(refreshedSession);
+      setClockSnapshotAt(receivedAt);
+      const refreshedClock = refreshedSession.clock;
+      if (refreshedSession.status === 'active' && refreshedClock?.active_color) {
+        const remaining = refreshedClock.active_color === 'white'
+          ? refreshedClock.white_remaining_ms : refreshedClock.black_remaining_ms;
+        if (remaining > 0) refreshedDeadlines.current.delete(`${sessionId}:${refreshedClock.version}`);
+      }
+      setServerResult(result);
+      setHintPreview(null);
+      setOpponentRetry(!!refreshedSession.clock?.active_color && refreshedSession.status === 'active' &&
+        refreshedSession.clock.active_color !== sessionPlayerColor(refreshedSession) &&
+        failedOpponentVersions.current.has(`${sessionId}:${refreshedSession.clock.version}`));
+      const timedInterruption = timedInterruptionRef.current;
+      if (timedInterruption?.sessionId === sessionId && timedInterruption.playerId === ownerId) {
+        const matches = refreshedSession.status === 'active' && refreshedSession.coach_mode &&
+          refreshedSession.clock?.version === timedInterruption.clockVersion;
+        criticalInterruptionRef.current = matches ? timedInterruption.interruption : null;
+        setCriticalInterruption(criticalInterruptionRef.current);
+        if (refreshedSession.status !== 'active' || !refreshedSession.coach_mode ||
+          (refreshedSession.clock && refreshedSession.clock.version > timedInterruption.clockVersion)) {
+          timedInterruptionRef.current = null;
+        }
+      } else if (refreshedSession.status !== 'active') {
+        timedInterruptionRef.current = null;
+        criticalInterruptionRef.current = null;
+        setCriticalInterruption(null);
+      }
+      updateBoard();
+      setSyncRetrySessionId(null);
+      setRefreshSessionId(null);
+      setError(null);
+      return true;
+    } catch (error: unknown) {
+      if (!canRefreshQueuedSession(sessionId, generation, ownerId)) return false;
+      setRefreshSessionId(sessionId);
+      setError(`Unable to refresh the synchronized game: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return false;
+    } finally {
+      if (refreshGenerationRef.current === generation) setRefreshing(false);
+    }
   }, [canRefreshQueuedSession, updateBoard]);
+
+  const onClockDeadline = useCallback((version: number) => {
+    const current = sessionRef.current;
+    if (!current?.clock || current.clock.version !== version || current.status !== 'active') return;
+    const key = `${current.id}:${current.clock.version}`;
+    if (refreshedDeadlines.current.has(key)) return;
+    refreshedDeadlines.current.add(key);
+    void refreshQueuedSession(current.id, undefined, current.clock.version);
+  }, [refreshQueuedSession]);
+
+  const resumeOpponent = useCallback(async () => {
+    const current = sessionRef.current;
+    if (!current?.clock || current.status !== 'active' || !navigator.onLine ||
+      current.player_id !== getStoredPlayerId() ||
+      !current.clock.active_color || current.clock.active_color === sessionPlayerColor(current) ||
+      opponentPendingRef.current || movePendingRef.current ||
+      queuedMoveNeedsRefreshRef.current.has(current.id)) return;
+    resumedClockVersions.current.add(`${current.id}:${current.clock.version}`);
+    const clockVersion = current.clock.version;
+    const versionKey = `${current.id}:${current.clock.version}`;
+    failedOpponentVersions.current.delete(versionKey);
+    opponentPendingRef.current = true;
+    setOpponentPending(true);
+    setOpponentRetry(false);
+    setError(null);
+    let failure: string | null = null;
+    let conflict = false;
+    try {
+      await ApiClient.resumePlaySessionOpponentMove(current.id, current.clock.version);
+    } catch (cause) {
+      conflict = cause instanceof ApiRequestError && cause.status === 409;
+      failure = cause instanceof Error ? cause.message : 'Could not resume opponent move.';
+      failedOpponentVersions.current.add(versionKey);
+    }
+    let refreshed = await refreshQueuedSession(current.id);
+    const sameOpponentTurn = () => sessionRef.current?.id === current.id &&
+      sessionRef.current.player_id === current.player_id && getStoredPlayerId() === current.player_id &&
+      sessionRef.current.status === 'active' && sessionRef.current.clock?.version === clockVersion &&
+      sessionRef.current.clock.active_color !== null &&
+      sessionRef.current.clock.active_color !== sessionPlayerColor(sessionRef.current);
+    if (conflict && refreshed && sameOpponentTurn()) {
+      refreshed = await refreshQueuedSession(current.id, undefined, current.clock.version);
+      if (refreshed && sameOpponentTurn()) {
+        setOpponentRetry(true);
+        setRefreshSessionId(current.id);
+        setError('The opponent move is still pending. Retry game refresh to check the saved position.');
+      }
+    } else if (failure && !conflict && sessionRef.current?.id === current.id &&
+      sessionRef.current.player_id === current.player_id && getStoredPlayerId() === current.player_id) {
+      setError(failure);
+      setOpponentRetry(refreshed && sameOpponentTurn());
+    }
+    opponentPendingRef.current = false;
+    setOpponentPending(false);
+  }, [refreshQueuedSession]);
+
+  useEffect(() => {
+    if (!initialSession?.clock || initialClockRefreshed.current) return;
+    initialClockRefreshed.current = true;
+    void refreshQueuedSession(initialSession.id);
+    return () => { initialClockRefreshed.current = false; };
+  }, [initialSession, refreshQueuedSession]);
+
+  useEffect(() => {
+    if (!session?.clock || session.status !== 'active' || resuming || movePending ||
+      opponentPending || !online || queuedMoveNeedsRefreshRef.current.has(session.id) ||
+      !session.clock.active_color || session.clock.active_color === sessionPlayerColor(session)) return;
+    if (!resumedClockVersions.current.has(`${session.id}:${session.clock.version}`)) void resumeOpponent();
+  }, [session, resuming, movePending, opponentPending, online, resumeOpponent]);
 
   const synchronizeQueuedSession = useCallback((sessionId: string) => {
     if (sessionRef.current?.id !== sessionId || legacyDiscardPendingRef.current) return;
+    if (sessionRef.current.clock) {
+      void refreshQueuedSession(sessionId);
+      return;
+    }
     const ownerId = sessionRef.current.player_id;
     const generation = ++refreshGenerationRef.current;
     queuedMoveNeedsRefreshRef.current.add(sessionId);
@@ -523,19 +715,31 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       synchronizeQueuedSession(initialSession.id);
     }
   }, [initialSession, synchronizeQueuedSession]);
+  const retainTimedInterruption = useCallback((source: PlaySessionRead, response: PlayMoveResponse) => {
+    if (sessionRef.current?.id === source.id && sessionRef.current.player_id === source.player_id &&
+      source.coach_mode && response.clock && response.critical_interruption) {
+      timedInterruptionRef.current = {
+        sessionId: source.id, playerId: source.player_id,
+        clockVersion: response.clock.version, interruption: response.critical_interruption,
+      };
+    }
+  }, []);
+
 
   const sourceIsCurrent = useCallback((source: AssistanceSource) => {
     const activeSession = sessionRef.current;
     const color = sessionPlayerColor(activeSession);
     return activeSession?.id === source.sessionId && activeSession.player_id === source.playerId &&
       activeSession.status === 'active' && getStoredPlayerId() === source.playerId &&
+      activeSession.clock?.version === source.clockVersion &&
+      (!activeSession.clock || activeSession.clock.active_color === color) && !opponentPendingRef.current &&
       chessRef.current.fen() === source.fen && positionRevision.current === source.revision &&
       (color === undefined || chessRef.current.turn() === (color === 'white' ? 'w' : 'b')) &&
       criticalInterruptionRef.current === null && !takebackPendingRef.current &&
       !queuedMoveNeedsRefreshRef.current.has(source.sessionId);
   }, []);
 
-  const requireProtectedRefresh = useCallback((source: AssistanceSource) => {
+  const requireProtectedRefresh = useCallback((source: Pick<AssistanceSource, 'sessionId' | 'playerId'>) => {
     if (sessionRef.current?.id !== source.sessionId || sessionRef.current.player_id !== source.playerId) return;
     queuedMoveNeedsRefreshRef.current.add(source.sessionId);
     setRefreshSessionId(source.sessionId);
@@ -555,15 +759,34 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     try {
       const response = await ApiClient.makePlaySessionMove(graded.source.sessionId, {
         move, expected_generation: graded.result.generation,
+        ...(graded.source.clockVersion !== undefined ? { expected_clock_version: graded.source.clockVersion } : {}),
       });
-      if (!sourceIsCurrent(graded.source)) {
-        requireProtectedRefresh(graded.source);
+      if (graded.source.clockVersion !== undefined) {
+        const current = sessionRef.current;
+        if (current?.id === graded.source.sessionId && current.player_id === graded.source.playerId) {
+          retainTimedInterruption(current, response);
+        }
+        if (current?.id !== graded.source.sessionId || current.player_id !== graded.source.playerId ||
+          getStoredPlayerId() !== graded.source.playerId) {
+          requireProtectedRefresh(graded.source);
+          return;
+        }
+        await refreshQueuedSession(graded.source.sessionId);
+      } else {
+        if (!sourceIsCurrent(graded.source)) {
+          requireProtectedRefresh(graded.source);
+          return;
+        }
+        chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+        flushSync(updateBoard);
+        applyMoveResponse(response);
+      }
+    } catch (caught) {
+      if (graded.source.clockVersion !== undefined) {
+        await refreshQueuedSession(graded.source.sessionId);
+        setAssistanceError(`${caught instanceof Error ? caught.message : 'Move could not be committed.'} No move was queued.`);
         return;
       }
-      chessRef.current.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
-      flushSync(updateBoard);
-      applyMoveResponse(response);
-    } catch (caught) {
       if (!sourceIsCurrent(graded.source)) {
         requireProtectedRefresh(graded.source);
         return;
@@ -578,12 +801,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       movePendingRef.current = false;
       setMovePending(false);
     }
-  }, [applyMoveResponse, clearAssistance, requireProtectedRefresh, sourceIsCurrent, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, refreshQueuedSession, requireProtectedRefresh, retainTimedInterruption, sourceIsCurrent, updateBoard]);
 
   const resumeBotTurn = async () => {
     const current = sessionRef.current;
     const color = sessionPlayerColor(current);
-    if (!current || current.status !== 'active' || !current.game_id || color === undefined ||
+    if (!current || current.clock || current.status !== 'active' || !current.game_id || color === undefined ||
       chessRef.current.turn() === (color === 'white' ? 'w' : 'b') || !navigator.onLine ||
       current.player_id !== getStoredPlayerId() || movePendingRef.current || resigning ||
       takebackPendingRef.current || criticalInterruptionRef.current !== null ||
@@ -617,11 +840,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   const gradeMoves = useCallback(async (mode: PlayAssistanceMode, moves: string[]) => {
     const activeSession = sessionRef.current;
-    if (!activeSession || movePendingRef.current || assistanceRef.current?.pending || resigning ||
+    if (!activeSession || movePendingRef.current || opponentPendingRef.current || assistanceRef.current?.pending || resigning ||
       takebackPendingRef.current || moves.length < 1 || moves.length > 3) return;
     const source: AssistanceSource = {
       sessionId: activeSession.id, playerId: activeSession.player_id,
-      fen: chessRef.current.fen(), revision: positionRevision.current,
+      fen: chessRef.current.fen(), revision: positionRevision.current, clockVersion: activeSession.clock?.version,
     };
     clearAssistance();
     if (!navigator.onLine || !sourceIsCurrent(source)) {
@@ -678,7 +901,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   const handleMove = useCallback(async (lan: string) => {
     const activeSession = sessionRef.current;
     const color = sessionPlayerColor(activeSession);
-    if (!activeSession || activeSession.status !== 'active' || takebackPendingRef.current || movePendingRef.current || assistanceRef.current !== null ||
+    if (!activeSession || activeSession.status !== 'active' || takebackPendingRef.current || movePendingRef.current || opponentPendingRef.current || assistanceRef.current !== null ||
+      (activeSession.clock && (!navigator.onLine || activeSession.clock.active_color !== color)) ||
       (color !== undefined && chessRef.current.turn() !== (color === 'white' ? 'w' : 'b')) ||
       criticalInterruptionRef.current !== null ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id)) return;
@@ -696,10 +920,23 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       moveApplied = true;
       updateBoard();
       try {
-        const response = await ApiClient.makePlaySessionMove(activeSession.id, { move: lan });
-        applyMoveResponse(response);
+        const response = await ApiClient.makePlaySessionMove(activeSession.id, {
+          move: lan,
+          ...(activeSession.clock ? { expected_clock_version: activeSession.clock.version } : {}),
+        });
+        if (activeSession.clock) {
+          retainTimedInterruption(activeSession, response);
+          if (sessionRef.current?.id !== activeSession.id ||
+            sessionRef.current.player_id !== activeSession.player_id || getStoredPlayerId() !== activeSession.player_id) {
+            requireProtectedRefresh({
+              sessionId: activeSession.id, playerId: activeSession.player_id,
+            });
+            return;
+          }
+          await refreshQueuedSession(activeSession.id);
+        } else applyMoveResponse(response);
       } catch (error: unknown) {
-        if (!navigator.onLine) {
+        if (!activeSession.clock && !navigator.onLine) {
           await queueMove(activeSession.id, lan, sourcePgn);
           queuedMoveNeedsRefreshRef.current.add(activeSession.id);
           setError('Offline. Move queued. Waiting for network to resume game...');
@@ -708,23 +945,27 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         throw error;
       }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Unknown error');
-      if (moveApplied) chessRef.current.undo();
-      if (moveApplied && sessionRef.current?.id === activeSession.id &&
-        (!(error instanceof ApiRequestError) || error.status === 409 || error.status >= 500)) {
-        queuedMoveNeedsRefreshRef.current.add(activeSession.id);
-        setRefreshSessionId(activeSession.id);
+      if (activeSession.clock && moveApplied) {
+        await refreshQueuedSession(activeSession.id);
+      } else {
+        if (moveApplied) chessRef.current.undo();
+        if (moveApplied && sessionRef.current?.id === activeSession.id &&
+          (!(error instanceof ApiRequestError) || error.status === 409 || error.status >= 500)) {
+          queuedMoveNeedsRefreshRef.current.add(activeSession.id);
+          setRefreshSessionId(activeSession.id);
+        }
+        updateBoard();
       }
-      updateBoard();
+      setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
-      setMovePending(false);
       movePendingRef.current = false;
+      setMovePending(false);
     }
-  }, [applyMoveResponse, clearAssistance, gradeMoves, updateBoard]);
+  }, [applyMoveResponse, clearAssistance, gradeMoves, refreshQueuedSession, requireProtectedRefresh, retainTimedInterruption, updateBoard]);
 
   const takeback = async () => {
     const activeSession = sessionRef.current;
-    if (!activeSession || activeSession.status !== 'active' || activeSession.coach_mode ||
+    if (!activeSession || activeSession.status !== 'active' || activeSession.coach_mode || activeSession.clock ||
       movePending || resigning || assistanceRef.current?.pending || takebackPendingRef.current || !navigator.onLine ||
       queuedMoveNeedsRefreshRef.current.has(activeSession.id) ||
       chessRef.current.history().length < 2) return;
@@ -774,13 +1015,25 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setResigning(true);
     try {
       const endedSession = await ApiClient.resignPlaySession(activeSession.id);
+      if (endedSession.clock) {
+        if (endedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+        const endedChess = new Chess();
+        endedChess.loadPgn(endedSession.pgn);
+        chessRef.current = endedChess;
+        setClockSnapshotAt(performance.now());
+        setServerResult(endedSession.result ?? null);
+        updateBoard();
+      }
       sessionRef.current = endedSession;
       setSession(endedSession);
+      if (activeSession.clock) await refreshQueuedSession(activeSession.id);
       setResigned(true);
       criticalInterruptionRef.current = null;
+      timedInterruptionRef.current = null;
       setCriticalInterruption(null);
-      setError(null);
+      if (!activeSession.clock) setError(null);
     } catch (caught) {
+      if (activeSession.clock) await refreshQueuedSession(activeSession.id);
       setError(caught instanceof Error ? caught.message : 'Could not resign.');
     } finally {
       setResigning(false);
@@ -793,37 +1046,48 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       return;
     }
 
-    const activeSessionId = requestedSessionId || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
+    const activeSessionId = restoreRetry?.sessionId || requestedSessionId || localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
     if (!activeSessionId) {
       setResuming(false);
       return;
     }
 
     setResuming(true);
+    setRefreshSessionId(null);
+    setError(null);
     let cancelled = false;
     let sessionResolved = false;
     void (async () => {
       try {
         const resumedSession = await ApiClient.getPlaySession(activeSessionId);
+        const receivedAt = performance.now();
         sessionResolved = true;
         if (cancelled || sessionRef.current) return;
-        if (resumedSession.status !== 'active' && !resumedSession.sparring) {
+        if (resumedSession.status !== 'active' && !resumedSession.sparring &&
+          (!resumedSession.clock || (requestedSessionId === activeSessionId && preservedSessionId.current))) {
           if (localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) === activeSessionId) {
             localStorage.removeItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
           }
+          setRestoreRetry(null);
           if (requestedSessionId) consumeRequestedSession();
           return;
         }
 
         const resumedChess = new Chess();
-        if (resumedSession.game_id) {
+        let result: string | null = null;
+        if (resumedSession.clock) {
+          if (resumedSession.pgn == null) throw new Error('Missing timed game snapshot.');
+          resumedChess.loadPgn(resumedSession.pgn);
+          result = resumedSession.result ?? null;
+        } else if (resumedSession.game_id) {
           const game = await ApiClient.getGame(resumedSession.game_id);
           if (cancelled || sessionRef.current) return;
+          result = game.result;
           resumedChess.loadPgn(game.pgn);
         }
         let hasQueuedMove = false;
         let queuedMoveError: string | null = null;
-        if (resumedSession.status === 'active') {
+        if (resumedSession.status === 'active' && !resumedSession.clock) {
           try {
             const queuedMoves = await getQueuedMoves();
             if (cancelled || sessionRef.current) return;
@@ -845,6 +1109,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           queuedMoveNeedsRefreshRef.current.delete(resumedSession.id);
         }
         setSession(resumedSession);
+        setServerResult(result);
+        setClockSnapshotAt(receivedAt);
         setActivePlayerId(resumedSession.player_id);
         if (resumedSession.sparring) {
           setPlayerId(resumedSession.player_id);
@@ -868,10 +1134,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           if (localStorage.getItem(ACTIVE_PLAY_SESSION_STORAGE_KEY) === activeSessionId) {
             localStorage.removeItem(ACTIVE_PLAY_SESSION_STORAGE_KEY);
           }
+          setRestoreRetry(null);
           if (requestedSessionId) consumeRequestedSession();
           setError('Previous game is no longer available.');
           return;
         }
+        setRefreshSessionId(activeSessionId);
         setError(`Unable to resume game: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         if (!cancelled) setResuming(false);
@@ -881,7 +1149,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return () => {
       cancelled = true;
     };
-  }, [initialSession, requestedSessionId, consumeRequestedSession, synchronizeQueuedSession, updateBoard]);
+  }, [initialSession, requestedSessionId, restoreRetry, consumeRequestedSession, synchronizeQueuedSession, updateBoard]);
 
   useEffect(() => {
     if (!currentSessionId || !currentSessionStatus) return;
@@ -914,6 +1182,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         (event as CustomEvent<QueuedMoveSyncSuccess>).detail;
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
+      if (currentSession.clock) return;
       queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
       if (response !== null) applyMoveResponse(response);
     };
@@ -941,14 +1210,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     const synchronizeOnReconnect = () => {
       const activeSessionId = sessionRef.current?.id;
       if (activeSessionId && queuedMoveNeedsRefreshRef.current.has(activeSessionId)) {
-        synchronizeQueuedSession(activeSessionId);
+        if (sessionRef.current?.clock) void refreshQueuedSession(activeSessionId);
+        else synchronizeQueuedSession(activeSessionId);
       }
     };
     window.addEventListener('online', synchronizeOnReconnect);
     return () => {
       window.removeEventListener('online', synchronizeOnReconnect);
     };
-  }, [synchronizeQueuedSession]);
+  }, [refreshQueuedSession, synchronizeQueuedSession]);
   const [sessionAnnouncement, setSessionAnnouncement] = useState('');
   const sessionId = session?.id;
   useEffect(() => {
@@ -961,12 +1231,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   }, [sessionId]);
 
 
-  const assistanceBlocked = movePending || resigning || takingBack || !online ||
+  const assistanceBlocked = movePending || opponentPending || resigning || takingBack || !online ||
     criticalInterruption !== null || !session || session.player_id !== getStoredPlayerId() ||
     (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
       (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
     queuedMoveNeedsRefreshRef.current.has(session.id);
-  const botTurnPending = session?.status === 'active' && sessionPlayerColor(session) !== undefined &&
+  const botTurnPending = !session?.clock && session?.status === 'active' && sessionPlayerColor(session) !== undefined &&
     session.player_id === getStoredPlayerId() && chessRef.current.turn() !==
       (sessionPlayerColor(session) === 'white' ? 'w' : 'b') &&
     !queuedMoveNeedsRefreshRef.current.has(session.id);
@@ -987,9 +1257,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         flippable gameEnded={session.status !== 'active'}
         deferMoveToParent={guardEnabled}
         premoveColor={online && session.status === 'active' && !resigning && !takingBack &&
-          criticalInterruption === null && !currentHint && assistance === null && !queuedMoveNeedsRefreshRef.current.has(session.id)
+          criticalInterruption === null && !currentHint && assistance === null && (!!session.clock || !queuedMoveNeedsRefreshRef.current.has(session.id))
           ? sessionPlayerColor(session) : undefined}
-        disabled={session.status !== 'active' || movePending || resigning || takingBack || assistance !== null ||
+        disabled={session.status !== 'active' || movePending || opponentPending || resigning || takingBack || assistance !== null ||
+          (!!session.clock && (!online || session.clock.active_color !== sessionPlayerColor(session))) ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
           criticalInterruption !== null || (currentHint !== null && currentHint.fen !== boardPosition.fen) ||
@@ -998,7 +1269,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       />
       </div>}
       <div className="board-workspace__side">
-      {!session && !resuming && (
+      {!session && !resuming && !refreshSessionId && (
         <Panel className="player-setup" title="Your opponent">
           {!getStoredPlayerId() && <><label htmlFor="play-player-id">Player ID</label>
           <input 
@@ -1044,7 +1315,13 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
               <option value="white">White</option><option value="black">Black</option><option value="random">Random</option>
             </select>
           </label>
-          <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending} data-testid="start-btn">Start Game</button>
+          <label>Time control
+            <select aria-label="Time control" value={timeControlChoice}
+              onChange={event => setTimeControlChoice(event.target.value)}>
+              {TIME_CONTROLS.map((choice, index) => <option key={choice.label} value={String(index)}>{choice.label}</option>)}
+            </select>
+          </label>
+          <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending || startingGame} data-testid="start-btn">Start Game</button>
         </Panel>
       )}
       {error && <div className="error" role="alert">{error}</div>}
@@ -1086,7 +1363,10 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         <button
           type="button"
           data-testid="retry-game-refresh"
-          onClick={() => synchronizeQueuedSession(refreshSessionId)}
+          onClick={() => {
+            if (sessionRef.current) synchronizeQueuedSession(refreshSessionId);
+            else setRestoreRetry({ sessionId: refreshSessionId });
+          }}
         >
           Retry game refresh
         </button>
@@ -1111,6 +1391,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           {' '}Recorded permanently, including after takeback or reload. Assisted positions do not earn good-move skill credit.
         </p> : null}
       </Panel>}
+      {session?.clock ? <PlayClocks key={`${session.id}:${session.clock.version}:${session.clock.server_now}`}
+        clock={session.clock} snapshotAt={clockSnapshotAt} onDeadline={onClockDeadline} /> : null}
+      {session?.clock && !online ? <p role="status">Timed moves require a connection and are never queued offline. The clock keeps running.</p> : null}
+      {opponentPending ? <p role="status">Opponent thinking…</p> : null}
+      {session?.clock && refreshing ? <p role="status">Refreshing game…</p> : null}
+      {opponentRetry && !opponentPending && session?.status === 'active' ? <button type="button"
+        disabled={!online || queuedMoveNeedsRefreshRef.current.has(session.id)}
+        onClick={() => void resumeOpponent()}>Retry opponent move</button> : null}
       {session?.status === 'active' && <Panel title="Move assistance" aria-label="Move assistance">
         <p>Candidates and blunder guard use full engine assistance. Checking is recorded before results appear, even if you cancel.</p>
         <label>
@@ -1175,7 +1463,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       </Panel>}
       {session?.status === 'active' && <HintPanel playerId={session.player_id} sessionId={session.id}
         fen={boardPosition.fen} onPreview={handleHintPreview}
-        disabled={movePending || resigning || takingBack || assistance !== null || criticalInterruption !== null ||
+        disabled={movePending || opponentPending || resigning || takingBack || assistance !== null || criticalInterruption !== null ||
           (sessionPlayerColor(session) !== undefined && chessRef.current.turn() !==
             (sessionPlayerColor(session) === 'white' ? 'w' : 'b')) ||
           queuedMoveNeedsRefreshRef.current.has(session.id)} />}
@@ -1185,10 +1473,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       </button>}
       {session?.status === 'active' && !session.coach_mode && <button type="button"
         data-testid="takeback-btn" onClick={() => void takeback()}
-        disabled={movePending || resigning || takingBack || assistance?.pending || !navigator.onLine ||
+        disabled={!!session.clock || movePending || resigning || takingBack || assistance?.pending || !navigator.onLine ||
           chessRef.current.history().length < 2 || queuedMoveNeedsRefreshRef.current.has(session.id)}>
         {takingBack ? 'Taking back…' : 'Take back'}
       </button>}
+      {session?.clock && session.status === 'active' ? <p>Takebacks are unavailable in timed games.</p> : null}
       {session && session.status !== 'active' && <div role={resigned ? 'status' : undefined} data-testid="game-result">
         {session.sparring ? <section aria-label="Conversion result">
           {conversionRefreshing && <p role="status">Loading recorded conversion result…</p>}
@@ -1211,7 +1500,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
               {conversionRetrying ? 'Starting...' : 'Retry conversion practice'}
             </button>
           </>}
-        </section> : resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
+        </section> : session.clock ? <>
+          {serverResult === '1-0' ? 'White wins.' : serverResult === '0-1' ? 'Black wins.'
+            : serverResult === '1/2-1/2' ? 'Draw.' : 'Game ended. Awaiting the server result.'}
+          {session.clock.terminal_reason === 'flag' ? ' Time expired.' : null}
+        </> : resigned ? 'You resigned. Opponent wins.' : chessRef.current.isCheckmate()
           ? `Checkmate. ${chessRef.current.turn() === 'w' ? 'Black' : 'White'} wins.`
           : chessRef.current.isStalemate() ? 'Draw by stalemate.'
           : chessRef.current.isDraw() ? 'Draw.' : 'Game ended.'}

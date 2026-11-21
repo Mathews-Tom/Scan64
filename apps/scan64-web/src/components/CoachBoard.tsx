@@ -48,7 +48,7 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
   const [flipped, setFlipped] = useState(false);
   const viewOrientation = flipped ? orientation === 'white' ? 'black' : 'white' : orientation;
   const [premove, setPremove] = useState<string | null>(null);
-  const premovePly = useRef<number | null>(null);
+  const premoveSource = useRef<{ initialFen: string; history: Move[] } | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const board = useRef<Api | null>(null);
   const entry = useRef<HTMLInputElement>(null);
@@ -226,15 +226,24 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
 
   const cancelPremove = useCallback(() => {
     board.current?.cancelPremove?.();
+    premoveSource.current = null;
     setPremove(null);
   }, []);
   useEffect(() => {
     const pending = board.current?.state?.premovable.current;
-    if (!pending || disabled || moving.current || !premoveColor) return;
-    if (!navigator.onLine || preview || controlled || animationFen) { cancelPremove(); return; }
-    if ((chess.current.turn() === 'w' ? 'white' : 'black') !== premoveColor) return;
+    if (!pending) return;
+    if (!premoveColor || !navigator.onLine || preview || controlled || animationFen) { cancelPremove(); return; }
+    const source = premoveSource.current;
+    const history = chess.current.history({ verbose: true });
+    const initialFen = history[0]?.before ?? chess.current.fen();
+    if (!source || source.initialFen !== initialFen ||
+      !source.history.every((move, index) => history[index]?.after === move.after)) {
+      cancelPremove();
+      return;
+    }
+    if (disabled || moving.current || (chess.current.turn() === 'w' ? 'white' : 'black') !== premoveColor) return;
     const [from, to] = pending;
-    const replyArrived = premovePly.current !== null && chess.current.history().length > premovePly.current;
+    const replyArrived = history.length > source.history.length;
     cancelPremove();
     // A rejected player move rolls back to our turn without an opponent reply.
     if (replyArrived && chess.current.moves({ verbose: true }).some(move => move.from === from && move.to === to)) requestMove(from, to);
@@ -301,10 +310,11 @@ export function CoachBoard({ fen, pgn, orientation = 'white', disabled = false, 
       } },
       premovable: { enabled: false, events: {
         set: (from, to) => {
-          premovePly.current = chess.current.history().length;
+          const history = chess.current.history({ verbose: true });
+          premoveSource.current = { initialFen: history[0]?.before ?? chess.current.fen(), history };
           setPremove(`${from}${to}`);
         },
-        unset: () => { premovePly.current = null; setPremove(null); },
+        unset: () => { premoveSource.current = null; setPremove(null); },
       } },
       movable: {
         color: latest.current.disabled ? undefined : chess.current.turn() === 'w' ? 'white' : 'black',

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
+from datetime import timedelta
 from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
 import chess
 from chess_lesson_spec import LessonSpec
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlmodel import Session, col, select
 
@@ -17,6 +19,8 @@ from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.assistance import AssistanceMode, StalePlaySnapshot, assistance_modes
+from scan64.chess.games.clock_models import PlayClock, PlayClockRead, TimeControl
+from scan64.chess.games.clocks import ClockConflict, PlayClockRuntime, project_clock, utc_now
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import name_player_on, participants, player_color
 from scan64.chess.games.pgn import build_pgn
@@ -45,13 +49,15 @@ from scan64.providers.stockfish.pool import EnginePoolManager
 router = APIRouter(tags=["play-sessions"])
 
 BOT_POLICY_VERSION = "stockfish-error-budget-v1"
+CLOCK_EXPIRY_WAIT_SECONDS = 15.0
+CLOCK_CHANGE_WAIT_SECONDS = 5.0
 
 
 class PlaySessionCreate(BaseModel):
     player_id: str
     game_id: UUID | None = None
     opponent_config: dict[str, str] = Field(default_factory=dict, validate_default=True)
-    clock_config: dict[str, str] | None = None
+    clock_config: TimeControl | None = None
     initial_fen: str | None = None
     coach_mode: bool = False
     player_color: Literal["white", "black", "random"] | None = None
@@ -72,6 +78,11 @@ class PlaySessionCreate(BaseModel):
                     raise ValueError("bot_level must identify one of the eight bot levels")
                 get_bot_level(int(level))
                 opponent_config["bot_level"] = str(int(level))
+        elif "strength" in opponent_config:
+            try:
+                int(opponent_config["strength"])
+            except ValueError as error:
+                raise ValueError("Maia strength must be an integer rating") from error
         return opponent_config
 
     @field_validator("initial_fen")
@@ -97,11 +108,23 @@ class PlaySessionRead(BaseModel):
     opponent_move: str | None = None
     sparring: SparringAttemptRead | None = None
     assistance_modes: list[AssistanceMode]
+    clock: PlayClockRead | None = None
+    pgn: str | None = None
+    result: str | None = None
 
 
 class PlayMoveCreate(BaseModel):
     move: str
     expected_generation: StrictInt | None = Field(default=None, ge=0)
+    expected_clock_version: StrictInt | None = None
+
+
+class OpponentMoveCreate(BaseModel):
+    expected_clock_version: StrictInt
+
+
+class PlayResumeCreate(BaseModel):
+    expected_clock_version: StrictInt | None = None
 
 
 class CriticalInterruptionRead(BaseModel):
@@ -114,6 +137,7 @@ class PlayMoveResponse(BaseModel):
     opponent_move: str | None
     status: str
     critical_interruption: CriticalInterruptionRead | None = None
+    clock: PlayClockRead | None = None
 
 
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
@@ -136,6 +160,7 @@ def get_play_session_service(
         stockfish_provider=stockfish_provider,
         maia_config_path=get_maia_config_path(),
         engine_pool_manager=getattr(request.app.state, "engine_pool_manager", None),
+        clock_runtime=getattr(request.app.state, "play_clock_runtime", None),
     )
 
 
@@ -150,7 +175,20 @@ def _get_owned_play_session(session_id: UUID, request: Request, session: Session
 def read_play_session(
     play_session: PlaySession, session: Session, opponent_move: str | None = None
 ) -> PlaySessionRead:
-    game = session.get(Game, play_session.game_id) if play_session.game_id else None
+    # Board, status and clock must come from the same SQLite read snapshot.
+    snapshot = session.exec(
+        select(PlaySession, Game, PlayClock)
+        .outerjoin(Game, col(Game.id) == col(PlaySession.game_id))
+        .outerjoin(PlayClock, col(PlayClock.session_id) == col(PlaySession.id))
+        .where(
+            col(PlaySession.id) == play_session.id,
+            col(PlaySession.player_id) == play_session.player_id,
+        )
+        .execution_options(populate_existing=True)
+    ).one_or_none()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="PlaySession not found")
+    play_session, game, clock = snapshot
     colour = player_color(
         game.headers.get("FEN") if game else None,
         game.moves if game else (),
@@ -168,6 +206,9 @@ def read_play_session(
         opponent_move=opponent_move,
         sparring=read_sparring(session, play_session),
         assistance_modes=assistance_modes(session, play_session.id),
+        clock=project_clock(clock) if clock is not None else None,
+        pgn=game.pgn if game is not None else None,
+        result=game.result if game is not None else None,
     )
 
 
@@ -257,6 +298,28 @@ async def create_play_session(
         if active_conversion is not None:
             initial_fen = board.fen()
             game = None
+        else:
+            source_is_timed = (
+                session.exec(
+                    select(PlayClock)
+                    .join(PlaySession, col(PlaySession.id) == col(PlayClock.session_id))
+                    .where(col(PlaySession.game_id) == game.id)
+                ).first()
+                is not None
+            )
+            if session_in.clock_config is not None or source_is_timed:
+                # Timed Games stay private even to later untimed continuations.
+                copied_headers = dict(game.headers)
+                if session_in.clock_config is None:
+                    copied_headers.pop("TimeControl", None)
+                game = Game(
+                    pgn="",
+                    headers=copied_headers,
+                    moves=list(game.moves),
+                    white=game.white,
+                    black=game.black,
+                    owner_player_id=authenticated_player_id,
+                )
     else:
         board = chess.Board()
     requested_color = source.game.owner_color if source else session_in.player_color
@@ -267,7 +330,9 @@ async def create_play_session(
     else:
         colour = requested_color == "white"
     config["player_color"] = "white" if colour else "black"
-    if game is None and (initial_fen is not None or board.turn != colour):
+    if game is None and (
+        session_in.clock_config is not None or initial_fen is not None or board.turn != colour
+    ):
         white, black = participants(session_in.player_id, config, initial_fen)
         game = Game(
             pgn="",
@@ -284,11 +349,23 @@ async def create_play_session(
     if game is not None:
         session.add(game)
         session.flush()
+        if session_in.clock_config is not None:
+            control = session_in.clock_config
+            game.headers = {
+                **game.headers,
+                "TimeControl": f"{control.initial_seconds}+{control.increment_seconds}",
+            }
+        if session_in.clock_config is not None or not game.pgn:
+            game.pgn = build_pgn(game)
     play_session = PlaySession(
         player_id=session_in.player_id,
         game_id=game.id if game else None,
         opponent_config=config,
-        clock_config=session_in.clock_config,
+        clock_config=(
+            {key: str(value) for key, value in session_in.clock_config.model_dump().items()}
+            if session_in.clock_config is not None
+            else None
+        ),
         coach_mode=session_in.coach_mode,
         assistance_tracking_version=1,
     )
@@ -306,31 +383,128 @@ async def create_play_session(
             )
         )
     first_move = None
-    if game is not None and board.turn != colour and not board.is_game_over():
-        first_move = await service.play_opponent_move(play_session, game, board)
-        game.pgn = build_pgn(game)
     play_session.opponent_config = {
         **play_session.opponent_config,
         "initial_ply": str(len(game.moves) if game else 0),
     }
     session.add(play_session)
-    if board.is_game_over():
+    if session_in.clock_config is not None:
         session.flush()
-        service.complete_session(play_session, game, board.result() if game else None)
-        schedule_pending_analysis(
-            service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+        control = session_in.clock_config
+        initial_ms = control.initial_seconds * 1000
+        terminal = board.is_game_over()
+        session.add(
+            PlayClock(
+                session_id=play_session.id,
+                initial_seconds=control.initial_seconds,
+                increment_seconds=control.increment_seconds,
+                white_remaining_ms=initial_ms,
+                black_remaining_ms=initial_ms,
+                active_color=None if terminal else "white" if board.turn else "black",
+                deadline_at=None if terminal else utc_now() + timedelta(milliseconds=initial_ms),
+                terminal_reason="board" if terminal else None,
+            )
         )
+        if terminal:
+            service.complete_session(play_session, game, board.result() if game else None)
+        else:
+            session.commit()
+        service.notify_clock()
     else:
-        session.commit()
+        if game is not None and board.turn != colour and not board.is_game_over():
+            first_move = await service.play_opponent_move(play_session, game, board)
+            game.pgn = build_pgn(game)
+            play_session.opponent_config = {
+                **play_session.opponent_config,
+                "initial_ply": str(len(game.moves)),
+            }
+        if board.is_game_over():
+            session.flush()
+            service.complete_session(play_session, game, board.result() if game else None)
+        else:
+            session.commit()
+    schedule_pending_analysis(
+        service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+    )
     session.refresh(play_session)
     return read_play_session(play_session, session, first_move)
 
 
 @router.get("/v1/play-sessions/{session_id}", response_model=PlaySessionRead)
-def get_play_session(
-    session_id: UUID, request: Request, session: Session = Depends(get_session)
+async def get_play_session(
+    session_id: UUID,
+    request: Request,
+    session: Session = Depends(get_session),
+    after_clock_version: int | None = Query(default=None, ge=0),
 ) -> PlaySessionRead:
-    return read_play_session(_get_owned_play_session(session_id, request, session), session)
+    engine = session.get_bind()
+    runtime: PlayClockRuntime | None = getattr(request.app.state, "play_clock_runtime", None)
+    loop = asyncio.get_running_loop()
+    change_deadline: float | None = None
+    change_wait_finished = False
+
+    def read_snapshot() -> PlaySessionRead:
+        # Every read owns and closes its transaction before the async wait.
+        with Session(engine) as reader:
+            owned = _get_owned_play_session(session_id, request, reader)
+            return read_play_session(owned, reader)
+
+    try:
+        async with asyncio.timeout(CLOCK_EXPIRY_WAIT_SECONDS):
+            while True:
+                # Subscribe before reading so a concurrent commit cannot be missed.
+                observed = runtime.change_event if runtime is not None else None
+                snapshot = await asyncio.to_thread(read_snapshot)
+                clock = snapshot.clock
+                if (
+                    snapshot.status != "active"
+                    or clock is None
+                    or clock.active_color is None
+                    or clock.deadline_at is None
+                ):
+                    return snapshot
+                if clock.server_now < clock.deadline_at:
+                    if (
+                        after_clock_version != clock.version
+                        or change_wait_finished
+                        or runtime is None
+                        or observed is None
+                        or runtime.failed
+                    ):
+                        return snapshot
+                    if change_deadline is None:
+                        change_deadline = loop.time() + CLOCK_CHANGE_WAIT_SECONDS
+                    remaining_wait = change_deadline - loop.time()
+                    if remaining_wait <= 0:
+                        return snapshot
+                    try:
+                        changed = await asyncio.wait_for(
+                            runtime.wait_for_change(observed), timeout=remaining_wait
+                        )
+                        change_wait_finished = not changed
+                    except TimeoutError:
+                        change_wait_finished = True
+                    # Wake or bounded timeout: refresh the authoritative snapshot,
+                    # including expiry handling if the deadline passed meanwhile.
+                    continue
+                if runtime is not None and runtime.failed:
+                    raise HTTPException(
+                        status_code=503, detail="Play clock scheduler is unavailable."
+                    )
+                if (
+                    runtime is None
+                    or observed is None
+                    or not await runtime.wait_for_change(observed)
+                ):
+                    raise HTTPException(
+                        status_code=503, detail="Clock expiration is pending; retry this read."
+                    )
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Clock expiration is pending; retry this read.",
+            headers={"Retry-After": "1"},
+        ) from error
 
 
 def schedule_pending_analysis(
@@ -355,7 +529,10 @@ async def create_move(
     _get_owned_play_session(session_id, request, session)
     try:
         move_result = await service.make_move(
-            session_id, move_in.move, expected_generation=move_in.expected_generation
+            session_id,
+            move_in.move,
+            move_in.expected_clock_version,
+            expected_generation=move_in.expected_generation,
         )
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
         schedule_pending_analysis(service, background_tasks, pool_manager)
@@ -372,15 +549,20 @@ async def create_move(
                 if interruption is not None
                 else None
             ),
+            clock=move_result.clock,
         )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except (PlaySessionNotActive, StalePlaySnapshot) as error:
+    except (PlaySessionNotActive, StalePlaySnapshot, ClockConflict) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        schedule_pending_analysis(
+            service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+        )
 
 
 @router.post("/v1/play-sessions/{session_id}/resume", response_model=PlayMoveResponse)
@@ -390,10 +572,13 @@ async def resume_play_session(
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     service: PlaySessionService = Depends(get_play_session_service),
+    command: PlayResumeCreate | None = None,
 ) -> PlayMoveResponse:
     _get_owned_play_session(session_id, request, session)
     try:
-        move_result = await service.resume_bot_turn(session_id)
+        move_result = await service.resume_bot_turn(
+            session_id, command.expected_clock_version if command is not None else None
+        )
         schedule_pending_analysis(
             service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
         )
@@ -410,15 +595,20 @@ async def resume_play_session(
                 if interruption is not None
                 else None
             ),
+            clock=move_result.clock,
         )
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except (PlaySessionNotActive, StalePlaySnapshot) as error:
+    except (PlaySessionNotActive, StalePlaySnapshot, ClockConflict) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
+    finally:
+        schedule_pending_analysis(
+            service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+        )
 
 
 @router.post("/v1/play-sessions/{session_id}/resign", response_model=PlaySessionRead)
@@ -434,7 +624,7 @@ def resign_play_session(
         play_session = service.resign(session_id)
     except PlaySessionNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except PlaySessionNotActive as error:
+    except (PlaySessionNotActive, ClockConflict) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
     schedule_pending_analysis(service, background_tasks, pool_manager)
@@ -454,3 +644,34 @@ def takeback_play_session(
     except (PlaySessionNotActive, TakebackNotAllowed) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     return read_play_session(play_session, session)
+
+
+@router.post("/v1/play-sessions/{session_id}/opponent-move", response_model=PlayMoveResponse)
+async def resume_opponent_move(
+    session_id: UUID,
+    request: Request,
+    command: OpponentMoveCreate,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+    service: PlaySessionService = Depends(get_play_session_service),
+) -> PlayMoveResponse:
+    _get_owned_play_session(session_id, request, session)
+    try:
+        move_result = await service.resume_opponent(session_id, command.expected_clock_version)
+    except (ClockConflict, PlaySessionNotActive) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except PlaySessionNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+    finally:
+        schedule_pending_analysis(
+            service, background_tasks, getattr(request.app.state, "engine_pool_manager", None)
+        )
+    return PlayMoveResponse(
+        opponent_move=move_result.opponent_move,
+        status=move_result.status,
+        clock=move_result.clock,
+    )

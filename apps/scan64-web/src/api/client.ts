@@ -487,8 +487,9 @@ export class ApiClient {
     return json as unknown as PlaySessionRead;
   }
 
-  static async getPlaySession(sessionId: string): Promise<PlaySessionRead> {
-    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}`, {
+  static async getPlaySession(sessionId: string, afterClockVersion?: number): Promise<PlaySessionRead> {
+    const query = afterClockVersion === undefined ? '' : `?after_clock_version=${afterClockVersion}`;
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}${query}`, {
       headers: getPlayerAuthorizationHeader(getActivePlayerId()),
     });
     if (!response.ok) {
@@ -514,6 +515,21 @@ export class ApiClient {
     return await response.json() as PlayAssistanceRead;
   }
 
+
+  static async resumePlaySessionOpponentMove(sessionId: string, expectedClockVersion: number): Promise<PlayMoveResponse> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/opponent-move`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getPlayerAuthorizationHeader(getActivePlayerId()),
+      },
+      body: JSON.stringify({ expected_clock_version: expectedClockVersion }),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Failed to resume opponent move: ${response.statusText}`, response.status);
+    }
+    return await response.json() as PlayMoveResponse;
+  }
 
   static async makePlaySessionMove(sessionId: string, move: PlayMoveCreate): Promise<PlayMoveResponse> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/moves`, {

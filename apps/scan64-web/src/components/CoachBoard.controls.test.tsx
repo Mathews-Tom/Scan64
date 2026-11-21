@@ -76,6 +76,45 @@ describe('Board controls', () => {
     expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
   });
 
+  it.each(['1. d4 *', '1. d4 d5 *'])('cancels a premove when canonical history replaces its source: %s', pgn => {
+    const chess = new Chess(); chess.move('e4');
+    const onMove = vi.fn();
+    const view = render(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} premoveColor="white" disabled onMove={onMove} />);
+    queue('g1', 'f3');
+    chess.loadPgn(pgn);
+    view.rerender(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} premoveColor="white" disabled onMove={onMove} />);
+    expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
+    expect(ground.state.premovable.current).toBeUndefined();
+    if (chess.turn() === 'b') chess.move('d5');
+    view.rerender(<CoachBoard fen={chess.fen()} pgn={chess.pgn()} premoveColor="white" onMove={onMove} />);
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('cancels a premove when a FEN-only source is replaced by a different initial position', () => {
+    const chess = new Chess('7k/8/8/8/8/8/8/KN6 b - - 0 1');
+    const onMove = vi.fn();
+    const view = render(<CoachBoard fen={chess.fen()} premoveColor="white" disabled onMove={onMove} />);
+    queue('b1', 'c3');
+    chess.load('6k1/8/8/8/8/8/8/KN6 w - - 1 2');
+    view.rerender(<CoachBoard fen={chess.fen()} premoveColor="white" onMove={onMove} />);
+    expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('cancels a premove when equal-ply replacement history reaches the same FEN by a different move order', () => {
+    const source = new Chess(); source.loadPgn('1. Nf3 Nf6 2. Nc3 *');
+    const replacement = new Chess(); replacement.loadPgn('1. Nc3 Nf6 2. Nf3 *');
+    expect(replacement.fen()).toBe(source.fen());
+    const onMove = vi.fn();
+    const view = render(<CoachBoard fen={source.fen()} pgn={source.pgn()} premoveColor="white" disabled onMove={onMove} />);
+    queue('e2', 'e4');
+    view.rerender(<CoachBoard fen={replacement.fen()} pgn={replacement.pgn()} premoveColor="white" disabled onMove={onMove} />);
+    expect(screen.queryByRole('button', { name: 'Cancel premove' })).not.toBeInTheDocument();
+    replacement.move('d5');
+    view.rerender(<CoachBoard fen={replacement.fen()} pgn={replacement.pgn()} premoveColor="white" onMove={onMove} />);
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
   it('discards a premove made illegal by the reply', () => {
     const chess = new Chess(); chess.move('e4');
     const onMove = vi.fn();

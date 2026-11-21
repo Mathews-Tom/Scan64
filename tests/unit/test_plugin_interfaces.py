@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from chess_lesson_spec import Diagnosis, Explanation, LessonSpec
+from sqlmodel import SQLModel
 
 import scan64.api.app as app_module
+import scan64.persistence.database as database
 from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.positions.models import Position
@@ -267,14 +271,24 @@ def test_seeded_detectors_match_the_seed_taxonomy() -> None:
 
 @pytest.mark.asyncio
 async def test_lifespan_binds_and_clears_the_seeded_detector_registry(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(app_module, "create_db_and_tables", lambda: None)
-    monkeypatch.setattr(app_module, "seed_transfer_positions", lambda session: None)
+    engine = database.create_database_engine(f"sqlite:///{tmp_path / 'plugins.db'}")
+    try:
+        with monkeypatch.context() as isolated:
+            isolated.setattr(database, "engine", engine)
+            isolated.setattr(
+                app_module, "create_db_and_tables", lambda: SQLModel.metadata.create_all(engine)
+            )
+            isolated.setattr(app_module, "seed_transfer_positions", lambda session: None)
 
-    async with app_module.lifespan(app_module.app):
-        assert app_module.app.state.plugin_registry is get_host_registry()
-        assert get_host_registry().names(kind=PluginKind.PATTERN_DETECTOR) == tuple(SEED_CODES)
+            async with app_module.lifespan(app_module.app):
+                assert app_module.app.state.plugin_registry is get_host_registry()
+                assert get_host_registry().names(kind=PluginKind.PATTERN_DETECTOR) == tuple(
+                    SEED_CODES
+                )
 
-    with pytest.raises(RuntimeError, match="not initialized"):
-        get_host_registry()
+            with pytest.raises(RuntimeError, match="not initialized"):
+                get_host_registry()
+    finally:
+        engine.dispose()

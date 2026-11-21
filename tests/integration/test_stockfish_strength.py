@@ -365,6 +365,7 @@ def test_takeback_conflicts_when_resign_commits_after_read(
 ) -> None:
     import scan64.persistence.database as db_module
     from scan64.chess.games import play_session_service as service_module
+    from scan64.chess.games.assistance import PlaySnapshot
 
     authorize(client, db_session)
     opponent = AsyncMock()
@@ -376,18 +377,19 @@ def test_takeback_conflicts_when_resign_commits_after_read(
         client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"}).status_code
         == 200
     )
-    original_build = service_module.build_pgn
+    original_claim = service_module.claim_snapshot
     injected = False
 
-    def resign_before_write(game: Game) -> str:
+    def resign_before_write(session: Session, snapshot: PlaySnapshot) -> dict[str, str]:
         nonlocal injected
         if not injected:
             injected = True
             with Session(db_module.engine) as concurrent:
                 PlaySessionService(concurrent, opponent).resign(UUID(session_id))
-        return original_build(game)
+        return original_claim(session, snapshot)
 
-    monkeypatch.setattr(service_module, "build_pgn", resign_before_write)
+    # PGN generation is after the CAS writer lock; inject before that first write.
+    monkeypatch.setattr(service_module, "claim_snapshot", resign_before_write)
     response = client.post(f"/v1/play-sessions/{session_id}/takeback")
     assert injected
     assert response.status_code == 409, response.text

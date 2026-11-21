@@ -10,7 +10,7 @@ describe('StrengthSummary', () => {
     expect(screen.getByText(/Suggested bot level: 3/)).toBeInTheDocument();
     expect(screen.getByText(/Scan64 puzzle rating: 1216 \(provisional\)/)).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Puzzle rating events' })).toHaveTextContent('Event 1: 1200 to 1216 (+16); score 1.');
-    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v1' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v1 · Untimed' })).toBeInTheDocument();
     expect(screen.getByText('Total sample: 10 games: 5 wins, 2 draws, 3 losses.')).toBeInTheDocument();
     expect(screen.getByText('Latest five: 5 games: 3 wins, 1 draws, 1 losses.')).toBeInTheDocument();
     expect(screen.getByText('Previous five: 5 games: 2 wins, 1 draws, 2 losses.')).toBeInTheDocument();
@@ -24,9 +24,25 @@ describe('StrengthSummary', () => {
       latest: { sample_size: 2, wins: 1, draws: 0, losses: 1 },
       previous: { sample_size: 0, wins: 0, draws: 0, losses: 0 }, trend: 'insufficient_data',
     }] }} />);
-    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v1(unstamped)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v1(unstamped) · Untimed' })).toBeInTheDocument();
     expect(screen.getByText('Trend: Insufficient data (five games in each window required).')).toBeInTheDocument();
     expect(screen.queryByText(/Rating 1500/)).not.toBeInTheDocument();
+  });
+
+  it('keeps equal level and policy results separate by exact initial time and increment', () => {
+    const cohort = strengthFixture.bot_cohorts[0];
+    render(<StrengthSummary strength={{ ...strengthFixture, bot_cohorts: [
+      cohort,
+      { ...cohort, time_control: { initial_seconds: 180, increment_seconds: 2 } },
+      { ...cohort, time_control: { initial_seconds: 180, increment_seconds: 0 } },
+      { ...cohort, time_control: { initial_seconds: 300, increment_seconds: 0 } },
+      { ...cohort, bot_policy_version: 'v2', time_control: { initial_seconds: 180, increment_seconds: 2 } },
+    ] }} />);
+    for (const control of ['Untimed', '180s + 2s increment', '180s + 0s increment', '300s + 0s increment']) {
+      expect(screen.getByRole('heading', { name: `Stockfish level 3 · policy v1 · ${control}` })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v2 · 180s + 2s increment' })).toBeInTheDocument();
+    expect(screen.getAllByText('Total sample: 10 games: 5 wins, 2 draws, 3 losses.')).toHaveLength(5);
   });
 
   it('shows unrated experience and empty history without inventing a player rating', () => {

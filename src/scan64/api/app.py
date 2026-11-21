@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from sqlmodel import Session
 
 import scan64.persistence.database as database
@@ -30,6 +30,7 @@ from scan64.api.strength import router as strength_router
 from scan64.api.web import mount_web_client, web_dist_directory
 from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.recovery import recover_analysis_jobs
+from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
 from scan64.persistence.database import create_db_and_tables, get_session
@@ -72,18 +73,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             download_url=os.environ.get("SCAN64_DEBUG_PUZZLE_URL", DEFAULT_PUZZLE_URL),
         )
     try:
+        app.state.play_clock_runtime = PlayClockRuntime(
+            database.engine, app.state.engine_pool_manager
+        )
+        app.state.play_clock_runtime.start()
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
-        if shell_token is not None:
-            await asyncio.to_thread(app.state.puzzle_import_job.close)
-            del app.state.puzzle_import_job
-        await admission_controller.stop()
-        if app.state.engine_pool_manager is not None:
-            await app.state.engine_pool_manager.close()
-        clear_host_registry()
-        del app.state.plugin_registry
-        del app.state.engine_pool_manager
+        try:
+            await app.state.play_clock_runtime.stop()
+        finally:
+            del app.state.play_clock_runtime
+            if shell_token is not None:
+                await asyncio.to_thread(app.state.puzzle_import_job.close)
+                del app.state.puzzle_import_job
+            await admission_controller.stop()
+            if app.state.engine_pool_manager is not None:
+                await app.state.engine_pool_manager.close()
+            clear_host_registry()
+            del app.state.plugin_registry
+            del app.state.engine_pool_manager
 
 
 app = FastAPI(
@@ -121,7 +130,11 @@ if shell_token is not None:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(response: Response) -> dict[str, str]:
+    runtime: PlayClockRuntime | None = getattr(app.state, "play_clock_runtime", None)
+    if runtime is not None and runtime.failed:
+        response.status_code = 503
+        return {"status": "degraded", "play_clock_scheduler": "failed"}
     return {"status": "ok"}
 
 
