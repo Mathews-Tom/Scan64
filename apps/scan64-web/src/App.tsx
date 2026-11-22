@@ -319,7 +319,7 @@ function App() {
   return (
     <UpdatesProvider>
     <PuzzleImportProvider onStartPuzzles={() => { setPuzzleLibraryRevision(value => value + 1); navigate('/puzzles'); }}>
-    <div className="app-shell" data-sidebar-expanded={sidebarExpanded} data-drawer-open={drawerVisible} data-native={isDesktop()}>
+    <div className="app-shell" data-viewport={viewport} data-sidebar-expanded={sidebarExpanded} data-drawer-open={drawerVisible} data-native={isDesktop()}>
       <a className="skip-link" href="#main-content" inert={drawerVisible}>Skip to content</a>
       {drawerVisible ? <div className="sidebar-backdrop" aria-hidden="true" onClick={() => dismissDrawer()} /> : null}
       <div className="app-sidebar-slot">
