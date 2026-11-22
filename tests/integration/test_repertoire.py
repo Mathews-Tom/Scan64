@@ -134,6 +134,16 @@ def test_invalid_batch_and_other_owner_requests_are_atomic(
     assert db_session.exec(select(ReviewSchedule)).all() == []
 
 
+def test_blank_record_separator_inside_variation_does_not_write_partial_batch(
+    client: TestClient, db_session: Session
+) -> None:
+    headers, repertoire = seed(client)
+    pgn = PGN + "\n1. e4 (1. d4 d5\n\n2. Nf3) *"
+    response = client.post("/v1/repertoires", headers=headers, json={"pgn": pgn})
+    assert response.status_code == 422, response.text
+    assert [str(row.id) for row in db_session.exec(select(Repertoire)).all()] == [repertoire["id"]]
+
+
 def test_concurrent_retry_and_distinct_attempts_serialize_fsrs(
     client: TestClient, db_session: Session
 ) -> None:

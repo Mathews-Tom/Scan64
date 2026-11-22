@@ -24,7 +24,7 @@ MAX_FEN_LENGTH = 120
 # Unlike read_game's forgiving lexer, consume every character. Unsupported syntax
 # is an input error rather than an apparently successful, truncated repertoire.
 _TOKEN = re.compile(
-    r'\s+|\[[A-Za-z0-9_]+\s+"(?:[^"\\\r\n]|\\["\\])*"\s*\]'
+    r'\s+|\[[A-Za-z0-9_]+[ \t]+"(?:[^"\\\r\n]|\\["\\])*"[ \t]*\]'
     r"|\{[^}]*\}|;[^\r\n]*|\$\d+|\d+\.(?:\.\.)?|\.\.\."
     r"|1/2-1/2|1-0|0-1|\*|[()]|[!?]+"
     r"|(?:O-O-O|O-O|0-0-0|0-0|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=?[QRBN])?)[+#]?"
@@ -110,7 +110,14 @@ def validate_repertoire_fen(fen: str) -> None:
 
 
 class _StrictBuilder(chess.pgn.GameBuilder[chess.pgn.Game]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.seen_headers: set[str] = set()
+
     def visit_header(self, tagname: str, tagvalue: str) -> None:
+        if tagname in self.seen_headers:
+            raise ValueError("PGN has a duplicate tag in one record")
+        self.seen_headers.add(tagname)
         if tagname == "FEN":
             # read_game constructs its first board after visiting headers.
             validate_repertoire_fen(tagvalue)
@@ -118,17 +125,25 @@ class _StrictBuilder(chess.pgn.GameBuilder[chess.pgn.Game]):
             raise ValueError("PGN Result must be 1-0, 0-1, 1/2-1/2, or *")
         super().visit_header(tagname, tagvalue)
 
+    def visit_result(self, result: str) -> None:
+        if "Result" in self.seen_headers and self.game.headers["Result"] != result:
+            raise ValueError("PGN Result header disagrees with the move record")
+        super().visit_result(result)
+
     def handle_error(self, error: Exception) -> None:
         raise ValueError(f"Invalid PGN move: {error}") from error
 
 
-def _check_tokens(pgn: str) -> int:
+def _prepare_pgn(pgn: str) -> tuple[str, int, int]:
     if not pgn.strip():
         raise ValueError("Paste a PGN containing at least one legal move")
     if len(pgn.encode("utf-8")) > MAX_PGN_BYTES:
         raise ValueError("Repertoire PGN must be at most 256 KiB")
-    offset = depth = moves = 0
+    offset = depth = moves = headers = 0
     record_ended = False
+    previous_tag_end: int | None = None
+    chunks: list[str] = []
+    copied = 0
     while offset < len(pgn):
         match = _TOKEN.match(pgn, offset)
         if match is None:
@@ -136,10 +151,23 @@ def _check_tokens(pgn: str) -> int:
         token = match.group()
         offset = match.end()
         if token.isspace():
-            if record_ended and re.search(r"\r?\n[ \t]*\r?\n", token):
+            if re.search(r"\r?\n[^\S\r\n]*\r?\n", token):
+                if depth:
+                    raise ValueError("PGN variations cannot contain a blank record separator")
                 record_ended = False
             continue
-        if token.startswith(("{", ";")):
+        # python-chess consumes one entire line per header. Separate adjacent
+        # tokens without rewriting the contents of tag values or comments.
+        if previous_tag_end is not None and "\n" not in pgn[previous_tag_end : match.start()]:
+            chunks.extend((pgn[copied:previous_tag_end], "\n"))
+            copied = match.start()
+        previous_tag_end = None
+        if token.startswith("["):
+            if depth:
+                raise ValueError("PGN tags are not allowed inside variations")
+            previous_tag_end = offset
+            headers += 1
+        elif token.startswith(("{", ";")):
             continue
         if record_ended:
             raise ValueError("No moves after a result; separate PGN records with a blank line")
@@ -159,7 +187,10 @@ def _check_tokens(pgn: str) -> int:
                 raise ValueError("PGN must contain fewer than 4096 moves")
     if depth:
         raise ValueError("PGN has an unclosed variation")
-    return moves
+    if chunks:
+        chunks.append(pgn[copied:])
+        pgn = "".join(chunks)
+    return pgn, moves, headers
 
 
 def _game_tree(game: chess.pgn.Game) -> RepertoireTree:
@@ -208,11 +239,16 @@ def _game_tree(game: chess.pgn.Game) -> RepertoireTree:
 
 def parse_repertoire_pgn(pgn: str) -> list[tuple[str, str, RepertoireTree]]:
     """Parse every record before a caller writes anything; preserve nested alternatives."""
-    expected_moves = _check_tokens(pgn)
+    pgn, expected_moves, expected_headers = _prepare_pgn(pgn)
     stream = io.StringIO(pgn)
     records: list[tuple[str, str, RepertoireTree]] = []
-    moves = 0
-    while (game := chess.pgn.read_game(stream, Visitor=_StrictBuilder)) is not None:
+    moves = headers = 0
+    while True:
+        builder = _StrictBuilder()
+        game = chess.pgn.read_game(stream, Visitor=lambda: builder)
+        if game is None:
+            break
+        headers += len(builder.seen_headers)
         if len(records) >= MAX_RECORDS:
             raise ValueError("Import at most 16 PGN records at once")
         tree = _game_tree(game)
@@ -226,6 +262,8 @@ def parse_repertoire_pgn(pgn: str) -> list[tuple[str, str, RepertoireTree]]:
                 "Normalized repertoire PGN exceeds 256 KiB; reduce comments or headers"
             )
         records.append((title[:200], normalized, tree))
+    if headers != expected_headers:
+        raise ValueError("PGN has a tag outside the record's supported header layout")
     if not records or moves != expected_moves:
         raise ValueError(
             "PGN contains ignored or incomplete move records; separate games with blank lines"

@@ -42,6 +42,18 @@ def test_preserves_separate_records_and_roots() -> None:
 
 
 @pytest.mark.parametrize(
+    ("separator", "body"), [("\n", "\n1. e4 *"), (" ", "{Custom start.}\n1. e4 *")]
+)
+def test_same_line_setup_tags_preserve_nonstandard_root(separator: str, body: str) -> None:
+    fen = "rnbqkbnr/1ppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    tags = ['[Event "Custom root"]', '[SetUp "1"]', f'[FEN "{fen}"]']
+    separate = parse_repertoire_pgn("\n".join(tags) + "\n" + body)
+    inline = parse_repertoire_pgn(" ".join(tags) + separator + body)
+    assert inline == separate
+    assert inline[0][2].nodes[0].fen == fen
+
+
+@pytest.mark.parametrize(
     "pgn",
     [
         "",
@@ -50,6 +62,12 @@ def test_preserves_separate_records_and_roots() -> None:
         "1. e4 nonsense e5 *",
         "1. e4 -- *",
         "1. e4 (1. d4 *",
+        "1. e4 (1. d4 d5\n\n2. Nf3) *",
+        '1. e4 (1. d4 [Event "Misplaced"] d5) *',
+        '[Event\n\n"Broken header"]\n\n1. e4 *',
+        '1. e4 [Note "Misplaced"] *',
+        '[Result "1-0"]\n\n1. e4 0-1',
+        '[Event "First"] [Event "Second"]\n\n1. e4 *',
         "1. e4 ) *",
         '[Variant "Chess960"]\n\n1. e4 *',
         '[Event "No moves"]\n\n*',

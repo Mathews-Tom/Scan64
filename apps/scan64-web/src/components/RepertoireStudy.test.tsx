@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiRequestError } from '../api/client';
 import { RepertoireApi, type RepertoireRead } from '../api/repertoire';
 import { commitAnalysisMoves, createAnalysisTree } from './analysisTree';
 import { RepertoireStudy } from './RepertoireStudy';
@@ -27,6 +28,7 @@ async function importTree() {
   const saved = fixture();
   vi.mocked(RepertoireApi.importPgn).mockResolvedValue([saved]);
   render(<RepertoireStudy />);
+  await waitFor(() => expect(screen.getByLabelText('Repertoire PGN')).toBeEnabled());
   fireEvent.change(screen.getByLabelText('Repertoire PGN'), { target: { value: '1. e4 (1. d4 d5 (1... Nf6)) e5 *' } });
   fireEvent.click(screen.getByRole('button', { name: 'Import repertoire' }));
   await screen.findByRole('region', { name: 'Saved repertoire playback' });
@@ -86,6 +88,59 @@ describe('owned repertoire study', () => {
     await screen.findByText(/not a saved continuation — Again/);
     expect(RepertoireApi.review).toHaveBeenCalledTimes(2);
     expect(vi.mocked(RepertoireApi.review).mock.calls[0]).toEqual(vi.mocked(RepertoireApi.review).mock.calls[1]);
+  });
+
+  it('unlocks practice and removes a repertoire that the server no longer owns', async () => {
+    const saved = await importTree();
+    const other = { ...saved, id: 'other', title: 'Other repertoire' };
+    vi.mocked(RepertoireApi.list).mockResolvedValue([other]);
+    vi.mocked(RepertoireApi.review).mockRejectedValueOnce(new ApiRequestError('Repertoire not found', 404));
+    fireEvent.click(screen.getByRole('button', { name: 'Practise this position' }));
+    move('e4');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Repertoire not found');
+    expect(await screen.findByRole('button', { name: 'Other repertoire' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Retry same submission' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: saved.title })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Repertoire PGN')).toBeEnabled();
+  });
+
+  it.each(['deadline', 'visible'] as const)('refreshes stale due state on %s without a reload', async trigger => {
+    const saved = fixture();
+    const dueAt = Date.now() + 5_000;
+    const waiting: RepertoireRead = {
+      ...saved,
+      reviewed_decisions: saved.total_decisions,
+      due_decisions: 0,
+      decisions: saved.decisions.map(item => ({
+        ...item, reviewed: true, due: false, next_review_at: new Date(dueAt).toISOString(),
+      })),
+    };
+    vi.mocked(RepertoireApi.list).mockResolvedValue([waiting]);
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    try {
+      visibility.mockReturnValue('visible');
+      render(<RepertoireStudy />);
+      await act(async () => {});
+      fireEvent.click(screen.getByRole('button', { name: saved.title }));
+      expect(screen.getByRole('button', { name: 'Practise next due' })).toBeDisabled();
+      vi.mocked(RepertoireApi.list).mockResolvedValue([{
+        ...waiting,
+        due_decisions: 1,
+        decisions: waiting.decisions.map(item => ({ ...item, due: item.node_id === 0 })),
+      }]);
+      if (trigger === 'visible') visibility.mockReturnValue('hidden');
+      await act(() => vi.advanceTimersByTimeAsync(5_000));
+      if (trigger === 'visible') {
+        expect(screen.getByRole('button', { name: 'Practise next due' })).toBeDisabled();
+        visibility.mockReturnValue('visible');
+        await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+      }
+      expect(screen.getByRole('button', { name: 'Practise next due' })).toBeEnabled();
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('does not submit illegal keyboard input and displays atomic import errors', async () => {

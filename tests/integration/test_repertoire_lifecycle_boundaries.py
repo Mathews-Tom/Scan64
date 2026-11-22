@@ -342,11 +342,16 @@ def test_mixed_offset_archive_timestamps_persist_as_same_utc_instants(
         ("review_schedules", ("next_review_at", "last_reviewed_at")),
         ("schedule_review_observations", ("reviewed_at",)),
     )
+
+    def instant_at(raw: str) -> datetime:
+        value = datetime.fromisoformat(raw)
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
     expected: dict[tuple[str, str, str], datetime] = {}
     for group, fields in time_fields:
         for row in archive[group]:
             for field in fields:
-                instant = datetime.fromisoformat(row[field]).replace(tzinfo=UTC)
+                instant = instant_at(row[field])
                 identity = row.get("id", row.get("item_id"))
                 expected[group, identity, field] = instant
                 row[field] = instant.astimezone(timezone(next(offsets))).isoformat()
@@ -354,14 +359,13 @@ def test_mixed_offset_archive_timestamps_persist_as_same_utc_instants(
     restored = client.post("/v1/imports", headers=headers, json=archive)
     assert restored.status_code == 200, restored.text
     current = exported(client, headers)
+    actual: dict[tuple[str, str, str], datetime] = {}
     for group, fields in time_fields:
         for row in current[group]:
             for field in fields:
                 identity = row.get("id", row.get("item_id"))
-                assert (
-                    datetime.fromisoformat(row[field]).replace(tzinfo=UTC)
-                    == expected[group, identity, field]
-                )
+                actual[group, identity, field] = instant_at(row[field])
+    assert actual == expected
     delete_owner(client, headers)
     assert client.post("/v1/imports", headers=headers, json=current).status_code == 200
     assert review(client, headers, repertoire).status_code == 200

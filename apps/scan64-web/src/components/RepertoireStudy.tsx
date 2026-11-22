@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ApiRequestError, getStoredPlayerId } from '../api/client';
 import { RepertoireApi, type RepertoireAttemptInput, type RepertoireRead } from '../api/repertoire';
 import { analysisEntries, analysisMoveLabel } from './analysisTree';
 import { CoachBoard } from './CoachBoard';
 import { Button, Panel } from './Primitives';
 
 const MAX_PGN_BYTES = 256 * 1024;
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 export function RepertoireStudy() {
   const [repertoires, setRepertoires] = useState<RepertoireRead[]>([]);
@@ -18,21 +20,80 @@ export function RepertoireStudy() {
   const [status, setStatus] = useState('');
   const [retry, setRetry] = useState<RepertoireAttemptInput | null>(null);
   const pending = useRef(false);
+  const mutationVersion = useRef(0);
+  const [refreshRequested, setRefreshRequested] = useState(true);
+  const writing = busy || retry !== null;
+  const blocked = loading || writing;
+  const nextDueAt = useMemo(() => {
+    let earliest = Infinity;
+    for (const { decisions } of repertoires) {
+      for (const decision of decisions) {
+        if (decision.due || decision.next_review_at === null) continue;
+        const dueAt = Date.parse(decision.next_review_at);
+        if (dueAt < earliest) earliest = dueAt;
+      }
+    }
+    return earliest;
+  }, [repertoires]);
   const selected = repertoires.find(item => item.id === selectedId);
   const node = selected?.tree.nodes[nodeId];
   const decision = selected?.decisions.find(item => item.node_id === nodeId);
 
   useEffect(() => {
+    if (writing) return;
     let active = true;
-    void RepertoireApi.list().then(items => {
-      if (active) setRepertoires(existing => [
-        ...items.filter(item => !existing.some(saved => saved.id === item.id)), ...existing,
-      ]);
-    }).catch(caught => {
-      if (active) setError(caught instanceof Error ? caught.message : 'Could not load repertoires.');
-    }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+    let refreshing = false;
+    let refreshAtDeadline = false;
+    let timer: number | undefined;
+    const refresh = async () => {
+      if (!active || refreshing || pending.current) return;
+      refreshing = true;
+      const version = mutationVersion.current;
+      const request = RepertoireApi.list();
+      const owner = getStoredPlayerId();
+      const current = () => active && version === mutationVersion.current;
+      try {
+        const items = await request;
+        if (current() && owner === getStoredPlayerId()) setRepertoires(items);
+      } catch (caught) {
+        if (current() && owner === getStoredPlayerId()) {
+          setError(caught instanceof Error ? caught.message : 'Could not load repertoires.');
+        }
+      } finally {
+        refreshing = false;
+        if (current()) {
+          setLoading(false);
+          setRefreshRequested(false);
+        }
+        if (refreshAtDeadline && current()) {
+          refreshAtDeadline = false;
+          void refresh();
+        }
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    const armDueRefresh = () => {
+      const wait = nextDueAt - Date.now();
+      timer = window.setTimeout(() => {
+        if (Date.now() < nextDueAt) {
+          armDueRefresh();
+        } else if (document.visibilityState === 'visible') {
+          if (refreshing) refreshAtDeadline = true;
+          else void refresh();
+        }
+      }, Math.min(MAX_TIMEOUT_MS, Math.max(0, wait)));
+    };
+    if (refreshRequested) void refresh();
+    else if (Number.isFinite(nextDueAt)) armDueRefresh();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [nextDueAt, refreshRequested, writing]);
 
   const select = (id: string, position = 0, drill = false) => {
     setSelectedId(id);
@@ -45,6 +106,7 @@ export function RepertoireStudy() {
   const importPgn = async () => {
     if (pending.current) return;
     pending.current = true;
+    mutationVersion.current++;
     setBusy(true);
     setError('');
     try {
@@ -64,6 +126,7 @@ export function RepertoireStudy() {
   const submit = async (attempt: RepertoireAttemptInput) => {
     if (!selected || pending.current) return;
     pending.current = true;
+    mutationVersion.current++;
     setBusy(true);
     setError('');
     setRetry(attempt);
@@ -74,6 +137,17 @@ export function RepertoireStudy() {
       setRetry(null);
       setDrilling(false);
     } catch (caught) {
+      // These responses reject this submission before any new review is
+      // committed. Network and server errors may have lost a committed reply.
+      if (caught instanceof ApiRequestError && [401, 403, 404, 409, 422].includes(caught.status)) {
+        setRetry(null);
+        setDrilling(false);
+        if (caught.status === 404) {
+          setRepertoires(items => items.filter(item => item.id !== selected.id));
+          setSelectedId(null);
+        }
+        setRefreshRequested(true);
+      }
       setError(caught instanceof Error ? caught.message : 'Could not record review. Retry the same submission.');
     } finally {
       pending.current = false;
@@ -81,7 +155,6 @@ export function RepertoireStudy() {
     }
   };
 
-  const blocked = busy || retry !== null;
   return <section aria-label="My repertoires">
     <h3>My repertoires</h3>
     <p>Import your own standard-chess PGN. Every record and nested variation is retained. Practise either side to move; no engine answers, ratings or awards.</p>
