@@ -482,6 +482,8 @@ def _validate_habit_archive(
                 continue
             # Batch and interactive diagnoses bind focused evidence after the
             # actual owned move; lessons and pattern snapshots start before it.
+            # Older evidence omitted before_fen. The owned replay and fast
+            # analysis still bind the source; an explicit FEN must agree.
             reached = positions.get(proof.position_id)
             fast_id = proof.payload.get("fast_analysis_id")
             reply_id = proof.payload.get("reply_analysis_id")
@@ -493,7 +495,7 @@ def _validate_habit_archive(
                 reached is None
                 or reached.game_id != game.id
                 or reached.fen not in source_replies
-                or proof.payload.get("before_fen") != position.fen
+                or proof.payload.get("before_fen", position.fen) != position.fen
                 or proof.payload.get("after_fen") != reached.fen
                 or source_replies[reached.fen] != proof.payload.get("played_move")
                 or fast is None
