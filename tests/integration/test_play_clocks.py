@@ -568,26 +568,31 @@ async def test_legacy_static_clock_json_is_untimed(db_session):
 async def test_runtime_expires_without_browser_and_admits_analysis(
     clock_db_session, frozen_time, monkeypatch
 ):
-    play, game, clock = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
-    session_id = play.id
+    play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
+    session_id, game_id = play.id, game.id
     frozen_time.advance(60_000)
-    admitted = asyncio.Event()
+    admissions: list[tuple[str, UUID]] = []
 
-    async def submit(player_id, job_id, pool):
-        assert player_id == "alice"
-        admitted.set()
+    async def submit(player_id: str, job_id: UUID, pool: EnginePoolManager | None) -> None:
+        admissions.append((player_id, job_id))
 
     monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
     runtime = PlayClockRuntime(clock_db_session.get_bind())
+    changed = runtime.change_event
     runtime.start()
     try:
-        await asyncio.wait_for(admitted.wait(), timeout=1)
-        with Session(clock_db_session.get_bind()) as other:
-            assert other.get(PlaySession, session_id).status == "completed"
-            assert other.get(PlayClock, session_id).terminal_reason == "flag"
-            assert other.get(Game, game.id).moves == ["e2e4"]
+        # Frozen time sets the game deadline; this timeout only guards a hung test.
+        assert await asyncio.wait_for(runtime.wait_for_change(changed), timeout=10)
     finally:
         await runtime.stop()
+
+    with Session(clock_db_session.get_bind()) as other:
+        assert other.get(PlaySession, session_id).status == "completed"
+        assert other.get(PlayClock, session_id).terminal_reason == "flag"
+        assert other.get(Game, game_id).moves == ["e2e4"]
+        job = other.exec(select(AnalysisJob)).one()
+        assert job.game_id == game_id
+        assert admissions == [("alice", job.id)]
 
 
 @pytest.mark.asyncio
@@ -972,7 +977,8 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
     runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
     try:
-        await asyncio.wait_for(admitted.wait(), timeout=1)
+        # The injected sleeps test the backoff schedule independently of CI latency.
+        await asyncio.wait_for(admitted.wait(), timeout=10)
         assert delays == pytest.approx([0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.0])
         assert len({id(session) for session in failed_sessions}) == 8
         with Session(clock_db_session.get_bind()) as other:
@@ -1439,7 +1445,7 @@ async def test_clock_cas_rejects_snapshot_aba_and_preserves_move_boundary(db_ses
 async def test_notify_wakes_scheduler_for_new_earlier_deadline(
     db_session, frozen_time, monkeypatch
 ):
-    seed_clock(db_session, frozen_time)
+    original, _, _ = seed_clock(db_session, frozen_time)
     initial_wait = asyncio.Event()
     loop = asyncio.get_running_loop()
     loop_thread = get_ident()
@@ -1454,7 +1460,7 @@ async def test_notify_wakes_scheduler_for_new_earlier_deadline(
     runtime.start()
     try:
         await asyncio.wait_for(initial_wait.wait(), timeout=2)
-        play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
+        play, _, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
         session_id = play.id
         admitted = asyncio.Event()
 
@@ -1464,11 +1470,15 @@ async def test_notify_wakes_scheduler_for_new_earlier_deadline(
         monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
         frozen_time.advance(100)
         runtime.notify()
-        await asyncio.wait_for(admitted.wait(), timeout=1)
+        # UTC stays before the original deadline, so the periodic time check
+        # cannot discover the earlier game. Only notify can force a fresh query.
+        await asyncio.wait_for(admitted.wait(), timeout=10)
         db_session.refresh(clock)
         db_session.refresh(play)
         assert clock.terminal_reason == "flag"
         assert db_session.get(PlaySession, session_id).status == "completed"
+        db_session.refresh(original)
+        assert original.status == "active"
     finally:
         await runtime.stop()
 
