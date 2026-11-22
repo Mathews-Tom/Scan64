@@ -568,26 +568,31 @@ async def test_legacy_static_clock_json_is_untimed(db_session):
 async def test_runtime_expires_without_browser_and_admits_analysis(
     clock_db_session, frozen_time, monkeypatch
 ):
-    play, game, clock = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
-    session_id = play.id
+    play, game, _ = seed_clock(clock_db_session, frozen_time, moves=("e2e4",))
+    session_id, game_id = play.id, game.id
     frozen_time.advance(60_000)
-    admitted = asyncio.Event()
+    admissions: list[tuple[str, UUID]] = []
 
-    async def submit(player_id, job_id, pool):
-        assert player_id == "alice"
-        admitted.set()
+    async def submit(player_id: str, job_id: UUID, pool: EnginePoolManager | None) -> None:
+        admissions.append((player_id, job_id))
 
     monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
     runtime = PlayClockRuntime(clock_db_session.get_bind())
+    changed = runtime.change_event
     runtime.start()
     try:
-        await asyncio.wait_for(admitted.wait(), timeout=1)
-        with Session(clock_db_session.get_bind()) as other:
-            assert other.get(PlaySession, session_id).status == "completed"
-            assert other.get(PlayClock, session_id).terminal_reason == "flag"
-            assert other.get(Game, game.id).moves == ["e2e4"]
+        # Frozen time sets the game deadline; this timeout only guards a hung test.
+        assert await asyncio.wait_for(runtime.wait_for_change(changed), timeout=10)
     finally:
         await runtime.stop()
+
+    with Session(clock_db_session.get_bind()) as other:
+        assert other.get(PlaySession, session_id).status == "completed"
+        assert other.get(PlayClock, session_id).terminal_reason == "flag"
+        assert other.get(Game, game_id).moves == ["e2e4"]
+        job = other.exec(select(AnalysisJob)).one()
+        assert job.game_id == game_id
+        assert admissions == [("alice", job.id)]
 
 
 @pytest.mark.asyncio
