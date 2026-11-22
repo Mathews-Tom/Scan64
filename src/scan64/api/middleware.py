@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Awaitable, Callable, Generator
 from contextlib import contextmanager
 from typing import cast
 
 from fastapi import HTTPException, Request, Response
 from sqlmodel import Field, Session, SQLModel
+from starlette._utils import get_route_path
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
@@ -19,6 +21,16 @@ from scan64.learning.progress import progress_generation
 
 LEARNING_CACHE_PREFIXES = ("/v1/puzzles", "/v1/learning", "/v1/content")
 LearningGeneration = tuple[str, str | None]
+
+
+def _uncached_owner_route(path: str) -> bool:
+    path = path.rstrip("/")
+    return (
+        path == "/v1/repertoires"
+        or path.startswith("/v1/repertoires/")
+        or path in {"/v1/exports", "/v1/imports"}
+        or re.fullmatch(r"/v1/players/[^/]+/(?:data|progress/reset)", path) is not None
+    )
 
 
 class IdempotencyRecord(SQLModel, table=True):
@@ -50,7 +62,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             session_generator.close()
 
     def _learning_generation(self, request: Request, session: Session) -> LearningGeneration | None:
-        path = request.url.path
+        path = get_route_path(request.scope)
         if not any(
             path == prefix or path.startswith(f"{prefix}/") for prefix in LEARNING_CACHE_PREFIXES
         ):
@@ -107,6 +119,12 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        route_path = get_route_path(request.scope)
+        # These routes require live authorization and their own transactional
+        # identity/cleanup semantics on every call. Never look up OR publish a
+        # generic cached response, including after deletion/reset races.
+        if _uncached_owner_route(route_path):
+            return await call_next(request)
         if request.method not in ["POST", "PUT", "PATCH", "DELETE"]:
             return await call_next(request)
 
@@ -121,7 +139,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         principal = hashlib.sha256(authorization.encode("utf-8")).hexdigest()
-        record_key = f"{request.method}:{request.url.path}:{principal}:{idempotency_key}"
+        record_key = f"{request.method}:{route_path}:{principal}:{idempotency_key}"
 
         try:
             generation, cached = await run_in_threadpool(self._lookup, request, record_key)

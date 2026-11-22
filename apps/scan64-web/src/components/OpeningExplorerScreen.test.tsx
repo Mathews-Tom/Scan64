@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpeningExplorerScreen } from './OpeningExplorerScreen';
 import { ApiClient } from '../api/client';
+import { RepertoireApi } from '../api/repertoire';
 
 vi.mock('chessground', () => ({
   Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
@@ -9,6 +10,7 @@ vi.mock('chessground', () => ({
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.spyOn(RepertoireApi, 'list').mockResolvedValue([]);
   vi.spyOn(ApiClient, 'getTrainingSession').mockResolvedValue({
     session_id: 'opening-study-1',
     move_choices: {},

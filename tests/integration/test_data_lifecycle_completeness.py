@@ -63,6 +63,7 @@ from scan64.learning.habit_models import (
     PatternTarget,
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
+from scan64.learning.repertoire import Repertoire, RepertoireAttempt
 from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
@@ -83,6 +84,8 @@ PLAYER_LIFECYCLE_TABLES = frozenset(
         SessionHintReveal.__tablename__,
         PositiveMoveCredit.__tablename__,
         SparringAttempt.__tablename__,
+        Repertoire.__tablename__,
+        RepertoireAttempt.__tablename__,
         Position.__tablename__,
         EngineAnalysis.__tablename__,
         GameMoveReview.__tablename__,
@@ -134,6 +137,8 @@ ARCHIVE_FIELDS = {
     SessionHintReveal.__tablename__: "session_hint_reveals",
     PositiveMoveCredit.__tablename__: "positive_move_credits",
     SparringAttempt.__tablename__: "sparring_attempts",
+    Repertoire.__tablename__: "repertoires",
+    RepertoireAttempt.__tablename__: "repertoire_attempts",
     Game.__tablename__: "games",
     Position.__tablename__: "positions",
     EngineAnalysis.__tablename__: "engine_analyses",
@@ -551,6 +556,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "session_hint_reveals": 0,
         "positive_move_credits": 0,
         "sparring_attempts": 1,
+        "repertoires": 0,
+        "repertoire_attempts": 0,
         "games": 3,
         "games_disowned": 0,
         "positions": 4,
