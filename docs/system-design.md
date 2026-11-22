@@ -62,6 +62,8 @@ The service creates a durable opportunity, review schedule, and study session be
 
 Daily Training derives ordering from active mastery, due review, verified attempt history, fatigue, and an exploration floor. Opening Explorer missions remain a separate, ungraded path.
 
+Owned repertoires keep separate FSRS schedules for each saved decision. Repertoire reviews do not contribute to mastery, rating or diagnosis. Comparing imported games is read-only and matches equivalent legal positions across move orders.
+
 Transfer positions are seeded at application startup. When the existing mastery threshold is reached, the service can assign a separate transfer measurement; later training sessions serve it as a required exercise and its result is reported separately.
 
 ### Coach-mode interruption
@@ -140,6 +142,8 @@ Runtime controls:
 ## Optional providers
 
 Stockfish is required for the local application. Maia is optional and requires operator-provided assets; follow [Maia operator provisioning](maia.md). Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.
+
+The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. Missing or rejected output falls back to templates. Disabling changes only future generation, never stored explanations. Operator-supplied `SCAN64_LLM_CONFIG` retains precedence where explicitly configured.
 
 ## Deliberate limits
 

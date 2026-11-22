@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-22
+
+### Added
+
+- **Opening Explorer → My repertoires** imports standard-chess PGNs with variations. Browse saved lines, drill decisions for either side to move on a spaced review schedule, and see how many positions you have reviewed and what is due.
+- **Compare imported games** ranks the first departures from a saved repertoire by frequency, identifies whose move departed, and opens a drill on the preceding saved position. Equivalent positions reached by a different move order do not count as departures.
+- **Profile → Download coach packet** saves a local ZIP containing a pattern summary and annotated PGN evidence for a human coach. The summary keeps sample sizes, coverage and caveats; it is not proof that training caused improvement.
+- **Settings → Local explanation wording** can opt into an installed Ollama model for new analysis and Coach explanations. Scan64 checks generated claims against verified evidence and uses the built-in wording when disabled, unavailable or rejected. Saved explanations do not change.
+
+### Changed
+
+- Keep a pre-upgrade database backup and player export. Saved repertoire data or local wording consent can prevent a schema downgrade; use the matching pre-upgrade backup to roll back without deleting rows from the live database. See [backup and rollback guidance](docs/user-guide.md#back-up-before-upgrading-or-rolling-back).
+
+### Security
+
+- Local wording is off by default. Detection sends no chess evidence. Enabling it sends evidence only to the local Ollama service, which can log or forward what it receives. The choice is scoped to the player and installation and is not transferred through an account archive.
+
 ## [0.11.0] - 2026-11-21
 
 ### Added
