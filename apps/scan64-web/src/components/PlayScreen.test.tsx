@@ -1226,9 +1226,8 @@ describe('PlayScreen', () => {
       { sessionId: active.id, move: 'a3a1', timestamp: 1 },
     ]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(active);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-queued',
-      pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`,
-      white: 'bot', black: 'human', result: '*' });
+    const reloaded = Promise.withResolvers<GameRead>();
+    vi.mocked(ApiClient.getGame).mockReturnValue(reloaded.promise);
     render(<PlayScreen initialSession={active} />);
     await screen.findByTestId('retry-move-sync');
     expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
@@ -1239,11 +1238,21 @@ describe('PlayScreen', () => {
 
     vi.mocked(getQueuedMoves).mockResolvedValue([]);
     fireEvent.click(screen.getByTestId('retry-move-sync'));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
-      orientation: 'black', fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2',
-      movable: expect.objectContaining({ color: 'black' }),
+    await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledExactlyOnceWith(active.game_id));
+    expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
+
+    await act(async () => reloaded.resolve({
+      id: 'custom-queued', pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`,
+      white: 'bot', black: 'human', result: '*',
     }));
+    await waitFor(() => {
+      expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({
+        orientation: 'black', fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2',
+        movable: expect.objectContaining({ color: 'black' }),
+      }));
+      expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled();
+    });
   });
 
   it('grades three unique legal candidates without moving, then commits only the chosen generation-bound move', async () => {
