@@ -759,6 +759,17 @@ export class ApiClient {
     return this.getPlayerResource<PatternRecurrenceReport>(playerId, 'progress/pattern-recurrence');
   }
 
+  static async getCoachPacket(playerId: string, signal?: AbortSignal): Promise<Blob> {
+    const response = await apiFetch(`${apiBase()}/players/${encodeURIComponent(playerId)}/progress/coach-packet`, {
+      headers: getPlayerAuthorizationHeader(playerId),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(`Coach packet download failed (${response.status}). Please try again.`, response.status);
+    }
+    return response.blob();
+  }
+
   static async getPlayerInsights(playerId: string): Promise<ProfileInsightsRead> {
     return this.getPlayerResource<ProfileInsightsRead>(playerId, 'insights');
   }

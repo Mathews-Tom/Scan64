@@ -33,6 +33,18 @@ export interface RepertoireAttemptRead {
   repertoire: RepertoireRead;
 }
 
+export interface RepertoireDeviationReport {
+  covered_games: number;
+  uncovered_games: number;
+  deviations: {
+    node_id: number;
+    uci: string;
+    san: string;
+    played_by: 'you' | 'opponent';
+    games: number;
+  }[];
+}
+
 async function request<T>(path: string, method: 'GET' | 'POST', body?: object): Promise<T> {
   const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
   const response = await apiFetch(`${apiBase()}/repertoires${path}`, {
@@ -51,5 +63,6 @@ async function request<T>(path: string, method: 'GET' | 'POST', body?: object): 
 export const RepertoireApi = {
   list: () => request<RepertoireRead[]>('', 'GET'),
   importPgn: (pgn: string) => request<RepertoireRead[]>('', 'POST', { pgn }),
+  deviations: (id: string) => request<RepertoireDeviationReport>(`/${encodeURIComponent(id)}/deviations`, 'GET'),
   review: (id: string, attempt: RepertoireAttemptInput) => request<RepertoireAttemptRead>(`/${encodeURIComponent(id)}/attempts`, 'POST', attempt),
 };

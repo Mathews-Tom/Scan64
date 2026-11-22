@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import type { PatternRecurrenceReport, RecurrencePeriod } from '../api/types';
+import { isDesktop, saveCoachPacket } from '../platform';
 import { Panel } from './Primitives';
 
 function Coverage({ values }: { values: Record<string, number> }) {
@@ -24,6 +25,51 @@ export function PatternRecurrencePanel({ playerId }: { playerId: string }) {
   const [report, setReport] = useState<PatternRecurrenceReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [request, setRequest] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const downloadRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setDownloading(false);
+    setDownloadError(null);
+    return () => { downloadRequest.current?.abort(); };
+  }, [playerId]);
+
+  async function downloadPacket() {
+    const controller = new AbortController();
+    downloadRequest.current = controller;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const blob = await ApiClient.getCoachPacket(playerId, controller.signal);
+      if (controller.signal.aborted) return;
+      if (isDesktop()) {
+        const packet = await blob.arrayBuffer();
+        if (!controller.signal.aborted) await saveCoachPacket(packet);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'scan64-coach-packet.zip';
+        document.body.append(link);
+        try {
+          link.click();
+        } finally {
+          link.remove();
+        }
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setDownloadError(cause instanceof Error ? cause.message : 'Please try again.');
+      }
+    } finally {
+      if (!controller.signal.aborted) setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +104,12 @@ export function PatternRecurrencePanel({ playerId }: { playerId: string }) {
         <Period name="After training" period={pattern.after} />
       </section>)}
     </> : null}
+    <p>Download a local ZIP for a human coach: a pattern summary and annotated PGN positions from these exact recurrence samples, not a full archive. Sharing it exposes those positions and the summary.</p>
+    <button onClick={() => void downloadPacket()} disabled={downloading}>
+      {downloading ? 'Preparing coach packet…' : 'Download coach packet'}
+    </button>
+    {downloading ? <p role="status">Preparing local coach packet…</p> : null}
+    {downloadError ? <p role="alert">Coach packet unavailable: {downloadError}</p> : null}
     <button onClick={() => setRequest(value => value + 1)}>{error ? 'Retry pattern comparison' : 'Refresh pattern comparison'}</button>
   </Panel>;
 }

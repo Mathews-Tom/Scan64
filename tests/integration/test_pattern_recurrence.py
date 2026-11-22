@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from threading import get_ident
 from typing import Any, Literal
 from uuid import UUID, uuid4
+from zipfile import ZipFile
 
 import chess
 import chess.pgn
@@ -978,3 +979,201 @@ def test_allowed_mate_requires_saved_witness_and_producer_source_search(
     assert row["before"]["excluded"] == {"unsupported_candidate_evidence": 1}
     assert row["before"]["per_100_moves"] is None
     assert row["before"]["wilson_95_per_100"] is None
+
+
+def _unpack_coach_packet(client: TestClient, auth: dict[str, str]) -> tuple[str, str]:
+    response = client.get("/v1/players/recurrence-owner/progress/coach-packet", headers=auth)
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="scan64-coach-packet.zip"'
+    )
+    assert response.headers["cache-control"] == "private, no-store"
+    with ZipFile(io.BytesIO(response.content)) as packet:
+        assert packet.namelist() == ["summary.md", "evidence.pgn"]
+        assert packet.testzip() is None
+        return packet.read("summary.md").decode(), packet.read("evidence.pgn").decode()
+
+
+def test_coach_packet_exact_uncapped_cohort_pgn_and_private_read_only_download(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    games = [
+        seed_online_game(
+            db_session,
+            "recurrence-owner",
+            TRAINING + timedelta(days=day),
+            candidates=7 if day < 0 else 1,
+        )
+        for day in (-3, -2, -1, 1, 2, 3)
+    ]
+    auth_player(client, "other-owner")
+    seed_online_game(db_session, "other-owner", TRAINING - timedelta(days=1), candidates=8)
+    # Arbitrary owner metadata is not part of the public evidence projection.
+    for game in games:
+        parsed = chess.pgn.read_game(io.StringIO(game.pgn))
+        assert parsed is not None
+        parsed.headers["Event"] = "PRIVATE EVENT / NOT AN EXPORT HEADER"
+        parsed.headers["Annotator"] = auth["Authorization"]
+        game.headers = dict(parsed.headers)
+        game.pgn = str(parsed)
+        db_session.add(game)
+    db_session.commit()
+    expected = read_pattern(client, auth)
+    writes: list[str] = []
+
+    def no_write(
+        _conn: Any, _cursor: Any, statement: str, _parameters: Any, _context: Any, _many: bool
+    ) -> None:
+        if statement.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
+            writes.append(statement)
+
+    async def no_engine(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("coach packet must use saved evidence, not search")
+
+    monkeypatch.setattr(StockfishAdapter, "analyze_position", no_engine)
+    monkeypatch.setattr(PoolBoundAdapter, "analyze_position", no_engine)
+    engine = db_session.get_bind()
+    event.listen(engine, "before_cursor_execute", no_write)
+    try:
+        summary, pgn = _unpack_coach_packet(client, auth)
+    finally:
+        event.remove(engine, "before_cursor_execute", no_write)
+    assert writes == []
+    assert "Descriptive association only" in summary
+    assert "moves within games are correlated" in summary
+    assert "Before/after comparison" in summary
+    assert "at least 3 finished, fully analysed games with at least 20 owner moves" in summary
+    for period in ("before", "after"):
+        row = expected[period]
+        assert f"Eligible games: {row['games']} / {row['candidate_games']}" in summary
+        assert f"Owner moves (denominator): {row['owner_moves']}" in summary
+        assert f"Occurrences: {row['occurrences']}" in summary
+        assert f"Occurrences per 100 owner moves: {row['per_100_moves']}" in summary
+        assert f"{row['wilson_95_per_100'][0]} to {row['wilson_95_per_100'][1]}" in summary
+    for private in (
+        "PRIVATE EVENT",
+        auth["Authorization"],
+        auth["Authorization"].removeprefix("Bearer "),
+        "FixtureWhite",
+        "FixtureBlack",
+        "chess.com",
+        "other-owner",
+        *(str(game.id) for game in games),
+    ):
+        assert private not in summary + pgn
+    refs = {
+        f"G{index:04d}": game
+        for index, game in enumerate(sorted(games, key=lambda g: str(g.id)), 1)
+    }
+    counts = {"before": 0, "after": 0}
+    stream = io.StringIO(pgn)
+    while (parsed := chess.pgn.read_game(stream)) is not None:
+        assert parsed.errors == []
+        assert parsed.headers["SetUp"] == "1"
+        board = parsed.board()
+        assert board.is_valid()
+        assert parsed.headers["FEN"] == board.fen()
+        source_game = refs[parsed.headers["GameReference"]]
+        ply = int(parsed.headers["SourcePly"])
+        review = db_session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == source_game.id, GameMoveReview.ply == ply
+            )
+        ).one()
+        position = db_session.get(Position, review.source_position_id)
+        assert position is not None and board.fen() == position.fen
+        assert [move.uci() for move in parsed.mainline_moves()] == [review.move_uci]
+        assert parsed.headers["Pattern"] == CODE
+        assert CODE in parsed.comment
+        assert f"Saved trusted primary diagnosis: {expected['name']}" in parsed.end().comment
+        assert parsed.headers["EvidenceReference"] in summary
+        assert f"{parsed.headers['GameReference']}, source ply {ply}" in summary
+        counts[parsed.headers["Period"]] += 1
+    assert counts == {
+        "before": expected["before"]["occurrences"],
+        "after": expected["after"]["occurrences"],
+    }
+    assert counts == {"before": 21, "after": 3}
+
+
+def test_coach_packet_sparse_and_no_anchor_never_invent_evidence(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    auth = auth_player(client)
+    summary, pgn = _unpack_coach_packet(client, auth)
+    assert pgn == ""
+    assert "Not enough games" in summary
+    assert "Occurrences: unavailable (not zero)" in summary
+    seed_online_game(db_session, "recurrence-owner", TRAINING - timedelta(days=1))
+    summary, pgn = _unpack_coach_packet(client, auth)
+    assert pgn == ""  # No training anchor means no M95 sample membership.
+    train(client, db_session, auth, monkeypatch)
+    summary, pgn = _unpack_coach_packet(client, auth)
+    assert "Not enough games" in summary
+    assert "Eligible games: 1 / 1" in summary
+    assert "Owner moves (denominator): 20" in summary
+    assert "Occurrences: 1" in summary
+    assert "Occurrences per 100 owner moves: unavailable" in summary
+    assert "95% Wilson interval per 100 owner moves: unavailable" in summary
+    stream = io.StringIO(pgn)
+    assert chess.pgn.read_game(stream) is not None
+    assert chess.pgn.read_game(stream) is None
+
+
+@pytest.mark.parametrize("corruption", ["unverified", "mismatched_analysis", "other_owner"])
+def test_coach_packet_excludes_unproven_or_unowned_positions(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    corruption: str,
+) -> None:
+    auth = auth_player(client)
+    train(client, db_session, auth, monkeypatch)
+    game = seed_online_game(
+        db_session, "recurrence-owner", TRAINING - timedelta(days=1), candidates=2
+    )
+    if corruption == "other_owner":
+        auth_player(client, "other-owner")
+        game.owner_player_id = "other-owner"
+        db_session.add(game)
+    else:
+        source = db_session.exec(
+            select(GameMoveReview).where(
+                GameMoveReview.game_id == game.id,
+                # Fail after a valid occurrence was collected: it must not leak
+                # from a game later excluded by any of the report's gates.
+                GameMoveReview.ply == (3 if corruption == "unverified" else 40),
+            )
+        ).one()
+        if corruption == "unverified":
+            for item in db_session.exec(
+                select(Evidence).where(Evidence.position_id == str(source.reached_position_id))
+            ).all():
+                db_session.delete(item)
+        else:
+            source.before_analysis_id = source.after_analysis_id
+            db_session.add(source)
+    db_session.commit()
+    summary, pgn = _unpack_coach_packet(client, auth)
+    assert pgn == ""
+    assert str(game.id) not in summary
+    assert "No included evidence positions for this pattern." in summary
+    if corruption == "unverified":
+        assert "unsupported candidate evidence: 1" in summary
+    elif corruption == "mismatched_analysis":
+        assert "invalid review provenance: 1" in summary
+
+
+def test_coach_packet_requires_exact_owner_bearer(client: TestClient) -> None:
+    auth_player(client)
+    other = auth_player(client, "other-owner")
+    path = "/v1/players/recurrence-owner/progress/coach-packet"
+    for headers, status in (
+        ({}, 401),
+        ({"Authorization": "Bearer wrong-token"}, 403),
+        (other, 403),
+    ):
+        assert client.get(path, headers=headers).status_code == status

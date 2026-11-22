@@ -7,6 +7,7 @@ mod updater;
 use server::{Connection, Server};
 use std::{
     env, fs,
+    io::{self, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -15,6 +16,7 @@ use std::{
     time::Duration,
 };
 use tauri::{
+    ipc::{InvokeBody, Request},
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     Manager,
 };
@@ -67,6 +69,71 @@ async fn choose_puzzle_file(app: tauri::AppHandle) -> Result<Option<String>, Str
     })
     .await
     .map_err(|_| "File selection task failed".to_owned())?
+}
+
+#[tauri::command]
+async fn save_coach_packet(
+    window: tauri::WebviewWindow,
+    request: Request<'_>,
+) -> Result<(), String> {
+    let InvokeBody::Raw(packet) = request.body() else {
+        return Err("Expected a ZIP coach packet".to_owned());
+    };
+    if !packet.starts_with(b"PK\x03\x04") {
+        return Err("Expected a ZIP coach packet".to_owned());
+    }
+
+    // Only the native dialog supplies the destination, never the webview payload.
+    let (sender, mut receiver) = tauri::async_runtime::channel(1);
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title("Save coach packet")
+        .set_file_name("scan64-coach-packet.zip")
+        .add_filter("ZIP archive", &["zip"])
+        .save_file(move |choice| {
+            let _ = sender.try_send(choice);
+        });
+    let Some(choice) = receiver
+        .recv()
+        .await
+        .ok_or_else(|| "Save dialog closed unexpectedly".to_owned())?
+    else {
+        return Ok(());
+    };
+    let path = choice
+        .into_path()
+        .map_err(|_| "Choose a local ZIP file".to_owned())?;
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return Err("Choose a .zip filename".to_owned());
+    }
+
+    let packet = packet.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(path).map_err(|error| {
+            if error.kind() == io::ErrorKind::AlreadyExists {
+                "A file with that name exists; choose a new filename"
+            } else {
+                "Cannot create the coach packet at the selected location"
+            }
+        })?;
+        file.write_all(&packet)
+            .map_err(|_| "Cannot finish saving the coach packet; remove the incomplete ZIP")
+    })
+    .await
+    .map_err(|_| "Coach packet save task failed".to_owned())?
+    .map_err(str::to_owned)
 }
 
 type SharedServer = Arc<Mutex<Server>>;
@@ -217,6 +284,7 @@ fn main() {
             desktop_connection,
             restart_server,
             choose_puzzle_file,
+            save_coach_packet,
             release_links::open_release_url,
             smoke_complete,
             smoke_failed,
