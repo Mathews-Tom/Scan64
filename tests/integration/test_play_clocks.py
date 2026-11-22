@@ -1444,7 +1444,7 @@ async def test_clock_cas_rejects_snapshot_aba_and_preserves_move_boundary(db_ses
 async def test_notify_wakes_scheduler_for_new_earlier_deadline(
     db_session, frozen_time, monkeypatch
 ):
-    seed_clock(db_session, frozen_time)
+    original, _, _ = seed_clock(db_session, frozen_time)
     initial_wait = asyncio.Event()
     loop = asyncio.get_running_loop()
     loop_thread = get_ident()
@@ -1459,7 +1459,7 @@ async def test_notify_wakes_scheduler_for_new_earlier_deadline(
     runtime.start()
     try:
         await asyncio.wait_for(initial_wait.wait(), timeout=2)
-        play, game, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
+        play, _, clock = seed_clock(db_session, frozen_time, moves=("e2e4",), remaining=100)
         session_id = play.id
         admitted = asyncio.Event()
 
@@ -1469,11 +1469,15 @@ async def test_notify_wakes_scheduler_for_new_earlier_deadline(
         monkeypatch.setattr("scan64.chess.analysis.jobs.submit_analysis_job", submit)
         frozen_time.advance(100)
         runtime.notify()
-        await asyncio.wait_for(admitted.wait(), timeout=1)
+        # UTC stays before the original deadline, so the periodic time check
+        # cannot discover the earlier game. Only notify can force a fresh query.
+        await asyncio.wait_for(admitted.wait(), timeout=10)
         db_session.refresh(clock)
         db_session.refresh(play)
         assert clock.terminal_reason == "flag"
         assert db_session.get(PlaySession, session_id).status == "completed"
+        db_session.refresh(original)
+        assert original.status == "active"
     finally:
         await runtime.stop()
 
