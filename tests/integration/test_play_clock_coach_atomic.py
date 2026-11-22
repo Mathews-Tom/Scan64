@@ -2,24 +2,31 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from scan64.api.models import DeletionAudit
+from scan64.chess.analysis import coach_interruption
 from scan64.chess.analysis.coach_interruption import CoachInterruption, PreparedCoachInterruption
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.games import play_session_service
 from scan64.chess.games.clock_models import PlayClock
 from scan64.chess.games.clocks import ClockConflict, as_utc
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.content.models import StudySession
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG, OwnerExplanationSettings
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.providers.llm import local_ollama
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
 from tests.integration.test_coach_interruption_attempts import (
     COACH_FEN,
+    _coach_session,
     _install_deterministic_diagnostic,
 )
 from tests.integration.test_play_clocks import (
@@ -29,6 +36,61 @@ from tests.integration.test_play_clocks import (
     seed_clock,
 )
 from tests.integration.test_play_clocks import frozen_time as frozen_time
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("timed", [False, True])
+@pytest.mark.parametrize("generation_changed", [False, True])
+async def test_coach_uses_only_the_move_snapshot_owners_consent(
+    client: TestClient,
+    db_session: Session,
+    frozen_time: FrozenTime,
+    monkeypatch: pytest.MonkeyPatch,
+    timed: bool,
+    generation_changed: bool,
+) -> None:
+    register(db_session)
+    if timed:
+        play, _, _ = seed_clock(db_session, frozen_time, fen=COACH_FEN)
+        play.coach_mode = True
+        db_session.add(play)
+    else:
+        play = _coach_session(db_session, coach_mode=True)
+    db_session.add(OwnerExplanationSettings(player_id="alice", model="test-local-model"))
+    db_session.commit()
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+    _install_deterministic_diagnostic(monkeypatch)
+    prepare = coach_interruption.prepare_coach_interruption
+    bind = db_session.get_bind()
+
+    async def prepare_after_snapshot(**kwargs: object) -> PreparedCoachInterruption | None:
+        if generation_changed:
+            with Session(bind) as writer:
+                writer.add(DeletionAudit(id="coach-epoch", player_id="alice"))
+                writer.commit()
+        return await prepare(**kwargs)  # type: ignore[arg-type]
+
+    requests: list[str] = []
+
+    async def unavailable(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.path)
+        return httpx.Response(503)
+
+    monkeypatch.setattr(play_session_service, "prepare_coach_interruption", prepare_after_snapshot)
+    monkeypatch.setattr(
+        local_ollama.httpx, "AsyncHTTPTransport", lambda **_: httpx.MockTransport(unavailable)
+    )
+    pool = EnginePoolManager(StockfishConfig())
+    service = PlaySessionService(db_session, ScriptedOpponent(), engine_pool_manager=pool)
+    try:
+        result = await service.make_move(play.id, "e2e3", 0 if timed else None)
+    finally:
+        await pool.close()
+
+    assert result.opponent_move == "e8d7"
+    assert result.interruption is not None
+    assert result.interruption.lesson.explanation.text
+    assert requests == ([] if generation_changed else ["/api/tags"])
 
 
 @pytest.mark.asyncio

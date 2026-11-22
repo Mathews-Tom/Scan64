@@ -7,18 +7,27 @@ from secrets import token_hex
 
 import httpx
 import pytest
+from chess_lesson_spec import Diagnosis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, col, select
 
 from scan64.api import explanation_settings
 from scan64.api.desktop_security import SHELL_TOKEN_HEADER, add_desktop_security
 from scan64.api.middleware import IdempotencyRecord
+from scan64.api.models import DeletionAudit, Player
+from scan64.explanations import settings as consent_settings
+from scan64.explanations.assembly import resolve_explanation
 from scan64.explanations.settings import (
     OPERATOR_LLM_CONFIG,
     OwnerExplanationSettings,
+    local_explanation_owner_generation,
     read_local_explanation_provider,
 )
+from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.learning.evidence.models import Evidence
 from scan64.persistence.database import get_session
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm import local_ollama as local
@@ -41,6 +50,10 @@ def _register(client: TestClient, player: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+def _owner_generation(session: Session, player_id: str) -> int | None:
+    return session.exec(select(local_explanation_owner_generation(player_id))).one()
+
+
 @pytest.mark.asyncio
 async def test_local_wording_requires_owner_consent_and_reads_current_committed_setting(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
@@ -56,8 +69,10 @@ async def test_local_wording_requires_owner_consent_and_reads_current_committed_
     monkeypatch.setattr(explanation_settings, "detect_local_ollama", models)
     owner = _register(client, OWNER)
     other = _register(client, OTHER)
+    owner_stamp = _owner_generation(db_session, OWNER)
+    other_stamp = _owner_generation(db_session, OTHER)
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
-    assert await read_local_explanation_provider(db_session, OWNER) is None
+    assert await read_local_explanation_provider(db_session, OWNER, owner_stamp) is None
     assert client.get(OWNER_PATH, headers=other).status_code == 403
     assert client.post(f"{OWNER_PATH}/probe", headers=other).status_code == 403
     change = {"model": LOCAL_MODEL, "consent": True}
@@ -74,8 +89,8 @@ async def test_local_wording_requires_owner_consent_and_reads_current_committed_
     }
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
     assert client.put(OWNER_PATH, json=change, headers=owner).json() == ENABLED
-    assert await read_local_explanation_provider(db_session, OWNER) is not None
-    assert await read_local_explanation_provider(db_session, OTHER) is None
+    assert await read_local_explanation_provider(db_session, OWNER, owner_stamp) is not None
+    assert await read_local_explanation_provider(db_session, OTHER, other_stamp) is None
     assert client.get(OTHER_PATH, headers=other).json() == DISABLED
 
     owner_with_key = {**owner, "Idempotency-Key": "local-wording-choice"}
@@ -87,13 +102,13 @@ async def test_local_wording_requires_owner_consent_and_reads_current_committed_
         running_job.connection().exec_driver_sql("BEGIN")
         assert running_job.get(OwnerExplanationSettings, OWNER) is not None
         assert client.put(OWNER_PATH, json=disable, headers=owner_with_key).json() == DISABLED
-        assert await read_local_explanation_provider(running_job, OWNER) is None
-    assert await read_local_explanation_provider(db_session, OWNER) is None
+        assert await read_local_explanation_provider(running_job, OWNER, owner_stamp) is None
+    assert await read_local_explanation_provider(db_session, OWNER, owner_stamp) is None
     assert calls == count
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("replacement", ["none", "same-model", "same-owner-id"])
+@pytest.mark.parametrize("replacement", ["none", "same-model", "same-owner-id", "tombstone"])
 async def test_consent_replaced_during_catalog_is_not_reused_for_chat(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, replacement: str
 ) -> None:
@@ -117,7 +132,8 @@ async def test_consent_replaced_during_catalog_is_not_reused_for_chat(
     owner = _register(client, OWNER)
     change = {"model": LOCAL_MODEL, "consent": True}
     assert client.put(OWNER_PATH, json=change, headers=owner).json() == ENABLED
-    provider = await read_local_explanation_provider(db_session, OWNER)
+    owner_generation = _owner_generation(db_session, OWNER)
+    provider = await read_local_explanation_provider(db_session, OWNER, owner_generation)
     assert provider is not None
     request = ExplanationRequest(messages=(LLMMessage(role="user", content="test evidence"),))
     async with asyncio.TaskGroup() as tasks:
@@ -138,14 +154,99 @@ async def test_consent_replaced_during_catalog_is_not_reused_for_chat(
                 )
                 assert deleted.status_code == 200, deleted.text
                 owner = _register(client, OWNER)
+            elif replacement == "tombstone":
+                # Hold the grant fixed to exercise the deletion fence independently.
+                db_session.add(DeletionAudit(id="synthetic-deletion", player_id=OWNER))
+                db_session.commit()
             else:
                 disable = {"model": None, "consent": False}
                 assert client.put(OWNER_PATH, json=disable, headers=owner).json() == DISABLED
-            if replacement != "none":
+            if replacement not in {"none", "tombstone"}:
                 assert client.put(OWNER_PATH, json=change, headers=owner).json() == ENABLED
         finally:
             finish_catalog.set()
     assert paths == ["/api/tags"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing", [False, True])
+async def test_local_wording_requires_matching_starting_owner_identity(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, missing: bool
+) -> None:
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+    _register(client, OWNER)
+    db_session.add(OwnerExplanationSettings(player_id=OWNER, model=LOCAL_MODEL))
+    db_session.commit()
+    generation = None if missing else _owner_generation(db_session, OWNER)
+    db_session.add(DeletionAudit(id="synthetic-deletion", player_id=OWNER))
+    db_session.commit()
+    assert await read_local_explanation_provider(db_session, OWNER, generation) is None
+    current = _owner_generation(db_session, OWNER)
+    assert await read_local_explanation_provider(db_session, OWNER, current) is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_read", [1, 2])
+async def test_optional_consent_database_failure_fails_closed_without_affecting_analysis(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_read: int,
+) -> None:
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+    _register(client, OWNER)
+    db_session.add(OwnerExplanationSettings(player_id=OWNER, model=LOCAL_MODEL))
+    db_session.commit()
+    reads = 0
+    paths: list[str] = []
+
+    def optional_session(engine: Engine) -> Session:
+        nonlocal reads
+        reads += 1
+        if reads == failure_read:
+            raise SQLAlchemyError("synthetic optional consent failure")
+        return Session(engine)
+
+    async def daemon(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        assert request.url.path == "/api/tags" and not request.content
+        return httpx.Response(200, json={"models": [{"name": LOCAL_MODEL}]})
+
+    monkeypatch.setattr(consent_settings, "Session", optional_session)
+    monkeypatch.setattr(local.httpx, "AsyncHTTPTransport", lambda **_: httpx.MockTransport(daemon))
+    generation = _owner_generation(db_session, OWNER)
+    provider = await read_local_explanation_provider(db_session, OWNER, generation)
+    evidence = [
+        Evidence(
+            evidence_id="ev_1",
+            kind="missed_tactic",
+            position_id="pos_1",
+            engine_analysis_id="ea_1",
+            claim="synthetic missed capture",
+            payload={
+                "played_move": "e2e3",
+                "best_move": "g1f3",
+                "captured_square": "e7",
+                "captured_piece": "q",
+            },
+        )
+    ]
+    diagnosis = Diagnosis(
+        primary="threat_processing.missed_capture", confidence=0.9, evidence_refs=["ev_1"]
+    )
+    expected = await TemplateExplanationProvider().explain(diagnosis, evidence)
+    explanation = await resolve_explanation(
+        diagnosis,
+        evidence,
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        local_provider=provider,
+        environment={},
+    )
+    assert explanation == expected
+    assert paths == ([] if failure_read == 1 else ["/api/tags"])
+    # The optional read owns its transaction; the analysis session stays usable.
+    assert db_session.get(Player, OWNER) is not None
+    db_session.flush()
 
 
 def test_missing_or_operator_managed_peer_never_enables_local_wording(

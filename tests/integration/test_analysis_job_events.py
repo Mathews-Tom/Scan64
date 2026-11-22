@@ -5,6 +5,7 @@ import json
 from collections.abc import Iterator
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
@@ -15,13 +16,15 @@ import scan64.api.games as games_api
 import scan64.chess.analysis.jobs as jobs
 from scan64.api.data_lifecycle import DeletionRequest, delete_player_data
 from scan64.api.desktop_security import add_desktop_security
-from scan64.api.models import Player, PlayerCredential, issue_player_token
+from scan64.api.models import DeletionAudit, Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis import notifications
 from scan64.chess.analysis.admission import AdmissionConfig, AdmissionController
 from scan64.chess.analysis.models import AnalysisJob, PersistedLessonOpportunity
 from scan64.chess.analysis.recovery import recover_analysis_jobs
 from scan64.chess.games.models import Game
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG, OwnerExplanationSettings
 from scan64.persistence import database
+from scan64.providers.llm import local_ollama
 from tests.streaming import disconnect_stream
 
 from .test_live_detector_coverage import (
@@ -112,6 +115,45 @@ def test_current_terminal_and_access_boundaries(db_session: Session, terminal: s
     assert snapshots[0]["status"] == terminal
     assert set(snapshots[0]) == {"id", "game_id", "status"}
     assert not notifications._listeners
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("generation_changed", [False, True])
+async def test_queued_analysis_uses_only_the_game_snapshot_owners_consent(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, generation_changed: bool
+) -> None:
+    owner = "push-owner"
+    register(db_session, owner)
+    db_session.add(OwnerExplanationSettings(player_id=owner, model="test-local-model"))
+    db_session.commit()
+    job_id = create_job(db_session, owner=owner)
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _FixtureFastPassOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FixtureFocusedPassOrchestrator)
+    original = jobs.run_analysis_for_game
+
+    async def analyse(*args: object, **kwargs: object) -> None:
+        if generation_changed:
+            with Session(database.engine) as writer:
+                writer.add(DeletionAudit(id="analysis-epoch", player_id=owner))
+                writer.commit()
+        await original(*args, registry=_registry(), **kwargs)  # type: ignore[arg-type]
+
+    requests: list[str] = []
+
+    async def unavailable(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.path)
+        return httpx.Response(503)
+
+    monkeypatch.setattr(jobs, "run_analysis_for_game", analyse)
+    monkeypatch.setattr(
+        local_ollama.httpx, "AsyncHTTPTransport", lambda **_: httpx.MockTransport(unavailable)
+    )
+    await jobs.execute_analysis_job_async(job_id)
+
+    assert read_status(job_id) == "completed"
+    assert db_session.exec(select(PersistedLessonOpportunity)).first() is not None
+    assert set(requests) == (set() if generation_changed else {"/api/tags"})
 
 
 @pytest.mark.asyncio
