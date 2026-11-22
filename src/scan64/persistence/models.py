@@ -11,8 +11,7 @@ def load_models() -> None:
     from scan64.coach import models as coach_models
     from scan64.content import models as content_models
     from scan64.content import puzzle_mode_models, puzzle_practice_models, puzzle_runs
-    from scan64.explanations import settings as explanation_settings
-    from scan64.learning import habit_models, sparring
+    from scan64.learning import habit_models, repertoire, sparring
     from scan64.learning.evaluation import transfer_measurement
     from scan64.learning.evidence import models as evidence_models
     from scan64.learning.exercises import transfer
@@ -35,6 +34,7 @@ def load_models() -> None:
         puzzle_practice_models,
         explanation_settings,
         habit_models,
+        repertoire,
         sparring,
         transfer_measurement,
         evidence_models,

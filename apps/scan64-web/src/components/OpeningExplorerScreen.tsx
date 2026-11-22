@@ -4,6 +4,7 @@ import { ApiClient } from '../api/client';
 import { CoachBoard } from './CoachBoard';
 import { resolveMove } from './moveEntry';
 import { Button, Panel } from './Primitives';
+import { RepertoireStudy } from './RepertoireStudy';
 import './WorkingScreens.css';
 
 interface OpeningMission {
@@ -131,6 +132,7 @@ export function OpeningExplorerScreen() {
   return (
     <div className="opening-explorer working-screen" data-testid="opening-explorer">
       <h2>Opening Explorer</h2>
+      <RepertoireStudy />
       {error && <p role="alert">{error}</p>}
       <p role="status">{status}</p>
       <div className="board-workspace">

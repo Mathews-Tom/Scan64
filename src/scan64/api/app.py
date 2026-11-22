@@ -26,6 +26,8 @@ from scan64.api.players import router as players_router
 from scan64.api.progress import router as progress_router
 from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
 from scan64.api.puzzles import router as puzzles_router
+from scan64.api.repertoire import router as repertoire_router
+from scan64.api.repertoire_body import RepertoireBodyLimitMiddleware
 from scan64.api.reports import router as reports_router
 from scan64.api.strength import router as strength_router
 from scan64.api.web import mount_web_client, web_dist_directory
@@ -109,10 +111,12 @@ app.include_router(play_assistance_router)
 app.include_router(learning_router)
 app.include_router(insights_router)
 app.include_router(puzzles_router)
+app.include_router(repertoire_router)
 
 app.include_router(puzzle_mistakes_router)
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
+app.add_middleware(RepertoireBodyLimitMiddleware)
 app.include_router(games_router)
 app.include_router(coach_linkage_router)
 app.include_router(coach_router)

@@ -36,6 +36,7 @@ from scan64.learning.habit_models import (
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.progress import RESET_AT_KEY, RESET_GENERATION_KEY
+from scan64.learning.repertoire import RepertoireAttempt
 from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
@@ -50,6 +51,7 @@ router = APIRouter(tags=["progress"])
 CLEARED_MODELS: tuple[tuple[str, type[SQLModel]], ...] = (
     ("schedule_review_observations", ScheduleReviewObservation),
     ("sparring_attempts", SparringAttempt),
+    ("repertoire_attempts", RepertoireAttempt),
     ("pattern_award_evidence", PatternAwardEvidence),
     ("pattern_awards", PatternAward),
     ("pattern_targets", PatternTarget),

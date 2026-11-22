@@ -285,6 +285,8 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "content_attempts": 0,
         "puzzle_runs": 0,
         "puzzle_mode_bindings": 0,
+        "repertoires": 0,
+        "repertoire_attempts": 0,
         "puzzle_rating": 0,
         "puzzle_daily_sets": 0,
         "puzzle_daily_slots": 0,
