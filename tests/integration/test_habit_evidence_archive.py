@@ -126,13 +126,17 @@ def _composed_archive(
     return archive, headers
 
 
+@pytest.mark.parametrize("legacy", [False, True])
 @pytest.mark.parametrize("include_review_moves", [True, False])
 def test_composed_post_move_habit_evidence_roundtrips(
-    client: TestClient, db_session: Session, include_review_moves: bool
+    client: TestClient, db_session: Session, include_review_moves: bool, legacy: bool
 ) -> None:
     archive, headers = _composed_archive(client, db_session)
     if not include_review_moves:
         archive.pop("review_moves")
+    if legacy:
+        for proof in archive["evidence"]:
+            proof["payload"].pop("before_fen", None)
     response = client.post("/v1/imports", json=archive, headers=headers)
     assert response.status_code == 200, response.text
     restored = _export(client, headers)
@@ -147,6 +151,7 @@ def test_composed_post_move_habit_evidence_roundtrips(
     "tamper",
     [
         "before_fen",
+        "null_before_fen",
         "after_fen",
         "played_move",
         "fast_analysis_id",
@@ -167,8 +172,12 @@ def test_post_move_habit_evidence_rejects_unbound_provenance(
         archive["habit_days"] = []
     proof = next(row for row in archive["evidence"] if row["payload"].get("missed_type") == "check")
     payload = proof["payload"]
+    if tamper not in ("before_fen", "null_before_fen", "unplayed_legal_move"):
+        del payload["before_fen"]
     if tamper in ("before_fen", "after_fen"):
         payload[tamper] = chess.STARTING_FEN
+    elif tamper == "null_before_fen":
+        payload["before_fen"] = None
     elif tamper == "played_move":
         payload["played_move"] = "Qh4#"
     elif tamper in ("fast_analysis_id", "reply_analysis_id", "focused_analysis_id"):
@@ -187,7 +196,7 @@ def test_post_move_habit_evidence_rejects_unbound_provenance(
         )
         reached["id"] = str(uuid4())
         if tamper == "unplayed_legal_move":
-            board = chess.Board(payload["before_fen"])
+            board = chess.Board(payload.pop("before_fen"))
             board.push_san("d6")
             reached["fen"] = board.fen()
             payload["played_move"] = "d6"
@@ -215,14 +224,18 @@ def test_post_move_habit_evidence_rejects_unbound_provenance(
     assert db_session.exec(select(HabitCredit).where(HabitCredit.player_id == PLAYER)).all() == []
 
 
+@pytest.mark.parametrize("legacy", [False, True])
 @pytest.mark.parametrize("keep_credit", [True, False])
 def test_pattern_target_with_composed_post_move_evidence_roundtrips(
-    client: TestClient, db_session: Session, keep_credit: bool
+    client: TestClient, db_session: Session, keep_credit: bool, legacy: bool
 ) -> None:
     archive, headers = _composed_archive(client, db_session, with_target=True)
     if not keep_credit:
         archive["habit_credits"] = []
         archive["habit_days"] = []
+    if legacy:
+        for proof in archive["evidence"]:
+            proof["payload"].pop("before_fen", None)
     response = client.post("/v1/imports", json=archive, headers=headers)
     assert response.status_code == 200, response.text
     restored = _export(client, headers)
