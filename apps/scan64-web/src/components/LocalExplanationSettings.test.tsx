@@ -80,6 +80,127 @@ describe('Local explanation settings', () => {
     expect(fetchMock.mock.calls[2][1]?.body).toBe(JSON.stringify({ model: null, consent: false }));
   });
 
+  it.each(['focus', 'storage'])('refreshes the same owner persisted status on %s without clearing the last confirmed status', async eventType => {
+    owner();
+    const { promise: pendingRefresh, resolve: finishRefresh } = Promise.withResolvers<Response>();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null }))
+      .mockReturnValueOnce(pendingRefresh);
+    render(<LocalExplanationSettings />);
+    await screen.findByText('Disabled. Explanations use the built-in templates.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Detect local Ollama' })).toBeEnabled());
+
+    fireEvent(window, new Event(eventType));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Disabled. Explanations use the built-in templates.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Detect local Ollama' })).toBeDisabled();
+    expect(fetchMock.mock.calls[1][0]).toBe('/v1/players/player%2Fone/explanation-settings');
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: 'GET' });
+
+    await act(async () => { finishRefresh(response({ mode: 'local', model: 'local:external' })); });
+    expect(await screen.findByText('Enabled for new explanations using local:external.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Disable local wording' })).toBeEnabled();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(['GET', 'GET']);
+  });
+
+  it('defers and coalesces same-owner refreshes until the pending save finishes', async () => {
+    owner();
+    const { promise: pendingSave, resolve: finishSave } = Promise.withResolvers<Response>();
+    const { promise: pendingRefresh, resolve: finishRefresh } = Promise.withResolvers<Response>();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'] }))
+      .mockReturnValueOnce(pendingSave)
+      .mockReturnValueOnce(pendingRefresh);
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    const consent = await screen.findByRole('checkbox');
+    fireEvent.click(consent);
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
+    const saveSignal = fetchMock.mock.calls[2][1]?.signal;
+
+    fireEvent(window, new Event('focus'));
+    fireEvent(window, new Event('storage'));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(saveSignal?.aborted).toBe(false);
+    expect(consent).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Enable local wording' })).toBeDisabled();
+
+    await act(async () => { finishSave(response({ mode: 'local', model: 'local:a' })); });
+    expect(await screen.findByText('Enabled for new explanations using local:a.')).toBeInTheDocument();
+    expect(screen.queryByText('Disabled. Explanations use the built-in templates.')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(['GET', 'POST', 'PUT', 'GET']);
+    await act(async () => { finishRefresh(response({ mode: 'local', model: 'local:other' })); });
+    expect(await screen.findByText('Enabled for new explanations using local:other.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Disable local wording' })).toBeEnabled();
+    expect(saveSignal?.aborted).toBe(false);
+  });
+
+  it('shows unknown persisted status after failed enablement and allows immediate revocation without new consent', async () => {
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'] }))
+      .mockRejectedValueOnce(new Error('save response lost'))
+      .mockResolvedValueOnce(response({ mode: 'disabled', model: null }));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    const consent = await screen.findByRole('checkbox');
+    fireEvent.click(consent);
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
+
+    expect(await screen.findByText(/Persisted wording status is unknown/)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not confirm saved settings');
+    expect(screen.queryByText('Disabled. Explanations use the built-in templates.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Enabled for new explanations using/)).not.toBeInTheDocument();
+    expect(consent).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Enable local wording' })).toBeDisabled();
+    const disable = screen.getByRole('button', { name: 'Disable local wording' });
+    expect(disable).toBeEnabled();
+    fireEvent.click(disable);
+
+    expect(await screen.findByText('Disabled. Explanations use the built-in templates.')).toBeInTheDocument();
+    expect(screen.queryByText(/Persisted wording status is unknown/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(disable).toBeDisabled();
+    expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(['GET', 'POST', 'PUT', 'PUT']);
+    expect(fetchMock.mock.calls[3][1]?.body).toBe(JSON.stringify({ model: null, consent: false }));
+  });
+
+  it('shows unknown persisted status after failed revocation and permits retry without detection', async () => {
+    owner();
+    const { promise: pendingSave, reject: failSave } = Promise.withResolvers<Response>();
+    const { promise: pendingRefresh, resolve: finishRefresh } = Promise.withResolvers<Response>();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'local', model: 'local:a' }))
+      .mockReturnValueOnce(pendingSave)
+      .mockReturnValueOnce(pendingRefresh)
+      .mockResolvedValueOnce(response({ mode: 'disabled', model: null }));
+    render(<LocalExplanationSettings />);
+    await screen.findByText('Enabled for new explanations using local:a.');
+    const disable = screen.getByRole('button', { name: 'Disable local wording' });
+    await waitFor(() => expect(disable).toBeEnabled());
+    fireEvent.click(disable);
+    const saveSignal = fetchMock.mock.calls[1][1]?.signal;
+    fireEvent(window, new Event('focus'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(saveSignal?.aborted).toBe(false);
+    await act(async () => { failSave(new Error('revoke response lost')); });
+
+    expect(await screen.findByText(/Persisted wording status is unknown/)).toBeInTheDocument();
+    expect(screen.queryByText(/Enabled for new explanations using/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Disabled. Explanations use the built-in templates.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(disable).toBeEnabled();
+    fireEvent.click(disable);
+    const refreshSignal = fetchMock.mock.calls[2][1]?.signal;
+    await act(async () => { finishRefresh(response({ mode: 'local', model: 'local:a' })); });
+    expect(refreshSignal?.aborted).toBe(true);
+
+    expect(await screen.findByText('Disabled. Explanations use the built-in templates.')).toBeInTheDocument();
+    expect(screen.queryByText(/Persisted wording status is unknown/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(['GET', 'PUT', 'GET', 'PUT']);
+    expect(fetchMock.mock.calls[3][1]?.body).toBe(JSON.stringify({ model: null, consent: false }));
+  });
+
   it.each([
     [{ available: false, models: [] }, 'Local Ollama is unavailable.'],
     [{ available: true, models: [] }, 'No compatible local models found.'],
