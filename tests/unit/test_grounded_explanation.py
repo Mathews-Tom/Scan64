@@ -14,6 +14,7 @@ from chess_lesson_spec import Diagnosis
 
 from scan64.explanations.assembly import resolve_explanation
 from scan64.learning.evidence.models import Evidence
+from scan64.providers.llm import ExplanationRequest, GeneratedExplanation, LLMProviderError
 
 _FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -187,3 +188,49 @@ async def test_a_malformed_generation_falls_back_to_the_template(tmp_path: Path)
         )
 
     assert "e7" in explanation.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["valid", "unverified", "unavailable", "operator"])
+async def test_local_wording_reuses_grounding_and_preserves_explicit_operator_precedence(
+    outcome: str, tmp_path: Path
+) -> None:
+    attempted = False
+    phrasing = "Developing the knight to f3 was the recorded alternative."
+
+    class LocalModel:
+        async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+            nonlocal attempted
+            attempted = True
+            assert "ev_1" in request.messages[-1].content
+            if outcome == "unavailable":
+                raise LLMProviderError("fixture unavailable")
+            return GeneratedExplanation.model_validate(
+                {
+                    "claims": [
+                        {
+                            "text": phrasing,
+                            "evidence_ref": "absent" if outcome == "unverified" else "ev_1",
+                            "certainty": "observed",
+                            "disclosure_level": 1,
+                            "line": ["g1f3"],
+                        }
+                    ]
+                }
+            )
+
+    diagnosis, evidence = _diagnosis_and_evidence()
+    template = await resolve_explanation(diagnosis, evidence, _FEN, environment={})
+    environment: dict[str, str] = {}
+    if outcome == "operator":
+        operator = _write_toml(tmp_path, '[llm]\nprovider = "template"\n')
+        environment["SCAN64_LLM_CONFIG"] = str(operator)
+    explanation = await resolve_explanation(
+        diagnosis, evidence, _FEN, local_provider=LocalModel(), environment=environment
+    )
+    assert attempted is (outcome != "operator")
+    if outcome == "valid":
+        assert explanation.text == phrasing
+        assert explanation.claims[0].evidence_ref == "ev_1"
+    else:
+        assert explanation == template

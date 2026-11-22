@@ -37,6 +37,7 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
+from scan64.explanations.settings import read_local_explanation_provider
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
@@ -323,7 +324,10 @@ async def run_analysis_for_game(
             lesson_id=f"les_{uuid4()}",
             accepted_moves_san=[board_before.san(move) for move in accepted],
         )
-        lesson.explanation = await resolve_explanation(diagnosis, item.evidence, fen_before)
+        local_provider = await read_local_explanation_provider(session, game.owner_player_id)
+        lesson.explanation = await resolve_explanation(
+            diagnosis, item.evidence, fen_before, local_provider=local_provider
+        )
 
         try:
             fill_lesson_hints(lesson, source_analysis)

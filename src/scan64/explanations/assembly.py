@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
     GroundedExplanationContext,
@@ -116,15 +117,16 @@ async def resolve_explanation(
     evidence: Sequence[Evidence],
     fen: str,
     *,
+    local_provider: LLMExplanationProvider | None = None,
     environment: Mapping[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> Explanation:
     """Resolve the client-visible explanation for a diagnosis.
 
     Always computes the deterministic template explanation first -- it is the
-    floor every diagnosis falls back to. When ``SCAN64_LLM_CONFIG`` selects an
-    LLM provider, its generated explanation is validated against the same
-    evidence; only a grounded response replaces the template.
+    floor every diagnosis falls back to. Explicit operator configuration takes
+    precedence over the owner's installation-local model. Both are subject to
+    the same grounding check; only a grounded response replaces the template.
 
     ``client`` lets a caller (tests, or a host that already owns a shared
     client) supply one; when omitted, a client is opened and closed for the
@@ -133,8 +135,16 @@ async def resolve_explanation(
     template_explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
 
     environment_values = os.environ if environment is None else environment
-    raw_path = environment_values.get("SCAN64_LLM_CONFIG")
+    raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
     if raw_path is None:
+        if local_provider is not None:
+            return await _attempt_grounded_generation(
+                local_provider,
+                diagnosis,
+                evidence,
+                fen,
+                template_explanation,
+            )
         return template_explanation
 
     config = LLMProviderConfig.from_toml(Path(raw_path))

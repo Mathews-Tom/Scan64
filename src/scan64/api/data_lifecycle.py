@@ -52,6 +52,7 @@ from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
 from scan64.content.puzzle_mode_models import PuzzleModeBinding
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.content.puzzle_practice_models import (
     INITIAL_RATING,
     POLICY_VERSION,
@@ -65,6 +66,7 @@ from scan64.content.puzzle_practice_models import (
 from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.content.validate import validate_solution_line
+from scan64.explanations.settings import OwnerExplanationSettings
 from scan64.learning.diagnosis.trust import HISTORICALLY_TRUSTED_CODES
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
@@ -3087,15 +3089,18 @@ def delete_player_data(
     session: Session = Depends(get_session),
 ) -> DeletionResponse:
     require_player_token(request, player_id, session)
-    player = session.get(Player, player_id)
-    if not player:
-        raise HTTPException(status_code=404, detail="Player not found")
-
     if not req.dry_run and req.confirmation != f"delete-{player_id}":
         raise HTTPException(
             status_code=400,
             detail="Invalid confirmation string. Must be 'delete-{player_id}'",
         )
+    if not req.dry_run:
+        lock_puzzle_player(player_id, session)
+        session.expire_all()
+        require_player_token(request, player_id, session)
+    player = session.get(Player, player_id, populate_existing=True)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
 
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
@@ -3191,6 +3196,9 @@ def delete_player_data(
         "player_credentials": 1 if session.get(PlayerCredential, player_id) is not None else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "onboarding": int(session.get(PlayerOnboarding, player_id) is not None),
+        "owner_explanation_settings": int(
+            session.get(OwnerExplanationSettings, player_id) is not None
+        ),
         "play_sessions": len(play_sessions),
         "play_clocks": len(play_clocks),
         "games": len(owned_game_ids),
@@ -3376,6 +3384,9 @@ def delete_player_data(
     profile = session.get(PlayerProfile, player_id)
     if profile:
         session.delete(profile)
+    session.exec(
+        delete(OwnerExplanationSettings).where(col(OwnerExplanationSettings.player_id) == player_id)
+    )
     session.exec(delete(PlayerOnboarding).where(col(PlayerOnboarding.player_id) == player_id))
     session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)

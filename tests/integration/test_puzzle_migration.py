@@ -2,6 +2,7 @@ from pathlib import Path
 
 import chess
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlmodel import Session, create_engine
 
@@ -55,6 +56,6 @@ def test_puzzle_upgrade_downgrade_preserves_existing_catalog_and_player(tmp_path
         assert connection.execute(text("SELECT COUNT(*) FROM puzzlerun")).scalar_one() == 0
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "20261119_22"
+            == ScriptDirectory.from_config(config).get_current_head()
         )
     engine.dispose()
