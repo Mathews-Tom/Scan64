@@ -5,6 +5,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, col, select
 
@@ -23,10 +24,15 @@ from scan64.chess.positions.models import Position
 from scan64.content.openings.curated import OPENING_FAMILIES
 from scan64.content.openings.models import OpeningFamilyPayload
 from scan64.content.puzzle_practice import THEME_SKILLS
+from scan64.learning.coach_packet import build_coach_packet
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.evidence.models import Evidence
-from scan64.learning.pattern_recurrence import PatternRecurrenceReport, read_pattern_recurrence
+from scan64.learning.pattern_recurrence import (
+    PatternRecurrenceReport,
+    read_pattern_recurrence,
+    read_pattern_recurrence_evidence,
+)
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.opening_rotation import classify_opening_family
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -143,6 +149,26 @@ def get_pattern_recurrence(
     # FastAPI runs this entire synchronous endpoint in one worker. Keep auth,
     # session access and the detector coroutine off the ASGI request loop.
     return asyncio.run(read_pattern_recurrence(player_id, session))
+
+
+@router.get("/v1/players/{player_id}/progress/coach-packet")
+def get_coach_packet(
+    player_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> Response:
+    require_player_token(request, player_id, session)
+    # Like the report, all saved-data access stays in this worker, never ASGI.
+    report, evidence = asyncio.run(read_pattern_recurrence_evidence(player_id, session))
+    return Response(
+        content=build_coach_packet(report, evidence),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="scan64-coach-packet.zip"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 def read_player_evidence(player_id: str, session: Session) -> EvidenceReport:

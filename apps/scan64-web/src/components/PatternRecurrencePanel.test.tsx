@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from '../api/client';
 import type { PatternRecurrenceReport } from '../api/types';
@@ -16,7 +16,7 @@ export const recurrenceFixture: PatternRecurrenceReport = {
   }],
 };
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('before/after Progress', () => {
   it('shows real counts, per100 intervals and descriptive coverage with no improvement claim', async () => {
@@ -66,5 +66,64 @@ describe('before/after Progress', () => {
     expect(await screen.findByText('Before/after comparison')).toBeInTheDocument();
     expect(read).toHaveBeenLastCalledWith('owner');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('downloads exactly one ZIP only on click, shows loading and recovers locally from failure', async () => {
+    vi.spyOn(ApiClient, 'getPatternRecurrence').mockResolvedValue(recurrenceFixture);
+    const pending = Promise.withResolvers<Blob>();
+    const packet = new Blob(['packet bytes'], { type: 'application/zip' });
+    const download = vi.spyOn(ApiClient, 'getCoachPacket')
+      .mockReturnValueOnce(pending.promise)
+      .mockRejectedValueOnce(new Error('local server unavailable'))
+      .mockResolvedValueOnce(packet);
+    const create = vi.fn().mockReturnValue('blob:coach-packet');
+    const revoke = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: revoke });
+    const clicked: Array<{ href: string; filename: string }> = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ href: this.href, filename: this.download });
+    });
+    render(<PatternRecurrencePanel playerId="owner" />);
+    await screen.findByText('Before/after comparison');
+    expect(download).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Download coach packet' }));
+    expect(screen.getByRole('button', { name: 'Preparing coach packet…' })).toBeDisabled();
+    expect(create).not.toHaveBeenCalled();
+    await act(async () => { pending.resolve(packet); });
+    expect(download).toHaveBeenCalledExactlyOnceWith('owner', expect.any(AbortSignal));
+    expect(create).toHaveBeenCalledExactlyOnceWith(packet);
+    expect(clicked).toEqual([{ href: 'blob:coach-packet', filename: 'scan64-coach-packet.zip' }]);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:coach-packet');
+    expect(document.querySelector('a[download]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Download coach packet' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Coach packet unavailable: local server unavailable');
+    expect(screen.getByText('Before/after comparison')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Download coach packet' }));
+    await waitFor(() => expect(clicked).toHaveLength(2));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('aborts and discards old-owner and unmounted downloads even if the transport resolves late', async () => {
+    vi.spyOn(ApiClient, 'getPatternRecurrence').mockResolvedValue(recurrenceFixture);
+    const old = Promise.withResolvers<Blob>();
+    const unmounted = Promise.withResolvers<Blob>();
+    const download = vi.spyOn(ApiClient, 'getCoachPacket')
+      .mockReturnValueOnce(old.promise).mockReturnValueOnce(unmounted.promise);
+    const create = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: vi.fn() });
+    const view = render(<PatternRecurrencePanel playerId="old-owner" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Download coach packet' }));
+    const oldSignal = download.mock.calls[0][1]!;
+    view.rerender(<PatternRecurrencePanel playerId="owner" />);
+    expect(oldSignal.aborted).toBe(true);
+    expect(screen.getByRole('button', { name: 'Download coach packet' })).toBeEnabled();
+    await act(async () => { old.resolve(new Blob(['old owner'])); });
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Download coach packet' }));
+    const currentSignal = download.mock.calls[1][1]!;
+    view.unmount();
+    expect(currentSignal.aborted).toBe(true);
+    await act(async () => { unmounted.resolve(new Blob(['unmounted owner'])); });
+    expect(create).not.toHaveBeenCalled();
   });
 });
