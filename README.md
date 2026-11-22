@@ -77,6 +77,8 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 | Keyboard move entry and narrow-screen play | Lessons from your mistakes that accept the sound alternatives the engine verifies | Separate puzzle rating and bot-level trends |
 | Optional human-like opponents with [Maia](docs/maia.md) | Daily puzzle sets, theme practice, solve streaks | Player-scoped [export, import and deletion](docs/user-guide.md#data-and-privacy) |
 
+Import a PGN [repertoire for scheduled practice](docs/user-guide.md#practise-a-repertoire) and compare it with your imported games. Profile can save a [coach evidence packet](docs/user-guide.md#progress-beforeafter-pattern-recurrence). [Local wording with Ollama](docs/user-guide.md#optional-local-explanation-wording) is optional; built-in templates need no model.
+
 ## How it works
 
 ```mermaid

@@ -10,9 +10,10 @@ Scan64 is a local-first chess practice and learning application. It records game
 - [Keyboard, touch and screen readers](#keyboard-touch-and-screen-readers)
 - [Play a game](#play-a-game) and [use hints](#hints-during-play)
 - [Import and analyse a PGN](#import-and-analyse-a-pgn) and [review every move](#move-by-move-game-review)
+- [Practise a repertoire](#practise-a-repertoire) and [save a coach packet](#progress-beforeafter-pattern-recurrence)
 - [Train from diagnosed positions](#train-from-diagnosed-positions) and [inspect patterns](#the-pattern-with-its-evidence)
 - [Daily goals and tracked pattern evidence](#daily-goals-and-tracked-pattern-evidence)
-- [Use coach mode](#use-coach-mode) and [transfer measurement](#transfer-measurement)
+- [Use coach mode](#use-coach-mode), [optional local wording](#optional-local-explanation-wording) and [transfer measurement](#transfer-measurement)
 - [Import a puzzle catalog](#import-a-puzzle-catalog) and [practise puzzles](#practise-imported-puzzles)
 - [Data and privacy](#data-and-privacy) and [manual acceptance](#manual-acceptance-walkthrough)
 
@@ -256,7 +257,9 @@ Not every good move earns credit. Unsupported, untrusted, retired or incomplete 
 
 Before a database migration, save both a **player export archive** using the player data export API and a **database-file copy**. Stop Scan64 before copying SQLite so the backup is consistent; keep the copy outside the live data directory. The player archive preserves owned progress and credit/hint provenance, while the database copy also preserves shared data. Keep the matching application version and verify the recovery path on a disposable copy before touching your working database.
 
-The default rollback keeps already awarded skill alpha: export the positive-credit ledger before downgrading, then use the copy-tested migration downgrade and matching application version. Do not guess a subtraction from decayed skill values. Restoring a pre-upgrade database backup instead requires an explicit owner choice and loses **all later progress**, including unrelated games and practice. Older player archives restore assistance history as unknown, not independently played.
+For the positive-move credit migration, the copy-tested downgrade keeps already awarded skill alpha. Export the positive-credit ledger before downgrading; do not guess a subtraction from decayed skill values. Returning to a pre-upgrade database instead means that copy has none of the later progress, including unrelated games and practice. Older player archives restore assistance history as unknown, not independently played.
+
+For the 0.12.0 changes, a schema downgrade refuses to discard saved repertoire data or active local wording consent. Roll back with a copy of the matching pre-upgrade database and application rather than deleting live data to force a downgrade. Keep the newer database and player export separately to preserve later progress. Account exports do not carry local wording consent.
 
 ### Measure diagnosis precision offline
 
@@ -651,9 +654,15 @@ historical awards under new policy or refreshed catalog ratings.
 
 - **Review** (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.
 - **Review → Analysis Board** distinguishes a game that has not been analysed, an analysis in progress or failed, and an analysed game with per-move review. A move can have a review score without a trusted lesson.
-- **Library → Opening Explorer** supplies opening-family missions.
+- **Library → Opening Explorer** supplies opening-family missions and your [saved repertoires](#practise-a-repertoire).
 - **Library → Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
 - **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
+
+### Practise a repertoire
+
+In **Library → Opening Explorer → My repertoires**, paste a standard-chess **Repertoire PGN** or choose a PGN file, then select **Import repertoire**. Select a saved repertoire to browse its variations. Choose **Practise this position** or **Practise next due** and answer for the side to move. Coverage counts decisions reviewed at least once; due includes unreviewed decisions. Playing a saved continuation advances its review schedule; a legal move outside the saved continuations schedules it for review again.
+
+With a repertoire selected, choose **Compare imported games** to rank first departures from its saved lines. The report identifies whose move departed. Open a linked drill to practise the saved decision immediately before the departure.
 
 ### Free analysis and variations
 
@@ -733,6 +742,8 @@ In **Library → Import**, choose **Lichess** or **Chess.com**, enter the public
 Online game import contacts only `https://lichess.org/api/games/user/{username}` or `https://api.chess.com/pub/player/{username}/games/…`, server-side and **only on explicit online form submission**. Opening Import, typing, changing the source or fetching the local player profile does not contact these hosts. The local API receives your selected source, public username and requested count; the selected host receives that username and public-game requests (with the count used to bound retrieval), plus normal connection information such as your IP address. Your Scan64 player token, progress and local games are not sent upstream. Only standard public games are imported: no OAuth, private games or background sync.
 
 The desktop app does not use system proxies or custom certificate authorities; its server clears those environment settings and verifies TLS using the supported default trust configuration. Networks requiring a system proxy or custom CA may therefore prevent online imports.
+
+[Optional local wording](#optional-local-explanation-wording) is off by default. Detecting Ollama sends no chess evidence. Enabling it lets the selected local service receive evidence for new explanations. The service runs separately and can log or forward what it receives.
 
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 

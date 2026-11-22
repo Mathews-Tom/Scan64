@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The application release prepared here is `0.11.0`. See the [changelog](../CHANGELOG.md) and [latest published release](https://github.com/Mathews-Tom/Scan64/releases/latest).
+The application release prepared here is `0.12.0`. See the [changelog](../CHANGELOG.md) and [latest published release](https://github.com/Mathews-Tom/Scan64/releases/latest).
 
 ## What works today
 
@@ -17,7 +17,7 @@ The application release prepared here is `0.11.0`. See the [changelog](../CHANGE
 - In unrated Play, grade up to three candidate moves or turn on the blunder guard. Assisted results and conversion practice do not count as independent full-game strength results.
 - Import a player-owned PGN with your playing colour or public standard-chess games by Lichess/Chess.com username. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments, separate display-only good moments and shared-budget lesson retries.
 - Study opening-family missions and famous games through Library.
-- In Opening Explorer, import your own standard-chess repertoire PGN (up to 256 KiB, 16 records, fewer than 4096 moves, 256 plies per line and 32 nested variations). Every record retains a separate root and all alternatives. Browse either side, then practise a saved decision with an interactive board or keyboard.
+- In Opening Explorer, import your own standard-chess repertoire PGN (up to 256 KiB, 16 records, fewer than 4096 moves, 256 plies per line and 32 nested variations). Every record retains a separate root and all alternatives. Browse saved variations and practise a saved decision for the side to move with an interactive board or keyboard.
 - The same 256 KiB cap applies to each normalized stored record, so oversized normalization is rejected before any write; empty titles become “Repertoire”. FEN counters are bounded to 1,000,000 and stored node FENs to 120 characters. Incoming repertoire JSON is bounded while streaming (including chunked bodies), allowing worst-case JSON escaping; this does not impose a new total limit on legacy account archives.
 - Repertoire coverage counts saved positions with continuations reviewed at least once, including Again; leaf positions are excluded. Due is separate and includes unreviewed positions. A legal move outside the saved continuations receives Again, while illegal or malformed moves do not create a review. One reusable FSRS schedule belongs to each exact repertoire/node decision, without ratings, awards, diagnosis or other learning effects.
 - Opening Explorer refreshes due decisions at the next scheduled deadline and when its tab becomes visible again. Retry the same submission after an uncertain response; a definitive rejection unlocks practice and refreshes the saved list.
@@ -35,6 +35,7 @@ The application release prepared here is `0.11.0`. See the [changelog](../CHANGE
 - Inspect evidence-linked recurring diagnoses, set a next-day qualifying-solve goal, and track UTC calendar streaks and pattern practice targets. Lesson hints remain app-reported; these records do not establish independent solving or measured improvement.
 - Use Today for daily actions and evidence, onboarding for an overridable starting-level suggestion, and Profile for named skills, puzzle-rating history and separate bot-result cohorts.
 - Read Profile accuracy by phase, colour and opening, plus clock-pressure coverage where clocks exist. Compare trusted-pattern recurrence before and after first verified training in imported games, with game/move counts, intervals and explicit insufficient-data states; the comparison does not establish a training effect.
+- Download a local coach packet from Profile: a pattern summary and annotated PGN of the same trusted evidence. Scan64 does not upload the packet.
 
 ### Operational and privacy boundaries
 
@@ -43,6 +44,7 @@ The application release prepared here is `0.11.0`. See the [changelog](../CHANGE
 - Player-reachable game, play-session, position, analysis-job, and attempt paths are authorized by bearer-token ownership.
 - Missing, malformed, ownerless, and non-owned resources use the same not-found surface.
 - Player-scoped export, import, and deletion cover learning, analysis, and study records.
+- Optional local wording is off by default. A player can authorise a fixed loopback Ollama service to reword new explanations; the consent is local to that installation and does not travel in account archives.
 - Account archives retain repertoire IDs, nodes, attempts and schedules; restored attempts and observations are historical, not newly verified evidence. Reset Progress clears repertoire practice and schedules but keeps imported trees. Delete Data removes both.
 - Repertoire and account export/import/delete/reset routes bypass generic HTTP response caching and always perform their own authorization. Drill retries use the persisted, payload-bound attempt ID; repeating an import intentionally creates independent content. Repertoire archive records are individually bounded before model expansion/replay. Creation/review timestamps must be ISO dates from 1970 to before 2100, no more than five minutes ahead of the restoring clock; due dates must be before 2200. Accepted prior review times anchor later decision timestamps during clock rollback, preserving replay order.
 - These guards use decoded, route-relative paths for mounted deployments and URL-delimiter-bearing account IDs. Confirmed deletion and repertoire reviews share the player write fence and freshly authorize after waiting; deletion previews remain read-only. Restored timestamps preserve UTC instants, including mixed-offset archives. PGN imports preserve same-line setup tags and reject dropped or duplicate tags, conflicting Result metadata, and blank record separators inside a variation before any write.
