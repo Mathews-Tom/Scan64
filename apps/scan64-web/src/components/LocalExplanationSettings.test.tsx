@@ -103,6 +103,34 @@ describe('Local explanation settings', () => {
     expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(['GET', 'GET']);
   });
 
+  it('restores revocation after a refresh settles during a transient owner change', async () => {
+    owner();
+    const { promise, resolve } = Promise.withResolvers<Response>();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'local', model: 'local:initial' }))
+      .mockReturnValueOnce(promise)
+      .mockResolvedValueOnce(response({ mode: 'local', model: 'local:refreshed' }))
+      .mockResolvedValueOnce(response({ mode: 'disabled', model: null }));
+    render(<LocalExplanationSettings />);
+    const revocation = await screen.findByRole('button', { name: 'Disable local wording' });
+    await waitFor(() => expect(revocation).toBeEnabled());
+
+    fireEvent(window, new Event('focus'));
+    expect(revocation).toBeDisabled();
+    // The parent has not rendered the intermediate owner when the request settles.
+    owner('other');
+    await act(async () => { resolve(response({ mode: 'local', model: 'local:stale' })); });
+    owner();
+    fireEvent(window, new StorageEvent('storage', { key: 'scan64_player_id' }));
+
+    expect(await screen.findByText('Enabled for new explanations using local:refreshed.')).toBeInTheDocument();
+    expect(screen.queryByText(/local:stale/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Disable local wording' }));
+    expect(await screen.findByText('Disabled. Explanations use the built-in templates.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith('/v1/players/player%2Fone/explanation-settings', expect.objectContaining({
+      method: 'PUT', body: JSON.stringify({ model: null, consent: false }),
+    }));
+  });
+
   it('defers and coalesces same-owner refreshes until the pending save finishes', async () => {
     owner();
     const { promise: pendingSave, resolve: finishSave } = Promise.withResolvers<Response>();

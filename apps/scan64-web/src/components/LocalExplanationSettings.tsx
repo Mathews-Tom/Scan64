@@ -50,8 +50,9 @@ function OwnerSettings({ playerId, refreshGeneration }: { playerId: string; refr
       signal: request.abort.signal,
       current,
       finish: () => {
-        if (current()) setActivity(null);
-        if (controller.current === request) controller.current = null;
+        if (controller.current !== request) return;
+        controller.current = null;
+        setActivity(null);
       },
     };
   }, [playerId]);
