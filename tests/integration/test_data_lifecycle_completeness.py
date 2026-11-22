@@ -47,6 +47,7 @@ from scan64.content.puzzle_practice_models import (
     elo_after,
 )
 from scan64.content.puzzle_runs import PuzzleRun
+from scan64.explanations.settings import OwnerExplanationSettings
 from scan64.learning.evaluation.transfer_measurement import (
     MeasurementPoint,
     TransferMeasurement,
@@ -127,6 +128,8 @@ GLOBAL_REFERENCE_TABLES = frozenset(
 
 TOMBSTONE_TABLES = frozenset({DeletionAudit.__tablename__})
 OPERATIONAL_TABLES = frozenset({IdempotencyRecord.__tablename__})
+# Owner-local consent is deleted with the account but deliberately never archived.
+INSTALLATION_LOCAL_TABLES = frozenset({OwnerExplanationSettings.__tablename__})
 
 ARCHIVE_FIELDS = {
     Player.__tablename__: "player",
@@ -184,17 +187,24 @@ def _table_names(tables: Iterable[Table]) -> set[str]:
 
 
 def _unregistered_player_tables(tables: Iterable[Table]) -> set[str]:
+    classified = (
+        PLAYER_LIFECYCLE_TABLES | TOMBSTONE_TABLES | OPERATIONAL_TABLES | INSTALLATION_LOCAL_TABLES
+    )
     return {
         table.name
         for table in tables
         if DIRECT_PLAYER_OWNERSHIP_COLUMNS.intersection(table.columns.keys())
-        and table.name not in PLAYER_LIFECYCLE_TABLES | TOMBSTONE_TABLES | OPERATIONAL_TABLES
+        and table.name not in classified
     }
 
 
 def test_all_sqlmodel_tables_have_explicit_lifecycle_semantics() -> None:
     registered = (
-        PLAYER_LIFECYCLE_TABLES | GLOBAL_REFERENCE_TABLES | TOMBSTONE_TABLES | OPERATIONAL_TABLES
+        PLAYER_LIFECYCLE_TABLES
+        | GLOBAL_REFERENCE_TABLES
+        | TOMBSTONE_TABLES
+        | OPERATIONAL_TABLES
+        | INSTALLATION_LOCAL_TABLES
     )
     assert _table_names(SQLModel.metadata.tables.values()) == registered
 
@@ -544,6 +554,7 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "player_credentials": 1,
         "profile": 1,
         "onboarding": 1,
+        "owner_explanation_settings": 0,
         "habit_policy": 1,
         "habit_goals": 0,
         "habit_days": 0,

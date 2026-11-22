@@ -18,6 +18,7 @@ from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
 from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
+from scan64.explanations.settings import read_local_explanation_provider
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
@@ -127,13 +128,17 @@ def _principal_variation_move(analysis: EngineAnalysis, board: chess.Board) -> c
 
 
 async def _resolve_coach_explanation(
-    diagnosis: Diagnosis, evidence: list[Evidence], fen: str
+    diagnosis: Diagnosis,
+    evidence: list[Evidence],
+    fen: str,
+    session: Session,
+    player_id: str,
+    owner_generation: int | None,
 ) -> Explanation:
     try:
-        return await asyncio.wait_for(
-            resolve_explanation(diagnosis, evidence, fen),
-            timeout=COACH_EXPLANATION_TIMEOUT_SECONDS,
-        )
+        async with asyncio.timeout(COACH_EXPLANATION_TIMEOUT_SECONDS):
+            provider = await read_local_explanation_provider(session, player_id, owner_generation)
+            return await resolve_explanation(diagnosis, evidence, fen, local_provider=provider)
     except TimeoutError:
         return await TemplateExplanationProvider().explain(diagnosis, evidence)
 
@@ -143,6 +148,7 @@ async def prepare_coach_interruption(
     session: Session,
     game: Game,
     player_id: str,
+    owner_generation: int | None,
     before_board: chess.Board,
     after_board: chess.Board,
     played_move: str,
@@ -173,7 +179,12 @@ async def prepare_coach_interruption(
     if lesson.diagnosis is None:
         raise ValueError("Coach interruptions require a player-game diagnosis")
     lesson.explanation = await _resolve_coach_explanation(
-        lesson.diagnosis, list(prepared.evidence), prepared.source_position.fen
+        lesson.diagnosis,
+        list(prepared.evidence),
+        prepared.source_position.fen,
+        session,
+        player_id,
+        owner_generation,
     )
     prepared.opportunity.lesson_spec = lesson.model_dump(mode="json")
     return prepared

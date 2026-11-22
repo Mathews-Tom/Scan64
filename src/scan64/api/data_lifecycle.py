@@ -66,6 +66,7 @@ from scan64.content.puzzle_practice_models import (
 from scan64.content.puzzle_runs import PuzzleRun, matches_completed_solution
 from scan64.content.puzzle_themes import replace_puzzle_themes
 from scan64.content.validate import validate_solution_line
+from scan64.explanations.settings import OwnerExplanationSettings
 from scan64.learning.diagnosis.trust import HISTORICALLY_TRUSTED_CODES
 from scan64.learning.evaluation.transfer_measurement import TransferMeasurement
 from scan64.learning.evidence.models import Evidence
@@ -3239,6 +3240,9 @@ def delete_player_data(
         "player_credentials": 1 if session.get(PlayerCredential, player_id) is not None else 0,
         "profile": 1 if session.get(PlayerProfile, player_id) else 0,
         "onboarding": int(session.get(PlayerOnboarding, player_id) is not None),
+        "owner_explanation_settings": int(
+            session.get(OwnerExplanationSettings, player_id) is not None
+        ),
         "play_sessions": len(play_sessions),
         "play_clocks": len(play_clocks),
         "games": len(owned_game_ids),
@@ -3430,6 +3434,9 @@ def delete_player_data(
     profile = session.get(PlayerProfile, player_id)
     if profile:
         session.delete(profile)
+    session.exec(
+        delete(OwnerExplanationSettings).where(col(OwnerExplanationSettings.player_id) == player_id)
+    )
     session.exec(delete(PlayerOnboarding).where(col(PlayerOnboarding.player_id) == player_id))
     session.exec(delete(PlayerCredential).where(col(PlayerCredential.player_id) == player_id))
     session.delete(player)

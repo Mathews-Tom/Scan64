@@ -1,6 +1,7 @@
 import { PuzzleLibraryPanel } from './PuzzleImport';
 import { UpdatesPanel } from './Updates';
 import { ProgressReset } from './ProgressReset';
+import { LocalExplanationSettings } from './LocalExplanationSettings';
 import { useEffect, useState } from 'react';
 import { ListRow, Panel, SegmentedControl, StatusLine } from './Primitives';
 import { applyBoardAppearance, BOARD_THEME_OPTIONS, PIECE_SET_OPTIONS, readBoardAppearance, saveBoardChoice } from '../boardAppearance';
@@ -85,6 +86,7 @@ export function SettingsScreen() {
         {soundSaveError ? <StatusLine kind="error">Sounds changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
       </Panel>
       <UpdatesPanel />
+      <LocalExplanationSettings />
       <ProgressReset />
       <Panel title="About and licences">
         <p>Scan64 is a local-first chess study app. Play, review your games and practise with lessons grounded in your moves.</p>

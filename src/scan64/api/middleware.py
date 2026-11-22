@@ -134,6 +134,21 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         if not idempotency_key:
             return await call_next(request)
 
+        path = get_route_path(request.scope)
+        if path == "/v1/exports":
+            # A private archive must only be served by the freshly authorized endpoint.
+            return await call_next(request)
+        before, player_prefix, owner_path = path.partition("/v1/players/")
+        if not before and player_prefix:
+            _, separator, action = owner_path.partition("/")
+            if separator and action in {
+                "data",
+                "explanation-settings",
+                "explanation-settings/probe",
+            }:
+                # A prior response must not bypass a new consent or deletion decision.
+                return await call_next(request)
+
         authorization = request.headers.get("Authorization")
         if authorization is None:
             return await call_next(request)

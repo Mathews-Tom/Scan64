@@ -475,6 +475,14 @@ Coach mode is an explicit practice option, not an always-on analysis engine.
 
 An arbitrary mistake does not guarantee an interruption. Ordinary play, independent calculation, and completed-game review do not use the coach interruption path.
 
+### Optional local explanation wording
+
+In **Settings → Local explanation wording**, choose **Detect local Ollama**, select an installed local model, and confirm before enabling it. Scan64 does not download models or connect to a cloud provider from this setting. Detection lists the models at `127.0.0.1:11434` without sending chess evidence.
+
+When enabled, Scan64 sends evidence for new analysis and Coach explanations to the selected local service. Ollama is a separate process and can log or forward that evidence. Enable this setting only if you trust the service. Scan64 checks generated claims against their evidence references and verified lines. Missing, slow or rejected results use the built-in wording. Coach mode keeps its short response budget, so a cold or slow model falls back without delaying the move beyond that budget.
+
+Disabling prevents new evidence requests from being dispatched; requests already dispatched cannot be recalled, and saved explanations do not change. The choice belongs to the current player on this installation. Resetting learning keeps it, exporting/restoring an account does not transfer it, and deleting the account removes it. In an operator-run installation with explicit explanation configuration, the operator's choice takes precedence.
+
 ## Import a puzzle catalog
 
 An operator must import puzzles before players can practise them. Nothing downloads at startup.

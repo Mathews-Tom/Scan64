@@ -260,12 +260,13 @@ def test_coach_diagnostic_uses_template_when_explanation_times_out(
     auth = _register(db_session)
     play_session = _coach_session(db_session, coach_mode=True)
     _install_deterministic_diagnostic(monkeypatch)
+    monkeypatch.delenv("SCAN64_LLM_CONFIG", raising=False)
 
-    async def slow_explanation(*_: object, **__: object) -> object:
-        await asyncio.sleep(coach_interruption.COACH_DIAGNOSTIC_TIMEOUT_SECONDS * 2)
-        raise AssertionError("The bounded explanation request should be cancelled first.")
+    async def slow_lookup(*_: object, **__: object) -> object:
+        await asyncio.Event().wait()
+        raise AssertionError("The optional explanation request should be cancelled first.")
 
-    monkeypatch.setattr(coach_interruption, "resolve_explanation", slow_explanation)
+    monkeypatch.setattr(coach_interruption, "resolve_explanation", slow_lookup)
 
     response = client.post(
         f"/v1/play-sessions/{play_session.id}/moves",
@@ -274,8 +275,13 @@ def test_coach_diagnostic_uses_template_when_explanation_times_out(
     )
 
     assert response.status_code == 200, response.text
+    interruption = response.json()["critical_interruption"]
+    assert interruption is not None
+    explanation = interruption["lesson"]["explanation"]
+    assert explanation["text"]
     db_session.rollback()
-    assert db_session.exec(select(PersistedLessonOpportunity)).one()
+    opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
+    assert opportunity.lesson_spec["explanation"]["text"] == explanation["text"]
 
 
 def test_coach_diagnostic_persists_the_resolved_explanation(

@@ -37,6 +37,10 @@ from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.positions.models import Position
 from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
+from scan64.explanations.settings import (
+    local_explanation_owner_generation,
+    read_local_explanation_provider,
+)
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
@@ -89,6 +93,8 @@ async def run_analysis_for_game(
     session: Session,
     registry: PluginRegistry | None = None,
     pool_manager: EnginePoolManager | None = None,
+    *,
+    owner_generation: int | None = None,
 ) -> None:
     if game.owner_player_id is None:
         raise ValueError("Cannot analyse a game without an owner")
@@ -323,7 +329,12 @@ async def run_analysis_for_game(
             lesson_id=f"les_{uuid4()}",
             accepted_moves_san=[board_before.san(move) for move in accepted],
         )
-        lesson.explanation = await resolve_explanation(diagnosis, item.evidence, fen_before)
+        local_provider = await read_local_explanation_provider(
+            session, game.owner_player_id, owner_generation
+        )
+        lesson.explanation = await resolve_explanation(
+            diagnosis, item.evidence, fen_before, local_provider=local_provider
+        )
 
         try:
             fill_lesson_hints(lesson, source_analysis)
@@ -511,21 +522,21 @@ async def _execute_analysis_job_async(
         if not job or job.status == "completed":
             return
 
-        game = session.get(Game, job.game_id)
-        if not game:
-            job.status = "failed"
-            job.error = "Game not found"
-            session.add(job)
-            session.commit()
-            notify_analysis_job(engine, job_id)
-            return
-
+        game_id = job.game_id
         job.status = "running"
         session.add(job)
         session.commit()
         notify_analysis_job(engine, job_id)
 
         try:
+            row = session.exec(
+                select(Game, local_explanation_owner_generation(col(Game.owner_player_id))).where(
+                    col(Game.id) == game_id
+                )
+            ).first()
+            if row is None:
+                raise ValueError("Game not found")
+            game, owner_generation = row
             session.defer_commit = True
             completed = session.exec(
                 select(AnalysisJob.id).where(
@@ -534,7 +545,9 @@ async def _execute_analysis_job_async(
                 )
             ).first()
             if completed is None:
-                await run_analysis_for_game(game, session, pool_manager=pool_manager)
+                await run_analysis_for_game(
+                    game, session, pool_manager=pool_manager, owner_generation=owner_generation
+                )
             session.defer_commit = False
             job.status = "completed"
             job.completed_at = datetime.now(UTC)

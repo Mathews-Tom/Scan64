@@ -12,7 +12,7 @@ from uuid import UUID
 
 import chess
 from pydantic import ConfigDict
-from sqlalchemy import update
+from sqlalchemy import case, update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session, col, select
 
@@ -41,6 +41,7 @@ from scan64.chess.games.pgn import CorruptGameError, build_pgn
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
+from scan64.explanations.settings import local_explanation_owner_generation
 from scan64.learning.sparring import complete_sparring
 from scan64.providers.maia import MaiaConfig, MaiaConfigurationError, MaiaOpponentProvider
 from scan64.providers.stockfish.pool import EnginePoolManager
@@ -356,9 +357,28 @@ class PlaySessionService:
         expected_generation: int | None = None,
     ) -> PlayMoveResult:
         """Commit the legal human move before awaiting its opponent reply."""
-        play_session = self.db.get(PlaySession, session_id)
-        if play_session is None:
+        # Refresh both rows together: the route may already have cached the play
+        # session for authorization, and a restored ID is not an account identity.
+        row = self.db.exec(
+            select(
+                PlaySession,
+                Game,
+                case(
+                    (
+                        col(PlaySession.coach_mode),
+                        local_explanation_owner_generation(col(PlaySession.player_id)),
+                    )
+                ),
+            )
+            .outerjoin(Game, col(PlaySession.game_id) == col(Game.id))
+            .where(col(PlaySession.id) == session_id)
+            .execution_options(populate_existing=True)
+        ).first()
+        if row is None:
             raise PlaySessionNotFound("PlaySession not found")
+        play_session, fetched, owner_generation = row
+        if fetched is not None and fetched.owner_player_id != play_session.player_id:
+            owner_generation = None
         if play_session.status != "active":
             raise PlaySessionNotActive(f"PlaySession is {play_session.status}")
 
@@ -366,13 +386,14 @@ class PlaySessionService:
         if clock is not None:
             return await self.make_timed_move(
                 play_session,
+                fetched,
                 clock,
                 player_move,
                 expected_clock_version,
                 expected_generation=expected_generation,
+                owner_generation=owner_generation,
             )
 
-        fetched = self.db.get(Game, play_session.game_id) if play_session.game_id else None
         if play_session.game_id is not None and fetched is None:
             raise ValueError("Game not found")
         snapshot = PlaySnapshot.capture(play_session, fetched)
@@ -429,6 +450,7 @@ class PlaySessionService:
                         session=self.db,
                         game=reply_game,
                         player_id=reply_play.player_id,
+                        owner_generation=owner_generation,
                         before_board=before_board,
                         after_board=board.copy(),
                         played_move=before_board.san(move),
@@ -605,14 +627,15 @@ class PlaySessionService:
     async def make_timed_move(
         self,
         play: PlaySession,
+        game: Game | None,
         clock: PlayClock,
         player_move: str,
         expected_version: int | None,
         *,
+        owner_generation: int | None,
         expected_generation: int | None = None,
     ) -> PlayMoveResult:
         self.check_timed_turn(play, clock, expected_version)
-        game = self.db.get(Game, play.game_id)
         if game is None:
             raise CorruptGameError("Timed play session has no Game")
         board = self.board_for(game)
@@ -664,6 +687,7 @@ class PlaySessionService:
                                 session=coach_db,
                                 game=coach_game,
                                 player_id=player_id,
+                                owner_generation=owner_generation,
                                 before_board=before_board,
                                 after_board=board.copy(),
                                 played_move=before_board.san(move),

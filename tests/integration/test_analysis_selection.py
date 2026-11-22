@@ -105,7 +105,7 @@ def _install_candidates(
                 )
             ]
 
-    async def explanation(*_: object) -> Explanation:
+    async def explanation(*_: object, **__: object) -> Explanation:
         return Explanation(text="Selection test evidence.")
 
     monkeypatch.setattr(jobs, "FastPassOrchestrator", FastPass)
