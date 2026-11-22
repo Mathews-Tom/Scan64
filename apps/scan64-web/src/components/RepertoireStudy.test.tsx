@@ -8,7 +8,7 @@ import { RepertoireStudy } from './RepertoireStudy';
 vi.mock('chessground', () => ({
   Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
 }));
-vi.mock('../api/repertoire', () => ({ RepertoireApi: { list: vi.fn(), importPgn: vi.fn(), review: vi.fn() } }));
+vi.mock('../api/repertoire', () => ({ RepertoireApi: { list: vi.fn(), importPgn: vi.fn(), review: vi.fn(), deviations: vi.fn() } }));
 
 function fixture(): RepertoireRead {
   let tree = commitAnalysisMoves(createAnalysisTree(), 0, ['e2e4', 'e7e5', 'g1f3']).tree;
@@ -55,6 +55,35 @@ describe('owned repertoire study', () => {
     expect(screen.queryByText('e5: Black pawn')).not.toBeInTheDocument();
     expect(JSON.stringify(saved.tree)).toBe(before);
     expect(RepertoireApi.review).not.toHaveBeenCalled();
+  });
+
+  it('shows ranked departures and drills the saved position before the selected move', async () => {
+    const saved = await importTree();
+    vi.mocked(RepertoireApi.deviations).mockResolvedValue({
+      covered_games: 6,
+      uncovered_games: 2,
+      deviations: [
+        { node_id: 1, uci: 'd7d6', san: 'd6', played_by: 'opponent', games: 3 },
+        { node_id: 0, uci: 'c2c4', san: 'c4', played_by: 'you', games: 1 },
+      ],
+    });
+    vi.mocked(RepertoireApi.review).mockResolvedValue({
+      attempt_id: 'attempt', success: true, rating: 3, next_review_at: '2026-12-01T12:00:00Z', repertoire: saved,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compare imported games' }));
+    const ranking = await screen.findByRole('list', { name: 'First departures by frequency' });
+    const [first, second] = within(ranking).getAllByRole('listitem');
+    expect(first).toHaveTextContent('Opponent played d6 in 3 games.');
+    expect(second).toHaveTextContent('You played c4 in 1 game.');
+    expect(screen.getByText('Matched a saved decision: 6 · No usable match: 2')).toBeInTheDocument();
+    fireEvent.click(within(first).getByRole('button', { name: 'Practise before d6' }));
+    expect(screen.getByText('e4: White pawn')).toBeInTheDocument();
+    expect(screen.getByText('d7: Black pawn')).toBeInTheDocument();
+    move('c5');
+    await screen.findByText(/Saved continuation — reviewed/);
+    expect(RepertoireApi.review).toHaveBeenCalledWith(
+      saved.id, expect.objectContaining({ node_id: 1, submitted_move: 'c7c5' }),
+    );
   });
 
   it('records a verified keyboard drill, refreshes due/coverage and reloads the server state', async () => {

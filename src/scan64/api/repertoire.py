@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlmodel import Session, col, select
@@ -22,6 +22,7 @@ from scan64.learning.repertoire import (
     verify_repertoire_move,
 )
 from scan64.learning.repertoire_archive import repertoire_review_time
+from scan64.learning.repertoire_deviations import RepertoireDeviationReport, compare_repertoire
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule, ScheduleReviewObservation
 from scan64.persistence.database import get_session
 
@@ -165,6 +166,18 @@ def read_repertoire(
 ) -> RepertoireRead:
     player_id = require_authenticated_player(request, session)
     return _read(_owned(repertoire_id, player_id, session), session)
+
+
+@router.get("/{repertoire_id}/deviations", response_model=RepertoireDeviationReport)
+def read_repertoire_deviations(
+    repertoire_id: UUID,
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+) -> RepertoireDeviationReport:
+    player_id = require_authenticated_player(request, session)
+    response.headers["Cache-Control"] = "no-store"
+    return compare_repertoire(_owned(repertoire_id, player_id, session), session)
 
 
 @router.post("/{repertoire_id}/attempts", response_model=RepertoireAttemptRead)

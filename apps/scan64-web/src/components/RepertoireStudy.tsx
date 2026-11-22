@@ -4,6 +4,7 @@ import { RepertoireApi, type RepertoireAttemptInput, type RepertoireRead } from 
 import { analysisEntries, analysisMoveLabel } from './analysisTree';
 import { CoachBoard } from './CoachBoard';
 import { Button, Panel } from './Primitives';
+import { RepertoireDeviations } from './RepertoireDeviations';
 
 const MAX_PGN_BYTES = 256 * 1024;
 const MAX_TIMEOUT_MS = 2_147_483_647;
@@ -181,6 +182,8 @@ export function RepertoireStudy() {
     {selected && node && <Panel aria-label="Saved repertoire playback">
       <h4>{selected.title}</h4>
       <p>Coverage: {selected.reviewed_decisions} / {selected.total_decisions} saved decision positions reviewed at least once (including Again). Leaves are not decisions. Due: {selected.due_decisions}; due includes unreviewed positions.</p>
+      <RepertoireDeviations key={selected.id} repertoireId={selected.id} blocked={blocked}
+        practise={position => select(selected.id, position, true)} />
       <p>{node.fen.split(' ')[1] === 'w' ? 'White' : 'Black'} to move. {decision ? `${decision.reviewed ? 'Reviewed' : 'Not reviewed'} · ${decision.due ? 'Due now' : `Next due ${new Date(decision.next_review_at!).toLocaleString()}`}` : 'End of saved line — no drill here.'}</p>
       <CoachBoard key={`${selected.id}:${nodeId}:${drilling}`} fen={node.fen}
         orientation={node.fen.split(' ')[1] === 'w' ? 'white' : 'black'} flippable
