@@ -68,6 +68,7 @@ from scan64.learning.habit_models import (
 from scan64.learning.plugins.registry import PluginRegistry
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.progress import RESET_AT_KEY, RESET_GENERATION_KEY, game_counts_for_progress
+from scan64.learning.repertoire import Repertoire
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.sparring import SparringAttempt
 from scan64.persistence.database import get_session
@@ -223,6 +224,16 @@ def seed(client: TestClient, session: Session) -> tuple[dict[str, str], dict[str
     session.commit()
     # Exercise an active run as well as the completed puzzle/lesson ledgers.
     seed_puzzle_run(session, OWNER)
+    for headers in (owner_headers, other_headers):
+        imported = client.post("/v1/repertoires", headers=headers, json={"pgn": "1. e4 e5 *"})
+        assert imported.status_code == 201, imported.text
+        repertoire_id = imported.json()[0]["id"]
+        reviewed = client.post(
+            f"/v1/repertoires/{repertoire_id}/attempts",
+            headers=headers,
+            json={"attempt_id": str(uuid4()), "node_id": 0, "submitted_move": "e2e4"},
+        )
+        assert reviewed.status_code == 200, reviewed.text
     return owner_headers, other_headers
 
 
@@ -243,6 +254,7 @@ PRESERVED = (
     PositiveMoveCredit,
     SessionHintReveal,
     HabitGoal,
+    Repertoire,
 )
 
 
