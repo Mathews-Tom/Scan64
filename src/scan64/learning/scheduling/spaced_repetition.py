@@ -11,13 +11,14 @@ from pydantic import model_validator
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-ReviewKind = Literal["lesson", "puzzle", "transfer", "sparring"]
+ReviewKind = Literal["lesson", "puzzle", "transfer", "sparring", "repertoire"]
 _SCHEDULER = Scheduler(enable_fuzzing=False)
 _FAST_REVIEW_MS: dict[ReviewKind, int | None] = {
     "lesson": 30_000,
     "puzzle": 60_000,
     "transfer": 30_000,
     "sparring": None,
+    "repertoire": None,
 }
 
 
@@ -36,6 +37,8 @@ def review_rating(
 ) -> Rating:
     if source_kind == "sparring" and (hints_used is not None or elapsed_ms is not None):
         raise ValueError("Sparring hints and solve time are unavailable")
+    if source_kind == "repertoire" and (hints_used is not None or elapsed_ms is not None):
+        raise ValueError("Repertoire hints and solve time are unavailable")
     if hints_used is not None and hints_used < 0:
         raise ValueError("hints_used must be nonnegative or unavailable")
     if elapsed_ms is not None and elapsed_ms < 0:
@@ -85,7 +88,9 @@ class ScheduleReviewObservation(SQLModel, table=True):
     @model_validator(mode="after")
     def validate_observation(self) -> Self:
         expected = (
-            "server_recorded" if self.source_kind in {"puzzle", "sparring"} else "app_reported"
+            "server_recorded"
+            if self.source_kind in {"puzzle", "sparring", "repertoire"}
+            else "app_reported"
         )
         if self.input_provenance != expected:
             raise ValueError("Review input provenance does not match its source")
@@ -202,6 +207,8 @@ class ReviewSchedule(SQLModel, table=True):
             rating=int(log.rating),
             reviewed_at=log.review_datetime,
             input_provenance=(
-                "server_recorded" if source_kind in {"puzzle", "sparring"} else "app_reported"
+                "server_recorded"
+                if source_kind in {"puzzle", "sparring", "repertoire"}
+                else "app_reported"
             ),
         )

@@ -1150,8 +1150,8 @@ describe('PlayScreen', () => {
     expect(ApiClient.getGame).toHaveBeenCalledTimes(1);
     expect(ApiClient.getGame).toHaveBeenCalledWith('custom-resume');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('conversion practice');
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2', movable: expect.objectContaining({ color: 'black' }) }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/8/5K2/r7 b - - 2 2', movable: expect.objectContaining({ color: 'black' }) })));
   });
 
   it.each(['initial', 'query', 'storage'] as const)(

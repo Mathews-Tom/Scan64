@@ -52,6 +52,7 @@ from scan64.chess.positions.models import Position
 from scan64.coach.models import CoachStudentLink
 from scan64.content.models import ContentAttempt, ContentItem, LessonAttempt, StudySession
 from scan64.content.puzzle_mode_models import PuzzleModeBinding
+from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.content.puzzle_practice_models import (
     INITIAL_RATING,
     POLICY_VERSION,
@@ -80,6 +81,13 @@ from scan64.learning.habit_models import (
     PatternTarget,
 )
 from scan64.learning.profiling.models import ProfileObservation, SkillState
+from scan64.learning.repertoire import Repertoire, RepertoireAttempt
+from scan64.learning.repertoire_archive import (
+    archive_repertoire,
+    archive_repertoire_attempt,
+    validate_repertoire_archive,
+    validate_repertoire_archive_inputs,
+)
 from scan64.learning.scheduling.spaced_repetition import (
     ReviewSchedule,
     ScheduleReviewObservation,
@@ -107,6 +115,8 @@ class ExportArchive(BaseModel):
     session_hint_reveals: list[dict[str, Any]] = Field(default_factory=list)
     positive_move_credits: list[dict[str, Any]] = Field(default_factory=list)
     sparring_attempts: list[dict[str, Any]] = Field(default_factory=list)
+    repertoires: list[dict[str, Any]] = Field(default_factory=list)
+    repertoire_attempts: list[dict[str, Any]] = Field(default_factory=list)
     games: list[dict[str, Any]] = Field(default_factory=list)
     positions: list[dict[str, Any]] = Field(default_factory=list)
     engine_analyses: list[dict[str, Any]] = Field(default_factory=list)
@@ -2258,6 +2268,18 @@ def export_player_data(
         session_hint_reveals=[reveal.model_dump(mode="json") for reveal in session_hint_reveals],
         positive_move_credits=[credit.model_dump(mode="json") for credit in positive_move_credits],
         sparring_attempts=[attempt.model_dump(mode="json") for attempt in sparring_attempts],
+        repertoires=[
+            row.model_dump(mode="json")
+            for row in session.exec(
+                select(Repertoire).where(Repertoire.player_id == player_id)
+            ).all()
+        ],
+        repertoire_attempts=[
+            row.model_dump(mode="json")
+            for row in session.exec(
+                select(RepertoireAttempt).where(RepertoireAttempt.player_id == player_id)
+            ).all()
+        ],
         games=[game.model_dump(mode="json") for game in games],
         positions=[position.model_dump(mode="json") for position in positions],
         engine_analyses=[analysis.model_dump(mode="json") for analysis in engine_analyses],
@@ -2489,7 +2511,7 @@ def _validate_schedule_review_archive(
                 or session.get(SparringAttempt, sparring_attempt.id) is not None
             ):
                 raise ValueError("Schedule review does not match its sparring attempt")
-        else:
+        elif observation.source_kind == "transfer":
             measurement = transfers.get(observation.source_id)
             if (
                 measurement is None
@@ -2539,6 +2561,12 @@ def import_player_data(
         raise HTTPException(status_code=409, detail="Player already exists")
 
     try:
+        validate_repertoire_archive_inputs(
+            archive.repertoires,
+            archive.repertoire_attempts,
+            archive.review_schedules,
+            archive.schedule_review_observations,
+        )
         player = Player.model_validate(archive.player)
         profile = PlayerProfile.model_validate(archive.profile) if archive.profile else None
         play_sessions = [PlaySession.model_validate(data) for data in archive.play_sessions]
@@ -2576,6 +2604,10 @@ def import_player_data(
         ]
         session_hint_reveals = [
             SessionHintReveal.model_validate(data) for data in archive.session_hint_reveals
+        ]
+        repertoires = [archive_repertoire(data) for data in archive.repertoires]
+        repertoire_attempts = [
+            archive_repertoire_attempt(data) for data in archive.repertoire_attempts
         ]
         positive_move_credits = [
             PositiveMoveCredit.model_validate(data) for data in archive.positive_move_credits
@@ -2833,6 +2865,14 @@ def import_player_data(
         )
 
     try:
+        validate_repertoire_archive(
+            session,
+            player_id,
+            repertoires,
+            repertoire_attempts,
+            review_schedules,
+            schedule_review_observations,
+        )
         _validate_schedule_review_archive(
             session,
             player_id,
@@ -2843,7 +2883,7 @@ def import_player_data(
             transfer_measurements,
             sparring_attempts,
         )
-    except (ValueError, TypeError, AttributeError) as error:
+    except (ValueError, TypeError, AttributeError, OverflowError) as error:
         raise HTTPException(
             status_code=400, detail="Invalid archive: malformed schedule review provenance"
         ) from error
@@ -3010,6 +3050,9 @@ def import_player_data(
     # Parents are flushed before the attempt's four foreign keys; no completion,
     # reward, or scheduling hooks run when historical observations are restored.
     session.add_all(sparring_attempts)
+    session.add_all(repertoires)
+    session.flush()
+    session.add_all(repertoire_attempts)
 
     for skill_state in skill_states:
         session.add(skill_state)
@@ -3087,15 +3130,20 @@ def delete_player_data(
     session: Session = Depends(get_session),
 ) -> DeletionResponse:
     require_player_token(request, player_id, session)
-    player = session.get(Player, player_id)
-    if not player:
-        raise HTTPException(status_code=404, detail="Player not found")
-
     if not req.dry_run and req.confirmation != f"delete-{player_id}":
         raise HTTPException(
             status_code=400,
             detail="Invalid confirmation string. Must be 'delete-{player_id}'",
         )
+    if not req.dry_run:
+        lock_puzzle_player(player_id, session)
+        # The fence may have waited for a review, deletion, or restore. Never
+        # authorize or enumerate newly current state through old ORM rows.
+        session.expire_all()
+        require_player_token(request, player_id, session)
+    player = session.get(Player, player_id, populate_existing=True)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
 
     play_sessions = session.exec(
         select(PlaySession).where(col(PlaySession.player_id) == player_id)
@@ -3288,6 +3336,10 @@ def delete_player_data(
             select(PuzzleModeBinding).where(col(PuzzleModeBinding.player_id) == player_id)
         ).all()
     )
+    for name, model in (("repertoires", Repertoire), ("repertoire_attempts", RepertoireAttempt)):
+        affected_rows[name] = len(
+            session.exec(select(model).where(col(getattr(model, "player_id")) == player_id)).all()
+        )
 
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
@@ -3318,6 +3370,8 @@ def delete_player_data(
 
     if owned_game_ids:
         session.exec(delete(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids)))
+    session.exec(delete(RepertoireAttempt).where(col(RepertoireAttempt.player_id) == player_id))
+    session.exec(delete(Repertoire).where(col(Repertoire.player_id) == player_id))
     if position_ids:
         session.exec(
             delete(Evidence).where(
