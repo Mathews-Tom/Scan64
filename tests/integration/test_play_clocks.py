@@ -977,7 +977,8 @@ async def test_runtime_recovers_sqlite_contention_with_fresh_sessions_and_bounde
     runtime = PlayClockRuntime(clock_db_session.get_bind())
     runtime.start()
     try:
-        await asyncio.wait_for(admitted.wait(), timeout=1)
+        # The injected sleeps test the backoff schedule independently of CI latency.
+        await asyncio.wait_for(admitted.wait(), timeout=10)
         assert delays == pytest.approx([0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.0])
         assert len({id(session) for session in failed_sessions}) == 8
         with Session(clock_db_session.get_bind()) as other:
