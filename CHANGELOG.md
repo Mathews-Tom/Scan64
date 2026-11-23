@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-23
+
 ### Fixed
 
 - Restore older account exports, including v0.9.0, that contain habit credit from game-derived lessons whose evidence omitted the pre-move position. Restore still rejects evidence that conflicts with the saved game or engine analysis.
