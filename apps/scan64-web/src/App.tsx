@@ -329,7 +329,6 @@ function App() {
           <p>Your chess study table</p>
           <button ref={sidebarToggleRef} className="sidebar-toggle" aria-expanded={sidebarExpanded} aria-controls="main-navigation" aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'} onClick={toggleSidebar}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d={sidebarExpanded ? 'm14 6-6 6 6 6' : 'm10 6 6 6-6 6'} /></svg>
-            <span>{sidebarExpanded ? 'Collapse' : 'Expand'}</span>
           </button>
         </header>
       <nav id="main-navigation" className="app-nav" aria-label="Main navigation">
