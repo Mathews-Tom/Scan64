@@ -745,6 +745,12 @@ The desktop app does not use system proxies or custom certificate authorities; i
 
 [Optional local wording](#optional-local-explanation-wording) is off by default. Detecting Ollama sends no chess evidence. Enabling it lets the selected local service receive evidence for new explanations. The service runs separately and can log or forward what it receives.
 
+**Settings → Send feedback** drafts a GitHub issue; Scan64 itself sends nothing.
+
+- **Drafting:** choose a type, enter a summary and optional details, and read the exact preview. The optional version line names the Scan64 version, your operating system family and whether you use the desktop app or a browser. Untick it to leave it out.
+- **Opening:** **Open GitHub issue** opens `https://github.com/Mathews-Tom/Scan64/issues/new` in your system browser with that text prefilled. The form accepts plain text only: a summary of up to 100 characters and details of up to 1,500. Text in non-Latin scripts takes more room in the link, so very long details may need shortening. Opening the form sends the drafted text to GitHub inside the link; nothing is published until you submit the form there.
+- **Submitting:** this needs a GitHub account and makes the issue public. No games, player data, logs or tokens are attached; only what you type and the optional version line.
+
 All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.
 
 The API supports player-scoped export, import, and deletion. Treat deletion as destructive. Use a disposable player and database before testing it.

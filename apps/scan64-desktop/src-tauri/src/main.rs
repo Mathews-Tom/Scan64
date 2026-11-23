@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod feedback;
 mod release_links;
 mod server;
 mod updater;
@@ -286,6 +287,7 @@ fn main() {
             choose_puzzle_file,
             save_coach_packet,
             release_links::open_release_url,
+            feedback::open_feedback_issue,
             smoke_complete,
             smoke_failed,
             #[cfg(feature = "updater-test")]

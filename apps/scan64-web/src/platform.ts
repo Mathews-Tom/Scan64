@@ -211,3 +211,26 @@ export async function setAutomaticUpdates(enabled: boolean): Promise<UpdateStatu
 export async function openReleaseUrl(url: string): Promise<void> {
   if (isDesktop()) await invoke('open_release_url', { url });
 }
+
+const FEEDBACK_ISSUE_URL = 'https://github.com/Mathews-Tom/Scan64/issues/new';
+/** Same bound as the desktop shell: longer request lines are rejected by browsers and GitHub. */
+export const FEEDBACK_URL_LIMIT = 8000;
+
+/** Percent-encode everything except RFC 3986 unreserved characters, exactly as the desktop shell does. */
+function encodeStrict(value: string): string {
+  return encodeURIComponent(value).replace(/[!'()*]/g, character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+/** Browser anchors open this prefilled form; the desktop shell builds the same URL itself. */
+export function feedbackIssueUrl(title: string, body: string): string {
+  return `${FEEDBACK_ISSUE_URL}?title=${encodeStrict(title)}&body=${encodeStrict(body)}`;
+}
+
+/** Desktop only: the shell validates the text and opens GitHub's form in the system browser. */
+export async function openFeedbackIssue(title: string, body: string): Promise<void> {
+  try {
+    await invoke('open_feedback_issue', { title, body });
+  } catch (error) {
+    throw typeof error === 'string' ? new Error(error) : error;
+  }
+}
