@@ -23,12 +23,12 @@ Follow the [root quickstart](../README.md#get-started) for source, Docker or the
 
 ### Install on your OS
 
-- **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is ad-hoc signed, not Developer ID signed or notarized. For a trusted build blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**; never disable Gatekeeper globally.
-- **Windows x64:** run the `-setup.exe` installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a trusted download, choose **More info → Run anyway**.
+- **macOS Apple silicon (arm64):** open the `.dmg`, drag **Scan64** into **Applications**, eject the image and open Scan64 from Applications. The build is ad-hoc signed, not Developer ID signed or notarized. On first launch, allow it once with **System Settings → Privacy & Security → Open Anyway**; never disable Gatekeeper globally.
+- **Windows x64:** run the `-setup.exe` installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a download you verified, choose **More info → Run anyway**. Smart App Control offers no per-app exception.
 - **Linux x64, AppImage:** make the downloaded file executable with `chmod +x /path/to/Scan64.AppImage`, then run `/path/to/Scan64.AppImage`, substituting the actual filename. AppImage needs FUSE support from your distribution. If that is unavailable, use the Debian package.
 - **Linux x64, Debian/Ubuntu:** install with `sudo apt install /path/to/scan64.deb`, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights.
 
-Only bypass security warnings for downloads you trust. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed. The updater verifies separate signatures for the macOS `.app.tar.gz`, Windows `-setup.exe` and Linux `.AppImage` bundles. A `.sig` is not a platform code-signing certificate.
+Before bypassing any warning, follow [Open an unsigned installer safely](../README.md#open-an-unsigned-installer-safely): download from the releases page, check the SHA-256 digest, and use only the per-app steps it describes. Desktop installers bundle Python and Stockfish: no developer tools or separate engine installation are needed. The updater verifies separate signatures for the macOS `.app.tar.gz`, Windows `-setup.exe` and Linux `.AppImage` bundles. A `.sig` is not a platform code-signing certificate.
 
 ### Desktop first run and data
 
