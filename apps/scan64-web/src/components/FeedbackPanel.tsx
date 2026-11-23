@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { feedbackIssueUrl, isDesktop, openFeedbackIssue, updateStatus } from '../platform';
+import { FEEDBACK_URL_LIMIT, feedbackIssueUrl, isDesktop, openFeedbackIssue, updateStatus } from '../platform';
 import { Button, Panel, StatusLine } from './Primitives';
 
 const KINDS = ['Bug', 'Idea', 'Question'] as const;
@@ -7,12 +7,13 @@ type Kind = typeof KINDS[number];
 const MAX_SUMMARY = 100;
 const MAX_DETAILS = 1500;
 
-/** Keep only text the desktop shell accepts: newlines, no other control characters. */
+/** Keep only text the desktop shell accepts: newlines, no other control characters. Tabs become one space so the length the field allows never grows. */
 function plainText(value: string): string {
-  return value.replace(/\r\n?/g, '\n').replace(/\t/g, '  ').replace(/[^\P{Cc}\n]/gu, '');
+  return value.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').replace(/[^\P{Cc}\n]/gu, '');
 }
 
 function operatingSystem(userAgent: string): string {
+  if (/iPhone|iPad|iPod/.test(userAgent)) return 'iOS';
   if (/Mac OS X|Macintosh/.test(userAgent)) return 'macOS';
   if (/Windows/.test(userAgent)) return 'Windows';
   if (/Linux/.test(userAgent)) return 'Linux';
@@ -47,7 +48,12 @@ export function FeedbackPanel() {
   const title = `${kind}: ${plainText(summary).replace(/\n/g, ' ').trim()}`;
   const body = [plainText(details).trim(), includeEnvironment ? `---\n${environment}` : '']
     .filter(Boolean).join('\n\n');
-  const ready = summary.trim() !== '' && (!includeEnvironment || version !== null);
+  const url = feedbackIssueUrl(title, body);
+  const blocker = summary.trim() === '' ? 'Enter a summary to continue.'
+    : includeEnvironment && version === null ? 'Reading the installed version…'
+      : url.length > FEEDBACK_URL_LIMIT ? 'Too long to open in a browser; shorten the details.'
+        : null;
+  const ready = blocker === null;
 
   async function open() {
     setError(null);
@@ -77,17 +83,17 @@ export function FeedbackPanel() {
         {' '}Include the version line: {environment}
       </label>
       <h3 id={ids.preview}>Issue preview</h3>
-      <pre aria-labelledby={ids.preview} className="settings-feedback__preview">{`${title}\n\n${body}`}</pre>
+      <pre role="region" aria-labelledby={ids.preview} className="settings-feedback__preview">{`${title}\n\n${body}`}</pre>
       {desktop ? (
         <Button variant="primary" disabled={!ready || opening} onClick={() => { void open(); }}>
           {opening ? 'Opening GitHub…' : 'Open GitHub issue'}
         </Button>
       ) : ready ? (
-        <a href={feedbackIssueUrl(title, body)} target="_blank" rel="noopener noreferrer">Open GitHub issue</a>
+        <a href={url} target="_blank" rel="noopener noreferrer">Open GitHub issue</a>
       ) : (
         <Button variant="primary" disabled>Open GitHub issue</Button>
       )}
-      {!ready ? <p>Enter a summary to continue.</p> : null}
+      {blocker ? <p>{blocker}</p> : null}
       {error ? <StatusLine kind="error">{error}</StatusLine> : null}
     </Panel>
   );

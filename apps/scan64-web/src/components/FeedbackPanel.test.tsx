@@ -25,7 +25,7 @@ describe('FeedbackPanel', () => {
     render(<FeedbackPanel />);
     fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'Idea' } });
     fill('Show clock in review', 'Line one\r\n\tLine two\u0007');
-    const preview = screen.getByLabelText('Issue preview');
+    const preview = screen.getByRole('region', { name: 'Issue preview' });
     await waitFor(() => expect(preview).toHaveTextContent('Scan64 0.12.2'));
     expect(platform.openFeedbackIssue).not.toHaveBeenCalled();
 
@@ -34,14 +34,14 @@ describe('FeedbackPanel', () => {
     await waitFor(() => expect(platform.openFeedbackIssue).toHaveBeenCalledOnce());
     const [title, body] = vi.mocked(platform.openFeedbackIssue).mock.calls[0];
     expect(title).toBe('Idea: Show clock in review');
-    expect(body).toMatch(/^Line one\n {2}Line two\n\n---\nScan64 0\.12\.2 · .+ · desktop app$/);
+    expect(body).toMatch(/^Line one\n Line two\n\n---\nScan64 0\.12\.2 · .+ · desktop app$/);
     expect(preview.textContent).toBe(`${title}\n\n${body}`);
   });
 
   it('leaves out the version line when the user unticks it', async () => {
     render(<FeedbackPanel />);
     fill('Crash on import', '');
-    await waitFor(() => expect(screen.getByLabelText('Issue preview')).toHaveTextContent('Scan64 0.12.2'));
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Issue preview' })).toHaveTextContent('Scan64 0.12.2'));
     fireEvent.click(screen.getByRole('checkbox', { name: /Include the version line/ }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Open GitHub issue' }));
@@ -60,17 +60,29 @@ describe('FeedbackPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('shorten the details');
   });
 
+  it('blocks text whose encoded form exceeds the browser limit before the shell is asked', async () => {
+    render(<FeedbackPanel />);
+    fill('Translated report', '\u68cb'.repeat(900));
+    await waitFor(() => expect(screen.getByText('Too long to open in a browser; shorten the details.')).toBeVisible());
+    expect(screen.getByRole('button', { name: 'Open GitHub issue' })).toBeDisabled();
+
+    fill('Translated report', '\u68cb'.repeat(800));
+
+    expect(screen.getByRole('button', { name: 'Open GitHub issue' })).toBeEnabled();
+  });
+
   it('links browser users to the same prefilled GitHub form without an app command', () => {
     vi.mocked(platform.isDesktop).mockReturnValue(false);
     render(<FeedbackPanel />);
     expect(screen.getByRole('button', { name: 'Open GitHub issue' })).toBeDisabled();
-    fill('Board & clock?', '');
+    fill("Board & clock (it's late)?", '');
 
     const link = screen.getByRole('link', { name: 'Open GitHub issue' });
     const url = new URL(link.getAttribute('href')!);
     expect(`${url.origin}${url.pathname}`).toBe('https://github.com/Mathews-Tom/Scan64/issues/new');
-    expect(url.searchParams.get('title')).toBe('Bug: Board & clock?');
+    expect(url.searchParams.get('title')).toBe("Bug: Board & clock (it's late)?");
     expect(url.searchParams.get('body')).toMatch(/^---\nScan64 · .+ · browser$/);
+    expect(link.getAttribute('href')).toContain('Board%20%26%20clock%20%28it%27s%20late%29%3F');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(platform.updateStatus).not.toHaveBeenCalled();
   });
