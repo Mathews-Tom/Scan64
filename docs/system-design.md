@@ -104,7 +104,7 @@ Player-derived records participate in export, import, and deletion. Deletion is 
 
 ## Engine capacity
 
-Stockfish work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests.
+Stockfish work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests. A job first waits on its game's lock and only then takes a run slot, so duplicate jobs for one game cannot occupy slots that other games need.
 
 Fast and focused analysis passes keep at most the batch pool's engine count of searches in flight, preserve position order, and cancel and await outstanding searches before returning a failure. Without a pool, analysis remains serial and starts only one engine at a time.
 

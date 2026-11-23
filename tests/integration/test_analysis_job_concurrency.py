@@ -64,3 +64,39 @@ def test_bulk_import_jobs_all_complete_without_blocking_the_event_loop(
         engine.dispose()
     assert statuses == ["completed"] * 20
     assert longest_stall < 0.5
+
+
+def test_duplicate_jobs_for_one_game_do_not_hold_slots_from_other_games(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    busy = Game(pgn="", headers={}, moves=["e2e4"], owner_color="white")
+    other = Game(pgn="", headers={}, moves=["d2d4"], owner_color="white")
+    duplicates = [AnalysisJob(game_id=busy.id) for _ in range(jobs.MAX_RUNNING_ANALYSIS_JOBS + 1)]
+    other_job = AnalysisJob(game_id=other.id)
+    db_session.add_all([busy, other, *duplicates, other_job])
+    db_session.commit()
+    duplicate_ids = [job.id for job in duplicates]
+    other_job_id = other_job.id
+    busy_id = busy.id
+
+    async def run() -> None:
+        release = asyncio.Event()
+
+        async def analysis(game: Game, *args: object, **kwargs: object) -> None:
+            # The first job for the busy game stays in its engine work until released.
+            if game.id == busy_id:
+                await release.wait()
+
+        monkeypatch.setattr(jobs, "run_analysis_for_game", analysis)
+        pending = [
+            asyncio.create_task(jobs.execute_analysis_job_async(job_id)) for job_id in duplicate_ids
+        ]
+        await asyncio.sleep(0.05)
+        await asyncio.wait_for(jobs.execute_analysis_job_async(other_job_id), timeout=2)
+        release.set()
+        await asyncio.gather(*pending)
+
+    asyncio.run(run())
+    with Session(database.engine) as session:
+        statuses = session.exec(select(AnalysisJob.status)).all()
+    assert statuses == ["completed"] * (len(duplicate_ids) + 1)

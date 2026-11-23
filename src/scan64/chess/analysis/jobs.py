@@ -438,12 +438,13 @@ _game_locks: WeakValueDictionary[tuple[asyncio.AbstractEventLoop, UUID], asyncio
     WeakValueDictionary()
 )
 
-# A running job holds one pooled database connection across its engine awaits, and its
-# first lookup checks a connection out synchronously on the event loop. SQLAlchemy's
-# default pool holds 15 (5 + 10 overflow): a 16th concurrent job blocked the whole loop
-# until the pool timeout and then failed without updating its row. Waiting jobs hold
-# neither a slot nor a connection, and the remaining connections serve API requests.
-# One job's fast and focused passes already fan out to the full batch engine pool width.
+# A running job holds one pooled database connection across its engine awaits. SQLAlchemy's
+# default pool holds 15 (5 + 10 overflow): a 16th concurrent job blocked the whole event
+# loop until the pool timeout and then failed without updating its row. Only slot holders
+# keep a connection across awaits; the job lookup checks one out and returns it with no
+# await in between. Jobs queue on their game's lock before taking a slot, so duplicates
+# for one game wait without starving other games. One job's fast and focused passes
+# already fan out to the full batch engine pool width.
 MAX_RUNNING_ANALYSIS_JOBS = 4
 _job_slots: WeakValueDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
     WeakValueDictionary()
@@ -510,17 +511,17 @@ async def execute_analysis_job_async(
     """
     from scan64.persistence.database import engine
 
-    slots = _job_slots.setdefault(
-        asyncio.get_running_loop(), asyncio.Semaphore(MAX_RUNNING_ANALYSIS_JOBS)
-    )
-    async with slots:
-        with Session(engine) as session:
-            job = session.get(AnalysisJob, job_id)
-            if job is None:
-                return
-            key = (asyncio.get_running_loop(), job.game_id)
-        lock = _game_locks.setdefault(key, asyncio.Lock())
-        async with lock:
+    with Session(engine) as session:
+        job = session.get(AnalysisJob, job_id)
+        if job is None:
+            return
+        key = (asyncio.get_running_loop(), job.game_id)
+    lock = _game_locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        slots = _job_slots.setdefault(
+            asyncio.get_running_loop(), asyncio.Semaphore(MAX_RUNNING_ANALYSIS_JOBS)
+        )
+        async with slots:
             await _execute_analysis_job_async(job_id, pool_manager)
 
 
