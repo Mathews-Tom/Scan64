@@ -42,9 +42,9 @@
 .today-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
 .library-links { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .report-error { border-left: 4px solid var(--ink); padding: var(--space-4); background: var(--surface); }
-@media (min-width: 1200px) {
-  .app-shell[data-sidebar-expanded='true'] { --sidebar-width: var(--sidebar-expanded); }
-}
+/* The column follows the same innerWidth breakpoint that shows the labels: WebKit media
+   queries exclude a classic scrollbar, which left expanded labels in the compact column. */
+.app-shell[data-viewport='wide'][data-sidebar-expanded='true'] { --sidebar-width: var(--sidebar-expanded); }
 @media (max-width: 767px) {
   :root:has(.app-shell[data-native='false']) { --shell-clearance: calc(128px + env(safe-area-inset-bottom)); }
   .app-shell[data-native='false'] { display: block; }
