@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+
+- The README now explains why Scan64's macOS and Windows installers are unsigned, how to check a download's SHA-256 digest against the release, and how to open the app once on macOS (**Open Anyway**) and Windows (SmartScreen **Run anyway** or **Unblock**). It also covers what Smart App Control means for Scan64, without disabling system protections globally.
+
 ## [0.12.2] - 2026-11-23
 
 ### Changed

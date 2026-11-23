@@ -110,9 +110,43 @@ The unified desktop app opens Scan64 in one window, without a browser tab. It bu
 | **Linux x64 — AppImage** | `.AppImage` | Make the downloaded AppImage executable, then run it from your download folder. Requires FUSE support; otherwise use the Debian package. |
 | **Linux x64 — Debian/Ubuntu** | `.deb` | [Install the downloaded package with `apt`](docs/user-guide.md#install-on-your-os), then launch Scan64 from the application menu. |
 
-**Installers lack platform code signing.** macOS builds are ad-hoc signed, not Developer ID signed or notarized: for a trusted download blocked by Gatekeeper, use **System Settings → Privacy & Security → Open Anyway → Open**. Windows installers lack Authenticode signatures; SmartScreen may require **More info → Run anyway**. Update bundles carry separate authenticated updater signatures. Only bypass warnings for an artifact you trust; do not disable Gatekeeper or other system protections globally.
+See [Open an unsigned installer safely](#open-an-unsigned-installer-safely) before the first launch on macOS or Windows.
 
 The desktop app includes signed in-app updates: **Settings → Updates** checks GitHub Releases, downloads in the background by default, and waits for **Restart to update**. It never restarts automatically. Linux `.deb` installs instead link to the release download. See the [updates guide](docs/user-guide.md#updates).
+
+### Open an unsigned installer safely
+
+Scan64 is a free project with one developer, and it does not pay for Apple Developer ID or Windows code-signing certificates. The macOS app is ad-hoc signed and not notarized. The Windows installer has no Authenticode signature. Your operating system therefore cannot confirm who built the download and warns you on first launch. These warnings do not mean the app is harmful, but they also do not tell you it is safe. Verifying the download yourself gives you that assurance.
+
+**1. Download only from the [Scan64 releases page](https://github.com/Mathews-Tom/Scan64/releases/latest).** Other mirrors, Desktop CI artifacts and files sent to you by someone else are not release installers.
+
+**2. Check the file's SHA-256 against the release.** GitHub lists a `sha256:` digest for every release file. With the [GitHub CLI](https://cli.github.com/), print the latest release's digests with `gh release view --repo Mathews-Tom/Scan64 --json assets --jq '.assets[] | "\(.digest)  \(.name)"'`. Hash your download with the command below. Then compare its output, character for character, with the hex after `sha256:` for the same file name:
+
+| System | Command |
+| --- | --- |
+| macOS | `shasum -a 256 ~/Downloads/Scan64_*_aarch64.dmg` |
+| Windows (PowerShell) | `Get-FileHash $HOME\Downloads\Scan64_*_x64-setup.exe -Algorithm SHA256` |
+| Linux | `sha256sum ~/Downloads/Scan64_*_amd64.AppImage` |
+
+If the values differ, delete the file and download it again. Do not open a file whose digest does not match.
+
+**3. macOS: allow Scan64 once.**
+
+1. Drag Scan64 to **Applications** and open it. macOS refuses because it cannot verify the developer. Choose **Done**, not **Move to Trash**.
+2. Open **System Settings → Privacy & Security**. Under **Security**, select **Open Anyway** next to the Scan64 message. The button appears for about an hour after the blocked launch; open Scan64 again if it is missing.
+3. Confirm **Open Anyway** and enter your login password. macOS remembers this exception for Scan64.
+
+Since macOS 15, Control-click → **Open** no longer bypasses this check; use **Open Anyway**. If you cannot reach that setting, for example on a managed Mac, you can instead remove the download flag from this one app in Terminal: `xattr -dr com.apple.quarantine /Applications/Scan64.app`. Never turn Gatekeeper off for the whole Mac with `spctl --master-disable` or similar. **If macOS says Scan64 is damaged or will damage your computer, stop.** That is not the unsigned-developer warning. Delete the file and download it again, then check the digest.
+
+**4. Windows: get past SmartScreen.**
+
+- If **Windows protected your PC** appears, select **More info**, check that the file name is the one you verified, then select **Run anyway**.
+- Alternatively, before running the installer, right-click it, choose **Properties**, tick **Unblock** and select **OK**. This removes the downloaded-from-the-internet mark from that one file.
+- **Smart App Control** blocks unsigned apps that it has no reputation data for, and it offers no per-app exception. If it blocks the installer, the only way to run Scan64 is to turn Smart App Control off in **Windows Security → App & browser control → Smart App Control settings**. That removes its protection for every app, so decide whether the trade-off is acceptable for your PC before you change it.
+
+**5. Linux needs no bypass.** AppImages and `.deb` packages carry no platform signature to check; verify the digest as in step 2.
+
+**After installation, updates are verified for you.** **Settings → Updates** installs an update only if its signature matches Scan64's update key (key id `A1BF33DC0D262D9E`, listed in [SECURITY.md](SECURITY.md)). This is separate from operating-system code signing. If you install a newer version by downloading it again, repeat steps 1–4.
 
 ### Build the macOS app (Apple silicon)
 
