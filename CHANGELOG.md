@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → Send feedback** drafts a bug report, idea or question as a GitHub issue. You see the exact text first; the optional version line names only the Scan64 version, OS family and desktop or browser. Scan64 opens GitHub's prefilled form in your browser and sends nothing itself; no games, player data or tokens are attached.
+
 ### Changed
 
 - The README now explains why Scan64's macOS and Windows installers are unsigned and how to check a download's SHA-256 digest against the release. It shows how to open the app once on macOS (**Open Anyway**) and Windows (SmartScreen **Run anyway** or **Unblock**), and that the only way past Smart App Control is turning it off for the whole PC.

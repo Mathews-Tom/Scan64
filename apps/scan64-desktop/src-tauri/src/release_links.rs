@@ -57,7 +57,7 @@ fn open_with(url: &str, opener: impl FnOnce(&str) -> Result<(), String>) -> Resu
     opener(url)
 }
 
-fn system_browser(url: &str) -> Result<(), String> {
+pub(crate) fn system_browser(url: &str) -> Result<(), String> {
     // Fixed programs and separate arguments; never use a command shell.
     #[cfg(target_os = "macos")]
     let mut command = {
@@ -79,11 +79,11 @@ fn system_browser(url: &str) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map_err(|error| format!("Cannot open release link: {error}"))?;
+        .map_err(|error| format!("Cannot open link: {error}"))?;
     if status.success() {
         Ok(())
     } else {
-        Err("Cannot open release link in the system browser".to_owned())
+        Err("Cannot open link in the system browser".to_owned())
     }
 }
 
