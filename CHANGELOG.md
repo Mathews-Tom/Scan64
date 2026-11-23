@@ -6,11 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-23
+
 ### Fixed
 
 - Restore older account exports, including v0.9.0, that contain habit credit from game-derived lessons whose evidence omitted the pre-move position. Restore still rejects evidence that conflicts with the saved game or engine analysis.
 - Importing more than 15 online games at once no longer freezes the app for about 30 seconds per extra game or leaves those games unanalysed until restart. Analysis now runs at most four games at a time and queues the rest.
-- With the sidebar expanded in a 1200-pixel or wider desktop window, scrollable screens such as Today and Import no longer squeeze the navigation labels into the narrow sidebar column.
+- With the sidebar expanded at the default 1200-pixel desktop window width, scrollable screens such as Today and Import no longer squeeze the navigation labels into the narrow sidebar column.
 
 ## [0.12.0] - 2026-11-22
 
