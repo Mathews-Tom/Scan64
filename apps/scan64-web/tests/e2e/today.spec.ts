@@ -97,7 +97,7 @@ for (const width of [1280, 390]) {
         await expect(nav.getByRole('button', { name: 'Library', exact: true })).toHaveAttribute('aria-current', 'page');
       }
       await nav.getByRole('button', { name: 'Library', exact: true }).click();
-      await page.getByRole('button', { name: 'Import PGN', exact: true }).click();
+      await page.getByRole('button', { name: 'Import games', exact: true }).click();
       await expect(page).toHaveURL('/import');
       await expect(page.getByTestId('pgn-import')).toBeVisible();
       await expect(nav.getByRole('button', { name: 'Library', exact: true })).toHaveAttribute('aria-current', 'page');

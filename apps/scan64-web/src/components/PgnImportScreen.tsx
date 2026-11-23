@@ -166,7 +166,7 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
 
   return (
     <section className="pgn-import working-screen" data-testid="pgn-import">
-      <h1>Import game</h1>
+      <h1>Import games</h1>
       <Panel className="import-controls" aria-label="Import public online games">
         <h2>Import public online games</h2>
         <p>Fetch recent standard games only when you submit. Your side is matched to the username; analysis is queued automatically.</p>

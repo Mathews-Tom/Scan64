@@ -23,13 +23,24 @@ describe('GamesListScreen', () => {
     });
     const onOpenGame = vi.fn();
 
-    render(<GamesListScreen onOpenGame={onOpenGame} />);
+    render(<GamesListScreen onOpenGame={onOpenGame} onImportGames={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /Alice vs Bob/ })).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Alice vs Bob/ })).toHaveTextContent('2026');
     expect(ApiClient.getPlayerGames).toHaveBeenCalledWith('player-1');
     fireEvent.click(screen.getByRole('button', { name: /Alice vs Bob/ }));
     expect(onOpenGame).toHaveBeenCalledWith('game-1');
+  });
+
+  it('offers username import when there are no games yet', async () => {
+    vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({ items: [], next_cursor: null });
+    const onImportGames = vi.fn();
+
+    render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={onImportGames} />);
+
+    expect(await screen.findByText(/Lichess or Chess\.com games by username/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Import games by username' }));
+    expect(onImportGames).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -40,7 +51,7 @@ describe('GamesListScreen', () => {
       items: [{ id: 'partial-date', white: 'Alice', black: 'Bob', result: '1-0', date, created_at: '2026-11-14T12:00:00Z', diagnosis_count: 0 }],
       next_cursor: null,
     });
-    render(<GamesListScreen onOpenGame={vi.fn()} />);
+    render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={vi.fn()} />);
     const game = await screen.findByRole('button', { name: /Alice vs Bob/ });
     expect(game).not.toHaveTextContent('2026');
     if (knownYear) expect(game).toHaveTextContent(knownYear);

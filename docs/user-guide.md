@@ -89,7 +89,7 @@ The one-port source command is `uv run scan64-cli serve` after building the web 
 
 On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
 
-**Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import PGN under **Library**. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
+**Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import games under **Library**. **Review → Import games** reaches the same import screen. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
 
 Screen code loads when you first visit that screen. A loading status keeps navigation available, and a failed screen download offers **Reload screen**. Browser installs cache visited screen code for offline reuse rather than downloading every screen at startup; an uncached screen needs a connection. Cached code does not make live server operations available offline.
 
@@ -222,7 +222,7 @@ Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactic
 
 ## Import and analyse a PGN
 
-1. Open **Library**, then **Import PGN**.
+1. Open **Review → Import games** (or **Library → Import games**).
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
 4. Wait for the analysis state to complete.
@@ -737,7 +737,7 @@ This measures the product's transfer signal. It does not prove Scan64 improves o
 
 Puzzle downloads contact Lichess only after **Download puzzles** is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. The desktop app checks GitHub Releases for updates ten seconds after launch and every 24 hours; that request carries only normal connection information. Browser and container installs never check for updates.
 
-In **Library → Import**, choose **Lichess** or **Chess.com**, enter the public username and a whole-number count from 1 to 50, then select **Import online games**. Scan64 reports new, duplicate and skipped games; **Review** opens each new owned game with analysis already queued. Up to four games are analysed at a time, and the rest wait their turn while the app stays usable. Repeating an import does not add duplicate games. PGN paste and its manual side selection remain available below.
+In **Review → Import games** (also **Library → Import games**, or the button on an empty Review screen), choose **Lichess** or **Chess.com**, enter the public username and a whole-number count from 1 to 50, then select **Import online games**. Scan64 reports new, duplicate and skipped games; **Review** opens each new owned game with analysis already queued. Up to four games are analysed at a time, and the rest wait their turn while the app stays usable; repeated analysis requests for one game wait without delaying other games. Repeating an import does not add duplicate games. PGN paste and its manual side selection remain available below.
 
 Online game import contacts only `https://lichess.org/api/games/user/{username}` or `https://api.chess.com/pub/player/{username}/games/…`, server-side and **only on explicit online form submission**. Opening Import, typing, changing the source or fetching the local player profile does not contact these hosts. The local API receives your selected source, public username and requested count; the selected host receives that username and public-game requests (with the count used to bound retrieval), plus normal connection information such as your IP address. Your Scan64 player token, progress and local games are not sent upstream. Only standard public games are imported: no OAuth, private games or background sync.
 

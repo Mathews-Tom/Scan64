@@ -163,7 +163,7 @@ function App() {
     const titles: Record<string, string> = {
       '/': 'Today', '/play': 'Play', '/games': 'Your games', '/analysis': 'Analysis',
       '/training': 'Daily Training', '/puzzles': 'Puzzles', '/profile': 'Profile',
-      '/coach': 'Coach', '/library': 'Library', '/import': 'Import PGN',
+      '/coach': 'Coach', '/library': 'Library', '/import': 'Import games',
       '/famous': 'Famous Games', '/explorer': 'Opening Explorer', '/settings': 'Settings',
     };
     document.title = `${!hasIdentity && pathname !== '/settings' ? 'Welcome' : titles[pathname] ?? (pathname.startsWith('/games/') ? 'Game review' : 'Page not found')} · Scan64`;
@@ -279,7 +279,7 @@ function App() {
       );
       break;
     case '/games':
-      screen = <GamesListScreen onOpenGame={(gameId) => navigate(`/games/${encodeURIComponent(gameId)}/analysis`)} />;
+      screen = <GamesListScreen onOpenGame={(gameId) => navigate(`/games/${encodeURIComponent(gameId)}/analysis`)} onImportGames={() => navigate('/import')} />;
       break;
     case '/explorer':
       screen = <OpeningExplorerScreen />;
@@ -308,7 +308,7 @@ function App() {
             <div className="library-links">
               <Button variant="primary" onClick={() => navigate('/explorer')}>Opening Explorer</Button>
               <Button onClick={() => navigate('/famous')}>Famous Games</Button>
-              <Button onClick={() => navigate('/import')}>Import PGN</Button>
+              <Button onClick={() => navigate('/import')}>Import games</Button>
             </div>
           </Panel>
         </section>
@@ -393,6 +393,7 @@ function App() {
               <nav className="section-nav" aria-label="Review navigation">
                 <button onClick={() => navigate('/games')}>Your Games</button>
                 <button onClick={() => navigate('/analysis')}>Analysis Board</button>
+                <button onClick={() => navigate('/import')}>Import games</button>
               </nav>
             ) : null}
             <RouteErrorBoundary key={pathname}>
