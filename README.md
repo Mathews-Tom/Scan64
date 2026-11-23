@@ -170,7 +170,7 @@ SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" uv run scan64-cli se
 
 ### Your first session
 
-Enter a display name and choose **Start learning**. Tell Scan64 roughly how strong you are and it suggests a bot level. From **Today** you can Play, Train or Review; **Library** holds the study and import screens.
+Enter a display name and choose **Start learning**. Tell Scan64 roughly how strong you are and it suggests a bot level. From **Today** you can Play, Train or Review. **Review → Import games** brings in your Lichess or Chess.com games by username or a pasted PGN; **Library** holds the study screens.
 
 Puzzles need a one-time import of the free [Lichess puzzle database](https://database.lichess.org/#puzzles) (CC0). Nothing is downloaded automatically:
 
