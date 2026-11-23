@@ -339,8 +339,8 @@ function App() {
           ['Library', '/library'], ['Coach', '/coach'], ['Settings', '/settings'],
         ].map(([label, path]) => {
           const selected = pathname === path
-            || (path === '/games' && (pathname.startsWith('/games/') || pathname === '/analysis'))
-            || (path === '/library' && ['/import', '/famous', '/explorer'].includes(pathname));
+            || (path === '/games' && (pathname.startsWith('/games/') || ['/analysis', '/import'].includes(pathname)))
+            || (path === '/library' && ['/famous', '/explorer'].includes(pathname));
           return (
             <button
               key={path}
@@ -389,7 +389,7 @@ function App() {
           </section>
         ) : (
           <>
-            {['/games', '/analysis'].includes(pathname) || gameAnalysisId !== null ? (
+            {['/games', '/analysis', '/import'].includes(pathname) || gameAnalysisId !== null ? (
               <nav className="section-nav" aria-label="Review navigation">
                 <button onClick={() => navigate('/games')}>Your Games</button>
                 <button onClick={() => navigate('/analysis')}>Analysis Board</button>

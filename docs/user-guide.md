@@ -89,7 +89,7 @@ The one-port source command is `uv run scan64-cli serve` after building the web 
 
 On your first visit, enter a display name and select **Start learning**. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.
 
-**Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history under **Review**, daily lessons under **Train**, and Opening Explorer, Famous Games and Import games under **Library**. **Review → Import games** reaches the same import screen. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
+**Today** offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history and **Import games** under **Review**, daily lessons under **Train**, and Opening Explorer and Famous Games under **Library**, which also links to Import games. **Profile** shows named skills and evidence; **Coach** opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.
 
 Screen code loads when you first visit that screen. A loading status keeps navigation available, and a failed screen download offers **Reload screen**. Browser installs cache visited screen code for offline reuse rather than downloading every screen at startup; an uncached screen needs a connection. Cached code does not make live server operations available offline.
 

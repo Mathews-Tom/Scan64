@@ -494,6 +494,7 @@ it('reaches every existing screen through the grouped navigation', async () => {
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Review navigation' })).getByRole('button', { name: 'Import games' }));
   expect(window.location.pathname).toBe('/import');
   expect(await screen.findByRole('heading', { name: 'Import public online games' })).toBeInTheDocument();
+  expect(within(nav).getByRole('button', { name: 'Review' })).toHaveAttribute('aria-current', 'page');
   await waitFor(() => expect(ApiClient.getFamousGames).toHaveBeenCalled());
 });
 
