@@ -443,8 +443,9 @@ _game_locks: WeakValueDictionary[tuple[asyncio.AbstractEventLoop, UUID], asyncio
 # loop until the pool timeout and then failed without updating its row. Only slot holders
 # keep a connection across awaits; the job lookup checks one out and returns it with no
 # await in between. Jobs queue on their game's lock before taking a slot, so duplicates
-# for one game wait without starving other games. One job's fast and focused passes
-# already fan out to the full batch engine pool width.
+# for one game wait without starving other games; a review backfill for that game also
+# waits behind its queued job. One job's fast and focused passes already fan out to the
+# full batch engine pool width.
 MAX_RUNNING_ANALYSIS_JOBS = 4
 _job_slots: WeakValueDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
     WeakValueDictionary()
