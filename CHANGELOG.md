@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-23
+
 ### Changed
 
 - Importing games now belongs to **Review**: **Review → Import games** and the empty Review screen lead to importing your public Lichess or Chess.com games by username, and the import screen keeps Review highlighted. Library's link is renamed **Import games** because it covers username import as well as PGN paste.
