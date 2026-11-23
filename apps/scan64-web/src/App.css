@@ -19,6 +19,7 @@
 .app-shell[data-sidebar-expanded='false'] :where(.app-brand-name, .app-header p, .app-nav > button span, .puzzle-import-text) { display: none; }
 .app-shell[data-sidebar-expanded='false'] .app-brand { justify-content: center; }
 .app-shell[data-sidebar-expanded='true'] .app-header { padding-inline: var(--space-4); }
+.app-shell[data-sidebar-expanded='true'] .sidebar-toggle { justify-content: flex-start; }
 .app-shell[data-sidebar-expanded='true'] .app-nav > button { justify-content: flex-start; padding-inline: var(--space-4); }
 .puzzle-import-foot { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2); font-size: var(--type-label); color: var(--muted); text-decoration: none; border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .puzzle-import-foot svg { flex: 0 0 20px; width: 20px; height: 20px; }
