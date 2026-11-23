@@ -57,7 +57,7 @@ test.describe('Lesson Review Flow', () => {
     // Go to home and navigate to import screen
     await page.goto('/');
     await page.getByRole('button', { name: 'Library', exact: true }).click();
-    await page.getByText('Import PGN').click();
+    await page.getByRole('button', { name: 'Import games', exact: true }).click();
 
     // Import a game
     await page.getByTestId('pgn-textarea').fill('1. e4');

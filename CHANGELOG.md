@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+
+- Importing games now belongs to **Review**: **Review → Import games** and the empty Review screen lead to importing your public Lichess or Chess.com games by username, and the import screen keeps Review highlighted. Library's link is renamed **Import games** because it covers username import as well as PGN paste.
+
+### Fixed
+
+- Repeated analysis requests for the same game now wait their turn without holding analysis slots, so other games keep being analysed.
+
 ## [0.12.1] - 2026-11-23
 
 ### Fixed

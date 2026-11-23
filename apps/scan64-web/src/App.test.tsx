@@ -308,7 +308,7 @@ describe('App', () => {
   it('navigates to import screen', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Library' }));
-    fireEvent.click(screen.getByText('Import PGN'));
+    fireEvent.click(screen.getByRole('button', { name: 'Import games' }));
     expect(await screen.findByTestId('pgn-import')).toBeInTheDocument();
   });
 
@@ -415,7 +415,7 @@ it('asks once for a display name before creating the active player', async () =>
     player_id: playerId, rating: 1500, display_name: createdPlayer.display_name,
   });
   fireEvent.click(screen.getByRole('button', { name: 'Library' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Import PGN' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Import games' }));
   fireEvent.change(await screen.findByTestId('pgn-textarea'), { target: { value: '[Black "Ada"]\n\n1. e4 *' } });
   await waitFor(() => expect(screen.getByLabelText('Your side')).toHaveValue('black'));
   expect(ApiClient.getPlayerProfile).toHaveBeenCalledWith(playerId);
@@ -480,7 +480,7 @@ it('reaches every existing screen through the grouped navigation', async () => {
   for (const [label, path, marker] of [
     ['Opening Explorer', '/explorer', 'opening-explorer'],
     ['Famous Games', '/famous', 'famous-games-catalogue'],
-    ['Import PGN', '/import', 'pgn-import'],
+    ['Import games', '/import', 'pgn-import'],
   ]) {
     fireEvent.click(within(nav).getByRole('button', { name: 'Library' }));
     fireEvent.click(screen.getByRole('button', { name: label }));
@@ -491,6 +491,10 @@ it('reaches every existing screen through the grouped navigation', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Analysis Board' }));
   expect(window.location.pathname).toBe('/analysis');
   expect(await screen.findByRole('heading', { name: 'Analysis Board' })).toBeInTheDocument();
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Review navigation' })).getByRole('button', { name: 'Import games' }));
+  expect(window.location.pathname).toBe('/import');
+  expect(await screen.findByRole('heading', { name: 'Import public online games' })).toBeInTheDocument();
+  expect(within(nav).getByRole('button', { name: 'Review' })).toHaveAttribute('aria-current', 'page');
   await waitFor(() => expect(ApiClient.getFamousGames).toHaveBeenCalled());
 });
 
