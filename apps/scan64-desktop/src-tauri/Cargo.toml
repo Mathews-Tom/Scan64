@@ -1,6 +1,6 @@
 [package]
 name = "scan64-desktop"
-version = "0.12.2"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.95"
 license = "GPL-3.0-or-later"
