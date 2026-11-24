@@ -36,6 +36,18 @@ describe('community lesson packs', () => {
     expect(opener).toHaveFocus();
     expect(screen.queryByRole('heading', { name: 'Finish' })).not.toBeInTheDocument();
   });
+  it('keeps focus on an opened lesson when an uninstall confirmation is already open', async () => {
+    render(<LessonPacksPanel />);
+    const opener = await screen.findByRole('button', { name: 'Open Finish' });
+    fireEvent.click(screen.getByRole('button', { name: 'Uninstall Sample pack' }));
+    expect(screen.getByRole('button', { name: 'Cancel uninstall' })).toHaveFocus();
+    fireEvent.click(opener);
+    await waitFor(() => {
+      expect(opener).not.toBeDisabled();
+      expect(screen.getByRole('heading', { name: 'Finish' })).toHaveFocus();
+    });
+    expect(screen.getByRole('group', { name: 'Confirm uninstall Sample pack' })).toBeInTheDocument();
+  });
   it('rejects oversized files before uploading and sends the original accepted file', async () => {
     render(<LessonPacksPanel />);
     const input = screen.getByLabelText('Lesson pack JSON file');

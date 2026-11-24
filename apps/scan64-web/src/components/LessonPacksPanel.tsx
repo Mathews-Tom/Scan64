@@ -18,13 +18,12 @@ export function LessonPacksPanel() {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const cancelledUninstall = useRef<string | null>(null);
   useEffect(() => {
-    if (busy) return;
     if (confirmId) cancelButton.current?.focus();
     else if (cancelledUninstall.current) {
       uninstallButtons.current.get(cancelledUninstall.current)?.focus();
       cancelledUninstall.current = null;
     }
-  }, [confirmId, busy]);
+  }, [confirmId]);
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
