@@ -65,6 +65,11 @@ def generate(checkout: Path, output: Path, stockfish: Path) -> None:
     ).strip()
     if not revision.startswith(REVISION):
         raise ValueError(f"Expected v0.9.0 ({REVISION}), got {revision}")
+    status = subprocess.check_output(
+        ["git", "status", "--porcelain"], cwd=checkout, text=True
+    ).strip()
+    if status:
+        raise ValueError("The v0.9.0 checkout must be clean (git status --porcelain is not empty)")
     engine = subprocess.run(
         [str(stockfish)], input="quit\n", text=True, capture_output=True, check=True
     ).stdout.splitlines()[0]
@@ -270,10 +275,16 @@ def main() -> None:
     parser.add_argument("checkout", type=Path)
     parser.add_argument("output", type=Path, help="New output directory (never overwritten)")
     parser.add_argument(
-        "--stockfish", type=Path, default=Path(shutil.which("stockfish") or "stockfish")
+        "--stockfish", type=Path, help="Stockfish executable (default: search PATH)"
     )
     args = parser.parse_args()
-    generate(args.checkout.resolve(), args.output.resolve(), args.stockfish.resolve())
+    requested = str(args.stockfish) if args.stockfish is not None else "stockfish"
+    stockfish = shutil.which(requested)
+    if stockfish is None:
+        parser.error(
+            f"Stockfish executable not found: {requested}. Pass --stockfish /path/to/stockfish."
+        )
+    generate(args.checkout.resolve(), args.output.resolve(), Path(stockfish).resolve())
 
 
 if __name__ == "__main__":

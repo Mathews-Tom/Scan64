@@ -11,6 +11,8 @@ The generator starts that checkout with `uv run --locked`, its own lockfile and 
 
 The recorded run used Stockfish 19. It contains three completed analysis jobs, 98 reviewed plies, 13 lesson opportunities and schedules (one reviewed, interval 2.5 days), one successful verified lesson attempt with its profile update applied, one solved rated puzzle, and two non-empty skill states (`threat_processing.missed_capture` and `board_awareness.hanging_piece`). The compressed database is 111,787 bytes (1,179,648 bytes unpacked); the archive is 68,145 bytes, expected API values 122,432 bytes and provenance 422 bytes. The committed data totals 302,786 bytes before this README.
 
+Reproducing the committed semantic values requires the recorded Stockfish 19 binary, identified by SHA-256 in `provenance.json`. The v0.9.0 desktop and Docker builds bundled Stockfish 18; that engine produces different analysis values. These fixtures prove compatibility with data produced by the v0.9.0 source release using the recorded engine, not equality with its bundled-engine analysis.
+
 No raw bearer token is retained. The historical credential hashes are random test-player hashes, not credentials for a real installation. Each test generates a fresh token and substitutes only its hash before exercising the authenticated restore/read paths.
 
 ## Regeneration
