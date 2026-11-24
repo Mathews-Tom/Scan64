@@ -4,12 +4,15 @@
 
 | Version | Supported |
 | ------- | --------- |
+| 1.0.x | :white_check_mark: |
 | 0.12.x | :white_check_mark: |
 | 0.11.x | :white_check_mark: |
 | 0.10.x | :white_check_mark: |
 | 0.9.x | :white_check_mark: |
 | < 0.9 | :x: |
 | Main | :white_check_mark: |
+
+Security fixes ship only as new releases from `main` through the in-app updater's single channel. Supported 0.9.x–0.12.x installations receive them by updating to the latest release; there are no maintenance branches for older lines.
 
 ## Reporting a Vulnerability
 
