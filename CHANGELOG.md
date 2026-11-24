@@ -11,7 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 
 - **Settings → Send feedback** drafts a bug report, idea or question as a GitHub issue. You see the exact text first; the optional version line names only the Scan64 version, OS family and desktop or browser. Scan64 opens GitHub's prefilled form in your browser and sends nothing itself; no games, player data or tokens are attached.
-- **Library → Lesson packs** installs a local lesson-pack JSON file and verifies every solver move locally with the engine before making a lesson playable. Rejected lessons show the failing move and reason. Verified lessons show their pack's title, author, licence, version and file fingerprint, and the pack can be uninstalled.
+- **Library → Community lesson packs** installs a local lesson-pack JSON file and verifies every solver move locally with the engine before making a lesson playable. Rejected lessons show the failing move and reason. Verified lessons show their pack's title, author, licence, version and file fingerprint, and the pack can be uninstalled.
 - Each player can install up to 20 lesson packs. Playing pack lessons does not change learning progress, review schedules, skills, recurrence or diagnosis. Packs are not included in player exports; keep the original files to reinstall and re-verify them.
 
 ### Changed
@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The README now explains why Scan64's macOS and Windows installers are unsigned and how to check a download's SHA-256 digest against the release. It shows how to open the app once on macOS (**Open Anyway**) and Windows (SmartScreen **Run anyway** or **Unblock**), and that the only way past Smart App Control is turning it off for the whole PC.
 - The sidebar's expand and collapse control is now a chevron icon button in both states instead of a full-width row labelled **Collapse**. Its accessible name and tooltip still read **Expand sidebar** or **Collapse sidebar**.
 - The README's **Stable from 1.0** section states the saved-data, player-export and updater compatibility commitments and their limits. Compatibility tests open a populated database and restore an export produced by the real v0.9.0 release, preserving games, completed analysis, lesson and puzzle progress, skill state and review schedules. Published-installer acceptance remains a separate check.
+- Back up the database and export player data before upgrading. 1.0.0 adds lesson-pack tables, and 0.12.x cannot open a database upgraded by 1.0.0; the desktop app's automatic pre-upgrade copy is the rollback path. See [back up before upgrading or rolling back](docs/user-guide.md#back-up-before-upgrading-or-rolling-back).
 
 ## [0.12.2] - 2026-11-23
 

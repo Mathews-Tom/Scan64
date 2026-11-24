@@ -125,7 +125,7 @@ Scan64 is a free project with one developer, and it does not pay for Apple Devel
 | System | Command |
 | --- | --- |
 | macOS | `shasum -a 256 ~/Downloads/Scan64_*_aarch64.dmg` |
-| Windows (PowerShell) | `(Get-FileHash $HOME\Downloads\Scan64_*_x64-setup.exe -Algorithm SHA256).Hash.ToLower()` |
+| Windows (PowerShell) | `Get-FileHash $HOME\Downloads\Scan64_*_x64-setup.exe -Algorithm SHA256 \| Format-List Path,Hash` |
 | Linux AppImage | `sha256sum ~/Downloads/Scan64_*_amd64.AppImage` |
 | Linux Debian/Ubuntu | `sha256sum ~/Downloads/Scan64_*_amd64.deb` |
 

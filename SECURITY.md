@@ -12,6 +12,8 @@
 | < 0.9 | :x: |
 | Main | :white_check_mark: |
 
+Security fixes ship only as new releases from `main` through the in-app updater's single channel. Supported 0.9.x–0.12.x installations receive them by updating to the latest release; there are no maintenance branches for older lines.
+
 ## Reporting a Vulnerability
 
 Do not disclose vulnerabilities, exploit details, or credentials in a public issue. Submit a private report through [GitHub Security Advisories](https://github.com/Mathews-Tom/Scan64/security/advisories/new).
