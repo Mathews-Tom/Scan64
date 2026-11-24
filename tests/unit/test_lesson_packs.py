@@ -57,6 +57,52 @@ def raw_document(value: dict[str, Any]) -> bytes:
     return json.dumps(value).encode()
 
 
+def test_schema_rejects_clock99_quiet_blunder_pack() -> None:
+    value = document()
+    value["lessons"][0]["fen"] = chess.STARTING_FEN.replace(" 0 1", " 99 1")
+    value["lessons"][0]["solution"] = ["g1h3"]
+    with pytest.raises(ValueError, match="halfmove clock plus solution length"):
+        parse_pack(raw_document(value))
+
+
+def test_schema_rejects_clock150_fen() -> None:
+    value = document()
+    value["lessons"][0]["fen"] = chess.STARTING_FEN.replace(" 0 1", " 150 1")
+    with pytest.raises(ValueError, match="automatically terminal"):
+        parse_pack(raw_document(value))
+
+
+def test_schema_accepts_clock_plus_solution_below100() -> None:
+    value = document()
+    value["lessons"][0]["fen"] = chess.STARTING_FEN.replace(" 0 1", " 94 1")
+    parsed = parse_pack(raw_document(value))
+    assert parsed.lessons[0].fen == value["lessons"][0]["fen"]
+    assert parsed.lessons[0].solution == LINE
+
+
+def test_schema_rejects_clock_threshold_even_with_pawn_resets() -> None:
+    value = document()
+    value["lessons"][0]["fen"] = chess.STARTING_FEN.replace(" 0 1", " 95 1")
+    with pytest.raises(ValueError, match="halfmove clock plus solution length"):
+        parse_pack(raw_document(value))
+
+
+@pytest.mark.parametrize(
+    "fen",
+    [
+        "7k/6Q1/5K2/8/8/8/8/8 b - - 0 1",
+        "7k/5Q2/5K2/8/8/8/8/8 b - - 0 1",
+        "7k/8/5K2/8/8/8/8/8 w - - 0 1",
+    ],
+    ids=["checkmate", "stalemate", "insufficient-material"],
+)
+def test_schema_rejects_automatic_terminal_position(fen: str) -> None:
+    value = document()
+    value["lessons"][0]["fen"] = fen
+    with pytest.raises(ValueError, match="automatically terminal"):
+        parse_pack(raw_document(value))
+
+
 def test_schema_preserves_text_and_exact_size_boundary() -> None:
     value = document()
     value["description"] = "First line\nSecond line"

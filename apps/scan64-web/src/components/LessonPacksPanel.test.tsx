@@ -27,6 +27,15 @@ describe('community lesson packs', () => {
     await screen.findByText(/Find mate/);
     expect(LessonPacksApi.lesson).toHaveBeenCalledWith('sample', 'mate');
   });
+  it('focuses the opened lesson heading and returns focus to its opening button on Back', async () => {
+    render(<LessonPacksPanel />);
+    const opener = await screen.findByRole('button', { name: 'Open Finish' });
+    fireEvent.click(opener);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Finish' })).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Back to lesson packs' }));
+    expect(opener).toHaveFocus();
+    expect(screen.queryByRole('heading', { name: 'Finish' })).not.toBeInTheDocument();
+  });
   it('rejects oversized files before uploading and sends the original accepted file', async () => {
     render(<LessonPacksPanel />);
     const input = screen.getByLabelText('Lesson pack JSON file');
@@ -38,14 +47,25 @@ describe('community lesson packs', () => {
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(LessonPacksApi.install).toHaveBeenCalledWith(file));
   });
-  it('requires explicit uninstall confirmation', async () => {
+  it.each([false, true])('focuses safe uninstall controls and the panel after uninstall (lesson open: %s)', async lessonOpen => {
     render(<LessonPacksPanel />);
+    if (lessonOpen) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Open Finish' }));
+      await waitFor(() => expect(screen.getByRole('heading', { name: 'Finish' })).toHaveFocus());
+    }
     fireEvent.click(await screen.findByRole('button', { name: 'Uninstall Sample pack' }));
     expect(LessonPacksApi.uninstall).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Cancel uninstall' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel uninstall' }));
+    expect(screen.getByRole('button', { name: 'Uninstall Sample pack' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Uninstall Sample pack' }));
+    expect(screen.getByRole('button', { name: 'Cancel uninstall' })).toHaveFocus();
     vi.mocked(LessonPacksApi.list).mockResolvedValue([]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm uninstall Sample pack' }));
     await waitFor(() => expect(LessonPacksApi.uninstall).toHaveBeenCalledWith('sample'));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Open Finish' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Community lesson packs' })).toHaveFocus();
+    expect(screen.queryByRole('heading', { name: 'Finish' })).not.toBeInTheDocument();
   });
   it('polls pending verification and offers retry for unavailable verification', async () => {
     vi.useFakeTimers();
@@ -65,7 +85,7 @@ describe('community lesson packs', () => {
 describe('community lesson player', () => {
   it('requests hints without moving and checks keyboard moves on the server before completion', async () => {
     vi.mocked(LessonPacksApi.check).mockResolvedValueOnce({ accepted: false, fen: lesson.fen, ply: 0, reply: null, complete: false, hints: ['Protect the queen'], explanation: null })
-      .mockResolvedValueOnce({ accepted: false, fen: lesson.fen, ply: 0, reply: null, complete: false, hints: ['Protect the queen'], explanation: null })
+      .mockResolvedValueOnce({ accepted: false, fen: lesson.fen, ply: 0, reply: null, complete: false, hints: [], explanation: null })
       .mockResolvedValueOnce({ accepted: true, fen: '7k/6Q1/6K1/8/8/8/8/8 b - - 1 1', ply: 1, reply: null, complete: true, hints: [], explanation: 'Mate explanation' });
     render(<PackLessonPlayer lesson={lesson} onClose={vi.fn()} />);
     expect(screen.queryByText('Mate explanation')).not.toBeInTheDocument();
@@ -78,8 +98,10 @@ describe('community lesson player', () => {
     }
     move('f7e6');
     await screen.findByText('That is not the pack continuation. Try again.');
+    expect(screen.getByRole('list', { name: 'Lesson hints' })).toHaveTextContent('Protect the queen');
     move('f7g7');
     await screen.findByText('Mate explanation');
+    expect(screen.getByRole('list', { name: 'Lesson hints' })).toHaveTextContent('Protect the queen');
     expect(LessonPacksApi.check).toHaveBeenLastCalledWith('sample', 'mate', { ply: 0, move: 'f7g7' });
     expect(screen.getByRole('button', { name: 'Show hint' })).toBeDisabled();
   });

@@ -72,6 +72,10 @@ class PackLessonDocument(BaseModel):
             raise ValueError(f"Invalid FEN: {error}") from error
         if not board.is_valid():
             raise ValueError("Invalid chess position")
+        if board.is_game_over(claim_draw=False):
+            raise ValueError("FEN must not be an automatically terminal position")
+        if board.halfmove_clock + len(self.solution) >= 100:
+            raise ValueError("FEN halfmove clock plus solution length must be below 100")
         return self
 
 

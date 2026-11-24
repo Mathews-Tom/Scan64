@@ -245,8 +245,12 @@ def test_pack_archive_exclusion_and_player_deletion(
     assert len(client.get("/v1/lesson-packs", headers=other).json()) == 1
 
 
+@pytest.mark.parametrize("delete_player", [False, True])
 def test_uninstall_cancels_verification_and_releases_lease(
-    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    delete_player: bool,
 ) -> None:
     started, released = Event(), Event()
 
@@ -275,9 +279,124 @@ def test_uninstall_cancels_verification_and_releases_lease(
     assert (
         client.get("/v1/lesson-packs/test-pack/lessons/sound", headers=headers).status_code == 404
     )
-    assert client.delete("/v1/lesson-packs/test-pack", headers=headers).status_code == 204
+    if delete_player:
+        response = client.request(
+            "DELETE",
+            "/v1/players/pack-cancel/data",
+            json={"dry_run": False, "confirmation": "delete-pack-cancel"},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+    else:
+        assert client.delete("/v1/lesson-packs/test-pack", headers=headers).status_code == 204
     assert released.wait(5)
     db_session.expire_all()
     assert db_session.exec(select(LessonPack)).all() == []
     assert db_session.exec(select(PackLesson)).all() == []
     assert manager.batch_pool.acquisitions == 1
+
+
+def test_install_authenticates_before_parsing(client: TestClient, db_session: Session) -> None:
+    before = snapshot(db_session)
+    response = client.post("/v1/lesson-packs", content=b"{")
+    assert response.status_code == 401, response.text
+    assert snapshot(db_session) == before
+
+
+def test_installed_pack_limit_is_owner_scoped_and_atomic(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(app.state, "engine_pool_manager", None)
+    headers = register(client, "pack-limit")
+    other = register(client, "pack-limit-other")
+    for index in range(20):
+        response = client.post(
+            "/v1/lesson-packs",
+            json={**document(), "id": f"pack-{index}"},
+            headers=headers,
+        )
+        assert response.status_code == 201, response.text
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        packs = client.get("/v1/lesson-packs", headers=headers).json()
+        if all(pack["state"] == "unavailable" for pack in packs):
+            break
+        time.sleep(0.02)
+    else:
+        pytest.fail("Installed packs did not finish unavailable verification")
+    assert len(packs) == 20
+    before = snapshot(db_session)
+    response = client.post(
+        "/v1/lesson-packs", json={**document(), "id": "pack-21"}, headers=headers
+    )
+    assert response.status_code == 409, response.text
+    assert "20" in response.json()["detail"] and "uninstall" in response.json()["detail"]
+    assert snapshot(db_session) == before
+    assert (
+        client.post(
+            "/v1/lesson-packs", json={**document(), "id": "pack-21"}, headers=other
+        ).status_code
+        == 201
+    )
+    assert client.delete("/v1/lesson-packs/pack-0", headers=headers).status_code == 204
+    assert (
+        client.post(
+            "/v1/lesson-packs", json={**document(), "id": "pack-21"}, headers=headers
+        ).status_code
+        == 201
+    )
+
+
+def test_two_installs_share_only_one_engine_and_queue_the_second(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started, release = Event(), Event()
+
+    class BlockingAdapter(Adapter):
+        async def analyze_position(self, fen: str, **kwargs: Any) -> EngineAnalysis:
+            started.set()
+            while not release.is_set():
+                await asyncio.sleep(0.005)
+            return await super().analyze_position(fen, **kwargs)
+
+    class TrackingPool(Pool):
+        def __init__(self) -> None:
+            super().__init__()
+            self.active = 0
+            self.max_active = 0
+
+        @asynccontextmanager
+        async def acquire(self) -> AsyncIterator[Adapter]:
+            self.acquisitions += 1
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                yield BlockingAdapter()
+            finally:
+                self.active -= 1
+
+    manager = Manager()
+    pool = TrackingPool()
+    manager.batch_pool = pool
+    monkeypatch.setattr(app.state, "engine_pool_manager", manager)
+    headers = register(client, "pack-queue")
+    assert client.post("/v1/lesson-packs", json=document(), headers=headers).status_code == 201
+    assert started.wait(5)
+    response = client.post(
+        "/v1/lesson-packs", json={**document(), "id": "second-pack"}, headers=headers
+    )
+    assert response.status_code == 201, response.text
+    assert pool.acquisitions == 1 and pool.active == 1
+    assert client.get("/v1/lesson-packs/second-pack", headers=headers).json()["state"] == "pending"
+    assert client.get("/v1/lesson-packs/test-pack", headers=headers).json()["state"] == "verifying"
+    release.set()
+    assert finished(client, headers)["state"] == "verified"
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        second = client.get("/v1/lesson-packs/second-pack", headers=headers).json()
+        if second["state"] == "verified":
+            break
+        time.sleep(0.02)
+    else:
+        pytest.fail("Queued second pack did not finish verification")
+    assert pool.acquisitions == 2 and pool.max_active == 1 and pool.active == 0

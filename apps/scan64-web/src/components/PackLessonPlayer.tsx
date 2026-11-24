@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { LessonPacksApi, type LessonRead, type PackCheckRead } from '../api/lessonPacks';
 import { CoachBoard } from './CoachBoard';
 import { Button, Panel } from './Primitives';
@@ -8,6 +8,9 @@ export function PackLessonPlayer({ lesson, onClose }: { lesson: LessonRead; onCl
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
   const [message, setMessage] = useState('');
+  const headingId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   async function check(input: { move?: string; hint?: boolean }) {
     if (locked.current || position.complete) return;
     locked.current = true;
@@ -15,12 +18,13 @@ export function PackLessonPlayer({ lesson, onClose }: { lesson: LessonRead; onCl
     setMessage('');
     try {
       const result = await LessonPacksApi.check(lesson.pack_id, lesson.id, { ply: position.ply, ...input });
-      setPosition(result);
+      setPosition(previous => ({ ...result, hints: result.hints.length > 0 ? result.hints : previous.hints }));
       if (input.move) setMessage(result.accepted ? result.complete ? 'Lesson complete.' : 'Correct. Continue from the new position.' : 'That is not the pack continuation. Try again.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not check the move. Try again.'); }
     finally { locked.current = false; setBusy(false); }
   }
-  return <Panel title={lesson.title}>
+  return <Panel aria-labelledby={headingId}>
+    <h2 id={headingId} ref={heading} tabIndex={-1}>{lesson.title}</h2>
     <p>Community pack: {lesson.pack_title} · Author: {lesson.author}</p>
     <p>This lesson is not from your games. Playing it does not change progress, skills or diagnosis.</p>
     <p><strong>Objective:</strong> {lesson.objective}</p>

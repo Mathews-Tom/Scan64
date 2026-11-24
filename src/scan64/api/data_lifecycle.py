@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import chess
+from anyio import from_thread
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ from sqlalchemy import update
 from sqlmodel import Session, SQLModel, col, delete, select
 
 from scan64.api.auth import require_player_token
+from scan64.api.lesson_packs import cancel_pack_verifications
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import (
     DeletionAudit,
@@ -3466,6 +3468,10 @@ def delete_player_data(
     session.commit()
     close_analysis_subscriptions(session.get_bind().engine, player_id=player_id)
     app = request.scope.get("app")
+    if pack_ids and app is not None:
+        # FastAPI runs this synchronous endpoint in an AnyIO worker; cancellation
+        # must run and finish on the app's loop, after releasing the DB fence.
+        from_thread.run(cancel_pack_verifications, request, pack_ids)
     runtime = getattr(app.state, "play_clock_runtime", None) if app is not None else None
     if runtime is not None:
         runtime.notify()

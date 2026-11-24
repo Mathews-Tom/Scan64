@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from hashlib import sha256
 from typing import cast
@@ -11,6 +12,7 @@ from uuid import UUID
 import chess
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from sqlalchemy import func
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
@@ -24,6 +26,7 @@ from scan64.persistence.database import get_session
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(prefix="/v1/lesson-packs", tags=["lesson-packs"])
+MAX_INSTALLED_PACKS = 20
 
 
 class LessonStateRead(BaseModel):
@@ -148,6 +151,15 @@ def _enqueue(request: Request, engine: Engine, pack_id: UUID) -> None:
     task.add_done_callback(finished)
 
 
+async def cancel_pack_verifications(request: Request, pack_ids: Sequence[UUID]) -> None:
+    """Release this owner's verification leases after the deletion transaction."""
+    tasks = cast(dict[UUID, asyncio.Task[None]], request.app.state.lesson_pack_tasks)
+    cancelled = [tasks[pack_id] for pack_id in pack_ids if pack_id in tasks]
+    for task in cancelled:
+        task.cancel()
+    await asyncio.gather(*cancelled, return_exceptions=True)
+
+
 def _write_owner(request: Request, session: Session) -> str:
     player_id = require_authenticated_player(request, session)
     lock_puzzle_player(player_id, session)
@@ -158,6 +170,8 @@ def _write_owner(request: Request, session: Session) -> str:
 @router.post("", response_model=PackRead, status_code=201)
 async def install_pack(request: Request, session: Session = Depends(get_session)) -> PackRead:
     # The route-specific middleware bounds bytes before JSON parsing.
+    require_authenticated_player(request, session)
+    session.rollback()
     raw = await request.body()
     try:
         document = parse_pack(raw)
@@ -174,6 +188,14 @@ async def install_pack(request: Request, session: Session = Depends(get_session)
         is not None
     ):
         raise HTTPException(status_code=409, detail="Pack id already installed; uninstall it first")
+    installed = session.exec(
+        select(func.count()).select_from(LessonPack).where(LessonPack.player_id == player_id)
+    ).one()
+    if installed >= MAX_INSTALLED_PACKS:
+        raise HTTPException(
+            status_code=409,
+            detail="At most 20 lesson packs can be installed per player; uninstall a pack first",
+        )
     pack = LessonPack(
         player_id=player_id,
         pack_id=document.id,
@@ -255,13 +277,11 @@ async def uninstall_pack(
     pack_id: str, request: Request, session: Session = Depends(get_session)
 ) -> Response:
     pack = _owned(pack_id, _write_owner(request, session), session)
-    task = request.app.state.lesson_pack_tasks.get(pack.id)
+    installed_id = pack.id
     session.exec(delete(PackLesson).where(col(PackLesson.pack_id) == pack.id))
     session.delete(pack)
     session.commit()
-    if task is not None:
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+    await cancel_pack_verifications(request, [installed_id])
     return Response(status_code=204)
 
 

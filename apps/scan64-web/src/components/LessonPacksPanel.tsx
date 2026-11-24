@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { LessonPacksApi, MAX_PACK_BYTES, type LessonRead, type PackRead } from '../api/lessonPacks';
 import { Button, Panel } from './Primitives';
 import { PackLessonPlayer } from './PackLessonPlayer';
@@ -11,6 +11,20 @@ export function LessonPacksPanel() {
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const headingId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const lessonOpener = useRef<HTMLButtonElement | null>(null);
+  const uninstallButtons = useRef(new Map<string, HTMLButtonElement>());
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const cancelledUninstall = useRef<string | null>(null);
+  useEffect(() => {
+    if (busy) return;
+    if (confirmId) cancelButton.current?.focus();
+    else if (cancelledUninstall.current) {
+      uninstallButtons.current.get(cancelledUninstall.current)?.focus();
+      cancelledUninstall.current = null;
+    }
+  }, [confirmId, busy]);
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -34,7 +48,8 @@ export function LessonPacksPanel() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Lesson pack request failed.'); }
     finally { locked.current = false; setBusy(false); }
   }
-  return <Panel title="Community lesson packs">
+  return <Panel aria-labelledby={headingId}>
+    <h2 id={headingId} ref={heading} tabIndex={-1}>Community lesson packs</h2>
     <p>Install a local JSON file. Each lesson is verified on this device before play. Packs are not from your games and never change progress, skills or diagnosis.</p>
     <label>Lesson pack JSON file <input type="file" accept=".json,application/json" disabled={busy} onChange={event => {
       const file = event.target.files?.[0];
@@ -54,15 +69,15 @@ export function LessonPacksPanel() {
       <p role="status">{pack.state === 'unavailable' ? 'Verification unavailable' : pack.state}{pack.reason ? `: ${pack.reason}` : ''}</p>
       {pack.state !== 'unavailable' && <ul aria-label={`${pack.title} lessons`}>{pack.lessons.map(item => <li key={item.id}>
         <span>{item.title} — {item.state}{item.failing_ply !== null ? ` (ply ${item.failing_ply})` : ''}{item.reason ? `: ${item.reason}` : ''}</span>{' '}
-        {pack.state === 'verified' && item.state === 'verified' && <Button disabled={busy} onClick={() => { void act(async () => setLesson(await LessonPacksApi.lesson(pack.id, item.id)), false); }}>Open {item.title}</Button>}
+        {pack.state === 'verified' && item.state === 'verified' && <Button disabled={busy} onClick={event => { lessonOpener.current = event.currentTarget; void act(async () => setLesson(await LessonPacksApi.lesson(pack.id, item.id)), false); }}>Open {item.title}</Button>}
       </li>)}</ul>}
       {(pack.state === 'failed' || pack.state === 'unavailable') && <Button disabled={busy} onClick={() => { void act(() => LessonPacksApi.retry(pack.id)); }}>Retry {pack.title}</Button>}
       {confirmId === pack.id ? <div role="group" aria-label={`Confirm uninstall ${pack.title}`}>
         <p>Uninstall {pack.title} and all its lessons? Keep your original file to reinstall and verify again.</p>
-        <Button disabled={busy} onClick={() => { void act(async () => { await LessonPacksApi.uninstall(pack.id); setConfirmId(null); if (lesson?.pack_id === pack.id) setLesson(null); }); }}>Confirm uninstall {pack.title}</Button>
-        <Button disabled={busy} onClick={() => setConfirmId(null)}>Cancel uninstall</Button>
-      </div> : <Button disabled={busy} onClick={() => setConfirmId(pack.id)}>Uninstall {pack.title}</Button>}
+        <Button disabled={busy} onClick={() => { void act(async () => { await LessonPacksApi.uninstall(pack.id); setConfirmId(null); if (lesson?.pack_id === pack.id) { lessonOpener.current = null; setLesson(null); } heading.current?.focus(); }); }}>Confirm uninstall {pack.title}</Button>
+        <Button ref={cancelButton} disabled={busy} onClick={() => { cancelledUninstall.current = pack.id; setConfirmId(null); }}>Cancel uninstall</Button>
+      </div> : <Button ref={button => { if (button) uninstallButtons.current.set(pack.id, button); else uninstallButtons.current.delete(pack.id); }} disabled={busy} onClick={() => setConfirmId(pack.id)}>Uninstall {pack.title}</Button>}
     </li>)}</ul>
-    {lesson && <PackLessonPlayer key={`${lesson.pack_id}/${lesson.id}`} lesson={lesson} onClose={() => setLesson(null)} />}
+    {lesson && <PackLessonPlayer key={`${lesson.pack_id}/${lesson.id}`} lesson={lesson} onClose={() => { setLesson(null); lessonOpener.current?.focus(); }} />}
   </Panel>;
 }
