@@ -656,6 +656,7 @@ historical awards under new policy or refreshed catalog ratings.
 - **Review → Analysis Board** distinguishes a game that has not been analysed, an analysis in progress or failed, and an analysed game with per-move review. A move can have a review score without a trusted lesson.
 - **Library → Opening Explorer** supplies opening-family missions and your [saved repertoires](#practise-a-repertoire).
 - **Library → Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
+- **Library → Community lesson packs** installs a local JSON file and verifies lessons before play. See [the format, provenance and verification guide](lesson-packs.md). Pack play never changes progress, schedules, skills or diagnosis. Exported player archives exclude packs: keep the original file to reinstall and verify after restore.
 - **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
 
 ### Practise a repertoire

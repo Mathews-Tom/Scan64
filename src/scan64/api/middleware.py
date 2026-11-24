@@ -28,6 +28,8 @@ def _uncached_owner_route(path: str) -> bool:
     return (
         path == "/v1/repertoires"
         or path.startswith("/v1/repertoires/")
+        or path == "/v1/lesson-packs"
+        or path.startswith("/v1/lesson-packs/")
         or path in {"/v1/exports", "/v1/imports"}
         or re.fullmatch(r"/v1/players/[^/]+/(?:data|progress/reset)", path) is not None
     )

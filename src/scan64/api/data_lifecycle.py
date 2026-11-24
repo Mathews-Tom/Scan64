@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import chess
+from anyio import from_thread
 from chess_lesson_spec import LessonSpec
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ from sqlalchemy import update
 from sqlmodel import Session, SQLModel, col, delete, select
 
 from scan64.api.auth import require_player_token
+from scan64.api.lesson_packs import cancel_pack_verifications
 from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import (
     DeletionAudit,
@@ -96,6 +98,7 @@ from scan64.learning.scheduling.spaced_repetition import (
 from scan64.learning.sparring import SparringAttempt, source_item_id
 from scan64.learning.tolerance import review_loss, review_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
+from scan64.lesson_packs.models import LessonPack, PackLesson
 from scan64.persistence.database import get_session
 
 router = APIRouter(tags=["data_lifecycle"])
@@ -150,6 +153,10 @@ class ExportArchive(BaseModel):
     pattern_awards: list[dict[str, Any]] = Field(default_factory=list)
     pattern_award_evidence: list[dict[str, Any]] = Field(default_factory=list)
     credential_hash: str | None = None
+    lesson_pack_notice: str = (
+        "Lesson packs are not included. Keep the original pack files and reinstall them "
+        "to verify them locally again."
+    )
 
 
 def _validate_clock_archive(
@@ -3346,6 +3353,11 @@ def delete_player_data(
         affected_rows[name] = len(
             session.exec(select(model).where(col(getattr(model, "player_id")) == player_id)).all()
         )
+    pack_ids = session.exec(select(LessonPack.id).where(LessonPack.player_id == player_id)).all()
+    affected_rows["lesson_packs"] = len(pack_ids)
+    affected_rows["pack_lessons"] = len(
+        session.exec(select(PackLesson).where(col(PackLesson.pack_id).in_(pack_ids))).all()
+    )
 
     if req.dry_run:
         return DeletionResponse(dry_run=True, affected_rows=affected_rows)
@@ -3378,6 +3390,8 @@ def delete_player_data(
         session.exec(delete(GameMoveReview).where(col(GameMoveReview.game_id).in_(owned_game_ids)))
     session.exec(delete(RepertoireAttempt).where(col(RepertoireAttempt.player_id) == player_id))
     session.exec(delete(Repertoire).where(col(Repertoire.player_id) == player_id))
+    session.exec(delete(PackLesson).where(col(PackLesson.pack_id).in_(pack_ids)))
+    session.exec(delete(LessonPack).where(col(LessonPack.player_id) == player_id))
     if position_ids:
         session.exec(
             delete(Evidence).where(
@@ -3454,6 +3468,10 @@ def delete_player_data(
     session.commit()
     close_analysis_subscriptions(session.get_bind().engine, player_id=player_id)
     app = request.scope.get("app")
+    if pack_ids and app is not None:
+        # FastAPI runs this synchronous endpoint in an AnyIO worker; cancellation
+        # must run and finish on the app's loop, after releasing the DB fence.
+        from_thread.run(cancel_pack_verifications, request, pack_ids)
     runtime = getattr(app.state, "play_clock_runtime", None) if app is not None else None
     if runtime is not None:
         runtime.notify()

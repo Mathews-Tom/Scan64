@@ -22,6 +22,7 @@ const GamesListScreen = lazy(() => import('./components/GamesListScreen').then(m
 const TodayScreen = lazy(() => import('./components/TodayScreen').then(module => ({ default: module.TodayScreen })));
 const PuzzlesScreen = lazy(() => import('./components/PuzzlesScreen').then(module => ({ default: module.PuzzlesScreen })));
 const SettingsScreen = lazy(() => import('./components/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
+const LessonPacksPanel = lazy(() => import('./components/LessonPacksPanel').then(module => ({ default: module.LessonPacksPanel })));
 
 class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   override state = { error: null as Error | null };
@@ -311,6 +312,9 @@ function App() {
               <Button onClick={() => navigate('/import')}>Import games</Button>
             </div>
           </Panel>
+          <Suspense fallback={<p role="status">Loading lesson packs…</p>}>
+            <LessonPacksPanel />
+          </Suspense>
         </section>
       );
       break;

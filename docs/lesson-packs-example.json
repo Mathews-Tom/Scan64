@@ -1,0 +1,33 @@
+{
+  "format": "scan64-lesson-pack",
+  "format_version": 1,
+  "id": "community-mate-example",
+  "title": "Community mate example",
+  "author": "Scan64 contributors",
+  "licence": "CC0-1.0",
+  "version": "1.0",
+  "description": "One sound mate and one deliberately unsound legal continuation to demonstrate rejection.",
+  "source": "Original composed examples",
+  "lessons": [
+    {
+      "id": "mate-in-one",
+      "title": "Finish with the queen",
+      "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+      "solution": ["f7g7"],
+      "objective": "White to move: deliver checkmate.",
+      "hints": ["Keep the queen protected by your king."],
+      "explanation": "Qg7 is mate: the queen covers the escape squares and the king protects g7.",
+      "themes": ["mate-in-one"]
+    },
+    {
+      "id": "unsound-stalemate",
+      "title": "Rejected stalemate example",
+      "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+      "solution": ["f7e6"],
+      "objective": "White to move: deliver checkmate.",
+      "hints": [],
+      "explanation": "Qe6 is legal but stalemates Black instead of winning. This lesson must be rejected.",
+      "themes": ["stalemate"]
+    }
+  ]
+}
