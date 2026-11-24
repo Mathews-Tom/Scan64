@@ -70,6 +70,7 @@ from scan64.learning.scheduling.spaced_repetition import (
     ScheduleReviewObservation,
 )
 from scan64.learning.sparring import SparringAttempt
+from scan64.lesson_packs.models import LessonPack, PackLesson
 from tests.integration.test_puzzle_lifecycle import seed_puzzle_run
 from tests.integration.test_sparring_lifecycle import seed_graph
 
@@ -128,8 +129,10 @@ GLOBAL_REFERENCE_TABLES = frozenset(
 
 TOMBSTONE_TABLES = frozenset({DeletionAudit.__tablename__})
 OPERATIONAL_TABLES = frozenset({IdempotencyRecord.__tablename__})
-# Owner-local consent is deleted with the account but deliberately never archived.
-INSTALLATION_LOCAL_TABLES = frozenset({OwnerExplanationSettings.__tablename__})
+# Owner-local data is deleted with the account but deliberately never archived.
+INSTALLATION_LOCAL_TABLES = frozenset(
+    {OwnerExplanationSettings.__tablename__, LessonPack.__tablename__, PackLesson.__tablename__}
+)
 
 ARCHIVE_FIELDS = {
     Player.__tablename__: "player",
@@ -569,6 +572,8 @@ def test_complete_lifecycle_roundtrip_has_no_player_residual_rows(
         "sparring_attempts": 1,
         "repertoires": 0,
         "repertoire_attempts": 0,
+        "lesson_packs": 0,
+        "pack_lessons": 0,
         "games": 3,
         "games_disowned": 0,
         "positions": 4,

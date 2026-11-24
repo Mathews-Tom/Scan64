@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import os
 from collections.abc import AsyncGenerator
@@ -18,6 +20,8 @@ from scan64.api.games import router as games_router
 from scan64.api.habit import router as habit_router
 from scan64.api.insights import router as insights_router
 from scan64.api.learning import router as learning_router
+from scan64.api.lesson_pack_body import LessonPackBodyLimitMiddleware
+from scan64.api.lesson_packs import router as lesson_packs_router
 from scan64.api.middleware import IdempotencyMiddleware
 from scan64.api.onboarding import router as onboarding_router
 from scan64.api.play import router as play_router
@@ -37,6 +41,7 @@ from scan64.chess.analysis.recovery import recover_analysis_jobs
 from scan64.chess.games.clocks import PlayClockRuntime
 from scan64.content.transfer_catalog import seed_transfer_positions
 from scan64.learning.plugins.host_registry import clear_host_registry, initialize_host_registry
+from scan64.lesson_packs.service import fail_interrupted_packs
 from scan64.persistence.database import create_db_and_tables, get_session
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager, engine_pool_enabled
@@ -59,6 +64,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from scan64.learning.profiling.models import ProfileObservation, SkillState  # noqa: F401
 
     create_db_and_tables()
+    fail_interrupted_packs(database.engine)
+    app.state.lesson_pack_tasks = {}
+    app.state.lesson_pack_lock = asyncio.Lock()
     app.state.plugin_registry = initialize_host_registry()
     with Session(database.engine) as session:
         seed_transfer_positions(session)
@@ -84,6 +92,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await recover_analysis_jobs(app.state.engine_pool_manager)
         yield
     finally:
+        tasks = list(app.state.lesson_pack_tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        del app.state.lesson_pack_tasks
+        del app.state.lesson_pack_lock
         try:
             await app.state.play_clock_runtime.stop()
         finally:
@@ -112,11 +126,13 @@ app.include_router(learning_router)
 app.include_router(insights_router)
 app.include_router(puzzles_router)
 app.include_router(repertoire_router)
+app.include_router(lesson_packs_router)
 
 app.include_router(puzzle_mistakes_router)
 
 app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.add_middleware(RepertoireBodyLimitMiddleware)
+app.add_middleware(LessonPackBodyLimitMiddleware)
 app.include_router(games_router)
 app.include_router(coach_linkage_router)
 app.include_router(coach_router)

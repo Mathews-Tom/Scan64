@@ -18,6 +18,7 @@ def load_models() -> None:
     from scan64.learning.exercises import transfer
     from scan64.learning.profiling import models as profiling_models
     from scan64.learning.scheduling import spaced_repetition
+    from scan64.lesson_packs import models as lesson_pack_models
 
     _ = (
         middleware,
@@ -42,4 +43,5 @@ def load_models() -> None:
         transfer,
         profiling_models,
         spaced_repetition,
+        lesson_pack_models,
     )
