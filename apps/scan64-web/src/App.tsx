@@ -312,7 +312,9 @@ function App() {
               <Button onClick={() => navigate('/import')}>Import games</Button>
             </div>
           </Panel>
-          <LessonPacksPanel />
+          <Suspense fallback={<p role="status">Loading lesson packs…</p>}>
+            <LessonPacksPanel />
+          </Suspense>
         </section>
       );
       break;

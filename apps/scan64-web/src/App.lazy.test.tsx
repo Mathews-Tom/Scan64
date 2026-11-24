@@ -7,11 +7,13 @@ const routes = vi.hoisted(() => ({
   today: Promise.withResolvers<{ TodayScreen: ComponentType }>(),
   play: Promise.withResolvers<{ PlayScreen: ComponentType }>(),
   settings: Promise.withResolvers<{ SettingsScreen: ComponentType }>(),
+  packs: Promise.withResolvers<{ LessonPacksPanel: ComponentType }>(),
 }));
 
 vi.mock('./components/TodayScreen', () => routes.today.promise);
 vi.mock('./components/PlayScreen', () => routes.play.promise);
 vi.mock('./components/SettingsScreen', () => routes.settings.promise);
+vi.mock('./components/LessonPacksPanel', () => routes.packs.promise);
 vi.mock('./components/GamesListScreen', () => ({
   GamesListScreen: () => <h1>Your games</h1>,
 }));
@@ -56,6 +58,7 @@ describe('lazy route loading', () => {
 
     navigate('Library');
     expect(screen.getByRole('heading', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading lesson packs');
     expect(screen.getByRole('main', { name: 'Study content' })).toHaveFocus();
     await act(async () => {
       routes.today.resolve({ TodayScreen: () => <h1>Today</h1> });
