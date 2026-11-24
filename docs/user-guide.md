@@ -42,7 +42,7 @@ Downloads and `logs/server.log` live under the same directory. Keep the app's lo
 
 Puzzles and **Settings → Puzzle library** offer **Download puzzles** and **Choose a file…**. Progress and Cancel stay available while navigating. Puzzle downloads always require a click.
 
-The desktop window cannot shrink below 960 logical pixels wide. Navigation stays on the left, including when zooming; bottom navigation is reserved for narrow browser windows. Use **Expand sidebar** to reveal button labels and **Collapse sidebar** to return to icons. In compact windows, labels open over the content without shrinking the board; Escape, the backdrop, or a navigation selection closes the drawer. Wide windows remember your expanded/collapsed preference.
+The desktop window cannot shrink below 960 logical pixels wide. Navigation stays on the left, including when zooming; bottom navigation is reserved for narrow browser windows. The chevron button under the Scan64 logo toggles the sidebar: **Expand sidebar** reveals button labels and **Collapse sidebar** returns to icons; hovering shows which one it does. In compact windows, labels open over the content without shrinking the board; Escape, the backdrop, or a navigation selection closes the drawer. Wide windows remember your expanded/collapsed preference.
 
 An empty puzzle library shows setup across the main content area instead of reserving space for a board. During practice, the board and current-puzzle controls share a bounded workspace; results and hints stay beside the board. Daily progress and solve streaks share a summary row, with detailed selection and rating explanations available through expandable sections. Import and update activity icons in the compact sidebar open the corresponding Settings panel.
 

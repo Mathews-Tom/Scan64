@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 
 - The README now explains why Scan64's macOS and Windows installers are unsigned and how to check a download's SHA-256 digest against the release. It shows how to open the app once on macOS (**Open Anyway**) and Windows (SmartScreen **Run anyway** or **Unblock**), and that the only way past Smart App Control is turning it off for the whole PC.
+- The sidebar's expand and collapse control is now a chevron icon button in both states instead of a full-width row labelled **Collapse**. Its accessible name and tooltip still read **Expand sidebar** or **Collapse sidebar**.
 
 ## [0.12.2] - 2026-11-23
 
