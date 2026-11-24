@@ -255,6 +255,8 @@ def test_deletion_dry_run_reports_complete_owned_data(client: TestClient, db_ses
         "profile": 1,
         "onboarding": 1,
         "owner_explanation_settings": 0,
+        "lesson_packs": 0,
+        "pack_lessons": 0,
         "habit_policy": 1,
         "habit_goals": 0,
         "habit_days": 0,
