@@ -31,7 +31,7 @@ Most chess tools can tell you that a move was bad. Scan64 tries to help you see 
 - **Your games are the curriculum.** Lessons, reviews and patterns come from the games you play or import, checked by Stockfish.
 - **Hints that teach, not tell.** Hints come in three steps: a nudge, then the idea, then the move with arrows and a reason. You decide how much help you need.
 - **Honest about what it knows.** Scan64 shows you the evidence behind every pattern and goal. It does not claim to raise your rating.
-- **Private by default.** Everything runs locally. Your games and progress stay in a database on your machine, and you can export them or delete your player data whenever you like.
+- **Private by default.** Everything runs locally. Your games and progress stay in a database on your machine, and you can export them or delete your player data whenever you like. See [Stable from 1.0](#stable-from-10) for the tested compatibility boundary.
 
 ## See it in action
 
@@ -215,12 +215,22 @@ uv run scan64-cli puzzles import --download --json
 
 The download is about 310 MB. See [Import a puzzle catalog](docs/user-guide.md#import-a-puzzle-catalog) for local files, Docker and filters. In the desktop app, choose **Download puzzles** or **Choose a file…** in Puzzles or **Settings → Puzzle library**.
 
+## Stable from 1.0
+
+Scan64 uses semantic versioning. From 1.0, these are compatibility commitments; breaking one requires a major version:
+
+- **Saved data:** upgrading a database from v0.9.0 or later preserves player progress. Tests upgrade a populated database produced by the v0.9.0 release to the current schema. A separate test migrates a copy built at the v0.8.0 schema revision through later upgrades. The desktop app automatically copies the database before a version upgrade migrates it; source and Docker users keep their own copy.
+- **Player export archives:** archives exported by v0.9.0 and by the current release import into the current release. Tests restore a real v0.9.0 export and current archive forms, including games, completed analysis, lesson and puzzle progress, skill state and review schedules. From 1.0, an archive exported by a 1.x release stays importable in later 1.x releases.
+- **In-app updates:** updates are verified with the committed Tauri updater public key. This is separate from operating-system installer signing.
+
+The internal HTTP API, CLI flags and UI layout are not stable interfaces. Untested older data is not covered; in particular, data from the older browser-based app (0.6.1 and earlier) is not migrated. These tests are not acceptance of a published 1.0 installer.
+
 ## What Scan64 does not claim
 
 - It has not been shown to improve over-the-board results or ratings. Bot levels have no Elo figure.
 - Lesson hints are reported by the app rather than proven by the server, and the user guide says so.
 - Accessibility targets WCAG 2.2 AA on every route, but the hands-on Safari/VoiceOver pass is still pending. See [keyboard use and accessibility](docs/user-guide.md#keyboard-touch-and-screen-readers).
-- There is no hosted service, published container image, PyPI package or signed desktop app.
+- There is no hosted service, published container image or PyPI package. Desktop installers and Linux packages are not operating-system signed; macOS builds are unsigned and not notarized (ad-hoc signing only). Updater bundles carry separate `.sig` files verified by the app; `.deb` packages do not update themselves.
 
 ## Documentation
 

@@ -1,0 +1,3237 @@
+{
+  "games": [
+    {
+      "analysis": {
+        "status": "completed"
+      },
+      "id": "f0b33c94-9bd4-424d-8178-b767fdad06a6",
+      "pgn": "[Event \"Scan64 CLI Fixture\"]\n[Site \"?\"]\n[Date \"2026.07.13\"]\n[Round \"1\"]\n[White \"FixturePlayerA\"]\n[Black \"FixtureOpponentA\"]\n[Result \"*\"]\n\n1. Nf3 Nc6 2. Ne5 Nxe5 3. d4 d6 4. Bf4 Nf6 5. e3 g6 6. Be2 Bg7 7. O-O O-O *\n",
+      "review": {
+        "accuracy": 71.40640657691605,
+        "backfill_required": false,
+        "band_counts": {
+          "blunder": 5,
+          "inaccuracy": 0,
+          "mistake": 0,
+          "sound": 2,
+          "unscored": 0
+        },
+        "game_id": "f0b33c94-9bd4-424d-8178-b767fdad06a6",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "initial_white_probability": 0.5257517538936253,
+        "key_moments": [
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 1.0,
+                "evidence_refs": [
+                  "ev_72a63211-a419-4a82-9d0f-9a333f53a80f"
+                ],
+                "primary": "board_awareness.hanging_piece",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "After Ne5, your knight on e5 is left hanging: the opponent's principal line wins it net of exchanges. Before moving, check the opponent's captures and the full exchange sequence.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. d4",
+                    "origin": "d2",
+                    "target": "d4"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "d4"
+                  },
+                  {
+                    "command": "draw_arrow",
+                    "description": "2. e4",
+                    "origin": "e2",
+                    "target": "e4"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e4"
+                  },
+                  {
+                    "command": "draw_arrow",
+                    "description": "3. h3",
+                    "origin": "h2",
+                    "target": "h3"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "d4: engine line",
+                    "moves": [
+                      "d2d4",
+                      "d7d5",
+                      "c2c4",
+                      "e7e6",
+                      "e2e3",
+                      "g8f6",
+                      "b1d2",
+                      "g7g6",
+                      "a2a3",
+                      "a7a5",
+                      "b2b3",
+                      "f8g7",
+                      "c1b2",
+                      "e8g8",
+                      "d1c2"
+                    ]
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "e4: engine line",
+                    "moves": [
+                      "e2e4",
+                      "e7e5",
+                      "f1b5",
+                      "g8f6",
+                      "e1g1",
+                      "f6e4",
+                      "f1e1",
+                      "e4d6",
+                      "f3e5",
+                      "f8e7",
+                      "b5f1",
+                      "c6e5",
+                      "e1e5",
+                      "e8g8",
+                      "d2d4",
+                      "e7f6",
+                      "f1d3",
+                      "f8e8",
+                      "e5e8",
+                      "d6e8",
+                      "c2c3"
+                    ]
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "h3: engine line",
+                    "moves": [
+                      "h2h3",
+                      "e7e5",
+                      "e2e4",
+                      "g8f6",
+                      "b1c3",
+                      "d7d5",
+                      "e4d5",
+                      "f6d5",
+                      "f1b5",
+                      "d5c3",
+                      "b2c3",
+                      "c8d7",
+                      "e1g1",
+                      "f8d6",
+                      "d2d4",
+                      "e8g8",
+                      "b5d3"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "d2"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. d4: Principle: Occupies a centre square.\n2. e4: Principle: Occupies a centre square.\n3. h3: engine preference",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. d4",
+                      "origin": "d2",
+                      "target": "d4"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "d4"
+                    },
+                    {
+                      "command": "draw_arrow",
+                      "description": "2. e4",
+                      "origin": "e2",
+                      "target": "e4"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e4"
+                    },
+                    {
+                      "command": "draw_arrow",
+                      "description": "3. h3",
+                      "origin": "h2",
+                      "target": "h3"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "d4"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "e4"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "h3"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "e3"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "Nc3"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "c4"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "a3"
+                  },
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "a4"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "ae9306bf-1f86-4468-b75b-c12a2132867e",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "ae9306bf-1f86-4468-b75b-c12a2132867e",
+            "ply": 3
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_954cca12-24a4-44a1-ade8-07082448c858"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played e3, but the engine's principal line begins with d4e5, capturing the knight on e5.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. dxe5",
+                    "origin": "d4",
+                    "target": "e5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "dxe5: engine line",
+                    "moves": [
+                      "d4e5",
+                      "f6h5"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "d4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. dxe5: Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. dxe5",
+                      "origin": "d4",
+                      "target": "e5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "dxe5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "a6daf008-6962-4eff-a6d5-810b15900091",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R w KQkq - 2 5",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "a6daf008-6962-4eff-a6d5-810b15900091",
+            "ply": 9
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_2fbff7bb-ac4e-4239-b0c1-587cc20b1940"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played Bf4, but the engine's principal line begins with d4e5, capturing the knight on e5.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. dxe5",
+                    "origin": "d4",
+                    "target": "e5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "dxe5: engine line",
+                    "moves": [
+                      "d4e5",
+                      "d6e5",
+                      "d1d8",
+                      "e8d8",
+                      "e2e4",
+                      "g8f6",
+                      "f2f3",
+                      "h7h5",
+                      "b1a3",
+                      "f6d7",
+                      "a3c4",
+                      "g7g6",
+                      "a2a4",
+                      "f8h6",
+                      "c1h6",
+                      "h8h6",
+                      "c4e3",
+                      "a7a5",
+                      "f1c4",
+                      "e7e6",
+                      "e1c1",
+                      "c7c6"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "d4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. dxe5: Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. dxe5",
+                      "origin": "d4",
+                      "target": "e5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "dxe5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "a22718a0-8084-438d-9351-074a836d13a1",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqkbnr/ppp1pppp/3p4/4n3/3P4/8/PPP1PPPP/RNBQKB1R w KQkq - 0 4",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "a22718a0-8084-438d-9351-074a836d13a1",
+            "ply": 7
+          }
+        ],
+        "moves": [
+          {
+            "after_probability": 0.48895555679024805,
+            "band": "sound",
+            "before_probability": 0.5257517538936253,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+            "is_owner_move": true,
+            "loss": 0.01470731068387332,
+            "move_uci": "g1f3",
+            "mover": "white",
+            "ply": 1,
+            "san": "Nf3",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "white_probability": 0.511044443209752
+          },
+          {
+            "after_probability": 0.5550076484124536,
+            "band": null,
+            "before_probability": 0.48895555679024805,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2",
+            "is_owner_move": false,
+            "loss": 0.043963205202701694,
+            "move_uci": "b8c6",
+            "mover": "black",
+            "ply": 2,
+            "san": "Nc6",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+            "white_probability": 0.5550076484124536
+          },
+          {
+            "after_probability": 0.9331658819626997,
+            "band": "blunder",
+            "before_probability": 0.5550076484124536,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkbnr/pppppppp/2n5/4N3/8/8/PPPPPPPP/RNBQKB1R b KQkq - 3 2",
+            "is_owner_move": true,
+            "loss": 0.4881735303751533,
+            "move_uci": "f3e5",
+            "mover": "white",
+            "ply": 3,
+            "san": "Ne5",
+            "source_fen": "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2",
+            "white_probability": 0.06683411803730033
+          },
+          {
+            "after_probability": 0.07133176859971573,
+            "band": null,
+            "before_probability": 0.9331658819626997,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkbnr/pppppppp/8/4n3/8/8/PPPPPPPP/RNBQKB1R w KQkq - 0 3",
+            "is_owner_move": false,
+            "loss": 0.004497650562415356,
+            "move_uci": "c6e5",
+            "mover": "black",
+            "ply": 4,
+            "san": "Nxe5",
+            "source_fen": "r1bqkbnr/pppppppp/2n5/4N3/8/8/PPPPPPPP/RNBQKB1R b KQkq - 3 2",
+            "white_probability": 0.07133176859971573
+          },
+          {
+            "after_probability": 0.9107959528114045,
+            "band": "sound",
+            "before_probability": 0.07133176859971573,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkbnr/pppppppp/8/4n3/3P4/8/PPP1PPPP/RNBQKB1R b KQkq - 0 3",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "d2d4",
+            "mover": "white",
+            "ply": 5,
+            "san": "d4",
+            "source_fen": "r1bqkbnr/pppppppp/8/4n3/8/8/PPPPPPPP/RNBQKB1R w KQkq - 0 3",
+            "white_probability": 0.08920404718859554
+          },
+          {
+            "after_probability": 0.4468118376315084,
+            "band": null,
+            "before_probability": 0.9107959528114045,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkbnr/ppp1pppp/3p4/4n3/3P4/8/PPP1PPPP/RNBQKB1R w KQkq - 0 4",
+            "is_owner_move": false,
+            "loss": 0.3576077904429129,
+            "move_uci": "d7d6",
+            "mover": "black",
+            "ply": 6,
+            "san": "d6",
+            "source_fen": "r1bqkbnr/pppppppp/8/4n3/3P4/8/PPP1PPPP/RNBQKB1R b KQkq - 0 3",
+            "white_probability": 0.4468118376315084
+          },
+          {
+            "after_probability": 0.9343049730980626,
+            "band": "blunder",
+            "before_probability": 0.4468118376315084,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkbnr/ppp1pppp/3p4/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R b KQkq - 1 4",
+            "is_owner_move": true,
+            "loss": 0.381116810729571,
+            "move_uci": "c1f4",
+            "mover": "white",
+            "ply": 7,
+            "san": "Bf4",
+            "source_fen": "r1bqkbnr/ppp1pppp/3p4/4n3/3P4/8/PPP1PPPP/RNBQKB1R w KQkq - 0 4",
+            "white_probability": 0.0656950269019374
+          },
+          {
+            "after_probability": 0.44135784741538037,
+            "band": null,
+            "before_probability": 0.9343049730980626,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R w KQkq - 2 5",
+            "is_owner_move": false,
+            "loss": 0.3756628205134429,
+            "move_uci": "g8f6",
+            "mover": "black",
+            "ply": 8,
+            "san": "Nf6",
+            "source_fen": "r1bqkbnr/ppp1pppp/3p4/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R b KQkq - 1 4",
+            "white_probability": 0.44135784741538037
+          },
+          {
+            "after_probability": 0.9481009805883831,
+            "band": "blunder",
+            "before_probability": 0.44135784741538037,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/4P3/PPP2PPP/RN1QKB1R b KQkq - 0 5",
+            "is_owner_move": true,
+            "loss": 0.38945882800376347,
+            "move_uci": "e2e3",
+            "mover": "white",
+            "ply": 9,
+            "san": "e3",
+            "source_fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R w KQkq - 2 5",
+            "white_probability": 0.0518990194116169
+          },
+          {
+            "after_probability": 0.4322998523826144,
+            "band": null,
+            "before_probability": 0.9481009805883831,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3P1B2/4P3/PPP2PPP/RN1QKB1R w KQkq - 0 6",
+            "is_owner_move": false,
+            "loss": 0.3804008329709976,
+            "move_uci": "g7g6",
+            "mover": "black",
+            "ply": 10,
+            "san": "g6",
+            "source_fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/4P3/PPP2PPP/RN1QKB1R b KQkq - 0 5",
+            "white_probability": 0.4322998523826144
+          },
+          {
+            "after_probability": 0.9378298153116633,
+            "band": "blunder",
+            "before_probability": 0.4322998523826144,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1QK2R b KQkq - 1 6",
+            "is_owner_move": true,
+            "loss": 0.37012966769427774,
+            "move_uci": "f1e2",
+            "mover": "white",
+            "ply": 11,
+            "san": "Be2",
+            "source_fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3P1B2/4P3/PPP2PPP/RN1QKB1R w KQkq - 0 6",
+            "white_probability": 0.06217018468833668
+          },
+          {
+            "after_probability": 0.4098644115408538,
+            "band": null,
+            "before_probability": 0.9378298153116633,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1QK2R w KQkq - 2 7",
+            "is_owner_move": false,
+            "loss": 0.34769422685251716,
+            "move_uci": "f8g7",
+            "mover": "black",
+            "ply": 12,
+            "san": "Bg7",
+            "source_fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1QK2R b KQkq - 1 6",
+            "white_probability": 0.4098644115408538
+          },
+          {
+            "after_probability": 0.9481009805883831,
+            "band": "blunder",
+            "before_probability": 0.4098644115408538,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1Q1RK1 b kq - 3 7",
+            "is_owner_move": true,
+            "loss": 0.3579653921292369,
+            "move_uci": "e1g1",
+            "mover": "white",
+            "ply": 13,
+            "san": "O-O",
+            "source_fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1QK2R w KQkq - 2 7",
+            "white_probability": 0.0518990194116169
+          },
+          {
+            "after_probability": 0.4232868990440539,
+            "band": null,
+            "before_probability": 0.9481009805883831,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bq1rk1/ppp1ppbp/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1Q1RK1 w - - 4 8",
+            "is_owner_move": false,
+            "loss": 0.371387879632437,
+            "move_uci": "e8g8",
+            "mover": "black",
+            "ply": 14,
+            "san": "O-O",
+            "source_fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1Q1RK1 b kq - 3 7",
+            "white_probability": 0.4232868990440539
+          }
+        ],
+        "nodes": 10000,
+        "owner_color": "white",
+        "scored_moves": 7,
+        "session_id": "fe92d610-ec75-489e-8095-85e7c53ef84b",
+        "total_owner_moves": 7
+      }
+    },
+    {
+      "analysis": {
+        "status": "completed"
+      },
+      "id": "d58fdeb8-3fd6-40ea-8b30-58ef47e602bd",
+      "pgn": "[Event \"Scan64 CLI Fixture\"]\n[Site \"?\"]\n[Date \"2026.07.13\"]\n[Round \"2\"]\n[White \"FixturePlayerB\"]\n[Black \"FixtureOpponentB\"]\n[Result \"*\"]\n\n1. Nf3 Nc6 2. e4 Nf6 3. Ne5 Nxe5 4. Nc3 d6 5. d4 g6 6. Be3 Bg7 7. Be2 O-O *\n",
+      "review": {
+        "accuracy": 82.58409222369849,
+        "backfill_required": false,
+        "band_counts": {
+          "blunder": 3,
+          "inaccuracy": 0,
+          "mistake": 0,
+          "sound": 4,
+          "unscored": 0
+        },
+        "game_id": "d58fdeb8-3fd6-40ea-8b30-58ef47e602bd",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "initial_white_probability": 0.5257517538936253,
+        "key_moments": [
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 1.0,
+                "evidence_refs": [
+                  "ev_714c5dca-1792-4413-b243-2e9d2f983059"
+                ],
+                "primary": "board_awareness.hanging_piece",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "After Ne5, your knight on e5 is left hanging: the opponent's principal line wins it net of exchanges. Before moving, check the opponent's captures and the full exchange sequence.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. e5",
+                    "origin": "e4",
+                    "target": "e5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "e5: engine line",
+                    "moves": [
+                      "e4e5",
+                      "f6g8"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "e4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. e5: Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. e5",
+                      "origin": "e4",
+                      "target": "e5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "e5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "c72574c0-37d8-403a-80e0-50424b461871",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqkb1r/pppppppp/2n2n2/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "c72574c0-37d8-403a-80e0-50424b461871",
+            "ply": 5
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_bfd20682-daec-4772-bc7b-59577b59d15d"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played Be3, but the engine's principal line begins with d4e5, capturing the knight on e5.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. dxe5",
+                    "origin": "d4",
+                    "target": "e5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "dxe5: engine line",
+                    "moves": [
+                      "d4e5",
+                      "d6e5",
+                      "f2f3",
+                      "d8d1",
+                      "c3d1",
+                      "h7h5",
+                      "f1c4",
+                      "f6d7",
+                      "a2a4",
+                      "d7b6",
+                      "c4d3",
+                      "c8e6",
+                      "a4a5",
+                      "b6c4",
+                      "d1c3",
+                      "c4d6",
+                      "b2b4"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "d4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. dxe5: Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. dxe5",
+                      "origin": "d4",
+                      "target": "e5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "dxe5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "46da1c4e-ceb0-4f23-a99e-bd409ec4df34",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3PP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "46da1c4e-ceb0-4f23-a99e-bd409ec4df34",
+            "ply": 11
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_3b1caef8-b448-496d-88c4-2e94c8419b9f"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played Be2, but the engine's principal line begins with d4e5, capturing the knight on e5.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. dxe5",
+                    "origin": "d4",
+                    "target": "e5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "e5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "dxe5: engine line",
+                    "moves": [
+                      "d4e5",
+                      "f6g4",
+                      "e3d4",
+                      "g7e5",
+                      "d4e5",
+                      "g4e5",
+                      "f2f4",
+                      "e5c6",
+                      "f1b5",
+                      "c8d7",
+                      "b5c6",
+                      "d7c6",
+                      "d1d4",
+                      "e8g8",
+                      "d4e3",
+                      "e7e5",
+                      "f4f5",
+                      "d8h4",
+                      "g2g3",
+                      "h4g4",
+                      "f5f6"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "What can you notice about the opposing king's safety?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "e8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for centre with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "d4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. dxe5: Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. dxe5",
+                      "origin": "d4",
+                      "target": "e5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "e5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "dxe5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "1d8cded8-1af5-4ef7-8f0b-35519d988d8e",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 2 7",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "1d8cded8-1af5-4ef7-8f0b-35519d988d8e",
+            "ply": 13
+          }
+        ],
+        "moves": [
+          {
+            "after_probability": 0.48895555679024805,
+            "band": "sound",
+            "before_probability": 0.5257517538936253,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+            "is_owner_move": true,
+            "loss": 0.01470731068387332,
+            "move_uci": "g1f3",
+            "mover": "white",
+            "ply": 1,
+            "san": "Nf3",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "white_probability": 0.511044443209752
+          },
+          {
+            "after_probability": 0.5550076484124536,
+            "band": null,
+            "before_probability": 0.48895555679024805,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2",
+            "is_owner_move": false,
+            "loss": 0.043963205202701694,
+            "move_uci": "b8c6",
+            "mover": "black",
+            "ply": 2,
+            "san": "Nc6",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+            "white_probability": 0.5550076484124536
+          },
+          {
+            "after_probability": 0.46416128552924907,
+            "band": "sound",
+            "before_probability": 0.5550076484124536,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkbnr/pppppppp/2n5/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 0 2",
+            "is_owner_move": true,
+            "loss": 0.019168933941702715,
+            "move_uci": "e2e4",
+            "mover": "white",
+            "ply": 3,
+            "san": "e4",
+            "source_fen": "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2",
+            "white_probability": 0.5358387144707509
+          },
+          {
+            "after_probability": 0.5794073444653803,
+            "band": null,
+            "before_probability": 0.46416128552924907,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/pppppppp/2n2n2/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3",
+            "is_owner_move": false,
+            "loss": 0.043568629994629404,
+            "move_uci": "g8f6",
+            "mover": "black",
+            "ply": 4,
+            "san": "Nf6",
+            "source_fen": "r1bqkbnr/pppppppp/2n5/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 0 2",
+            "white_probability": 0.5794073444653803
+          },
+          {
+            "after_probability": 0.8555047041895522,
+            "band": "blunder",
+            "before_probability": 0.5794073444653803,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/pppppppp/2n2n2/4N3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 2 3",
+            "is_owner_move": true,
+            "loss": 0.4349120486549325,
+            "move_uci": "f3e5",
+            "mover": "white",
+            "ply": 5,
+            "san": "Ne5",
+            "source_fen": "r1bqkb1r/pppppppp/2n2n2/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3",
+            "white_probability": 0.14449529581044784
+          },
+          {
+            "after_probability": 0.12928252385851996,
+            "band": null,
+            "before_probability": 0.8555047041895522,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/pppppppp/5n2/4n3/4P3/8/PPPP1PPP/RNBQKB1R w KQkq - 0 4",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "c6e5",
+            "mover": "black",
+            "ply": 6,
+            "san": "Nxe5",
+            "source_fen": "r1bqkb1r/pppppppp/2n2n2/4N3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 2 3",
+            "white_probability": 0.12928252385851996
+          },
+          {
+            "after_probability": 0.9310692038259631,
+            "band": "sound",
+            "before_probability": 0.12928252385851996,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/pppppppp/5n2/4n3/4P3/2N5/PPPP1PPP/R1BQKB1R b KQkq - 1 4",
+            "is_owner_move": true,
+            "loss": 0.0603517276844831,
+            "move_uci": "b1c3",
+            "mover": "white",
+            "ply": 7,
+            "san": "Nc3",
+            "source_fen": "r1bqkb1r/pppppppp/5n2/4n3/4P3/8/PPPP1PPP/RNBQKB1R w KQkq - 0 4",
+            "white_probability": 0.06893079617403686
+          },
+          {
+            "after_probability": 0.08683957548832152,
+            "band": null,
+            "before_probability": 0.9310692038259631,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/4P3/2N5/PPPP1PPP/R1BQKB1R w KQkq - 0 5",
+            "is_owner_move": false,
+            "loss": 0.017908779314284695,
+            "move_uci": "d7d6",
+            "mover": "black",
+            "ply": 8,
+            "san": "d6",
+            "source_fen": "r1bqkb1r/pppppppp/5n2/4n3/4P3/2N5/PPPP1PPP/R1BQKB1R b KQkq - 1 4",
+            "white_probability": 0.08683957548832152
+          },
+          {
+            "after_probability": 0.8977459941661641,
+            "band": "sound",
+            "before_probability": 0.08683957548832152,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3PP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 0 5",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "d2d4",
+            "mover": "white",
+            "ply": 9,
+            "san": "d4",
+            "source_fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/4P3/2N5/PPPP1PPP/R1BQKB1R w KQkq - 0 5",
+            "white_probability": 0.10225400583383593
+          },
+          {
+            "after_probability": 0.4559296988800415,
+            "band": null,
+            "before_probability": 0.8977459941661641,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3PP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6",
+            "is_owner_move": false,
+            "loss": 0.3536756930462055,
+            "move_uci": "g7g6",
+            "mover": "black",
+            "ply": 10,
+            "san": "g6",
+            "source_fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3PP3/2N5/PPP2PPP/R1BQKB1R b KQkq - 0 5",
+            "white_probability": 0.4559296988800415
+          },
+          {
+            "after_probability": 0.8943160689326426,
+            "band": "blunder",
+            "before_probability": 0.4559296988800415,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R b KQkq - 1 6",
+            "is_owner_move": true,
+            "loss": 0.3502457678126841,
+            "move_uci": "c1e3",
+            "mover": "white",
+            "ply": 11,
+            "san": "Be3",
+            "source_fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3PP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6",
+            "white_probability": 0.1056839310673574
+          },
+          {
+            "after_probability": 0.4468118376315084,
+            "band": null,
+            "before_probability": 0.8943160689326426,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 2 7",
+            "is_owner_move": false,
+            "loss": 0.34112790656415104,
+            "move_uci": "f8g7",
+            "mover": "black",
+            "ply": 12,
+            "san": "Bg7",
+            "source_fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R b KQkq - 1 6",
+            "white_probability": 0.4468118376315084
+          },
+          {
+            "after_probability": 0.8929159179319219,
+            "band": "blunder",
+            "before_probability": 0.4468118376315084,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP1BPPP/R2QK2R b KQkq - 3 7",
+            "is_owner_move": true,
+            "loss": 0.3397277555634303,
+            "move_uci": "f1e2",
+            "mover": "white",
+            "ply": 13,
+            "san": "Be2",
+            "source_fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 2 7",
+            "white_probability": 0.10708408206807807
+          },
+          {
+            "after_probability": 0.4705773918729125,
+            "band": null,
+            "before_probability": 0.8929159179319219,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r1bq1rk1/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP1BPPP/R2QK2R w KQ - 4 8",
+            "is_owner_move": false,
+            "loss": 0.3634933098048344,
+            "move_uci": "e8g8",
+            "mover": "black",
+            "ply": 14,
+            "san": "O-O",
+            "source_fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP1BPPP/R2QK2R b KQkq - 3 7",
+            "white_probability": 0.4705773918729125
+          }
+        ],
+        "nodes": 10000,
+        "owner_color": "white",
+        "scored_moves": 7,
+        "session_id": "2e7895bd-d777-4d4e-aef4-ace8bd4ce0f4",
+        "total_owner_moves": 7
+      }
+    },
+    {
+      "analysis": {
+        "status": "completed"
+      },
+      "id": "d0522627-b590-481e-a296-92a2dd6a01ca",
+      "pgn": "[Event \"Reference amateur game\"]\n[White \"Reference Player\"]\n[Black \"Sparring Bot\"]\n[Result \"*\"]\n\n1. c4 Nf6 2. f4 d5 3. a3 dxc4 4. d3 Qd4 5. e3 a6 6. Qh5 Qa7 7. Qh4 b6 8. Qg3 g5 9. Kd1 Be6 10. Nc3 Nc6 11. Qf3 Nh5 12. Ke1 Qb7 13. Qg4 Bxg4 14. fxg5 O-O-O 15. dxc4 Bd7 16. Be2 Bh3 17. g3 Qa7 18. Bf3 Rd3 19. Be4 Ne5 20. g6 hxg6 21. Na2 Be6 22. Ke2 Rxe3+ 23. Kd1 Re1+ 24. Kxe1 Bxc4 25. Nc3 f5 26. Nb5 axb5 27. Bxf5+ gxf5 28. Bd2 Nd3+ 29. Ke2 Nxg3+ 30. Kf3 Qb7+ 31. Kxg3 f4+ 32. Bxf4 Rh3+ 33. Kxh3 Nxf4+ 34. Kg4 Qg2+ 35. Kf5 Qg6+ *\n",
+      "review": {
+        "accuracy": 90.37527508619708,
+        "backfill_required": false,
+        "band_counts": {
+          "blunder": 4,
+          "inaccuracy": 2,
+          "mistake": 2,
+          "sound": 27,
+          "unscored": 0
+        },
+        "game_id": "d0522627-b590-481e-a296-92a2dd6a01ca",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "initial_white_probability": 0.5257517538936253,
+        "key_moments": [
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 1.0,
+                "evidence_refs": [
+                  "ev_09126621-7983-405b-8498-6a40f0ab67da"
+                ],
+                "primary": "board_awareness.hanging_piece",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "After Qg4, your queen on g4 is left hanging: the opponent's principal line wins it net of exchanges. Before moving, check the opponent's captures and the full exchange sequence.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. Qxh5",
+                    "origin": "f3",
+                    "target": "h5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "Qxh5: engine line",
+                    "moves": [
+                      "f3h5",
+                      "c4d3",
+                      "f1d3",
+                      "e8c8",
+                      "h5e2",
+                      "d8d3",
+                      "e2d3",
+                      "c6a5",
+                      "g1f3",
+                      "f8g7",
+                      "c1d2",
+                      "a5b3",
+                      "a1d1",
+                      "b3c5",
+                      "d3e2",
+                      "b6b5",
+                      "d2c1",
+                      "e6c4",
+                      "e2c2",
+                      "e7e6",
+                      "d1d2",
+                      "h8e8"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "How is the highlighted knight defended?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "c6"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for engine preference with your queen.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your queen.",
+                      "square": "f3"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. Qxh5: engine preference",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. Qxh5",
+                      "origin": "f3",
+                      "target": "h5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "Qxh5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "d5680444-01bf-4132-9330-f86abf8f54f8",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "r3kb1r/1qp1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR w kq - 8 13",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "d5680444-01bf-4132-9330-f86abf8f54f8",
+            "ply": 25
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_e0b5ba97-fc29-46e9-a918-a934ce68fb77"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played Qh5, but the engine's principal line begins with e3d4, capturing the queen on d4.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. exd4",
+                    "origin": "e3",
+                    "target": "d4"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Moves the attacked pawn out of capture.",
+                    "square": "e3"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Moves the attacked pawn out of capture.",
+                    "square": "d4"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Occupies a centre square.",
+                    "square": "d4"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "exd4: engine line",
+                    "moves": [
+                      "e3d4",
+                      "c8f5",
+                      "h2h3",
+                      "b8c6",
+                      "g2g4",
+                      "f5d7",
+                      "g4g5",
+                      "c6d4",
+                      "g5f6",
+                      "d4b3",
+                      "f6g7",
+                      "f8g7",
+                      "d3c4",
+                      "e8c8",
+                      "d1b3"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "How is the highlighted pawn defended?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "c4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for rescue with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "e3"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. exd4: Tactical: Moves the attacked pawn out of capture. Principle: Occupies a centre square.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. exd4",
+                      "origin": "e3",
+                      "target": "d4"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Moves the attacked pawn out of capture.",
+                      "square": "e3"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Moves the attacked pawn out of capture.",
+                      "square": "d4"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Occupies a centre square.",
+                      "square": "d4"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "exd4"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "746f157a-682c-4116-b8ae-8e783e37087c",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "rnb1kb1r/1pp1pppp/p4n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR w KQkq - 0 6",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "746f157a-682c-4116-b8ae-8e783e37087c",
+            "ply": 11
+          },
+          {
+            "attempts_remaining": 3,
+            "attempts_used": 0,
+            "lesson": {
+              "diagnosis": {
+                "confidence": 0.8,
+                "evidence_refs": [
+                  "ev_f4a466d5-8c42-4ce0-bbe5-0bde1bfa5cf5"
+                ],
+                "primary": "threat_processing.missed_capture",
+                "secondary": []
+              },
+              "explanation": {
+                "claims": [],
+                "text": "You played Kd1, but the engine's principal line begins with f4g5, capturing the pawn on g5.",
+                "visualizations": [
+                  {
+                    "command": "draw_arrow",
+                    "description": "1. fxg5",
+                    "origin": "f4",
+                    "target": "g5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Captures an undefended pawn; the line keeps the material gain.",
+                    "square": "g5"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Moves the attacked pawn out of capture.",
+                    "square": "f4"
+                  },
+                  {
+                    "command": "highlight_square",
+                    "description": "Moves the attacked pawn out of capture.",
+                    "square": "g5"
+                  },
+                  {
+                    "command": "animate_line",
+                    "description": "fxg5: engine line",
+                    "moves": [
+                      "f4g5",
+                      "f6d7"
+                    ]
+                  }
+                ]
+              },
+              "hints": [
+                {
+                  "kind": "nudge",
+                  "level": 1,
+                  "squares": [],
+                  "text": "How is the highlighted pawn defended?",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Inspect this square.",
+                      "square": "c4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "idea",
+                  "level": 2,
+                  "squares": [],
+                  "text": "Look for free capture with your pawn.",
+                  "visualizations": [
+                    {
+                      "command": "highlight_square",
+                      "description": "Consider your pawn.",
+                      "square": "f4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "moves",
+                  "level": 3,
+                  "squares": [],
+                  "text": "1. fxg5: Tactical: Captures an undefended pawn; the line keeps the material gain. Tactical: Moves the attacked pawn out of capture.",
+                  "visualizations": [
+                    {
+                      "command": "draw_arrow",
+                      "description": "1. fxg5",
+                      "origin": "f4",
+                      "target": "g5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Captures an undefended pawn; the line keeps the material gain.",
+                      "square": "g5"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Moves the attacked pawn out of capture.",
+                      "square": "f4"
+                    },
+                    {
+                      "command": "highlight_square",
+                      "description": "Moves the attacked pawn out of capture.",
+                      "square": "g5"
+                    }
+                  ]
+                }
+              ],
+              "interaction": {
+                "accepted_moves": [
+                  {
+                    "lan": null,
+                    "reason": "Within the engine soundness tolerance",
+                    "san": "fxg5"
+                  }
+                ],
+                "input": "move",
+                "maximum_attempts": 3,
+                "solution": []
+              },
+              "lesson_id": "af4d50e7-6d70-43b2-a1ba-44c9a9751732",
+              "mastery": null,
+              "objective": {
+                "instruction": "Find a sound move.",
+                "type": "exact_replay"
+              },
+              "schema_version": "0.2.0",
+              "source": {
+                "fen": "rnb1kb1r/q1p1pp1p/pp3n2/6p1/2p2P2/P2PP1Q1/1P4PP/RNB1KBNR w KQkq - 0 9",
+                "kind": "player_game"
+              },
+              "verification": {
+                "engine": "stockfish",
+                "engine_binary_digest": null,
+                "multipv": null,
+                "nodes": null,
+                "status": "verified",
+                "verified_at": null
+              }
+            },
+            "lesson_id": "af4d50e7-6d70-43b2-a1ba-44c9a9751732",
+            "ply": 17
+          }
+        ],
+        "moves": [
+          {
+            "after_probability": 0.48803552438333736,
+            "band": "sound",
+            "before_probability": 0.5257517538936253,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+            "is_owner_move": true,
+            "loss": 0.013787278276962689,
+            "move_uci": "c2c4",
+            "mover": "white",
+            "ply": 1,
+            "san": "c4",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "white_probability": 0.5119644756166626
+          },
+          {
+            "after_probability": 0.5156437324214209,
+            "band": null,
+            "before_probability": 0.48803552438333736,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnbqkb1r/pppppppp/5n2/8/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 1 2",
+            "is_owner_move": false,
+            "loss": 0.0036792568047582797,
+            "move_uci": "g8f6",
+            "mover": "black",
+            "ply": 2,
+            "san": "Nf6",
+            "source_fen": "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+            "white_probability": 0.5156437324214209
+          },
+          {
+            "after_probability": 0.5229967635676993,
+            "band": "sound",
+            "before_probability": 0.5156437324214209,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkb1r/pppppppp/5n2/8/2P2P2/8/PP1PP1PP/RNBQKBNR b KQkq - 0 2",
+            "is_owner_move": true,
+            "loss": 0.03864049598912023,
+            "move_uci": "f2f4",
+            "mover": "white",
+            "ply": 3,
+            "san": "f4",
+            "source_fen": "rnbqkb1r/pppppppp/5n2/8/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 1 2",
+            "white_probability": 0.4770032364323007
+          },
+          {
+            "after_probability": 0.49631798655933523,
+            "band": null,
+            "before_probability": 0.5229967635676993,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnbqkb1r/ppp1pppp/5n2/3p4/2P2P2/8/PP1PP1PP/RNBQKBNR w KQkq - 0 3",
+            "is_owner_move": false,
+            "loss": 0.01931475012703454,
+            "move_uci": "d7d5",
+            "mover": "black",
+            "ply": 4,
+            "san": "d5",
+            "source_fen": "rnbqkb1r/pppppppp/5n2/8/2P2P2/8/PP1PP1PP/RNBQKBNR b KQkq - 0 2",
+            "white_probability": 0.49631798655933523
+          },
+          {
+            "after_probability": 0.5613639348680176,
+            "band": "sound",
+            "before_probability": 0.49631798655933523,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkb1r/ppp1pppp/5n2/3p4/2P2P2/P7/1P1PP1PP/RNBQKBNR b KQkq - 0 3",
+            "is_owner_move": true,
+            "loss": 0.057681921427352845,
+            "move_uci": "a2a3",
+            "mover": "white",
+            "ply": 5,
+            "san": "a3",
+            "source_fen": "rnbqkb1r/ppp1pppp/5n2/3p4/2P2P2/8/PP1PP1PP/RNBQKBNR w KQkq - 0 3",
+            "white_probability": 0.4386360651319824
+          },
+          {
+            "after_probability": 0.4304934733529298,
+            "band": null,
+            "before_probability": 0.5613639348680176,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnbqkb1r/ppp1pppp/5n2/8/2p2P2/P7/1P1PP1PP/RNBQKBNR w KQkq - 0 4",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "d5c4",
+            "mover": "black",
+            "ply": 6,
+            "san": "dxc4",
+            "source_fen": "rnbqkb1r/ppp1pppp/5n2/3p4/2P2P2/P7/1P1PP1PP/RNBQKBNR b KQkq - 0 3",
+            "white_probability": 0.4304934733529298
+          },
+          {
+            "after_probability": 0.711382833072352,
+            "band": "inaccuracy",
+            "before_probability": 0.4304934733529298,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnbqkb1r/ppp1pppp/5n2/8/2p2P2/P2P4/1P2P1PP/RNBQKBNR b KQkq - 0 4",
+            "is_owner_move": true,
+            "loss": 0.14187630642528176,
+            "move_uci": "d2d3",
+            "mover": "white",
+            "ply": 7,
+            "san": "d3",
+            "source_fen": "rnbqkb1r/ppp1pppp/5n2/8/2p2P2/P7/1P1PP1PP/RNBQKBNR w KQkq - 0 4",
+            "white_probability": 0.28861716692764805
+          },
+          {
+            "after_probability": 0.48343670268785593,
+            "band": null,
+            "before_probability": 0.711382833072352,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnb1kb1r/ppp1pppp/5n2/8/2pq1P2/P2P4/1P2P1PP/RNBQKBNR w KQkq - 1 5",
+            "is_owner_move": false,
+            "loss": 0.19481953576020783,
+            "move_uci": "d8d4",
+            "mover": "black",
+            "ply": 8,
+            "san": "Qd4",
+            "source_fen": "rnbqkb1r/ppp1pppp/5n2/8/2p2P2/P2P4/1P2P1PP/RNBQKBNR b KQkq - 0 4",
+            "white_probability": 0.48343670268785593
+          },
+          {
+            "after_probability": 0.5275875538925041,
+            "band": "sound",
+            "before_probability": 0.48343670268785593,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnb1kb1r/ppp1pppp/5n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR b KQkq - 0 5",
+            "is_owner_move": true,
+            "loss": 0.011024256580360048,
+            "move_uci": "e2e3",
+            "mover": "white",
+            "ply": 9,
+            "san": "e3",
+            "source_fen": "rnb1kb1r/ppp1pppp/5n2/8/2pq1P2/P2P4/1P2P1PP/RNBQKBNR w KQkq - 1 5",
+            "white_probability": 0.4724124461074959
+          },
+          {
+            "after_probability": 0.9556743931791771,
+            "band": null,
+            "before_probability": 0.5275875538925041,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnb1kb1r/1pp1pppp/p4n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR w KQkq - 0 6",
+            "is_owner_move": false,
+            "loss": 0.48326194707168124,
+            "move_uci": "a7a6",
+            "mover": "black",
+            "ply": 10,
+            "san": "a6",
+            "source_fen": "rnb1kb1r/ppp1pppp/5n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR b KQkq - 0 5",
+            "white_probability": 0.9556743931791771
+          },
+          {
+            "after_probability": 0.7091095639886315,
+            "band": "blunder",
+            "before_probability": 0.9556743931791771,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnb1kb1r/1pp1pppp/p4n2/7Q/2pq1P2/P2PP3/1P4PP/RNB1KBNR b KQkq - 1 6",
+            "is_owner_move": true,
+            "loss": 0.6647839571678086,
+            "move_uci": "d1h5",
+            "mover": "white",
+            "ply": 11,
+            "san": "Qh5",
+            "source_fen": "rnb1kb1r/1pp1pppp/p4n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR w KQkq - 0 6",
+            "white_probability": 0.29089043601136855
+          },
+          {
+            "after_probability": 0.3102370382643316,
+            "band": null,
+            "before_probability": 0.7091095639886315,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnb1kb1r/qpp1pppp/p4n2/7Q/2p2P2/P2PP3/1P4PP/RNB1KBNR w KQkq - 2 7",
+            "is_owner_move": false,
+            "loss": 0.01934660225296303,
+            "move_uci": "d4a7",
+            "mover": "black",
+            "ply": 12,
+            "san": "Qa7",
+            "source_fen": "rnb1kb1r/1pp1pppp/p4n2/7Q/2pq1P2/P2PP3/1P4PP/RNB1KBNR b KQkq - 1 6",
+            "white_probability": 0.3102370382643316
+          },
+          {
+            "after_probability": 0.7342422977111448,
+            "band": "sound",
+            "before_probability": 0.3102370382643316,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnb1kb1r/qpp1pppp/p4n2/8/2p2P1Q/P2PP3/1P4PP/RNB1KBNR b KQkq - 3 7",
+            "is_owner_move": true,
+            "loss": 0.044479335975476375,
+            "move_uci": "h5h4",
+            "mover": "white",
+            "ply": 13,
+            "san": "Qh4",
+            "source_fen": "rnb1kb1r/qpp1pppp/p4n2/7Q/2p2P2/P2PP3/1P4PP/RNB1KBNR w KQkq - 2 7",
+            "white_probability": 0.2657577022888552
+          },
+          {
+            "after_probability": 0.4605001214877426,
+            "band": null,
+            "before_probability": 0.7342422977111448,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnb1kb1r/q1p1pppp/pp3n2/8/2p2P1Q/P2PP3/1P4PP/RNB1KBNR w KQkq - 0 8",
+            "is_owner_move": false,
+            "loss": 0.19474241919888746,
+            "move_uci": "b7b6",
+            "mover": "black",
+            "ply": 14,
+            "san": "b6",
+            "source_fen": "rnb1kb1r/qpp1pppp/p4n2/8/2p2P1Q/P2PP3/1P4PP/RNB1KBNR b KQkq - 3 7",
+            "white_probability": 0.4605001214877426
+          },
+          {
+            "after_probability": 0.6786254827184693,
+            "band": "inaccuracy",
+            "before_probability": 0.4605001214877426,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnb1kb1r/q1p1pppp/pp3n2/8/2p2P2/P2PP1Q1/1P4PP/RNB1KBNR b KQkq - 1 8",
+            "is_owner_move": true,
+            "loss": 0.13912560420621195,
+            "move_uci": "h4g3",
+            "mover": "white",
+            "ply": 15,
+            "san": "Qg3",
+            "source_fen": "rnb1kb1r/q1p1pppp/pp3n2/8/2p2P1Q/P2PP3/1P4PP/RNB1KBNR w KQkq - 0 8",
+            "white_probability": 0.32137451728153066
+          },
+          {
+            "after_probability": 0.5945811119487451,
+            "band": null,
+            "before_probability": 0.6786254827184693,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rnb1kb1r/q1p1pp1p/pp3n2/6p1/2p2P2/P2PP1Q1/1P4PP/RNB1KBNR w KQkq - 0 9",
+            "is_owner_move": false,
+            "loss": 0.2732065946672144,
+            "move_uci": "g7g5",
+            "mover": "black",
+            "ply": 16,
+            "san": "g5",
+            "source_fen": "rnb1kb1r/q1p1pppp/pp3n2/8/2p2P2/P2PP1Q1/1P4PP/RNB1KBNR b KQkq - 1 8",
+            "white_probability": 0.5945811119487451
+          },
+          {
+            "after_probability": 0.8327699299217048,
+            "band": "blunder",
+            "before_probability": 0.5945811119487451,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rnb1kb1r/q1p1pp1p/pp3n2/6p1/2p2P2/P2PP1Q1/1P4PP/RNBK1BNR b kq - 1 9",
+            "is_owner_move": true,
+            "loss": 0.4273510418704499,
+            "move_uci": "e1d1",
+            "mover": "white",
+            "ply": 17,
+            "san": "Kd1",
+            "source_fen": "rnb1kb1r/q1p1pp1p/pp3n2/6p1/2p2P2/P2PP1Q1/1P4PP/RNB1KBNR w KQkq - 0 9",
+            "white_probability": 0.16723007007829516
+          },
+          {
+            "after_probability": 0.4322998523826144,
+            "band": null,
+            "before_probability": 0.8327699299217048,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "rn2kb1r/q1p1pp1p/pp2bn2/6p1/2p2P2/P2PP1Q1/1P4PP/RNBK1BNR w kq - 2 10",
+            "is_owner_move": false,
+            "loss": 0.2650697823043193,
+            "move_uci": "c8e6",
+            "mover": "black",
+            "ply": 18,
+            "san": "Be6",
+            "source_fen": "rnb1kb1r/q1p1pp1p/pp3n2/6p1/2p2P2/P2PP1Q1/1P4PP/RNBK1BNR b kq - 1 9",
+            "white_probability": 0.4322998523826144
+          },
+          {
+            "after_probability": 0.7864161013518403,
+            "band": "mistake",
+            "before_probability": 0.4322998523826144,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "rn2kb1r/q1p1pp1p/pp2bn2/6p1/2p2P2/P1NPP1Q1/1P4PP/R1BK1BNR b kq - 3 10",
+            "is_owner_move": true,
+            "loss": 0.21871595373445468,
+            "move_uci": "b1c3",
+            "mover": "white",
+            "ply": 19,
+            "san": "Nc3",
+            "source_fen": "rn2kb1r/q1p1pp1p/pp2bn2/6p1/2p2P2/P2PP1Q1/1P4PP/RNBK1BNR w kq - 2 10",
+            "white_probability": 0.21358389864815974
+          },
+          {
+            "after_probability": 0.4179031343602754,
+            "band": null,
+            "before_probability": 0.7864161013518403,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r3kb1r/q1p1pp1p/ppn1bn2/6p1/2p2P2/P1NPP1Q1/1P4PP/R1BK1BNR w kq - 4 11",
+            "is_owner_move": false,
+            "loss": 0.20431923571211563,
+            "move_uci": "b8c6",
+            "mover": "black",
+            "ply": 20,
+            "san": "Nc6",
+            "source_fen": "rn2kb1r/q1p1pp1p/pp2bn2/6p1/2p2P2/P1NPP1Q1/1P4PP/R1BK1BNR b kq - 3 10",
+            "white_probability": 0.4179031343602754
+          },
+          {
+            "after_probability": 0.9545696471055869,
+            "band": "blunder",
+            "before_probability": 0.4179031343602754,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r3kb1r/q1p1pp1p/ppn1bn2/6p1/2p2P2/P1NPPQ2/1P4PP/R1BK1BNR b kq - 5 11",
+            "is_owner_move": true,
+            "loss": 0.37247278146586227,
+            "move_uci": "g3f3",
+            "mover": "white",
+            "ply": 21,
+            "san": "Qf3",
+            "source_fen": "r3kb1r/q1p1pp1p/ppn1bn2/6p1/2p2P2/P1NPP1Q1/1P4PP/R1BK1BNR w kq - 4 11",
+            "white_probability": 0.045430352894413106
+          },
+          {
+            "after_probability": 0.8779967148318241,
+            "band": null,
+            "before_probability": 0.9545696471055869,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r3kb1r/q1p1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1BK1BNR w kq - 6 12",
+            "is_owner_move": false,
+            "loss": 0.832566361937411,
+            "move_uci": "f6h5",
+            "mover": "black",
+            "ply": 22,
+            "san": "Nh5",
+            "source_fen": "r3kb1r/q1p1pp1p/ppn1bn2/6p1/2p2P2/P1NPPQ2/1P4PP/R1BK1BNR b kq - 5 11",
+            "white_probability": 0.8779967148318241
+          },
+          {
+            "after_probability": 0.28560262776338907,
+            "band": "mistake",
+            "before_probability": 0.8779967148318241,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r3kb1r/q1p1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR b kq - 7 12",
+            "is_owner_move": true,
+            "loss": 0.16359934259521314,
+            "move_uci": "d1e1",
+            "mover": "white",
+            "ply": 23,
+            "san": "Ke1",
+            "source_fen": "r3kb1r/q1p1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1BK1BNR w kq - 6 12",
+            "white_probability": 0.7143973722366109
+          },
+          {
+            "after_probability": 0.7724945149239734,
+            "band": null,
+            "before_probability": 0.28560262776338907,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r3kb1r/1qp1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR w kq - 8 13",
+            "is_owner_move": false,
+            "loss": 0.058097142687362435,
+            "move_uci": "a7b7",
+            "mover": "black",
+            "ply": 24,
+            "san": "Qb7",
+            "source_fen": "r3kb1r/q1p1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR b kq - 7 12",
+            "white_probability": 0.7724945149239734
+          },
+          {
+            "after_probability": 0.9668430965337977,
+            "band": "blunder",
+            "before_probability": 0.7724945149239734,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r3kb1r/1qp1pp1p/ppn1b3/6pn/2p2PQ1/P1NPP3/1P4PP/R1B1KBNR b kq - 9 13",
+            "is_owner_move": true,
+            "loss": 0.7393376114577711,
+            "move_uci": "f3g4",
+            "mover": "white",
+            "ply": 25,
+            "san": "Qg4",
+            "source_fen": "r3kb1r/1qp1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR w kq - 8 13",
+            "white_probability": 0.03315690346620226
+          },
+          {
+            "after_probability": 0.0411631143451502,
+            "band": null,
+            "before_probability": 0.9668430965337977,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "r3kb1r/1qp1pp1p/ppn5/6pn/2p2Pb1/P1NPP3/1P4PP/R1B1KBNR w kq - 0 14",
+            "is_owner_move": false,
+            "loss": 0.008006210878947928,
+            "move_uci": "e6g4",
+            "mover": "black",
+            "ply": 26,
+            "san": "Bxg4",
+            "source_fen": "r3kb1r/1qp1pp1p/ppn1b3/6pn/2p2PQ1/P1NPP3/1P4PP/R1B1KBNR b kq - 9 13",
+            "white_probability": 0.0411631143451502
+          },
+          {
+            "after_probability": 0.9731436130082863,
+            "band": "sound",
+            "before_probability": 0.0411631143451502,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "r3kb1r/1qp1pp1p/ppn5/6Pn/2p3b1/P1NPP3/1P4PP/R1B1KBNR b kq - 0 14",
+            "is_owner_move": true,
+            "loss": 0.014306727353436535,
+            "move_uci": "f4g5",
+            "mover": "white",
+            "ply": 27,
+            "san": "fxg5",
+            "source_fen": "r3kb1r/1qp1pp1p/ppn5/6pn/2p2Pb1/P1NPP3/1P4PP/R1B1KBNR w kq - 0 14",
+            "white_probability": 0.026856386991713666
+          },
+          {
+            "after_probability": 0.026760322850584172,
+            "band": null,
+            "before_probability": 0.9731436130082863,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2p3b1/P1NPP3/1P4PP/R1B1KBNR w - - 1 15",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "e8c8",
+            "mover": "black",
+            "ply": 28,
+            "san": "O-O-O",
+            "source_fen": "r3kb1r/1qp1pp1p/ppn5/6Pn/2p3b1/P1NPP3/1P4PP/R1B1KBNR b kq - 0 14",
+            "white_probability": 0.026760322850584172
+          },
+          {
+            "after_probability": 0.9673120173052963,
+            "band": "sound",
+            "before_probability": 0.026760322850584172,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P3b1/P1N1P3/1P4PP/R1B1KBNR b - - 0 15",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "d3c4",
+            "mover": "white",
+            "ply": 29,
+            "san": "dxc4",
+            "source_fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2p3b1/P1NPP3/1P4PP/R1B1KBNR w - - 1 15",
+            "white_probability": 0.03268798269470374
+          },
+          {
+            "after_probability": 0.0417483666658727,
+            "band": null,
+            "before_probability": 0.9673120173052963,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2kr1b1r/1qpbpp1p/ppn5/6Pn/2P5/P1N1P3/1P4PP/R1B1KBNR w - - 1 16",
+            "is_owner_move": false,
+            "loss": 0.009060383971168928,
+            "move_uci": "g4d7",
+            "mover": "black",
+            "ply": 30,
+            "san": "Bd7",
+            "source_fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P3b1/P1N1P3/1P4PP/R1B1KBNR b - - 0 15",
+            "white_probability": 0.0417483666658727
+          },
+          {
+            "after_probability": 0.9624537490358613,
+            "band": "sound",
+            "before_probability": 0.0417483666658727,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2kr1b1r/1qpbpp1p/ppn5/6Pn/2P5/P1N1P3/1P2B1PP/R1B1K1NR b - - 2 16",
+            "is_owner_move": true,
+            "loss": 0.004202115701734038,
+            "move_uci": "f1e2",
+            "mover": "white",
+            "ply": 31,
+            "san": "Be2",
+            "source_fen": "2kr1b1r/1qpbpp1p/ppn5/6Pn/2P5/P1N1P3/1P4PP/R1B1KBNR w - - 1 16",
+            "white_probability": 0.03754625096413866
+          },
+          {
+            "after_probability": 0.09010559942406185,
+            "band": null,
+            "before_probability": 0.9624537490358613,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P5/P1N1P2b/1P2B1PP/R1B1K1NR w - - 3 17",
+            "is_owner_move": false,
+            "loss": 0.05255934845992316,
+            "move_uci": "d7h3",
+            "mover": "black",
+            "ply": 32,
+            "san": "Bh3",
+            "source_fen": "2kr1b1r/1qpbpp1p/ppn5/6Pn/2P5/P1N1P3/1P2B1PP/R1B1K1NR b - - 2 16",
+            "white_probability": 0.09010559942406185
+          },
+          {
+            "after_probability": 0.9702073380695649,
+            "band": "sound",
+            "before_probability": 0.09010559942406185,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P5/P1N1P1Pb/1P2B2P/R1B1K1NR b - - 0 17",
+            "is_owner_move": true,
+            "loss": 0.06031293749362679,
+            "move_uci": "g2g3",
+            "mover": "white",
+            "ply": 33,
+            "san": "g3",
+            "source_fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P5/P1N1P2b/1P2B1PP/R1B1K1NR w - - 3 17",
+            "white_probability": 0.02979266193043506
+          },
+          {
+            "after_probability": 0.0708454778291239,
+            "band": null,
+            "before_probability": 0.9702073380695649,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2kr1b1r/q1p1pp1p/ppn5/6Pn/2P5/P1N1P1Pb/1P2B2P/R1B1K1NR w - - 1 18",
+            "is_owner_move": false,
+            "loss": 0.04105281589868881,
+            "move_uci": "b7a7",
+            "mover": "black",
+            "ply": 34,
+            "san": "Qa7",
+            "source_fen": "2kr1b1r/1qp1pp1p/ppn5/6Pn/2P5/P1N1P1Pb/1P2B2P/R1B1K1NR b - - 0 17",
+            "white_probability": 0.0708454778291239
+          },
+          {
+            "after_probability": 0.9653970430199463,
+            "band": "sound",
+            "before_probability": 0.0708454778291239,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2kr1b1r/q1p1pp1p/ppn5/6Pn/2P5/P1N1PBPb/1P5P/R1B1K1NR b - - 2 18",
+            "is_owner_move": true,
+            "loss": 0.03624252084907023,
+            "move_uci": "e2f3",
+            "mover": "white",
+            "ply": 35,
+            "san": "Bf3",
+            "source_fen": "2kr1b1r/q1p1pp1p/ppn5/6Pn/2P5/P1N1P1Pb/1P2B2P/R1B1K1NR w - - 1 18",
+            "white_probability": 0.03460295698005367
+          },
+          {
+            "after_probability": 0.09162643894872473,
+            "band": null,
+            "before_probability": 0.9653970430199463,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp1p/ppn5/6Pn/2P5/P1NrPBPb/1P5P/R1B1K1NR w - - 3 19",
+            "is_owner_move": false,
+            "loss": 0.05702348196867102,
+            "move_uci": "d8d3",
+            "mover": "black",
+            "ply": 36,
+            "san": "Rd3",
+            "source_fen": "2kr1b1r/q1p1pp1p/ppn5/6Pn/2P5/P1N1PBPb/1P5P/R1B1K1NR b - - 2 18",
+            "white_probability": 0.09162643894872473
+          },
+          {
+            "after_probability": 0.9645256237917371,
+            "band": "sound",
+            "before_probability": 0.09162643894872473,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp1p/ppn5/6Pn/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR b - - 4 19",
+            "is_owner_move": true,
+            "loss": 0.05615206274046185,
+            "move_uci": "f3e4",
+            "mover": "white",
+            "ply": 37,
+            "san": "Be4",
+            "source_fen": "2k2b1r/q1p1pp1p/ppn5/6Pn/2P5/P1NrPBPb/1P5P/R1B1K1NR w - - 3 19",
+            "white_probability": 0.03547437620826288
+          },
+          {
+            "after_probability": 0.04029993760307694,
+            "band": null,
+            "before_probability": 0.9645256237917371,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp1p/pp6/4n1Pn/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR w - - 5 20",
+            "is_owner_move": false,
+            "loss": 0.0048255613948140486,
+            "move_uci": "c6e5",
+            "mover": "black",
+            "ply": 38,
+            "san": "Ne5",
+            "source_fen": "2k2b1r/q1p1pp1p/ppn5/6Pn/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR b - - 4 19",
+            "white_probability": 0.04029993760307694
+          },
+          {
+            "after_probability": 0.9619178784411594,
+            "band": "sound",
+            "before_probability": 0.04029993760307694,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp1p/pp4P1/4n2n/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR b - - 0 20",
+            "is_owner_move": true,
+            "loss": 0.0022178160442363273,
+            "move_uci": "g5g6",
+            "mover": "white",
+            "ply": 39,
+            "san": "g6",
+            "source_fen": "2k2b1r/q1p1pp1p/pp6/4n1Pn/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR w - - 5 20",
+            "white_probability": 0.03808212155884061
+          },
+          {
+            "after_probability": 0.03917597798883089,
+            "band": null,
+            "before_probability": 0.9619178784411594,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR w - - 0 21",
+            "is_owner_move": false,
+            "loss": 0.0010938564299902698,
+            "move_uci": "h7g6",
+            "mover": "black",
+            "ply": 40,
+            "san": "hxg6",
+            "source_fen": "2k2b1r/q1p1pp1p/pp4P1/4n2n/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR b - - 0 20",
+            "white_probability": 0.03917597798883089
+          },
+          {
+            "after_probability": 0.9821858090268247,
+            "band": "sound",
+            "before_probability": 0.03917597798883089,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2P1B3/P2rP1Pb/NP5P/R1B1K1NR b - - 1 21",
+            "is_owner_move": true,
+            "loss": 0.021361787015655623,
+            "move_uci": "c3a2",
+            "mover": "white",
+            "ply": 41,
+            "san": "Na2",
+            "source_fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2P1B3/P1NrP1Pb/1P5P/R1B1K1NR w - - 0 21",
+            "white_probability": 0.01781419097317527
+          },
+          {
+            "after_probability": 0.03065600333602665,
+            "band": null,
+            "before_probability": 0.9821858090268247,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P2rP1P1/NP5P/R1B1K1NR w - - 2 22",
+            "is_owner_move": false,
+            "loss": 0.012841812362851424,
+            "move_uci": "h3e6",
+            "mover": "black",
+            "ply": 42,
+            "san": "Be6",
+            "source_fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2P1B3/P2rP1Pb/NP5P/R1B1K1NR b - - 1 21",
+            "white_probability": 0.03065600333602665
+          },
+          {
+            "after_probability": 0.9850827449102997,
+            "band": "sound",
+            "before_probability": 0.03065600333602665,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P2rP1P1/NP2K2P/R1B3NR b - - 3 22",
+            "is_owner_move": true,
+            "loss": 0.015738748246326328,
+            "move_uci": "e1e2",
+            "mover": "white",
+            "ply": 43,
+            "san": "Ke2",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P2rP1P1/NP5P/R1B1K1NR w - - 2 22",
+            "white_probability": 0.014917255089700321
+          },
+          {
+            "after_probability": 0.018073728603073987,
+            "band": null,
+            "before_probability": 0.9850827449102997,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P3r1P1/NP2K2P/R1B3NR w - - 0 23",
+            "is_owner_move": false,
+            "loss": 0.00315647351337367,
+            "move_uci": "d3e3",
+            "mover": "black",
+            "ply": 44,
+            "san": "Rxe3+",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P2rP1P1/NP2K2P/R1B3NR b - - 3 22",
+            "white_probability": 0.018073728603073987
+          },
+          {
+            "after_probability": 0.9969234513882481,
+            "band": "sound",
+            "before_probability": 0.018073728603073987,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P3r1P1/NP5P/R1BK2NR b - - 1 23",
+            "is_owner_move": true,
+            "loss": 0.014997179991322104,
+            "move_uci": "e2d1",
+            "mover": "white",
+            "ply": 45,
+            "san": "Kd1",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P3r1P1/NP2K2P/R1B3NR w - - 0 23",
+            "white_probability": 0.0030765486117518837
+          },
+          {
+            "after_probability": 0.030765610103267716,
+            "band": null,
+            "before_probability": 0.9969234513882481,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P5P1/NP5P/R1BKr1NR w - - 2 24",
+            "is_owner_move": false,
+            "loss": 0.027689061491515843,
+            "move_uci": "e3e1",
+            "mover": "black",
+            "ply": 46,
+            "san": "Re1+",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P3r1P1/NP5P/R1BK2NR b - - 1 23",
+            "white_probability": 0.030765610103267716
+          },
+          {
+            "after_probability": 0.9721643472595091,
+            "band": "sound",
+            "before_probability": 0.030765610103267716,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P5P1/NP5P/R1B1K1NR b - - 0 24",
+            "is_owner_move": true,
+            "loss": 0.0029299573627767812,
+            "move_uci": "d1e1",
+            "mover": "white",
+            "ply": 47,
+            "san": "Kxe1",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P5P1/NP5P/R1BKr1NR w - - 2 24",
+            "white_probability": 0.027835652740490935
+          },
+          {
+            "after_probability": 0.04738544741274593,
+            "band": null,
+            "before_probability": 0.9721643472595091,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2b1B3/P5P1/NP5P/R1B1K1NR w - - 0 25",
+            "is_owner_move": false,
+            "loss": 0.01954979467225504,
+            "move_uci": "e6c4",
+            "mover": "black",
+            "ply": 48,
+            "san": "Bxc4",
+            "source_fen": "2k2b1r/q1p1pp2/pp2b1p1/4n2n/2P1B3/P5P1/NP5P/R1B1K1NR b - - 0 24",
+            "white_probability": 0.04738544741274593
+          },
+          {
+            "after_probability": 0.9753590969498981,
+            "band": "sound",
+            "before_probability": 0.04738544741274593,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2b1B3/P1N3P1/1P5P/R1B1K1NR b - - 1 25",
+            "is_owner_move": true,
+            "loss": 0.022744544362644017,
+            "move_uci": "a2c3",
+            "mover": "white",
+            "ply": 49,
+            "san": "Nc3",
+            "source_fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2b1B3/P5P1/NP5P/R1B1K1NR w - - 0 25",
+            "white_probability": 0.024640903050101914
+          },
+          {
+            "after_probability": 0.04543035289441309,
+            "band": null,
+            "before_probability": 0.9753590969498981,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1p3/pp4p1/4np1n/2b1B3/P1N3P1/1P5P/R1B1K1NR w - - 0 26",
+            "is_owner_move": false,
+            "loss": 0.020789449844311192,
+            "move_uci": "f7f5",
+            "mover": "black",
+            "ply": 50,
+            "san": "f5",
+            "source_fen": "2k2b1r/q1p1pp2/pp4p1/4n2n/2b1B3/P1N3P1/1P5P/R1B1K1NR b - - 1 25",
+            "white_probability": 0.04543035289441309
+          },
+          {
+            "after_probability": 0.978273800756129,
+            "band": "sound",
+            "before_probability": 0.04543035289441309,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1p3/pp4p1/1N2np1n/2b1B3/P5P1/1P5P/R1B1K1NR b - - 1 26",
+            "is_owner_move": true,
+            "loss": 0.023704153650542112,
+            "move_uci": "c3b5",
+            "mover": "white",
+            "ply": 51,
+            "san": "Nb5",
+            "source_fen": "2k2b1r/q1p1p3/pp4p1/4np1n/2b1B3/P1N3P1/1P5P/R1B1K1NR w - - 0 26",
+            "white_probability": 0.02172619924387098
+          },
+          {
+            "after_probability": 0.027244007593995596,
+            "band": null,
+            "before_probability": 0.978273800756129,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1p3/1p4p1/1p2np1n/2b1B3/P5P1/1P5P/R1B1K1NR w - - 0 27",
+            "is_owner_move": false,
+            "loss": 0.005517808350124609,
+            "move_uci": "a6b5",
+            "mover": "black",
+            "ply": 52,
+            "san": "axb5",
+            "source_fen": "2k2b1r/q1p1p3/pp4p1/1N2np1n/2b1B3/P5P1/1P5P/R1B1K1NR b - - 1 26",
+            "white_probability": 0.027244007593995596
+          },
+          {
+            "after_probability": 0.9940916062955334,
+            "band": "sound",
+            "before_probability": 0.027244007593995596,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1p3/1p4p1/1p2nB1n/2b5/P5P1/1P5P/R1B1K1NR b - - 0 27",
+            "is_owner_move": true,
+            "loss": 0.02133561388952899,
+            "move_uci": "e4f5",
+            "mover": "white",
+            "ply": 53,
+            "san": "Bxf5+",
+            "source_fen": "2k2b1r/q1p1p3/1p4p1/1p2np1n/2b1B3/P5P1/1P5P/R1B1K1NR w - - 0 27",
+            "white_probability": 0.005908393704466608
+          },
+          {
+            "after_probability": 0.0049197808957289185,
+            "band": null,
+            "before_probability": 0.9940916062955334,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1p3/1p6/1p2np1n/2b5/P5P1/1P5P/R1B1K1NR w - - 0 28",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "g6f5",
+            "mover": "black",
+            "ply": 54,
+            "san": "gxf5",
+            "source_fen": "2k2b1r/q1p1p3/1p4p1/1p2nB1n/2b5/P5P1/1P5P/R1B1K1NR b - - 0 27",
+            "white_probability": 0.0049197808957289185
+          },
+          {
+            "after_probability": 0.9961937789905575,
+            "band": "sound",
+            "before_probability": 0.0049197808957289185,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1p3/1p6/1p2np1n/2b5/P5P1/1P1B3P/R3K1NR b - - 1 28",
+            "is_owner_move": true,
+            "loss": 0.0011135598862864176,
+            "move_uci": "c1d2",
+            "mover": "white",
+            "ply": 55,
+            "san": "Bd2",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p2np1n/2b5/P5P1/1P5P/R1B1K1NR w - - 0 28",
+            "white_probability": 0.003806221009442501
+          },
+          {
+            "after_probability": 0.005391597559884317,
+            "band": null,
+            "before_probability": 0.9961937789905575,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1p3/1p6/1p3p1n/2b5/P2n2P1/1P1B3P/R3K1NR w - - 2 29",
+            "is_owner_move": false,
+            "loss": 0.001585376550441775,
+            "move_uci": "e5d3",
+            "mover": "black",
+            "ply": 56,
+            "san": "Nd3+",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p2np1n/2b5/P5P1/1P1B3P/R3K1NR b - - 1 28",
+            "white_probability": 0.005391597559884317
+          },
+          {
+            "after_probability": 0.9979001806191958,
+            "band": "sound",
+            "before_probability": 0.005391597559884317,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1p3/1p6/1p3p1n/2b5/P2n2P1/1P1BK2P/R5NR b - - 3 29",
+            "is_owner_move": true,
+            "loss": 0.003291778179080148,
+            "move_uci": "e1e2",
+            "mover": "white",
+            "ply": 57,
+            "san": "Ke2",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p3p1n/2b5/P2n2P1/1P1B3P/R3K1NR w - - 2 29",
+            "white_probability": 0.0020998193808041687
+          },
+          {
+            "after_probability": 0.0029439623575997853,
+            "band": null,
+            "before_probability": 0.9979001806191958,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/q1p1p3/1p6/1p3p2/2b5/P2n2n1/1P1BK2P/R5NR w - - 0 30",
+            "is_owner_move": false,
+            "loss": 0.000844142976795581,
+            "move_uci": "h5g3",
+            "mover": "black",
+            "ply": 58,
+            "san": "Nxg3+",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p3p1n/2b5/P2n2P1/1P1BK2P/R5NR b - - 3 29",
+            "white_probability": 0.0029439623575997853
+          },
+          {
+            "after_probability": 0.9998515181772365,
+            "band": "sound",
+            "before_probability": 0.0029439623575997853,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/q1p1p3/1p6/1p3p2/2b5/P2n1Kn1/1P1B3P/R5NR b - - 1 30",
+            "is_owner_move": true,
+            "loss": 0.0027954805348362833,
+            "move_uci": "e2f3",
+            "mover": "white",
+            "ply": 59,
+            "san": "Kf3",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p3p2/2b5/P2n2n1/1P1BK2P/R5NR w - - 0 30",
+            "white_probability": 0.00014848182276350208
+          },
+          {
+            "after_probability": 0.0,
+            "band": null,
+            "before_probability": 0.9998515181772365,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/1qp1p3/1p6/1p3p2/2b5/P2n1Kn1/1P1B3P/R5NR w - - 2 31",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "a7b7",
+            "mover": "black",
+            "ply": 60,
+            "san": "Qb7+",
+            "source_fen": "2k2b1r/q1p1p3/1p6/1p3p2/2b5/P2n1Kn1/1P1B3P/R5NR b - - 1 30",
+            "white_probability": 0.0
+          },
+          {
+            "after_probability": 1.0,
+            "band": "sound",
+            "before_probability": 0.0,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/1qp1p3/1p6/1p3p2/2b5/P2n2K1/1P1B3P/R5NR b - - 0 31",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "f3g3",
+            "mover": "white",
+            "ply": 61,
+            "san": "Kxg3",
+            "source_fen": "2k2b1r/1qp1p3/1p6/1p3p2/2b5/P2n1Kn1/1P1B3P/R5NR w - - 2 31",
+            "white_probability": 0.0
+          },
+          {
+            "after_probability": 0.002024062126112981,
+            "band": null,
+            "before_probability": 1.0,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b1r/1qp1p3/1p6/1p6/2b2p2/P2n2K1/1P1B3P/R5NR w - - 0 32",
+            "is_owner_move": false,
+            "loss": 0.0020240621261129466,
+            "move_uci": "f5f4",
+            "mover": "black",
+            "ply": 62,
+            "san": "f4+",
+            "source_fen": "2k2b1r/1qp1p3/1p6/1p3p2/2b5/P2n2K1/1P1B3P/R5NR b - - 0 31",
+            "white_probability": 0.002024062126112981
+          },
+          {
+            "after_probability": 0.9964630474435945,
+            "band": "sound",
+            "before_probability": 0.002024062126112981,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b1r/1qp1p3/1p6/1p6/2b2B2/P2n2K1/1P5P/R5NR b - - 0 32",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "d2f4",
+            "mover": "white",
+            "ply": 63,
+            "san": "Bxf4",
+            "source_fen": "2k2b1r/1qp1p3/1p6/1p6/2b2p2/P2n2K1/1P1B3P/R5NR w - - 0 32",
+            "white_probability": 0.003536952556405515
+          },
+          {
+            "after_probability": 0.03497386620152745,
+            "band": null,
+            "before_probability": 0.9964630474435945,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b2/1qp1p3/1p6/1p6/2b2B2/P2n2Kr/1P5P/R5NR w - - 1 33",
+            "is_owner_move": false,
+            "loss": 0.03143691364512191,
+            "move_uci": "h8h3",
+            "mover": "black",
+            "ply": 64,
+            "san": "Rh3+",
+            "source_fen": "2k2b1r/1qp1p3/1p6/1p6/2b2B2/P2n2K1/1P5P/R5NR b - - 0 32",
+            "white_probability": 0.03497386620152745
+          },
+          {
+            "after_probability": 0.9892059998191244,
+            "band": "sound",
+            "before_probability": 0.03497386620152745,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b2/1qp1p3/1p6/1p6/2b2B2/P2n3K/1P5P/R5NR b - - 0 33",
+            "is_owner_move": true,
+            "loss": 0.02417986602065183,
+            "move_uci": "g3h3",
+            "mover": "white",
+            "ply": 65,
+            "san": "Kxh3",
+            "source_fen": "2k2b2/1qp1p3/1p6/1p6/2b2B2/P2n2Kr/1P5P/R5NR w - - 1 33",
+            "white_probability": 0.010794000180875618
+          },
+          {
+            "after_probability": 0.008150983336477664,
+            "band": null,
+            "before_probability": 0.9892059998191244,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b2/1qp1p3/1p6/1p6/2b2n2/P6K/1P5P/R5NR w - - 0 34",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "d3f4",
+            "mover": "black",
+            "ply": 66,
+            "san": "Nxf4+",
+            "source_fen": "2k2b2/1qp1p3/1p6/1p6/2b2B2/P2n3K/1P5P/R5NR b - - 0 33",
+            "white_probability": 0.008150983336477664
+          },
+          {
+            "after_probability": 1.0,
+            "band": "sound",
+            "before_probability": 0.008150983336477664,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b2/1qp1p3/1p6/1p6/2b2nK1/P7/1P5P/R5NR b - - 1 34",
+            "is_owner_move": true,
+            "loss": 0.008150983336477664,
+            "move_uci": "h3g4",
+            "mover": "white",
+            "ply": 67,
+            "san": "Kg4",
+            "source_fen": "2k2b2/1qp1p3/1p6/1p6/2b2n2/P6K/1P5P/R5NR w - - 0 34",
+            "white_probability": 0.0
+          },
+          {
+            "after_probability": 0.0,
+            "band": null,
+            "before_probability": 1.0,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b2/2p1p3/1p6/1p6/2b2nK1/P7/1P4qP/R5NR w - - 2 35",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "b7g2",
+            "mover": "black",
+            "ply": 68,
+            "san": "Qg2+",
+            "source_fen": "2k2b2/1qp1p3/1p6/1p6/2b2nK1/P7/1P5P/R5NR b - - 1 34",
+            "white_probability": 0.0
+          },
+          {
+            "after_probability": 0.9935492385284979,
+            "band": "sound",
+            "before_probability": 0.0,
+            "credit": null,
+            "credit_exclusion": "unknown assistance (imported or historical game)",
+            "fen": "2k2b2/2p1p3/1p6/1p3K2/2b2n2/P7/1P4qP/R5NR b - - 3 35",
+            "is_owner_move": true,
+            "loss": 0.0,
+            "move_uci": "g4f5",
+            "mover": "white",
+            "ply": 69,
+            "san": "Kf5",
+            "source_fen": "2k2b2/2p1p3/1p6/1p6/2b2nK1/P7/1P4qP/R5NR w - - 2 35",
+            "white_probability": 0.006450761471502142
+          },
+          {
+            "after_probability": 0.0,
+            "band": null,
+            "before_probability": 0.9935492385284979,
+            "credit": null,
+            "credit_exclusion": null,
+            "fen": "2k2b2/2p1p3/1p4q1/1p3K2/2b2n2/P7/1P5P/R5NR w - - 4 36",
+            "is_owner_move": false,
+            "loss": 0.0,
+            "move_uci": "g2g6",
+            "mover": "black",
+            "ply": 70,
+            "san": "Qg6+",
+            "source_fen": "2k2b2/2p1p3/1p6/1p3K2/2b2n2/P7/1P4qP/R5NR b - - 3 35",
+            "white_probability": 0.0
+          }
+        ],
+        "nodes": 10000,
+        "owner_color": "white",
+        "scored_moves": 35,
+        "session_id": "9c3b822e-8b0a-4889-a8c8-2ba88b8beab6",
+        "total_owner_moves": 35
+      }
+    }
+  ],
+  "lesson_attempts": [
+    {
+      "completed_at": "2026-11-24T00:24:19.934683",
+      "elapsed_ms": 4200,
+      "grading_status": "verified",
+      "hints_used": 0,
+      "id": "41b0f63b-7915-4d83-98f8-935f87d61f65",
+      "lesson_id": "27e92aa8-d856-4e15-8af8-59d8c8f87ea2",
+      "opportunity_id": "27e92aa8-d856-4e15-8af8-59d8c8f87ea2",
+      "player_id": "v090-compat",
+      "profile_update_result": "applied",
+      "session_id": "fe92d610-ec75-489e-8095-85e7c53ef84b",
+      "source_kind": "persisted_opportunity",
+      "submitted_move": "d4e5",
+      "success": true
+    }
+  ],
+  "player": "v090-compat",
+  "profile": {
+    "display_name": "Compat",
+    "player_id": "v090-compat",
+    "rating": 1500
+  },
+  "progress": {
+    "player_id": "v090-compat",
+    "skills": [
+      {
+        "concept": "board_awareness.hanging_piece",
+        "mastery": 0.2307700737876226,
+        "name": "Hanging piece",
+        "uncertainty": 0.01267970349921819
+      },
+      {
+        "concept": "threat_processing.missed_capture",
+        "mastery": 0.21052686106705837,
+        "name": "Missed capture",
+        "uncertainty": 0.008310337163360026
+      }
+    ]
+  },
+  "puzzle_runs": [
+    {
+      "cursor": 3,
+      "daily": {
+        "actual_mix": {
+          "due": 0,
+          "exploration": 1,
+          "weak": 0
+        },
+        "completed": 1,
+        "message": "Daily set complete. The next set resets at 00:00 UTC.",
+        "overdue_count": 0,
+        "provisional": true,
+        "rated_count": 1,
+        "rating": 1208,
+        "remaining": 0,
+        "total": 1,
+        "utc_day": "2026-11-24"
+      },
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "hint_step": 0,
+      "hints": [],
+      "maximum_wrong_attempts": 3,
+      "mode": "daily",
+      "played_moves": [
+        "e7e5",
+        "g1f3",
+        "b8c6"
+      ],
+      "puzzle_id": "lichess:compat1",
+      "rated": true,
+      "revision": 2,
+      "run_id": "6152ae91-bf6f-4c54-9384-83d031fc79af",
+      "selection_reason": "exploration",
+      "setup": "e2e4",
+      "state": "solved",
+      "streak": {
+        "best": 0,
+        "current": 0,
+        "reset_reason": null
+      },
+      "theme": null,
+      "widening": "200",
+      "wrong_attempts": 0
+    }
+  ],
+  "review_schedules": [
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "1d8cded8-1af5-4ef7-8f0b-35519d988d8e",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:57.477368",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.6,
+      "interval_days": 2.5,
+      "item_id": "27e92aa8-d856-4e15-8af8-59d8c8f87ea2",
+      "last_reviewed_at": "2026-11-24T00:24:19.934683",
+      "next_review_at": "2026-11-26T12:24:19.934683",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "46da1c4e-ceb0-4f23-a99e-bd409ec4df34",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:57.477283",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "746f157a-682c-4116-b8ae-8e783e37087c",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:27:43.327490",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "75b31675-1f10-4939-bed6-b52b3e800d63",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:27:43.327694",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "96fe5c08-3946-45ad-ba38-0c24727e7606",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:19.912411",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "a22718a0-8084-438d-9351-074a836d13a1",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:19.912329",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "a6daf008-6962-4eff-a6d5-810b15900091",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:19.912238",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "a8f4027a-a12b-4ad8-a862-d232cf7d744a",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:27:43.327789",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "ae9306bf-1f86-4468-b75b-c12a2132867e",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:19.912104",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "board_awareness.hanging_piece"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "af4d50e7-6d70-43b2-a1ba-44c9a9751732",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:27:43.327598",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "threat_processing.missed_capture"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "c72574c0-37d8-403a-80e0-50424b461871",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:24:57.477179",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "board_awareness.hanging_piece"
+    },
+    {
+      "ease_factor": 2.5,
+      "interval_days": 1.0,
+      "item_id": "d5680444-01bf-4132-9330-f86abf8f54f8",
+      "last_reviewed_at": null,
+      "next_review_at": "2026-11-24T00:27:43.327348",
+      "player_id": "v090-compat",
+      "retired_at": null,
+      "retirement_reason": null,
+      "skill_id": "board_awareness.hanging_piece"
+    }
+  ],
+  "skill_states": [
+    {
+      "alpha": 3.0,
+      "beta": 9.999952510137412,
+      "concept_code": "board_awareness.hanging_piece",
+      "last_updated": "2026-11-24T00:27:43.326503",
+      "player_id": "v090-compat",
+      "prior_alpha": 3.0,
+      "prior_beta": 2.0,
+      "retired_at": null,
+      "retirement_reason": null
+    },
+    {
+      "alpha": 3.9999738443163455,
+      "beta": 14.999852705333526,
+      "concept_code": "threat_processing.missed_capture",
+      "last_updated": "2026-11-24T00:27:43.323939",
+      "player_id": "v090-compat",
+      "prior_alpha": 3.0,
+      "prior_beta": 2.0,
+      "retired_at": null,
+      "retirement_reason": null
+    }
+  ]
+}

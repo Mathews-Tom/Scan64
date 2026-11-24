@@ -1,0 +1,12 @@
+{
+  "tag": "v0.9.0",
+  "commit": "982d949cd167870dc9c696d9612c779b7dd37777",
+  "alembic": "20261117_18",
+  "stockfish": "Stockfish 19 by the Stockfish developers (see AUTHORS file)",
+  "stockfish_sha256": "dc2f18c34ae962dff591b66147d220ec06e61d756b93d8a4f5e04fd8e55c251f",
+  "pgn_sources": [
+    "benchmarks/fixtures/game_1.pgn",
+    "benchmarks/fixtures/game_2.pgn",
+    "tests/fixtures/reference_amateur_game.pgn"
+  ]
+}
