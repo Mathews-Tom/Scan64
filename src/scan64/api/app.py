@@ -93,11 +93,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         tasks = list(app.state.lesson_pack_tasks.values())
+        # Close admission before awaiting cancellation so no new pack task escapes the drain.
+        del app.state.lesson_pack_tasks
+        del app.state.lesson_pack_lock
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        del app.state.lesson_pack_tasks
-        del app.state.lesson_pack_lock
         try:
             await app.state.play_clock_runtime.stop()
         finally:

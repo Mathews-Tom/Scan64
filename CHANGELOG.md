@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- Deleting player data or uninstalling a lesson pack during shutdown no longer reports an error after the deletion succeeds. A pack installed or retried while Scan64 shuts down is saved without starting verification and shows Failed with Retry on the next start.
+
 ## [1.0.0] - 2026-11-24
 
 ### Added
