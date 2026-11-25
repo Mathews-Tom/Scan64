@@ -12,7 +12,7 @@
 
 <p align="center">
   <b>A free, open-source chess coach that runs on your own computer.</b><br>
-  Play a bot at your level, ask for a hint when you're stuck, replay the moments that decided the game, and practise puzzles picked from your own mistakes.
+  Play, import your online games, review the moments that mattered, and practise engine-checked lessons and solve puzzles from the Lichess database.
 </p>
 
 <p align="center">
@@ -28,70 +28,73 @@
 
 Most chess tools can tell you that a move was bad. Scan64 tries to help you see *why*, and then gives you something to practise. It is built for improving club players, roughly 600 to 1600, who keep losing to the same kinds of mistakes, but anyone who enjoys the game is welcome.
 
-- **Your games are the curriculum.** Lessons, reviews and patterns come from the games you play or import, checked by Stockfish.
-- **Hints that teach, not tell.** Hints come in three steps: a nudge, then the idea, then the move with arrows and a reason. You decide how much help you need.
-- **Honest about what it knows.** Scan64 shows you the evidence behind every pattern and goal. It does not claim to raise your rating.
-- **Private by default.** Everything runs locally. Your games and progress stay in a database on your machine, and you can export them or delete your player data whenever you like. See [Stable from 1.0](#stable-from-10) for the tested compatibility boundary.
+- **Your games are the curriculum.** Import by Lichess or Chess.com username, paste a PGN, or play here. Stockfish turns supported mistakes into lessons and evidence-linked patterns.
+- **Help at the right depth.** Three-step hints go from a nudge to the idea to sound moves. Candidates and an optional blunder guard let you examine choices before committing.
+- **Evidence, not promises.** Profile shows game insights, recurring patterns and before/after recurrence with sample sizes. A change is not proof that training caused it, or that your rating improved.
+- **Local-first.** Games and progress stay on your computer. Online imports, **Download puzzles** from Lichess, desktop updates and optional local model wording have explicit network boundaries; no online Scan64 account is needed. See [Stable from 1.0](#stable-from-10) for the compatibility boundary.
 
 ## See it in action
 
-These recordings and screenshots are from the **published v0.7.0 macOS app window**, using demonstration games and a small sample of the Lichess CC0 puzzle catalog. The same client runs on all three desktop platforms.
+These are **headless Chromium captures of the current React client**, at 1440 × 1000 in dark mode. They use disposable demo players, public Lichess games and genuine CC0 puzzles—not the maintainer's data or native desktop windows. Insights and Progress share one demo state; the other scenes show a separate session. The desktop app runs the same client.
 
 ### Play a bot and ask for a hint
 
-Pick one of eight bot levels and a colour, take moves back while you learn, and step through the hint ladder when you're stuck.
+Pick one of eight relative bot levels, a colour and an optional clock. Untimed games allow takebacks; hints reveal a nudge, an idea, then sound moves with arrows and reasons.
 
 <p align="center"><img src="assets/demo-play-hints.gif" alt="Playing a bot game in Scan64 and stepping through the three-step hint ladder until arrows and a reason appear" width="860"></p>
 
-### Review the moments that decided the game
+### Turn a reviewed mistake into practice
 
-After a game, Scan64 analyses your moves with Stockfish and shows an accuracy figure, an evaluation graph and up to three key moments, each of which you can retry on the board.
+Replay every move with Stockfish accuracy and coverage, an evaluation graph, and up to three trusted key moments to retry. Daily Training brings your eligible lessons back on a review schedule; this recording follows a real game-derived lesson through hints to a server-verified answer. The Analysis Board also lets you explore up to three engine lines and save variations as PGN.
 
-<p align="center"><img src="assets/demo-review.gif" alt="Selecting a blunder on the review board, reading its evaluation graph and accuracy coverage, then inspecting the game's two verified key moments" width="860"></p>
+<p align="center"><img src="assets/demo-review.gif" alt="Daily Training on a position from an imported game: revealing three hints, inspecting candidate arrows, then recording a correct hinted answer" width="860"></p>
 
 ### Practise puzzles
 
 Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a separate puzzle rating, builds a daily set and lets you practise by theme or revisit your misses.
 
-<p align="center"><img src="assets/demo-puzzles.gif" alt="Solving a multi-move puzzle in Scan64" width="860"></p>
+<p align="center"><img src="assets/demo-puzzles.gif" alt="Revealing hints for Lichess puzzle 001wR, playing its three solver moves and reaching the recorded Puzzle solved result" width="860"></p>
 
 <table>
   <tr>
-    <td width="33%"><a href="assets/screenshot-today.png"><img src="assets/screenshot-today.png" alt="The v0.7.0 Today screen with Play, Train and Review actions"></a></td>
-    <td width="33%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="The v0.7.0 review board with a selected blunder marked as a key moment"></a></td>
-    <td width="33%"><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="The v0.7.0 Profile cropped to the declared starting level, suggested bot level and introductory daily-puzzle progress"></a></td>
+    <td width="50%"><a href="assets/screenshot-today.png"><img src="assets/screenshot-today.png" alt="Today with Play, Train and Review actions, a declared Club starting point, daily puzzle progress and the latest analysed game"></a></td>
+    <td width="50%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="Review of an imported maia1 game at Nxe5, a trusted key moment before Black's mating reply"></a></td>
   </tr>
   <tr>
-    <td align="center"><b>Today</b>: what to do next</td>
-    <td align="center"><b>Review</b>: where the game turned</td>
-    <td align="center"><b>Profile</b>: your starting point</td>
+    <td align="center"><b>Today</b>: choose your next session</td>
+    <td align="center"><b>Review</b>: inspect a turning point</td>
+  </tr>
+  <tr>
+    <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights: 97.4% accuracy across 895 scored and eligible owner moves, with phase, colour and opening breakdowns; 43 of 895 moves under clock pressure (4.8%)"></a></td>
+    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Hanging-piece recurrence before training: 15 games, 618 moves, 7 occurrences, 1.13 per 100 moves (95% Wilson interval 0.55–2.32); after: 3 games, 107 moves, 2 occurrences, 1.87 per 100 (0.51–6.56), with the non-causal caveat"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Insights</b>: 895 scored owner moves</td>
+    <td align="center"><b>Progress</b>: 1.13 → 1.87 per 100 moves—not a causal claim</td>
   </tr>
 </table>
 
 ## What you can do
 
-| Play | Learn | Track |
+| Play and review | Practise | Understand your progress |
 | --- | --- | --- |
-| Eight bot levels, either colour, take-backs and resignation | Three-step hints with tactical reasons and positional principles | Today dashboard with daily goals and a calendar streak |
-| Import your own PGN games | Per-move game review with key moments and retries | Your costliest recurring pattern, with the positions behind it |
-| Keyboard move entry and narrow-screen play | Lessons from your mistakes that accept the sound alternatives the engine verifies | Separate puzzle rating and bot-level trends |
-| Optional human-like opponents with [Maia](docs/maia.md) | Daily puzzle sets, theme practice, solve streaks | Player-scoped [export, import and deletion](docs/user-guide.md#data-and-privacy) |
+| Eight bot levels; untimed or 1+0, 3+2, 5+0 and 10+5 | Engine-checked lessons; FSRS-scheduled lesson and eligible puzzle reviews | Game insights by phase, colour and opening; clock-pressure coverage when available |
+| Three-step hints, Candidates and opt-in blunder guard | **Safe or blunder**: choose a sound move over your played mistake | Recurring patterns with source positions, game counts and scored coverage |
+| **Review → Import games**: Lichess/Chess.com username or PGN | **Convert the win**: separate sparring from eligible review positions | Before/after pattern recurrence with game/move counts, intervals and insufficient-data states—not a causal claim |
+| Per-move review, key moments and an Analysis Board with engine lines | Daily puzzles, theme runs, missed-puzzle retries and a separate puzzle rating | Daily goals, calendar streaks, named skills and bot results by level and time control, excluding assisted games |
+| Premoves, annotations, keyboard moves and board appearance choices | Import a repertoire PGN, practise due decisions and compare imported-game deviations | Download a local coach packet with a pattern summary and annotated PGN evidence |
 
-Import a PGN [repertoire for scheduled practice](docs/user-guide.md#practise-a-repertoire) and compare it with your imported games. Profile can save a [coach evidence packet](docs/user-guide.md#progress-beforeafter-pattern-recurrence). [Local wording with Ollama](docs/user-guide.md#optional-local-explanation-wording) is optional; built-in templates need no model.
+**Library → Community lesson packs** installs local JSON packs and re-verifies their solver moves with your engine. Pack play **never changes progress or review schedules**; keep the original files because player exports exclude packs. Optional [Maia opponents](docs/maia.md) require operator-provided weights.
 
 ## How it works
 
-```mermaid
-flowchart LR
-  A[Play a bot or import a PGN] --> B[Stockfish analyses your moves]
-  B --> C[Mistakes become evidence]
-  C --> D[One diagnosed cause per mistake]
-  D --> E[Lessons, reviews and puzzles]
-  E --> F[Verified attempts update your profile]
-  F --> A
+```text
+Play or import → Stockfish analysis → supported diagnosis → lesson → verified answer
+       ↑                                                                    ↓
+       └──────────── Profile evidence and scheduled practice ───────────────┘
 ```
 
-Every lesson answer is checked by the engine or a tablebase before it can change your profile. Patterns only count evidence from your own moves, and the coverage behind each figure is always shown. See the [system overview](docs/system-overview.md) for details.
+Lesson answers are checked on the server before they update skills and matching review schedules; hints remain app-reported. Patterns use your own moves and show their evidence coverage. Related puzzle themes are practice, not a new diagnosis. [Optional local Ollama wording](docs/user-guide.md#optional-local-explanation-wording) is off by default: built-in explanations need no model, and generated wording must pass evidence checks. See the [system overview](docs/system-overview.md).
 
 ## Get started
 
@@ -205,7 +208,10 @@ SCAN64_DATABASE_URL="sqlite:////absolute/path/to/scan64.db" uv run scan64-cli se
 
 ### Your first session
 
-Enter a display name and choose **Start learning**. Tell Scan64 roughly how strong you are and it suggests a bot level. From **Today** you can Play, Train or Review. **Review → Import games** brings in your Lichess or Chess.com games by username or a pasted PGN; **Library** holds the study screens.
+1. Enter a display name and choose **Start learning**. Declare a starting level for an overridable bot suggestion—not an Elo estimate.
+2. From **Today**, play a bot or use **Review → Import games** for a Lichess/Chess.com username or PGN. Let analysis finish, then inspect a key moment and retry it.
+3. Open **Train** for a lesson or **Safe or blunder**, or start **Convert the win** from an eligible review. Profile shows game insights and patterns; sparse before/after samples say **Not enough games**.
+4. Explore **Library** for repertoires and community packs. Use **Settings → Send feedback** to preview a GitHub issue draft; Scan64 sends nothing itself.
 
 Puzzles need a one-time import of the free [Lichess puzzle database](https://database.lichess.org/#puzzles) (CC0). Nothing is downloaded automatically:
 
@@ -248,7 +254,7 @@ The internal HTTP API, CLI flags and UI layout are not stable interfaces. Untest
 ### Optional extras
 
 - **Maia weights.** Scan64 never bundles, downloads or hosts Maia weights. If you have the right to use a checkpoint, follow the [Maia guide](docs/maia.md).
-- **LLM wording.** Explanations are deterministic templates by default. An operator can configure a provider through `SCAN64_LLM_CONFIG`; generated text is validated against the diagnosis evidence before use.
+- **Local wording.** Opt into an installed Ollama model in **Settings → Local explanation wording**. It can reword new explanations, not change engine verdicts; unavailable or rejected wording falls back to built-in templates. See the [privacy boundary](docs/user-guide.md#optional-local-explanation-wording).
 
 ## Contributing
 
