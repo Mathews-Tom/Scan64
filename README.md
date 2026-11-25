@@ -12,7 +12,7 @@
 
 <p align="center">
   <b>A free, open-source chess coach that runs on your own computer.</b><br>
-  Play, import your online games, review the moments that mattered, and practise lessons and puzzles with an engine checking your answers.
+  Play, import your online games, review the moments that mattered, and practise engine-checked lessons and solve puzzles from the Lichess database.
 </p>
 
 <p align="center">
@@ -31,11 +31,11 @@ Most chess tools can tell you that a move was bad. Scan64 tries to help you see 
 - **Your games are the curriculum.** Import by Lichess or Chess.com username, paste a PGN, or play here. Stockfish turns supported mistakes into lessons and evidence-linked patterns.
 - **Help at the right depth.** Three-step hints go from a nudge to the idea to sound moves. Candidates and an optional blunder guard let you examine choices before committing.
 - **Evidence, not promises.** Profile shows game insights, recurring patterns and before/after recurrence with sample sizes. A change is not proof that training caused it, or that your rating improved.
-- **Local-first.** Games and progress stay on your computer. Online imports, desktop updates and optional local model wording have explicit network boundaries; no online Scan64 account is needed. See [Stable from 1.0](#stable-from-10) for the compatibility boundary.
+- **Local-first.** Games and progress stay on your computer. Online imports, **Download puzzles** from Lichess, desktop updates and optional local model wording have explicit network boundaries; no online Scan64 account is needed. See [Stable from 1.0](#stable-from-10) for the compatibility boundary.
 
 ## See it in action
 
-These are **headless Chromium captures of the current React client**, at 1440 × 1000 in dark mode, with the new knight's-tour logo. They use a disposable demo player, public Lichess games and genuine CC0 puzzles—not the owner's data or native desktop windows. The desktop app runs the same client.
+These are **headless Chromium captures of the current React client**, at 1440 × 1000 in dark mode. They use disposable demo players, public Lichess games and genuine CC0 puzzles—not the maintainer's data or native desktop windows. Insights and Progress share one demo state; the other scenes show a separate session. The desktop app runs the same client.
 
 ### Play a bot and ask for a hint
 
@@ -65,12 +65,12 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
     <td align="center"><b>Review</b>: inspect a turning point</td>
   </tr>
   <tr>
-    <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights with scored move counts by phase, colour and opening, plus clock-pressure coverage"></a></td>
-    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Profile hanging-piece recurrence: 11 games and 452 owner moves before training versus 3 games and 109 moves after; 1.33 versus 0.92 occurrences per 100 moves, with 95% Wilson intervals and the non-causal caveat"></a></td>
+    <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights: 97.4% accuracy across 895 scored and eligible owner moves, with phase, colour and opening breakdowns; 43 of 895 moves under clock pressure (4.8%)"></a></td>
+    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Hanging-piece recurrence before training: 15 games, 618 moves, 7 occurrences, 1.13 per 100 moves (95% Wilson interval 0.55–2.32); after: 3 games, 107 moves, 2 occurrences, 1.87 per 100 (0.51–6.56), with the non-causal caveat"></a></td>
   </tr>
   <tr>
-    <td align="center"><b>Insights</b>: read scores with coverage</td>
-    <td align="center"><b>Progress</b>: before/after rates with uncertainty</td>
+    <td align="center"><b>Insights</b>: 895 scored owner moves</td>
+    <td align="center"><b>Progress</b>: 1.13 → 1.87 per 100 moves—not a causal claim</td>
   </tr>
 </table>
 
@@ -81,7 +81,7 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 | Eight bot levels; untimed or 1+0, 3+2, 5+0 and 10+5 | Engine-checked lessons; FSRS-scheduled lesson and eligible puzzle reviews | Game insights by phase, colour and opening; clock-pressure coverage when available |
 | Three-step hints, Candidates and opt-in blunder guard | **Safe or blunder**: choose a sound move over your played mistake | Recurring patterns with source positions, game counts and scored coverage |
 | **Review → Import games**: Lichess/Chess.com username or PGN | **Convert the win**: separate sparring from eligible review positions | Before/after pattern recurrence with game/move counts, intervals and insufficient-data states—not a causal claim |
-| Per-move review, key moments and an Analysis Board with engine lines | Daily puzzles, theme runs, missed-puzzle retries and a separate puzzle rating | Daily goals, calendar streaks, named skills and separate timed/assisted result cohorts |
+| Per-move review, key moments and an Analysis Board with engine lines | Daily puzzles, theme runs, missed-puzzle retries and a separate puzzle rating | Daily goals, calendar streaks, named skills and bot results by level and time control, excluding assisted games |
 | Premoves, annotations, keyboard moves and board appearance choices | Import a repertoire PGN, practise due decisions and compare imported-game deviations | Download a local coach packet with a pattern summary and annotated PGN evidence |
 
 **Library → Community lesson packs** installs local JSON packs and re-verifies their solver moves with your engine. Pack play **never changes progress or review schedules**; keep the original files because player exports exclude packs. Optional [Maia opponents](docs/maia.md) require operator-provided weights.
@@ -90,8 +90,8 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 
 ```text
 Play or import → Stockfish analysis → supported diagnosis → lesson → verified answer
-       ↑                                                     ↓
-       └──────────── Profile evidence and scheduled practice ┘
+       ↑                                                                    ↓
+       └──────────── Profile evidence and scheduled practice ───────────────┘
 ```
 
 Lesson answers are checked on the server before they update skills and matching review schedules; hints remain app-reported. Patterns use your own moves and show their evidence coverage. Related puzzle themes are practice, not a new diagnosis. [Optional local Ollama wording](docs/user-guide.md#optional-local-explanation-wording) is off by default: built-in explanations need no model, and generated wording must pass evidence checks. See the [system overview](docs/system-overview.md).
