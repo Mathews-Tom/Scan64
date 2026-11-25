@@ -28,7 +28,7 @@ hash_mb = 16                                       # sent as Hash when the engin
 [engine.options]          # extra UCI options; each must be declared by the engine
 UCI_ShowWDL = true
 
-[limits.hint]             # optional per-use override; omitted uses keep built-in budgets
+[limits.hint]             # optional per-use override (nodes and/or time_ms, multipv; no depth)
 nodes = 200000
 time_ms = 1500
 multipv = 4

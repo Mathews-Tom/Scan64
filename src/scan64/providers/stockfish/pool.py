@@ -339,8 +339,6 @@ class EnginePoolManager:
         configured = self.config.limits.get("hint")
         if configured is None:
             return HINT_NODES, HINT_TIME_MS, HINT_MULTIPV
-        if configured.depth is not None:
-            raise ValueError("Hint limits support nodes and time_ms, not depth")
         return configured.nodes, configured.time_ms, configured.multipv
 
     def _hint_cache_key(self, board: chess.Board) -> HintCacheKey:

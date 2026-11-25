@@ -53,13 +53,12 @@ class EngineConfigurationError(RuntimeError):
 class SearchLimits:
     nodes: int | None = None
     time_ms: int | None = None
-    depth: int | None = None
     multipv: int = 1
 
     def __post_init__(self) -> None:
-        if self.nodes is None and self.time_ms is None and self.depth is None:
-            raise EngineConfigurationError("A search limit needs nodes, time_ms or depth")
-        for name in ("nodes", "time_ms", "depth"):
+        if self.nodes is None and self.time_ms is None:
+            raise EngineConfigurationError("A search limit needs nodes or time_ms")
+        for name in ("nodes", "time_ms"):
             value = getattr(self, name)
             if value is not None and (isinstance(value, bool) or value < 1):
                 raise EngineConfigurationError(f"limit {name} must be a positive integer")
@@ -132,11 +131,11 @@ def _limits(raw: object, config_path: Path) -> MappingProxyType[str, SearchLimit
     for use, table in raw.items():
         if not isinstance(table, dict):
             raise EngineConfigurationError(f"{config_path}: [limits.{use}] must be a table")
-        _reject_unknown(table, {"nodes", "time_ms", "depth", "multipv"}, f"limits.{use}")
+        # Hints run under a wall-clock deadline: nodes and/or time, never depth.
+        _reject_unknown(table, {"nodes", "time_ms", "multipv"}, f"limits.{use}")
         limits[use] = SearchLimits(
             nodes=table.get("nodes"),
             time_ms=table.get("time_ms"),
-            depth=table.get("depth"),
             multipv=table.get("multipv", 1),
         )
     return MappingProxyType(limits)

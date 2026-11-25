@@ -124,6 +124,7 @@ def test_profile_is_reread_after_edit(monkeypatch: pytest.MonkeyPatch, tmp_path:
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.review]\nnodes = 5\n", "Unknown"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\nmultipv = 2\n", "nodes"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\nnodes = -1\n", "positive"),
+        ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\ndepth = 9\n", "Unknown"),
         ("[engine\n", "Invalid engine configuration"),
     ],
 )
