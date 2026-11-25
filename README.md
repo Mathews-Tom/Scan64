@@ -35,7 +35,7 @@ Most chess tools can tell you that a move was bad. Scan64 tries to help you see 
 
 ## See it in action
 
-These are **headless Chromium captures of the current React client**, at 1440 × 1000 in dark mode. They use disposable demo players, public Lichess games and genuine CC0 puzzles—not the maintainer's data or native desktop windows. Insights and Progress share one demo state; the other scenes show a separate session. The desktop app runs the same client.
+These are **headless Chromium captures of the current React client**, at 1440 × 1000 in dark mode with the default board appearance. They use a disposable demo player, public Lichess games and genuine CC0 puzzles—not the maintainer's data or native desktop windows. Insights and Progress share one completed analysis state; the other scenes follow the same demo player's play, review and practice. The desktop app runs the same client.
 
 ### Play a bot and ask for a hint
 
@@ -47,7 +47,7 @@ Pick one of eight relative bot levels, a colour and an optional clock. Untimed g
 
 Replay every move with Stockfish accuracy and coverage, an evaluation graph, and up to three trusted key moments to retry. Daily Training brings your eligible lessons back on a review schedule; this recording follows a real game-derived lesson through hints to a server-verified answer. The Analysis Board also lets you explore up to three engine lines and save variations as PGN.
 
-<p align="center"><img src="assets/demo-review.gif" alt="Daily Training on a position from an imported game: revealing three hints, inspecting candidate arrows, then recording a correct hinted answer" width="860"></p>
+<p align="center"><img src="assets/demo-review.gif" alt="Daily Training on a position from an imported game: revealing three hints, inspecting the Nxf2 candidate arrow, then recording a correct hinted answer" width="860"></p>
 
 ### Practise puzzles
 
@@ -58,19 +58,19 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 <table>
   <tr>
     <td width="50%"><a href="assets/screenshot-today.png"><img src="assets/screenshot-today.png" alt="Today with Play, Train and Review actions, a declared Club starting point, daily puzzle progress and the latest analysed game"></a></td>
-    <td width="50%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="Review of an imported maia1 game at Nxe5, a trusted key moment before Black's mating reply"></a></td>
+    <td width="50%"><a href="assets/screenshot-review.png"><img src="assets/screenshot-review.png" alt="Review of maia1 versus cartolo after 10. O-O, a trusted hanging-piece key moment with Black to move"></a></td>
   </tr>
   <tr>
     <td align="center"><b>Today</b>: choose your next session</td>
     <td align="center"><b>Review</b>: inspect a turning point</td>
   </tr>
   <tr>
-    <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights: 97.4% accuracy across 895 scored and eligible owner moves, with phase, colour and opening breakdowns; 43 of 895 moves under clock pressure (4.8%)"></a></td>
-    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Hanging-piece recurrence before training: 15 games, 618 moves, 7 occurrences, 1.13 per 100 moves (95% Wilson interval 0.55–2.32); after: 3 games, 107 moves, 2 occurrences, 1.87 per 100 (0.51–6.56), with the non-causal caveat"></a></td>
+    <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights: 96.9% accuracy across 834 scored and eligible owner moves, with phase, colour and opening breakdowns; 2 of 832 moves under clock pressure (0.2%)"></a></td>
+    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Hanging-piece recurrence before training: 15 games, 505 moves, 5 occurrences, 0.99 per 100 moves (95% Wilson interval 0.42–2.30); after: 4 games, 118 moves, 3 occurrences, 2.54 per 100 (0.87–7.21), with the non-causal caveat"></a></td>
   </tr>
   <tr>
-    <td align="center"><b>Insights</b>: 895 scored owner moves</td>
-    <td align="center"><b>Progress</b>: 1.13 → 1.87 per 100 moves—not a causal claim</td>
+    <td align="center"><b>Insights</b>: 834 scored owner moves</td>
+    <td align="center"><b>Progress</b>: 0.99 → 2.54 per 100 moves—not a causal claim</td>
   </tr>
 </table>
 

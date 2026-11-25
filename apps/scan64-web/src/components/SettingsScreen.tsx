@@ -95,7 +95,7 @@ export function SettingsScreen() {
         <p>Scan64 is free software licensed under the GNU General Public License, version 3 or later (GPL-3.0-or-later). Stockfish, python-chess and Chessground are also licensed under GPL-3.0-or-later.</p>
         <p><a href="/licenses.html">Read software and artwork licences</a></p>
         <p>Host Grotesk and JetBrains Mono are bundled with the app under the SIL Open Font License 1.1. No font service is contacted.</p>
-        <p>Chess piece artwork is separately licensed, not covered by Scan64's GPL licence. California (Jerry S.), Maestro and Staunty (sadsnake1): CC BY-NC-SA 4.0, non-commercial only. Chessnut (Alexis Luengas): Apache 2.0. Spatial (Maurizio Monge): MIT. Firi (James Faure): CC BY 4.0.</p>
+        <p>Chess piece artwork is separately licensed, not covered by Scan64's GPL licence. Staunton (Colin M.L. Burnett) and Merida (Armando Hernandez Marroquin): GPL-2.0-or-later. California (Jerry S.), Maestro and Staunty (sadsnake1): CC BY-NC-SA 4.0, non-commercial only. Chessnut (Alexis Luengas): Apache 2.0. Spatial (Maurizio Monge): MIT. Firi (James Faure): CC BY 4.0.</p>
         <p><a href="/pieces/NOTICE.txt">Piece artwork attribution and licence notices</a></p>
         <ul className="settings-licences" aria-label="Bundled font licences">
           <ListRow label={<a href="/fonts/host-grotesk-OFL.txt">Host Grotesk licence</a>} />

@@ -20,10 +20,9 @@
 .ly-collage .ly-piece{position:relative;border:1px solid #d3d3d3;border-radius:12px;overflow:hidden}
 .ly-collage .preview-board{width:100%}
 .product-bar{display:flex;align-items:center;justify-content:space-between;height:44px;min-height:44px;padding:12px 16px;background:#f3f3f3;font-size:14px;font-weight:500;line-height:20px}
-.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:100%;height:auto;aspect-ratio:1;background:#edeee6;color:#232323}
-.square{display:flex;justify-content:center;align-items:center;min-width:0;min-height:0;font-size:clamp(18px,5cqw,52px);line-height:1;font-family:Georgia,serif}
-.square.dark{background:#86a694}
-.square.white-piece{color:#fff;text-shadow:0 1px 1px #232323,1px 0 1px #232323,-1px 0 1px #232323}
+.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:100%;height:auto;aspect-ratio:1;background:#f0d9b5}
+.square{min-width:0;min-height:0;background-size:100% 100%;background-repeat:no-repeat}
+.square.dark{background-color:#9e7150}
 .hero__cta>div{display:grid;gap:4px;width:100%}
 .hero--triptych .hero__cta .btn{width:100%}
 .download-platform,.small{font-size:14px;line-height:1.6}
@@ -38,8 +37,6 @@
 .selected{background:#a1ffcb;border-radius:8px}
 .app-main{flex:1;min-width:0;padding:16px}
 .review-layout{display:grid;grid-template-columns:minmax(0,430px) minmax(180px,1fr);align-items:start;gap:24px;padding-top:16px}
-.review-layout .board{container-type:inline-size}
-.review-layout .square{font-size:clamp(20px,4vw,52px)}
 .review-panel{padding:16px}
 .review-panel h3{font-size:22px;margin-bottom:20px}
 .move-row{display:grid;grid-template-columns:30px 1fr 1fr;padding:12px 0;border-bottom:1px solid #ddd}
@@ -100,7 +97,6 @@ details p{font-size:16px;max-width:80ch}
   .review-layout{grid-template-columns:1fr}
   .review-layout .board{width:100%}
   .review-panel{display:none}
-  .review-layout .square{font-size:32px}
   .practice-grid{margin:24px 0;gap:16px}
   .practice-grid h3{font-size:22px;margin-bottom:8px}
   .practice-grid p{font-size:16px}

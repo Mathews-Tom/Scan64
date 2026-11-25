@@ -28,12 +28,13 @@ const deb = document.createElement('a');
 deb.href = release + `Scan64_${version}_amd64.deb`;
 deb.textContent = 'Linux · x64 Debian package';
 alternatives.append(deb);
-const pieces = ['♜♞♝♛♚♝♞♜','♟♟♟♟♟♟♟♟','        ','        ','        ','        ','♙♙♙♙♙♙♙♙','♖♘♗♕♔♗♘♖'];
+const pieces = ['rnbqkbnr', 'pppppppp', '', '', '', '', 'PPPPPPPP', 'RNBQKBNR'];
 for (const board of document.querySelectorAll('[data-board]')) {
   for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
     const square = document.createElement('span');
-    square.className = `square${(row + col) % 2 ? ' dark' : ''}${row > 5 ? ' white-piece' : ''}`;
-    square.textContent = pieces[row][col];
+    square.className = `square${(row + col) % 2 ? ' dark' : ''}`;
+    const piece = pieces[row][col];
+    if (piece) square.style.backgroundImage = `url(pieces/cburnett/${piece === piece.toUpperCase() ? 'w' : 'b'}${piece.toUpperCase()}.svg)`;
     square.setAttribute('aria-hidden', 'true');
     board.append(square);
   }

@@ -6,8 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- Two classic piece sets in **Settings → Chessboard**: Staunton (cburnett, Colin M.L. Burnett) and Merida (Armando Hernandez Marroquin), both GPL-2.0-or-later.
+- Four traditional board palettes: Brown and cream, Green and buff, Classic brown and Classic green.
+
 ### Changed
 
+- Boards use the Staunton (cburnett) pieces on a brown-and-cream board by default. A piece set you already chose in Settings is kept.
+- Board palettes are now Brown and cream, Green and buff, Classic brown, Classic green, Walnut and Sand. Slate, Sage and Graphite are removed; if you chose one of them, your board switches to Brown and cream.
 - New app icon and logo: a mint knight's tour traces an S through six legal knight moves (f7, d6, b5, d4, f3, d2, b1) on a faint chessboard, from a light start square to a mint finish on b1. Sizes of 32 px and below use the tour without the board so it stays legible in tabs, the taskbar and the sidebar.
 
 ### Fixed
