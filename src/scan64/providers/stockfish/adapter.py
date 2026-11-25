@@ -1,11 +1,17 @@
-import os
-from dataclasses import dataclass, field
+"""Per-call UCI engine adapter. Stockfish is the default engine, not a requirement.
+
+``StockfishConfig``/``StockfishAdapter`` are kept as the historical names of
+``EngineConfig``/``UciEngineAdapter``; see ``scan64.providers.engine``.
+"""
+
 from typing import Any, Protocol, runtime_checkable
 
 import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
+from scan64.providers.engine.config import EngineConfig
+from scan64.providers.engine.uci import lines_from_result, startup_options
 from scan64.providers.stockfish.identity import (
     ExecutableSignature,
     analysis_identity,
@@ -36,42 +42,68 @@ class IdentifiedEngineAdapter(EngineAdapter, Protocol):
     async def analysis_identity(self) -> dict[str, Any]: ...
 
 
-@dataclass
-class StockfishConfig:
-    binary_path: str = field(
-        default_factory=lambda: os.environ.get("SCAN64_STOCKFISH_PATH", "stockfish")
-    )
-    threads: int = 1
-    hash_size: int = 16
+StockfishConfig = EngineConfig
+
+
+def search_limit(nodes: int | None, depth: int | None, time_ms: int | None) -> chess.engine.Limit:
+    return chess.engine.Limit(nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None)
+
+
+async def search(
+    engine: chess.engine.UciProtocol,
+    board: chess.Board,
+    limit: chess.engine.Limit,
+    multipv: int,
+    game: object | None = None,
+) -> list[dict[str, Any]]:
+    """Run one search and return every MultiPV line in stored form.
+
+    python-chess raises ``EngineError`` for ``multipv > 1`` on an engine that
+    does not declare ``MultiPV``; no single-line substitute is attempted.
+    """
+    result = await engine.analyse(board, limit, multipv=multipv, game=game)
+    return lines_from_result(result, board.turn)
 
 
 class StockfishAdapter:
-    def __init__(self, config: StockfishConfig):
+    def __init__(self, config: EngineConfig):
         self.config = config
         self._identity: dict[str, Any] | None = None
         self._identity_signature: ExecutableSignature | None = None
+
+    async def _start(self) -> chess.engine.UciProtocol:
+        _, engine = await chess.engine.popen_uci(self.config.binary_path)
+        try:
+            await engine.configure(startup_options(engine, self.config))
+        except BaseException:
+            await engine.quit()
+            raise
+        return engine
+
+    def _effective_identity(self) -> dict[str, Any]:
+        assert self._identity is not None
+        identity = dict(self._identity)
+        resources = {"Threads": self.config.threads, "Hash": self.config.hash_size}
+        identity["options"] = dict(
+            identity["options"],
+            **{name: value for name, value in resources.items() if name in identity["options"]},
+        )
+        return identity
 
     async def analysis_identity(self) -> dict[str, Any]:
         # Unlike a live pooled process, a per-call adapter has no loaded build
         # between calls. A replaced executable must invalidate its probe.
         signature = executable_signature(self.config.binary_path)
         if self._identity is None or self._identity_signature != signature:
-            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            engine = await self._start()
             try:
-                await engine.configure(
-                    {"Threads": self.config.threads, "Hash": self.config.hash_size}
-                )
                 self._identity = analysis_identity(
                     engine, engine_identity(engine, self.config.binary_path), self.config.threads
                 )
                 self._identity_signature = signature
             finally:
                 await engine.quit()
-        identity = dict(self._identity)
-        identity["options"] = dict(
-            identity["options"], Threads=self.config.threads, Hash=self.config.hash_size
-        )
-        return identity
+        return self._effective_identity()
 
     async def analyze_position(
         self,
@@ -82,41 +114,18 @@ class StockfishAdapter:
         multipv: int = 1,
     ) -> EngineAnalysis:
         signature = executable_signature(self.config.binary_path)
-        _, engine = await chess.engine.popen_uci(self.config.binary_path)
+        engine = await self._start()
         try:
-            await engine.configure({"Threads": self.config.threads, "Hash": self.config.hash_size})
             self._identity = analysis_identity(
                 engine, engine_identity(engine, self.config.binary_path), self.config.threads
             )
             self._identity_signature = signature
-
-            board = chess.Board(fen)
-            limit = chess.engine.Limit(
-                nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
+            raw_result = await search(
+                engine, chess.Board(fen), search_limit(nodes, depth, time_ms), multipv
             )
-
-            info_result = await engine.analyse(board, limit, multipv=multipv)
-
-            if not isinstance(info_result, list):
-                info_result = [info_result]
-
-            raw_result = []
-            for info in info_result:
-                res: dict[str, Any] = {}
-                if "pv" in info:
-                    res["pv"] = [m.uci() for m in info["pv"]]
-                if "score" in info:
-                    score = info["score"].pov(board.turn)
-                    if score.is_mate():
-                        res["score_mate"] = score.mate()
-                    else:
-                        res["score_cp"] = score.score()
-                raw_result.append(res)
-
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )
-
             return EngineAnalysis(
                 position_id=None,  # To be filled by the caller
                 config=config_dict,
@@ -124,3 +133,16 @@ class StockfishAdapter:
             )
         finally:
             await engine.quit()
+
+
+UciEngineAdapter = StockfishAdapter
+
+__all__ = [
+    "EngineAdapter",
+    "IdentifiedEngineAdapter",
+    "StockfishAdapter",
+    "StockfishConfig",
+    "UciEngineAdapter",
+    "search",
+    "search_limit",
+]

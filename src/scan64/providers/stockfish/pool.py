@@ -11,7 +11,18 @@ import chess.engine
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.opponents.bot_policy import choose_ladder_move
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.stockfish.adapter import StockfishConfig
+from scan64.providers.engine.config import UciOptionValue
+from scan64.providers.engine.uci import (
+    FULL_STRENGTH,
+    LADDER_OPTIONS,
+    LEGACY_STRENGTH_OPTIONS,
+    EngineCapabilityError,
+    full_strength_options,
+    missing_options,
+    require_options,
+    startup_options,
+)
+from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
@@ -19,7 +30,7 @@ HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
-HintCacheKey = tuple[str, tuple[str, ...], bool, str, int, int, int, int, int]
+HintCacheKey = tuple[str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int]
 
 
 def _positive_int_from_env(env_var: str, default: int) -> int:
@@ -72,11 +83,14 @@ class PooledStockfishAdapter:
 
     async def ensure_started(self) -> None:
         if self._engine is None:
-            _, self._engine = await chess.engine.popen_uci(self.config.binary_path)
-            await self._engine.configure(
-                {"Threads": self.config.threads, "Hash": self.config.hash_size}
-            )
-            self._identity = engine_identity(self._engine, self.config.binary_path)
+            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            try:
+                await engine.configure(startup_options(engine, self.config))
+                self._identity = engine_identity(engine, self.config.binary_path)
+            except BaseException:
+                await engine.quit()
+                raise
+            self._engine = engine
 
     async def analysis_identity(self) -> dict[str, Any]:
         await self.ensure_started()
@@ -106,14 +120,11 @@ class PooledStockfishAdapter:
     ) -> chess.engine.PlayResult:
         await self.ensure_started()
         assert self._engine is not None
-        await self._engine.configure(
-            {
-                "Threads": self.config.threads,
-                "Skill Level": skill_level,
-                "UCI_LimitStrength": False,
-                "UCI_Elo": 1320,
-            }
-        )
+        engine = self._engine
+        require_options(engine, LEGACY_STRENGTH_OPTIONS, "Skill Level opponent play")
+        options: dict[str, UciOptionValue] = full_strength_options(engine, self.config.threads)
+        options["Skill Level"] = skill_level
+        await engine.configure(options)
         board = chess.Board(fen)
         return await self._engine.play(
             board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
@@ -122,7 +133,19 @@ class PooledStockfishAdapter:
     async def play_bot_move(self, fen: str, context: OpponentContext) -> chess.engine.PlayResult:
         await self.ensure_started()
         assert self._engine is not None
-        return await choose_ladder_move(self._engine, chess.Board(fen), context, self.game_token)
+        engine = self._engine
+        try:
+            return await choose_ladder_move(engine, chess.Board(fen), context, self.game_token)
+        except chess.engine.EngineError as error:
+            # The ladder resets Stockfish's strength controls and searches every
+            # legal move; name the missing option instead of a raw UCI error.
+            missing = missing_options(engine, (*FULL_STRENGTH, *LADDER_OPTIONS))
+            if missing:
+                raise EngineCapabilityError(
+                    f"The bot ladder requires UCI option(s) {', '.join(missing)}, which "
+                    f"{engine.id.get('name', 'the configured engine')} does not declare"
+                ) from error
+            raise
 
     async def analyze_position(
         self,
@@ -136,36 +159,11 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
-        await engine.configure(
-            {
-                "Threads": self.config.threads,
-                "Skill Level": 20,
-                "UCI_LimitStrength": False,
-                "UCI_Elo": 1320,
-            }
-        )
+        await engine.configure(full_strength_options(engine, self.config.threads))
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
-        limit = chess.engine.Limit(
-            nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
+        raw_result = await search(
+            engine, board, search_limit(nodes, depth, time_ms), multipv, game=self.game_token
         )
-
-        info_result = await engine.analyse(board, limit, multipv=multipv, game=self.game_token)
-
-        if not isinstance(info_result, list):
-            info_result = [info_result]
-
-        raw_result = []
-        for info in info_result:
-            res: dict[str, Any] = {}
-            if "pv" in info:
-                res["pv"] = [m.uci() for m in info["pv"]]
-            if "score" in info:
-                score = info["score"].pov(board.turn)
-                if score.is_mate():
-                    res["score_mate"] = score.mate()
-                else:
-                    res["score_cp"] = score.score()
-            raw_result.append(res)
 
         config_dict = dict(
             await self.analysis_identity(),
@@ -336,17 +334,22 @@ class EnginePoolManager:
 
     _hint_in_progress = False
 
+    def _hint_limits(self) -> tuple[int | None, int | None, int]:
+        """Profile ``[limits.hint]`` when set, else the built-in hint budget."""
+        configured = self.config.limits.get("hint")
+        if configured is None:
+            return HINT_NODES, HINT_TIME_MS, HINT_MULTIPV
+        if configured.depth is not None:
+            raise ValueError("Hint limits support nodes and time_ms, not depth")
+        return configured.nodes, configured.time_ms, configured.multipv
+
     def _hint_cache_key(self, board: chess.Board) -> HintCacheKey:
         return (
             board.root().fen(en_passant="fen"),
             tuple(move.uci() for move in board.move_stack),
             board.chess960,
-            self.config.binary_path,
-            self.config.threads,
-            self.config.hash_size,
-            HINT_NODES,
-            HINT_TIME_MS,
-            HINT_MULTIPV,
+            self.config.fingerprint(),
+            *self._hint_limits(),
         )
 
     def invalidate_hint(self, board: chess.Board) -> None:
@@ -377,8 +380,9 @@ class EnginePoolManager:
                 async with asyncio.timeout(0.25):
                     adapter = await lease.__aenter__()
                 try:
+                    nodes, time_ms, multipv = self._hint_limits()
                     analysis = await adapter.analyze_position(
-                        board, nodes=HINT_NODES, time_ms=HINT_TIME_MS, multipv=HINT_MULTIPV
+                        board, nodes=nodes, time_ms=time_ms, multipv=multipv
                     )
                     self._hint_cache[key] = analysis.model_copy(deep=True)
                     if len(self._hint_cache) > HINT_CACHE_SIZE:
@@ -388,3 +392,6 @@ class EnginePoolManager:
                     await lease.__aexit__(None, None, None)
         finally:
             self._hint_in_progress = False
+
+
+PooledUciEngineAdapter = PooledStockfishAdapter

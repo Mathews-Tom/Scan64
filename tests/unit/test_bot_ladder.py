@@ -163,7 +163,10 @@ async def test_pool_resets_strength_for_analysis_and_legacy_play(
     engine = AsyncMock()
     engine.id = {"name": "Stockfish test"}
     engine.config = {}
-    engine.options = {}
+    # Declared like Stockfish: the pool only resets options an engine declares.
+    engine.options = dict.fromkeys(
+        ("Threads", "Hash", "MultiPV", "Skill Level", "UCI_LimitStrength", "UCI_Elo")
+    )
     engine.analyse.return_value = candidates()
     engine.play.return_value = chess.engine.PlayResult(chess.Move.from_uci("e2e4"), None)
     monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
