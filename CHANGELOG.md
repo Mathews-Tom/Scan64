@@ -13,7 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 
-- Boards use the Staunton (cburnett) pieces on a brown-and-cream board by default. A piece set you already chose in Settings is kept.
+- Boards use the Staunton (cburnett) pieces on a brown-and-cream board by default. A piece set or board palette you already chose in Settings is kept.
 - New app icon and logo: a mint knight's tour traces an S through six legal knight moves (f7, d6, b5, d4, f3, d2, b1) on a faint chessboard, from a light start square to a mint finish on b1. Sizes of 32 px and below use the tour without the board so it stays legible in tabs, the taskbar and the sidebar.
 
 ### Fixed
