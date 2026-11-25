@@ -21,3 +21,14 @@ To finish, I need these permissions:
 3. Approval for `gh` (issue view, `pr create`, issue comments) and for `git push`.
 
 After that, I will write the file, run `scripts/check.sh`, commit with `-s`, push, and open the PR against `epic/371` with "Part of #361".
+Preparing worktree (new branch 'docs/361-narrator-pipeline')
+HEAD is now at 8f00711 Merge pull request #373 from Mathews-Tom/fix/restore-board-palettes
+The gate is still running; I'll report when it finishes.
+
+Gate rerun in progress (background task `bn1buwvmu`).
+
+Remaining gate steps running (task `bj0lrobmc`).
+
+Licence, frontend and cargo steps running (task `b2cdq92u1`).
+
+Pytest (without the crashing file) running in background (task `bl5spez0k`).

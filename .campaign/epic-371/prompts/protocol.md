@@ -1,6 +1,6 @@
 
 --- PROGRESS PROTOCOL ---
-CRITICAL FIRST ACTION: Read /home/syd/projects/Scan64/.campaign/epic-371/progress/terminal-{{ID}}.md.
+CRITICAL FIRST ACTION: Read D:/projects/Scan64/.campaign/epic-371/progress/terminal-{{ID}}.md.
 Set `status: in_progress` and `started:` to the current ISO time.
 After every commit, update that file:
 - The Issues table Actual column with what now exists (counts, files, test results).
@@ -25,4 +25,4 @@ This file lives outside your worktree (absolute path above). Do not commit it.
 - Do not wait for input; no human answers during the run. Make the call, record it in the PR body, and continue.
 - When done: post a short summary comment on each issue with `gh issue comment <N> --body ...` linking the PR. Do not close issues.
 
-Read AGENTS.md or CLAUDE.md if present, CONTRIBUTING.md, docs/system-design.md, and /home/syd/projects/Scan64/.campaign/epic-371/campaign.toml for full context.
+Read AGENTS.md or CLAUDE.md if present, CONTRIBUTING.md, docs/system-design.md, and D:/projects/Scan64/.campaign/epic-371/campaign.toml for full context.

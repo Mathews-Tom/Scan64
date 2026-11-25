@@ -27,3 +27,10 @@ I did not use shell redirection to get around these denials. Because of that, th
   - The fallback counter is not exposed through `/explanation-settings`. That endpoint is per player but the counter covers the whole process, and `api/` is outside my targets. It will be logs plus an in-process accessor in `assembly.py`.
 
 **To continue:** allow Write/Edit in this worktree, `gh`, and reads of `.campaign/epic-371/progress/`. Then run the task again, and I will apply the design above, add the 15+ adversarial and 10+ correct fixtures, and run `scripts/check.sh`.
+Preparing worktree (new branch 'feat/366-ground-claim-text')
+HEAD is now at 8f00711 Merge pull request #373 from Mathews-Tom/fix/restore-board-palettes
+Waiting on the gate (pytest stage running).
+
+The first gate run hit the 10-minute background limit at 19% of pytest. It has been restarted with a 2-hour limit.
+
+The stale monitor expired. The gate rerun (bxsic9vhn) is still running; its completion will be reported.

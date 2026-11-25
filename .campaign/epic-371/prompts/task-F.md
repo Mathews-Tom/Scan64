@@ -1,5 +1,5 @@
 Working on giving the Scan64 narrator precomputed chess facts per move instead of raw UCI payloads.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/367-narrator-facts (already checked out in your worktree; do not switch branches)
 
 Issue: #367 — Give the narrator precomputed chess facts per move instead of raw UCI payloads

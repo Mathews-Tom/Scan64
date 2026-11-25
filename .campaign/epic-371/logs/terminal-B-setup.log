@@ -1,12 +1,15 @@
-Using CPython 3.12.13
+Using CPython 3.12.8
 Creating virtual environment at: .venv
-Resolved 49 packages in 0.90ms
-   Building scan64 @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B
-   Building chess-lesson-spec @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B/packages/chess-lesson-spec
-      Built scan64 @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B
-      Built chess-lesson-spec @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B/packages/chess-lesson-spec
-Prepared 2 packages in 211ms
-Installed 41 packages in 15ms
+Resolved 49 packages in 0.78ms
+   Building scan64 @ file:///D:/projects/scan64-wt/terminal-B
+   Building chess-lesson-spec @ file:///D:/projects/scan64-wt/terminal-B/packages/chess-lesson-spec
+      Built scan64 @ file:///D:/projects/scan64-wt/terminal-B
+      Built chess-lesson-spec @ file:///D:/projects/scan64-wt/terminal-B/packages/chess-lesson-spec
+Prepared 2 packages in 823ms
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 42 packages in 1.22s
  + alembic==1.18.5
  + annotated-doc==0.0.4
  + annotated-types==0.7.0
@@ -14,8 +17,9 @@ Installed 41 packages in 15ms
  + ast-serialize==0.6.0
  + certifi==2026.6.17
  + chess==1.11.2
- + chess-lesson-spec==0.2.0 (from file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B/packages/chess-lesson-spec)
+ + chess-lesson-spec==0.2.0 (from file:///D:/projects/scan64-wt/terminal-B/packages/chess-lesson-spec)
  + click==8.4.2
+ + colorama==0.4.6
  + fastapi==0.139.0
  + fsrs==6.3.3
  + greenlet==3.5.3
@@ -39,7 +43,7 @@ Installed 41 packages in 15ms
  + pytest==9.1.1
  + pytest-asyncio==1.4.0
  + ruff==0.15.21
- + scan64==1.0.0 (from file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-B)
+ + scan64==1.0.0 (from file:///D:/projects/scan64-wt/terminal-B)
  + sortedcontainers==2.4.0
  + sqlalchemy==2.0.51
  + sqlmodel==0.0.39
@@ -51,7 +55,14 @@ Installed 41 packages in 15ms
 Scope: all 2 workspace projects
 Lockfile is up to date, resolution step is skipped
 Progress: resolved 1, reused 0, downloaded 0, added 0
-Packages: +585
+Packages: +586
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Progress: resolved 585, reused 585, downloaded 0, added 585, done
-Done in 997ms using pnpm v10.33.3
+Progress: resolved 586, reused 427, downloaded 0, added 0
+Progress: resolved 586, reused 586, downloaded 0, added 43
+Progress: resolved 586, reused 586, downloaded 0, added 122
+Progress: resolved 586, reused 586, downloaded 0, added 192
+Progress: resolved 586, reused 586, downloaded 0, added 271
+Progress: resolved 586, reused 586, downloaded 0, added 410
+Progress: resolved 586, reused 586, downloaded 0, added 564
+Progress: resolved 586, reused 586, downloaded 0, added 586, done
+Done in 8.1s using pnpm v10.33.3

@@ -1,7 +1,7 @@
 [campaign]
 name = "epic-371"
 description = "FIDE-standard board and pieces, swappable engine, and an engine-grounded narrator (epic #371)."
-project_root = "/home/syd/projects/Scan64"
+project_root = "D:/projects/Scan64"
 base_branch = "epic/371"
 created = "2026-11-25"
 

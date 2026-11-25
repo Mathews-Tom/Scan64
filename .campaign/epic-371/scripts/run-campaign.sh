@@ -3,19 +3,19 @@
 # launch → poll → verify → merge into epic/371 → check → push → next wave → draft PR to main
 set -euo pipefail
 
-PROJECT_DIR="/home/syd/projects/Scan64"
+PROJECT_DIR="D:/projects/Scan64"
 CAMPAIGN_DIR="${PROJECT_DIR}/.campaign/epic-371"
 BASE_BRANCH="epic/371"
 POLL_INTERVAL="${1:-120}"
 START_WAVE="${START_WAVE:-1}"
-export PATH="${HOME}/.local/opt/node24/bin:${HOME}/.local/bin:${PATH}"
-export NO_ATTACH=1
+export PATH="${HOME}/.local/opt/node24:${HOME}/.local/bin:${PATH}"
+export SCAN64_STOCKFISH_PATH="${HOME}/.local/bin/stockfish.exe"
 
 # Many-core hosts: the default batch pool (CPUs - 3) starts ~45 engines and breaks 5 s job tests.
 export SCAN64_ENGINE_POOL_BATCH_CONCURRENCY="${SCAN64_ENGINE_POOL_BATCH_CONCURRENCY:-2}"
 
 cd "${PROJECT_DIR}"
-mkdir -p "${CAMPAIGN_DIR}/logs"
+mkdir -p "${CAMPAIGN_DIR}/logs" "${CAMPAIGN_DIR}/.junk/worktrees"
 
 # ── Base branch ────────────────────────────────────────────
 git fetch origin
@@ -57,13 +57,18 @@ merge_branch() {
     echo "STOP: merge conflict on ${branch}. Resolve, commit with -s, then START_WAVE=<next> bash $0"
     exit 1
   fi
-  git worktree remove "${CAMPAIGN_DIR}/worktrees/terminal-${id}" --force 2>/dev/null || true
+  [ -d "D:/projects/scan64-wt/terminal-${id}" ] && mv "D:/projects/scan64-wt/terminal-${id}" "${CAMPAIGN_DIR}/.junk/worktrees/terminal-${id}.merged.$(date +%Y%m%d_%H%M%S)"
+  git worktree prune
 }
 
 gate() {
   local wave="$1"
   uv sync --locked >/dev/null && pnpm install --frozen-lockfile >/dev/null
-  if ! scripts/check.sh >"${CAMPAIGN_DIR}/logs/check-wave-${wave}.log" 2>&1; then
+  # Windows host: deselect only the tests that fail on the unchanged base here (see file).
+  local deselect=""
+  while IFS= read -r t; do [ -n "${t}" ] && deselect="${deselect} --deselect=${t}"; done \
+    <"${CAMPAIGN_DIR}/windows-baseline-deselect.txt"
+  if ! PYTEST_ADDOPTS="${deselect}" scripts/check.sh >"${CAMPAIGN_DIR}/logs/check-wave-${wave}.log" 2>&1; then
     echo "STOP: scripts/check.sh failed after wave ${wave}. See ${CAMPAIGN_DIR}/logs/check-wave-${wave}.log"
     exit 1
   fi
@@ -74,7 +79,11 @@ run_wave() {
   local wave="$1"; shift
   [ "${wave}" -lt "${START_WAVE}" ] && { echo "Skipping wave ${wave}"; return; }
   echo "=== Wave ${wave} ==="
-  bash "${CAMPAIGN_DIR}/scripts/launch-wave-${wave}.sh"
+  if [ "${POLL_ONLY_WAVE:-0}" = "${wave}" ]; then
+    echo "Wave ${wave} already launched; polling only."
+  else
+    bash "${CAMPAIGN_DIR}/scripts/launch-wave-${wave}.sh"
+  fi
   poll_wave "$@"
   for id in "$@"; do check_status "${id}"; done
   git checkout "${BASE_BRANCH}"

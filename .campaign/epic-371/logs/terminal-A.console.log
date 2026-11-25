@@ -1,0 +1,41 @@
+Gate in pytest stage; waiting for next event.
+
+Watching the gate (pytest at 37%).
+
+The full gate (`scripts/check.sh`) is still running: Python pytest has reached 40%. That stage tests the server, which this change doesn't touch.
+
+PR #375 to `epic/371` is open: https://github.com/Mathews-Tom/Scan64/pull/375. It has two commits, both pushed:
+- `ef44069` adds the piece sets, the grouping, the licence notices and the tests.
+- `b1ff77f` updates the user guide.
+
+**What changed**
+- **Two new Staunton-pattern sets:**
+  - **mpchess** by Maxime Chupin, GPL-3.0-or-later, taken from Lichess.
+  - **Sophia**, the "simple" pieces from GNOME Chess, under the W3C Software Notice and License. That licence is permissive and GPL-compatible, though it wasn't on your example list.
+  - I compared the committed files byte for byte with the upstream downloads and they are identical. The Sophia files are only renamed, and the notice records that.
+- **Settings:** the piece-set control now has two headings, **Staunton pattern** and **Other designs**, in one radio group, plus a note citing FIDE C.02.
+  - Staunton (cburnett) is still the default.
+  - Six existing sets go under Staunton pattern: Staunton (cburnett), Merida, Chessnut, California, Maestro and Staunty. Spatial and Firi go under Other designs.
+  - No set was removed or renamed, and saved values are unchanged.
+- **Licence notices:** both sets have their licence texts bundled. They are recorded in `NOTICE.txt`, `licenses.html`, the Settings licence paragraph and a new "Chess piece artwork" section in `THIRD_PARTY_NOTICES.md`.
+- **User guide:** the board appearance section has a table of each set, whether it is Staunton pattern, and its licence. It also summarises what C.02 section 6.1 asks of pieces (from 1 March 2026), and notes that the height rules apply to physical pieces only.
+- **Tests:** they check the grouping, the default, that only one set can be selected across both groups, and that a saved choice of each of the 10 sets is kept.
+
+**Why only two sets:** the other Staunton-style Lichess sets didn't qualify:
+- Most are non-commercial or "freeware" only.
+- pirouetti is AGPL, which isn't on the allowed list. The PR body leaves it for a maintainer to decide.
+- governor and kosal have no stated licence.
+- mono draws both sides in one grey, which breaks the light-set/dark-set rule.
+
+**Checks so far:** 830 web unit tests pass, lint exits 0 and the build passes. Rendering both sets through the built CSS showed every piece, and the Settings panel looked right in dark mode at 1440 px.
+
+**Still to do once the gate finishes:**
+- Record its result in the progress file and set the status to complete.
+- Post a summary comment on issue #359 linking the PR. I haven't done this yet.
+
+The full gate is still running: Python tests are at 40%. Nothing has failed so far. I'm waiting for it to finish before I record the result and comment on #359.
+
+The full gate (`scripts/check.sh`) is still running. It was about 40% through the Python test stage at the last update, and nothing had failed by then.
+
+I'll be notified when the gate exits. Then I'll log the result in the progress file, set the status to complete, and post the summary comment on #359 linking PR #375.
+Terminated

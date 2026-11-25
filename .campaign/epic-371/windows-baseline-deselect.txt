@@ -1,0 +1,4 @@
+tests/integration/test_web_serving.py::test_real_assets_and_missing_assets
+tests/unit/test_desktop_package_smoke.py::test_process_executable_identifies_the_running_interpreter
+tests/unit/test_maia_coverage_disclosure.py::test_config_requires_absolute_operator_paths
+tests/unit/test_puzzle_import_job.py::test_cancel_interrupts_stalled_http_stream

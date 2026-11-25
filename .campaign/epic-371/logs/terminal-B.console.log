@@ -1,0 +1,46 @@
+I'll be notified when the shards finish.
+
+You can now swap the analysis engine by configuration alone. Ethereal 14.40, built from source, analyses a stored game end to end through the real analysis job and the hint pool. The gate is not fully green: the full test suite has 13 failures and the desktop Rust checks could not run. All of those are environment problems; none of the failures are in engine code.
+
+**What shipped** (PR #377, four commits on `feat/360-swappable-engine` into `epic/371`):
+- **Configuration:** `SCAN64_ENGINE_CONFIG` points at a TOML file with the engine name, binary path, threads, hash size, extra UCI options and an optional override of the hint search limits. Without it, the engine is still Stockfish from `SCAN64_STOCKFISH_PATH`, with the same cache identity as before, so existing saved analyses keep matching. Example files are in `config/engines/` (`ethereal.toml`, `berserk.toml`, `stockfish-wdl.toml`).
+- **Adapter and pool:** `StockfishConfig` is now `EngineConfig`. The old class names still work, and engine-neutral aliases are in `providers/engine/adapters.py`. Engine options are only sent if the engine declares them. A profile option the engine doesn't have stops startup with an error naming it.
+- **Extended lines:** every stored line now includes `wdl`, `depth`, `seldepth`, `nodes`, `nps` and `multipv` when the engine reports them. Old rows load unchanged; `EngineAnalysis.lines()` gives typed values with `None` for the missing fields.
+- **Cache identity:** keys hash the executable, any external network file and all option values, so a new engine never hits a Stockfish entry. The integration test checks this with real Stockfish rows followed by Ethereal on the same positions.
+- **Bot opponents stay Stockfish-only:** on another engine, the bot ladder and Skill Level play fail with an error naming the missing UCI options. Opponents share the interactive pool with hints, so **with a non-Stockfish profile, bot play is unavailable**. Separating the two needs changes in `api/app.py` and `api/play.py`, which were outside my write targets.
+- **Docs and benchmark:** `docs/engines.md` holds the map of Stockfish-specific assumptions, the config format, which features need which UCI options, and a comparison table. `docs/system-design.md` has the new engine configuration table.
+
+**Comparison** (5 fixed positions, 1M nodes, MultiPV 3, one run on this machine):
+
+| Engine | MultiPV | WDL | Median PV length |
+| --- | --- | --- | --- |
+| Stockfish 18 | yes | with `UCI_ShowWDL` | 18 |
+| Ethereal 14.40 | yes | no | 17 |
+| Berserk | yes | yes | 20 |
+| Obsidian | yes | no | 4 (often cuts lines to 1–5 moves) |
+| Koivisto 9.2 | no | no | 17 (cannot run focused passes, hints or lesson checks) |
+| Lc0 | yes | with `UCI_ShowWDL` | not measured |
+
+I didn't build Lc0 (it needs a GPU backend and a weights file); its row comes from upstream docs. There was no C compiler on the machine, so I built Ethereal, Berserk, Obsidian and Koivisto with Zig's bundled clang into `~/.local/opt/engines/`.
+
+**Tests:**
+- New tests (config loading, extended fields, legacy rows, cache separation, second engine): 28 passed.
+- Existing engine test suites: 210 passed.
+- Full suite, run in 8 parallel shards because a serial run went past the 2-hour limit with other sessions' suites running on the machine: 3,589 passed, 13 failed, 3 skipped.
+  - 8 failures (and the `real_games --check` gate step) are fixture checksum mismatches: `core.autocrlf=true` checks the fixtures out with Windows line endings. The committed file hashes match.
+  - The other 4 failing tests also fail on the base commit: web serving assets, puzzle import cancel, a Maia path test, and the desktop smoke interpreter test.
+- Ruff, formatting, strict typing, the licence check, web build/lint, 818 web unit tests and 104 Playwright tests pass.
+- `cargo clippy` and `cargo test` could not run: the desktop crate needs rustc 1.95 and this machine has 1.94.1. I didn't upgrade the shared toolchain.
+
+**Follow-ups:**
+- Give opponents their own engine, separate from the analysis engine.
+- `scan64 serve` still requires `stockfish` on PATH even when a profile names another engine.
+- `exact_replay.py` hardcodes `engine="stockfish"` in its verification record.
+- Make the review and verification search budgets configurable; Lc0 needs this.
+- Turn the capability error into a proper client-facing status in the play API.
+
+The progress file is set to `complete` with these results, and I commented on issue #360 linking the PR.
+
+Sources:
+- [Lc0 options](https://github.com/LeelaChessZero/lc0/wiki/Lc0-options)
+- [Lc0 Win-Draw-Loss evaluation](https://lczero.org/blog/2020/04/wdl-head/)

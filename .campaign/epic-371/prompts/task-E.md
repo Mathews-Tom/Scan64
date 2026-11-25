@@ -1,5 +1,5 @@
 Working on detailed natural-material boards (wood grain, marble, granite) with a matte finish for the Scan64 web client.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/363-material-boards (already checked out in your worktree; do not switch branches)
 
 Issue: #363 — Add detailed natural-material boards (wood grain, marble, granite) with a matte finish

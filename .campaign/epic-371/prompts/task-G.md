@@ -1,5 +1,5 @@
 Working on a benchmark of chess-aware open LLMs as the Scan64 narrator against a general-purpose baseline.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/369-narrator-benchmark (already checked out in your worktree; do not switch branches)
 
 Issue: #369 — Evaluate chess-aware open LLMs as the narrator against a general-purpose baseline

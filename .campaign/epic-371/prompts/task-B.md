@@ -1,5 +1,5 @@
 Working on making the Scan64 analysis engine swappable by configuration, with full access to engine variations.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/360-swappable-engine (already checked out in your worktree; do not switch branches)
 
 Issue: #360 — Make the analysis engine swappable by configuration, with full variation access

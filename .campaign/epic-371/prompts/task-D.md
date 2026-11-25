@@ -1,5 +1,5 @@
 Working on documenting how the Scan64 narrator LLM consumes engine variations.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: docs/361-narrator-pipeline (already checked out in your worktree; do not switch branches)
 
 Issue: #361 — Document how the narrator LLM consumes engine variations

@@ -1,5 +1,5 @@
 Working on grounding the narrator's claim text in engine and board evidence.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/366-ground-claim-text (already checked out in your worktree; do not switch branches)
 
 Issue: #366 — Ground the narrator's claim text, not only its cited lines, in engine evidence

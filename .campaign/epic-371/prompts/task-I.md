@@ -1,5 +1,5 @@
 Working on narrating engine variations on the Scan64 Analysis Board for any position.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/368-analysis-board-narration (already checked out in your worktree; do not switch branches)
 
 Issue: #368 — Narrate engine variations on the Analysis Board for any position

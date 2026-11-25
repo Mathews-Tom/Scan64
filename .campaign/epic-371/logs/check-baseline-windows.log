@@ -1,0 +1,1169 @@
+== python: pytest ==
+============================= test session starts =============================
+platform win32 -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\projects\Scan64
+configfile: pyproject.toml
+plugins: anyio-4.14.2, hypothesis-6.156.6, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 3594 items / 2 deselected / 3592 selected
+
+scripts\release\test_verify.py ...............                           [  0%]
+tests\conformance\test_explanation_coverage.py .................         [  0%]
+tests\conformance\test_lesson_contract.py .............................. [  1%]
+............                                                             [  2%]
+tests\conformance\test_lesson_spec_fixtures.py .......                   [  2%]
+tests\integration\test_adaptive_session.py ..........                    [  2%]
+tests\integration\test_admission_control.py .......                      [  2%]
+tests\integration\test_admission_controller.py ..                        [  2%]
+tests\integration\test_allowed_mate_analysis.py ..                       [  2%]
+tests\integration\test_analysis_board_api.py ...                         [  2%]
+tests\integration\test_analysis_job_concurrency.py ..                    [  2%]
+tests\integration\test_analysis_job_events.py ....................       [  3%]
+tests\integration\test_analysis_persistence.py .........                 [  3%]
+tests\integration\test_analysis_recovery.py .....                        [  3%]
+tests\integration\test_analysis_reuse.py ................                [  4%]
+tests\integration\test_analysis_selection.py .........                   [  4%]
+tests\integration\test_analysis_throughput.py .                          [  4%]
+tests\integration\test_catalogue_storage.py .....                        [  4%]
+tests\integration\test_coach_authorization_boundary.py ...               [  4%]
+tests\integration\test_coach_dashboard_api.py ....                       [  4%]
+tests\integration\test_coach_interruption_attempts.py .................. [  5%]
+.                                                                        [  5%]
+tests\integration\test_content_attempt_shared_profile.py .               [  5%]
+tests\integration\test_context_habit_profiling.py ..                     [  5%]
+tests\integration\test_credit_concurrency.py ..                          [  5%]
+tests\integration\test_credit_lifecycle.py ............................. [  6%]
+.                                                                        [  6%]
+tests\integration\test_credit_migration.py .                             [  6%]
+tests\integration\test_daily_training_api.py .                           [  6%]
+tests\integration\test_data_lifecycle.py .................               [  7%]
+tests\integration\test_data_lifecycle_completeness.py ......             [  7%]
+tests\integration\test_desktop_server.py .......                         [  7%]
+tests\integration\test_detector_promotion_gate.py ....                   [  7%]
+tests\integration\test_detector_resolution.py ..                         [  7%]
+tests\integration\test_engine_pool_isolation.py .......                  [  7%]
+tests\integration\test_exercise_pipeline.py ...                          [  7%]
+tests\integration\test_explanation_settings.py ............              [  8%]
+tests\integration\test_explanation_settings_migration.py .               [  8%]
+tests\integration\test_famous_game_shared_profile.py .........           [  8%]
+tests\integration\test_fsrs_archive.py ................................. [  9%]
+.....................................                                    [ 10%]
+tests\integration\test_fsrs_migration.py ...                             [ 10%]
+tests\integration\test_game_ownership.py ...                             [ 10%]
+tests\integration\test_game_review.py .........................          [ 11%]
+tests\integration\test_habit_api.py .........                            [ 11%]
+tests\integration\test_habit_archive.py ................................ [ 12%]
+..........................................F............................. [ 14%]
+..........................................F.............                 [ 15%]
+tests\integration\test_habit_evidence_archive.py ....................... [ 16%]
+........                                                                 [ 16%]
+tests\integration\test_habit_migration.py ........                       [ 17%]
+tests\integration\test_habit_qualification.py .....................      [ 17%]
+tests\integration\test_idempotency.py ...                                [ 17%]
+tests\integration\test_learning_opportunities_api.py .                   [ 17%]
+tests\integration\test_lesson_attempts.py .............................. [ 18%]
+.............................                                            [ 19%]
+tests\integration\test_lesson_packs.py .............                     [ 19%]
+tests\integration\test_lesson_packs_migration.py ..                      [ 19%]
+tests\integration\test_live_detector_coverage.py .                       [ 19%]
+tests\integration\test_llm_provider_mocked.py ....                       [ 19%]
+tests\integration\test_m18_learning_behavior.py ...                      [ 20%]
+tests\integration\test_m79_trust_history.py ....                         [ 20%]
+tests\integration\test_m93_product_visibility.py ....                    [ 20%]
+tests\integration\test_m94_product_visibility.py ....................... [ 20%]
+                                                                         [ 20%]
+tests\integration\test_maia_adapter.py .                                 [ 20%]
+tests\integration\test_maia_provider.py ......                           [ 21%]
+tests\integration\test_measured_reference_game.py .                      [ 21%]
+tests\integration\test_onboarding.py ...............                     [ 21%]
+tests\integration\test_onboarding_lifecycle.py ......................... [ 22%]
+..................................................................       [ 24%]
+tests\integration\test_onboarding_migration.py .                         [ 24%]
+tests\integration\test_online_import_api.py ............................ [ 24%]
+....                                                                     [ 24%]
+tests\integration\test_opponent_provider.py .....                        [ 25%]
+tests\integration\test_owner_color.py .........                          [ 25%]
+tests\integration\test_pagination.py ...                                 [ 25%]
+tests\integration\test_pattern_recurrence.py ........................... [ 26%]
+......                                                                   [ 26%]
+tests\integration\test_pgn_roundtrip.py .......                          [ 26%]
+tests\integration\test_play_api.py ...............                       [ 26%]
+tests\integration\test_play_assistance.py .............................. [ 27%]
+...........................................                              [ 29%]
+tests\integration\test_play_assistance_commit.py .............           [ 29%]
+tests\integration\test_play_assistance_lifecycle.py ............         [ 29%]
+tests\integration\test_play_assistance_migration.py .....                [ 29%]
+tests\integration\test_play_bot_recovery.py ............                 [ 30%]
+tests\integration\test_play_clock_archive_versions.py .................  [ 30%]
+tests\integration\test_play_clock_coach_atomic.py .......                [ 30%]
+tests\integration\test_play_clock_lifecycle.py ......................... [ 31%]
+.........                                                                [ 31%]
+tests\integration\test_play_clock_lifespan_cleanup.py .                  [ 31%]
+tests\integration\test_play_clock_migration.py ..                        [ 31%]
+tests\integration\test_play_clock_reservation.py ....                    [ 31%]
+tests\integration\test_play_clock_retry_health.py .....                  [ 32%]
+tests\integration\test_play_clock_review_api.py ........................ [ 32%]
+................                                                         [ 33%]
+tests\integration\test_play_clock_scheduling.py ..                       [ 33%]
+tests\integration\test_play_clocks.py .................................. [ 34%]
+.................................................                        [ 35%]
+tests\integration\test_play_committed_job_admission.py ........          [ 35%]
+tests\integration\test_play_move_snapshot.py ............                [ 36%]
+tests\integration\test_play_position_corruption.py ..                    [ 36%]
+tests\integration\test_play_session_analysis.py ....                     [ 36%]
+tests\integration\test_play_session_resign.py ...........                [ 36%]
+tests\integration\test_player_games.py ......                            [ 36%]
+tests\integration\test_position_analysis_api.py ........................ [ 37%]
+.............                                                            [ 37%]
+tests\integration\test_position_insights_api.py ........................ [ 38%]
+..............                                                           [ 38%]
+tests\integration\test_positive_credit_cap.py .....                      [ 39%]
+tests\integration\test_positive_move_credit.py ........................  [ 39%]
+tests\integration\test_profile_insights.py .............                 [ 40%]
+tests\integration\test_profile_updates_from_analysis.py ..               [ 40%]
+tests\integration\test_progress_reset.py .......................         [ 40%]
+tests\integration\test_public_benchmark_gating.py ......                 [ 40%]
+tests\integration\test_puzzle_import_daily.py ....                       [ 41%]
+tests\integration\test_puzzle_lifecycle.py ....................          [ 41%]
+tests\integration\test_puzzle_migration.py .                             [ 41%]
+tests\integration\test_puzzle_mistakes.py ...........................    [ 42%]
+tests\integration\test_puzzle_modes.py ..................                [ 42%]
+tests\integration\test_puzzle_modes_lifecycle.py ....................... [ 43%]
+........                                                                 [ 43%]
+tests\integration\test_puzzle_practice.py ......................         [ 44%]
+tests\integration\test_puzzle_practice_archive.py ...................... [ 44%]
+......................................................................   [ 46%]
+tests\integration\test_puzzle_practice_migration.py .                    [ 46%]
+tests\integration\test_puzzle_review.py ................................ [ 47%]
+.                                                                        [ 47%]
+tests\integration\test_puzzle_runs.py ..........                         [ 48%]
+tests\integration\test_renderer_conformance_cli.py ..                    [ 48%]
+tests\integration\test_repertoire.py ........................            [ 48%]
+tests\integration\test_repertoire_deviations.py .....                    [ 48%]
+tests\integration\test_repertoire_lifecycle_boundaries.py .............. [ 49%]
+....                                                                     [ 49%]
+tests\integration\test_repertoire_migration.py ....                      [ 49%]
+tests\integration\test_repertoire_security.py .......................... [ 50%]
+.................                                                        [ 50%]
+tests\integration\test_reports_from_real_data.py ....................... [ 51%]
+......................                                                   [ 52%]
+tests\integration\test_schema_migrations.py .........                    [ 52%]
+tests\integration\test_session_hint_tracking.py .................        [ 52%]
+tests\integration\test_sparring.py ..................................    [ 53%]
+tests\integration\test_sparring_lifecycle.py ........................... [ 54%]
+....................................................                     [ 55%]
+tests\integration\test_sparring_migration.py ...                         [ 56%]
+tests\integration\test_stockfish_pipeline.py .....                       [ 56%]
+tests\integration\test_stockfish_strength.py ........................... [ 56%]
+......................                                                   [ 57%]
+tests\integration\test_strength.py ...................                   [ 58%]
+tests\integration\test_taxonomy_migration_live.py .                      [ 58%]
+tests\integration\test_transfer_measurement.py ...............           [ 58%]
+tests\integration\test_v090_compatibility.py ..                          [ 58%]
+tests\integration\test_web_serving.py ...F.......                        [ 58%]
+tests\property\test_ingestion_invariants.py .                            [ 58%]
+tests\property\test_mastery_monotonicity.py .                            [ 58%]
+tests\property\test_mastery_updates.py ....                              [ 59%]
+tests\property\test_minimum_evidence_gating.py .                         [ 59%]
+tests\property\test_pseudonymization_invariant.py ......                 [ 59%]
+tests\property\test_scheduler_reserved_capacity.py .                     [ 59%]
+tests\property\test_transformation_validity.py .                         [ 59%]
+tests\regression\test_golden_fixture_corpus_integrity.py .               [ 59%]
+tests\regression\test_template_path_unaffected.py .                      [ 59%]
+tests\unit\test_allowed_mate.py .....................                    [ 59%]
+tests\unit\test_analyse_cli.py ...                                       [ 59%]
+tests\unit\test_analysis_jobs.py .                                       [ 60%]
+tests\unit\test_analysis_throughput.py ..............                    [ 60%]
+tests\unit\test_bot_calibration.py ............                          [ 60%]
+tests\unit\test_bot_ladder.py .....................                      [ 61%]
+tests\unit\test_build_server.py .........................                [ 62%]
+tests\unit\test_conformance_runner.py ..                                 [ 62%]
+tests\unit\test_content_catalog.py ...                                   [ 62%]
+tests\unit\test_content_validation.py ........                           [ 62%]
+tests\unit\test_context_conditioned_skill.py ...                         [ 62%]
+tests\unit\test_database_url.py ....                                     [ 62%]
+tests\unit\test_desktop_backups.py ..................................... [ 63%]
+.........                                                                [ 63%]
+tests\unit\test_desktop_package_smoke.py ......F....s.                   [ 64%]
+tests\unit\test_desktop_security.py .................................... [ 65%]
+..........................                                               [ 65%]
+tests\unit\test_desktop_server.py ......................ss.............. [ 67%]
+........                                                                 [ 67%]
+tests\unit\test_desktop_update_e2e.py ..................                 [ 67%]
+tests\unit\test_diagnosis_arbitration.py ..                              [ 67%]
+tests\unit\test_diagnosis_detectors.py ..........                        [ 68%]
+tests\unit\test_empty.py .                                               [ 68%]
+tests\unit\test_engine_pool.py .                                         [ 68%]
+tests\unit\test_evidence_composer.py .                                   [ 68%]
+tests\unit\test_evidence_model.py .                                      [ 68%]
+tests\unit\test_explanation_validator.py ........                        [ 68%]
+tests\unit\test_famous_games.py ....                                     [ 68%]
+tests\unit\test_fsrs_scheduling.py .....................                 [ 69%]
+tests\unit\test_grounded_explanation.py .........                        [ 69%]
+tests\unit\test_habit.py ........................                        [ 70%]
+tests\unit\test_habit_detection.py ....                                  [ 70%]
+tests\unit\test_hint_ladder.py ..................                        [ 70%]
+tests\unit\test_hint_pool.py ........                                    [ 70%]
+tests\unit\test_hint_principles.py ..................................... [ 71%]
+...........................                                              [ 72%]
+tests\unit\test_ingestion.py .......                                     [ 72%]
+tests\unit\test_lesson_packs.py ........................................ [ 73%]
+............................................                             [ 75%]
+tests\unit\test_lesson_verification.py ...                               [ 75%]
+tests\unit\test_lesson_verifier.py ....                                  [ 75%]
+tests\unit\test_lichess_themes.py ...................................... [ 76%]
+.........                                                                [ 76%]
+tests\unit\test_llm_config_wiring.py .......                             [ 76%]
+tests\unit\test_local_ollama.py .......................                  [ 77%]
+tests\unit\test_m79_gate.py .......                                      [ 77%]
+tests\unit\test_m79_recording.py .....                                   [ 77%]
+tests\unit\test_m93_precision.py ....................................... [ 78%]
+........................F.......F                                        [ 79%]
+tests\unit\test_m94_measurement.py F.........                            [ 80%]
+tests\unit\test_m94_motifs.py .......................................... [ 81%]
+............................................                             [ 82%]
+tests\unit\test_m94_protocol.py ........................................ [ 83%]
+........................................................................ [ 85%]
+............................................                             [ 86%]
+tests\unit\test_m94_recording_preflight.py ............................. [ 87%]
+                                                                         [ 87%]
+tests\unit\test_maia_coverage_disclosure.py ....F..                      [ 87%]
+tests\unit\test_measured_causes.py .....                                 [ 88%]
+tests\unit\test_missed_capture_identity.py ......                        [ 88%]
+tests\unit\test_mission_invariants.py ...                                [ 88%]
+tests\unit\test_online_import.py ....................................... [ 89%]
+...                                                                      [ 89%]
+tests\unit\test_opening_content.py ..                                    [ 89%]
+tests\unit\test_opening_rotation.py ......                               [ 89%]
+tests\unit\test_opportunity_ranking.py .....                             [ 89%]
+tests\unit\test_persistence.py ..                                        [ 89%]
+tests\unit\test_play_assistance_history.py .                             [ 89%]
+tests\unit\test_play_session_participants.py ..................          [ 90%]
+tests\unit\test_player_model.py .......                                  [ 90%]
+tests\unit\test_plugin_interfaces.py ........                            [ 90%]
+tests\unit\test_position_insights.py ..........................          [ 91%]
+tests\unit\test_positive_move_proofs.py .............................    [ 92%]
+tests\unit\test_prerelease_defects.py ...................                [ 92%]
+tests\unit\test_priors.py .                                              [ 92%]
+tests\unit\test_profile_update.py ..                                     [ 92%]
+tests\unit\test_puzzle_import.py ....................................... [ 94%]
+.................                                                        [ 94%]
+tests\unit\test_puzzle_import_job.py ......F.....F...................... [ 95%]
+........................                                                 [ 96%]
+tests\unit\test_puzzle_rating.py .                                       [ 96%]
+tests\unit\test_random_assignment_balance.py ..................          [ 96%]
+tests\unit\test_real_game_reference.py ...F......................F...... [ 97%]
+F.F.FF......                                                             [ 97%]
+tests\unit\test_repertoire.py .........................                  [ 98%]
+tests\unit\test_repertoire_body.py .....                                 [ 98%]
+tests\unit\test_scheduler.py ....                                        [ 98%]
+tests\unit\test_serve_cli.py ............                                [ 99%]
+tests\unit\test_sound_moves.py ....                                      [ 99%]
+tests\unit\test_taxonomy.py ....                                         [ 99%]
+tests\unit\test_taxonomy_migration.py ....                               [ 99%]
+tests\unit\test_transfer_exercises.py ..............                     [ 99%]
+tests\unit\test_visualization_dsl.py ...                                 [100%]
+
+================================== FAILURES ===================================
+__ test_active_barrier_finished_short_after_freeze_remains_restorable[True] ___
+
+client = <starlette.testclient.TestClient object at 0x0000015D68D2BDA0>
+db_session = <sqlmodel.orm.session.Session object at 0x0000015D650267E0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D63A796D0>
+invalidated = True
+
+    @pytest.mark.parametrize("invalidated", [False, True])
+    def test_active_barrier_finished_short_after_freeze_remains_restorable(
+        client: TestClient,
+        db_session: Session,
+        monkeypatch: pytest.MonkeyPatch,
+        invalidated: bool,
+    ) -> None:
+        import tests.unit.test_habit as fixtures
+    
+        archive, headers = _seed_archive(client, db_session, award=False)
+        assert client.post("/v1/imports", json=archive, headers=headers).status_code == 200
+        monkeypatch.setattr(fixtures, "PLAYER", PLAYER)
+        target = db_session.exec(select(PatternTarget)).one()
+        assert target.practice_completed_at is not None
+>       earlier = fixtures._scored_game(
+            db_session,
+            target.practice_completed_at + timedelta(hours=1),
+        )
+
+tests\integration\test_habit_archive.py:1028: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\unit\test_habit.py:254: in _scored_game
+    if not board.is_game_over(claim_draw=True) and not board.is_repetition(2):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\chess\__init__.py:2035: in is_game_over
+    return self.outcome(claim_draw=claim_draw) is not None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\chess\__init__.py:2088: in outcome
+    if self.can_claim_threefold_repetition():
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\chess\__init__.py:2235: in can_claim_threefold_repetition
+    if self.is_irreversible(move):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\chess\__init__.py:3339: in is_irreversible
+    return self.is_zeroing(move) or self._reduces_castling_rights(move) or self.has_legal_en_passant()
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Board('1nbqkbnr/1ppppppp/8/r7/p7/P7/RPPPPPPP/1NBQKBNR w Kk - 8 7')
+move = Move.from_uci('a2a1')
+
+    def _reduces_castling_rights(self, move: Move) -> bool:
+        cr = self.clean_castling_rights()
+        touched = BB_SQUARES[move.from_square] ^ BB_SQUARES[move.to_square]
+        return bool(touched & cr or
+>                   cr & BB_RANK_1 and touched & self.kings & self.occupied_co[WHITE] & ~self.promoted or
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    cr & BB_RANK_8 and touched & self.kings & self.occupied_co[BLACK] & ~self.promoted)
+E       TypeError: unsupported operand type(s) for &: 'type' and 'int'
+
+.venv\Lib\site-packages\chess\__init__.py:3325: TypeError
+_ test_habit_archive_checks_unresolved_games_inside_persisted_span_before_length_filter[missing_analysis-40-hex] _
+
+client = <starlette.testclient.TestClient object at 0x0000015D69BF0530>
+db_session = <sqlmodel.orm.session.Session object at 0x0000015D6948BB60>
+move_count = 40, game_ref = 'hex', state = 'missing_analysis'
+
+    @pytest.mark.parametrize("game_ref", ["canonical", "hex"])
+    @pytest.mark.parametrize("move_count", [0, 2, 40])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "active",
+            "nonterminal",
+            "pending",
+            "running",
+            "failed",
+            "missing_analysis",
+            "late_analysis",
+            "completed",
+        ],
+    )
+    def test_habit_archive_checks_unresolved_games_inside_persisted_span_before_length_filter(
+        client: TestClient,
+        db_session: Session,
+        move_count: int,
+        game_ref: str,
+        state: str,
+    ) -> None:
+>       archive, headers = _seed_archive(client, db_session)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_habit_archive.py:1391: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\integration\test_habit_archive.py:287: in _seed_archive
+    archive = _export(client, headers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+tests\integration\test_habit_archive.py:74: in _export
+    response = client.post("/v1/exports", json={"player_id": PLAYER}, headers=headers)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:555: in post
+    return super().post(
+.venv\Lib\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+.venv\Lib\site-packages\starlette\testclient.py:454: in request
+    return super().request(
+.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:356: in handle_request
+    raise exc
+.venv\Lib\site-packages\starlette\testclient.py:353: in handle_request
+    portal.call(self.app, scope, receive, send)
+.venv\Lib\site-packages\anyio\from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Syd\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\Syd\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+.venv\Lib\site-packages\anyio\from_thread.py:263: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+src\scan64\api\lesson_pack_body.py:28: in __call__
+    await self.app(scope, receive, send)
+src\scan64\api\repertoire_body.py:33: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\scan64\api\middleware.py:129: in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\middleware\base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+.venv\Lib\site-packages\starlette\middleware\base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:2683: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1753: in handle
+    await self.original_router.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:2738: in handle
+    await included_router._handle_selected(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1773: in _handle_selected
+    await original_route.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1264: in handle
+    await app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:150: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:136: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\routing.py:690: in app
+    raw_response = await run_endpoint_function(
+.venv\Lib\site-packages\fastapi\routing.py:346: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\concurrency.py:34: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\anyio\to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+.venv\Lib\site-packages\anyio\_backends\_asyncio.py:2641: in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+.venv\Lib\site-packages\anyio\_backends\_asyncio.py:1033: in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+src\scan64\api\data_lifecycle.py:2132: in export_player_data
+    session.exec(select(Position).where(col(Position.game_id).in_(game_ids))).all()
+.venv\Lib\site-packages\sqlalchemy\engine\result.py:1826: in all
+    return self._allrows()
+           ^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\result.py:587: in _allrows
+    rows = self._fetchall_impl()
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\result.py:1733: in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\engine\result.py:2337: in _fetchall_impl
+    return list(self.iterator)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\loading.py:224: in chunks
+    rows = [proc(row) for row in fetch]
+            ^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\loading.py:1115: in _instance
+    instance = mapper.class_manager.new_instance()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\instrumentation.py:508: in new_instance
+    state = self._state_constructor(instance, self)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.orm.state.InstanceState object at 0x0000015D71D01910>
+obj = Position()
+manager = <ClassManager of <class 'scan64.chess.positions.models.Position'> at 15d60579450>
+
+    def __init__(self, obj: _O, manager: ClassManager[_O]):
+        self.class_ = obj.__class__
+        self.manager = manager
+        self.obj = weakref.ref(obj, self._cleanup)
+        self.committed_state = {}
+>       self.expired_attributes = set()
+                                  ^^^^^
+E       SystemError: D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\state.py:206: unknown opcode 170
+
+.venv\Lib\site-packages\sqlalchemy\orm\state.py:206: SystemError
+_____________________ test_real_assets_and_missing_assets _____________________
+
+web_client = <starlette.testclient.TestClient object at 0x0000015D7CFAA1E0>
+
+    def test_real_assets_and_missing_assets(web_client: TestClient) -> None:
+        assert web_client.get("/assets/app.js").text == "console.log('Scan64')"
+        for path in ["/assets/missing.js", "/assets/missing", "/missing.css"]:
+            response = web_client.get(path)
+>           assert response.status_code == 404
+E           assert 200 == 404
+E            +  where 200 = <Response [200 OK]>.status_code
+
+tests\integration\test_web_serving.py:42: AssertionError
+_________ test_process_executable_identifies_the_running_interpreter __________
+
+    def test_process_executable_identifies_the_running_interpreter() -> None:
+        helpers = packaging.smoke_helpers()
+        executable = helpers.process_executable(packaging.os.getpid())
+        assert executable is not None
+>       assert executable.samefile(helpers.sys.executable)
+E       AssertionError: assert False
+E        +  where False = samefile('D:\\projects\\Scan64\\.venv\\Scripts\\python.exe')
+E        +    where samefile = WindowsPath('C:/Users/Syd/AppData/Roaming/uv/python/cpython-3.12.8-windows-x86_64-none/python.exe').samefile
+E        +    and   'D:\\projects\\Scan64\\.venv\\Scripts\\python.exe' = <module 'sys' (built-in)>.executable
+E        +      where <module 'sys' (built-in)> = <module 'desktop_smoke' from 'D:\\projects\\Scan64\\scripts\\desktop-smoke.py'>.sys
+
+tests\unit\test_desktop_package_smoke.py:88: AssertionError
+______________ test_m93_fixed_games_match_separate_qualified_pgn ______________
+
+    def test_m93_fixed_games_match_separate_qualified_pgn() -> None:
+        corpus = json.loads(M93_CORPUS.read_text())
+        pgn = M93_CORPUS.with_name("m93_fresh80_real_games.pgn")
+>       assert hashlib.sha256(pgn.read_bytes()).hexdigest() == corpus["provenance"]["pgn_sha256"]
+E       AssertionError: assert '57d0915918fa...c5f2201de10ba' == '653cbc0d643a...2721e40040622'
+E         
+E         - 653cbc0d643af543d8fff47ea130146a2705686648024276e8a2721e40040622
+E         + 57d0915918fa0eb31052640f968ad427afff93e1093090b3029c5f2201de10ba
+
+tests\unit\test_m93_precision.py:64: AssertionError
+________ test_m93_replay_is_engine_free_and_promotions_match_verdicts _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D6D2719D0>
+
+    @pytest.mark.asyncio
+    async def test_m93_replay_is_engine_free_and_promotions_match_verdicts(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from scan64.content.puzzle_practice import THEME_SKILLS
+    
+        async def forbidden(*args: Any, **kwargs: Any) -> None:
+            raise AssertionError("Offline replay launched an engine")
+    
+        monkeypatch.setattr(chess.engine, "popen_uci", forbidden)
+>       scores = await real_games.measure(M93_CORPUS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\test_m93_precision.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = WindowsPath('D:/projects/Scan64/tests/fixtures/m48/m93_fresh80_recorded.json')
+
+    async def measure(path: Path = CORPUS) -> dict[str, Score]:
+        # Keep logical siblings even when the recording points to a renamed backup.
+        resolved_path = path.resolve()
+        is_m93 = resolved_path == M93_CORPUS.resolve()
+        is_m79 = resolved_path == M79_CORPUS.resolve()
+        is_fresh = resolved_path == FRESH_CORPUS.resolve()
+        is_m94 = (
+            resolved_path == M94_CORPUS.resolve()
+            or path.name == M94_CORPUS.name
+            or resolved_path.name == M94_CORPUS.name
+        )
+        if (
+            resolved_path == M94_V1_CORPUS.resolve()
+            or path.name == M94_V1_CORPUS.name
+            or resolved_path.name == M94_V1_CORPUS.name
+        ):
+            raise ValueError(
+                "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
+            )
+        if is_m94 and M94_MEASUREMENT is None:
+            raise ValueError("M94 measurement identity has not been pinned")
+        if is_m94:
+            assert M94_MEASUREMENT is not None
+            corpus = validate_recording(
+                path, (CORPUS, FRESH_CORPUS, M79_CORPUS, M93_CORPUS, M94_V1_CORPUS), M94_MEASUREMENT
+            )
+        else:
+            corpus_bytes = path.read_bytes()
+            corpus = json.loads(corpus_bytes)
+            revision = corpus.get("provenance", {}).get("protocol", {}).get("revision", "")
+            if isinstance(revision, str) and revision.startswith("m94-motifs-"):
+                raise ValueError(
+                    "M94 artifacts require their pinned current corpus path; archived v1 is immutable"
+                )
+        if is_m93:
+            if hashlib.sha256(corpus_bytes).hexdigest() != M93_RECORDING_SHA256:
+>               raise ValueError("M93 recording checksum differs from the measured fixture")
+E               ValueError: M93 recording checksum differs from the measured fixture
+
+src\scan64\learning\evaluation\real_games.py:161: ValueError
+_______ test_single_measured_holdout_replays_without_engine_or_history ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D039202C0>
+
+    @pytest.mark.asyncio
+    async def test_single_measured_holdout_replays_without_engine_or_history(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def forbidden_engine(*args: Any, **kwargs: Any) -> None:
+            raise AssertionError("Replay launched an engine")
+    
+        def forbidden_git(*args: Any, **kwargs: Any) -> None:
+            raise AssertionError("Replay depended on Git history")
+    
+        monkeypatch.setattr(chess.engine, "popen_uci", forbidden_engine)
+        monkeypatch.setattr(m94_protocol.subprocess, "run", forbidden_git)
+        monkeypatch.setattr(m94_protocol.subprocess, "check_output", forbidden_git)
+        assert real_games.M94_MEASUREMENT is not None
+>       scores = await real_games.measure(real_games.M94_CORPUS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\test_m94_measurement.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\scan64\learning\evaluation\real_games.py:148: in measure
+    corpus = validate_recording(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = WindowsPath('D:/projects/Scan64/tests/fixtures/m48/m94_v2_fresh80_recorded.json')
+prior_paths = (WindowsPath('D:/projects/Scan64/tests/fixtures/m48/recorded.json'), WindowsPath('D:/projects/Scan64/tests/fixtures/m4...xtures/m48/m93_fresh80_recorded.json'), WindowsPath('D:/projects/Scan64/tests/fixtures/m48/m94_fresh80_recorded.json'))
+expected = MeasurementIdentity(preregistration_commit='e42ddc06d1f12d105abc58114384ec48d1d595e5', recording_sha256='a21143ad6af83...fcd98d21e696ac96ba67c952f', source_revisions_sha256='11a0e617fa5b667a9868514c287abc410a6059ebee8c375b7203f62583d4aee3')
+
+    def validate_recording(
+        path: Path, prior_paths: tuple[Path, ...], expected: MeasurementIdentity
+    ) -> dict[str, Any]:
+        """Replay checks pinned artifacts without Git, engines or optional fallbacks."""
+        if path.name == "m94_fresh80_recorded.json":
+            raise ValueError(
+                "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
+            )
+        manifest_bytes = path.with_name(f"{PREFIX}_manifest.json").read_bytes()
+        recording_bytes = path.read_bytes()
+        pgn_bytes = path.with_name(f"{PREFIX}_real_games.pgn").read_bytes()
+        if (
+            hashlib.sha256(manifest_bytes).hexdigest() != expected.manifest_sha256
+            or hashlib.sha256(recording_bytes).hexdigest() != expected.recording_sha256
+            or hashlib.sha256(pgn_bytes).hexdigest() != expected.pgn_sha256
+        ):
+>           raise ValueError("M94 artifact checksum differs from the pinned measurement identity")
+E           ValueError: M94 artifact checksum differs from the pinned measurement identity
+
+src\scan64\learning\evaluation\m94_protocol.py:173: ValueError
+_ test_config_requires_absolute_operator_paths[[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n-maia.binary_path must be absolute] _
+
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_config_requires_absolute_0')
+config_text = '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n'
+error = 'maia.binary_path must be absolute'
+
+    @pytest.mark.parametrize(
+        ("config_text", "error"),
+        [
+            (
+                '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n'
+                '1500 = "/operator/maia-1500.pb.gz"\n',
+                "maia.binary_path must be absolute",
+            ),
+            (
+                '[maia]\nbinary_path = "/operator/lc0"\n\n[maia.checkpoints]\n'
+                '1500 = "maia-1500.pb.gz"\n',
+                "weights path must be absolute",
+            ),
+        ],
+    )
+    def test_config_requires_absolute_operator_paths(
+        tmp_path: Path, config_text: str, error: str
+    ) -> None:
+        config_path = tmp_path / "maia.toml"
+        config_path.write_text(config_text)
+    
+>       with pytest.raises(MaiaConfigurationError, match=error):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'maia.binary_path must be absolute'
+E         Actual message: 'Maia checkpoint 1500 weights path must be absolute'
+
+tests\unit\test_maia_coverage_disclosure.py:81: AssertionError
+_________________ test_cancel_interrupts_stalled_http_stream __________________
+
+engine = Engine(sqlite:///C:\Users\Syd\AppData\Local\Temp\pytest-of-Syd\pytest-625\test_cancel_interrupts_stalled0\catalog.db)
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_cancel_interrupts_stalled0')
+
+    def test_cancel_interrupts_stalled_http_stream(engine: Engine, tmp_path: Path) -> None:
+        with fixture_server(stall=True) as url:
+            job = ObservedJob(engine, tmp_path / "imports", download_url=url)
+            job.start("download")
+            deadline = time.monotonic() + 3
+            while job.state().done == 0 and time.monotonic() < deadline:
+                time.sleep(0.005)
+            assert job.state().done == 1
+            started = time.monotonic()
+            job.cancel()
+>           assert finished(job).status == "cancelled"
+                   ^^^^^^^^^^^^^
+
+tests\unit\test_puzzle_import_job.py:204: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+job = <tests.unit.test_puzzle_import_job.ObservedJob object at 0x0000015D698CFA70>
+
+    def finished(job: PuzzleImportJob) -> ImportJobState:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            state = job.state()
+            if state.status not in {"running", "cancelling"}:
+                return state
+            time.sleep(0.005)
+>       pytest.fail("Import did not finish promptly")
+E       Failed: Import did not finish promptly
+
+tests\unit\test_puzzle_import_job.py:74: Failed
+_______________ test_failure_each_phase_preserves_catalog[save] _______________
+
+engine = Engine(sqlite:///C:\Users\Syd\AppData\Local\Temp\pytest-of-Syd\pytest-625\test_failure_each_phase_preser3\catalog.db)
+source = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_failure_each_phase_preser3/local.csv.zst')
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_failure_each_phase_preser3')
+phase = 'save'
+
+    @pytest.mark.parametrize("phase", ["download", "read", "import", "save"])
+    def test_failure_each_phase_preserves_catalog(
+        engine: Engine, source: Path, tmp_path: Path, phase: str
+    ) -> None:
+        with Session(engine) as session:
+            import_puzzles(session, source)
+        original = catalog(engine)
+    
+        class FailingJob(PuzzleImportJob):
+            def _progress(self, update: ImportProgress) -> None:
+                super()._progress(update)
+                if self.state().phase == phase:
+                    raise ValueError("fixture failure")
+    
+            def _message(self, message: str) -> None:
+                super()._message(message)
+                if phase == "save" and message.startswith("Saving"):
+                    raise ValueError("fixture save failure")
+    
+        with fixture_server() as url:
+            job = FailingJob(engine, tmp_path / "imports", download_url=url)
+            job.start("download")
+>           assert finished(job).status == "failed"
+                   ^^^^^^^^^^^^^
+
+tests\unit\test_puzzle_import_job.py:267: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+job = <tests.unit.test_puzzle_import_job.test_failure_each_phase_preserves_catalog.<locals>.FailingJob object at 0x0000015D7420BB90>
+
+    def finished(job: PuzzleImportJob) -> ImportJobState:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            state = job.state()
+            if state.status not in {"running", "cancelling"}:
+                return state
+            time.sleep(0.005)
+>       pytest.fail("Import did not finish promptly")
+E       Failed: Import did not finish promptly
+
+tests\unit\test_puzzle_import_job.py:74: Failed
+___________________ test_fresh80_is_separate_fixed_holdout ____________________
+
+    def test_fresh80_is_separate_fixed_holdout() -> None:
+        original = json.loads(CORPUS.read_text())
+        fresh = json.loads(FRESH_CORPUS.read_text())
+        assert fresh["provenance"]["game_count"] == len(fresh["games"]) == 80
+>       assert hashlib.sha256(CORPUS.read_bytes()).hexdigest() == (
+            "c7dc5fd62964b3401bccba6087703154ae9872182b3c0c9f49af0e90f68b255d"
+        )
+E       AssertionError: assert '20be6bb622aa...643e019cbe970' == 'c7dc5fd62964...f0e90f68b255d'
+E         
+E         - c7dc5fd62964b3401bccba6087703154ae9872182b3c0c9f49af0e90f68b255d
+E         + 20be6bb622aafb3daa2814023ce0e7c88c70edc9285b09de311643e019cbe970
+
+tests\unit\test_real_game_reference.py:64: AssertionError
+_____________________ test_real_game_provenance_and_size ______________________
+
+    def test_real_game_provenance_and_size() -> None:
+        data = json.loads(CORPUS.read_text())
+        provenance = data["provenance"]
+        assert provenance["game_count"] >= 30
+        assert provenance["license"] == "CC0"
+        assert provenance["source_url"].startswith("https://database.lichess.org/")
+        assert (
+            provenance["source_sha256"]
+            == "aa40b3671fa3cf1072eb182892cd90b0e1e003a4a5943492f64b77e7f3fd1635"
+        )
+        assert provenance["checksum_url"] == "https://database.lichess.org/standard/sha256sums.txt"
+        assert "Stockfish" in provenance["engine"]
+        assert provenance["deep_before_nodes"] == provenance["focused_nodes"] == 1_000_000
+        assert provenance["deep_before_multipv"] == provenance["focused_multipv"] == 4
+        assert data["games"][-1]["id"] == "reference_amateur_game"
+        assert CORPUS.stat().st_size <= 2_000_000
+        pgn = CORPUS.with_name("real_games.pgn")
+>       assert hashlib.sha256(pgn.read_bytes()).hexdigest() == provenance["pgn_sha256"]
+E       AssertionError: assert 'b5ecf0417161...e3b2f1d4483c5' == '746f4daa7438...d6b33dd88ef05'
+E         
+E         - 746f4daa743872e697b8780b3ff8681f51f4b06b730c8498cc3d6b33dd88ef05
+E         + b5ecf0417161cd677fa5ca86389ec4cadb39b00dc7f30d58c3fe3b2f1d4483c5
+
+tests\unit\test_real_game_reference.py:263: AssertionError
+_____ test_m93_symlink_rejects_changed_bytes_before_scoring[logical-pgn] ______
+
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_m93_symlink_rejects_chang1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D7E0C5490>
+artifact = 'pgn', supplied_path = 'logical'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("artifact", ["recording", "pgn"])
+    @pytest.mark.parametrize("supplied_path", ["logical", "alias", "relative"])
+    async def test_m93_symlink_rejects_changed_bytes_before_scoring(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        artifact: str,
+        supplied_path: str,
+    ) -> None:
+        from scan64.learning.evaluation import real_games
+    
+        source = real_games.M93_CORPUS
+        backup = tmp_path / "nonstandard-backup.json"
+        shutil.copyfile(source, backup)
+        logical = tmp_path / source.name
+        logical.symlink_to(backup)
+        pgn = logical.with_name("m93_fresh80_real_games.pgn")
+        shutil.copyfile(source.with_name(pgn.name), pgn)
+        changed = backup if artifact == "recording" else pgn
+        changed.write_bytes(changed.read_bytes() + b" ")
+        monkeypatch.setattr(real_games, "M93_CORPUS", logical)
+        monkeypatch.chdir(tmp_path)
+    
+        async def forbidden(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Changed historical artifacts reached scoring")
+    
+        monkeypatch.setattr(real_games.FastPassOrchestrator, "run_fast_pass", forbidden)
+        supplied = logical
+        if supplied_path == "alias":
+            supplied = tmp_path / "alias.json"
+            supplied.symlink_to(logical)
+        elif supplied_path == "relative":
+            supplied = Path(logical.name)
+        message = "M93 recording checksum" if artifact == "recording" else "M93 PGN checksum"
+>       with pytest.raises(ValueError, match=message):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'M93 PGN checksum'
+E         Actual message: 'M93 recording checksum differs from the measured fixture'
+
+D:\projects\Scan64\tests\unit\test_real_game_reference.py:402: AssertionError
+______ test_m93_symlink_rejects_changed_bytes_before_scoring[alias-pgn] _______
+
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_m93_symlink_rejects_chang3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D01638AA0>
+artifact = 'pgn', supplied_path = 'alias'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("artifact", ["recording", "pgn"])
+    @pytest.mark.parametrize("supplied_path", ["logical", "alias", "relative"])
+    async def test_m93_symlink_rejects_changed_bytes_before_scoring(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        artifact: str,
+        supplied_path: str,
+    ) -> None:
+        from scan64.learning.evaluation import real_games
+    
+        source = real_games.M93_CORPUS
+        backup = tmp_path / "nonstandard-backup.json"
+        shutil.copyfile(source, backup)
+        logical = tmp_path / source.name
+        logical.symlink_to(backup)
+        pgn = logical.with_name("m93_fresh80_real_games.pgn")
+        shutil.copyfile(source.with_name(pgn.name), pgn)
+        changed = backup if artifact == "recording" else pgn
+        changed.write_bytes(changed.read_bytes() + b" ")
+        monkeypatch.setattr(real_games, "M93_CORPUS", logical)
+        monkeypatch.chdir(tmp_path)
+    
+        async def forbidden(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Changed historical artifacts reached scoring")
+    
+        monkeypatch.setattr(real_games.FastPassOrchestrator, "run_fast_pass", forbidden)
+        supplied = logical
+        if supplied_path == "alias":
+            supplied = tmp_path / "alias.json"
+            supplied.symlink_to(logical)
+        elif supplied_path == "relative":
+            supplied = Path(logical.name)
+        message = "M93 recording checksum" if artifact == "recording" else "M93 PGN checksum"
+>       with pytest.raises(ValueError, match=message):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'M93 PGN checksum'
+E         Actual message: 'M93 recording checksum differs from the measured fixture'
+
+D:\projects\Scan64\tests\unit\test_real_game_reference.py:402: AssertionError
+_____ test_m93_symlink_rejects_changed_bytes_before_scoring[relative-pgn] _____
+
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_m93_symlink_rejects_chang5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D0405E720>
+artifact = 'pgn', supplied_path = 'relative'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("artifact", ["recording", "pgn"])
+    @pytest.mark.parametrize("supplied_path", ["logical", "alias", "relative"])
+    async def test_m93_symlink_rejects_changed_bytes_before_scoring(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        artifact: str,
+        supplied_path: str,
+    ) -> None:
+        from scan64.learning.evaluation import real_games
+    
+        source = real_games.M93_CORPUS
+        backup = tmp_path / "nonstandard-backup.json"
+        shutil.copyfile(source, backup)
+        logical = tmp_path / source.name
+        logical.symlink_to(backup)
+        pgn = logical.with_name("m93_fresh80_real_games.pgn")
+        shutil.copyfile(source.with_name(pgn.name), pgn)
+        changed = backup if artifact == "recording" else pgn
+        changed.write_bytes(changed.read_bytes() + b" ")
+        monkeypatch.setattr(real_games, "M93_CORPUS", logical)
+        monkeypatch.chdir(tmp_path)
+    
+        async def forbidden(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Changed historical artifacts reached scoring")
+    
+        monkeypatch.setattr(real_games.FastPassOrchestrator, "run_fast_pass", forbidden)
+        supplied = logical
+        if supplied_path == "alias":
+            supplied = tmp_path / "alias.json"
+            supplied.symlink_to(logical)
+        elif supplied_path == "relative":
+            supplied = Path(logical.name)
+        message = "M93 recording checksum" if artifact == "recording" else "M93 PGN checksum"
+>       with pytest.raises(ValueError, match=message):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'M93 PGN checksum'
+E         Actual message: 'M93 recording checksum differs from the measured fixture'
+
+D:\projects\Scan64\tests\unit\test_real_game_reference.py:402: AssertionError
+_ test_historical_symlinks_aliases_and_relative_paths_preserve_scores[M93_CORPUS] _
+
+tmp_path = WindowsPath('C:/Users/Syd/AppData/Local/Temp/pytest-of-Syd/pytest-625/test_historical_symlinks_alias0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015D0478D280>
+corpus_name = 'M93_CORPUS'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("corpus_name", ["M93_CORPUS", "M79_CORPUS", "FRESH_CORPUS"])
+    async def test_historical_symlinks_aliases_and_relative_paths_preserve_scores(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, corpus_name: str
+    ) -> None:
+        import chess.engine
+    
+        from scan64.learning.evaluation import real_games
+    
+        async def forbidden_engine(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Historical replay launched an engine")
+    
+        monkeypatch.setattr(chess.engine, "popen_uci", forbidden_engine)
+        source = getattr(real_games, corpus_name)
+>       expected = await real_games.measure(source)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\test_real_game_reference.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = WindowsPath('D:/projects/Scan64/tests/fixtures/m48/m93_fresh80_recorded.json')
+
+    async def measure(path: Path = CORPUS) -> dict[str, Score]:
+        # Keep logical siblings even when the recording points to a renamed backup.
+        resolved_path = path.resolve()
+        is_m93 = resolved_path == M93_CORPUS.resolve()
+        is_m79 = resolved_path == M79_CORPUS.resolve()
+        is_fresh = resolved_path == FRESH_CORPUS.resolve()
+        is_m94 = (
+            resolved_path == M94_CORPUS.resolve()
+            or path.name == M94_CORPUS.name
+            or resolved_path.name == M94_CORPUS.name
+        )
+        if (
+            resolved_path == M94_V1_CORPUS.resolve()
+            or path.name == M94_V1_CORPUS.name
+            or resolved_path.name == M94_V1_CORPUS.name
+        ):
+            raise ValueError(
+                "Archived M94 v1 requires immutable fa6dc9c reproduction, not v2 rescoring"
+            )
+        if is_m94 and M94_MEASUREMENT is None:
+            raise ValueError("M94 measurement identity has not been pinned")
+        if is_m94:
+            assert M94_MEASUREMENT is not None
+            corpus = validate_recording(
+                path, (CORPUS, FRESH_CORPUS, M79_CORPUS, M93_CORPUS, M94_V1_CORPUS), M94_MEASUREMENT
+            )
+        else:
+            corpus_bytes = path.read_bytes()
+            corpus = json.loads(corpus_bytes)
+            revision = corpus.get("provenance", {}).get("protocol", {}).get("revision", "")
+            if isinstance(revision, str) and revision.startswith("m94-motifs-"):
+                raise ValueError(
+                    "M94 artifacts require their pinned current corpus path; archived v1 is immutable"
+                )
+        if is_m93:
+            if hashlib.sha256(corpus_bytes).hexdigest() != M93_RECORDING_SHA256:
+>               raise ValueError("M93 recording checksum differs from the measured fixture")
+E               ValueError: M93 recording checksum differs from the measured fixture
+
+src\scan64\learning\evaluation\real_games.py:161: ValueError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\projects\Scan64\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_adaptive_session.py: 8 warnings
+tests/integration/test_admission_control.py: 3 warnings
+tests/integration/test_analysis_persistence.py: 1 warning
+tests/integration/test_analysis_recovery.py: 4 warnings
+tests/integration/test_analysis_reuse.py: 1 warning
+tests/integration/test_catalogue_storage.py: 2 warnings
+tests/integration/test_coach_authorization_boundary.py: 3 warnings
+tests/integration/test_coach_dashboard_api.py: 4 warnings
+tests/integration/test_coach_interruption_attempts.py: 19 warnings
+tests/integration/test_credit_concurrency.py: 1 warning
+tests/integration/test_credit_lifecycle.py: 30 warnings
+tests/integration/test_daily_training_api.py: 1 warning
+tests/integration/test_data_lifecycle.py: 17 warnings
+tests/integration/test_data_lifecycle_completeness.py: 3 warnings
+tests/integration/test_desktop_server.py: 4 warnings
+tests/integration/test_engine_pool_isolation.py: 2 warnings
+tests/integration/test_explanation_settings.py: 12 warnings
+tests/integration/test_explanation_settings_migration.py: 1 warning
+tests/integration/test_famous_game_shared_profile.py: 1 warning
+tests/integration/test_fsrs_archive.py: 70 warnings
+tests/integration/test_fsrs_migration.py: 21 warnings
+tests/integration/test_game_ownership.py: 3 warnings
+tests/integration/test_game_review.py: 11 warnings
+tests/integration/test_habit_api.py: 9 warnings
+tests/integration/test_habit_archive.py: 160 warnings
+tests/integration/test_habit_evidence_archive.py: 31 warnings
+tests/integration/test_habit_migration.py: 16 warnings
+tests/integration/test_habit_qualification.py: 15 warnings
+tests/integration/test_learning_opportunities_api.py: 1 warning
+tests/integration/test_lesson_attempts.py: 59 warnings
+tests/integration/test_lesson_packs.py: 13 warnings
+tests/integration/test_lesson_packs_migration.py: 2 warnings
+tests/integration/test_m18_learning_behavior.py: 1 warning
+tests/integration/test_m79_trust_history.py: 2 warnings
+tests/integration/test_m93_product_visibility.py: 4 warnings
+tests/integration/test_m94_product_visibility.py: 23 warnings
+tests/integration/test_maia_provider.py: 4 warnings
+tests/integration/test_onboarding.py: 15 warnings
+tests/integration/test_onboarding_lifecycle.py: 90 warnings
+tests/integration/test_onboarding_migration.py: 2 warnings
+tests/integration/test_online_import_api.py: 32 warnings
+tests/integration/test_owner_color.py: 5 warnings
+tests/integration/test_pattern_recurrence.py: 33 warnings
+tests/integration/test_pgn_roundtrip.py: 7 warnings
+tests/integration/test_play_api.py: 13 warnings
+tests/integration/test_play_assistance.py: 54 warnings
+tests/integration/test_play_assistance_commit.py: 13 warnings
+tests/integration/test_play_assistance_lifecycle.py: 12 warnings
+tests/integration/test_play_assistance_migration.py: 5 warnings
+tests/integration/test_play_bot_recovery.py: 1 warning
+tests/integration/test_play_clock_archive_versions.py: 17 warnings
+tests/integration/test_play_clock_coach_atomic.py: 7 warnings
+tests/integration/test_play_clock_lifecycle.py: 34 warnings
+tests/integration/test_play_clock_lifespan_cleanup.py: 1 warning
+tests/integration/test_play_clock_migration.py: 2 warnings
+tests/integration/test_play_clocks.py: 16 warnings
+tests/integration/test_play_move_snapshot.py: 8 warnings
+tests/integration/test_play_position_corruption.py: 2 warnings
+tests/integration/test_play_session_analysis.py: 4 warnings
+tests/integration/test_play_session_resign.py: 11 warnings
+tests/integration/test_player_games.py: 6 warnings
+tests/integration/test_position_analysis_api.py: 37 warnings
+tests/integration/test_position_insights_api.py: 38 warnings
+tests/integration/test_positive_credit_cap.py: 2 warnings
+tests/integration/test_profile_insights.py: 1 warning
+tests/integration/test_progress_reset.py: 21 warnings
+tests/integration/test_puzzle_import_daily.py: 4 warnings
+tests/integration/test_puzzle_lifecycle.py: 20 warnings
+tests/integration/test_puzzle_migration.py: 2 warnings
+tests/integration/test_puzzle_mistakes.py: 27 warnings
+tests/integration/test_puzzle_modes.py: 18 warnings
+tests/integration/test_puzzle_modes_lifecycle.py: 30 warnings
+tests/integration/test_puzzle_practice.py: 22 warnings
+tests/integration/test_puzzle_practice_archive.py: 92 warnings
+tests/integration/test_puzzle_practice_migration.py: 2 warnings
+tests/integration/test_puzzle_review.py: 33 warnings
+tests/integration/test_puzzle_runs.py: 10 warnings
+tests/integration/test_repertoire.py: 24 warnings
+tests/integration/test_repertoire_deviations.py: 5 warnings
+tests/integration/test_repertoire_lifecycle_boundaries.py: 18 warnings
+tests/integration/test_repertoire_migration.py: 4 warnings
+tests/integration/test_repertoire_security.py: 43 warnings
+tests/integration/test_reports_from_real_data.py: 45 warnings
+tests/integration/test_schema_migrations.py: 5 warnings
+tests/integration/test_session_hint_tracking.py: 9 warnings
+tests/integration/test_sparring.py: 19 warnings
+tests/integration/test_sparring_lifecycle.py: 79 warnings
+tests/integration/test_sparring_migration.py: 3 warnings
+tests/integration/test_stockfish_strength.py: 46 warnings
+tests/integration/test_strength.py: 19 warnings
+tests/integration/test_v090_compatibility.py: 1 warning
+  D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    cursor.execute(statement, parameters)
+
+tests/integration/test_opponent_provider.py::test_stockfish_opponent_completes_forced_mate
+  D:\projects\Scan64\.venv\Lib\site-packages\pydantic\main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='opponent_config', input_value=20, input_type=int])
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='clock_config', input_value=1000, input_type=int])
+    return self.__pydantic_serializer__.to_python(
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  D:\projects\Scan64\src\scan64\providers\stockfish\identity.py:31: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    value = engine.config.get(name)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  D:\projects\Scan64\src\scan64\providers\stockfish\pool.py:79: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._identity = engine_identity(self._engine, self.config.binary_path)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  D:\projects\Scan64\src\scan64\providers\stockfish\pool.py:102: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._identity = None
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[GET]
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[POST]
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[DELETE]
+  <frozen runpy>:128: RuntimeWarning: 'scan64.api.app' found in sys.modules after import of package 'scan64.api', but prior to execution of 'scan64.api.app'; this may result in unpredictable behaviour
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_habit_archive.py::test_active_barrier_finished_short_after_freeze_remains_restorable[True]
+FAILED tests/integration/test_habit_archive.py::test_habit_archive_checks_unresolved_games_inside_persisted_span_before_length_filter[missing_analysis-40-hex]
+FAILED tests/integration/test_web_serving.py::test_real_assets_and_missing_assets
+FAILED tests/unit/test_desktop_package_smoke.py::test_process_executable_identifies_the_running_interpreter
+FAILED tests/unit/test_m93_precision.py::test_m93_fixed_games_match_separate_qualified_pgn
+FAILED tests/unit/test_m93_precision.py::test_m93_replay_is_engine_free_and_promotions_match_verdicts
+FAILED tests/unit/test_m94_measurement.py::test_single_measured_holdout_replays_without_engine_or_history
+FAILED tests/unit/test_maia_coverage_disclosure.py::test_config_requires_absolute_operator_paths[[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n-maia.binary_path must be absolute]
+FAILED tests/unit/test_puzzle_import_job.py::test_cancel_interrupts_stalled_http_stream
+FAILED tests/unit/test_puzzle_import_job.py::test_failure_each_phase_preserves_catalog[save]
+FAILED tests/unit/test_real_game_reference.py::test_fresh80_is_separate_fixed_holdout
+FAILED tests/unit/test_real_game_reference.py::test_real_game_provenance_and_size
+FAILED tests/unit/test_real_game_reference.py::test_m93_symlink_rejects_changed_bytes_before_scoring[logical-pgn]
+FAILED tests/unit/test_real_game_reference.py::test_m93_symlink_rejects_changed_bytes_before_scoring[alias-pgn]
+FAILED tests/unit/test_real_game_reference.py::test_m93_symlink_rejects_changed_bytes_before_scoring[relative-pgn]
+FAILED tests/unit/test_real_game_reference.py::test_historical_symlinks_aliases_and_relative_paths_preserve_scores[M93_CORPUS]
+= 16 failed, 3573 passed, 3 skipped, 2 deselected, 1639 warnings in 1650.84s (0:27:30) =

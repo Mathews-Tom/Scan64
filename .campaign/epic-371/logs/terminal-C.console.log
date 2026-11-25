@@ -1,0 +1,6 @@
+Waiting on the gate (pytest stage running).
+
+The first gate run hit the 10-minute background limit at 19% of pytest. It has been restarted with a 2-hour limit.
+
+The stale monitor expired. The gate rerun (bxsic9vhn) is still running; its completion will be reported.
+Terminated

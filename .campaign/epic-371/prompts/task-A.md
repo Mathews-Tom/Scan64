@@ -1,13 +1,11 @@
 Working on Staunton piece-set variations for the Scan64 web client.
-Repo: /home/syd/projects/Scan64 (you are in a worktree of it)
+Repo: D:/projects/Scan64 (you are in a worktree of it)
 Branch: feat/358-359-fide-board-pieces (already checked out in your worktree; do not switch branches)
 
 Issue: #359 — Add Staunton piece-set variations used in international competition and make one the default
 Read the issue body first: `gh issue view 359 -R Mathews-Tom/Scan64`.
 
-FIRST STEP: The maintainer's open PR #373 (branch `fix/restore-board-palettes`) completes #358 (FIDE board palettes, C.02 citation, restored Slate/Sage/Graphite). Build on it:
-`git fetch origin fix/restore-board-palettes && git merge --no-ff --signoff origin/fix/restore-board-palettes -m "Merge PR #373 branch as base for #359"`.
-Do not change board palettes; #358 is done there. Read `gh pr view 373 -R Mathews-Tom/Scan64` for its FIDE C.02 reading.
+PR #373 (FIDE board palettes, C.02 citation, restored Slate/Sage/Graphite) is already merged into epic/371; #358 is done. Do not change board palettes. Read `gh pr view 373 -R Mathews-Tom/Scan64` for its FIDE C.02 reading.
 
 Task:
 - Read FIDE Handbook C.02 "Standards of Chess Equipment" (https://handbook.fide.com/chapter/C02Standards) for the piece rules: Staunton pattern, proportions, colours, non-shiny finish.
