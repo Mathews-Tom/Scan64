@@ -1,0 +1,12 @@
+Scan64 website chess piece artwork
+==================================
+The SVG artwork in cburnett/ is separately licensed from the website content.
+
+cburnett/ — Staunton (cburnett), Colin M.L. Burnett
+https://en.wikipedia.org/wiki/User:Cburnett
+https://github.com/lichess-org/lila/tree/master/public/piece/cburnett
+GNU General Public License, version 2 or (at your option) any later version.
+Full terms: GPL-2.0.txt
+
+The 12 SVGs are distributed unmodified from lichess-org/lila/public/piece at
+commit 47948db658a1678d14e97d41c1bcf82958e70ded.

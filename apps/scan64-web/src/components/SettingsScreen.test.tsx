@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsScreen } from './SettingsScreen';
 import { initializeAppearance } from '../appearance';
 import { Button, Dialog, EmptyState, Field, ListRow, Panel, ProgressBar, SegmentedControl, StatusLine } from './Primitives';
-import { initializeBoardAppearance } from '../boardAppearance';
+import { initializeBoardAppearance, PIECE_SET_OPTIONS } from '../boardAppearance';
 import { saveBoardSounds } from '../boardSounds';
 
 beforeEach(() => {
@@ -107,8 +107,8 @@ describe('Independent board preferences', () => {
     const view = render(<SettingsScreen />);
     fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Sage' }));
-    for (const pieceSet of ['chessnut', 'spatial', 'firi', 'california', 'maestro', 'staunty']) {
-      fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${pieceSet}( \\(non-commercial\\))?$`, 'i') }));
+    for (const { value: pieceSet, label } of PIECE_SET_OPTIONS) {
+      fireEvent.click(screen.getByRole('radio', { name: label }));
       expect(localStorage.getItem('scan64-piece-set')).toBe(pieceSet);
       expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
       for (const boardTheme of ['slate', 'sage', 'graphite', 'walnut', 'sand']) {
@@ -133,8 +133,8 @@ describe('Independent board preferences', () => {
   it('validates each saved choice independently at startup', () => {
     localStorage.setItem('scan64-piece-set', 'untrusted');
     localStorage.setItem('scan64-board-theme', 'walnut');
-    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'chessnut', boardTheme: 'walnut' });
-    expect(document.documentElement.dataset.pieceSet).toBe('chessnut');
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'cburnett', boardTheme: 'walnut' });
+    expect(document.documentElement.dataset.pieceSet).toBe('cburnett');
     expect(document.documentElement.dataset.boardTheme).toBe('walnut');
     localStorage.setItem('scan64-piece-set', 'firi');
     localStorage.setItem('scan64-board-theme', 'untrusted');
@@ -143,7 +143,7 @@ describe('Independent board preferences', () => {
 
   it.each([
     ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', 'spatial', 'Spatial'],
-    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', null, 'Chessnut'],
+    ['piece set', 'Firi', 'firi', 'pieceSet', 'scan64-piece-set', null, 'Staunton (cburnett)'],
     ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', 'walnut', 'Walnut'],
     ['board palette', 'Graphite', 'graphite', 'boardTheme', 'scan64-board-theme', null, 'Slate'],
   ] as const)('keeps %s %s across remounts when saving fails (case %#)', (preference, choice, value, datasetKey, storageKey, savedValue, savedChoice) => {
@@ -168,13 +168,13 @@ describe('Independent board preferences', () => {
     initializeBoardAppearance();
     render(<SettingsScreen />);
     expect(screen.getByRole('radio', { name: savedChoice })).toBeChecked();
-    expect(document.documentElement.dataset[datasetKey]).toBe(savedValue ?? (datasetKey === 'pieceSet' ? 'chessnut' : 'slate'));
+    expect(document.documentElement.dataset[datasetKey]).toBe(savedValue ?? (datasetKey === 'pieceSet' ? 'cburnett' : 'slate'));
   });
 
   it('keeps session choices and separate error states when persistence is blocked', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Storage blocked'); });
     const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
-    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'chessnut', boardTheme: 'slate' });
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'cburnett', boardTheme: 'slate' });
     render(<SettingsScreen />);
     fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Graphite' }));

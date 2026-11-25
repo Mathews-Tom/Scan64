@@ -1,4 +1,6 @@
 export const PIECE_SET_OPTIONS = [
+  { value: 'cburnett', label: 'Staunton (cburnett)' },
+  { value: 'merida', label: 'Merida' },
   { value: 'chessnut', label: 'Chessnut' },
   { value: 'spatial', label: 'Spatial' },
   { value: 'firi', label: 'Firi' },
@@ -32,7 +34,7 @@ function readChoice<T extends string>(key: string, options: readonly { value: T 
 
 function readBoardChoices(session?: DOMStringMap): BoardAppearance {
   return {
-    pieceSet: readChoice('scan64-piece-set', PIECE_SET_OPTIONS, 'chessnut', session?.pieceSet),
+    pieceSet: readChoice('scan64-piece-set', PIECE_SET_OPTIONS, 'cburnett', session?.pieceSet),
     boardTheme: readChoice('scan64-board-theme', BOARD_THEME_OPTIONS, 'slate', session?.boardTheme),
   };
 }

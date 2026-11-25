@@ -48,7 +48,7 @@ An empty puzzle library shows setup across the main content area instead of rese
 
 ### Board appearance
 
-Open **Settings → Chessboard** to choose Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Slate, Sage, Graphite, Walnut or Sand board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Slate, Sage, Graphite, Walnut or Sand board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
 
 ### Board controls
 

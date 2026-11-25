@@ -6,10 +6,23 @@ non-commercial sets means the complete bundled artwork is NOT offered for
 unrestricted commercial use. Selecting another set does not remove these
 restrictions from redistribution of the bundled non-commercial artwork.
 
-All 72 SVGs are distributed unmodified from lichess-org/lila/public/piece.
+All 96 SVGs are distributed unmodified from lichess-org/lila/public/piece.
+The cburnett and merida SVGs were taken at lila commit
+47948db658a1678d14e97d41c1bcf82958e70ded.
 Source and attribution authority:
 https://github.com/lichess-org/lila/blob/master/COPYING.md
 A snapshot of that authority is included in UPSTREAM-COPYING.txt.
+
+cburnett/ — Staunton (cburnett), Colin M.L. Burnett
+https://en.wikipedia.org/wiki/User:Cburnett
+https://github.com/lichess-org/lila/tree/master/public/piece/cburnett
+GNU General Public License, version 2 or (at your option) any later version.
+Full terms: GPL-2.0.txt
+
+merida/ — Merida, Armando Hernandez Marroquin
+https://github.com/lichess-org/lila/tree/master/public/piece/merida
+GNU General Public License, version 2 or (at your option) any later version.
+Full terms: GPL-2.0.txt
 
 california/ — California, Jerry S.
 https://sites.google.com/view/jerrychess/home
