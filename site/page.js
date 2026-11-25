@@ -1,6 +1,6 @@
 // Latest release page is deliberately the fallback: it cannot become a stale installer.
-// Explicit versioned assets below are the published, verified 1.0.0 installers.
-const version = '1.0.0';
+// Explicit versioned assets below are the published, verified 1.1.0 installers.
+const version = '1.1.0';
 const release = `https://github.com/Mathews-Tom/Scan64/releases/download/v${version}/`;
 const platforms = {
   mac: { name: 'macOS · Apple silicon', asset: `Scan64_${version}_aarch64.dmg` },
