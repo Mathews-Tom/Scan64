@@ -225,8 +225,8 @@ class EnginePool:
     async def acquire(self) -> AsyncGenerator[PooledStockfishAdapter, None]:
         await self.initialize()
         adapter = await self._queue.get()
-        await adapter.reset()
         try:
+            await adapter.reset()
             yield adapter
         finally:
             self._queue.put_nowait(adapter)
