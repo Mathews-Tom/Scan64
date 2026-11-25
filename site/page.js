@@ -1,10 +1,11 @@
 // Latest release page is deliberately the fallback: it cannot become a stale installer.
-// Explicit versioned assets below are the verified 0.7.0 compatibility baseline.
-const release = 'https://github.com/Mathews-Tom/Scan64/releases/download/v0.7.0/';
+// Explicit versioned assets below are the published, verified 1.0.0 installers.
+const version = '1.0.0';
+const release = `https://github.com/Mathews-Tom/Scan64/releases/download/v${version}/`;
 const platforms = {
-  mac: { name: 'macOS · Apple silicon', asset: 'Scan64_0.7.0_aarch64.dmg' },
-  windows: { name: 'Windows · x64', asset: 'Scan64_0.7.0_x64-setup.exe' },
-  linux: { name: 'Linux · x64 AppImage', asset: 'Scan64_0.7.0_amd64.AppImage' },
+  mac: { name: 'macOS · Apple silicon', asset: `Scan64_${version}_aarch64.dmg` },
+  windows: { name: 'Windows · x64', asset: `Scan64_${version}_x64-setup.exe` },
+  linux: { name: 'Linux · x64 AppImage', asset: `Scan64_${version}_amd64.AppImage` },
 };
 const platform = `${navigator.userAgentData?.platform || ''} ${navigator.platform || ''} ${navigator.userAgent || ''}`;
 // Mobile devices, ChromeOS and Linux ARM have no supported desktop installer.
@@ -24,7 +25,7 @@ for (const [key, value] of Object.entries(platforms)) {
   alternatives.append(link);
 }
 const deb = document.createElement('a');
-deb.href = release + 'Scan64_0.7.0_amd64.deb';
+deb.href = release + `Scan64_${version}_amd64.deb`;
 deb.textContent = 'Linux · x64 Debian package';
 alternatives.append(deb);
 const pieces = ['♜♞♝♛♚♝♞♜','♟♟♟♟♟♟♟♟','        ','        ','        ','        ','♙♙♙♙♙♙♙♙','♖♘♗♕♔♗♘♖'];
