@@ -8,17 +8,21 @@ from contextlib import asynccontextmanager
 from hashlib import sha256
 from threading import Event
 from typing import Any
+from uuid import UUID
 
 import chess
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, select
 
-from scan64.api.app import app
+from scan64.api.app import app, lifespan
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.lesson_packs.models import LessonPack, PackLesson
 from scan64.lesson_packs.schema import MAX_PACK_BYTES
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 
 class Adapter:
@@ -243,6 +247,113 @@ def test_pack_archive_exclusion_and_player_deletion(
     assert len(db_session.exec(select(LessonPack)).all()) == 1
     assert len(db_session.exec(select(PackLesson)).all()) == 2
     assert len(client.get("/v1/lesson-packs", headers=other).json()) == 1
+
+
+@pytest.mark.parametrize("delete_player", [False, True])
+def test_deletion_after_pack_task_registry_teardown(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    delete_player: bool,
+) -> None:
+    monkeypatch.setattr(app.state, "engine_pool_manager", Manager())
+    headers = register(client, "pack-shutdown")
+    install(client, headers)
+    with monkeypatch.context() as shutdown:
+        shutdown.delattr(app.state, "lesson_pack_tasks")
+        shutdown.delattr(app.state, "lesson_pack_lock")
+        if delete_player:
+            response = client.request(
+                "DELETE",
+                "/v1/players/pack-shutdown/data",
+                json={"dry_run": False, "confirmation": "delete-pack-shutdown"},
+                headers=headers,
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["affected_rows"]["lesson_packs"] == 1
+        else:
+            response = client.delete("/v1/lesson-packs/test-pack", headers=headers)
+            assert response.status_code == 204, response.text
+    db_session.expire_all()
+    assert db_session.exec(select(LessonPack)).all() == []
+    assert db_session.exec(select(PackLesson)).all() == []
+
+
+@pytest.mark.parametrize("retry", [False, True])
+def test_pack_enqueue_after_task_registry_teardown(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    retry: bool,
+) -> None:
+    headers = register(client, "pack-enqueue-shutdown")
+    if retry:
+        monkeypatch.setattr(app.state, "engine_pool_manager", None)
+        assert install(client, headers)["state"] == "unavailable"
+    manager = Manager()
+    monkeypatch.setattr(app.state, "engine_pool_manager", manager)
+    with monkeypatch.context() as shutdown:
+        shutdown.delattr(app.state, "lesson_pack_tasks")
+        shutdown.delattr(app.state, "lesson_pack_lock")
+        shutdown.delattr(app.state, "engine_pool_manager")
+        if retry:
+            response = client.post("/v1/lesson-packs/test-pack/retry", headers=headers)
+            assert response.status_code == 200, response.text
+        else:
+            response = client.post("/v1/lesson-packs", json=document(), headers=headers)
+            assert response.status_code == 201, response.text
+        assert response.json()["state"] == "pending"
+    db_session.expire_all()
+    assert len(db_session.exec(select(LessonPack)).all()) == 1
+    assert manager.batch_pool.acquisitions == 0
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drains_pack_tasks_without_admitting_more(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started, draining, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    calls: list[UUID] = []
+
+    async def verify(engine: Engine, pack_id: UUID, manager: EnginePoolManager | None) -> None:
+        calls.append(pack_id)
+        started.set()
+        try:
+            await release.wait()
+        finally:
+            draining.set()
+            await release.wait()
+
+    monkeypatch.setattr("scan64.api.lesson_packs.verify_pack", verify)
+    context = lifespan(app)
+    await context.__aenter__()
+    shutdown: asyncio.Task[bool | None] | None = None
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/v1/players", json={"id": "pack-drain", "display_name": "Pack drain"}
+            )
+            assert response.status_code == 200, response.text
+            headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+            response = await client.post("/v1/lesson-packs", json=document(), headers=headers)
+            assert response.status_code == 201, response.text
+            await asyncio.wait_for(started.wait(), timeout=5)
+            shutdown = asyncio.create_task(context.__aexit__(None, None, None))
+            await asyncio.wait_for(draining.wait(), timeout=5)
+            assert not shutdown.done()
+            response = await client.post(
+                "/v1/lesson-packs", json={**document(), "id": "late-pack"}, headers=headers
+            )
+            assert response.status_code == 201, response.text
+    finally:
+        release.set()
+        if shutdown is None:
+            await asyncio.wait_for(context.__aexit__(None, None, None), timeout=5)
+        else:
+            await asyncio.wait_for(shutdown, timeout=5)
+    assert len(calls) == 1
 
 
 @pytest.mark.parametrize("delete_player", [False, True])

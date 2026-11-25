@@ -130,7 +130,13 @@ def _read(pack: LessonPack, session: Session) -> PackRead:
 
 
 def _enqueue(request: Request, engine: Engine, pack_id: UUID) -> None:
-    tasks = cast(dict[UUID, asyncio.Task[None]], request.app.state.lesson_pack_tasks)
+    tasks = cast(
+        dict[UUID, asyncio.Task[None]] | None,
+        getattr(request.app.state, "lesson_pack_tasks", None),
+    )
+    if tasks is None:
+        # Shutdown owns the remaining tasks; startup recovers persisted pending packs.
+        return
     lock = cast(asyncio.Lock, request.app.state.lesson_pack_lock)
     manager = cast(EnginePoolManager | None, request.app.state.engine_pool_manager)
 
@@ -153,7 +159,13 @@ def _enqueue(request: Request, engine: Engine, pack_id: UUID) -> None:
 
 async def cancel_pack_verifications(request: Request, pack_ids: Sequence[UUID]) -> None:
     """Release this owner's verification leases after the deletion transaction."""
-    tasks = cast(dict[UUID, asyncio.Task[None]], request.app.state.lesson_pack_tasks)
+    tasks = cast(
+        dict[UUID, asyncio.Task[None]] | None,
+        getattr(request.app.state, "lesson_pack_tasks", None),
+    )
+    if tasks is None:
+        # Lifespan teardown has already taken responsibility for releasing the leases.
+        return
     cancelled = [tasks[pack_id] for pack_id in pack_ids if pack_id in tasks]
     for task in cancelled:
         task.cancel()
