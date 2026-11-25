@@ -135,7 +135,7 @@ def _enqueue(request: Request, engine: Engine, pack_id: UUID) -> None:
         getattr(request.app.state, "lesson_pack_tasks", None),
     )
     if tasks is None:
-        # Shutdown owns the remaining tasks; startup recovers persisted pending packs.
+        # Shutdown owns the remaining tasks; startup marks persisted pending packs for retry.
         return
     lock = cast(asyncio.Lock, request.app.state.lesson_pack_lock)
     manager = cast(EnginePoolManager | None, request.app.state.engine_pool_manager)
