@@ -1,0 +1,57 @@
+Using CPython 3.12.13
+Creating virtual environment at: .venv
+Resolved 49 packages in 0.85ms
+   Building scan64 @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D
+   Building chess-lesson-spec @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D/packages/chess-lesson-spec
+      Built chess-lesson-spec @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D/packages/chess-lesson-spec
+      Built scan64 @ file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D
+Prepared 2 packages in 218ms
+Installed 41 packages in 16ms
+ + alembic==1.18.5
+ + annotated-doc==0.0.4
+ + annotated-types==0.7.0
+ + anyio==4.14.2
+ + ast-serialize==0.6.0
+ + certifi==2026.6.17
+ + chess==1.11.2
+ + chess-lesson-spec==0.2.0 (from file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D/packages/chess-lesson-spec)
+ + click==8.4.2
+ + fastapi==0.139.0
+ + fsrs==6.3.3
+ + greenlet==3.5.3
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + hypothesis==6.156.6
+ + idna==3.18
+ + iniconfig==2.3.0
+ + librt==0.13.0
+ + mako==1.3.12
+ + markupsafe==3.0.3
+ + mypy==2.2.0
+ + mypy-extensions==1.1.0
+ + packaging==26.2
+ + pathspec==1.1.1
+ + pluggy==1.6.0
+ + pydantic==2.13.4
+ + pydantic-core==2.46.4
+ + pygments==2.20.0
+ + pytest==9.1.1
+ + pytest-asyncio==1.4.0
+ + ruff==0.15.21
+ + scan64==1.0.0 (from file:///home/syd/projects/Scan64/.campaign/epic-371/worktrees/terminal-D)
+ + sortedcontainers==2.4.0
+ + sqlalchemy==2.0.51
+ + sqlmodel==0.0.39
+ + starlette==1.3.1
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.2
+ + uvicorn==0.51.0
+ + zstandard==0.25.0
+Scope: all 2 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +585
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 585, reused 585, downloaded 0, added 585, done
+Done in 1s using pnpm v10.33.3

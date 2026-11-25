@@ -1,0 +1,23 @@
+I could not create `docs/narrator-pipeline.md`: this session has no write permission for the worktree, so the write was refused. I also could not read the progress file or `campaign.toml`, or run `gh` (issue view or list). So nothing is committed or pushed, no PR exists, and the progress file still shows the old status.
+
+The full trace of the code at `4f65a14` (`epic/371`) is done, and the document text is ready to write. The main findings:
+
+| Topic | Finding |
+|---|---|
+| Fields kept by the engine adapter | Only `pv` (full length, no cap) and `score_cp`/`score_mate`, in both `adapter.py` and `pool.py`. Depth, seldepth, nodes, score bounds and WDL are dropped. |
+| MultiPV | The focused pass and the mate-source search use 1,000,000 nodes and MultiPV 4. The coach path has no focused pass: it reuses a 10,000-node, MultiPV 1 search. |
+| What reaches the LLM | The evidence payloads that the diagnosis references, as a Python `repr` (not JSON) in the user message. All 4 PVs, `fast_line`, `proving_line` and `mating_line` reach the prompt. |
+| Lines a claim may cite | Only `focused_line` (MultiPV rank 1) and the single-move fields `best_move`, `threat_move`, `pinning_move` and `incoming_threat`. |
+| **Wrong starting position** | All three callers validate cited lines from the position *before* the played move. But `focused_line`, `threat_move` and `incoming_threat` start from the position *after* it. Any claim that cites them is rejected as illegal, so the whole answer falls back to the template. Only `best_move` and `pinning_move` can pass. |
+| Limits | Local Ollama has a 4 s limit, a 128 KiB request cap and a 256 KiB response cap. The coach path allows only 0.25 s. The operator-configured providers use the httpx default 5 s timeout and have no size caps. |
+| Fallbacks | There are 7 paths to the template, and none is logged. `LLMConfigurationError` and `ExplanationTemplateError` are not fallbacks: they propagate to the caller. |
+| Client | The web client renders only `explanation.text`. It ignores `claims`. |
+
+There is one gap in my draft. I only know the topics of #360 (swappable engine) and #366 (ground claim text), from their branch names. I could not read #367, #368 or #369. The document will cite them by number but will not map them to specific gaps.
+
+To finish, I need these permissions:
+1. Write access to `docs/narrator-pipeline.md` in the worktree.
+2. Read and write access to `/home/syd/projects/Scan64/.campaign/epic-371/progress/terminal-D.md`.
+3. Approval for `gh` (issue view, `pr create`, issue comments) and for `git push`.
+
+After that, I will write the file, run `scripts/check.sh`, commit with `-s`, push, and open the PR against `epic/371` with "Part of #361".

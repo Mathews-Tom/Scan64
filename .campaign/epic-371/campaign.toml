@@ -1,0 +1,99 @@
+[campaign]
+name = "epic-371"
+description = "FIDE-standard board and pieces, swappable engine, and an engine-grounded narrator (epic #371)."
+project_root = "/home/syd/projects/Scan64"
+base_branch = "epic/371"
+created = "2026-11-25"
+
+[campaign.coordination]
+global_rules = [
+  "Additive only: never remove an existing theme, piece set, setting, endpoint, or stored-data format.",
+  "The engine judges; the LLM only words engine and board facts. Never let an LLM decide a chess fact.",
+  "Sign off every commit with `git commit -s` (DCO). Conventional commit prefixes: feat(scope):, fix(scope):, docs(scope):, test(scope):.",
+  "Write only to the targets listed for your terminal. Read anything.",
+  "Open the PR against epic/371, never against main. PR body: 'Part of #N' for each issue. Do not use Closes/Fixes keywords.",
+  "Run the tests for the area you change. Run `scripts/check.sh` before the final push when your change touches its gates.",
+  "Update user and architecture docs when behaviour changes. Make no claims of measured chess improvement.",
+  "Never put secrets, tokens, or personal emails in code, logs, commits, or PRs.",
+]
+conflict_resolution = "Wave 1: B owns docs/system-design.md; D writes only docs/narrator-pipeline.md. Wave 2: E owns THIRD_PARTY_NOTICES.md; G adds no notices (benchmark models are not bundled)."
+protected_files = ["Dockerfile", "scan64-server.spec", "scripts/build-server.py", "scripts/release/", "apps/scan64-desktop/src-tauri/", "CHANGELOG.md"]
+
+[[wave]]
+id = 1
+name = "Foundations"
+depends_on_waves = []
+
+  [[wave.terminal]]
+  id = "A"
+  title = "Board+Pieces"
+  branch = "feat/358-359-fide-board-pieces"
+  writes_to = ["apps/scan64-web/src/boardAppearance.ts", "apps/scan64-web/src/pieces.css", "apps/scan64-web/src/components/Board.css", "apps/scan64-web/src/components/SettingsScreen*", "apps/scan64-web piece/board assets", "THIRD_PARTY_NOTICES.md", "docs/user-guide.md (board appearance section)"]
+  issue_refs = ["#358", "#359"]
+  close_on_done = false
+
+  [[wave.terminal]]
+  id = "B"
+  title = "Engine"
+  branch = "feat/360-swappable-engine"
+  writes_to = ["src/scan64/providers/stockfish/", "src/scan64/providers/engine/ (new)", "src/scan64/chess/analysis/models.py", "engine config loading", "tests for engine", "docs/system-design.md", "docs/engines.md (new)"]
+  issue_refs = ["#360"]
+  close_on_done = false
+
+  [[wave.terminal]]
+  id = "C"
+  title = "Grounding"
+  branch = "feat/366-ground-claim-text"
+  writes_to = ["src/scan64/explanations/validator.py", "src/scan64/explanations/assembly.py (fallback logging only)", "tests for explanations", "packages/chess-lesson-spec claims (only if required)"]
+  issue_refs = ["#366"]
+  close_on_done = false
+
+  [[wave.terminal]]
+  id = "D"
+  title = "Narrator-doc"
+  branch = "docs/361-narrator-pipeline"
+  writes_to = ["docs/narrator-pipeline.md (new)"]
+  issue_refs = ["#361"]
+  close_on_done = false
+
+[[wave]]
+id = 2
+name = "Content"
+depends_on_waves = [1]
+
+  [[wave.terminal]]
+  id = "E"
+  title = "Materials"
+  branch = "feat/363-material-boards"
+  writes_to = ["apps/scan64-web/src/boardAppearance.ts", "apps/scan64-web/src/components/Board.css", "apps/scan64-web board texture assets", "THIRD_PARTY_NOTICES.md", "docs/user-guide.md (board appearance section)"]
+  issue_refs = ["#363"]
+  close_on_done = false
+
+  [[wave.terminal]]
+  id = "F"
+  title = "Narrator-facts"
+  branch = "feat/367-narrator-facts"
+  writes_to = ["src/scan64/explanations/", "src/scan64/learning/evidence/", "src/scan64/providers/llm/local_ollama.py (limits)", "tests for explanations/evidence", "docs/narrator-pipeline.md", "docs/system-design.md (narrator section)"]
+  issue_refs = ["#367"]
+  close_on_done = false
+
+  [[wave.terminal]]
+  id = "G"
+  title = "Narrator-bench"
+  branch = "feat/369-narrator-benchmark"
+  writes_to = ["benchmarks/narrator/ (new)", "docs/evaluation/ (new narrator report)"]
+  issue_refs = ["#369"]
+  close_on_done = false
+
+[[wave]]
+id = 3
+name = "Features"
+depends_on_waves = [2]
+
+  [[wave.terminal]]
+  id = "I"
+  title = "Board-narration"
+  branch = "feat/368-analysis-board-narration"
+  writes_to = ["src/scan64/api/ (analysis-board explanation endpoint)", "src/scan64/explanations/", "apps/scan64-web/src/components/AnalysisScreen*", "apps/scan64-web/src/api client", "tests", "docs/user-guide.md (analysis board)", "docs/narrator-pipeline.md"]
+  issue_refs = ["#368"]
+  close_on_done = false

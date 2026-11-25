@@ -1,0 +1,30 @@
+I made no changes to the repo: this session can only read files and run read-only shell commands. Every write and every code-running step was refused.
+
+**What was refused:**
+
+| Action | Result |
+|---|---|
+| Read or write `.campaign/epic-371/progress/terminal-B.md` | Refused (outside the worktree) |
+| `gh issue view 360` | Needs approval |
+| `uv run`, `.venv/bin/python`, `.venv/bin/pytest` | Needs approval |
+| Write or Edit any file inside the worktree | Refused |
+| `ls ~/.local/opt/` (needed to build the second engine) | Refused (outside the worktree) |
+| `git status`, `git log`, `grep`, `sed`, Read | Allowed |
+
+So there are no commits, no push, no PR and no issue comment. The progress file still does not say `failed`, because I could not write to it. The last good commit is the base, `4f65a14`.
+
+**Stockfish-specific code I found outside the provider:**
+- **Strength options:** `chess/opponents/bot_policy.py:65-72` and `stockfish_opponent.py:83-91` always set `Skill Level`, `UCI_LimitStrength` and `UCI_Elo`. python-chess raises `EngineError` on an option the engine lacks, so other engines fail there today.
+- **Name fallback:** `identity.py:41` uses "Stockfish" when the engine reports no name.
+- **Hint cache:** the key in `pool.py:339` covers path, threads and hash only, not extra UCI options.
+- **Cache identity is already engine-neutral.** `reuse.py:_key` needs a `sha256:` binary hash plus every option value. A new binary can never hit a Stockfish cache entry.
+- **Other places:** `cli/serve.py:24` requires `stockfish` on PATH. The opponent provider name "stockfish" appears in `play.py`, `participants.py` and `data_lifecycle.py`.
+
+**What I will build once writes are allowed:**
+- **Config:** a new `providers/engine/config.py` loads `SCAN64_ENGINE_CONFIG`. It covers engine name, path, threads, hash, UCI options, hint limits and an analysis node scale. Path order is the file, then `SCAN64_STOCKFISH_PATH`, then `stockfish`. `StockfishConfig` becomes an alias of `EngineConfig`.
+- **Existing caches still hit:** with no config file, the options sent and the identity stay byte-identical to today. WDL output is therefore on only when the config sets `UCI_ShowWDL = true`.
+- **Other engines degrade cleanly:** strength options are sent only when the engine offers them, or when its option list is empty, as in the current mocks. For other engines, the bot ladder reuses `sample_candidate`, so `bot_policy.py` stays unchanged. Legacy `Skill Level` play raises a clear error.
+- **Per-line fields:** each `raw_result` line gets `wdl`, `depth`, `seldepth`, `nodes`, `nps` and `multipv`. Existing tests compare stored `raw_result` values exactly, so adding keys is safe. A lenient line model in `models.py` lets old rows load.
+- **Hint cache:** the key also covers the engine name and the extra UCI options.
+
+To unblock me, allow file writes in the worktree plus `uv`, `git commit`/`git push`, `gh` and `~/.local/opt/engines`, then run me again.

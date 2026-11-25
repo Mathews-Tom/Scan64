@@ -1,0 +1,19 @@
+From https://github.com/Mathews-Tom/Scan64
+ * [new branch]      chore/release-1.1.0 -> origin/chore/release-1.1.0
+ * [new branch]      fix/restore-board-palettes -> origin/fix/restore-board-palettes
+branch 'epic/371' set up to track 'origin/main'.
+Switched to branch 'epic/371'
+Your branch is up-to-date with 'origin/main'.
+remote: 
+remote: Create a pull request for 'epic/371' on GitHub by visiting:        
+remote:      https://github.com/Mathews-Tom/Scan64/pull/new/epic/371        
+remote: 
+To https://github.com/Mathews-Tom/Scan64.git
+ * [new branch]      epic/371 -> epic/371
+branch 'epic/371' set up to track 'origin/epic/371'.
+=== Wave 1 ===
+Wave 1 launched: tmux attach -t campaign-epic-371-w1
+Polling every 120s for: A B C D
+STOP: Terminal A exited with status 'pending'
+  Check:  cat /home/syd/projects/Scan64/.campaign/epic-371/progress/terminal-A.md
+  Resume: /campaign resume A epic-371, then START_WAVE=<n> bash .campaign/epic-371/scripts/run-campaign.sh

@@ -1,0 +1,506 @@
+== python: pytest ==
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/syd/projects/Scan64
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.4.0, hypothesis-6.156.6
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 3594 items / 2 deselected / 3592 selected
+
+scripts/release/test_verify.py ...............                           [  0%]
+tests/conformance/test_explanation_coverage.py .................         [  0%]
+tests/conformance/test_lesson_contract.py .............................. [  1%]
+............                                                             [  2%]
+tests/conformance/test_lesson_spec_fixtures.py .......                   [  2%]
+tests/integration/test_adaptive_session.py ..........                    [  2%]
+tests/integration/test_admission_control.py ....FF.                      [  2%]
+tests/integration/test_admission_controller.py ..                        [  2%]
+tests/integration/test_allowed_mate_analysis.py ..                       [  2%]
+tests/integration/test_analysis_board_api.py ...                         [  2%]
+tests/integration/test_analysis_job_concurrency.py ..                    [  2%]
+tests/integration/test_analysis_job_events.py ....................       [  3%]
+tests/integration/test_analysis_persistence.py .........                 [  3%]
+tests/integration/test_analysis_recovery.py .....                        [  3%]
+tests/integration/test_analysis_reuse.py ................                [  4%]
+tests/integration/test_analysis_selection.py .........                   [  4%]
+tests/integration/test_analysis_throughput.py .                          [  4%]
+tests/integration/test_catalogue_storage.py .....                        [  4%]
+tests/integration/test_coach_authorization_boundary.py ...               [  4%]
+tests/integration/test_coach_dashboard_api.py ....                       [  4%]
+tests/integration/test_coach_interruption_attempts.py .................. [  5%]
+.                                                                        [  5%]
+tests/integration/test_content_attempt_shared_profile.py .               [  5%]
+tests/integration/test_context_habit_profiling.py ..                     [  5%]
+tests/integration/test_credit_concurrency.py ..                          [  5%]
+tests/integration/test_credit_lifecycle.py ............................. [  6%]
+.                                                                        [  6%]
+tests/integration/test_credit_migration.py .                             [  6%]
+tests/integration/test_daily_training_api.py .                           [  6%]
+tests/integration/test_data_lifecycle.py .................               [  7%]
+tests/integration/test_data_lifecycle_completeness.py ......             [  7%]
+tests/integration/test_desktop_server.py .......                         [  7%]
+tests/integration/test_detector_promotion_gate.py ....                   [  7%]
+tests/integration/test_detector_resolution.py ..                         [  7%]
+tests/integration/test_engine_pool_isolation.py .......                  [  7%]
+tests/integration/test_exercise_pipeline.py ...                          [  7%]
+tests/integration/test_explanation_settings.py ............              [  8%]
+tests/integration/test_explanation_settings_migration.py .               [  8%]
+tests/integration/test_famous_game_shared_profile.py .........           [  8%]
+tests/integration/test_fsrs_archive.py ................................. [  9%]
+.....................................                                    [ 10%]
+tests/integration/test_fsrs_migration.py ...                             [ 10%]
+tests/integration/test_game_ownership.py ...                             [ 10%]
+tests/integration/test_game_review.py .........................          [ 11%]
+tests/integration/test_habit_api.py .........                            [ 11%]
+tests/integration/test_habit_archive.py ................................ [ 12%]
+........................................................................ [ 14%]
+........................................................                 [ 15%]
+tests/integration/test_habit_evidence_archive.py ....................... [ 16%]
+........                                                                 [ 16%]
+tests/integration/test_habit_migration.py ........                       [ 17%]
+tests/integration/test_habit_qualification.py .....................      [ 17%]
+tests/integration/test_idempotency.py ...                                [ 17%]
+tests/integration/test_learning_opportunities_api.py .                   [ 17%]
+tests/integration/test_lesson_attempts.py .............................. [ 18%]
+.............................                                            [ 19%]
+tests/integration/test_lesson_packs.py .............                     [ 19%]
+tests/integration/test_lesson_packs_migration.py ..                      [ 19%]
+tests/integration/test_live_detector_coverage.py .                       [ 19%]
+tests/integration/test_llm_provider_mocked.py ....                       [ 19%]
+tests/integration/test_m18_learning_behavior.py ...                      [ 20%]
+tests/integration/test_m79_trust_history.py ....                         [ 20%]
+tests/integration/test_m93_product_visibility.py ....                    [ 20%]
+tests/integration/test_m94_product_visibility.py ....................... [ 20%]
+                                                                         [ 20%]
+tests/integration/test_maia_adapter.py .                                 [ 20%]
+tests/integration/test_maia_provider.py ......                           [ 21%]
+tests/integration/test_measured_reference_game.py .                      [ 21%]
+tests/integration/test_onboarding.py ...............                     [ 21%]
+tests/integration/test_onboarding_lifecycle.py ......................... [ 22%]
+..................................................................       [ 24%]
+tests/integration/test_onboarding_migration.py .                         [ 24%]
+tests/integration/test_online_import_api.py ............................ [ 24%]
+....                                                                     [ 24%]
+tests/integration/test_opponent_provider.py .....                        [ 25%]
+tests/integration/test_owner_color.py .........                          [ 25%]
+tests/integration/test_pagination.py ...                                 [ 25%]
+tests/integration/test_pattern_recurrence.py ........................... [ 26%]
+......                                                                   [ 26%]
+tests/integration/test_pgn_roundtrip.py .......                          [ 26%]
+tests/integration/test_play_api.py ...F...........                       [ 26%]
+tests/integration/test_play_assistance.py .............................. [ 27%]
+...........................................                              [ 29%]
+tests/integration/test_play_assistance_commit.py .............           [ 29%]
+tests/integration/test_play_assistance_lifecycle.py ............         [ 29%]
+tests/integration/test_play_assistance_migration.py .....                [ 29%]
+tests/integration/test_play_bot_recovery.py ............                 [ 30%]
+tests/integration/test_play_clock_archive_versions.py .................  [ 30%]
+tests/integration/test_play_clock_coach_atomic.py .......                [ 30%]
+tests/integration/test_play_clock_lifecycle.py ......................... [ 31%]
+.........                                                                [ 31%]
+tests/integration/test_play_clock_lifespan_cleanup.py .                  [ 31%]
+tests/integration/test_play_clock_migration.py ..                        [ 31%]
+tests/integration/test_play_clock_reservation.py ....                    [ 31%]
+tests/integration/test_play_clock_retry_health.py .....                  [ 32%]
+tests/integration/test_play_clock_review_api.py ........................ [ 32%]
+................                                                         [ 33%]
+tests/integration/test_play_clock_scheduling.py ..                       [ 33%]
+tests/integration/test_play_clocks.py .................................. [ 34%]
+.................................................                        [ 35%]
+tests/integration/test_play_committed_job_admission.py ........          [ 35%]
+tests/integration/test_play_move_snapshot.py ............                [ 36%]
+tests/integration/test_play_position_corruption.py ..                    [ 36%]
+tests/integration/test_play_session_analysis.py ....                     [ 36%]
+tests/integration/test_play_session_resign.py ...........                [ 36%]
+tests/integration/test_player_games.py ......                            [ 36%]
+tests/integration/test_position_analysis_api.py ........................ [ 37%]
+.............                                                            [ 37%]
+tests/integration/test_position_insights_api.py ........................ [ 38%]
+..............                                                           [ 38%]
+tests/integration/test_positive_credit_cap.py .....                      [ 39%]
+tests/integration/test_positive_move_credit.py ........................  [ 39%]
+tests/integration/test_profile_insights.py .............                 [ 40%]
+tests/integration/test_profile_updates_from_analysis.py ..               [ 40%]
+tests/integration/test_progress_reset.py .......................         [ 40%]
+tests/integration/test_public_benchmark_gating.py ......                 [ 40%]
+tests/integration/test_puzzle_import_daily.py ....                       [ 41%]
+tests/integration/test_puzzle_lifecycle.py ....................          [ 41%]
+tests/integration/test_puzzle_migration.py .                             [ 41%]
+tests/integration/test_puzzle_mistakes.py ...........................    [ 42%]
+tests/integration/test_puzzle_modes.py ..................                [ 42%]
+tests/integration/test_puzzle_modes_lifecycle.py ....................... [ 43%]
+........                                                                 [ 43%]
+tests/integration/test_puzzle_practice.py ......................         [ 44%]
+tests/integration/test_puzzle_practice_archive.py ...................... [ 44%]
+......................................................................   [ 46%]
+tests/integration/test_puzzle_practice_migration.py .                    [ 46%]
+tests/integration/test_puzzle_review.py ................................ [ 47%]
+.                                                                        [ 47%]
+tests/integration/test_puzzle_runs.py ..........                         [ 48%]
+tests/integration/test_renderer_conformance_cli.py ..                    [ 48%]
+tests/integration/test_repertoire.py ........................            [ 48%]
+tests/integration/test_repertoire_deviations.py .....                    [ 48%]
+tests/integration/test_repertoire_lifecycle_boundaries.py .............. [ 49%]
+....                                                                     [ 49%]
+tests/integration/test_repertoire_migration.py ....                      [ 49%]
+tests/integration/test_repertoire_security.py .......................... [ 50%]
+.................                                                        [ 50%]
+tests/integration/test_reports_from_real_data.py ....................... [ 51%]
+......................                                                   [ 52%]
+tests/integration/test_schema_migrations.py .........                    [ 52%]
+tests/integration/test_session_hint_tracking.py .................        [ 52%]
+tests/integration/test_sparring.py ..................................    [ 53%]
+tests/integration/test_sparring_lifecycle.py ........................... [ 54%]
+....................................................                     [ 55%]
+tests/integration/test_sparring_migration.py ...                         [ 56%]
+tests/integration/test_stockfish_pipeline.py .....                       [ 56%]
+tests/integration/test_stockfish_strength.py ........................... [ 56%]
+......................                                                   [ 57%]
+tests/integration/test_strength.py ...................                   [ 58%]
+tests/integration/test_taxonomy_migration_live.py .                      [ 58%]
+tests/integration/test_transfer_measurement.py ...............           [ 58%]
+tests/integration/test_v090_compatibility.py ..                          [ 58%]
+tests/integration/test_web_serving.py ...........                        [ 58%]
+tests/property/test_ingestion_invariants.py .                            [ 58%]
+tests/property/test_mastery_monotonicity.py .                            [ 58%]
+tests/property/test_mastery_updates.py ....                              [ 59%]
+tests/property/test_minimum_evidence_gating.py .                         [ 59%]
+tests/property/test_pseudonymization_invariant.py ......                 [ 59%]
+tests/property/test_scheduler_reserved_capacity.py .                     [ 59%]
+tests/property/test_transformation_validity.py .                         [ 59%]
+tests/regression/test_golden_fixture_corpus_integrity.py .               [ 59%]
+tests/regression/test_template_path_unaffected.py .                      [ 59%]
+tests/unit/test_allowed_mate.py .....................                    [ 59%]
+tests/unit/test_analyse_cli.py ...                                       [ 59%]
+tests/unit/test_analysis_jobs.py .                                       [ 60%]
+tests/unit/test_analysis_throughput.py ..............                    [ 60%]
+tests/unit/test_bot_calibration.py ............                          [ 60%]
+tests/unit/test_bot_ladder.py .....................                      [ 61%]
+tests/unit/test_build_server.py .........................                [ 62%]
+tests/unit/test_conformance_runner.py ..                                 [ 62%]
+tests/unit/test_content_catalog.py ...                                   [ 62%]
+tests/unit/test_content_validation.py ........                           [ 62%]
+tests/unit/test_context_conditioned_skill.py ...                         [ 62%]
+tests/unit/test_database_url.py ....                                     [ 62%]
+tests/unit/test_desktop_backups.py ..................................... [ 63%]
+.........                                                                [ 63%]
+tests/unit/test_desktop_package_smoke.py .............                   [ 64%]
+tests/unit/test_desktop_security.py .................................... [ 65%]
+..........................                                               [ 65%]
+tests/unit/test_desktop_server.py ...................................... [ 67%]
+........                                                                 [ 67%]
+tests/unit/test_desktop_update_e2e.py ..................                 [ 67%]
+tests/unit/test_diagnosis_arbitration.py ..                              [ 67%]
+tests/unit/test_diagnosis_detectors.py ..........                        [ 68%]
+tests/unit/test_empty.py .                                               [ 68%]
+tests/unit/test_engine_pool.py .                                         [ 68%]
+tests/unit/test_evidence_composer.py .                                   [ 68%]
+tests/unit/test_evidence_model.py .                                      [ 68%]
+tests/unit/test_explanation_validator.py ........                        [ 68%]
+tests/unit/test_famous_games.py ....                                     [ 68%]
+tests/unit/test_fsrs_scheduling.py .....................                 [ 69%]
+tests/unit/test_grounded_explanation.py .........                        [ 69%]
+tests/unit/test_habit.py ........................                        [ 70%]
+tests/unit/test_habit_detection.py ....                                  [ 70%]
+tests/unit/test_hint_ladder.py ..................                        [ 70%]
+tests/unit/test_hint_pool.py ........                                    [ 70%]
+tests/unit/test_hint_principles.py ..................................... [ 71%]
+...........................                                              [ 72%]
+tests/unit/test_ingestion.py .......                                     [ 72%]
+tests/unit/test_lesson_packs.py ........................................ [ 73%]
+............................................                             [ 75%]
+tests/unit/test_lesson_verification.py ...                               [ 75%]
+tests/unit/test_lesson_verifier.py ....                                  [ 75%]
+tests/unit/test_lichess_themes.py ...................................... [ 76%]
+.........                                                                [ 76%]
+tests/unit/test_llm_config_wiring.py .......                             [ 76%]
+tests/unit/test_local_ollama.py .......................                  [ 77%]
+tests/unit/test_m79_gate.py .......                                      [ 77%]
+tests/unit/test_m79_recording.py .....                                   [ 77%]
+tests/unit/test_m93_precision.py ....................................... [ 78%]
+.................................                                        [ 79%]
+tests/unit/test_m94_measurement.py ..........                            [ 80%]
+tests/unit/test_m94_motifs.py .......................................... [ 81%]
+............................................                             [ 82%]
+tests/unit/test_m94_protocol.py ........................................ [ 83%]
+........................................................................ [ 85%]
+............................................                             [ 86%]
+tests/unit/test_m94_recording_preflight.py ............................. [ 87%]
+                                                                         [ 87%]
+tests/unit/test_maia_coverage_disclosure.py .......                      [ 87%]
+tests/unit/test_measured_causes.py .....                                 [ 88%]
+tests/unit/test_missed_capture_identity.py ......                        [ 88%]
+tests/unit/test_mission_invariants.py ...                                [ 88%]
+tests/unit/test_online_import.py ....................................... [ 89%]
+...                                                                      [ 89%]
+tests/unit/test_opening_content.py ..                                    [ 89%]
+tests/unit/test_opening_rotation.py ......                               [ 89%]
+tests/unit/test_opportunity_ranking.py .....                             [ 89%]
+tests/unit/test_persistence.py ..                                        [ 89%]
+tests/unit/test_play_assistance_history.py .                             [ 89%]
+tests/unit/test_play_session_participants.py ..................          [ 90%]
+tests/unit/test_player_model.py .......                                  [ 90%]
+tests/unit/test_plugin_interfaces.py ........                            [ 90%]
+tests/unit/test_position_insights.py ..........................          [ 91%]
+tests/unit/test_positive_move_proofs.py .............................    [ 92%]
+tests/unit/test_prerelease_defects.py ...................                [ 92%]
+tests/unit/test_priors.py .                                              [ 92%]
+tests/unit/test_profile_update.py ..                                     [ 92%]
+tests/unit/test_puzzle_import.py ....................................... [ 94%]
+.................                                                        [ 94%]
+tests/unit/test_puzzle_import_job.py ................................... [ 95%]
+........................                                                 [ 96%]
+tests/unit/test_puzzle_rating.py .                                       [ 96%]
+tests/unit/test_random_assignment_balance.py ..................          [ 96%]
+tests/unit/test_real_game_reference.py ................................. [ 97%]
+............                                                             [ 97%]
+tests/unit/test_repertoire.py .........................                  [ 98%]
+tests/unit/test_repertoire_body.py .....                                 [ 98%]
+tests/unit/test_scheduler.py ....                                        [ 98%]
+tests/unit/test_serve_cli.py ............                                [ 99%]
+tests/unit/test_sound_moves.py ....                                      [ 99%]
+tests/unit/test_taxonomy.py ....                                         [ 99%]
+tests/unit/test_taxonomy_migration.py ....                               [ 99%]
+tests/unit/test_transfer_exercises.py ..............                     [ 99%]
+tests/unit/test_visualization_dsl.py ...                                 [100%]
+
+=================================== FAILURES ===================================
+____ test_analysis_job_submitted_through_the_api_is_admitted_and_completes _____
+
+client = <starlette.testclient.TestClient object at 0x7cc483fae6f0>
+db_session = <sqlmodel.orm.session.Session object at 0x7cc482ceaf60>
+
+    def test_analysis_job_submitted_through_the_api_is_admitted_and_completes(
+        client: TestClient, db_session: Session
+    ) -> None:
+        headers = _register(db_session, "admission-player")
+        game_response = client.post(
+            "/v1/games",
+            json={"owner_color": "white", "pgn": PGN, "player_id": "admission-player"},
+            headers=headers,
+        )
+        assert game_response.status_code == 200
+        game_id = game_response.json()["id"]
+    
+        job_response = client.post(f"/v1/games/{game_id}/analysis-jobs", headers=headers)
+        assert job_response.status_code == 200
+        job_data = job_response.json()
+        # Queued status, never an error, at submission time.
+        assert job_data["status"] == "pending"
+    
+        status = _wait_for_terminal_status(client, job_data["id"], headers)
+>       assert status == "completed"
+E       AssertionError: assert 'running' == 'completed'
+E         
+E         - completed
+E         + running
+
+tests/integration/test_admission_control.py:153: AssertionError
+________ test_a_player_exceeding_the_daily_quota_is_queued_not_rejected ________
+
+client = <starlette.testclient.TestClient object at 0x7cc482bfedb0>
+db_session = <sqlmodel.orm.session.Session object at 0x7cc481a30c50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cc482b62e70>
+
+    def test_a_player_exceeding_the_daily_quota_is_queued_not_rejected(
+        client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A quota-exhausted submission still returns 200/pending (never 429 or
+        503) and still eventually completes — fair-share queueing, not
+        rejection."""
+        exhausted_controller = AdmissionController(AdmissionConfig(daily_quota_games=0))
+        monkeypatch.setattr(jobs, "admission_controller", exhausted_controller)
+    
+        headers = _register(db_session, "quota-player")
+        game_response = client.post(
+            "/v1/games",
+            json={"owner_color": "white", "pgn": PGN, "player_id": "quota-player"},
+            headers=headers,
+        )
+        game_id = game_response.json()["id"]
+    
+        job_response = client.post(f"/v1/games/{game_id}/analysis-jobs", headers=headers)
+        assert job_response.status_code == 200
+        job_data = job_response.json()
+        assert job_data["status"] == "pending"
+    
+        status = _wait_for_terminal_status(client, job_data["id"], headers)
+>       assert status == "completed"
+E       AssertionError: assert 'running' == 'completed'
+E         
+E         - completed
+E         + running
+
+tests/integration/test_admission_control.py:179: AssertionError
+_________________________ test_create_get_analysis_job _________________________
+
+client = <starlette.testclient.TestClient object at 0x7cc456ab35c0>
+session = <sqlmodel.orm.session.Session object at 0x7cc481ecda60>
+
+    def test_create_get_analysis_job(client: TestClient, session: Session):
+        headers = _register(session, "analysis-player")
+        pgn = '[Event "Casual Game"]\n\n1. e4 e5 2. Nf3 Nc6'
+        game_response = client.post(
+            "/v1/games",
+            json={"owner_color": "white", "pgn": pgn, "player_id": "analysis-player"},
+            headers=headers,
+        )
+        game_id = game_response.json()["id"]
+    
+        job_response = client.post(f"/v1/games/{game_id}/analysis-jobs", headers=headers)
+        assert job_response.status_code == 200
+        job_data = job_response.json()
+        assert job_data["game_id"] == game_id
+        assert job_data["status"] == "pending"
+    
+        job_id = job_data["id"]
+        deadline = time.monotonic() + 5.0
+        status = "pending"
+        while status not in {"completed", "failed"} and time.monotonic() < deadline:
+            get_job_response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)
+            assert get_job_response.status_code == 200
+            status = get_job_response.json()["status"]
+            if status not in {"completed", "failed"}:
+                time.sleep(0.01)
+>       assert status == "completed", get_job_response.json()
+E       AssertionError: {'id': 'cf35ff85-d236-4b83-8ed4-35ec2497d664', 'game_id': '6adea567-f260-455f-8641-ed719979b849', 'status': 'running'}
+E       assert 'running' == 'completed'
+E         
+E         - completed
+E         + running
+
+tests/integration/test_play_api.py:100: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /home/syd/projects/Scan64/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_adaptive_session.py: 8 warnings
+tests/integration/test_admission_control.py: 3 warnings
+tests/integration/test_analysis_persistence.py: 1 warning
+tests/integration/test_analysis_recovery.py: 4 warnings
+tests/integration/test_analysis_reuse.py: 1 warning
+tests/integration/test_catalogue_storage.py: 2 warnings
+tests/integration/test_coach_authorization_boundary.py: 3 warnings
+tests/integration/test_coach_dashboard_api.py: 4 warnings
+tests/integration/test_coach_interruption_attempts.py: 19 warnings
+tests/integration/test_credit_concurrency.py: 1 warning
+tests/integration/test_credit_lifecycle.py: 30 warnings
+tests/integration/test_daily_training_api.py: 1 warning
+tests/integration/test_data_lifecycle.py: 17 warnings
+tests/integration/test_data_lifecycle_completeness.py: 3 warnings
+tests/integration/test_desktop_server.py: 4 warnings
+tests/integration/test_engine_pool_isolation.py: 2 warnings
+tests/integration/test_explanation_settings.py: 12 warnings
+tests/integration/test_explanation_settings_migration.py: 1 warning
+tests/integration/test_famous_game_shared_profile.py: 1 warning
+tests/integration/test_fsrs_archive.py: 70 warnings
+tests/integration/test_fsrs_migration.py: 21 warnings
+tests/integration/test_game_ownership.py: 3 warnings
+tests/integration/test_game_review.py: 11 warnings
+tests/integration/test_habit_api.py: 9 warnings
+tests/integration/test_habit_archive.py: 160 warnings
+tests/integration/test_habit_evidence_archive.py: 31 warnings
+tests/integration/test_habit_migration.py: 16 warnings
+tests/integration/test_habit_qualification.py: 15 warnings
+tests/integration/test_learning_opportunities_api.py: 1 warning
+tests/integration/test_lesson_attempts.py: 59 warnings
+tests/integration/test_lesson_packs.py: 13 warnings
+tests/integration/test_lesson_packs_migration.py: 2 warnings
+tests/integration/test_m18_learning_behavior.py: 1 warning
+tests/integration/test_m79_trust_history.py: 2 warnings
+tests/integration/test_m93_product_visibility.py: 4 warnings
+tests/integration/test_m94_product_visibility.py: 23 warnings
+tests/integration/test_maia_provider.py: 4 warnings
+tests/integration/test_onboarding.py: 15 warnings
+tests/integration/test_onboarding_lifecycle.py: 90 warnings
+tests/integration/test_onboarding_migration.py: 2 warnings
+tests/integration/test_online_import_api.py: 32 warnings
+tests/integration/test_owner_color.py: 5 warnings
+tests/integration/test_pattern_recurrence.py: 33 warnings
+tests/integration/test_pgn_roundtrip.py: 7 warnings
+tests/integration/test_play_api.py: 13 warnings
+tests/integration/test_play_assistance.py: 54 warnings
+tests/integration/test_play_assistance_commit.py: 13 warnings
+tests/integration/test_play_assistance_lifecycle.py: 12 warnings
+tests/integration/test_play_assistance_migration.py: 5 warnings
+tests/integration/test_play_bot_recovery.py: 1 warning
+tests/integration/test_play_clock_archive_versions.py: 17 warnings
+tests/integration/test_play_clock_coach_atomic.py: 7 warnings
+tests/integration/test_play_clock_lifecycle.py: 34 warnings
+tests/integration/test_play_clock_lifespan_cleanup.py: 1 warning
+tests/integration/test_play_clock_migration.py: 2 warnings
+tests/integration/test_play_clocks.py: 16 warnings
+tests/integration/test_play_move_snapshot.py: 8 warnings
+tests/integration/test_play_position_corruption.py: 2 warnings
+tests/integration/test_play_session_analysis.py: 4 warnings
+tests/integration/test_play_session_resign.py: 11 warnings
+tests/integration/test_player_games.py: 6 warnings
+tests/integration/test_position_analysis_api.py: 37 warnings
+tests/integration/test_position_insights_api.py: 38 warnings
+tests/integration/test_positive_credit_cap.py: 2 warnings
+tests/integration/test_profile_insights.py: 1 warning
+tests/integration/test_progress_reset.py: 21 warnings
+tests/integration/test_puzzle_import_daily.py: 4 warnings
+tests/integration/test_puzzle_lifecycle.py: 20 warnings
+tests/integration/test_puzzle_migration.py: 2 warnings
+tests/integration/test_puzzle_mistakes.py: 27 warnings
+tests/integration/test_puzzle_modes.py: 18 warnings
+tests/integration/test_puzzle_modes_lifecycle.py: 30 warnings
+tests/integration/test_puzzle_practice.py: 22 warnings
+tests/integration/test_puzzle_practice_archive.py: 92 warnings
+tests/integration/test_puzzle_practice_migration.py: 2 warnings
+tests/integration/test_puzzle_review.py: 33 warnings
+tests/integration/test_puzzle_runs.py: 10 warnings
+tests/integration/test_repertoire.py: 24 warnings
+tests/integration/test_repertoire_deviations.py: 5 warnings
+tests/integration/test_repertoire_lifecycle_boundaries.py: 18 warnings
+tests/integration/test_repertoire_migration.py: 4 warnings
+tests/integration/test_repertoire_security.py: 43 warnings
+tests/integration/test_reports_from_real_data.py: 45 warnings
+tests/integration/test_schema_migrations.py: 5 warnings
+tests/integration/test_session_hint_tracking.py: 9 warnings
+tests/integration/test_sparring.py: 19 warnings
+tests/integration/test_sparring_lifecycle.py: 79 warnings
+tests/integration/test_sparring_migration.py: 3 warnings
+tests/integration/test_stockfish_strength.py: 46 warnings
+tests/integration/test_strength.py: 19 warnings
+tests/integration/test_v090_compatibility.py: 1 warning
+  /home/syd/projects/Scan64/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:952: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    cursor.execute(statement, parameters)
+
+tests/integration/test_opponent_provider.py::test_stockfish_opponent_completes_forced_mate
+  /home/syd/projects/Scan64/.venv/lib/python3.12/site-packages/pydantic/main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='clock_config', input_value=1000, input_type=int])
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='opponent_config', input_value=20, input_type=int])
+    return self.__pydantic_serializer__.to_python(
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  /home/syd/projects/Scan64/src/scan64/providers/stockfish/identity.py:31: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    value = engine.config.get(name)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  /home/syd/projects/Scan64/src/scan64/providers/stockfish/pool.py:79: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._identity = engine_identity(self._engine, self.config.binary_path)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_bot_ladder.py::test_pooled_and_standalone_use_identical_policy
+  /home/syd/projects/Scan64/src/scan64/providers/stockfish/pool.py:102: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._identity = None
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[GET]
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[POST]
+tests/unit/test_puzzle_import_job.py::test_browser_install_returns_404[DELETE]
+  <frozen runpy>:128: RuntimeWarning: 'scan64.api.app' found in sys.modules after import of package 'scan64.api', but prior to execution of 'scan64.api.app'; this may result in unpredictable behaviour
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_admission_control.py::test_analysis_job_submitted_through_the_api_is_admitted_and_completes
+FAILED tests/integration/test_admission_control.py::test_a_player_exceeding_the_daily_quota_is_queued_not_rejected
+FAILED tests/integration/test_play_api.py::test_create_get_analysis_job - Ass...
+=== 3 failed, 3589 passed, 2 deselected, 1639 warnings in 569.78s (0:09:29) ====

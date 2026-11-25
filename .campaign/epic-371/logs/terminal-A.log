@@ -1,0 +1,28 @@
+Preparing worktree (resetting branch 'feat/358-359-fide-board-pieces'; was at 4f65a14)
+HEAD is now at 4f65a14 Merge pull request #357 from Mathews-Tom/feat/staunton-pieces
+I could not start #359: this session's permissions block every step that changes anything, so nothing is merged, edited, committed or pushed.
+
+| Step | Result |
+|---|---|
+| Read `terminal-A.md` (progress file) | Denied: the file is outside the worktree, so status is still not `in_progress` |
+| `date`, `gh issue view 359`, `gh pr view 373` | Needs approval |
+| `git fetch` | Needs approval. The ref `origin/fix/restore-board-palettes` is already local, so the fetch is not needed |
+| `git merge --no-ff --signoff origin/fix/restore-board-palettes` | Needs approval, so the base from #373 is not merged |
+| Get new piece SVGs (lichess-org/lila, FIDE C.02 page) | Not possible: no network, no local lila checkout, and no piece sets in `node_modules` |
+| Read-only git and reading files in the worktree | These work |
+
+The branch `feat/358-359-fide-board-pieces` is clean at `4f65a14`.
+
+**What I found:**
+- PR #373 changes `boardAppearance.ts`, `SettingsScreen.tsx`, `SettingsScreen.test.tsx`, `tokens.css`, `docs/user-guide.md` and `CHANGELOG.md`. My edits must go on top of that merge, or they will conflict.
+- `PIECE_SET_OPTIONS` has 8 sets now. `cburnett` is the default.
+
+**To unblock, give the next run these permissions:**
+1. Read and write access to `/home/syd/projects/Scan64/.campaign/epic-371/progress/`.
+2. `git merge`, `git commit -s` and `git push` in the worktree.
+3. `gh issue`/`gh pr` commands and network access to `github.com` and `raw.githubusercontent.com`, to get the lila piece sets and their licences.
+4. Web access to `handbook.fide.com`, for C.02.
+
+Another option is to copy the lila `public/piece/` directory and its `COPYING.md` into the worktree. That gives me the assets without network access.
+
+When I have these, I do the whole task in one pass: merge #373, add at least 2 licence-compatible Staunton sets, group the Staunton sets in Settings, then update the notices, the user guide and the tests. Then I run the gate and open the PR.

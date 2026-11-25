@@ -1,0 +1,9 @@
+Context (shared):
+- Project: Scan64, a local-first chess coach. GPL-3.0. Upstream repo Mathews-Tom/Scan64. You have write access.
+- Stack: Python 3.12 FastAPI server in src/scan64 (uv), SQLite with migrations in src/scan64/persistence/migrations, React/Vite web client in apps/scan64-web (pnpm 10.33.3, Node 24), Tauri desktop shell in apps/scan64-desktop, shared schema package packages/chess-lesson-spec.
+- Engine: Stockfish 18 via python-chess. Adapter src/scan64/providers/stockfish/adapter.py, pool src/scan64/providers/stockfish/pool.py, identity src/scan64/providers/stockfish/identity.py. Binary from SCAN64_STOCKFISH_PATH (default `stockfish` on PATH).
+- Narrator: optional LLM. src/scan64/explanations/assembly.py builds the prompt and always computes a template explanation first; src/scan64/explanations/validator.py checks claims (evidence_ref, certainty, disclosure level, cited line legality and prefix of a verified line). The claim TEXT is not checked today. Providers: src/scan64/providers/llm/ (Ollama local on 127.0.0.1:11434 with a 4 s limit, OpenAI-compatible hosted adapter). Evidence comes from src/scan64/learning/evidence/composer.py.
+- Board appearance: apps/scan64-web/src/boardAppearance.ts (PIECE_SET_OPTIONS, BOARD_THEME_OPTIONS, defaults `cburnett` and `brown`), apps/scan64-web/src/pieces.css, apps/scan64-web/src/components/Board.css, SettingsScreen.tsx. PR #357 already added brown/green palettes and made Staunton (cburnett) the default.
+- Gate: scripts/check.sh (pytest excluding real_model, Ruff, strict typing, diagnosis precision, licences, web build, lint, unit tests, Playwright, cargo fmt/clippy/test).
+- Tooling on this machine: Stockfish 18 at ~/.local/bin/stockfish, Node 24 and pnpm on PATH (set by the runner), 48 CPU cores, one RTX 5090 (32 GB). Dependencies are installed in your worktree by the runner.
+- Base branch: epic/371. It contains main plus all earlier campaign waves.

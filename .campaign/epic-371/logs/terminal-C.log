@@ -1,0 +1,29 @@
+I could not make any changes: this session denies every write, so nothing is edited, committed, pushed or opened as a PR.
+
+**Calls that were denied**
+
+| Action | Tool | Result |
+|---|---|---|
+| Read `.campaign/epic-371/progress/terminal-C.md` | Read | Permission not granted |
+| `gh issue view 366` | Bash | Needs approval |
+| Create `src/scan64/explanations/claim_text.py` | Write | Permission not granted |
+| Rewrite `src/scan64/explanations/validator.py` (an assigned target) | Write | Permission not granted |
+| Small change to `validator.py` | Edit | Permission not granted |
+
+I did not use shell redirection to get around these denials. Because of that, the progress file still has its old status, and issue #366 has no comment.
+
+**Design, ready to apply once writes work**
+
+- **Where it goes:** everything goes in `validator.py`, because a new module is outside the target list. `GroundedExplanationValidationError` gets a `reason` attribute, and there are 22 stable reason codes.
+- **Grammar:** a left-to-right parser with 11 fixed rules. The rules cover side to move, mate-in-N, "White plays X", "plays e4", SAN/UCI moves, evaluations, material phrases, check and mate words, piece phrases ("knight on f3", "knight to f3"), "d5 queen", and bare squares. Text that looks like notation but matches no rule (`Nf9`, `h9`) is rejected as `unparsed_chess_token`.
+- **What a fact is checked against:**
+  - Verified lines and the payload's line and move fields (`focused_line`, `fast_line`, `proving_line`, `mating_line`, `best_move`, `threat_move`, `pinning_move`, `incoming_threat`, `played_move`).
+  - Each line is replayed from the context FEN, `before_fen` and `after_fen`. A move must be the line's own move at that point.
+  - A piece claim is checked against those boards and against square/piece pairs in the payload.
+  - An evaluation must match a payload score within half a unit of its stated precision, and never tighter than 10 cp.
+- **Decisions I made, for the PR body:**
+  - "your" and "their" do not fix a colour. If they did, an existing test ("wins your queen on d5") would fail.
+  - Evaluations are compared by size only, because the sign of a payload score depends on whose side it is.
+  - The fallback counter is not exposed through `/explanation-settings`. That endpoint is per player but the counter covers the whole process, and `api/` is outside my targets. It will be logs plus an in-process accessor in `assembly.py`.
+
+**To continue:** allow Write/Edit in this worktree, `gh`, and reads of `.campaign/epic-371/progress/`. Then run the task again, and I will apply the design above, add the 15+ adversarial and 10+ correct fixtures, and run `scripts/check.sh`.
