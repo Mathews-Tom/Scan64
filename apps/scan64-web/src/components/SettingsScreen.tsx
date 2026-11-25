@@ -78,6 +78,7 @@ export function SettingsScreen() {
         <p>California, Maestro and Staunty are licensed for non-commercial use only (CC BY-NC-SA 4.0). Other artwork has separate licences; see the artwork notices below.</p>
         {pieceSaveError ? <StatusLine kind="error">Piece set changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
         <SegmentedControl label="Board palette" value={boardAppearance.boardTheme} options={BOARD_THEME_OPTIONS} onChange={changeBoardTheme} />
+        <p>Brown and cream and Classic brown use the square colours named in the FIDE equipment standard for tournament boards (FIDE Handbook C.02: cream or buff light squares, brown dark squares). Green and buff and Classic green follow earlier editions of that standard, which also named green.</p>
         {boardSaveError ? <StatusLine kind="error">Board palette changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
         <label><input type="checkbox" checked={sounds} onChange={event => {
           setSounds(event.target.checked);

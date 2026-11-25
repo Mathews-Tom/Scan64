@@ -111,22 +111,24 @@ describe('Independent board preferences', () => {
       fireEvent.click(screen.getByRole('radio', { name: label }));
       expect(localStorage.getItem('scan64-piece-set')).toBe(pieceSet);
       expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
-      for (const { value: boardTheme, label: boardLabel } of BOARD_THEME_OPTIONS) {
-        fireEvent.click(screen.getByRole('radio', { name: boardLabel }));
-        expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
-        expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
-        expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
-        expect(document.documentElement.dataset.appearance).toBe('dark');
-      }
+      expect(document.documentElement.dataset.boardTheme).toBe('green');
+      expect(document.documentElement.dataset.appearance).toBe('dark');
+    }
+    for (const { value: boardTheme, label: boardLabel } of BOARD_THEME_OPTIONS) {
+      fireEvent.click(screen.getByRole('radio', { name: boardLabel }));
+      expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
+      expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
+      expect(document.documentElement.dataset.pieceSet).toBe('staunty');
+      expect(document.documentElement.dataset.appearance).toBe('dark');
     }
     fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
     expect(document.documentElement.dataset.pieceSet).toBe('staunty');
-    expect(document.documentElement.dataset.boardTheme).toBe('sand');
+    expect(document.documentElement.dataset.boardTheme).toBe('graphite');
     view.unmount();
-    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'staunty', boardTheme: 'sand' });
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'staunty', boardTheme: 'graphite' });
     render(<SettingsScreen />);
     expect(screen.getByRole('radio', { name: 'Staunty (non-commercial)' })).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'Sand' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Graphite' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
   });
 
@@ -137,8 +139,12 @@ describe('Independent board preferences', () => {
     expect(document.documentElement.dataset.pieceSet).toBe('cburnett');
     expect(document.documentElement.dataset.boardTheme).toBe('walnut');
     localStorage.setItem('scan64-piece-set', 'firi');
-    localStorage.setItem('scan64-board-theme', 'slate');
+    localStorage.setItem('scan64-board-theme', 'untrusted');
     expect(initializeBoardAppearance()).toEqual({ pieceSet: 'firi', boardTheme: 'brown' });
+    for (const kept of ['slate', 'sage', 'graphite'] as const) {
+      localStorage.setItem('scan64-board-theme', kept);
+      expect(initializeBoardAppearance()).toEqual({ pieceSet: 'firi', boardTheme: kept });
+    }
   });
 
   it.each([

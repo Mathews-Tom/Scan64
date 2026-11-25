@@ -16,6 +16,9 @@ export const BOARD_THEME_OPTIONS = [
   { value: 'green-classic', label: 'Classic green' },
   { value: 'walnut', label: 'Walnut' },
   { value: 'sand', label: 'Sand' },
+  { value: 'slate', label: 'Slate' },
+  { value: 'sage', label: 'Sage' },
+  { value: 'graphite', label: 'Graphite' },
 ] as const;
 
 export type PieceSet = typeof PIECE_SET_OPTIONS[number]['value'];
