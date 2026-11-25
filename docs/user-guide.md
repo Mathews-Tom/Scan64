@@ -48,7 +48,9 @@ An empty puzzle library shows setup across the main content area instead of rese
 
 ### Board appearance
 
-Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut or Sand board. Brown and cream, and Green and buff, are the traditional tournament combinations, with darker squares than their classic versions for stronger contrast. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage or Graphite board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+
+The traditional palettes follow FIDE's equipment standard for tournament boards. The current [FIDE Handbook C.02](https://handbook.fide.com/chapter/ChessEquipmentWithoutElectronicComponenets032026) (from 1 March 2026) gives white, cream, ivory or buff light squares and brown or walnut-tone dark squares, with contrast clear to colour-blind players: Brown and cream and Classic brown. Earlier editions also named green dark squares with buff or off-white light squares ([FIDE Arbiters' Manual 2020](https://www.fide.com/docs/regulations/ARB%20Manual%202020.pdf), "Chess boards"): Green and buff and Classic green. Brown and cream and Green and buff use darker squares than their classic versions for stronger contrast.
 
 ### Board controls
 

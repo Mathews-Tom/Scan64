@@ -81,6 +81,9 @@
 :root[data-board-theme='green-classic'] { --board-light: #eeeed2; --board-dark: #769656; }
 :root[data-board-theme='walnut'] { --board-light: #f0dfc4; --board-dark: #997451; }
 :root[data-board-theme='sand'] { --board-light: #f4ead5; --board-dark: #b9a17c; }
+:root[data-board-theme='slate'] { --board-light: #e8edf1; --board-dark: #73899a; }
+:root[data-board-theme='sage'] { --board-light: #edf1e7; --board-dark: #789687; }
+:root[data-board-theme='graphite'] { --board-light: #cbd2da; --board-dark: #526475; }
 :root[data-appearance='dark'] {
   color-scheme: dark;
   --ground: #232323;
