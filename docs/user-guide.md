@@ -48,9 +48,24 @@ An empty puzzle library shows setup across the main content area instead of rese
 
 ### Board appearance
 
-Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage or Graphite board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro, Staunty, mpchess or Sophia pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage or Graphite board. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
 
 The traditional palettes follow FIDE's equipment standard for tournament boards. The current [FIDE Handbook C.02](https://handbook.fide.com/chapter/ChessEquipmentWithoutElectronicComponenets032026) (from 1 March 2026) gives white, cream, ivory or buff light squares and brown or walnut-tone dark squares: Brown and cream and Classic brown. Earlier editions also named green dark squares with buff or off-white light squares ([FIDE Arbiters' Manual 2020](https://www.fide.com/docs/regulations/ARB%20Manual%202020.pdf), "Chess boards"): Green and buff and Classic green. Brown and cream and Green and buff use darker squares than their classic versions for stronger contrast.
+
+Settings lists the piece sets in two groups: **Staunton pattern** and **Other designs**. FIDE Handbook C.02 (section 6.1, from 1 March 2026) requires Staunton-style tournament pieces, a light set and a dark set, and a matte finish that does not shine excessively. Its height and base proportions apply to physical pieces; flat board graphics do not reproduce them. Every set in the Staunton group draws the standard Staunton forms: a cross-topped king, a crowned queen, a mitred bishop, a horse-head knight, a crenellated rook and a ball-headed pawn. A saved piece set keeps working after an update; an unknown saved value falls back to Staunton (cburnett).
+
+| Piece set | Staunton pattern | Licence |
+|---|---|---|
+| Staunton (cburnett), default | Yes | GPL-2.0-or-later |
+| Merida | Yes | GPL-2.0-or-later |
+| Chessnut | Yes | Apache-2.0 |
+| California | Yes | CC BY-NC-SA 4.0 (non-commercial) |
+| Maestro | Yes | CC BY-NC-SA 4.0 (non-commercial) |
+| Staunty | Yes | CC BY-NC-SA 4.0 (non-commercial) |
+| mpchess | Yes | GPL-3.0-or-later |
+| Sophia (GNOME Chess) | Yes | W3C Software Notice and License |
+| Spatial | No | MIT |
+| Firi | No | CC BY 4.0 |
 
 ### Board controls
 
