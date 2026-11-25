@@ -48,7 +48,7 @@ An empty puzzle library shows setup across the main content area instead of rese
 
 ### Board appearance
 
-Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut or Sand board. Brown and cream, and green and buff, are the traditional tournament combinations; Brown and cream and Green and buff use darker squares than the classic versions for stronger contrast. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
+Open **Settings → Chessboard** to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro or Staunty pieces, and a Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut or Sand board. Brown and cream, and Green and buff, are the traditional tournament combinations, with darker squares than their classic versions for stronger contrast. Piece and palette choices persist independently of **Appearance → System / Light / Dark**. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.
 
 ### Board controls
 
