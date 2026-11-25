@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+
+- New app icon and logo: a mint knight's tour traces an S through six legal knight moves (f7, d6, b5, d4, f3, d2, b1) on a faint chessboard, from a light start square to a mint finish on b1. Sizes of 32 px and below use the tour without the board so it stays legible in tabs, the taskbar and the sidebar.
+
 ### Fixed
 
 - Deleting player data or uninstalling a lesson pack during shutdown no longer reports an error after the deletion succeeds. A pack installed or retried while Scan64 shuts down is saved without starting verification and shows Failed with Retry on the next start.
