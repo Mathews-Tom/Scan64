@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The current release is `1.0.0`; the README's [Stable from 1.0](../README.md#stable-from-10) section states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
+The current release is `1.1.0`; the README's [Stable from 1.0](../README.md#stable-from-10) section states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
 
 ## What works today
 
@@ -16,6 +16,7 @@ The current release is `1.0.0`; the README's [Stable from 1.0](../README.md#stab
 - Reveal a three-step hint ladder: a question and square, an idea and piece, then sound candidate moves. Tactical explanations use engine lines; positional principles describe local board facts.
 - In unrated Play, grade up to three candidate moves or turn on the blunder guard. Assisted results and conversion practice do not count as independent full-game strength results.
 - Import a player-owned PGN with your playing colour or public standard-chess games by Lichess/Chess.com username. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments, separate display-only good moments and shared-budget lesson retries.
+- Choose the piece set and board palette in **Settings → Chessboard**. Staunton (cburnett) pieces on a Brown and cream board are the default; Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage and Graphite boards and seven other piece sets are available. Settings cites FIDE Handbook C.02 for the traditional board colours.
 - Study opening-family missions and famous games through Library.
 - Install a community lesson-pack JSON file from **Library → Community lesson packs** ([format](lesson-packs.md)). The engine re-verifies every solver move locally before a lesson becomes playable; rejected lessons show the failing move and reason, and each pack shows its title, author, licence, version and file fingerprint until uninstalled. Each player can install up to 20 packs. Pack play is checked on the server, records no attempts and never changes progress, schedules, skills, recurrence or diagnosis.
 - In Opening Explorer, import your own standard-chess repertoire PGN (up to 256 KiB, 16 records, fewer than 4096 moves, 256 plies per line and 32 nested variations). Every record retains a separate root and all alternatives. Browse saved variations and practise a saved decision for the side to move with an interactive board or keyboard.
