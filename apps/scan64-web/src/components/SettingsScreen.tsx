@@ -3,7 +3,7 @@ import { PuzzleLibraryPanel } from './PuzzleImport';
 import { UpdatesPanel } from './Updates';
 import { ProgressReset } from './ProgressReset';
 import { LocalExplanationSettings } from './LocalExplanationSettings';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ListRow, Panel, SegmentedControl, StatusLine } from './Primitives';
 import { applyBoardAppearance, BOARD_THEME_OPTIONS, PIECE_SET_OPTIONS, readBoardAppearance, saveBoardChoice } from '../boardAppearance';
 import type { BoardTheme, PieceSet } from '../boardAppearance';
@@ -18,6 +18,8 @@ const APPEARANCE_OPTIONS = [
   { value: 'dark', label: 'Dark' },
 ] as const;
 
+const STAUNTON_PIECE_SETS = PIECE_SET_OPTIONS.filter((option) => option.staunton);
+const OTHER_PIECE_SETS = PIECE_SET_OPTIONS.filter((option) => !option.staunton);
 
 export function SettingsScreen() {
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
@@ -28,6 +30,7 @@ export function SettingsScreen() {
   const [boardSaveError, setBoardSaveError] = useState(false);
   const [sounds, setSounds] = useState(readBoardSounds);
   const [soundSaveError, setSoundSaveError] = useState(false);
+  const pieceSetName = useId();
 
   useEffect(() => {
     applyBoardAppearance(boardAppearance);
@@ -74,7 +77,12 @@ export function SettingsScreen() {
       <PuzzleLibraryPanel />
       <Panel title="Chessboard" className="settings-board-appearance">
         <p>Piece graphics and square colours apply to every board, independently of the app colour scheme.</p>
-        <SegmentedControl label="Piece set" value={boardAppearance.pieceSet} options={PIECE_SET_OPTIONS} onChange={changePieceSet} />
+        <fieldset className="ui-segmented settings-piece-sets">
+          <legend>Piece set</legend>
+          <SegmentedControl label="Staunton pattern" name={pieceSetName} value={boardAppearance.pieceSet} options={STAUNTON_PIECE_SETS} onChange={changePieceSet} />
+          <SegmentedControl label="Other designs" name={pieceSetName} value={boardAppearance.pieceSet} options={OTHER_PIECE_SETS} onChange={changePieceSet} />
+        </fieldset>
+        <p>Staunton-pattern sets follow the piece form that the FIDE equipment standard requires for tournament play (FIDE Handbook C.02: Staunton style, light and dark sets, matte finish). Staunton (cburnett) is the default.</p>
         <p>California, Maestro and Staunty are licensed for non-commercial use only (CC BY-NC-SA 4.0). Other artwork has separate licences; see the artwork notices below.</p>
         {pieceSaveError ? <StatusLine kind="error">Piece set changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
         <SegmentedControl label="Board palette" value={boardAppearance.boardTheme} options={BOARD_THEME_OPTIONS} onChange={changeBoardTheme} />
@@ -96,7 +104,7 @@ export function SettingsScreen() {
         <p>Scan64 is free software licensed under the GNU General Public License, version 3 or later (GPL-3.0-or-later). Stockfish, python-chess and Chessground are also licensed under GPL-3.0-or-later.</p>
         <p><a href="/licenses.html">Read software and artwork licences</a></p>
         <p>Host Grotesk and JetBrains Mono are bundled with the app under the SIL Open Font License 1.1. No font service is contacted.</p>
-        <p>Chess piece artwork is separately licensed, not covered by Scan64's GPL licence. Staunton (Colin M.L. Burnett) and Merida (Armando Hernandez Marroquin): GPL-2.0-or-later. California (Jerry S.), Maestro and Staunty (sadsnake1): CC BY-NC-SA 4.0, non-commercial only. Chessnut (Alexis Luengas): Apache 2.0. Spatial (Maurizio Monge): MIT. Firi (James Faure): CC BY 4.0.</p>
+        <p>Chess piece artwork is separately licensed, not covered by Scan64's GPL licence. Staunton (Colin M.L. Burnett) and Merida (Armando Hernandez Marroquin): GPL-2.0-or-later. California (Jerry S.), Maestro and Staunty (sadsnake1): CC BY-NC-SA 4.0, non-commercial only. Chessnut (Alexis Luengas): Apache 2.0. Spatial (Maurizio Monge): MIT. Firi (James Faure): CC BY 4.0. mpchess (Maxime Chupin): GPL-3.0-or-later. Sophia (GNOME Chess, after Max Froumentin): W3C Software Notice and License.</p>
         <p><a href="/pieces/NOTICE.txt">Piece artwork attribution and licence notices</a></p>
         <ul className="settings-licences" aria-label="Bundled font licences">
           <ListRow label={<a href="/fonts/host-grotesk-OFL.txt">Host Grotesk licence</a>} />

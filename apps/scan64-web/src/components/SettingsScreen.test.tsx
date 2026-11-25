@@ -100,6 +100,43 @@ describe('Settings', () => {
   });
 });
 
+const lastPieceSet = PIECE_SET_OPTIONS[PIECE_SET_OPTIONS.length - 1];
+
+describe('Staunton piece sets', () => {
+  it('groups Staunton-pattern sets apart from other designs and defaults to Staunton (cburnett)', () => {
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    const pieceSets = screen.getByRole('group', { name: 'Piece set' });
+    const staunton = within(pieceSets).getByRole('group', { name: 'Staunton pattern' });
+    const other = within(pieceSets).getByRole('group', { name: 'Other designs' });
+    expect(within(staunton).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual([
+      'cburnett', 'merida', 'chessnut', 'california', 'maestro', 'staunty', 'mpchess', 'sophia',
+    ]);
+    expect(within(other).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['spatial', 'firi']);
+    expect(within(staunton).getByRole('radio', { name: 'Staunton (cburnett)' })).toBeChecked();
+    expect(document.documentElement.dataset.pieceSet).toBe('cburnett');
+    const names = new Set(within(pieceSets).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).name));
+    expect(names.size).toBe(1);
+  });
+
+  it('switches between groups with one selection', () => {
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Spatial' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'mpchess' }));
+    const pieceSets = screen.getByRole('group', { name: 'Piece set' });
+    expect(within(pieceSets).getAllByRole('radio', { checked: true })).toEqual([screen.getByRole('radio', { name: 'mpchess' })]);
+    expect(localStorage.getItem('scan64-piece-set')).toBe('mpchess');
+  });
+
+  it.each(PIECE_SET_OPTIONS.map(({ value, label }) => [value, label] as const))('keeps a saved %s choice at startup', (value, label) => {
+    localStorage.setItem('scan64-piece-set', value);
+    expect(initializeBoardAppearance().pieceSet).toBe(value);
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+  });
+});
+
 describe('Independent board preferences', () => {
   it('persists every piece set and palette without changing the app appearance', () => {
     localStorage.setItem('scan64-appearance', 'dark');
@@ -118,16 +155,16 @@ describe('Independent board preferences', () => {
       fireEvent.click(screen.getByRole('radio', { name: boardLabel }));
       expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
       expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
-      expect(document.documentElement.dataset.pieceSet).toBe('staunty');
+      expect(document.documentElement.dataset.pieceSet).toBe(lastPieceSet.value);
       expect(document.documentElement.dataset.appearance).toBe('dark');
     }
     fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
-    expect(document.documentElement.dataset.pieceSet).toBe('staunty');
+    expect(document.documentElement.dataset.pieceSet).toBe(lastPieceSet.value);
     expect(document.documentElement.dataset.boardTheme).toBe('graphite');
     view.unmount();
-    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'staunty', boardTheme: 'graphite' });
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: lastPieceSet.value, boardTheme: 'graphite' });
     render(<SettingsScreen />);
-    expect(screen.getByRole('radio', { name: 'Staunty (non-commercial)' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: lastPieceSet.label })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Graphite' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
   });
