@@ -66,11 +66,11 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
   </tr>
   <tr>
     <td><a href="assets/screenshot-profile.png"><img src="assets/screenshot-profile.png" alt="Profile game insights with scored move counts by phase, colour and opening, plus clock-pressure coverage"></a></td>
-    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Profile before/after hanging-piece recurrence: three qualifying games before training, none after, rates unavailable and the non-causal caveat"></a></td>
+    <td><a href="assets/screenshot-patterns.png"><img src="assets/screenshot-patterns.png" alt="Profile hanging-piece recurrence: 11 games and 452 owner moves before training versus 3 games and 109 moves after; 1.33 versus 0.92 occurrences per 100 moves, with 95% Wilson intervals and the non-causal caveat"></a></td>
   </tr>
   <tr>
     <td align="center"><b>Insights</b>: read scores with coverage</td>
-    <td align="center"><b>Progress</b>: sample sizes, not promises</td>
+    <td align="center"><b>Progress</b>: before/after rates with uncertainty</td>
   </tr>
 </table>
 
