@@ -97,7 +97,7 @@ async def test_grounded_generation_replaces_the_template(tmp_path: Path) -> None
                         {
                             "claims": [
                                 {
-                                    "text": "A knight fork on e7 wins your queen on d5.",
+                                    "text": "A knight fork on e7 wins the opponent's queen on d5.",
                                     "evidence_ref": "ev_1",
                                     "line": ["g1f3"],
                                     "certainty": "observed",
@@ -119,7 +119,7 @@ async def test_grounded_generation_replaces_the_template(tmp_path: Path) -> None
             client=client,
         )
 
-    assert explanation.text == "A knight fork on e7 wins your queen on d5."
+    assert explanation.text == "A knight fork on e7 wins the opponent's queen on d5."
     assert explanation.claims[0].evidence_ref == "ev_1"
 
 

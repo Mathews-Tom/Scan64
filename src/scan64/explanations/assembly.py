@@ -6,15 +6,21 @@ LLM provider (``SCAN64_LLM_CONFIG``, off by default), its output is routed
 through ``explanations/validator.py`` and only trusted if every claim is
 grounded in the diagnosis's own evidence; a rejected (ungrounded) generation
 falls back to the template rather than surfacing an error or a partial
-explanation. Rejection is expected behaviour, not a failure to suppress.
+explanation. Rejection is expected behaviour, not a failure to suppress: each
+fallback is logged with its reason code (never evidence contents) and counted
+in-process, so the fallback-to-template rate is visible via
+``template_fallback_counts``.
 """
 
 from __future__ import annotations
 
+import logging
 import os
+import threading
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from chess_lesson_spec import Diagnosis, Explanation
@@ -24,12 +30,37 @@ from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
+    RejectionReason,
     validate_generated_explanation,
 )
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm.adapters import LLMExplanationProvider
 from scan64.providers.llm.config import LLMProviderConfig, create_llm_provider
+
+logger = logging.getLogger(__name__)
+
+TemplateFallbackReason = RejectionReason | Literal["provider_error"]
+
+_template_fallbacks: Counter[str] = Counter()
+_template_fallbacks_lock = threading.Lock()
+
+
+def _record_template_fallback(reason: TemplateFallbackReason) -> None:
+    with _template_fallbacks_lock:
+        _template_fallbacks[reason] += 1
+    logger.info(
+        "Explanation generation fell back to the template: reason=%s",
+        reason,
+        extra={"event": "explanation_template_fallback", "reason": reason},
+    )
+
+
+def template_fallback_counts() -> dict[str, int]:
+    """Template fallbacks by reason code since process start."""
+    with _template_fallbacks_lock:
+        return dict(_template_fallbacks)
+
 
 # The explanation is displayed immediately, not gated behind a progressive
 # hint ladder, so any claim's disclosure_level is acceptable.
@@ -108,7 +139,11 @@ async def _attempt_grounded_generation(
     try:
         generated = await provider.generate(request)
         return validate_generated_explanation(generated, context)
-    except (GroundedExplanationValidationError, LLMProviderError):
+    except GroundedExplanationValidationError as error:
+        _record_template_fallback(error.reason)
+        return template_explanation
+    except LLMProviderError:
+        _record_template_fallback("provider_error")
         return template_explanation
 
 
