@@ -449,20 +449,21 @@ def _line_claims(board: chess.Board, side: str, line: BoardLineFacts) -> list[Ex
         change = "Over line {k} the material balance does not change."
     advantage = outcome.material_at_end.learner_advantage
     if advantage == 0:
-        balance = "At the end of the line material is equal."
+        balance = "At its end material is equal."
     else:
         direction = "up" if advantage > 0 else "down"
         points = abs(advantage)
         balance = (
-            f"At the end of the line {side} is {direction} {points} "
+            f"At its end {side} is {direction} {points} "
             f"point{'s' if points != 1 else ''} of material."
         )
     claims.append(_claim(f"{change.format(k=k)} {balance}", line.line_id, line.uci))
-    if outcome.checks_by_side_to_move:
+    checks = outcome.checks_by_side_to_move
+    if checks:
         claims.append(
             _claim(
-                f"In line {k} the side to move gives check {outcome.checks_by_side_to_move} "
-                f"time{'s' if outcome.checks_by_side_to_move != 1 else ''}.",
+                f"In line {k} the side to move gives check "
+                f"{'once' if checks == 1 else f'{checks} times'}.",
                 line.line_id,
                 line.uci,
             )

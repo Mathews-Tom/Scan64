@@ -9,6 +9,8 @@ of the engine's ranked lines are explained.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import chess
 import chess.engine
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -25,8 +27,10 @@ from scan64.api.insights import (
 )
 from scan64.explanations.assembly import TemplateFallbackReason
 from scan64.explanations.board_lines import (
+    BoardLinesExplanation,
     BoardLinesFacts,
     ExplanationSource,
+    ScoredLine,
     build_board_lines_facts,
     claim_line_id,
     resolve_board_lines_explanation,
@@ -142,6 +146,16 @@ async def explain_position(
     local_provider = await read_local_explanation_provider(session, player_id, owner_generation)
     resolved = await resolve_board_lines_explanation(facts, local_provider=local_provider)
 
+    return explanation_read(board, lines, facts, resolved)
+
+
+def explanation_read(
+    board: chess.Board,
+    lines: Sequence[ScoredLine],
+    facts: BoardLinesFacts,
+    resolved: BoardLinesExplanation,
+) -> AnalysisExplanationRead:
+    """The response: White-view lines as the board shows them, and line-linked claims."""
     read_lines = []
     for line, line_facts in zip(lines, facts.lines, strict=True):
         white_view = position_analysis_line(board, line)
@@ -176,4 +190,9 @@ async def explain_position(
     )
 
 
-__all__ = ["AnalysisExplanationRead", "AnalysisExplanationRequest", "router"]
+__all__ = [
+    "AnalysisExplanationRead",
+    "AnalysisExplanationRequest",
+    "explanation_read",
+    "router",
+]

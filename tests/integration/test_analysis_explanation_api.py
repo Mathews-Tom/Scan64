@@ -343,3 +343,16 @@ def test_busy_unavailable_and_unusable_engine_output_are_retryable_503(
     monkeypatch.setattr(app.state, "engine_pool_manager", None)
     absent = client.post(ENDPOINT, headers=headers, json=body("start"))
     assert absent.status_code == 503 and "interactive engine pool" in absent.json()["detail"]
+
+
+def test_playwright_fixture_is_the_current_template_response(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", recorded("start"))
+    response = client.post(ENDPOINT, headers=headers, json=body("start"))
+    stored = Path(__file__).parents[2] / "apps/scan64-web/tests/e2e/fixtures"
+    expected = json.loads((stored / "analysis-explanation-start.json").read_text(encoding="utf-8"))
+    assert response.json() == expected, (
+        "regenerate: uv run python tests/fixtures/write_analysis_explanation_e2e.py"
+    )
