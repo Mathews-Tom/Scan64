@@ -35,6 +35,8 @@
         "unparsed_chess_token": 23
       },
       "claims_per_explanation": 2.82,
+      "coverage_accepted": 0.8307291666666666,
+      "delivered_coverage": 0.7088888888888889,
       "fallback_reasons": {
         "illegal_move": 1,
         "tactic_not_supported": 1,
@@ -43,6 +45,7 @@
       },
       "false_chess_statements_per_explanation": 0.16666666666666666,
       "first_token_p50_s": 0.3341707060171757,
+      "full_coverage_rate": 0.46,
       "gpu_peak_over_idle_gib": 9.3525390625,
       "grounding_pass_rate": 0.8533333333333334,
       "grounding_pass_rate_by_code": {
@@ -61,6 +64,7 @@
       "mean_output_tokens": 222.86666666666667,
       "mean_prompt_tokens": 1202.86,
       "model_size_gib": 1.3546582013368607,
+      "ollama_size_vram_gib": 1.3546582013368607,
       "params_b": 11.95,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.0,
@@ -72,7 +76,7 @@
       "san_tokens": 123,
       "served_name": "scan64-bench-gemma4-12b",
       "thinking_calls": 0,
-      "vram_model_gib": 1.3546582013368607,
+      "vram_model_gib": 9.3486328125,
       "within_production_limit_rate": 0.9866666666666667
     },
     "gemma4-e4b": {
@@ -80,11 +84,14 @@
         "unparsed_chess_token": 7
       },
       "claims_per_explanation": 1.2533333333333334,
+      "coverage_accepted": 0.23198198198198194,
+      "delivered_coverage": 0.22888888888888886,
       "fallback_reasons": {
         "unparsed_chess_token": 2
       },
       "false_chess_statements_per_explanation": 0.04666666666666667,
       "first_token_p50_s": 0.0654942620312795,
+      "full_coverage_rate": 0.006666666666666667,
       "gpu_peak_over_idle_gib": 5.2021484375,
       "grounding_pass_rate": 0.9866666666666667,
       "grounding_pass_rate_by_code": {
@@ -103,6 +110,7 @@
       "mean_output_tokens": 91.64666666666666,
       "mean_prompt_tokens": 1198.86,
       "model_size_gib": 0.505693357437849,
+      "ollama_size_vram_gib": 0.505693357437849,
       "params_b": 8.0,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.0,
@@ -114,7 +122,7 @@
       "san_tokens": 35,
       "served_name": "scan64-bench-gemma4-e4b",
       "thinking_calls": 0,
-      "vram_model_gib": 0.505693357437849,
+      "vram_model_gib": 5.1982421875,
       "within_production_limit_rate": 1.0
     },
     "granite4.2-8b": {
@@ -127,6 +135,8 @@
         "wrong_side_to_move": 1
       },
       "claims_per_explanation": 1.3466666666666667,
+      "coverage_accepted": 0.2073170731707317,
+      "delivered_coverage": 0.11333333333333333,
       "fallback_reasons": {
         "certainty_exceeded": 2,
         "piece_not_on_square": 4,
@@ -136,6 +146,7 @@
       },
       "false_chess_statements_per_explanation": 0.14,
       "first_token_p50_s": 0.16480685249553062,
+      "full_coverage_rate": 0.02,
       "gpu_peak_over_idle_gib": 6.8349609375,
       "grounding_pass_rate": 0.5466666666666666,
       "grounding_pass_rate_by_code": {
@@ -154,6 +165,7 @@
       "mean_output_tokens": 114.20666666666666,
       "mean_prompt_tokens": 1168.18,
       "model_size_gib": 6.236621093004942,
+      "ollama_size_vram_gib": 6.236621093004942,
       "params_b": 8.79,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.0,
@@ -165,7 +177,7 @@
       "san_tokens": 30,
       "served_name": "scan64-bench-granite4.2-8b",
       "thinking_calls": 0,
-      "vram_model_gib": 6.236621093004942,
+      "vram_model_gib": 6.8271484375,
       "within_production_limit_rate": 1.0
     },
     "praxis-2b": {
@@ -176,6 +188,8 @@
         "tactic_not_supported": 45
       },
       "claims_per_explanation": 4.869565217391305,
+      "coverage_accepted": 1.0,
+      "delivered_coverage": 0.1,
       "fallback_reasons": {
         "certainty_exceeded": 33,
         "evaluation_not_supported": 3,
@@ -184,6 +198,7 @@
       },
       "false_chess_statements_per_explanation": 0.6956521739130435,
       "first_token_p50_s": 0.06908693298464641,
+      "full_coverage_rate": 0.1,
       "gpu_peak_over_idle_gib": 2.01953125,
       "grounding_pass_rate": 0.1,
       "grounding_pass_rate_by_code": {
@@ -202,6 +217,7 @@
       "mean_output_tokens": 1242.44,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 1.4064648430794477,
+      "ollama_size_vram_gib": 1.4064648430794477,
       "params_b": 2.27,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.54,
@@ -213,7 +229,7 @@
       "san_tokens": 66,
       "served_name": "scan64-bench-praxis-2b",
       "thinking_calls": 0,
-      "vram_model_gib": 1.4064648430794477,
+      "vram_model_gib": 1.994140625,
       "within_production_limit_rate": 0.46
     },
     "praxis-4b": {
@@ -224,6 +240,8 @@
         "unparsed_chess_token": 4
       },
       "claims_per_explanation": 5.073529411764706,
+      "coverage_accepted": 0.7597597597597597,
+      "delivered_coverage": 0.5622222222222222,
       "fallback_reasons": {
         "evaluation_not_supported": 6,
         "mate_not_supported": 3,
@@ -233,6 +251,7 @@
       },
       "false_chess_statements_per_explanation": 0.35294117647058826,
       "first_token_p50_s": 0.14790457900380716,
+      "full_coverage_rate": 0.4066666666666667,
       "gpu_peak_over_idle_gib": 3.564453125,
       "grounding_pass_rate": 0.74,
       "grounding_pass_rate_by_code": {
@@ -251,6 +270,7 @@
       "mean_output_tokens": 478.82,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 2.971826171502471,
+      "ollama_size_vram_gib": 2.971826171502471,
       "params_b": 4.2,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.09333333333333334,
@@ -262,7 +282,7 @@
       "san_tokens": 130,
       "served_name": "scan64-bench-praxis-4b",
       "thinking_calls": 0,
-      "vram_model_gib": 2.971826171502471,
+      "vram_model_gib": 3.564453125,
       "within_production_limit_rate": 0.8933333333333333
     },
     "qwen3.5-2b": {
@@ -280,6 +300,8 @@
         "unverified_line": 7
       },
       "claims_per_explanation": 2.7534246575342465,
+      "coverage_accepted": 0.2708333333333333,
+      "delivered_coverage": 0.028888888888888888,
       "fallback_reasons": {
         "certainty_exceeded": 35,
         "disclosure_exceeded": 10,
@@ -292,6 +314,7 @@
       },
       "false_chess_statements_per_explanation": 0.2191780821917808,
       "first_token_p50_s": 0.05533791147172451,
+      "full_coverage_rate": 0.006666666666666667,
       "gpu_peak_over_idle_gib": 3.5302734375,
       "grounding_pass_rate": 0.10666666666666667,
       "grounding_pass_rate_by_code": {
@@ -310,6 +333,7 @@
       "mean_output_tokens": 283.76,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 2.3114843731746078,
+      "ollama_size_vram_gib": 2.3114843731746078,
       "params_b": 2.27,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.02666666666666667,
@@ -321,7 +345,7 @@
       "san_tokens": 26,
       "served_name": "scan64-bench-qwen3.5-2b",
       "thinking_calls": 0,
-      "vram_model_gib": 2.3114843731746078,
+      "vram_model_gib": 3.5263671875,
       "within_production_limit_rate": 0.9466666666666667
     },
     "qwen3.5-4b": {
@@ -339,6 +363,8 @@
         "unverified_line": 3
       },
       "claims_per_explanation": 3.8866666666666667,
+      "coverage_accepted": 0.5376344086021505,
+      "delivered_coverage": 0.11111111111111109,
       "fallback_reasons": {
         "certainty_exceeded": 51,
         "disclosure_exceeded": 16,
@@ -352,6 +378,7 @@
       },
       "false_chess_statements_per_explanation": 0.26,
       "first_token_p50_s": 0.1416049735271372,
+      "full_coverage_rate": 0.03333333333333333,
       "gpu_peak_over_idle_gib": 4.359375,
       "grounding_pass_rate": 0.20666666666666667,
       "grounding_pass_rate_by_code": {
@@ -370,6 +397,7 @@
       "mean_output_tokens": 319.91333333333336,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 3.133818358182907,
+      "ollama_size_vram_gib": 3.133818358182907,
       "params_b": 4.7,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.0,
@@ -381,7 +409,7 @@
       "san_tokens": 86,
       "served_name": "scan64-bench-qwen3.5-4b",
       "thinking_calls": 0,
-      "vram_model_gib": 3.133818358182907,
+      "vram_model_gib": 4.35546875,
       "within_production_limit_rate": 0.9666666666666667
     },
     "qwen3.5-9b": {
@@ -399,6 +427,8 @@
         "wrong_side_to_move": 1
       },
       "claims_per_explanation": 3.86,
+      "coverage_accepted": 0.611111111111111,
+      "delivered_coverage": 0.12222222222222222,
       "fallback_reasons": {
         "certainty_exceeded": 39,
         "disclosure_exceeded": 10,
@@ -412,6 +442,7 @@
       },
       "false_chess_statements_per_explanation": 0.2,
       "first_token_p50_s": 0.1741825764765963,
+      "full_coverage_rate": 0.05333333333333334,
       "gpu_peak_over_idle_gib": 7.0703125,
       "grounding_pass_rate": 0.2,
       "grounding_pass_rate_by_code": {
@@ -430,6 +461,7 @@
       "mean_output_tokens": 300.38666666666666,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 5.4596093744039536,
+      "ollama_size_vram_gib": 5.4596093744039536,
       "params_b": 9.65,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.0,
@@ -441,7 +473,7 @@
       "san_tokens": 84,
       "served_name": "scan64-bench-qwen3.5-9b",
       "thinking_calls": 0,
-      "vram_model_gib": 5.4596093744039536,
+      "vram_model_gib": 6.9150390625,
       "within_production_limit_rate": 0.8866666666666667
     },
     "second-2b": {
@@ -456,6 +488,8 @@
         "unparsed_chess_token": 1
       },
       "claims_per_explanation": 1.2684563758389262,
+      "coverage_accepted": 0.2753623188405797,
+      "delivered_coverage": 0.08444444444444445,
       "fallback_reasons": {
         "certainty_exceeded": 19,
         "disclosure_exceeded": 13,
@@ -469,6 +503,7 @@
       },
       "false_chess_statements_per_explanation": 0.06711409395973154,
       "first_token_p50_s": 0.05669510952429846,
+      "full_coverage_rate": 0.013333333333333334,
       "gpu_peak_over_idle_gib": 2.025390625,
       "grounding_pass_rate": 0.30666666666666664,
       "grounding_pass_rate_by_code": {
@@ -487,6 +522,7 @@
       "mean_output_tokens": 100.65333333333334,
       "mean_prompt_tokens": 1159.18,
       "model_size_gib": 1.4064648430794477,
+      "ollama_size_vram_gib": 1.4064648430794477,
       "params_b": 1.88,
       "pipeline_exception_rate": 0.0,
       "provider_error_rate": 0.006666666666666667,
@@ -498,7 +534,7 @@
       "san_tokens": 20,
       "served_name": "scan64-bench-second-2b",
       "thinking_calls": 0,
-      "vram_model_gib": 1.4064648430794477,
+      "vram_model_gib": 1.994140625,
       "within_production_limit_rate": 0.9866666666666667
     }
   }

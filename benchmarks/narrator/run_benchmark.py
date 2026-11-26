@@ -692,8 +692,110 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (rank - low)
 
 
+# --- Coverage --------------------------------------------------------------------
+#
+# The validator rejects false claims but asks for no content, so an answer with
+# one vague true claim passes. Coverage counts how many of three key engine facts
+# an accepted answer states: the played move, the engine's key move, and the
+# result (piece, check, mate or tactic). A move counts in UCI, in SAN, or in the
+# claim's own line.
+
+_PIECE_NAMES = {"p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king"}
+_TACTIC_NAMES = {
+    "knight_fork": ("fork",),
+    "fork": ("fork",),
+    "pin": ("pin",),
+    "skewer": ("skewer",),
+    "discovered_attack": ("discovered",),
+    "back_rank": ("back rank", "back-rank"),
+    "overloaded_defender": ("overload",),
+}
+
+
+@dataclass(frozen=True)
+class KeyFacts:
+    played: tuple[str, ...]
+    key_move: tuple[str, ...]
+    result: tuple[str, ...]
+
+
+def _move_forms(fen: str, uci: str) -> tuple[str, ...]:
+    forms = [uci]
+    try:
+        board = chess.Board(fen)
+        move = chess.Move.from_uci(uci)
+        if move in board.legal_moves:
+            forms.append(board.san(move).rstrip("+#"))
+    except ValueError:
+        pass
+    return tuple(forms)
+
+
+def key_facts(payload: dict[str, Any]) -> KeyFacts:
+    """The three facts a useful narration of this evidence states."""
+    before, after = payload["before_fen"], payload["after_fen"]
+    played_san = str(payload["played_move"]).rstrip("+#")
+    played: tuple[str, ...] = (played_san,)
+    board = chess.Board(before)
+    try:
+        played = (played_san, board.parse_san(played_san).uci())
+    except ValueError:
+        pass
+    if payload.get("best_move"):
+        key_move = _move_forms(before, payload["best_move"])
+    elif payload.get("threat_move"):
+        key_move = _move_forms(after, payload["threat_move"])
+    elif payload.get("mating_line"):
+        key_move = _move_forms(after, payload["mating_line"][0])
+    else:
+        key_move = _move_forms(after, payload["proving_line"][0])
+    if payload.get("mate_in"):
+        result: tuple[str, ...] = ("mate",)
+    elif payload.get("tactic_type"):
+        result = _TACTIC_NAMES.get(payload["tactic_type"], (str(payload["tactic_type"]),))
+    else:
+        piece = next(
+            (
+                payload[k]
+                for k in ("captured_piece", "threatened_piece", "hanging_piece")
+                if payload.get(k)
+            ),
+            None,
+        )
+        result = (_PIECE_NAMES[str(piece).lower()],) if piece else ("check",)
+    return KeyFacts(played=played, key_move=key_move, result=result)
+
+
+def _states_move(forms: tuple[str, ...], text: str, lines: list[str]) -> bool:
+    return any(
+        form in lines or re.search(rf"(?<![A-Za-z0-9]){re.escape(form)}(?![A-Za-z0-9])", text)
+        for form in forms
+    )
+
+
+def coverage(claims: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
+    """Share of the three key facts that the claims state."""
+    text = " ".join(claim["text"] for claim in claims)
+    lines = [move for claim in claims for move in claim.get("line", [])]
+    lowered = text.lower()
+    stated = (
+        _states_move(facts.played, text, lines),
+        _states_move(facts.key_move, text, lines),
+        any(re.search(rf"\b{re.escape(word)}", lowered) for word in facts.result),
+    )
+    return sum(stated) / len(stated)
+
+
+def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
+    raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
+    return {
+        item["position_id"]: key_facts(item["evidence"][0]["payload"]) for item in raw["positions"]
+    }
+
+
 def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[str, Any]:
     header = next(record for record in records if record.get("record") == "header")
+    facts = _position_facts(config)
     by_model: dict[str, dict[str, Any]] = {}
     for model in config.models:
         runs = [r for r in records if r.get("record") == "run" and r["model"] == model.name]
@@ -713,6 +815,8 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         rejected = [sum(1 for c in run["claims"] if c["rejection_reason"]) for run in generated]
         san = [token for claim in claims for token in claim["san_tokens"]]
         latencies = [run["latency_s"] for run in runs]
+        accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
+        covered = [coverage(run["claims"], facts[run["position_id"]]) for run in accepted_runs]
         by_code: dict[str, float] = {}
         for code in sorted({run["code"] for run in runs}):
             subset = [run for run in runs if run["code"] == code]
@@ -725,6 +829,11 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "runs": len(runs),
             "grounding_pass_rate": sum(r["outcome"] == "accepted" for r in runs) / len(runs),
             "grounding_pass_rate_by_code": by_code,
+            # Mean share of the three key facts in accepted answers, and the same
+            # share over all calls with a fallback counted as 0: what a user gets.
+            "coverage_accepted": statistics.fmean(covered) if covered else None,
+            "delivered_coverage": sum(covered) / len(runs),
+            "full_coverage_rate": sum(value == 1 for value in covered) / len(runs),
             "provider_error_rate": sum(r["provider_error"] is not None for r in runs) / len(runs),
             "pipeline_exception_rate": sum(r["outcome"] == "pipeline_exception" for r in runs)
             / len(runs),
@@ -756,7 +865,10 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             )
             / len(latencies),
             "load_and_first_call_s": load["load_and_first_call_s"],
-            "vram_model_gib": load["ollama_size_vram_bytes"] / 2**30,
+            # Measured GPU memory rise when the model loads (weights, KV cache and
+            # buffers). Ollama's size_vram under-reports some models (gemma4).
+            "vram_model_gib": (load["gpu_loaded_used_mib"] - load["gpu_idle_used_mib"]) / 1024,
+            "ollama_size_vram_gib": load["ollama_size_vram_bytes"] / 2**30,
             "model_size_gib": load["ollama_size_bytes"] / 2**30,
             "gpu_peak_over_idle_gib": (done[0]["gpu_peak_used_mib"] - done[0]["gpu_idle_used_mib"])
             / 1024
@@ -789,16 +901,23 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"{header['runs_per_position']} runs, GPU {header['gpu']}, "
         f"Ollama {header['ollama_version']}.",
         "",
-        "| Model | Role | Params (B) | Grounding pass | Provider errors | Claims / expl. "
+        "Coverage: share of three key engine facts (played move, key move, result) that "
+        "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
+        "coverage: share of all calls accepted with all three facts.",
+        "",
+        "| Model | Role | Params (B) | Grounding pass | Coverage (accepted) "
+        "| Delivered coverage | Full coverage | Provider errors | Claims / expl. "
         "| False chess statements / expl. | Rejected claims / expl. | SAN legal | SAN correct "
         "(SAN tokens) | Latency p50 / p95 (s) | First token p50 (s) | Within 4 s "
-        "| Hit output cap | Calls that thought | VRAM (GiB) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Hit output cap | Calls that thought | GPU memory (GiB) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, row in summary["models"].items():
         lines.append(
             f"| {name} | {row['role']} | {row['params_b']} "
-            f"| {row['grounding_pass_rate']:.1%} | {row['provider_error_rate']:.1%} "
+            f"| {row['grounding_pass_rate']:.1%} "
+            f"| {_fmt(row['coverage_accepted'], '.1%')} | {row['delivered_coverage']:.1%} "
+            f"| {row['full_coverage_rate']:.1%} | {row['provider_error_rate']:.1%} "
             f"| {_fmt(row['claims_per_explanation'], '.2f')} "
             f"| {_fmt(row['false_chess_statements_per_explanation'], '.2f')} "
             f"| {_fmt(row['rejected_claims_per_explanation'], '.2f')} "
