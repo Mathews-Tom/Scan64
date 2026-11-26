@@ -41,7 +41,7 @@ E        +      where <module 'sys' (built-in)> = <module 'desktop_smoke' from '
 tests\unit\test_desktop_package_smoke.py:88: AssertionError
 _ test_config_requires_absolute_operator_paths[[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n-maia.binary_path must be absolute] _
 
-tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-Syd/pytest-711/test_config_requires_absolute_0')
+tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-<user>/pytest-711/test_config_requires_absolute_0')
 config_text = '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n'
 error = 'maia.binary_path must be absolute'
 
@@ -75,8 +75,8 @@ E         Actual message: 'Maia checkpoint 1500 weights path must be absolute'
 tests\unit\test_maia_coverage_disclosure.py:81: AssertionError
 _________________ test_cancel_interrupts_stalled_http_stream __________________
 
-engine = Engine(sqlite:///C:\Users\<user>\AppData\Local\Temp\pytest-of-Syd\pytest-711\test_cancel_interrupts_stalled0\catalog.db)
-tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-Syd/pytest-711/test_cancel_interrupts_stalled0')
+engine = Engine(sqlite:///C:\Users\<user>\AppData\Local\Temp\pytest-of-<user>\pytest-711\test_cancel_interrupts_stalled0\catalog.db)
+tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-<user>/pytest-711/test_cancel_interrupts_stalled0')
 
     def test_cancel_interrupts_stalled_http_stream(engine: Engine, tmp_path: Path) -> None:
         with fixture_server(stall=True) as url:

@@ -275,7 +275,7 @@ tests\unit\test_visualization_dsl.py ...                                 [100%]
 ================================== FAILURES ===================================
 _____ test_replay_refuses_wrong_expected_identity[preregistration_commit] _____
 
-tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-Syd/pytest-706/test_replay_refuses_wrong_expe0')
+tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-<user>/pytest-706/test_replay_refuses_wrong_expe0')
 field = 'preregistration_commit'
 
     @pytest.mark.parametrize(
