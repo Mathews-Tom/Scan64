@@ -1,3 +1,4 @@
+@import './boardMaterials.generated.css';
 .board-workspace {
   display: grid;
   grid-template-columns:
@@ -20,7 +21,7 @@
   scroll-margin-block: var(--space-4) calc(var(--shell-clearance, 0px) + var(--space-4));
 }
 .coach-board__ground { width: 100%; height: 100%; }
-.coach-board cg-board { background-color: var(--board-light); background-image: var(--board-checkerboard); background-size: 25% 25%; }
+.coach-board cg-board { background-color: var(--board-light); background-image: var(--board-texture, none), var(--board-checkerboard); background-size: 100% 100%, 25% 25%; }
 .coach-board cg-board square.last-move,
 .coach-board cg-board square.selected { background: var(--board-selection); box-shadow: inset 0 0 0 2px var(--mark-ink); }
 .coach-board cg-board square.move-dest { background: var(--board-selection); box-shadow: inset 0 0 0 2px var(--mark-ink); opacity: .7; }

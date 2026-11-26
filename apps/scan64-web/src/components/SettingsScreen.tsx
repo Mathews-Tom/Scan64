@@ -20,6 +20,9 @@ const APPEARANCE_OPTIONS = [
 
 const STAUNTON_PIECE_SETS = PIECE_SET_OPTIONS.filter((option) => option.staunton);
 const OTHER_PIECE_SETS = PIECE_SET_OPTIONS.filter((option) => !option.staunton);
+const FLAT_BOARDS = BOARD_THEME_OPTIONS.filter((option) => option.material === 'flat');
+const WOOD_BOARDS = BOARD_THEME_OPTIONS.filter((option) => option.material === 'wood');
+const STONE_BOARDS = BOARD_THEME_OPTIONS.filter((option) => option.material === 'stone');
 
 export function SettingsScreen() {
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
@@ -31,6 +34,7 @@ export function SettingsScreen() {
   const [sounds, setSounds] = useState(readBoardSounds);
   const [soundSaveError, setSoundSaveError] = useState(false);
   const pieceSetName = useId();
+  const boardThemeName = useId();
 
   useEffect(() => {
     applyBoardAppearance(boardAppearance);
@@ -85,8 +89,14 @@ export function SettingsScreen() {
         <p>Staunton-pattern sets follow the piece form that the FIDE equipment standard requires for tournament play (FIDE Handbook C.02: Staunton style, light and dark sets, matte finish). Staunton (cburnett) is the default.</p>
         <p>California, Maestro and Staunty are licensed for non-commercial use only (CC BY-NC-SA 4.0). Other artwork has separate licences; see the artwork notices below.</p>
         {pieceSaveError ? <StatusLine kind="error">Piece set changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
-        <SegmentedControl label="Board palette" value={boardAppearance.boardTheme} options={BOARD_THEME_OPTIONS} onChange={changeBoardTheme} />
+        <fieldset className="ui-segmented settings-board-themes">
+          <legend>Board palette</legend>
+          <SegmentedControl label="Flat colours" name={boardThemeName} value={boardAppearance.boardTheme} options={FLAT_BOARDS} onChange={changeBoardTheme} />
+          <SegmentedControl label="Wood" name={boardThemeName} value={boardAppearance.boardTheme} options={WOOD_BOARDS} onChange={changeBoardTheme} />
+          <SegmentedControl label="Stone" name={boardThemeName} value={boardAppearance.boardTheme} options={STONE_BOARDS} onChange={changeBoardTheme} />
+        </fieldset>
         <p>Brown and cream and Classic brown use the square colours named in the FIDE equipment standard for tournament boards (FIDE Handbook C.02: cream or buff light squares, brown dark squares). Green and buff and Classic green follow earlier editions of that standard, which also named green.</p>
+        <p>Wood and stone boards use photographed veneer and stone with a matte finish: no gloss or glare. Every square has its own grain or veining, and light and dark squares keep at least the contrast of Brown and cream. Textures are public-domain (CC0) and load when a board first shows.</p>
         {boardSaveError ? <StatusLine kind="error">Board palette changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
         <label><input type="checkbox" checked={sounds} onChange={event => {
           setSounds(event.target.checked);
