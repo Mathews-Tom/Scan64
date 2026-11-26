@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-25
+
 ### Added
 
 - Two classic piece sets in **Settings → Chessboard**: Staunton (cburnett, Colin M.L. Burnett) and Merida (Armando Hernandez Marroquin), both GPL-2.0-or-later.
