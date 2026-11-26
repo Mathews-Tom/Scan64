@@ -20,11 +20,18 @@ import threading
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
+from scan64.explanations.facts import (
+    SCHEMA_VERSION,
+    NarratorFacts,
+    NarratorFactsError,
+    build_narrator_facts,
+    verified_lines_by_evidence,
+)
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
@@ -66,63 +73,46 @@ def template_fallback_counts() -> dict[str, int]:
 # hint ladder, so any claim's disclosure_level is acceptable.
 _FULL_DISCLOSURE_HINT_LEVEL = 3
 
-# Evidence payload fields M33's composer populates with a single verified UCI
-# move (see learning/evidence/composer.py).
-_SINGLE_MOVE_FIELDS = ("best_move", "threat_move", "pinning_move", "incoming_threat")
-
-
-def _verified_lines_for(
-    evidence: Sequence[Evidence],
-) -> dict[str, tuple[tuple[str, ...], ...]]:
-    lines: dict[str, tuple[tuple[str, ...], ...]] = {}
-    for item in evidence:
-        payload: dict[str, Any] = item.payload
-        candidates: list[tuple[str, ...]] = []
-        focused_line = payload.get("focused_line")
-        if isinstance(focused_line, list) and focused_line:
-            candidates.append(tuple(focused_line))
-        for field in _SINGLE_MOVE_FIELDS:
-            move = payload.get(field)
-            if isinstance(move, str) and move:
-                candidates.append((move,))
-        if candidates:
-            lines[item.evidence_id] = tuple(candidates)
-    return lines
-
 
 def _grounding_context(
-    diagnosis: Diagnosis, evidence: Sequence[Evidence], fen: str
+    facts: NarratorFacts, evidence: Sequence[Evidence], fen: str
 ) -> GroundedExplanationContext:
-    referenced = tuple(item for item in evidence if item.evidence_id in diagnosis.evidence_refs)
+    referenced_ids = {item.evidence_id for item in facts.evidence}
     return GroundedExplanationContext(
         fen=fen,
-        evidence=referenced,
-        verified_lines=_verified_lines_for(referenced),
+        evidence=tuple(item for item in evidence if item.evidence_id in referenced_ids),
+        verified_lines=verified_lines_by_evidence(facts),
         requested_hint_level=_FULL_DISCLOSURE_HINT_LEVEL,
     )
 
 
-def _explanation_request(evidence: Sequence[Evidence]) -> ExplanationRequest:
-    evidence_summary = "\n".join(
-        f"- evidence_id={item.evidence_id!r} kind={item.kind!r} "
-        f"claim={item.claim!r} payload={item.payload!r}"
-        for item in evidence
-    )
+NARRATOR_SYSTEM_PROMPT = (
+    "You explain one chess mistake to the learner who made it. The user message is a JSON "
+    f"document following the Scan64 schema {SCHEMA_VERSION} "
+    "(schemas/narrator-facts.schema.json). The board library and the chess engine computed "
+    "every fact in it. Use only those facts: do not work out moves, captures, checks, "
+    "threats, material or evaluations yourself, and state nothing the JSON does not state.\n"
+    "- position: the learner is side_to_move; played_move is the mistake; best_move is the "
+    "engine's choice; mistake_class names the mistake.\n"
+    "- Evaluations are from the learner's point of view in centipawns (100 = one pawn). "
+    "Never state an evaluation whose status is unknown.\n"
+    "- lines: engine lines from the position before the mistake; each move lists its SAN, "
+    "piece, captures, check, checkmate, material_after, new_threats and evaluation_after. A "
+    "line with begins_with_played_move=true starts with the learner's mistake.\n"
+    "- Name moves in SAN exactly as given. Name only pieces and squares that appear in the "
+    "facts.\n"
+    "Answer with claims. Each claim: text (one or two plain sentences), evidence_ref (an "
+    "evidence_id from evidence), line (empty, or a prefix of the uci list of a line whose "
+    'line_id is in that evidence item\'s line_ids), certainty "observed", '
+    "disclosure_level 1."
+)
+
+
+def _explanation_request(facts: NarratorFacts) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
-            LLMMessage(
-                role="system",
-                content=(
-                    "You explain a chess mistake to a learner. State only facts "
-                    "present in the supplied evidence: every claim must cite an "
-                    "evidence_id from the list below, name only squares, pieces, "
-                    "or moves that appear in that evidence's payload, and any "
-                    "move sequence you cite must be one of that evidence's "
-                    "verified lines. Never invent a fact absent from the "
-                    "evidence."
-                ),
-            ),
-            LLMMessage(role="user", content=f"Verified evidence:\n{evidence_summary}"),
+            LLMMessage(role="system", content=NARRATOR_SYSTEM_PROMPT),
+            LLMMessage(role="user", content=facts.model_dump_json()),
         )
     )
 
@@ -134,8 +124,14 @@ async def _attempt_grounded_generation(
     fen: str,
     template_explanation: Explanation,
 ) -> Explanation:
-    context = _grounding_context(diagnosis, evidence, fen)
-    request = _explanation_request(context.evidence)
+    try:
+        facts = build_narrator_facts(diagnosis, evidence, fen)
+    except NarratorFactsError as error:
+        logger.warning("Narrator facts unavailable: %s", error)
+        _record_template_fallback("invalid_evidence")
+        return template_explanation
+    context = _grounding_context(facts, evidence, fen)
+    request = _explanation_request(facts)
     try:
         generated = await provider.generate(request)
         return validate_generated_explanation(generated, context)

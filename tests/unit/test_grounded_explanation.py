@@ -36,7 +36,7 @@ def _diagnosis_and_evidence() -> tuple[Diagnosis, list[Evidence]]:
             "results_in_material_gain": True,
             "played_move": "e2e3",
             "best_move": "g1f3",
-            "focused_line": ["g1f3"],
+            "focused_line": ["e7e5"],
         },
     )
     diagnosis = Diagnosis(

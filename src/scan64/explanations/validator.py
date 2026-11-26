@@ -18,7 +18,17 @@ from typing import Any, Literal, get_args
 import chess
 from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
-from scan64.learning.evidence.composer import line_material_gain
+from scan64.explanations.facts import (
+    PIECE_LIST_FIELDS,
+    PIECE_SQUARE_FIELDS,
+    SQUARE_FIELDS,
+    SQUARE_LIST_FIELDS,
+    TACTIC_FIELDS,
+    NarratorFactsError,
+    StoredEvaluations,
+    parse_played_move,
+)
+from scan64.learning.evidence.composer import PIECE_VALUES, line_material_gain
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm.adapters import LLMExplanationProvider
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
@@ -46,6 +56,7 @@ RejectionReason = Literal[
     "material_not_supported",
     "move_type_not_supported",
     "tactic_not_supported",
+    "threat_not_supported",
     "wrong_side_to_move",
     "unparsed_chess_token",
 ]
@@ -208,19 +219,6 @@ _BEFORE_MOVE_FIELDS = ("best_move", "pinning_move", "played_move")
 _AFTER_MOVE_FIELDS = ("threat_move", "incoming_threat")
 _BEFORE_MULTIPV_FIELDS = ("mate_source_multipv",)
 _AFTER_MULTIPV_FIELDS = ("focused_multipv",)
-_PIECE_SQUARE_FIELDS = (
-    ("captured_square", "captured_piece"),
-    ("hanging_square", "hanging_piece"),
-    ("threatened_square", "threatened_piece"),
-    ("pinned_square", "pinned_piece"),
-    ("defender_square", "defender_piece"),
-    ("front_square", "front_piece"),
-    ("target_square", "target_piece"),
-    ("slider_square", "slider_piece"),
-)
-_PIECE_LIST_FIELDS = ("targets", "defended_targets")
-_SQUARE_FIELDS = ("fork_square", "king_square", "blocker_square")
-_SQUARE_LIST_FIELDS = ("blocker_squares",)
 _CENTIPAWN_FIELDS = ("swing_cp", "before_score_cp")
 _MATE_FIELDS = ("mate_in", "before_score_mate", "after_score_mate", "source_score_mate")
 _GAIN_FIELDS = ("material_gain", "exchange_gain")
@@ -278,7 +276,18 @@ class _ClaimEvidence:
         for start, line in lines:
             facts._add_line(start, line)
         facts._add_payload(payload)
+        facts._add_stored_evaluations(board, payload)
         return facts
+
+    def _add_stored_evaluations(self, board: chess.Board, payload: Mapping[str, Any]) -> None:
+        """Evaluations the narrator facts state (``explanations/facts.py``) may be quoted."""
+        try:
+            played: chess.Move | None = parse_played_move(board, payload.get("played_move"))
+        except NarratorFactsError:
+            played = None
+        centipawns, mates = StoredEvaluations.from_payload(board, payload, played).numbers()
+        self.centipawns.update(centipawns)
+        self.mates.update(mates)
 
     def _add_line(self, start: chess.Board, line: list[str]) -> None:
         replay = start.copy(stack=False)
@@ -314,17 +323,17 @@ class _ClaimEvidence:
             self.gains.add(abs(gain))
 
     def _add_payload(self, payload: Mapping[str, Any]) -> None:
-        for square_field, piece_field in _PIECE_SQUARE_FIELDS:
+        for square_field, piece_field in PIECE_SQUARE_FIELDS:
             self._add_piece(payload.get(square_field), payload.get(piece_field))
-        for list_field in _PIECE_LIST_FIELDS:
+        for list_field in PIECE_LIST_FIELDS:
             entries = payload.get(list_field)
             if isinstance(entries, list):
                 for entry in entries:
                     if isinstance(entry, Mapping):
                         self._add_piece(entry.get("square"), entry.get("piece"))
-        for square_field in _SQUARE_FIELDS:
+        for square_field in SQUARE_FIELDS:
             self._add_square(payload.get(square_field))
-        for list_field in _SQUARE_LIST_FIELDS:
+        for list_field in SQUARE_LIST_FIELDS:
             entries = payload.get(list_field)
             if isinstance(entries, list):
                 for entry in entries:
@@ -347,7 +356,7 @@ class _ClaimEvidence:
             victim = _piece_from_symbol(payload.get(victim_field))
             if victim is not None:
                 self.victims.append(victim)
-        for tactic_field in ("tactic_type", "missed_type", "blunder_type"):
+        for tactic_field in TACTIC_FIELDS:
             value = payload.get(tactic_field)
             if isinstance(value, str):
                 self.tactics.add(value)
@@ -645,9 +654,85 @@ def _material(match: re.Match[str], facts: _ClaimEvidence) -> None:
         raise _reject("material_not_supported", f"states an unproved win: {match[0]!r}")
 
 
+def _undefended(board: chess.Board, square: chess.Square, piece: chess.Piece) -> bool:
+    return board.is_attacked_by(not piece.color, square) and not board.is_attacked_by(
+        piece.color, square
+    )
+
+
 def _hanging(match: re.Match[str], facts: _ClaimEvidence) -> None:
-    if not facts.has_material_gain:
-        raise _reject("material_not_supported", f"states an unproved loss: {match[0]!r}")
+    """A loss proved by a line, or a non-king piece attacked and undefended on a fact board."""
+    if facts.has_material_gain or any(
+        piece.piece_type != chess.KING and _undefended(board, square, piece)
+        for board in facts.boards
+        for square, piece in board.piece_map().items()
+    ):
+        return
+    raise _reject("material_not_supported", f"states an unproved loss: {match[0]!r}")
+
+
+_MATERIAL_UNITS = {
+    "pawn": 1,
+    "point": 1,
+    "exchange": 2,
+    **{chess.piece_name(piece_type): value for piece_type, value in PIECE_VALUES.items()},
+}
+
+
+def _side_colour(word: str, facts: _ClaimEvidence) -> chess.Color:
+    word = " ".join(word.lower().split())
+    if word == "white":
+        return chess.WHITE
+    if word == "black":
+        return chess.BLACK
+    return facts.learner if word == "you" else not facts.learner
+
+
+def _advantage(board: chess.Board, colour: chess.Color) -> int:
+    totals = {chess.WHITE: 0, chess.BLACK: 0}
+    for piece in board.piece_map().values():
+        totals[piece.color] += PIECE_VALUES.get(piece.piece_type, 0)
+    return totals[colour] - totals[not colour]
+
+
+def _material_balance(match: re.Match[str], facts: _ClaimEvidence) -> None:
+    """``Black is up a knight`` / ``material is equal``: some fact board has that balance."""
+    if match.group("equal") is not None:
+        if not any(_advantage(board, chess.WHITE) == 0 for board in facts.boards):
+            raise _reject("material_not_supported", f"states an unproved balance: {match[0]!r}")
+        return
+    colour = _side_colour(match.group("who"), facts)
+    sign = 1 if match.group("direction").lower() in ("up", "ahead") else -1
+    unit = match.group("unit")
+    advantages = [_advantage(board, colour) for board in facts.boards]
+    if unit is None:
+        supported = any(sign * advantage > 0 for advantage in advantages)
+    else:
+        raw_count = (match.group("count") or "a").lower()
+        count = int(raw_count) if raw_count.isdigit() else _NUMBER_WORDS.get(raw_count, 1)
+        expected = sign * count * _MATERIAL_UNITS[unit.lower().removesuffix("s")]
+        supported = expected in advantages
+    if not supported:
+        raise _reject("material_not_supported", f"states an unproved balance: {match[0]!r}")
+
+
+def _attack(match: re.Match[str], facts: _ClaimEvidence) -> None:
+    """``attacks the queen on g5``: a fact board has that piece attacked (and undefended)."""
+    piece_type = _PIECE_TYPES[match.group("piece").lower()]
+    colour = _colour(match, facts)
+    square_name = match.group("square")
+    target = chess.parse_square(square_name) if square_name is not None else None
+    undefended = match.group("undefended") is not None
+    for board in facts.boards:
+        for square, piece in board.piece_map().items():
+            if not _piece_matches(piece, piece_type, colour) or target not in (None, square):
+                continue
+            if undefended:
+                if _undefended(board, square, piece):
+                    return
+            elif board.is_attacked_by(not piece.color, square):
+                return
+    raise _reject("threat_not_supported", f"states an unproved attack: {match[0]!r}")
 
 
 def _piece_to(match: re.Match[str], facts: _ClaimEvidence) -> None:
@@ -756,6 +841,31 @@ _RULES: tuple[tuple[re.Pattern[str], _Handler], ...] = (
             _I,
         ),
         _mate_in,
+    ),
+    (
+        re.compile(
+            r"\b(?:material\s+(?:balance\s+)?(?:is|was|stays|remains)\s+(?:now\s+|still\s+)?"
+            r"(?P<equal>equal|even|level|balanced)"
+            r"|(?P<who>white|black|you|your\s+opponent|the\s+opponent)\s+"
+            r"(?:is|are|was|were|will\s+be|would\s+be|stays|remains)\s+(?:now\s+|still\s+)?"
+            r"(?P<direction>up|down|ahead|behind)\s+(?:by\s+)?"
+            r"(?:(?:(?P<count>a|an|the|one|two|three|four|five|six|seven|eight|\d+)\s+)?"
+            r"(?P<unit>pawns?|points?|knight|bishop|rook|queen|exchange)"
+            r"(?:\s+(?:of|in)\s+material)?|in\s+material))\b",
+            _I,
+        ),
+        _material_balance,
+    ),
+    (
+        re.compile(
+            r"\b(?:attack(?:s|ed|ing)?|threaten(?:s|ed|ing)?)\s+(?:the\s+|a\s+|an\s+)?"
+            r"(?P<undefended>undefended\s+)?"
+            + _COLOUR
+            + _PIECE
+            + rf"(?:\s+on\s+(?P<square>{_SQ}))?\b",
+            _I,
+        ),
+        _attack,
     ),
     (
         re.compile(
