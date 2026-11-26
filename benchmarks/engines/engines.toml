@@ -1,0 +1,60 @@
+# Engine comparison: equal node budgets on five fixed positions.
+# Run: uv run python -m benchmarks.engines.compare_engines benchmarks/engines/engines.toml
+# Engines whose binary is missing are reported as "not installed", not skipped silently.
+
+[run]
+nodes = 1000000          # per position, every engine
+multipv = 3
+threads = 1
+hash_mb = 64
+results_dir = "benchmarks/engines/results"   # relative to the repository root
+
+[[positions]]
+id = "start"
+fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+[[positions]]
+id = "closed-ruy-lopez"
+fen = "r1bq1rk1/2p1bppp/p1np1n2/1p2p3/4P3/1BP2N1P/PP1P1PP1/RNBQR1K1 b - - 0 9"
+
+[[positions]]
+id = "kiwipete"
+fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+
+[[positions]]
+id = "lucena"
+fen = "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1"
+
+[[positions]]
+id = "mate-in-one"
+fen = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
+
+[[engines]]
+name = "Stockfish 18"
+binary_path = "~/.local/bin/stockfish.exe"
+licence = "GPL-3.0"
+source = "https://github.com/official-stockfish/Stockfish"
+
+[[engines]]
+name = "Ethereal 14.40"
+binary_path = "~/.local/opt/engines/Ethereal.exe"
+licence = "GPL-3.0"
+source = "https://github.com/AndyGrant/Ethereal"
+
+[[engines]]
+name = "Berserk 20261114"
+binary_path = "~/.local/opt/engines/Berserk.exe"
+licence = "GPL-3.0"
+source = "https://github.com/jhonnold/berserk"
+
+[[engines]]
+name = "Obsidian dev-16.15"
+binary_path = "~/.local/opt/engines/Obsidian.exe"
+licence = "GPL-3.0"
+source = "https://github.com/gab8192/Obsidian"
+
+[[engines]]
+name = "Koivisto 9.2"
+binary_path = "~/.local/opt/engines/Koivisto.exe"
+licence = "GPL-3.0"
+source = "https://github.com/Luecx/Koivisto"

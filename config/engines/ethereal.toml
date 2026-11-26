@@ -1,0 +1,13 @@
+# Ethereal 14 (GPL-3.0) as the analysis engine.
+# Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
+# Build steps: docs/engines.md. binary_path must be absolute (~ expands) or a
+# bare command name on PATH.
+[engine]
+name = "ethereal"
+binary_path = "~/.local/opt/engines/Ethereal.exe"
+threads = 1
+hash_mb = 16
+
+# Extra UCI options; each must be declared by the engine or startup fails.
+# Threads, Hash, MultiPV and strength controls are managed by Scan64.
+[engine.options]

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import UniqueConstraint
 from sqlmodel import JSON, Field, SQLModel
 
@@ -18,15 +18,41 @@ class EngineAnalysisConfig(BaseModel):
     multipv: int = 1
 
 
+class EngineLine(BaseModel):
+    """Typed read of one stored ``EngineAnalysis.raw_result`` line.
+
+    Rows written before the line extension carry only ``pv`` and one of
+    ``score_cp``/``score_mate``; every extended field is then ``None``. Scores
+    and ``wdl`` (wins, draws, losses per mille) are from the side to move.
+    ``nps`` is wall-clock dependent: record it, never compare or key on it.
+    """
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    pv: list[str] = []
+    score_cp: int | None = None
+    score_mate: int | None = None
+    wdl: tuple[int, int, int] | None = None
+    depth: int | None = None
+    seldepth: int | None = None
+    nodes: int | None = None
+    nps: int | None = None
+    multipv: int | None = None
+
+
 class EngineAnalysis(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     position_id: UUID = Field(foreign_key="position.id")
     config: dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    # Store the result, e.g., MultiPV dict
-    # Each entry in the list could be a dict like {"pv": ["e2e4", "e7e5"], "score_cp": 50}
+    # One dict per MultiPV line, best first: {"pv": [...], "score_cp": 50} plus,
+    # when the engine reports them, "wdl", "depth", "seldepth", "nodes", "nps"
+    # and "multipv" (see ``EngineLine``). Absent keys mean "not reported".
     raw_result: list[dict[str, Any]] = Field(default_factory=list, sa_type=JSON)
+
+    def lines(self) -> list[EngineLine]:
+        return [EngineLine.model_validate(line) for line in self.raw_result]
 
 
 class AnalysisJob(SQLModel, table=True):
