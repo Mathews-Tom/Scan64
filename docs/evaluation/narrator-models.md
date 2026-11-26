@@ -156,3 +156,7 @@ Use `praxis-4b` (`praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF`, Q4_K_M, A
 The gain is mostly contract compliance: `qwen3.5-4b` loses claims to `unknown_evidence` (157) and `certainty_exceeded` (149); `praxis-4b` has neither. Its remaining rejections are wrong chess facts in text (`tactic_not_supported` 15, `evaluation_not_supported` 9, `mate_not_supported` 3), and the validator rejects them, so the template floor still holds.
 
 Limits of the measurement: on the RTX 4080 Laptop `praxis-4b` answers within 4 s in 73.3% of calls (p95 6.38 s), so on that class of GPU about a quarter of calls fall back to the template on the time limit. On CPU no call met the 4 s limit. The prompt builder is the pre-#367 one; rerun with `uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml` after #367 lands. This is a narrator wording measurement, not a measurement of chess improvement for players.
+
+## Decision
+
+2026-11-26: the project chose `praxis-4b` as the narrator model. Choosing the narrator is an ongoing process, not a single decision. Rerun this benchmark whenever the prompt builder, the validator or a candidate model changes, and add new candidates to `benchmarks/narrator/narrator.toml`. A model replaces `praxis-4b` only when it beats it on grounding pass rate and false chess statements in the same run.
