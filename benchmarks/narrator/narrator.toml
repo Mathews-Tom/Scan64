@@ -27,7 +27,10 @@ production_time_limit_s = 4.0
 # The cap here is a runaway guard, not a length limit: real answers use 60-450
 # tokens, and a model that loops (praxis-2b repeats UCI moves) stops after about
 # 10 s instead of running to the context end. Such calls show in "Hit output cap".
-num_ctx = 8192
+# 12288: the #367 facts prompt is 3 500-7 400 tokens, plus up to 2 048 output
+# tokens. The app's local default (8192) leaves about 800 output tokens for the
+# longest prompt; prompt_eval_count per call shows how close each run comes.
+num_ctx = 12288
 num_predict = 2048
 # Fields merged into every /api/chat body. The app's adapter sends no `think`
 # field, so Ollama 0.40 lets Qwen3/Qwen3.5 models think first; in a smoke run
@@ -42,13 +45,14 @@ request_overrides = { think = false, stream = true }
 foreign_ollama = ["http://127.0.0.1:11434"]
 
 # The pipeline under test. Swap these dotted paths to benchmark another prompt
-# builder; with the defaults, a rerun after #367 picks up the new prompt in
-# scan64.explanations.assembly with no code or config change.
+# builder. grounding_context_for builds NarratorFacts (#367) exactly as
+# resolve_explanation does; tests/unit/test_narrator_benchmark_smoke.py resolves
+# both paths on positions[0] in CI, so a signature change fails a test.
 # pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment) -> Explanation
 # grounding_context: (diagnosis, evidence, fen) -> GroundedExplanationContext, used to
 # count rejected claims one by one.
 pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
-grounding_context = "scan64.explanations.assembly:_grounding_context"
+grounding_context = "scan64.explanations.assembly:grounding_context_for"
 
 [positions]
 file = "benchmarks/narrator/positions.json"

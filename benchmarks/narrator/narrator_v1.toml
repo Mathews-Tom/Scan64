@@ -35,8 +35,8 @@ request_overrides = { think = false }
 foreign_ollama = ["http://127.0.0.1:11434"]
 
 # The pipeline under test. Swap these dotted paths to benchmark another prompt
-# builder; with the defaults, a rerun after #367 picks up the new prompt in
-# scan64.explanations.assembly with no code or config change.
+# builder. Pre-#367 pipeline only: use this file to summarize the runs pinned to
+# assembly sha256 255ce24b73f9; it cannot run against a later assembly.py.
 # pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment) -> Explanation
 # grounding_context: (diagnosis, evidence, fen) -> GroundedExplanationContext, used to
 # count rejected claims one by one.

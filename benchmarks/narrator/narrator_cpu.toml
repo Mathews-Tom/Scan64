@@ -19,7 +19,7 @@ num_predict = 1024
 request_overrides = { think = false }
 foreign_ollama = []
 pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
-grounding_context = "scan64.explanations.assembly:_grounding_context"
+grounding_context = "scan64.explanations.assembly:grounding_context_for"
 
 [positions]
 file = "benchmarks/narrator/positions.json"
