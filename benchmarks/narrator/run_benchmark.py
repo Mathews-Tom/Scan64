@@ -198,6 +198,7 @@ def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
         "pipeline_entry": config.pipeline_entry,
         "grounding_context": config.grounding_context,
         "commit": _git("rev-parse", "HEAD"),
+        "module_commit": _git("log", "-1", "--format=%H", "--", str(source_file)),
         "dirty": bool(_git("status", "--porcelain", "--", "src")),
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
@@ -359,6 +360,9 @@ def _claim_reason(claim: Any, context: GroundedExplanationContext) -> tuple[str 
         validate_generated_explanation(GeneratedExplanation(claims=(claim,)), context)
     except GroundedExplanationValidationError as error:
         return error.reason, str(error)
+    except Exception as error:
+        # Not a rejection the validator defines: it escapes the pipeline.
+        return "validator_exception", f"{type(error).__name__}: {error}"
     return None, None
 
 
@@ -439,20 +443,31 @@ async def run_one(
             raise RuntimeError("create_llm_provider returned no provider for an ollama config")
         provider = RecordingProvider(adapter)
         before = assembly.template_fallback_counts()
-        explanation = await entry(
-            position.diagnosis,
-            list(position.evidence),
-            position.fen,
-            local_provider=provider,
-            environment={},
-        )
+        # A pipeline exception is a measured outcome: the app would surface it
+        # instead of the template (see the report, validator `_tactic` defect).
+        explanation: Explanation | None = None
+        pipeline_exception: str | None = None
+        try:
+            explanation = await entry(
+                position.diagnosis,
+                list(position.evidence),
+                position.fen,
+                local_provider=provider,
+                environment={},
+            )
+        except Exception as error:
+            pipeline_exception = f"{type(error).__name__}: {error}; cause={error.__cause__!r}"
         after = assembly.template_fallback_counts()
     fallback = [reason for reason, count in after.items() if count > before.get(reason, 0)]
     if len(fallback) > 1:
         raise RuntimeError(f"More than one fallback recorded for one call: {fallback}")
-    accepted = bool(explanation.claims)
-    if accepted == bool(fallback):
+    accepted = explanation is not None and bool(explanation.claims)
+    if explanation is not None and accepted == bool(fallback):
         raise RuntimeError("Pipeline outcome and fallback counter disagree")
+    if explanation is None:
+        outcome = "pipeline_exception"
+    else:
+        outcome = "accepted" if accepted else "fallback"
     context = context_builder(position.diagnosis, list(position.evidence), position.fen)
     board = chess.Board(context.fen)
     claims = (
@@ -466,7 +481,8 @@ async def run_one(
         "position_id": position.position_id,
         "code": position.code,
         "run": run_index,
-        "outcome": "accepted" if accepted else "fallback",
+        "outcome": outcome,
+        "pipeline_exception": pipeline_exception,
         "fallback_reason": fallback[0] if fallback else None,
         "provider_error": provider.error,
         "latency_s": provider.latency_s,
@@ -475,7 +491,7 @@ async def run_one(
         else None,
         "prompt_eval_count": body.get("prompt_eval_count"),
         "eval_count": body.get("eval_count"),
-        "explanation_text": explanation.text,
+        "explanation_text": explanation.text if explanation is not None else None,
         "claims": claims,
     }
 
@@ -649,6 +665,8 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "grounding_pass_rate": sum(r["outcome"] == "accepted" for r in runs) / len(runs),
             "grounding_pass_rate_by_code": by_code,
             "provider_error_rate": sum(r["provider_error"] is not None for r in runs) / len(runs),
+            "pipeline_exception_rate": sum(r["outcome"] == "pipeline_exception" for r in runs)
+            / len(runs),
             "fallback_reasons": dict(
                 Counter(r["fallback_reason"] for r in runs if r["fallback_reason"])
             ),
@@ -748,7 +766,8 @@ async def run(
     if sink.exists():
         records = _read(sink)
         header = next(r for r in records if r.get("record") == "header")
-        if header["pipeline"] != identity:
+        pinned = ("pipeline_entry", "grounding_context", "module_file", "module_sha256")
+        if any(header["pipeline"][key] != identity[key] for key in pinned):
             raise RuntimeError(
                 f"Resume refused: pipeline changed since the run started: "
                 f"{header['pipeline']} != {identity}"
