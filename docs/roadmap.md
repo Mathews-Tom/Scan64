@@ -302,7 +302,7 @@ Engine output, diagnosis measurement, file formats, project governance and open 
 
 #### F1 — Engine and evidence contract
 
-- [ ] **F1.1 Swappable engine with full engine output.** Any UCI engine is selected by a TOML profile; every stored line keeps its full PV, cp or mate score, depth, seldepth, nodes and MultiPV index, plus WDL when the engine reports it (the field is absent, never zero, when it does not). *Wave 0 · Size M · In progress on the epic [#371](https://github.com/Mathews-Tom/Scan64/issues/371) branch · issue [#360](https://github.com/Mathews-Tom/Scan64/issues/360)*
+- [ ] **F1.1 Swappable engine with full engine output.** Any UCI engine is selected by a TOML profile; every stored line keeps its full PV, cp or mate score and depth, plus seldepth, nodes, MultiPV index and WDL when the engine reports them (each such field is absent, never zero, when it does not). *Wave 0 · Size M · In progress on the epic [#371](https://github.com/Mathews-Tom/Scan64/issues/371) branch · issue [#360](https://github.com/Mathews-Tom/Scan64/issues/360)*
 - [ ] **F1.2 Line provenance.** Every stored line records its start FEN and search identity; the validator replays each line from its own start, so after-position lines become citable. *Wave 0 · Size M · Needs F1.1*
 - [ ] **F1.3 Expected score as the common unit.** Review, hints, accuracy and reports express loss as expected score rather than raw centipawns: from the engine's WDL when it reports one, otherwise from a documented conversion of the cp or mate score, with the source recorded. *Wave 1 · Size M · Needs F1.1*
 - [ ] **F1.4 Replayable evidence manifest.** `scan64-cli verify` re-runs any stored diagnosis from its recorded engine hash, options and limits, and reports agreement. *Wave 2 · Size M · Needs F1.1*
@@ -354,7 +354,7 @@ Deeper engine analysis, better game review, and more ways to bring games in.
 
 #### A1 — Analysis Board
 
-- [ ] **A1.1 Deep variations and engine detail.** Lines show at full length, with more than three MultiPV lines and depth, nodes and WDL per line. *Wave 0 · Size M · Needs F1.1 · issue [#362](https://github.com/Mathews-Tom/Scan64/issues/362)*
+- [ ] **A1.1 Deep variations and engine detail.** Lines show at full length, with more than three MultiPV lines and depth, nodes and WDL per line where the engine reports them. *Wave 0 · Size M · Needs F1.1 · issue [#362](https://github.com/Mathews-Tom/Scan64/issues/362)*
 - [ ] **A1.2 PGN export with engine variations.** A saved PGN includes engine lines and evaluation annotations. *Wave 0 · Size S · Needs F1.1 · issue [#362](https://github.com/Mathews-Tom/Scan64/issues/362)*
 - [ ] **A1.3 Continuous analysis.** Analysis keeps deepening until paused, inside a visible engine budget. *Wave 1 · Size M · Needs F1.1*
 - [ ] **A1.4 Threat view.** A toggle shows what the opponent threatens if the side to move passes. *Wave 1 · Size S · Ready*
