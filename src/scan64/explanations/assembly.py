@@ -90,7 +90,8 @@ NARRATOR_SYSTEM_PROMPT = (
     "You explain one chess mistake to the learner who made it. The user message is a JSON "
     f"document following the Scan64 schema {SCHEMA_VERSION} "
     "(schemas/narrator-facts.schema.json). The board library and the chess engine computed "
-    "every fact in it. Use only those facts: do not work out moves, captures, checks, "
+    "every fact in it; a field left out has its schema default (no capture, no check, "
+    "no threats). Use only those facts: do not work out moves, captures, checks, "
     "threats, material or evaluations yourself, and state nothing the JSON does not state.\n"
     "- position: the learner is side_to_move; played_move is the mistake; best_move is the "
     "engine's choice; mistake_class names the mistake.\n"
@@ -102,9 +103,11 @@ NARRATOR_SYSTEM_PROMPT = (
     "- Name moves in SAN exactly as given. Name only pieces and squares that appear in the "
     "facts.\n"
     "Answer with claims. Each claim: text (one or two plain sentences), evidence_ref (an "
-    "evidence_id from evidence), line (empty, or a prefix of the uci list of a line whose "
-    'line_id is in that evidence item\'s line_ids), certainty "observed", '
-    "disclosure_level 1."
+    "evidence_id from evidence), line (a JSON list of UCI move strings copied from the start "
+    "of the uci list of a line whose line_id is in that evidence item's line_ids, or []; "
+    'never a line_id), certainty "observed", disclosure_level 1. Name sides as '
+    '"the learner", "the opponent", "White to move" or "White plays ..."; never use a bare '
+    "colour word as an adjective."
 )
 
 
@@ -112,7 +115,7 @@ def _explanation_request(facts: NarratorFacts) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
             LLMMessage(role="system", content=NARRATOR_SYSTEM_PROMPT),
-            LLMMessage(role="user", content=facts.model_dump_json()),
+            LLMMessage(role="user", content=facts.to_prompt_json()),
         )
     )
 

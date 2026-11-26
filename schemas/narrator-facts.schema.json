@@ -48,6 +48,7 @@
           "type": "string"
         },
         "line_ids": {
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -55,6 +56,7 @@
           "type": "array"
         },
         "pieces": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/EvidencePiece"
           },
@@ -62,6 +64,7 @@
           "type": "array"
         },
         "squares": {
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -77,6 +80,7 @@
               "type": "null"
             }
           ],
+          "default": null,
           "title": "Tactic"
         },
         "mate_in": {
@@ -88,6 +92,7 @@
               "type": "null"
             }
           ],
+          "default": null,
           "title": "Mate In"
         },
         "material_gain": {
@@ -99,20 +104,15 @@
               "type": "null"
             }
           ],
-          "description": "Pawn units won by the proving line.",
+          "default": null,
+          "description": "Pawn units won by the line.",
           "title": "Material Gain"
         }
       },
       "required": [
         "evidence_id",
         "kind",
-        "claim",
-        "line_ids",
-        "pieces",
-        "squares",
-        "tactic",
-        "mate_in",
-        "material_gain"
+        "claim"
       ],
       "title": "EvidenceFacts",
       "type": "object"
@@ -293,13 +293,17 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": null,
+          "description": "Absent: no capture."
         },
         "check": {
+          "default": false,
           "title": "Check",
           "type": "boolean"
         },
         "checkmate": {
+          "default": false,
           "title": "Checkmate",
           "type": "boolean"
         },
@@ -320,6 +324,7 @@
               "type": "null"
             }
           ],
+          "default": null,
           "title": "Promotion"
         },
         "castling": {
@@ -335,12 +340,14 @@
               "type": "null"
             }
           ],
+          "default": null,
           "title": "Castling"
         },
         "material_after": {
           "$ref": "#/$defs/Material"
         },
         "new_threats": {
+          "default": [],
           "description": "Opponent-of-mover pieces (not kings) attacked by the mover and not defended after this move that were not attacked-and-undefended before it.",
           "items": {
             "$ref": "#/$defs/PieceOnSquare"
@@ -378,13 +385,7 @@
         "san",
         "uci",
         "piece",
-        "captures",
-        "check",
-        "checkmate",
-        "promotion",
-        "castling",
         "material_after",
-        "new_threats",
         "evaluation_after"
       ],
       "title": "MoveFacts",
@@ -457,7 +458,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": null
         },
         "evaluation_before": {
           "description": "Position before the played move.",
@@ -536,7 +538,8 @@
               "type": "null"
             }
           ],
-          "description": "Best-move evaluation minus played-move evaluation, learner's view; null unless both are centipawn scores.",
+          "default": null,
+          "description": "Best-move evaluation minus played-move evaluation, learner's view; absent unless both are centipawn scores.",
           "title": "Evaluation Difference Cp"
         },
         "swing_cp": {
@@ -548,6 +551,7 @@
               "type": "null"
             }
           ],
+          "default": null,
           "title": "Swing Cp"
         },
         "mistake_class": {
@@ -559,12 +563,9 @@
         "side_to_move",
         "material",
         "played_move",
-        "best_move",
         "evaluation_before",
         "evaluation_after",
         "best_move_evaluation",
-        "evaluation_difference_cp",
-        "swing_cp",
         "mistake_class"
       ],
       "title": "PositionFacts",
@@ -603,6 +604,7 @@
           "type": "array"
         },
         "begins_with_played_move": {
+          "default": false,
           "title": "Begins With Played Move",
           "type": "boolean"
         },
@@ -624,7 +626,8 @@
               "type": "null"
             }
           ],
-          "description": "Plies in the engine line when it was cut to the plies shown; null if uncut.",
+          "default": null,
+          "description": "Plies in the engine line when it was cut to the plies shown; absent if uncut.",
           "title": "Full Plies"
         },
         "moves": {
@@ -639,9 +642,7 @@
       "required": [
         "line_id",
         "origins",
-        "begins_with_played_move",
         "uci",
-        "full_plies",
         "moves"
       ],
       "title": "VerifiedLineFacts",
@@ -659,13 +660,6 @@
     "position": {
       "$ref": "#/$defs/PositionFacts"
     },
-    "lines": {
-      "items": {
-        "$ref": "#/$defs/VerifiedLineFacts"
-      },
-      "title": "Lines",
-      "type": "array"
-    },
     "evidence": {
       "items": {
         "$ref": "#/$defs/EvidenceFacts"
@@ -673,12 +667,19 @@
       "minItems": 1,
       "title": "Evidence",
       "type": "array"
+    },
+    "lines": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/VerifiedLineFacts"
+      },
+      "title": "Lines",
+      "type": "array"
     }
   },
   "required": [
     "schema_version",
     "position",
-    "lines",
     "evidence"
   ],
   "title": "NarratorFacts",

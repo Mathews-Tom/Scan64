@@ -212,6 +212,7 @@ async def test_prompt_is_schema_valid_json_for_every_fixture_diagnosis() -> None
             assert system.content == NARRATOR_SYSTEM_PROMPT
             parsed = NarratorFacts.model_validate_json(user.content, strict=True)
             assert parsed == facts, case_id
+            assert user.content == facts.to_prompt_json()
             assert json.loads(user.content)["schema_version"] == "narrator-facts/1"
             assert parsed.position.mistake_class.code == diagnosis.primary
             assert parsed.position.played_move.san == played

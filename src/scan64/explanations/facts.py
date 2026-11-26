@@ -37,7 +37,7 @@ SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schemas" / "narrator-facts.
 
 # Each verified line is cut deterministically after this many plies; the cut
 # is marked with ``full_plies`` and the validator only accepts the cut line.
-MAX_LINE_PLIES = 12
+MAX_LINE_PLIES = 8
 
 PieceName = Literal["pawn", "knight", "bishop", "rook", "queen", "king"]
 ColourName = Literal["white", "black"]
@@ -102,15 +102,16 @@ class MoveFacts(_Facts):
     san: str
     uci: str = Field(pattern=_UCI_PATTERN)
     piece: PieceName
-    captures: PieceOnSquare | None
-    check: bool
-    checkmate: bool
-    promotion: PieceName | None
-    castling: Literal["kingside", "queenside"] | None
+    captures: PieceOnSquare | None = Field(default=None, description="Absent: no capture.")
+    check: bool = False
+    checkmate: bool = False
+    promotion: PieceName | None = None
+    castling: Literal["kingside", "queenside"] | None = None
     material_after: Material
     new_threats: tuple[PieceOnSquare, ...] = Field(
+        default=(),
         description="Opponent-of-mover pieces (not kings) attacked by the mover and not "
-        "defended after this move that were not attacked-and-undefended before it."
+        "defended after this move that were not attacked-and-undefended before it.",
     )
     evaluation_after: Evaluation
 
@@ -118,12 +119,13 @@ class MoveFacts(_Facts):
 class VerifiedLineFacts(_Facts):
     line_id: str
     origins: tuple[str, ...] = Field(min_length=1, description="Evidence payload fields.")
-    begins_with_played_move: bool
+    begins_with_played_move: bool = False
     uci: tuple[str, ...] = Field(
         min_length=1, description="Cite this sequence, or a prefix of it, as a claim line."
     )
     full_plies: int | None = Field(
-        description="Plies in the engine line when it was cut to the plies shown; null if uncut."
+        default=None,
+        description="Plies in the engine line when it was cut to the plies shown; absent if uncut.",
     )
     moves: tuple[MoveFacts, ...] = Field(min_length=1)
 
@@ -136,12 +138,12 @@ class EvidenceFacts(_Facts):
     evidence_id: str
     kind: str
     claim: str
-    line_ids: tuple[str, ...]
-    pieces: tuple[EvidencePiece, ...]
-    squares: tuple[str, ...]
-    tactic: str | None
-    mate_in: int | None
-    material_gain: int | None = Field(description="Pawn units won by the proving line.")
+    line_ids: tuple[str, ...] = ()
+    pieces: tuple[EvidencePiece, ...] = ()
+    squares: tuple[str, ...] = ()
+    tactic: str | None = None
+    mate_in: int | None = None
+    material_gain: int | None = Field(default=None, description="Pawn units won by the line.")
 
 
 class MistakeClass(_Facts):
@@ -154,15 +156,16 @@ class PositionFacts(_Facts):
     side_to_move: ColourName = Field(description="The learner, who made the mistake.")
     material: Material
     played_move: MoveFacts
-    best_move: MoveFacts | None
+    best_move: MoveFacts | None = None
     evaluation_before: Evaluation = Field(description="Position before the played move.")
     evaluation_after: Evaluation = Field(description="Position after the played move.")
     best_move_evaluation: Evaluation
     evaluation_difference_cp: int | None = Field(
-        description="Best-move evaluation minus played-move evaluation, learner's view; null "
-        "unless both are centipawn scores."
+        default=None,
+        description="Best-move evaluation minus played-move evaluation, learner's view; absent "
+        "unless both are centipawn scores.",
     )
-    swing_cp: int | None
+    swing_cp: int | None = None
     mistake_class: MistakeClass
 
 
@@ -171,8 +174,12 @@ class NarratorFacts(_Facts):
 
     schema_version: Literal["narrator-facts/1"]
     position: PositionFacts
-    lines: tuple[VerifiedLineFacts, ...]
     evidence: tuple[EvidenceFacts, ...] = Field(min_length=1)
+    lines: tuple[VerifiedLineFacts, ...] = ()
+
+    def to_prompt_json(self) -> str:
+        """Compact JSON; fields equal to their schema default are omitted."""
+        return self.model_dump_json(exclude_defaults=True)
 
 
 def narrator_facts_schema() -> dict[str, Any]:
@@ -701,8 +708,8 @@ def build_narrator_facts(
             swing_cp=_optional_int(first.get("swing_cp")),
             mistake_class=_mistake_class(diagnosis.primary),
         ),
-        lines=tuple(lines),
         evidence=tuple(evidence_facts),
+        lines=tuple(lines),
     )
 
 

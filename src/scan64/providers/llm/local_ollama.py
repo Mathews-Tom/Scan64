@@ -5,9 +5,10 @@ configurable through the environment (documented in docs/narrator-pipeline.md):
 
 | Variable | Default | Bound |
 |---|---|---|
-| ``SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`` | 60 | model listing plus chat, one deadline |
+| ``SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`` | 180 | model listing plus chat, one deadline |
 | ``SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES`` | 262144 (256 KiB) | serialised chat request |
 | ``SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES`` | 262144 (256 KiB) | each response body |
+| ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 8192 | ``num_ctx``; a prompt filling it is rejected |
 
 The installation probe (``detect_local_ollama``) sends no evidence and keeps
 its fixed 4 s deadline. An invalid value raises ``LLMConfigurationError``.
@@ -34,9 +35,13 @@ _PROBE_SECONDS = 4.0
 TIMEOUT_ENV = "SCAN64_LOCAL_LLM_TIMEOUT_SECONDS"
 MAX_REQUEST_BYTES_ENV = "SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES"
 MAX_RESPONSE_BYTES_ENV = "SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES"
-DEFAULT_OPERATION_SECONDS = 60.0
+CONTEXT_TOKENS_ENV = "SCAN64_LOCAL_LLM_CONTEXT_TOKENS"
+DEFAULT_OPERATION_SECONDS = 180.0
 DEFAULT_MAX_REQUEST_BYTES = 256 * 1024
 DEFAULT_MAX_RESPONSE_BYTES = 256 * 1024
+DEFAULT_CONTEXT_TOKENS = 8192
+_MIN_CONTEXT_TOKENS = 2048
+_MAX_CONTEXT_TOKENS = 131072
 _MAX_OPERATION_SECONDS = 600.0
 _MIN_BYTES = 1024
 _MAX_BYTES = 16 * 1024 * 1024
@@ -52,6 +57,7 @@ class LocalOllamaLimits:
     operation_seconds: float = DEFAULT_OPERATION_SECONDS
     max_request_bytes: int = DEFAULT_MAX_REQUEST_BYTES
     max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES
+    context_tokens: int = DEFAULT_CONTEXT_TOKENS
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str] | None = None) -> LocalOllamaLimits:
@@ -61,6 +67,13 @@ class LocalOllamaLimits:
             max_request_bytes=_byte_count(values, MAX_REQUEST_BYTES_ENV, DEFAULT_MAX_REQUEST_BYTES),
             max_response_bytes=_byte_count(
                 values, MAX_RESPONSE_BYTES_ENV, DEFAULT_MAX_RESPONSE_BYTES
+            ),
+            context_tokens=_bounded_int(
+                values,
+                CONTEXT_TOKENS_ENV,
+                DEFAULT_CONTEXT_TOKENS,
+                _MIN_CONTEXT_TOKENS,
+                _MAX_CONTEXT_TOKENS,
             ),
         )
 
@@ -79,15 +92,21 @@ def _seconds(values: Mapping[str, str], name: str, default: float) -> float:
 
 
 def _byte_count(values: Mapping[str, str], name: str, default: int) -> int:
+    return _bounded_int(values, name, default, _MIN_BYTES, _MAX_BYTES)
+
+
+def _bounded_int(
+    values: Mapping[str, str], name: str, default: int, minimum: int, maximum: int
+) -> int:
     raw = values.get(name)
     if raw is None:
         return default
     try:
         count = int(raw)
     except ValueError as error:
-        raise LLMConfigurationError(f"{name} must be an integer byte count, got {raw!r}") from error
-    if not _MIN_BYTES <= count <= _MAX_BYTES:
-        raise LLMConfigurationError(f"{name} must be in [{_MIN_BYTES}, {_MAX_BYTES}]")
+        raise LLMConfigurationError(f"{name} must be an integer, got {raw!r}") from error
+    if not minimum <= count <= maximum:
+        raise LLMConfigurationError(f"{name} must be in [{minimum}, {maximum}]")
     return count
 
 
@@ -230,6 +249,7 @@ class LocalOllamaExplanationProvider:
                     base_url=LOCAL_OLLAMA_BASE_URL,
                     model=self._model,
                     client=client,
+                    context_tokens=limits.context_tokens,
                 ).generate(request)
         except (httpx.HTTPError, TimeoutError, ValueError, RecursionError) as error:
             raise LLMProviderError("Local Ollama explanation unavailable") from error
