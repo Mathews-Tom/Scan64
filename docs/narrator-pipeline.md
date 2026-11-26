@@ -1,8 +1,8 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
-The narrator is an optional LLM that words a lesson explanation. The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
+The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
 Paths are relative to the repository root.
 
@@ -111,7 +111,7 @@ Only codes in `TRUSTED_CODES` (`learning/diagnosis/trust.py:12-21`) reach an exp
 
 1. Computes `TemplateExplanationProvider().explain(diagnosis, evidence)` first (`assembly.py:135`).
 2. If `SCAN64_LLM_CONFIG` is unset: uses `local_provider` if given, else returns the template (`assembly.py:139-148`).
-3. If it is set: `LLMProviderConfig.from_toml`. With `provider = "template"`, it returns the template. Otherwise `create_llm_provider` builds an adapter (`assembly.py:150-168`). Operator config overrides the owner grant.
+3. If it is set: `LLMProviderConfig.from_toml`. With `provider = "template"`, it returns the template. Otherwise `create_llm_provider` builds an adapter. Operator config overrides the owner grant. Steps 2 and 3 are `run_with_explanation_provider`, shared with the Analysis Board path (section 12).
 4. `_attempt_grounded_generation` (`assembly.py:99-112`) builds the grounding context and the request, calls `provider.generate`, and validates the result.
 
 `_attempt_grounded_generation` first calls `build_narrator_facts(diagnosis, evidence, fen)` (`explanations/facts.py`). A `NarratorFactsError` (no referenced evidence, unparsable FEN, payload `before_fen` differing from `fen`, referenced items disagreeing on `played_move` or `before_fen`, an illegal played move or stored line, an untaxonomised code) logs a warning and falls back to the template with reason `invalid_evidence`; no provider is called. `fen` is the **before** position in all three callers (`jobs.py`, `analyse.py`, `coach_interruption.py`). `_grounding_context` keeps the referenced evidence, takes the verified lines from the facts (`verified_lines_by_evidence`) and sets `requested_hint_level = 3`.
@@ -237,6 +237,8 @@ Facts added for #367 and the claims they admit:
 
 Verified evaluations for a claim come only from its cited evidence item; another item's scores do not admit it.
 
+Added for #368: the payload field `board_multipv` (Analysis Board lines, replayed from the context FEN, scores admitted like `mate_source_multipv`) and the list field `best_differences_cp` (best-line score minus a compared line's score) are read as evidence. A signed evaluation that ends a sentence (`scored +1.50.`) is now read as an evaluation; before, the full stop after it kept the grammar from matching and the number passed unchecked. The reason `missing_line` is raised by the Analysis Board path, not by `validate_generated_explanation` (section 12).
+
 On success the validator returns `Explanation(text=" ".join(claim.text …), claims=…)`.
 
 `attach_validated_explanation` is a second entry point with an added FEN-match check. None of the three callers uses it.
@@ -260,7 +262,7 @@ Paths that return the template instead of LLM output:
 
 Failures that do **not** fall back. These propagate to the caller: `ExplanationTemplateError` (raised before any LLM call, because the template is computed first) and `LLMConfigurationError` (bad config file, missing API key env var, non-HTTPS URL, invalid `SCAN64_LOCAL_LLM_*` value).
 
-Paths 4 to 5a are logged by `_record_template_fallback` (event `explanation_template_fallback`, the reason code only, never evidence) and counted in-process (`template_fallback_counts()`). The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
+Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_template_fallback`, the reason code only, never evidence) and counted in-process (`template_fallback_counts()`). The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
 
 ## 10. After resolution: storage, API, client
 
@@ -276,7 +278,7 @@ Paths 4 to 5a are logged by `_record_template_fallback` (event `explanation_temp
 | Adapter drops depth, seldepth, nodes, time, WDL, bound flags and the MultiPV index | `adapter.py:103-114`, `pool.py:158-168` | #360 |
 | ~~Claim text is not grounded~~ Resolved: claim-text grammar (section 8) | `validator.py` | #366 |
 | ~~Prompt is a Python-`repr` dump of raw UCI payloads with no SAN, per-move facts or schema~~ Resolved: narrator facts JSON (section 5) | `facts.py`, `assembly.py` | #367 |
-| Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions | the only callers are `jobs.py`, `analyse.py`, `coach_interruption.py` | #368 |
+| ~~Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions~~ Resolved: Analysis Board line explanations (section 12) | `board_lines.py`, `api/analysis_explanation.py` | #368 |
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
 | ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
 | The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error | `create_llm_provider`, `config.py` | — |
@@ -295,5 +297,49 @@ Paths 4 to 5a are logged by `_record_template_fallback` (event `explanation_temp
 6. Budget the prompt: measure the serialised request against `_MAX_REQUEST_BYTES` (128 KiB) and the model context. Set `options.num_ctx` in `OllamaExplanationAdapter`. When a line must be shortened, cut it deterministically at a stated ply and mark the cut in the payload. Review the 4 s local limit for background jobs; the coach keeps 0.25 s.
 7. Ground the claim text (#366) so long lines cannot carry invented prose facts.
 8. Log every fallback with its reason (provider error class, validator message) and record the explanation source on `Explanation`. Nothing measures acceptance rates today.
-9. Expose narration of MultiPV lines on the Analysis Board (#368), with the same validator and template floor.
+9. ~~Expose narration of MultiPV lines on the Analysis Board (#368), with the same validator and template floor.~~ Done (section 12).
 10. Choose the narrator model through the evaluation in #369 before changing the default.
+
+## 12. Analysis Board line explanations (#368)
+
+`POST /v1/analysis/position/explanation` (`api/analysis_explanation.py`) explains the engine lines of any position. No diagnosis or stored evidence is involved.
+
+```mermaid
+flowchart TD
+    REQ["player_id, fen, multipv?, nodes?, depth?"] --> ADM["free_analysis_board + free_analysis_manager<br/>api/insights.py (same checks as /v1/analysis/position)"]
+    ADM --> HINT["EnginePoolManager.analyze_hint(board, nodes, depth)<br/>hint admission, 3 s deadline, hint cache"]
+    HINT --> SL["scored_legal_lines: one score kind, PV legal to its end<br/>first multipv lines (default 3)"]
+    SL --> BF["build_board_lines_facts<br/>board-lines-facts/1"]
+    BF --> TPL["template_board_explanation<br/>validated; a rejection raises"]
+    BF --> RUN["run_with_explanation_provider<br/>operator config, else owner grant"]
+    RUN --> GEN["provider.generate(board_lines_request)"]
+    GEN --> VAL["validate_generated_explanation + claim_line_id"]
+    VAL -->|"accepted"| NAR["source narrator"]
+    VAL -->|"rejected / LLMProviderError"| TPL
+    TPL --> RESP["lines (White view), claims with line_id and cited UCI prefix, facts, source, fallback_reason"]
+    NAR --> RESP
+```
+
+**Search.** The endpoint reuses the free-analysis search: the interactive pool, the hint admission (no queue, 250 ms acquisition, 3 s wall deadline, at least two interactive engines) and the hint cache. With no `nodes` or `depth` the call is `analyze_hint(board)` with the default budget, so the explanation covers the lines `POST /v1/analysis/position` returned for that position, from the same cached search. `nodes` may only lower the hint node budget (`[limits.hint]` or 200 000); `depth` adds a depth limit (1 to 245) while the node and time limits still apply; both are part of the cache key. `multipv` (1 up to the hint MultiPV, default 3) selects how many of the ranked lines are explained; it does not change the search. Out-of-range values return 422 before any search; an ended position returns 409; no usable line evicts the cached search and returns 503.
+
+**Lines.** `scored_legal_lines` keeps a MultiPV entry only if it has exactly one of `score_cp`/`score_mate` and its whole PV replays legally; `/v1/analysis/position` uses the same filter. Lines are not cut: the full principal variation the engine reported is in the facts, the verified lines and the response. In 15 positions searched through the real pool (Stockfish 18, 200 000 nodes), line lengths ranged from 1 to 27 plies; the 12 positions recorded in `tests/fixtures/analysis_board_lines.json` produce prompts of 4.8 to 13.7 KB at MultiPV 3.
+
+**Facts** (`explanations/board_lines.py`, `schemas/board-lines-facts.schema.json`, regenerate with `uv run python -m scan64.explanations.board_lines`):
+
+| Object | Fields |
+|---|---|
+| `position` | `fen`, `side_to_move`, `material`, `evaluation` (line 1's score) |
+| `lines[]` | `line_id` (`line-1` ...), `rank`, `evaluation`, `difference_from_best_cp` (line 1 minus this line, both centipawns), `depth`, `seldepth`, `wdl`, `uci` (full line), `moves[]` (the #367 move facts), `outcome` |
+| `outcome` | `material_change` (pawn units won over the line, `line_material_gain`), `material_at_end`, `checks_by_side_to_move`, `checks_by_opponent`, `ends_in_checkmate`, `ends_in_stalemate`, `first_move_threats` (the first move's `new_threats`) |
+
+Evaluations are the engine's MultiPV scores from the side to move's point of view (source `analysis_board_pass`, added to the narrator-facts `EvaluationSource`). A line's score is the `evaluation_after` of its first move; every later move is `unknown`: no other position was searched. In move facts, `mover: "learner"` is the side to move.
+
+**Grounding.** `board_lines_grounding` builds one `Evidence` per line (`board_multipv` with that line and its score, `best_differences_cp` with its difference to line 1) whose only verified line is the full line, and, with two or more lines, `comparison` holding every line, every score and every difference. The context FEN is the board position, so "you" in the claim grammar is the side to move. After `validate_generated_explanation`, `claim_line_id` links each claim to a line: its `evidence_ref` when that is a line, else the line its cited UCI prefix starts; a claim linked to no line (a `comparison` claim with an empty `line`) is rejected with `missing_line`.
+
+**Template.** `template_board_claims` writes, from the facts only: the side to move and line 1's first move; per line, the line in numbered SAN, its score and depth, the first move's attacks on undefended pieces (up to two), whether it wins or loses material and the material balance at its end, the side to move's checks, and checkmate or stalemate at its end; per line after the first, its difference to line 1, or both scores when a mate is involved. `template_board_explanation` runs these claims through the same validator: the template is grounded by construction, and a rejection is a bug that raises instead of being shown. `tests/unit/test_board_lines.py` validates it for the 12 recorded positions at MultiPV 1 to 4.
+
+**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` plus `BoardLinesFacts.to_prompt_json()` (defaults omitted). The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
+
+**Measured local run.** 2026-11-26, RTX 4080 Laptop GPU, Ollama with `qwen3:8b`, the recorded `start`, `scholar_mate_in_one`, `italian_black` and `promotion` lines (MultiPV 3), one run before and one after the prompt change below: 0 of 8 explanations accepted, 15 to 38 s per request. Rejection reasons: `check_not_supported` and `move_type_not_supported` (a negated fact such as "no checks" or "does not threaten stalemate" is read as a claim), `evaluation_not_supported` (a line's gap to line 1 cited from that line's evidence, which did not hold it; it does now), `malformed_line_move` (SAN in `line`; the prompt now states UCI), `missing_line` (comparison claims without a line) and `unparsed_chess_token` (a bare colour word). One unsupported claim rejects the whole explanation, so with this model the board shows the template. Model choice is evaluated in #369.
+
+**Client.** `AnalysisScreen.tsx` shows **Explain lines** under the engine lines. On success it replaces the shown lines with the explained lines and lists the claims; hovering or focusing a claim highlights the cited prefix of its line (`data-cited`), and selecting it pins the highlight. A response for a position the user has left is dropped.

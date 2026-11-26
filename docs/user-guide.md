@@ -703,6 +703,16 @@ Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variat
 
 **Load FEN** validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select **Retry** manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.
 
+#### Explain the engine lines
+
+Below the engine lines, select **Explain lines** to have the current position's top three engine lines explained. The explanation lists, for each line, its full principal variation, the engine's score for the side to move and the depth it reached, what the line wins or loses in material, its checks, whether it ends in checkmate or stalemate, and what its first move attacks; it then compares each line with line 1 (for example "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move"). The engine and the board library decide every one of these facts. The lines shown are replaced by exactly the lines explained.
+
+Each claim names its line. Hover over or focus a claim to highlight the moves of that line it cites; select the claim to keep the highlight, and select it again to clear it. Moving or selecting another position discards the explanation.
+
+Without a model, Scan64 writes the explanation from a fixed template. If local explanation wording is enabled (see **Optional local explanation wording**) or an operator configured a model, the model words the same facts, and its wording is shown only when every claim passes the same checks as lesson explanations and is linked to a line; otherwise the template is shown. The panel states which wording you see. A model explanation can take tens of seconds; the board stays usable while it runs. The explanation uses the same bounded search as the engine lines, so a busy engine returns an error and **Explain lines** can be selected again.
+
+The API is `POST /v1/analysis/position/explanation` with `player_id`, `fen` and optional `multipv` (1 up to the hint MultiPV, default 3), `nodes` (up to the hint node budget) and `depth`; a larger budget is rejected with 422, an ended position with 409.
+
 ### Move-by-move game review
 
 The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position; **Copy FEN** and **Download PGN** export the selected position or replay. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.
