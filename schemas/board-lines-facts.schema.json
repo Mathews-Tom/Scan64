@@ -1,0 +1,564 @@
+{
+  "$defs": {
+    "BoardLineFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "line_id": {
+          "title": "Line Id",
+          "type": "string"
+        },
+        "rank": {
+          "description": "Engine MultiPV rank, 1 is the engine's first choice.",
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "evaluation": {
+          "description": "Engine score of the line, side to move's view.",
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation"
+        },
+        "difference_from_best_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Best line's score minus this line's, side to move's view; absent unless both are centipawn scores.",
+          "title": "Difference From Best Cp"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Depth"
+        },
+        "seldepth": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seldepth"
+        },
+        "wdl": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Win, draw, loss per mille for the side to move.",
+          "title": "Wdl"
+        },
+        "uci": {
+          "description": "The full engine line. Cite it, or a prefix, as a claim line.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Uci",
+          "type": "array"
+        },
+        "moves": {
+          "items": {
+            "$ref": "#/$defs/MoveFacts"
+          },
+          "minItems": 1,
+          "title": "Moves",
+          "type": "array"
+        },
+        "outcome": {
+          "$ref": "#/$defs/LineOutcome"
+        }
+      },
+      "required": [
+        "line_id",
+        "rank",
+        "evaluation",
+        "uci",
+        "moves",
+        "outcome"
+      ],
+      "title": "BoardLineFacts",
+      "type": "object"
+    },
+    "BoardPositionFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "fen": {
+          "title": "Fen",
+          "type": "string"
+        },
+        "side_to_move": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Side To Move",
+          "type": "string"
+        },
+        "material": {
+          "$ref": "#/$defs/Material"
+        },
+        "evaluation": {
+          "description": "Best line's engine score, side to move's view.",
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation"
+        }
+      },
+      "required": [
+        "fen",
+        "side_to_move",
+        "material",
+        "evaluation"
+      ],
+      "title": "BoardPositionFacts",
+      "type": "object"
+    },
+    "CentipawnEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "centipawns",
+          "title": "Status",
+          "type": "string"
+        },
+        "centipawns": {
+          "description": "Learner's point of view: positive favours the learner.",
+          "title": "Centipawns",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "fast_pass",
+            "reply_pass",
+            "focused_pass",
+            "mate_source_pass",
+            "analysis_board_pass"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "centipawns",
+        "source"
+      ],
+      "title": "CentipawnEvaluation",
+      "type": "object"
+    },
+    "LineOutcome": {
+      "additionalProperties": false,
+      "description": "What the whole line wins, loses or threatens, from python-chess replay.",
+      "properties": {
+        "material_change": {
+          "description": "Pawn units the side to move wins (positive) or loses (negative) over the line: captures and promotions (pawn 1, knight 3, bishop 3, rook 5, queen 9).",
+          "title": "Material Change",
+          "type": "integer"
+        },
+        "material_at_end": {
+          "$ref": "#/$defs/Material"
+        },
+        "checks_by_side_to_move": {
+          "minimum": 0,
+          "title": "Checks By Side To Move",
+          "type": "integer"
+        },
+        "checks_by_opponent": {
+          "minimum": 0,
+          "title": "Checks By Opponent",
+          "type": "integer"
+        },
+        "ends_in_checkmate": {
+          "default": false,
+          "title": "Ends In Checkmate",
+          "type": "boolean"
+        },
+        "ends_in_stalemate": {
+          "default": false,
+          "title": "Ends In Stalemate",
+          "type": "boolean"
+        },
+        "first_move_threats": {
+          "default": [],
+          "description": "new_threats of the line's first move.",
+          "items": {
+            "$ref": "#/$defs/PieceOnSquare"
+          },
+          "title": "First Move Threats",
+          "type": "array"
+        }
+      },
+      "required": [
+        "material_change",
+        "material_at_end",
+        "checks_by_side_to_move",
+        "checks_by_opponent"
+      ],
+      "title": "LineOutcome",
+      "type": "object"
+    },
+    "MateEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "mate",
+          "title": "Status",
+          "type": "string"
+        },
+        "mate_in": {
+          "description": "Full moves to mate. Positive: the learner mates. Negative: the learner is mated.",
+          "title": "Mate In",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "fast_pass",
+            "reply_pass",
+            "focused_pass",
+            "mate_source_pass",
+            "analysis_board_pass"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "mate_in",
+        "source"
+      ],
+      "title": "MateEvaluation",
+      "type": "object"
+    },
+    "Material": {
+      "additionalProperties": false,
+      "description": "Piece values pawn 1, knight 3, bishop 3, rook 5, queen 9; kings excluded.",
+      "properties": {
+        "white": {
+          "minimum": 0,
+          "title": "White",
+          "type": "integer"
+        },
+        "black": {
+          "minimum": 0,
+          "title": "Black",
+          "type": "integer"
+        },
+        "learner_advantage": {
+          "description": "Learner's material minus the opponent's.",
+          "title": "Learner Advantage",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "white",
+        "black",
+        "learner_advantage"
+      ],
+      "title": "Material",
+      "type": "object"
+    },
+    "MoveFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "ply": {
+          "description": "1 is the first move from the position before the mistake.",
+          "minimum": 1,
+          "title": "Ply",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "mover": {
+          "enum": [
+            "learner",
+            "opponent"
+          ],
+          "title": "Mover",
+          "type": "string"
+        },
+        "san": {
+          "title": "San",
+          "type": "string"
+        },
+        "uci": {
+          "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+          "title": "Uci",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "captures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PieceOnSquare"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent: no capture."
+        },
+        "check": {
+          "default": false,
+          "title": "Check",
+          "type": "boolean"
+        },
+        "checkmate": {
+          "default": false,
+          "title": "Checkmate",
+          "type": "boolean"
+        },
+        "promotion": {
+          "anyOf": [
+            {
+              "enum": [
+                "pawn",
+                "knight",
+                "bishop",
+                "rook",
+                "queen",
+                "king"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promotion"
+        },
+        "castling": {
+          "anyOf": [
+            {
+              "enum": [
+                "kingside",
+                "queenside"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Castling"
+        },
+        "material_after": {
+          "$ref": "#/$defs/Material"
+        },
+        "new_threats": {
+          "default": [],
+          "description": "Opponent-of-mover pieces (not kings) attacked by the mover and not defended after this move that were not attacked-and-undefended before it.",
+          "items": {
+            "$ref": "#/$defs/PieceOnSquare"
+          },
+          "title": "New Threats",
+          "type": "array"
+        },
+        "evaluation_after": {
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation After"
+        }
+      },
+      "required": [
+        "ply",
+        "side",
+        "mover",
+        "san",
+        "uci",
+        "piece",
+        "material_after",
+        "evaluation_after"
+      ],
+      "title": "MoveFacts",
+      "type": "object"
+    },
+    "PieceOnSquare": {
+      "additionalProperties": false,
+      "properties": {
+        "square": {
+          "pattern": "^[a-h][1-8]$",
+          "title": "Square",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "colour": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Colour",
+          "type": "string"
+        }
+      },
+      "required": [
+        "square",
+        "piece",
+        "colour"
+      ],
+      "title": "PieceOnSquare",
+      "type": "object"
+    },
+    "UnknownEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "unknown",
+          "description": "No stored engine search scored this position. State no evaluation.",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "UnknownEvaluation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Every chess fact an Analysis Board explanation may state.",
+  "properties": {
+    "schema_version": {
+      "const": "board-lines-facts/1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "position": {
+      "$ref": "#/$defs/BoardPositionFacts"
+    },
+    "lines": {
+      "items": {
+        "$ref": "#/$defs/BoardLineFacts"
+      },
+      "minItems": 1,
+      "title": "Lines",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "position",
+    "lines"
+  ],
+  "title": "BoardLinesFacts",
+  "type": "object",
+  "$id": "https://github.com/Mathews-Tom/Scan64/schemas/board-lines-facts.schema.json"
+}

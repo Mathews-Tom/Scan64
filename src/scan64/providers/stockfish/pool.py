@@ -30,7 +30,9 @@ HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
-HintCacheKey = tuple[str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int]
+HintCacheKey = tuple[
+    str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int, int | None
+]
 
 
 def _positive_int_from_env(env_var: str, default: int) -> int:
@@ -341,29 +343,55 @@ class EnginePoolManager:
             return HINT_NODES, HINT_TIME_MS, HINT_MULTIPV
         return configured.nodes, configured.time_ms, configured.multipv
 
-    def _hint_cache_key(self, board: chess.Board) -> HintCacheKey:
+    def hint_limits(self) -> tuple[int | None, int | None, int]:
+        """The hint budget as ``(nodes, time_ms, multipv)``; requests may only narrow it."""
+        return self._hint_limits()
+
+    def _narrowed_hint_limits(
+        self, nodes: int | None, depth: int | None
+    ) -> tuple[int | None, int | None, int, int | None]:
+        """Effective ``(nodes, time_ms, multipv, depth)``: overrides narrow, never widen."""
+        budget_nodes, time_ms, multipv = self._hint_limits()
+        if nodes is not None:
+            if nodes < 1:
+                raise ValueError("Hint node budget must be positive")
+            if budget_nodes is not None and nodes > budget_nodes:
+                raise ValueError(f"Hint node budget exceeds the {budget_nodes}-node limit")
+        if depth is not None and depth < 1:
+            raise ValueError("Hint depth must be positive")
+        return (nodes if nodes is not None else budget_nodes), time_ms, multipv, depth
+
+    def _hint_cache_key(
+        self, board: chess.Board, nodes: int | None = None, depth: int | None = None
+    ) -> HintCacheKey:
         return (
             board.root().fen(en_passant="fen"),
             tuple(move.uci() for move in board.move_stack),
             board.chess960,
             self.config.fingerprint(),
-            *self._hint_limits(),
+            *self._narrowed_hint_limits(nodes, depth),
         )
 
-    def invalidate_hint(self, board: chess.Board) -> None:
+    def invalidate_hint(
+        self, board: chess.Board, *, nodes: int | None = None, depth: int | None = None
+    ) -> None:
         """Discard rejected output for this exact replay, not just its final FEN."""
-        self._hint_cache.pop(self._hint_cache_key(board), None)
+        self._hint_cache.pop(self._hint_cache_key(board, nodes, depth), None)
 
-    async def analyze_hint(self, board: chess.Board) -> EngineAnalysis:
+    async def analyze_hint(
+        self, board: chess.Board, *, nodes: int | None = None, depth: int | None = None
+    ) -> EngineAnalysis:
         """Admit one hint, leaving an interactive slot for opponent moves.
 
         No hint queue: reject concurrent hints or a single-engine deployment.
         Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,
         with a three-second wall deadline (including lazy engine startup).
         Replay history reaches the UCI position command and is part of cache identity.
+        ``nodes`` and ``depth`` narrow the hint budget (``ValueError`` if ``nodes``
+        exceeds it); the time limit and the deadline still apply.
         """
         board = board.copy()
-        key = self._hint_cache_key(board)
+        key = self._hint_cache_key(board, nodes, depth)
         cached = self._hint_cache.get(key)
         if cached is not None:
             self._hint_cache.move_to_end(key)
@@ -378,10 +406,22 @@ class EnginePoolManager:
                 async with asyncio.timeout(0.25):
                     adapter = await lease.__aenter__()
                 try:
-                    nodes, time_ms, multipv = self._hint_limits()
-                    analysis = await adapter.analyze_position(
-                        board, nodes=nodes, time_ms=time_ms, multipv=multipv
+                    search_nodes, time_ms, multipv, search_depth = self._narrowed_hint_limits(
+                        nodes, depth
                     )
+                    # Depth is sent only when requested: the default hint search is unchanged.
+                    if search_depth is None:
+                        analysis = await adapter.analyze_position(
+                            board, nodes=search_nodes, time_ms=time_ms, multipv=multipv
+                        )
+                    else:
+                        analysis = await adapter.analyze_position(
+                            board,
+                            nodes=search_nodes,
+                            depth=search_depth,
+                            time_ms=time_ms,
+                            multipv=multipv,
+                        )
                     self._hint_cache[key] = analysis.model_copy(deep=True)
                     if len(self._hint_cache) > HINT_CACHE_SIZE:
                         self._hint_cache.popitem(last=False)

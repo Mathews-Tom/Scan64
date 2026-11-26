@@ -41,7 +41,9 @@ MAX_LINE_PLIES = 8
 
 PieceName = Literal["pawn", "knight", "bishop", "rook", "queen", "king"]
 ColourName = Literal["white", "black"]
-EvaluationSource = Literal["fast_pass", "reply_pass", "focused_pass", "mate_source_pass"]
+EvaluationSource = Literal[
+    "fast_pass", "reply_pass", "focused_pass", "mate_source_pass", "analysis_board_pass"
+]
 _SQUARE_PATTERN = r"^[a-h][1-8]$"
 _UCI_PATTERN = r"^[a-h][1-8][a-h][1-8][qrbn]?$"
 

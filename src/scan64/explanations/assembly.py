@@ -18,7 +18,7 @@ import logging
 import os
 import threading
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -53,7 +53,8 @@ _template_fallbacks: Counter[str] = Counter()
 _template_fallbacks_lock = threading.Lock()
 
 
-def _record_template_fallback(reason: TemplateFallbackReason) -> None:
+def record_template_fallback(reason: TemplateFallbackReason) -> None:
+    """Count and log one template fallback by reason code (never evidence)."""
     with _template_fallbacks_lock:
         _template_fallbacks[reason] += 1
     logger.info(
@@ -131,7 +132,7 @@ async def _attempt_grounded_generation(
         facts = build_narrator_facts(diagnosis, evidence, fen)
     except NarratorFactsError as error:
         logger.warning("Narrator facts unavailable: %s", error)
-        _record_template_fallback("invalid_evidence")
+        record_template_fallback("invalid_evidence")
         return template_explanation
     context = _grounding_context(facts, evidence, fen)
     request = _explanation_request(facts)
@@ -139,11 +140,49 @@ async def _attempt_grounded_generation(
         generated = await provider.generate(request)
         return validate_generated_explanation(generated, context)
     except GroundedExplanationValidationError as error:
-        _record_template_fallback(error.reason)
+        record_template_fallback(error.reason)
         return template_explanation
     except LLMProviderError:
-        _record_template_fallback("provider_error")
+        record_template_fallback("provider_error")
         return template_explanation
+
+
+async def run_with_explanation_provider[T](
+    template_result: T,
+    attempt: Callable[[LLMExplanationProvider], Awaitable[T]],
+    *,
+    local_provider: LLMExplanationProvider | None,
+    environment: Mapping[str, str] | None,
+    client: httpx.AsyncClient | None,
+) -> T:
+    """Run ``attempt`` with the configured provider, else return ``template_result``.
+
+    Explicit operator configuration (``SCAN64_LLM_CONFIG``) takes precedence over
+    the owner's installation-local model; with neither, or a ``template``
+    operator config, the template result is returned without any provider call.
+    """
+    environment_values = os.environ if environment is None else environment
+    raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
+    if raw_path is None:
+        if local_provider is not None:
+            return await attempt(local_provider)
+        return template_result
+
+    config = LLMProviderConfig.from_toml(Path(raw_path))
+    if config.provider == "template":
+        return template_result
+
+    if client is not None:
+        provider = create_llm_provider(config, client=client, environment=environment_values)
+        if provider is None:
+            return template_result
+        return await attempt(provider)
+
+    async with httpx.AsyncClient() as owned_client:
+        provider = create_llm_provider(config, client=owned_client, environment=environment_values)
+        if provider is None:
+            return template_result
+        return await attempt(provider)
 
 
 async def resolve_explanation(
@@ -168,35 +207,15 @@ async def resolve_explanation(
     """
     template_explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
 
-    environment_values = os.environ if environment is None else environment
-    raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
-    if raw_path is None:
-        if local_provider is not None:
-            return await _attempt_grounded_generation(
-                local_provider,
-                diagnosis,
-                evidence,
-                fen,
-                template_explanation,
-            )
-        return template_explanation
-
-    config = LLMProviderConfig.from_toml(Path(raw_path))
-    if config.provider == "template":
-        return template_explanation
-
-    if client is not None:
-        provider = create_llm_provider(config, client=client, environment=environment_values)
-        if provider is None:
-            return template_explanation
+    async def attempt(provider: LLMExplanationProvider) -> Explanation:
         return await _attempt_grounded_generation(
             provider, diagnosis, evidence, fen, template_explanation
         )
 
-    async with httpx.AsyncClient() as owned_client:
-        provider = create_llm_provider(config, client=owned_client, environment=environment_values)
-        if provider is None:
-            return template_explanation
-        return await _attempt_grounded_generation(
-            provider, diagnosis, evidence, fen, template_explanation
-        )
+    return await run_with_explanation_provider(
+        template_explanation,
+        attempt,
+        local_provider=local_provider,
+        environment=environment,
+        client=client,
+    )
