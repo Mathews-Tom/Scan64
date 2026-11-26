@@ -23,13 +23,14 @@ from scan64.chess.boards import board_from
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.evidence.motifs import CAPABILITIES, motif_payloads
 
-_PIECE_VALUES = {
+PIECE_VALUES: Mapping[int, int] = {
     PAWN: 1,
     KNIGHT: 3,
     BISHOP: 3,
     ROOK: 5,
     QUEEN: 9,
 }
+_PIECE_VALUES = PIECE_VALUES
 
 DIAGNOSIS_RULE_VERSION = "m48-fast-local-v1"
 
@@ -51,6 +52,14 @@ def _legal_pv_move(board: Board, analysis: EngineAnalysis) -> Move | None:
     except ValueError:
         return None
     return move if move in board.legal_moves else None
+
+
+def _top_score(analysis: EngineAnalysis, key: Literal["score_cp", "score_mate"]) -> int | None:
+    """Best line's score from the searched position's side to move, if reported."""
+    if not analysis.raw_result:
+        return None
+    value = analysis.raw_result[0].get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _pv_line(analysis: EngineAnalysis) -> list[str]:
@@ -364,6 +373,10 @@ def compose_candidate_evidence(
         "source_score_mate": fast_analysis.raw_result[0].get("score_mate")
         if fast_analysis.raw_result
         else None,
+        "fast_score_cp": _top_score(fast_analysis, "score_cp"),
+        "fast_score_mate": _top_score(fast_analysis, "score_mate"),
+        "reply_score_cp": _top_score(reply_analysis, "score_cp"),
+        "reply_score_mate": _top_score(reply_analysis, "score_mate"),
         "focused_analysis_id": str(focused_analysis.id),
         "focused_multipv": focused_analysis.raw_result,
         "focused_line": focused_line,

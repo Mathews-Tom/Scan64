@@ -1,10 +1,10 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes the code at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`). It describes current behaviour only. Issue #361.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation. The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
-Paths are relative to the repository root. `file:line` references are line numbers at the commit above.
+Paths are relative to the repository root.
 
 ## 1. Flow overview
 
@@ -23,8 +23,10 @@ flowchart TD
     DG --> RE["resolve_explanation<br/>explanations/assembly.py"]
     CE --> RE
     RE --> TP["TemplateExplanationProvider.explain<br/>always computed first"]
-    RE -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter / HostedExplanationAdapter"]
-    RE -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, 4 s, 128 KiB / 256 KiB"]
+    RE --> NF["build_narrator_facts<br/>explanations/facts.py<br/>JSON, schemas/narrator-facts.schema.json"]
+    NF -->|"NarratorFactsError"| TP
+    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter / HostedExplanationAdapter"]
+    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 8192"]
     GR["OwnerExplanationSettings<br/>explanations/settings.py<br/>api/explanation_settings.py"] --> LO
     OP --> VA["validate_generated_explanation<br/>explanations/validator.py"]
     LO --> VA
@@ -81,10 +83,12 @@ The lesson source search `analyze_lesson_source` (`learning/exercises/sound_move
 | `source_score_mate` | `score_mate` of `fast_analysis.raw_result[0]` | before |
 | `focused_multipv` | the whole `focused_analysis.raw_result` list: every MultiPV entry with full `pv` and `score_cp`/`score_mate` | after |
 | `focused_line` | full `pv` of `focused_analysis.raw_result[0]` only | after |
+| `fast_score_cp` / `fast_score_mate` | best-line score of `fast_analysis` (side to move = learner); `None` when not reported | before |
+| `reply_score_cp` / `reply_score_mate` | best-line score of `reply_analysis` (side to move = opponent); `None` when not reported | after |
 | `swing_cp`, `analysis_depth`, `before_fen`, `after_fen`, `played_move` (SAN) | scalars | — |
 | `fast_analysis_id`, `reply_analysis_id`, `focused_analysis_id`, `diagnosis_rule_version`, `diagnosis_capabilities` | identifiers | — |
 
-Not in provenance: the fast-pass `score_cp` of the before or after position. Only `source_score_mate` is included. Scores reach the payload only through `focused_multipv` (after-position) and the allowed-mate fields.
+The fast and reply scores were added for #367. Evidence rows stored earlier lack the four score keys; the narrator facts mark those evaluations `unknown`.
 
 Per-kind additions (all at `composer.py`):
 
@@ -110,17 +114,33 @@ Only codes in `TRUSTED_CODES` (`learning/diagnosis/trust.py:12-21`) reach an exp
 3. If it is set: `LLMProviderConfig.from_toml`. With `provider = "template"`, it returns the template. Otherwise `create_llm_provider` builds an adapter (`assembly.py:150-168`). Operator config overrides the owner grant.
 4. `_attempt_grounded_generation` (`assembly.py:99-112`) builds the grounding context and the request, calls `provider.generate`, and validates the result.
 
-`_grounding_context` (`assembly.py:62-71`) keeps only the evidence items whose `evidence_id` is in `diagnosis.evidence_refs`. It uses `fen` = the caller's FEN. All three callers pass the **before** position (`jobs.py:336`, `analyse.py:153`, `coach_interruption.py:184`). It sets `requested_hint_level = 3` (`_FULL_DISCLOSURE_HINT_LEVEL`).
+`_attempt_grounded_generation` first calls `build_narrator_facts(diagnosis, evidence, fen)` (`explanations/facts.py`). A `NarratorFactsError` (no referenced evidence, unparsable FEN, payload `before_fen` differing from `fen`, referenced items disagreeing on `played_move` or `before_fen`, an illegal played move or stored line, an untaxonomised code) logs a warning and falls back to the template with reason `invalid_evidence`; no provider is called. `fen` is the **before** position in all three callers (`jobs.py`, `analyse.py`, `coach_interruption.py`). `_grounding_context` keeps the referenced evidence, takes the verified lines from the facts (`verified_lines_by_evidence`) and sets `requested_hint_level = 3`.
 
-`_explanation_request` (`assembly.py:74-96`) produces two messages:
+`_explanation_request` produces two messages:
 
-- `system`: fixed instructions. Cite an `evidence_id`, name only squares, pieces and moves in the payload, cite only verified lines, invent nothing.
-- `user`: `"Verified evidence:\n"` plus one line per referenced evidence item:
-  `- evidence_id='…' kind='…' claim='…' payload={…}`
+- `system`: `NARRATOR_SYSTEM_PROMPT`. It names the schema, states that the board library and the engine computed every fact, forbids working out moves, captures, checks, threats, material or evaluations, forbids stating an `unknown` evaluation, explains the learner's point of view and the line coordinates, asks for claims citing an `evidence_id` and, optionally, a prefix of a listed line's `uci` (never a `line_id`), and asks the model to name sides without a bare colour adjective, which the claim grammar rejects.
+- `user`: the `NarratorFacts` document as compact JSON (`NarratorFacts.to_prompt_json`, fields equal to their schema default omitted).
 
-Serialisation: f-string `!r`, the Python `repr` of `str` and `dict`. This is not JSON: single quotes, `None`, `True`/`False`. Moves are UCI strings. There is no SAN and no stated schema. The payload is sent whole, including `focused_multipv`, `mate_source_multipv` and `mate_source_config`.
+### Narrator facts (`schemas/narrator-facts.schema.json`, `narrator-facts/1`)
 
-Not in the prompt: the diagnosis code (`diagnosis.primary`) and confidence, the `fen` argument (the payload's `before_fen`/`after_fen` are present), `position_id`, `engine_analysis_id` and `producer` of each evidence item, unreferenced evidence items, the lesson's accepted moves, and the lesson source analysis (MultiPV 2/4/8).
+The schema is generated from the pydantic models in `explanations/facts.py` (`uv run python -m scan64.explanations.facts`); `tests/unit/test_narrator_facts.py` fails when the stored file is stale and parses every prompt built from the fixture corpus with `NarratorFacts.model_validate_json(..., strict=True)`.
+
+| Object | Fields | Computed by |
+|---|---|---|
+| `position` | `fen`, `side_to_move` (the learner), `material`, `played_move` and `best_move` (move facts), `evaluation_before`, `evaluation_after` (after the played move), `best_move_evaluation`, `evaluation_difference_cp` (best minus played, both centipawn scores only), `swing_cp`, `mistake_class` (`code` = `diagnosis.primary`, `name` from the taxonomy seeds) | python-chess; evaluations from stored searches |
+| `evidence[]` | `evidence_id`, `kind`, `claim`, `line_ids`, `pieces` (square, piece, colour, payload role), `squares`, `tactic`, `mate_in`, `material_gain` | payload fields |
+| `lines[]` | `line_id`, `origins` (payload fields), `begins_with_played_move`, `uci` (citable), `full_plies` (set when cut), `moves[]` | python-chess replay |
+| move facts | `ply`, `side`, `mover` (`learner`/`opponent`), `san`, `uci`, `piece`, `captures` (piece, colour, square; en passant names the captured pawn's square), `check`, `checkmate`, `promotion`, `castling`, `material_after` (white, black, learner advantage; pawn 1, knight 3, bishop 3, rook 5, queen 9), `new_threats`, `evaluation_after` | python-chess; evaluation from stored searches |
+
+`new_threats` lists the opponent-of-mover pieces, kings excluded, that are attacked by the mover and not defended after the move and were not attacked-and-undefended before it.
+
+**Line coordinates.** Every line starts at the position before the learner's move. Lines searched from the position after it (`focused_line`, every `focused_multipv` entry, `proving_line`, `threat_move`, `incoming_threat`, and `mating_line` for an allowed mate) are prefixed with the learner's move. `fast_line`, `best_move`, `pinning_move`, every `mate_source_multipv` entry and a back-rank motif's `mating_line` start at the before-position as stored. Identical lines are merged (`origins` lists every source field); a line that is a prefix of another is merged into the longer one. Each line is cut after `MAX_LINE_PLIES = 8` plies and `full_plies` records the engine line's length. The validator accepts the cut lines only.
+
+**Evaluations.** No engine search runs in the explanation path. `StoredEvaluations.from_payload` maps positions to scores already in the payload: the fast score to the position after `fast_line[0]` and to `evaluation_before`; the reply score to the position after the played move (`evaluation_after`); each `focused_multipv` entry to the position after the played move and that entry's first move; each `mate_source_multipv` entry to the position after its first move. The deeper searches (focused, mate source; 1 000 000 nodes) overwrite the fast or reply score (10 000 nodes) for the same position. Every other move's `evaluation_after` is `{"status": "unknown"}`. Scores are converted to the learner's point of view; mates are `mate_in` full moves, negative when the learner is mated. `source` names the search.
+
+Not in the prompt: the diagnosis confidence, `position_id`, `engine_analysis_id` and `producer` of each evidence item, unreferenced evidence, engine identities and configs, analysis IDs, the lesson's accepted moves and the lesson source analysis (MultiPV 2/4/8).
+
+Measured prompt sizes on real Stockfish evidence are in section 6.
 
 ### Where variations are cut
 
@@ -129,35 +149,56 @@ Not in the prompt: the diagnosis code (`diagnosis.primary`) and confidence, the 
 | Adapter | all info fields except `pv` and score | `adapter.py:103-114`, `pool.py:158-168` |
 | Fast pass | MultiPV 1, 10 000 nodes | `jobs.py:135-141`, `analyse.py:48`, `coach_interruption.py:205-210` |
 | Focused pass | MultiPV 4 (jobs, CLI). Coach: MultiPV 1, 10 000 nodes, the fast reply reused | `jobs.py:152-155`, `analyse.py:84`, `coach_interruption.py:250` |
-| Prompt | all `focused_multipv` lines included at full length; lesson source analysis excluded | `composer.py:368`, `assembly.py:75-79` |
-| Verified lines | only `focused_line` (MultiPV line 1) plus the single-move fields `best_move`, `threat_move`, `pinning_move`, `incoming_threat` | `_verified_lines_for`, `assembly.py:40-59` |
-| Validator replay origin | every verified line is replayed from the **before** FEN | `_validate_line`, `validator.py:110-137` |
-| Local Ollama request | serialised request body > 128 KiB raises `LLMProviderError` | `_MAX_REQUEST_BYTES`, `local_ollama.py:17,43` |
-| Local Ollama response | body > 256 KiB raises `LLMProviderError` | `_MAX_RESPONSE_BYTES`, `local_ollama.py:18,56-74` |
-| Local Ollama time | 4 s for model listing plus chat, one `asyncio.timeout` | `_OPERATION_SECONDS`, `local_ollama.py:16,140` |
+| Prompt and verified lines | every stored line of the referenced evidence (section 5), each cut after 8 plies with `full_plies` recorded; lesson source analysis excluded | `MAX_LINE_PLIES`, `verified_lines` in `facts.py` |
+| Validator replay origin | every verified line is replayed from the **before** FEN; after-position lines carry the played move as their first move | `_validate_line`, `validator.py` |
+| Local Ollama request | serialised request body > `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
+| Local Ollama response | body > `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
+| Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s) for model listing plus chat, one `asyncio.timeout`; the evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
 | Coach | 0.25 s for consent read plus generation | `coach_interruption.py:39,139` |
-| Ollama context | the request sets no `options` (no `num_ctx`), so the server's default context length applies | `OllamaExplanationAdapter.generate`, `adapters.py:87-107` |
+| Ollama context | local provider sends `options.num_ctx` = `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` (default 8192); a response whose `prompt_eval_count` reaches it raises `LLMProviderError` (Ollama drops the start of a longer prompt). The operator-configured Ollama adapter sends no `options`, so the server default (4096 tokens on Ollama 0.17.5) applies | `OllamaExplanationAdapter.generate`, `adapters.py` |
 
-Consequence of the replay origin, checked with a direct call to `validate_generated_explanation`: `focused_line`, `threat_move` and `incoming_threat` start from the after-position, where the opponent is to move. Each begins with an opponent move. From the before FEN that move is illegal (`"Explanation claim contains illegal move"`). Only `best_move` and `pinning_move` (both `fast_line[0]`) can pass a non-empty `line`. Per trusted code:
-
-| Code | Verified lines that pass the replay |
-|---|---|
-| `threat_processing.missed_check`, `threat_processing.missed_capture`, `tactics.fork.knight` | the single move `best_move` |
-| `board_awareness.hanging_piece`, `threat_processing.missed_direct_threat`, `threat_processing.allowed_mate` | none; only claims with an empty `line` pass |
-
-`mating_line`, `proving_line`, `fast_line` beyond its first move, and `focused_multipv` lines 2 to 4 are never verified lines. The LLM sees them in the payload but cannot cite them.
+Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_threat`) were replayed from the before FEN, began with an opponent move and were always rejected as illegal. They are now prefixed with the played move, so every trusted code can cite its continuation, for example `["g1f3", "g5g2"]` (the learner's Nf3, then the reply Qxg2). A line from the after-position without the played move is still rejected (`illegal_line_move`).
 
 ## 6. Providers (`src/scan64/providers/llm/`)
 
 | Provider | Transport | Output contract | Reference |
 |---|---|---|---|
-| `OllamaExplanationAdapter` | `POST {base_url}/api/chat`, `stream: false`, `format` = `GeneratedExplanation` JSON schema | `message.content` parsed by `GeneratedExplanation.model_validate_json` | `adapters.py:79-107` |
+| `OllamaExplanationAdapter` | `POST {base_url}/api/chat`, `stream: false`, `format` = `GeneratedExplanation` JSON schema; with `context_tokens`, also `options.num_ctx` | `message.content` parsed by `GeneratedExplanation.model_validate_json`; with `context_tokens`, `prompt_eval_count >= context_tokens` raises `LLMProviderError` (truncated prompt) | `adapters.py` |
 | `HostedExplanationAdapter` | `POST {base_url}/v1/chat/completions`, bearer key from `llm.api_key_environment`, one forced strict function `submit_grounded_explanation` | `tool_calls[0].function.arguments` parsed the same way; `_strict_schema` marks every property required and removes defaults | `adapters.py:110-172` |
-| `LocalOllamaExplanationProvider` | fixed `LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"`; `_BoundedTransport` (no proxy env, no retries, no redirects, identity encoding only) | lists `/api/tags`, requires the granted model to be installed and not a `*cloud` name or remote entry (`_permitted_name`, `_models`), rechecks consent in a request hook (`_authorize_dispatch`), then delegates to `OllamaExplanationAdapter` | `local_ollama.py:24-150` |
+| `LocalOllamaExplanationProvider` | fixed `LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"`; `_BoundedTransport` (no proxy env, no retries, no redirects, identity encoding only) | lists `/api/tags`, requires the granted model to be installed and not a `*cloud` name or remote entry (`_permitted_name`, `_models`), rechecks consent in a request hook (`_authorize_dispatch`), then delegates to `OllamaExplanationAdapter` with `context_tokens` | `local_ollama.py` |
 
 `GeneratedExplanation` (`contracts.py:18-23`) is `claims: tuple[ExplanationClaim, ...]` with at least one claim. `ExplanationClaim` (`packages/chess-lesson-spec/src/chess_lesson_spec/claims.py:8-17`) has `text`, `evidence_ref`, `line` (UCI tuple, default empty), `certainty` (default `observed`) and `disclosure_level` (≥ 1).
 
 `LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py:31-109`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`).
+
+### Local Ollama limits
+
+`LocalOllamaLimits.from_environment` (`local_ollama.py`) reads the bounds of one local explanation when `generate` runs. An invalid value raises `LLMConfigurationError`, which is not converted to a template fallback.
+
+| Variable | Default | Accepted | Bounds |
+|---|---|---|---|
+| `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | (0, 600] | model listing plus chat, one `asyncio.timeout` and the httpx timeout |
+| `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | serialised chat request, checked before any network I/O |
+| `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | each response body, checked while streaming |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `8192` | [2048, 131072] | `options.num_ctx`; a prompt that fills it is rejected |
+
+The settings probe (`detect_local_ollama`) sends no evidence and keeps a fixed 4 s deadline. The coach path keeps its 0.25 s budget (`coach_interruption.py`), so local narration of a coach interruption only succeeds with a model that answers within it.
+
+### Measured local run
+
+Measured on 2026-11-26: RTX 4080 Laptop GPU (12 GB), Ollama 0.17.5 (the user's installed app), `qwen3:8b` Q4_K_M (8.2 B parameters), Stockfish 18 evidence (fast and reply 10 000 nodes, focused 1 000 000 nodes MultiPV 4, mate source when the reply is a mate) for four positions: 3.Nf3 missing 3.Bxg5 (missed capture), 3...Nd4 allowing Qxf7# (missed direct threat, allowed mate), and O-O leaving Nb5 and missing Nxc7+ (hanging piece, missed check, missed capture, missed direct threat, knight fork). Eight diagnoses, two runs each. Another client shared the same Ollama server during the run, so wall time includes queueing behind its requests; Ollama's `total_duration` is the server time of one request.
+
+| Quantity | Before (#361 limits, server default context) | After (this change) |
+|---|---|---|
+| Prompt, serialised request | 19–33 KB (12-ply lines, all fields) | 11.7–18.0 KB (8-ply lines, defaults omitted) |
+| Prompt tokens (`prompt_eval_count`) | 4096 in every request: the 4096-token default context truncated every prompt | 3509–7355 with `num_ctx` 8192 |
+| Output tokens | 1043–1226 | 161–427 |
+| Ollama `total_duration` per request, model loaded | 20 s | 11.5–51.5 s |
+| Cold model load (`load_duration`), GPU shared | 97 s | 81 s (first request of an earlier run) |
+| Wall time per explanation | 34–92 s | 10.0–57.6 s |
+| Outcome | 0/6 accepted (invented evidence IDs; invalid output schema) | 10/16 accepted; rejected: 4 bare colour word (`unparsed_chess_token`), 2 evaluation not in the facts (`9 points` for a nine-point material gain, `3 pawns`) |
+
+A run between these two, with the current prompt before it stated that `line` holds UCI moves, accepted 10/18; five rejections were line IDs (`L1`) placed in `line`. The default deadline of 180 s covers the observed cold load (81 s) plus the slowest request (51.5 s) with margin; the previous 4 s deadline could not complete one request. Accepted claims passed the grammar in section 8; the grammar does not check relations between facts (for example which piece a capture removes), and some accepted sentences in this run state such relations wrongly. Model choice and accuracy rates are measured in #369, not here.
 
 ## 7. Owner grant (local Ollama)
 
@@ -172,22 +213,33 @@ Consequence of the replay origin, checked with a direct call to `validate_genera
 
 ## 8. Validator (`src/scan64/explanations/validator.py`)
 
-`validate_generated_explanation` (`validator.py:33-55`) raises `GroundedExplanationValidationError` on the first failure:
+`validate_generated_explanation` raises `GroundedExplanationValidationError` with a `reason` code (`REJECTION_REASONS`) on the first failure:
 
 1. `requested_hint_level < 1`.
 2. The context FEN does not parse.
-3. Duplicate evidence IDs in the context (`_evidence_ids`).
-4. Per claim (`_validate_claim`, `validator.py:83-107`):
+3. Duplicate evidence IDs in the context.
+4. Per claim (`_validate_claim`):
    - `evidence_ref` is blank or not among the referenced evidence IDs;
    - `certainty` ranks above `maximum_certainty`. The default is `observed` and `resolve_explanation` does not override it, so `likely` and `certain` are always rejected;
    - `disclosure_level` > `requested_hint_level` (3);
-   - `line` non-empty and (`_validate_line`): any move is malformed UCI, or illegal when replayed from the context FEN, or the line is not a prefix (`_is_prefix`) of a verified line for that `evidence_ref`.
+   - `line` non-empty and (`_validate_line`): any move is malformed UCI, or illegal when replayed from the context FEN, or the line is not a prefix of a verified line for that `evidence_ref` (the narrator-facts lines, section 5);
+   - `text` (`_validate_claim_text`, #366): a fixed grammar reads SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns, mate-in-N, material won or lost, check, side to move, castling, promotion, en passant and named tactics, and checks each against the cited evidence item, its payload and every board its lines reach. A chess token outside the grammar rejects the claim (`unparsed_chess_token`).
 
-On success it returns `Explanation(text=" ".join(claim.text …), claims=…)`.
+Facts added for #367 and the claims they admit:
 
-Not checked: the claim `text`. Pieces, squares, moves, evaluations and material named in prose are not compared with the evidence or the board. The system prompt asks for this, but nothing enforces it. Issue #366 tracks this check.
+| Claim form | Accepted when | Rejection reason |
+|---|---|---|
+| an evaluation (`8.5 pawns`, `-0.4`, `850 cp`) | within 25 cp (`EVALUATION_TOLERANCE_CP`) of a payload score, a stored evaluation of the narrator facts (`StoredEvaluations.numbers`: before, after the played move, after each scored move) or the best-minus-played difference | `evaluation_not_supported` |
+| mate in N | N equals a payload or stored mate distance, or a verified line ends in mate after N moves | `mate_not_supported` |
+| material balance: `White is up a knight`, `you are down 2 pawns`, `your opponent is behind in material`, `material is equal` | some board of the cited evidence (before, after, or any position of its lines) has exactly that learner-or-side advantage in pawn units (pawn 1, knight 3, bishop 3, rook 5, queen 9, exchange 2), the sign for `ahead/behind in material`, or zero for `equal` | `material_not_supported` |
+| attack or threat on a piece: `Qxg2 attacks the rook on h1`, `threatens the undefended knight` | some board of the cited evidence has a piece of that type (and colour and square, when named) attacked by the other side; with `undefended`, also not defended | `threat_not_supported` |
+| `hangs`, `hanging`, `undefended`, `en prise` | a line proves a material gain, or some board has a non-king piece attacked and not defended | `material_not_supported` |
 
-`attach_validated_explanation` (`validator.py:58-71`) is a second entry point with an added FEN-match check. None of the three callers uses it.
+Verified evaluations for a claim come only from its cited evidence item; another item's scores do not admit it.
+
+On success the validator returns `Explanation(text=" ".join(claim.text …), claims=…)`.
+
+`attach_validated_explanation` is a second entry point with an added FEN-match check. None of the three callers uses it.
 
 ## 9. Template fallback
 
@@ -200,14 +252,15 @@ Paths that return the template instead of LLM output:
 | 1 | `SCAN64_LLM_CONFIG` unset and no `local_provider` (no grant, generation mismatch, operator mode, or CLI) | `assembly.py:139-148`, `settings.py:72-73,85-90` |
 | 2 | `[llm] provider = "template"` | `assembly.py:151-152` |
 | 3 | `create_llm_provider` returns `None` (template config only) | `assembly.py:156-157,164-165` |
-| 4 | `LLMProviderError` from `generate`: HTTP error or non-2xx, invalid JSON, wrong shape, schema mismatch, no choices or tool call, wrong function name; local: model not installed or not permitted, consent changed before dispatch, request > 128 KiB, response > 256 KiB, encoded or ambiguous framing, length mismatch, 4 s timeout | `assembly.py:111-112`, `adapters.py`, `local_ollama.py` |
-| 5 | `GroundedExplanationValidationError` (section 8) | `assembly.py:111-112` |
+| 4 | `NarratorFactsError` from `build_narrator_facts` (section 5); reason `invalid_evidence`, a warning names the cause; no provider is called | `_attempt_grounded_generation`, `assembly.py` |
+| 5 | `LLMProviderError` from `generate`: HTTP error or non-2xx, invalid JSON, wrong shape, schema mismatch, no choices or tool call, wrong function name, prompt filled the Ollama context; local: model not installed or not permitted, consent changed before dispatch, request or response over its byte limit, encoded or ambiguous framing, length mismatch, timeout; reason `provider_error` | `assembly.py`, `adapters.py`, `local_ollama.py` |
+| 5a | `GroundedExplanationValidationError` (section 8); reason = the validator's code | `assembly.py` |
 | 6 | Coach path: 0.25 s timeout. The template is computed again | `coach_interruption.py:142-143` |
 | 7 | Consent read raises `SQLAlchemyError`: provider `None`, then path 1 | `settings.py:75-78` |
 
-Failures that do **not** fall back. These propagate to the caller: `ExplanationTemplateError` (raised before any LLM call, because the template is computed first) and `LLMConfigurationError` (bad config file, missing API key env var, non-HTTPS URL).
+Failures that do **not** fall back. These propagate to the caller: `ExplanationTemplateError` (raised before any LLM call, because the template is computed first) and `LLMConfigurationError` (bad config file, missing API key env var, non-HTTPS URL, invalid `SCAN64_LOCAL_LLM_*` value).
 
-Fallbacks are not logged today. `assembly.py`, `validator.py` and `providers/llm/` contain no logger. The fallback branches return the template silently. The only log line on this path is `logger.warning("Local explanation consent unavailable")` (`settings.py:77`), for path 7. The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
+Paths 4 to 5a are logged by `_record_template_fallback` (event `explanation_template_fallback`, the reason code only, never evidence) and counted in-process (`template_fallback_counts()`). The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
 
 ## 10. After resolution: storage, API, client
 
@@ -221,14 +274,15 @@ Fallbacks are not logged today. `assembly.py`, `validator.py` and `providers/llm
 | Gap | Evidence in code | Issue |
 |---|---|---|
 | Adapter drops depth, seldepth, nodes, time, WDL, bound flags and the MultiPV index | `adapter.py:103-114`, `pool.py:158-168` | #360 |
-| Claim text is not grounded | `validator.py:83-107` checks reference, certainty, disclosure and line only | #366 |
-| Prompt is a Python-`repr` dump of raw UCI payloads with no SAN, per-move facts or schema | `assembly.py:75-79` | #367 |
+| ~~Claim text is not grounded~~ Resolved: claim-text grammar (section 8) | `validator.py` | #366 |
+| ~~Prompt is a Python-`repr` dump of raw UCI payloads with no SAN, per-move facts or schema~~ Resolved: narrator facts JSON (section 5) | `facts.py`, `assembly.py` | #367 |
 | Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions | the only callers are `jobs.py`, `analyse.py`, `coach_interruption.py` | #368 |
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
-| Verified lines from the after-position are replayed from the before FEN and always fail; MultiPV lines 2 to 4, `fast_line` beyond move 1, `proving_line` and `mating_line` cannot be cited | `assembly.py:40-71`, `validator.py:110-137` | #360, #367 |
+| ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
+| The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error | `create_llm_provider`, `config.py` | — |
 | Coach focused evidence is a 10 000-node MultiPV 1 search | `coach_interruption.py:250` | #360 |
 | The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt | `jobs.py:306`, `assembly.py:115` | #367 |
-| Fallbacks are unlogged, and the explanation records no source | section 9 | #366 |
+| The explanation records no source (fallbacks are logged and counted since #366) | section 9 | — |
 | The `calculation.stopped_too_early` template prints `focused_line` (after-position line 1) with `sequence_plies = len(proving_line)`, so the count and the printed line come from different searches. The code is untrusted today | `templates/provider.py:175-183`, `composer.py:566` | #367 |
 
 ### Steps to give the narrator full, long variations
