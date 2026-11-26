@@ -1,0 +1,104 @@
+{
+  "header": {
+    "gpu": "NVIDIA GeForce RTX 4080 Laptop GPU, 12282 MiB",
+    "num_ctx": 4096,
+    "num_predict": 1024,
+    "ollama_version": "0.40.18",
+    "pipeline": {
+      "commit": "b08a9f5836bc091b359d8489e0078d272e46490a",
+      "dirty": false,
+      "grounding_context": "scan64.explanations.assembly:_grounding_context",
+      "module_commit": "72ef701b225ea7d5f435991c7a39287473378de2",
+      "module_file": "src/scan64/explanations/assembly.py",
+      "module_sha256": "255ce24b73f9cdbe2b885da40d2471290f06371cc040df121251612e7e8807b7",
+      "pipeline_entry": "scan64.explanations.assembly:resolve_explanation"
+    },
+    "positions": 10,
+    "positions_file": "benchmarks/narrator/positions.json",
+    "positions_sha256": "a515d7fd2ff3cc2a7352cd3b29f5618eef00695066ff8ad6e89de557906f2893",
+    "python": "3.12.8",
+    "record": "header",
+    "request_overrides": {
+      "think": false
+    },
+    "request_timeout_s": 300.0,
+    "runs_per_position": 1,
+    "started": "2026-11-26T17:06:14.202749+00:00"
+  },
+  "models": {
+    "praxis-4b": {
+      "claim_rejection_reasons": {},
+      "claims_per_explanation": 3.6,
+      "fallback_reasons": {},
+      "false_chess_statements_per_explanation": 0.0,
+      "gpu_peak_over_idle_gib": 0.4912109375,
+      "grounding_pass_rate": 1.0,
+      "grounding_pass_rate_by_code": {
+        "board_awareness.hanging_piece": 1.0,
+        "threat_processing.missed_capture": 1.0,
+        "threat_processing.missed_direct_threat": 1.0
+      },
+      "latency_p50_s": 15.192100150001352,
+      "latency_p95_s": 51.859856425001446,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 15.53758789999847,
+      "mean_output_tokens": 238.2,
+      "mean_prompt_tokens": 1083.9,
+      "model_size_gib": 2.768623045645654,
+      "params_b": 4.2,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.0,
+      "rejected_claims_per_explanation": 0.0,
+      "role": "chess",
+      "runs": 10,
+      "san_correct_rate": 1.0,
+      "san_legal_rate": 1.0,
+      "san_tokens": 3,
+      "served_name": "scan64-bench-praxis-4b",
+      "vram_model_gib": 0.0,
+      "within_production_limit_rate": 0.0
+    },
+    "qwen3.5-4b": {
+      "claim_rejection_reasons": {
+        "disclosure_exceeded": 6,
+        "material_not_supported": 1,
+        "unknown_evidence": 14,
+        "unparsed_chess_token": 1
+      },
+      "claims_per_explanation": 3.111111111111111,
+      "fallback_reasons": {
+        "disclosure_exceeded": 2,
+        "provider_error": 1,
+        "unknown_evidence": 4,
+        "unparsed_chess_token": 1
+      },
+      "false_chess_statements_per_explanation": 0.2222222222222222,
+      "gpu_peak_over_idle_gib": 0.4990234375,
+      "grounding_pass_rate": 0.2,
+      "grounding_pass_rate_by_code": {
+        "board_awareness.hanging_piece": 0.16666666666666666,
+        "threat_processing.missed_capture": 1.0,
+        "threat_processing.missed_direct_threat": 0.0
+      },
+      "latency_p50_s": 20.920736050002233,
+      "latency_p95_s": 77.71364581500018,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 51.99292029999924,
+      "mean_output_tokens": 312.6,
+      "mean_prompt_tokens": 1083.9,
+      "model_size_gib": 2.9306249981746078,
+      "params_b": 4.7,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.1,
+      "rejected_claims_per_explanation": 2.4444444444444446,
+      "role": "baseline",
+      "runs": 10,
+      "san_correct_rate": 1.0,
+      "san_legal_rate": 1.0,
+      "san_tokens": 1,
+      "served_name": "scan64-bench-qwen3.5-4b",
+      "vram_model_gib": 0.0,
+      "within_production_limit_rate": 0.0
+    }
+  }
+}
