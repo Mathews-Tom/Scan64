@@ -1,7 +1,7 @@
 """Serve the optional built client without taking over the API namespace."""
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import FastAPI
 from starlette.exceptions import HTTPException
@@ -34,12 +34,18 @@ def mount_web_client(app: FastAPI, directory: Path) -> None:
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
-        if path.split("/", 1)[0] in RESERVED_PATHS:
+        # StaticFiles normalizes the path with os.path, so on Windows it uses "\\".
+        posix_path = path.replace("\\", "/")
+        if posix_path.split("/", 1)[0] in RESERVED_PATHS:
             raise HTTPException(status_code=404)
         try:
             return await super().get_response(path, scope)
         except HTTPException as error:
             # Missing assets must remain 404s, not HTML served as JS or CSS.
-            if error.status_code != 404 or path.startswith("assets/") or Path(path).suffix:
+            if (
+                error.status_code != 404
+                or posix_path.startswith("assets/")
+                or PurePosixPath(posix_path).suffix
+            ):
                 raise
             return await super().get_response("index.html", scope)

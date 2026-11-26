@@ -85,7 +85,9 @@ def test_process_executable_identifies_the_running_interpreter() -> None:
     helpers = packaging.smoke_helpers()
     executable = helpers.process_executable(packaging.os.getpid())
     assert executable is not None
-    assert executable.samefile(helpers.sys.executable)
+    # On Windows a venv python.exe is a launcher that starts the base interpreter.
+    interpreters = {helpers.sys.executable, getattr(helpers.sys, "_base_executable", None)}
+    assert any(executable.samefile(path) for path in interpreters if path)
 
 
 @pytest.mark.parametrize("name", ["stockfish", "stockfish.exe", "STOCKFISH.EXE"])

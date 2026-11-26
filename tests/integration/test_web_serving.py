@@ -1,12 +1,14 @@
+import asyncio
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.exceptions import HTTPException
 from starlette.routing import Mount
 
 from scan64.api.app import app
-from scan64.api.web import mount_web_client
+from scan64.api.web import SPAStaticFiles, mount_web_client
 
 
 @pytest.fixture
@@ -41,6 +43,30 @@ def test_real_assets_and_missing_assets(web_client: TestClient) -> None:
         response = web_client.get(path)
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
+
+
+@pytest.mark.parametrize(
+    ("path", "fallback"),
+    [
+        ("assets\\missing", False),
+        ("missing.css", False),
+        ("v1\\missing", False),
+        ("library\\import", True),
+    ],
+)
+def test_windows_style_paths_keep_missing_assets_404(
+    tmp_path: Path, path: str, fallback: bool
+) -> None:
+    # StaticFiles passes os.path-normalized paths, which use backslashes on Windows.
+    (tmp_path / "index.html").write_text("index")
+    files = SPAStaticFiles(directory=tmp_path)
+    scope = {"type": "http", "method": "GET", "headers": [], "path": "/"}
+    if fallback:
+        assert asyncio.run(files.get_response(path, scope)).status_code == 200
+        return
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(files.get_response(path, scope))
+    assert raised.value.status_code == 404
 
 
 @pytest.mark.parametrize(
