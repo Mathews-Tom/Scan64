@@ -1,0 +1,46 @@
+# CPU-only latency for issue #369: praxis-4b against the same-size baseline
+# qwen3.5-4b, 10 positions x 1 run, on an Ollama server with no GPU.
+#
+# Start a CPU-only server on its own port (the GPU is hidden from it), then run:
+#   CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu OLLAMA_HOST=127.0.0.1:11436 ollama serve
+#   uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator_cpu.toml --setup --limit 10
+# The runs file records ollama_size_vram_bytes per model; 0 confirms no layer ran on a GPU.
+# The header field "gpu" names the GPU present on the machine, not one in use.
+
+[run]
+runs_per_position = 1
+base_url = "http://127.0.0.1:11436"
+results_dir = "benchmarks/narrator/results/cpu"
+gguf_cache = "~/.cache/scan64-narrator-bench/gguf"
+request_timeout_s = 300
+production_time_limit_s = 4.0
+num_ctx = 4096
+num_predict = 1024
+request_overrides = { think = false }
+foreign_ollama = []
+pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
+grounding_context = "scan64.explanations.assembly:_grounding_context"
+
+[positions]
+file = "benchmarks/narrator/positions.json"
+
+[[models]]
+name = "praxis-4b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 4.2
+base_model = "Qwen/Qwen3.5-4B + LoRA"
+training_data = "praxis-chess/praxis-chess-evidence-graphs: engine evidence graphs with typed claims"
+hf_repo = "praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF"
+hf_revision = "915c2646d695db3211091aa00ac2ef7f9ee91cd5"
+hf_file = "praxis-chess-reasoner-qwen3.5-4b-Q4_K_M.gguf"
+sha256 = "6a32cdc809334dfb4cfba1a56c955f32d1aab8dd4531a8631c1011851cd6d9fe"
+
+[[models]]
+name = "qwen3.5-4b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 4.7
+base_model = "Qwen/Qwen3.5-4B"
+training_data = "general web, code and synthetic data (Qwen report)"
+ollama_tag = "qwen3.5:4b"
