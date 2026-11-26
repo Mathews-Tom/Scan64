@@ -1,0 +1,8761 @@
+{
+ "corpora": [
+  "tests/fixtures/m48/recorded.json",
+  "tests/fixtures/m48/fresh80_recorded.json",
+  "tests/fixtures/m48/m79_fresh80_recorded.json",
+  "tests/fixtures/m48/m93_fresh80_recorded.json"
+ ],
+ "per_code": {
+  "board_awareness.hanging_piece": 9,
+  "tactics.fork.knight": 5,
+  "threat_processing.allowed_mate": 9,
+  "threat_processing.missed_capture": 9,
+  "threat_processing.missed_check": 9,
+  "threat_processing.missed_direct_threat": 9
+ },
+ "positions": [
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/6x5nq6qd:25_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "fcb3dc07-3862-4862-8f25-09a9b91c7efa",
+     "evidence_id": "recorded:https://lichess.org/6x5nq6qd:25_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r3k1r1/pbpp1pbp/4p2p/1pQ5/2P1P3/2P4N/PP3PPP/RN3RK1 w q - 0 14",
+      "analysis_depth": "deep",
+      "before_fen": "r3k1r1/pbpp1pbp/1p2p2p/2Q5/2P1P3/2P4N/PP3PPP/RN3RK1 b q - 0 13",
+      "best_move": "b6c5",
+      "captured_piece": "Q",
+      "captured_square": "c5",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 9,
+      "fast_analysis_id": "3d02dace-e8f5-4ddf-a5ce-3b7e52a45cc0",
+      "fast_line": [
+       "b6c5",
+       "f2f3"
+      ],
+      "focused_analysis_id": "fcb3dc07-3862-4862-8f25-09a9b91c7efa",
+      "focused_line": [
+       "c5e3",
+       "e8c8",
+       "g1h1",
+       "g7h8",
+       "e3c1",
+       "d7d5",
+       "b1a3",
+       "d5d4",
+       "h3f4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c5e3",
+         "e8c8",
+         "g1h1",
+         "g7h8",
+         "e3c1",
+         "d7d5",
+         "b1a3",
+         "d5d4",
+         "h3f4"
+        ],
+        "score_cp": 924
+       },
+       {
+        "pv": [
+         "g1h1",
+         "b5c4",
+         "c5e3",
+         "h6h5",
+         "e3e2",
+         "b7c6"
+        ],
+        "score_cp": 903
+       },
+       {
+        "pv": [
+         "c5h5",
+         "b7e4",
+         "h3f4",
+         "e8c8",
+         "g2g3",
+         "g7f8",
+         "a2a3",
+         "b5c4",
+         "b1d2",
+         "d7d5",
+         "b2b3",
+         "c4b3"
+        ],
+        "score_cp": 903
+       },
+       {
+        "pv": [
+         "f1e1",
+         "e8c8",
+         "c5h5",
+         "b5b4",
+         "g1f1",
+         "d7d5",
+         "e4d5",
+         "b4c3",
+         "b2c3",
+         "e6d5",
+         "h5f5",
+         "c8b8"
+        ],
+        "score_cp": 896
+       }
+      ],
+      "material_gain": 9,
+      "missed_type": "capture",
+      "played_move": "b5",
+      "proving_line": [
+       "c5e3",
+       "b5c4",
+       "e3e1",
+       "g7f8",
+       "g1h1",
+       "f8c5",
+       "f2f3"
+      ],
+      "reply_analysis_id": "ab9c3bdc-a22e-49fb-a3ed-5dcc861212cf",
+      "source_score_mate": null,
+      "swing_cp": 1007
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r3k1r1/pbpp1pbp/1p2p2p/2Q5/2P1P3/2P4N/PP3PPP/RN3RK1 b q - 0 13",
+   "game_id": "https://lichess.org/6x5nq6qd",
+   "move_index": 25,
+   "played_move": "b5",
+   "position_id": "recorded:https://lichess.org/6x5nq6qd:25"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/6x5nq6qd:57_ev1"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "d2adffec-fb15-4720-98e8-145800521c56",
+     "evidence_id": "recorded:https://lichess.org/6x5nq6qd:57_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "7Q/2p1kp2/7p/2rpp1p1/8/6P1/P2R1P1P/5RK1 w - - 0 30",
+      "analysis_depth": "deep",
+      "before_fen": "7Q/2p1kp2/3p3p/2r1p1p1/8/6P1/P2R1P1P/5RK1 b - - 1 29",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "a1822182-fa79-4634-bffa-b0ea496f439a",
+      "fast_line": [
+       "e7d7",
+       "h8h6",
+       "e5e4",
+       "h6h5",
+       "c5f5",
+       "h2h4",
+       "f5f2",
+       "f1f2"
+      ],
+      "focused_analysis_id": "d2adffec-fb15-4720-98e8-145800521c56",
+      "focused_line": [
+       "h8e5",
+       "e7d7",
+       "f1e1",
+       "d7c6",
+       "e5e8",
+       "c6d6",
+       "e8f7",
+       "d6c6",
+       "f7e8",
+       "c6b7",
+       "d2b2",
+       "c5b5",
+       "e8b5",
+       "b7a7",
+       "b5b7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "h8e5",
+         "e7d7",
+         "f1e1",
+         "d7c6",
+         "e5e8",
+         "c6d6",
+         "e8f7",
+         "d6c6",
+         "f7e8",
+         "c6b7",
+         "d2b2",
+         "c5b5",
+         "e8b5",
+         "b7a7",
+         "b5b7"
+        ],
+        "score_mate": 8
+       },
+       {
+        "pv": [
+         "f2f4",
+         "h6h5",
+         "f4g5",
+         "d5d4",
+         "d2b2",
+         "e7d7",
+         "h8f6",
+         "c5c6",
+         "f6f7",
+         "d7d6",
+         "f1f6",
+         "d6c5",
+         "f7e7",
+         "c5d5"
+        ],
+        "score_cp": 1639
+       },
+       {
+        "pv": [
+         "f1e1",
+         "f7f6",
+         "h8g7",
+         "e7e6",
+         "g7f8",
+         "c5c3",
+         "f8g8",
+         "e6e7",
+         "d2d5",
+         "c7c5",
+         "g8d8",
+         "e7f7",
+         "d5d7",
+         "f7g6"
+        ],
+        "score_cp": 1501
+       },
+       {
+        "pv": [
+         "f2f3",
+         "f7f6",
+         "h8h7",
+         "e7d6",
+         "h7f7",
+         "d6c6",
+         "f7f8",
+         "h6h5",
+         "f8f6",
+         "c6b7",
+         "f6e5",
+         "c5b5"
+        ],
+        "score_cp": 1252
+       }
+      ],
+      "material_gain": 3,
+      "opponent_executed_threat": true,
+      "played_move": "d5",
+      "proving_line": [
+       "h8e5",
+       "e7d8",
+       "d2d5",
+       "c5d5",
+       "e5d5",
+       "d8e7",
+       "d5e5",
+       "e7f8",
+       "e5h8",
+       "f8e7",
+       "f1e1",
+       "e7d7",
+       "e1d1",
+       "d7e6",
+       "h8h6",
+       "f7f6",
+       "h6h3",
+       "e6e7"
+      ],
+      "reply_analysis_id": "92ceda25-39ca-461d-8fb2-1b70131cd994",
+      "source_score_mate": null,
+      "swing_cp": 369,
+      "threat_move": "h8e5",
+      "threatened_piece": "p",
+      "threatened_square": "e5"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "7Q/2p1kp2/3p3p/2r1p1p1/8/6P1/P2R1P1P/5RK1 b - - 1 29",
+   "game_id": "https://lichess.org/6x5nq6qd",
+   "move_index": 57,
+   "played_move": "d5",
+   "position_id": "recorded:https://lichess.org/6x5nq6qd:57"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/fl7asfa0:23_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "f24ba6f6-8cc9-407c-892b-c0d0afd399dd",
+     "evidence_id": "recorded:https://lichess.org/fl7asfa0:23_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "3q1rk1/p1p2ppp/Q2pbn2/2b1p1B1/4P3/2PP1N2/P2r1PPP/R4RK1 w - - 0 13",
+      "analysis_depth": "deep",
+      "before_fen": "3q1rk1/p1p2ppp/Q2pbn2/2b1p1B1/4P3/2PP1N2/Pr1N1PPP/R4RK1 b - - 1 12",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 5,
+      "fast_analysis_id": "ff73fa00-53a6-464b-b980-32ba854cac61",
+      "fast_line": [
+       "h7h6",
+       "g5e3"
+      ],
+      "focused_analysis_id": "f24ba6f6-8cc9-407c-892b-c0d0afd399dd",
+      "focused_line": [
+       "f3d2",
+       "h7h6",
+       "g5e3",
+       "c5e3",
+       "f2e3",
+       "d6d5",
+       "a6a7",
+       "d5e4",
+       "d2e4",
+       "f6e4",
+       "d3e4",
+       "d8d3",
+       "a2a4",
+       "d3e4",
+       "f1f2",
+       "g8h7",
+       "a7c5",
+       "f8d8",
+       "a4a5",
+       "d8d5",
+       "c5b4",
+       "e4e3",
+       "b4b2",
+       "e5e4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f3d2",
+         "h7h6",
+         "g5e3",
+         "c5e3",
+         "f2e3",
+         "d6d5",
+         "a6a7",
+         "d5e4",
+         "d2e4",
+         "f6e4",
+         "d3e4",
+         "d8d3",
+         "a2a4",
+         "d3e4",
+         "f1f2",
+         "g8h7",
+         "a7c5",
+         "f8d8",
+         "a4a5",
+         "d8d5",
+         "c5b4",
+         "e4e3",
+         "b4b2",
+         "e5e4"
+        ],
+        "score_cp": 202
+       },
+       {
+        "pv": [
+         "g5d2",
+         "e6g4",
+         "a6a4",
+         "g4f3",
+         "g2f3",
+         "f6h5",
+         "g1g2",
+         "h7h6",
+         "d3d4",
+         "c5b6",
+         "f1g1",
+         "d8h4",
+         "d2e3",
+         "f8d8",
+         "a4b5",
+         "d6d5",
+         "g2h1",
+         "h4h3"
+        ],
+        "score_cp": 132
+       },
+       {
+        "pv": [
+         "g5f6",
+         "d8f6",
+         "f3d2",
+         "e6h3",
+         "g2h3",
+         "f6g5",
+         "g1h1",
+         "g5d2",
+         "a6c4",
+         "g7g6",
+         "d3d4",
+         "e5d4",
+         "c3d4",
+         "d2d4",
+         "c4d4",
+         "c5d4",
+         "f1e1"
+        ],
+        "score_cp": 43
+       },
+       {
+        "pv": [
+         "d3d4",
+         "e5d4",
+         "f3d2",
+         "d4c3",
+         "d2f3",
+         "h7h6",
+         "g5f6",
+         "d8f6",
+         "a6d3",
+         "f8b8",
+         "e4e5",
+         "f6g6",
+         "d3c3",
+         "b8b4",
+         "a1d1"
+        ],
+        "score_cp": -60
+       }
+      ],
+      "hanging_piece": "r",
+      "hanging_square": "d2",
+      "material_gain": 5,
+      "played_move": "Rxd2",
+      "proving_line": [
+       "f3d2",
+       "h7h6",
+       "g5e3",
+       "c5b6",
+       "a2a4",
+       "d6d5",
+       "a4a5",
+       "b6e3",
+       "f2e3",
+       "d5e4",
+       "d2e4",
+       "f6e4",
+       "d3e4",
+       "d8a8",
+       "a1b1"
+      ],
+      "reply_analysis_id": "1ed7347b-ac59-405d-933b-d4387f1ae8b1",
+      "source_score_mate": null,
+      "swing_cp": 302
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "3q1rk1/p1p2ppp/Q2pbn2/2b1p1B1/4P3/2PP1N2/Pr1N1PPP/R4RK1 b - - 1 12",
+   "game_id": "https://lichess.org/fl7asfa0",
+   "move_index": 23,
+   "played_move": "Rxd2",
+   "position_id": "recorded:https://lichess.org/fl7asfa0:23"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/fl7asfa0:37_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "a6e69fe3-67b8-487e-9fe6-a804a5e3f334",
+     "evidence_id": "recorded:https://lichess.org/fl7asfa0:37_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "5rk1/p1p2p2/Q2p1n2/2b1p1N1/4P1qp/2PP3b/P4PPB/R4RK1 w - - 1 20",
+      "analysis_depth": "deep",
+      "before_fen": "5rk1/p1pq1p2/Q2p1n2/2b1p1N1/4P2p/2PP3b/P4PPB/R4RK1 b - - 0 19",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "5a6fb69f-a876-45cb-9b46-7076e1ab26f7",
+      "fast_line": [
+       "h3g4",
+       "d3d4"
+      ],
+      "focused_analysis_id": "a6e69fe3-67b8-487e-9fe6-a804a5e3f334",
+      "focused_line": [
+       "g5h3",
+       "g8h8",
+       "g1h1",
+       "f8g8",
+       "f1g1",
+       "g4e6",
+       "a6a4",
+       "f6g4",
+       "d3d4",
+       "g4h2",
+       "h1h2",
+       "e5d4",
+       "a4d1",
+       "d4c3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g5h3",
+         "g8h8",
+         "g1h1",
+         "f8g8",
+         "f1g1",
+         "g4e6",
+         "a6a4",
+         "f6g4",
+         "d3d4",
+         "g4h2",
+         "h1h2",
+         "e5d4",
+         "a4d1",
+         "d4c3"
+        ],
+        "score_cp": 678
+       },
+       {
+        "pv": [
+         "h2g3",
+         "g4g5",
+         "d3d4",
+         "e5d4",
+         "g2h3",
+         "d4c3",
+         "g1h1",
+         "h4g3",
+         "f2g3",
+         "f6e4",
+         "a6d3",
+         "e4g3",
+         "d3g3",
+         "g5g3",
+         "f1g1",
+         "g3g1",
+         "a1g1",
+         "g8h7"
+        ],
+        "score_cp": -717
+       },
+       {
+        "pv": [
+         "g2g3",
+         "h4g3",
+         "g5h3",
+         "g3f2",
+         "g1h1",
+         "g4f3"
+        ],
+        "score_mate": -3
+       },
+       {
+        "pv": [
+         "a2a3",
+         "g4g2"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "hanging_piece": "b",
+      "hanging_square": "h3",
+      "material_gain": 3,
+      "played_move": "Qg4",
+      "proving_line": [
+       "g5h3",
+       "g8h7"
+      ],
+      "reply_analysis_id": "13fa70d6-2c51-4f55-b43e-4b7ae3311e93",
+      "source_score_mate": null,
+      "swing_cp": 472
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "5rk1/p1pq1p2/Q2p1n2/2b1p1N1/4P2p/2PP3b/P4PPB/R4RK1 b - - 0 19",
+   "game_id": "https://lichess.org/fl7asfa0",
+   "move_index": 37,
+   "played_move": "Qg4",
+   "position_id": "recorded:https://lichess.org/fl7asfa0:37"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/7rzcutsf:4_ev1"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "ef717d45-039d-4658-a744-2e50c9d0a272",
+     "evidence_id": "recorded:https://lichess.org/7rzcutsf:4_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR b KQkq - 1 3",
+      "analysis_depth": "deep",
+      "before_fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "6c5c56dc-2760-4851-b46e-f77b204ca502",
+      "fast_line": [
+       "d4d5",
+       "g8f6",
+       "b1c3",
+       "g7g6",
+       "e2e4",
+       "e7e6",
+       "g1f3",
+       "f8g7",
+       "f1d3",
+       "e6d5",
+       "c4d5",
+       "e8g8",
+       "e1g1"
+      ],
+      "focused_analysis_id": "ef717d45-039d-4658-a744-2e50c9d0a272",
+      "focused_line": [
+       "c5d4",
+       "g1f3",
+       "b8c6",
+       "f4c1",
+       "d8b6",
+       "b1a3",
+       "g7g6",
+       "e2e3",
+       "f8g7",
+       "a3b5",
+       "d4e3",
+       "c1e3",
+       "b6d8",
+       "d1c1",
+       "h7h5",
+       "h2h3",
+       "g8h6",
+       "f1d3",
+       "h6f5",
+       "d3f5",
+       "c8f5",
+       "e1g1",
+       "a8c8",
+       "c1d2"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c5d4",
+         "g1f3",
+         "b8c6",
+         "f4c1",
+         "d8b6",
+         "b1a3",
+         "g7g6",
+         "e2e3",
+         "f8g7",
+         "a3b5",
+         "d4e3",
+         "c1e3",
+         "b6d8",
+         "d1c1",
+         "h7h5",
+         "h2h3",
+         "g8h6",
+         "f1d3",
+         "h6f5",
+         "d3f5",
+         "c8f5",
+         "e1g1",
+         "a8c8",
+         "c1d2"
+        ],
+        "score_cp": 133
+       },
+       {
+        "pv": [
+         "d8b6",
+         "d4c5"
+        ],
+        "score_cp": 77
+       },
+       {
+        "pv": [
+         "g8f6",
+         "d4d5",
+         "e7e5",
+         "f4c1",
+         "c8f5",
+         "g1f3",
+         "e5e4",
+         "f3h4",
+         "f5g4"
+        ],
+        "score_cp": -15
+       },
+       {
+        "pv": [
+         "c8f5",
+         "d4d5",
+         "e7e5",
+         "f4d2",
+         "g8f6",
+         "f2f3",
+         "e5e4",
+         "g2g3",
+         "f8e7"
+        ],
+        "score_cp": -16
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "Bf4",
+      "proving_line": [
+       "c5d4",
+       "e2e3",
+       "e7e5",
+       "f4g3",
+       "d4e3",
+       "f2e3",
+       "c8e6",
+       "b1c3",
+       "g8f6"
+      ],
+      "reply_analysis_id": "fc6fd2f2-ed77-4b97-abc3-6a717ca3e67f",
+      "source_score_mate": null,
+      "swing_cp": 250,
+      "threat_move": "c5d4",
+      "threatened_piece": "P",
+      "threatened_square": "d4"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+   "game_id": "https://lichess.org/7rzcutsf",
+   "move_index": 4,
+   "played_move": "Bf4",
+   "position_id": "recorded:https://lichess.org/7rzcutsf:4"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/7rzcutsf:5_ev2"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "37c575b8-4b08-4f08-9dd2-5126b5bb95d3",
+     "evidence_id": "recorded:https://lichess.org/7rzcutsf:5_ev2",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnbqkbnr/pp2pp1p/3p2p1/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR w KQkq - 0 4",
+      "analysis_depth": "deep",
+      "before_fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR b KQkq - 1 3",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "fc6fd2f2-ed77-4b97-abc3-6a717ca3e67f",
+      "fast_line": [
+       "c5d4",
+       "e2e3",
+       "e7e5",
+       "f4g3",
+       "d4e3",
+       "f2e3",
+       "c8e6",
+       "b1c3",
+       "g8f6"
+      ],
+      "focused_analysis_id": "37c575b8-4b08-4f08-9dd2-5126b5bb95d3",
+      "focused_line": [
+       "d4c5",
+       "d8a5",
+       "b1c3",
+       "d6c5",
+       "g2g3",
+       "f8g7",
+       "a1c1",
+       "g8f6",
+       "d1a4",
+       "a5a4",
+       "c3a4",
+       "f6h5",
+       "f4d2",
+       "b8a6",
+       "a4c3",
+       "e8g8",
+       "f1g2",
+       "f8d8",
+       "g1f3",
+       "h5f6"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d4c5",
+         "d8a5",
+         "b1c3",
+         "d6c5",
+         "g2g3",
+         "f8g7",
+         "a1c1",
+         "g8f6",
+         "d1a4",
+         "a5a4",
+         "c3a4",
+         "f6h5",
+         "f4d2",
+         "b8a6",
+         "a4c3",
+         "e8g8",
+         "f1g2",
+         "f8d8",
+         "g1f3",
+         "h5f6"
+        ],
+        "score_cp": 23
+       },
+       {
+        "pv": [
+         "d4d5",
+         "e7e5",
+         "d5e6",
+         "c8e6",
+         "b1c3",
+         "b8c6",
+         "e2e3",
+         "g8f6",
+         "g1f3",
+         "f6h5",
+         "f4g5",
+         "d8a5",
+         "f3d2",
+         "f8g7",
+         "f1e2",
+         "g7c3",
+         "b2c3",
+         "h7h6",
+         "g5h4",
+         "a5c3",
+         "e1g1"
+        ],
+        "score_cp": 22
+       },
+       {
+        "pv": [
+         "e2e3",
+         "d8a5"
+        ],
+        "score_cp": -6
+       },
+       {
+        "pv": [
+         "g1f3",
+         "c5d4",
+         "d1d4",
+         "g8f6",
+         "d4d2",
+         "c8e6",
+         "e2e3",
+         "f6e4",
+         "d2d4",
+         "d8a5",
+         "f3d2",
+         "e4f6",
+         "d4c3",
+         "a5b6",
+         "c3b3"
+        ],
+        "score_cp": -47
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "g6",
+      "proving_line": [
+       "d4c5",
+       "d8a5"
+      ],
+      "reply_analysis_id": "65488cc2-42f7-4bde-a561-47cb04bb6186",
+      "source_score_mate": null,
+      "swing_cp": 201,
+      "threat_move": "d4c5",
+      "threatened_piece": "p",
+      "threatened_square": "c5"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR b KQkq - 1 3",
+   "game_id": "https://lichess.org/7rzcutsf",
+   "move_index": 5,
+   "played_move": "g6",
+   "position_id": "recorded:https://lichess.org/7rzcutsf:5"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/9opx3qh7:58_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "93a5d015-336c-4a55-bc82-ad4dd2dd51e7",
+     "evidence_id": "recorded:https://lichess.org/9opx3qh7:58_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "6k1/1p3p2/p1p3bQ/2q5/4B3/P7/1P3PP1/7K b - - 2 30",
+      "analysis_depth": "deep",
+      "before_fen": "6k1/1p3p2/p1p3bQ/2q5/8/P4B2/1P3PP1/7K w - - 1 30",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "9880a8ca-b217-43e2-a460-af49ba975a0e",
+      "fast_line": [
+       "h6d2",
+       "g8h7",
+       "f3d1",
+       "a6a5",
+       "h1h2",
+       "c5e5",
+       "f2f4"
+      ],
+      "focused_analysis_id": "93a5d015-336c-4a55-bc82-ad4dd2dd51e7",
+      "focused_line": [
+       "g6e4",
+       "h6f4",
+       "c5e7",
+       "f4e3",
+       "g8f8",
+       "b2b4",
+       "a6a5",
+       "e3c3",
+       "f7f6",
+       "c3c5",
+       "e7c5",
+       "b4c5",
+       "e4g6"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g6e4",
+         "h6f4",
+         "c5e7",
+         "f4e3",
+         "g8f8",
+         "b2b4",
+         "a6a5",
+         "e3c3",
+         "f7f6",
+         "c3c5",
+         "e7c5",
+         "b4c5",
+         "e4g6"
+        ],
+        "score_cp": 596
+       },
+       {
+        "pv": [
+         "c5f2",
+         "e4g6",
+         "f2e1",
+         "h1h2",
+         "e1e5",
+         "h2h1"
+        ],
+        "score_cp": 0
+       },
+       {
+        "pv": [
+         "c5d6",
+         "e4g6",
+         "f7g6",
+         "b2b4",
+         "d6d1",
+         "h1h2",
+         "d1d6"
+        ],
+        "score_cp": 0
+       },
+       {
+        "pv": [
+         "c5d4",
+         "e4g6",
+         "d4d1",
+         "h1h2",
+         "d1d6",
+         "h2h3",
+         "f7g6",
+         "h6e3",
+         "g8h7",
+         "e3g3",
+         "d6d5",
+         "g3h4",
+         "h7g7",
+         "h4e7",
+         "g7h6"
+        ],
+        "score_cp": -8
+       }
+      ],
+      "hanging_piece": "B",
+      "hanging_square": "e4",
+      "material_gain": 3,
+      "played_move": "Be4",
+      "proving_line": [
+       "g6e4",
+       "f2f3",
+       "e4g6",
+       "h6d2",
+       "c5h5",
+       "h1g1",
+       "h5h4",
+       "d2d6",
+       "h4e1",
+       "g1h2"
+      ],
+      "reply_analysis_id": "f44c4855-0b63-42be-8494-f3557525bfd9",
+      "source_score_mate": null,
+      "swing_cp": 567
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "6k1/1p3p2/p1p3bQ/2q5/8/P4B2/1P3PP1/7K w - - 1 30",
+   "game_id": "https://lichess.org/9opx3qh7",
+   "move_index": 58,
+   "played_move": "Be4",
+   "position_id": "recorded:https://lichess.org/9opx3qh7:58"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/z2ncoii6:29_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "ce9dfe69-773f-4db2-928e-9605d0997b8f",
+     "evidence_id": "recorded:https://lichess.org/z2ncoii6:29_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r2qkb1r/3p1pp1/2N3np/p7/Bp2P3/8/PP1P1PPP/R1BQ1bK1 w kq - 0 16",
+      "analysis_depth": "deep",
+      "before_fen": "r2qkb1r/3p1pp1/2N3np/p7/Bpb1P3/8/PP1P1PPP/R1BQ1RK1 b kq - 0 15",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 9,
+      "fast_analysis_id": "bb6cf40a-9dae-4a7b-82b0-7a1f659ef634",
+      "fast_line": [
+       "d8b6",
+       "d2d3"
+      ],
+      "focused_analysis_id": "ce9dfe69-773f-4db2-928e-9605d0997b8f",
+      "focused_line": [
+       "c6d8",
+       "f1d3",
+       "d8f7",
+       "g6f4",
+       "d1f3",
+       "f8e7",
+       "f7h8",
+       "e7g5",
+       "h2h3",
+       "a8c8",
+       "e4e5",
+       "d3e2",
+       "f3e3",
+       "e2d3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c6d8",
+         "f1d3",
+         "d8f7",
+         "g6f4",
+         "d1f3",
+         "f8e7",
+         "f7h8",
+         "e7g5",
+         "h2h3",
+         "a8c8",
+         "e4e5",
+         "d3e2",
+         "f3e3",
+         "e2d3"
+        ],
+        "score_cp": 798
+       },
+       {
+        "pv": [
+         "d1f1",
+         "d8b6",
+         "f1b5",
+         "b6b5",
+         "a4b5",
+         "f8c5",
+         "d2d4",
+         "c5b6",
+         "c6e5",
+         "g6e5",
+         "d4e5",
+         "a8c8",
+         "b5d3",
+         "b6d4",
+         "a1b1",
+         "e8e7",
+         "g1f1",
+         "d4e5",
+         "c1e3",
+         "g7g5",
+         "g2g3",
+         "c8c6",
+         "b2b3",
+         "c6d6",
+         "d3c4"
+        ],
+        "score_cp": -303
+       },
+       {
+        "pv": [
+         "d2d4",
+         "d8b6",
+         "d1f1",
+         "d7c6",
+         "c1e3",
+         "b6a6",
+         "h2h4",
+         "f8d6",
+         "e4e5",
+         "d6c7",
+         "f1c1",
+         "e8g8",
+         "h4h5",
+         "g6e5",
+         "e3h6",
+         "g7h6",
+         "d4e5",
+         "c7e5",
+         "c1h6",
+         "a6d3"
+        ],
+        "score_cp": -340
+       },
+       {
+        "pv": [
+         "d2d3",
+         "d8f6",
+         "g1f1",
+         "d7c6",
+         "d3d4",
+         "a8d8",
+         "d1c2",
+         "f8e7",
+         "e4e5",
+         "f6e6",
+         "a4b3",
+         "e6d7"
+        ],
+        "score_cp": -361
+       }
+      ],
+      "hanging_piece": "q",
+      "hanging_square": "d8",
+      "material_gain": 8,
+      "played_move": "Bxf1",
+      "proving_line": [
+       "c6d8",
+       "f1g2",
+       "g1g2",
+       "e8d8",
+       "d2d4",
+       "g6h4",
+       "g2h1"
+      ],
+      "reply_analysis_id": "6824e1a5-9365-4a27-bace-22c45e38fdd6",
+      "source_score_mate": null,
+      "swing_cp": 579
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2qkb1r/3p1pp1/2N3np/p7/Bpb1P3/8/PP1P1PPP/R1BQ1RK1 b kq - 0 15",
+   "game_id": "https://lichess.org/z2ncoii6",
+   "move_index": 29,
+   "played_move": "Bxf1",
+   "position_id": "recorded:https://lichess.org/z2ncoii6:29"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/z2ncoii6:37_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "fdf1a0f3-6661-4aa5-99cc-31fdbd23fc90",
+     "evidence_id": "recorded:https://lichess.org/z2ncoii6:37_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r4bkr/3p2p1/6np/p7/Bp2Q3/8/PP1P1P1P/R1B3K1 w - - 1 20",
+      "analysis_depth": "deep",
+      "before_fen": "r4b1r/3p1kp1/6np/p7/Bp2Q3/8/PP1P1P1P/R1B3K1 b - - 0 19",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "5ffa0145-cd93-4e26-a8ed-76dfc102bda2",
+      "fast_line": [
+       "a8e8",
+       "a4b3",
+       "e8e6",
+       "b3e6",
+       "d7e6",
+       "d2d3",
+       "a5a4",
+       "e4b7",
+       "f8e7",
+       "b7f3",
+       "f7g8"
+      ],
+      "focused_analysis_id": "fdf1a0f3-6661-4aa5-99cc-31fdbd23fc90",
+      "focused_line": [
+       "e4g6",
+       "h8h7",
+       "a4b3",
+       "g8h8",
+       "b3c2",
+       "h8g8",
+       "g6h7",
+       "g8f7",
+       "h7f5",
+       "f7e7",
+       "f5e4",
+       "e7f7",
+       "c2b3",
+       "f7f6",
+       "e4f4",
+       "f6g6",
+       "f4f7",
+       "g6h7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e4g6",
+         "h8h7",
+         "a4b3",
+         "g8h8",
+         "b3c2",
+         "h8g8",
+         "g6h7",
+         "g8f7",
+         "h7f5",
+         "f7e7",
+         "f5e4",
+         "e7f7",
+         "c2b3",
+         "f7f6",
+         "e4f4",
+         "f6g6",
+         "f4f7",
+         "g6h7"
+        ],
+        "score_cp": 1246
+       },
+       {
+        "pv": [
+         "e4a8",
+         "g6e7",
+         "a4d7",
+         "g8h7",
+         "a8a5",
+         "g7g6",
+         "a2a4",
+         "h8g8",
+         "d2d4",
+         "f8g7"
+        ],
+        "score_cp": 1035
+       },
+       {
+        "pv": [
+         "h2h4",
+         "a8a6",
+         "a4b3",
+         "g8h7",
+         "h4h5",
+         "f8c5",
+         "d2d4",
+         "c5d4",
+         "h5g6",
+         "a6g6",
+         "g1f1",
+         "h8f8",
+         "e4d4",
+         "g6f6"
+        ],
+        "score_cp": 943
+       },
+       {
+        "pv": [
+         "a4d7",
+         "a8a6",
+         "e4c4",
+         "g8h7",
+         "c4a6",
+         "g6h4",
+         "a6a5",
+         "g7g6",
+         "g1f1",
+         "h8g8",
+         "a5d5",
+         "f8g7",
+         "d2d4"
+        ],
+        "score_cp": 940
+       }
+      ],
+      "hanging_piece": "n",
+      "hanging_square": "g6",
+      "material_gain": 8,
+      "played_move": "Kg8",
+      "proving_line": [
+       "e4g6",
+       "h8h7",
+       "a4c2",
+       "f8d6",
+       "g6h7",
+       "g8f7",
+       "h7f5",
+       "f7e8",
+       "f5e4",
+       "e8f7",
+       "e4f3",
+       "f7e7"
+      ],
+      "reply_analysis_id": "11ffb9b6-50ef-4582-8063-3cff38d83958",
+      "source_score_mate": null,
+      "swing_cp": 298
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r4b1r/3p1kp1/6np/p7/Bp2Q3/8/PP1P1P1P/R1B3K1 b - - 0 19",
+   "game_id": "https://lichess.org/z2ncoii6",
+   "move_index": 37,
+   "played_move": "Kg8",
+   "position_id": "recorded:https://lichess.org/z2ncoii6:37"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/mntamgdj:7_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "25017e7b-f164-464b-ae8b-1304de3f565f",
+     "evidence_id": "recorded:https://lichess.org/mntamgdj:7_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnbqk2r/pppp1ppp/5n2/4p1B1/2B1P3/3P4/PPP2bPP/RN1QK1NR w KQkq - 0 5",
+      "analysis_depth": "deep",
+      "before_fen": "rnbqk2r/pppp1ppp/5n2/2b1p1B1/2B1P3/3P4/PPP2PPP/RN1QK1NR b KQkq - 2 4",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "0232c2af-feac-49de-9b00-965a16415464",
+      "fast_line": [
+       "c7c6",
+       "g1f3"
+      ],
+      "focused_analysis_id": "25017e7b-f164-464b-ae8b-1304de3f565f",
+      "focused_line": [
+       "e1f2",
+       "f6e4",
+       "d3e4",
+       "d8g5",
+       "g1f3",
+       "g5e7",
+       "d1d3",
+       "e8g8",
+       "a2a4",
+       "b8c6",
+       "b1d2",
+       "g8h8",
+       "h1e1",
+       "a7a5",
+       "f2g1"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e1f2",
+         "f6e4",
+         "d3e4",
+         "d8g5",
+         "g1f3",
+         "g5e7",
+         "d1d3",
+         "e8g8",
+         "a2a4",
+         "b8c6",
+         "b1d2",
+         "g8h8",
+         "h1e1",
+         "a7a5",
+         "f2g1"
+        ],
+        "score_cp": 404
+       },
+       {
+        "pv": [
+         "e1e2",
+         "f2b6",
+         "g1f3",
+         "h7h6",
+         "g5f6",
+         "d8f6",
+         "d1e1"
+        ],
+        "score_cp": -171
+       },
+       {
+        "pv": [
+         "e1f1",
+         "h7h6",
+         "g5f6",
+         "d8f6",
+         "d1f3",
+         "f2h4",
+         "g2g3",
+         "f6f3",
+         "g1f3",
+         "h4f6",
+         "a2a4",
+         "c7c6",
+         "b2b4",
+         "a7a5"
+        ],
+        "score_cp": -209
+       },
+       {
+        "pv": [
+         "e1d2",
+         "f6e4",
+         "d2e2",
+         "d8g5",
+         "d3e4",
+         "g5g2",
+         "g1f3",
+         "f2b6",
+         "e2d3",
+         "g2f2",
+         "c2c3",
+         "f2e3",
+         "d3c2",
+         "d7d6",
+         "h1f1",
+         "e3e4",
+         "c2b3",
+         "f7f6"
+        ],
+        "score_cp": -695
+       }
+      ],
+      "hanging_piece": "b",
+      "hanging_square": "f2",
+      "material_gain": 2,
+      "played_move": "Bxf2+",
+      "proving_line": [
+       "e1f2",
+       "f6e4",
+       "d3e4",
+       "d8g5",
+       "g1f3",
+       "g5g6"
+      ],
+      "reply_analysis_id": "f962aebd-6cae-463a-8ea3-a3de831e6c17",
+      "source_score_mate": null,
+      "swing_cp": 466
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnbqk2r/pppp1ppp/5n2/2b1p1B1/2B1P3/3P4/PPP2PPP/RN1QK1NR b KQkq - 2 4",
+   "game_id": "https://lichess.org/mntamgdj",
+   "move_index": 7,
+   "played_move": "Bxf2+",
+   "position_id": "recorded:https://lichess.org/mntamgdj:7"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/mntamgdj:20_ev3"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "7db649f1-fc09-4b7b-a990-78d7ed52d91b",
+     "evidence_id": "recorded:https://lichess.org/mntamgdj:20_ev3",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r1b2rk1/pppp1ppp/5q2/4Q3/1nB1P3/5N2/PPP3PP/RN3RK1 b - - 0 11",
+      "analysis_depth": "deep",
+      "before_fen": "r1b2rk1/pppp1ppp/5q2/3Qp3/1nB1P3/5N2/PPP3PP/RN3RK1 w - - 8 11",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "21132487-1c49-4236-ac1a-1b5ef3e97a69",
+      "fast_line": [
+       "d5d2",
+       "f6e7",
+       "g1h1",
+       "b4c6",
+       "b1c3",
+       "c6a5",
+       "b2b3",
+       "a5c4",
+       "b3c4"
+      ],
+      "focused_analysis_id": "7db649f1-fc09-4b7b-a990-78d7ed52d91b",
+      "focused_line": [
+       "b4c2",
+       "b1c3",
+       "c7c6",
+       "e5g3",
+       "f6g6",
+       "g3g6",
+       "h7g6",
+       "a1c1",
+       "c2e3",
+       "c4b3",
+       "e3f1",
+       "c1f1",
+       "d7d6",
+       "f3g5",
+       "c8e6",
+       "g5e6",
+       "f7e6",
+       "b3e6",
+       "g8h7",
+       "f1d1",
+       "f8f6",
+       "e6g4",
+       "a8f8",
+       "g4f3",
+       "f8e8"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "b4c2",
+         "b1c3",
+         "c7c6",
+         "e5g3",
+         "f6g6",
+         "g3g6",
+         "h7g6",
+         "a1c1",
+         "c2e3",
+         "c4b3",
+         "e3f1",
+         "c1f1",
+         "d7d6",
+         "f3g5",
+         "c8e6",
+         "g5e6",
+         "f7e6",
+         "b3e6",
+         "g8h7",
+         "f1d1",
+         "f8f6",
+         "e6g4",
+         "a8f8",
+         "g4f3",
+         "f8e8"
+        ],
+        "score_cp": -299
+       },
+       {
+        "pv": [
+         "f6e5",
+         "f3e5",
+         "b4c2",
+         "b1c3",
+         "c2a1",
+         "c3d5",
+         "g7g6",
+         "d5c7",
+         "a8b8",
+         "f1a1",
+         "g8g7",
+         "c7b5",
+         "d7d6",
+         "b5d6"
+        ],
+        "score_cp": -338
+       },
+       {
+        "pv": [
+         "f6b6",
+         "g1h1"
+        ],
+        "score_cp": -563
+       },
+       {
+        "pv": [
+         "d7d5",
+         "e5f6",
+         "g7f6",
+         "c4d3",
+         "d5e4",
+         "d3e4",
+         "f8d8",
+         "b1c3",
+         "f6f5",
+         "e4d3",
+         "b4d3",
+         "c2d3",
+         "d8d3",
+         "a1c1",
+         "c8e6",
+         "c1e1",
+         "d3d8"
+        ],
+        "score_cp": -600
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "Qxe5",
+      "proving_line": [
+       "b4c2",
+       "b1c3"
+      ],
+      "reply_analysis_id": "b38fa7f3-7bdb-49aa-a0ff-2c1cb6f000fd",
+      "source_score_mate": null,
+      "swing_cp": 291,
+      "threat_move": "b4c2",
+      "threatened_piece": "P",
+      "threatened_square": "c2"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r1b2rk1/pppp1ppp/5q2/3Qp3/1nB1P3/5N2/PPP3PP/RN3RK1 w - - 8 11",
+   "game_id": "https://lichess.org/mntamgdj",
+   "move_index": 20,
+   "played_move": "Qxe5",
+   "position_id": "recorded:https://lichess.org/mntamgdj:20"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/55a83jiu:42_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "669c1131-ab81-4832-a727-8cbdb5f265ff",
+     "evidence_id": "recorded:https://lichess.org/55a83jiu:42_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r3qrk1/2p5/p1Pp2p1/4p3/2P1PNQ1/8/P5PP/2R2RK1 b - - 0 22",
+      "analysis_depth": "deep",
+      "before_fen": "r3qrk1/2p5/p1Pp2p1/3Np3/2P1PnQ1/8/P5PP/2R2RK1 w - - 6 22",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "20ef35df-473f-47bd-92d1-05ab12346d26",
+      "fast_line": [
+       "d5c7",
+       "e8c6",
+       "c7a8",
+       "c6e4",
+       "g1h1",
+       "e4a8",
+       "h2h3",
+       "g8g7",
+       "h1h2",
+       "a8c8",
+       "g4c8",
+       "f8c8"
+      ],
+      "focused_analysis_id": "669c1131-ab81-4832-a727-8cbdb5f265ff",
+      "focused_line": [
+       "e5f4",
+       "c4c5",
+       "d6c5",
+       "f1f4",
+       "f8f4",
+       "g4f4",
+       "e8c6",
+       "c1f1",
+       "c6e6",
+       "h2h4",
+       "a8e8",
+       "h4h5",
+       "e6e4",
+       "f4f7",
+       "g8h8",
+       "f1f4",
+       "e4e6",
+       "h5g6",
+       "e6f7",
+       "g6f7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e5f4",
+         "c4c5",
+         "d6c5",
+         "f1f4",
+         "f8f4",
+         "g4f4",
+         "e8c6",
+         "c1f1",
+         "c6e6",
+         "h2h4",
+         "a8e8",
+         "h4h5",
+         "e6e4",
+         "f4f7",
+         "g8h8",
+         "f1f4",
+         "e4e6",
+         "h5g6",
+         "e6f7",
+         "g6f7"
+        ],
+        "score_cp": -72
+       },
+       {
+        "pv": [
+         "f8f4",
+         "g4g5"
+        ],
+        "score_cp": -162
+       },
+       {
+        "pv": [
+         "g8h7",
+         "f4d5",
+         "e8d8",
+         "f1f8",
+         "d8f8",
+         "c1f1",
+         "f8f1",
+         "g1f1",
+         "a8b8",
+         "g4h4",
+         "h7g7"
+        ],
+        "score_cp": -866
+       },
+       {
+        "pv": [
+         "e8f7",
+         "f4g6",
+         "f7g7",
+         "g4e6",
+         "g8h7",
+         "g6f8",
+         "a8f8",
+         "f1f5",
+         "f8f5",
+         "e6f5",
+         "g7g6",
+         "c1f1",
+         "g6f5",
+         "e4f5"
+        ],
+        "score_cp": -906
+       }
+      ],
+      "hanging_piece": "N",
+      "hanging_square": "f4",
+      "material_gain": 3,
+      "played_move": "Nxf4",
+      "proving_line": [
+       "e5f4",
+       "c4c5"
+      ],
+      "reply_analysis_id": "22163972-0915-4b60-900b-bb301aad468c",
+      "source_score_mate": null,
+      "swing_cp": 408
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r3qrk1/2p5/p1Pp2p1/3Np3/2P1PnQ1/8/P5PP/2R2RK1 w - - 6 22",
+   "game_id": "https://lichess.org/55a83jiu",
+   "move_index": 42,
+   "played_move": "Nxf4",
+   "position_id": "recorded:https://lichess.org/55a83jiu:42"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/55a83jiu:49_ev2"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "f46b4132-6c47-4c8f-a075-5d266b8187f9",
+     "evidence_id": "recorded:https://lichess.org/55a83jiu:49_ev2",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r5k1/2pq4/p2p1Qp1/8/2P1P3/8/P5PP/2R3K1 w - - 2 26",
+      "analysis_depth": "deep",
+      "before_fen": "r5k1/2p5/p1qp1Qp1/8/2P1P3/8/P5PP/2R3K1 b - - 1 25",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "da775010-9d0f-4242-8047-4274671207cd",
+      "fast_line": [
+       "c6e4",
+       "c1f1"
+      ],
+      "focused_analysis_id": "f46b4132-6c47-4c8f-a075-5d266b8187f9",
+      "focused_line": [
+       "f6g6",
+       "d7g7",
+       "g6g7",
+       "g8g7",
+       "c4c5",
+       "a8e8",
+       "c5d6",
+       "c7d6",
+       "c1c6",
+       "e8e4",
+       "c6d6",
+       "e4a4",
+       "d6d2",
+       "a6a5",
+       "d2c2",
+       "g7g6",
+       "g2g3",
+       "g6f5",
+       "g1g2",
+       "a4a3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f6g6",
+         "d7g7",
+         "g6g7",
+         "g8g7",
+         "c4c5",
+         "a8e8",
+         "c5d6",
+         "c7d6",
+         "c1c6",
+         "e8e4",
+         "c6d6",
+         "e4a4",
+         "d6d2",
+         "a6a5",
+         "d2c2",
+         "g7g6",
+         "g2g3",
+         "g6f5",
+         "g1g2",
+         "a4a3"
+        ],
+        "score_cp": 509
+       },
+       {
+        "pv": [
+         "c1f1",
+         "d7g7",
+         "f6e6",
+         "g8h8",
+         "h2h3",
+         "g7d4",
+         "g1h2",
+         "h8g7",
+         "e6e7",
+         "g7h6",
+         "f1f7",
+         "d4e5",
+         "e7e5",
+         "d6e5",
+         "f7c7",
+         "h6g5",
+         "h2g3",
+         "a8d8",
+         "h3h4",
+         "g5f6"
+        ],
+        "score_cp": 407
+       },
+       {
+        "pv": [
+         "e4e5",
+         "d7g7",
+         "f6e6",
+         "g7f7",
+         "e6f7",
+         "g8f7",
+         "e5d6",
+         "c7d6",
+         "c4c5",
+         "a8c8",
+         "c5c6",
+         "f7e8",
+         "c6c7",
+         "e8d7",
+         "g1f2",
+         "c8f8",
+         "f2e3",
+         "d7c8",
+         "c1c6",
+         "f8e8",
+         "e3f2",
+         "c8d7"
+        ],
+        "score_cp": 322
+       },
+       {
+        "pv": [
+         "c4c5",
+         "d7f7",
+         "f6d4",
+         "a8f8",
+         "c5d6",
+         "c7d6",
+         "h2h3",
+         "f7f4",
+         "c1d1",
+         "f8f6",
+         "a2a4",
+         "g8h7",
+         "a4a5",
+         "h7h6",
+         "d4d3",
+         "f6e6",
+         "d3a6",
+         "e6e4",
+         "a6c8",
+         "e4e2",
+         "c8d8"
+        ],
+        "score_cp": 186
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "Qd7",
+      "proving_line": [
+       "f6g6",
+       "d7g7",
+       "g6e6",
+       "g8h8",
+       "e6h3",
+       "h8g8",
+       "h3d3",
+       "a8b8",
+       "d3d5",
+       "g8h8",
+       "d5h5",
+       "h8g8"
+      ],
+      "reply_analysis_id": "c7ed90c1-9c01-476b-95fc-612c56e10365",
+      "source_score_mate": null,
+      "swing_cp": 432,
+      "threat_move": "f6g6",
+      "threatened_piece": "p",
+      "threatened_square": "g6"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r5k1/2p5/p1qp1Qp1/8/2P1P3/8/P5PP/2R3K1 b - - 1 25",
+   "game_id": "https://lichess.org/55a83jiu",
+   "move_index": 49,
+   "played_move": "Qd7",
+   "position_id": "recorded:https://lichess.org/55a83jiu:49"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/ufcqmfxx:33_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "e39f03ba-7081-416f-913b-3da010cf0f25",
+     "evidence_id": "recorded:https://lichess.org/ufcqmfxx:33_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r2q1rk1/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 w - - 2 18",
+      "analysis_depth": "deep",
+      "before_fen": "r2q1r1k/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 b - - 1 17",
+      "best_move": "d8g5",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "df5d2b41-8568-4527-b5bc-c0348ac74f7e",
+      "fast_line": [
+       "d8g5",
+       "g6g5",
+       "h6g5",
+       "e5e6",
+       "f2e1",
+       "d1e1",
+       "d7e8",
+       "e1e3",
+       "f8f6",
+       "e3h3",
+       "f6h6",
+       "h3h6",
+       "g7h6"
+      ],
+      "focused_analysis_id": "e39f03ba-7081-416f-913b-3da010cf0f25",
+      "focused_line": [
+       "g6h7",
+       "g8f7",
+       "d3g6",
+       "f7e6",
+       "g6f5",
+       "f8f5",
+       "h7g6",
+       "f5f6",
+       "e5f6",
+       "f2e1",
+       "f6g7",
+       "e6e5",
+       "d1e1",
+       "e5d4",
+       "e1f1",
+       "d4c5",
+       "g6h5",
+       "c5b6",
+       "f1f8",
+       "d8e7",
+       "g7g8q",
+       "e7e3",
+       "c1d1",
+       "e3d4",
+       "d1e2",
+       "a8f8",
+       "g8b3",
+       "b6a6",
+       "b3a3",
+       "d7a4",
+       "a3d3",
+       "d4d3",
+       "c2d3",
+       "f8f6"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g6h7",
+         "g8f7",
+         "d3g6",
+         "f7e6",
+         "g6f5",
+         "f8f5",
+         "h7g6",
+         "f5f6",
+         "e5f6",
+         "f2e1",
+         "f6g7",
+         "e6e5",
+         "d1e1",
+         "e5d4",
+         "e1f1",
+         "d4c5",
+         "g6h5",
+         "c5b6",
+         "f1f8",
+         "d8e7",
+         "g7g8q",
+         "e7e3",
+         "c1d1",
+         "e3d4",
+         "d1e2",
+         "a8f8",
+         "g8b3",
+         "b6a6",
+         "b3a3",
+         "d7a4",
+         "a3d3",
+         "d4d3",
+         "c2d3",
+         "f8f6"
+        ],
+        "score_cp": 467
+       },
+       {
+        "pv": [
+         "c1b1"
+        ],
+        "score_cp": 115
+       },
+       {
+        "pv": [
+         "e5e6",
+         "d8g5",
+         "g6g5",
+         "h6g5",
+         "e6d7",
+         "f2e1",
+         "d1e1",
+         "g8f7",
+         "d3c4",
+         "f7f6",
+         "g2g4",
+         "c7c6",
+         "e1e6",
+         "f6f7",
+         "e6d6",
+         "f7e7",
+         "d6g6",
+         "a8d8",
+         "g6g5",
+         "e7f6",
+         "h2h4",
+         "d8d7",
+         "c4d3",
+         "d7d4",
+         "b2b3",
+         "f8d8",
+         "a2a4",
+         "d8d5",
+         "g5g6",
+         "f6f7",
+         "h4h5",
+         "d4f4"
+        ],
+        "score_cp": -21
+       },
+       {
+        "pv": [
+         "h2h4",
+         "d7f5",
+         "d3f5",
+         "f8f5",
+         "g6f5",
+         "f2e1",
+         "f5e6",
+         "g8h8",
+         "d1e1",
+         "d8h4",
+         "e5d6",
+         "c7d6",
+         "e6e3",
+         "a8f8",
+         "g2g3",
+         "h4g4",
+         "e1d1",
+         "b7b6",
+         "e3e7",
+         "f8f2",
+         "e7a7"
+        ],
+        "score_cp": -66
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Kg8",
+      "proving_line": [
+       "g6h7",
+       "g8f7"
+      ],
+      "reply_analysis_id": "ea020f7f-581b-447d-8b41-78f7b086d303",
+      "source_score_mate": null,
+      "swing_cp": 965
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2q1r1k/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 b - - 1 17",
+   "game_id": "https://lichess.org/ufcqmfxx",
+   "move_index": 33,
+   "played_move": "Kg8",
+   "position_id": "recorded:https://lichess.org/ufcqmfxx:33"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/ufcqmfxx:34_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "380d8818-1891-421a-817f-d889bd802d38",
+     "evidence_id": "recorded:https://lichess.org/ufcqmfxx:34_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r2q1rk1/pppb2p1/3pP1Qp/8/8/3B4/PPP2bPP/2KRR3 b - - 0 18",
+      "analysis_depth": "deep",
+      "before_fen": "r2q1rk1/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 w - - 2 18",
+      "best_move": "g6h7",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "ea020f7f-581b-447d-8b41-78f7b086d303",
+      "fast_line": [
+       "g6h7",
+       "g8f7"
+      ],
+      "focused_analysis_id": "380d8818-1891-421a-817f-d889bd802d38",
+      "focused_line": [
+       "d8g5",
+       "g6g5",
+       "h6g5",
+       "e6d7",
+       "f2e1",
+       "d3c4",
+       "g8h7",
+       "d1e1",
+       "h7g6",
+       "g2g4",
+       "a8d8",
+       "e1e6",
+       "g6f7",
+       "e6e1",
+       "d6d5",
+       "c4d5",
+       "f7g6",
+       "e1e6",
+       "f8f6",
+       "e6e7",
+       "f6f1",
+       "c1d2"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d8g5",
+         "g6g5",
+         "h6g5",
+         "e6d7",
+         "f2e1",
+         "d3c4",
+         "g8h7",
+         "d1e1",
+         "h7g6",
+         "g2g4",
+         "a8d8",
+         "e1e6",
+         "g6f7",
+         "e6e1",
+         "d6d5",
+         "c4d5",
+         "f7g6",
+         "e1e6",
+         "f8f6",
+         "e6e7",
+         "f6f1",
+         "c1d2"
+        ],
+        "score_cp": 12
+       },
+       {
+        "pv": [
+         "d7e6",
+         "g6h7"
+        ],
+        "score_cp": -275
+       },
+       {
+        "pv": [
+         "f8f5",
+         "d3f5",
+         "d7e6",
+         "g6h7",
+         "g8f8",
+         "e1e6",
+         "d8d7",
+         "f5g4",
+         "f2e3",
+         "c1b1",
+         "d7f7",
+         "h7h8",
+         "f7g8"
+        ],
+        "score_cp": -925
+       },
+       {
+        "pv": [
+         "f8f7",
+         "g6f7",
+         "g8h8",
+         "e6d7",
+         "f2e1",
+         "d1e1",
+         "d8g8",
+         "f7g8",
+         "a8g8",
+         "e1e8",
+         "g7g6",
+         "e8g8",
+         "h8g8",
+         "d7d8q",
+         "g8f7",
+         "d3c4",
+         "f7g7",
+         "d8c7",
+         "g7h8"
+        ],
+        "score_cp": -1278
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "e6",
+      "proving_line": [
+       "d8g5",
+       "g6g5"
+      ],
+      "reply_analysis_id": "33e2b4d3-8578-4797-b20a-da22889ca679",
+      "source_score_mate": null,
+      "swing_cp": 402
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2q1rk1/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 w - - 2 18",
+   "game_id": "https://lichess.org/ufcqmfxx",
+   "move_index": 34,
+   "played_move": "e6",
+   "position_id": "recorded:https://lichess.org/ufcqmfxx:34"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/fiv37vzi:35_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "7d5c469d-5f81-4e0e-a3f4-a4f9cd818aec",
+     "evidence_id": "recorded:https://lichess.org/fiv37vzi:35_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "rnr5/1p2kp1p/p1bp1n1q/4p1p1/4P1P1/2N4P/PPPNQPB1/1K1R3R w - - 0 19",
+      "analysis_depth": "deep",
+      "before_fen": "rnr5/1p1bkp1p/p1Pp1n1q/4p1p1/4P1P1/2N4P/PPPNQPB1/1K1R3R b - - 0 18",
+      "best_move": "b8c6",
+      "captured_piece": "P",
+      "captured_square": "c6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "95e45ced-befb-4b21-8cc2-07c9e6c0b0ca",
+      "fast_line": [
+       "b8c6",
+       "d2f3"
+      ],
+      "focused_analysis_id": "7d5c469d-5f81-4e0e-a3f4-a4f9cd818aec",
+      "focused_line": [
+       "d2c4",
+       "f6e8",
+       "e2d2",
+       "b8d7",
+       "h3h4",
+       "h6e6",
+       "c4e3",
+       "h7h6",
+       "h4g5",
+       "h6g5",
+       "h1h6",
+       "f7f6",
+       "g2f1",
+       "e7d8",
+       "f1e2"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d2c4",
+         "f6e8",
+         "e2d2",
+         "b8d7",
+         "h3h4",
+         "h6e6",
+         "c4e3",
+         "h7h6",
+         "h4g5",
+         "h6g5",
+         "h1h6",
+         "f7f6",
+         "g2f1",
+         "e7d8",
+         "f1e2"
+        ],
+        "score_cp": 674
+       },
+       {
+        "pv": [
+         "d2f1",
+         "e7d8",
+         "d1d6",
+         "b8d7",
+         "f1e3",
+         "h6f8",
+         "e2d2",
+         "d8c7",
+         "h1d1",
+         "c8d8",
+         "e3f5",
+         "f6e8"
+        ],
+        "score_cp": 628
+       },
+       {
+        "pv": [
+         "e2e3",
+         "c6b5",
+         "h3h4",
+         "c8g8",
+         "a2a4",
+         "b5c6",
+         "d2c4",
+         "f6g4",
+         "e3b6",
+         "b8d7",
+         "b6b4",
+         "g8g6",
+         "h4g5",
+         "h6g5",
+         "d1d6",
+         "g6d6",
+         "b4d6",
+         "e7e8",
+         "h1h7"
+        ],
+        "score_cp": 578
+       },
+       {
+        "pv": [
+         "e2e1",
+         "c6b5",
+         "d2f3",
+         "c8c3",
+         "e1c3",
+         "b5e2",
+         "d1g1",
+         "b8c6"
+        ],
+        "score_cp": 529
+       }
+      ],
+      "material_gain": 1,
+      "missed_type": "capture",
+      "played_move": "Bxc6",
+      "proving_line": [
+       "d2c4",
+       "f6e8",
+       "e2d2",
+       "b7b5",
+       "c4b6",
+       "b8d7",
+       "b6c8",
+       "a8c8"
+      ],
+      "reply_analysis_id": "8bd1ead4-93ad-4aa7-9b10-ea8305fdd206",
+      "source_score_mate": null,
+      "swing_cp": 238
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnr5/1p1bkp1p/p1Pp1n1q/4p1p1/4P1P1/2N4P/PPPNQPB1/1K1R3R b - - 0 18",
+   "game_id": "https://lichess.org/fiv37vzi",
+   "move_index": 35,
+   "played_move": "Bxc6",
+   "position_id": "recorded:https://lichess.org/fiv37vzi:35"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/fiv37vzi:42_ev3"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "29c6906e-af81-4bf9-8cc0-2b812fd2a619",
+     "evidence_id": "recorded:https://lichess.org/fiv37vzi:42_ev3",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnr2q2/3nkp1p/p1bp2P1/1p2p3/4P1P1/2N1Q3/PPPN1PB1/1K1R3R b - - 0 22",
+      "analysis_depth": "deep",
+      "before_fen": "rnr2q2/3nkp1p/p1bp4/1p2p1P1/4P1P1/2N1Q3/PPPN1PB1/1K1R3R w - - 1 22",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "6191f088-5d45-4949-9fd0-39494530e739",
+      "fast_line": [
+       "h1h7",
+       "e7d8",
+       "d2b3",
+       "d8c7",
+       "c3d5",
+       "c6d5",
+       "e4d5"
+      ],
+      "focused_analysis_id": "29c6906e-af81-4bf9-8cc0-2b812fd2a619",
+      "focused_line": [
+       "h7g6",
+       "a2a3",
+       "e7d8",
+       "g4g5",
+       "d8c7",
+       "g2h3",
+       "f8e7",
+       "d2b3",
+       "a6a5",
+       "f2f4",
+       "b5b4",
+       "c3d5",
+       "c6d5",
+       "d1d5",
+       "b8c6",
+       "f4e5",
+       "c6e5"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "h7g6",
+         "a2a3",
+         "e7d8",
+         "g4g5",
+         "d8c7",
+         "g2h3",
+         "f8e7",
+         "d2b3",
+         "a6a5",
+         "f2f4",
+         "b5b4",
+         "c3d5",
+         "c6d5",
+         "d1d5",
+         "b8c6",
+         "f4e5",
+         "c6e5"
+        ],
+        "score_cp": -430
+       },
+       {
+        "pv": [
+         "f8g7",
+         "g6h7",
+         "c8h8",
+         "d2f3",
+         "b5b4",
+         "f3h4",
+         "g7g4",
+         "h4f5",
+         "e7d8",
+         "f5d6",
+         "g4g6",
+         "c3e2",
+         "d8c7",
+         "g2f3",
+         "h8h7"
+        ],
+        "score_cp": -738
+       },
+       {
+        "pv": [
+         "f7g6",
+         "h1h7",
+         "e7d8",
+         "d2f3",
+         "f8g8",
+         "f3g5",
+         "d8c7",
+         "h7f7",
+         "c8e8",
+         "c3d5",
+         "c7b7",
+         "d5e7"
+        ],
+        "score_cp": -755
+       },
+       {
+        "pv": [
+         "h7h6",
+         "h1h6",
+         "f7g6",
+         "h6g6",
+         "f8f7",
+         "g6h6",
+         "f7f4",
+         "e3f4",
+         "e5f4",
+         "c3d5",
+         "c6d5",
+         "e4d5"
+        ],
+        "score_cp": -766
+       }
+      ],
+      "material_gain": 2,
+      "opponent_executed_threat": true,
+      "played_move": "g6",
+      "proving_line": [
+       "h7g6",
+       "g4g5",
+       "f8d8",
+       "f2f4",
+       "b5b4",
+       "c3d5",
+       "c6d5",
+       "e4d5",
+       "d8b6",
+       "e3f3",
+       "b6c5",
+       "d2b3",
+       "c5c2",
+       "b1a1"
+      ],
+      "reply_analysis_id": "6f0871f7-31f4-47b7-bc69-b713d76f268a",
+      "source_score_mate": null,
+      "swing_cp": 333,
+      "threat_move": "h7g6",
+      "threatened_piece": "P",
+      "threatened_square": "g6"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnr2q2/3nkp1p/p1bp4/1p2p1P1/4P1P1/2N1Q3/PPPN1PB1/1K1R3R w - - 1 22",
+   "game_id": "https://lichess.org/fiv37vzi",
+   "move_index": 42,
+   "played_move": "g6",
+   "position_id": "recorded:https://lichess.org/fiv37vzi:42"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/15lzmn9d:7_ev1"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "3c055d02-ac65-43d8-88f8-404b4ac83d33",
+     "evidence_id": "recorded:https://lichess.org/15lzmn9d:7_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnbqkbnr/p3pppp/3p4/1p1p4/2P1P3/8/PP3PPP/RNBQKBNR w KQkq - 0 5",
+      "analysis_depth": "deep",
+      "before_fen": "rnbqkbnr/p3pppp/2pp4/1p1P4/2P1P3/8/PP3PPP/RNBQKBNR b KQkq - 0 4",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "86583d63-5d28-4a4a-8f1b-135be1842030",
+      "fast_line": [
+       "b5c4",
+       "f1c4"
+      ],
+      "focused_analysis_id": "3c055d02-ac65-43d8-88f8-404b4ac83d33",
+      "focused_line": [
+       "d1d5",
+       "b8c6",
+       "d5c6",
+       "c8d7",
+       "c6a6",
+       "g8f6",
+       "c1e3",
+       "f6e4",
+       "b1c3",
+       "e4c3",
+       "b2c3",
+       "d8c7",
+       "a1c1",
+       "a8c8",
+       "c4b5",
+       "e7e5",
+       "f1d3",
+       "d6d5",
+       "a6a4",
+       "f8c5",
+       "e3c5",
+       "c7c5",
+       "g1e2",
+       "e8g8"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d1d5",
+         "b8c6",
+         "d5c6",
+         "c8d7",
+         "c6a6",
+         "g8f6",
+         "c1e3",
+         "f6e4",
+         "b1c3",
+         "e4c3",
+         "b2c3",
+         "d8c7",
+         "a1c1",
+         "a8c8",
+         "c4b5",
+         "e7e5",
+         "f1d3",
+         "d6d5",
+         "a6a4",
+         "f8c5",
+         "e3c5",
+         "c7c5",
+         "g1e2",
+         "e8g8"
+        ],
+        "score_cp": 608
+       },
+       {
+        "pv": [
+         "c4b5",
+         "g8f6",
+         "e4d5",
+         "g7g6",
+         "b1c3",
+         "a7a6",
+         "g1f3",
+         "f8g7",
+         "a2a4",
+         "e8g8",
+         "f1e2",
+         "c8b7",
+         "e1g1",
+         "a6b5",
+         "e2b5",
+         "b8a6"
+        ],
+        "score_cp": 119
+       },
+       {
+        "pv": [
+         "g1f3",
+         "g8f6",
+         "c4d5",
+         "a7a6",
+         "a2a4",
+         "b5b4",
+         "f1d3",
+         "e7e6",
+         "d5e6",
+         "c8e6",
+         "f3d4",
+         "e6d7"
+        ],
+        "score_cp": 102
+       },
+       {
+        "pv": [
+         "c4d5",
+         "c8d7",
+         "g1f3",
+         "g7g6",
+         "b1c3",
+         "g8f6",
+         "a2a3",
+         "f8g7",
+         "e4e5",
+         "d6e5",
+         "f3e5",
+         "e8g8",
+         "f1e2",
+         "b8a6"
+        ],
+        "score_cp": 96
+       }
+      ],
+      "material_gain": 7,
+      "opponent_executed_threat": true,
+      "played_move": "cxd5",
+      "proving_line": [
+       "d1d5",
+       "d8c7",
+       "d5a8",
+       "b8c6",
+       "c1e3",
+       "g8f6",
+       "c4b5",
+       "c6d4"
+      ],
+      "reply_analysis_id": "dd0423e2-b39f-4d16-8356-0e33e9aab77a",
+      "source_score_mate": null,
+      "swing_cp": 574,
+      "threat_move": "d1d5",
+      "threatened_piece": "p",
+      "threatened_square": "d5"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnbqkbnr/p3pppp/2pp4/1p1P4/2P1P3/8/PP3PPP/RNBQKBNR b KQkq - 0 4",
+   "game_id": "https://lichess.org/15lzmn9d",
+   "move_index": 7,
+   "played_move": "cxd5",
+   "position_id": "recorded:https://lichess.org/15lzmn9d:7"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/15lzmn9d:8_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "538f9d64-54a0-4ef3-83e8-4ee9201883fc",
+     "evidence_id": "recorded:https://lichess.org/15lzmn9d:8_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "rnbqkbnr/p3pppp/3p4/1p1P4/4P3/8/PP3PPP/RNBQKBNR b KQkq - 0 5",
+      "analysis_depth": "deep",
+      "before_fen": "rnbqkbnr/p3pppp/3p4/1p1p4/2P1P3/8/PP3PPP/RNBQKBNR w KQkq - 0 5",
+      "best_move": "d1d5",
+      "captured_piece": "p",
+      "captured_square": "d5",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "dd0423e2-b39f-4d16-8356-0e33e9aab77a",
+      "fast_line": [
+       "d1d5",
+       "d8c7",
+       "d5a8",
+       "b8c6",
+       "c1e3",
+       "g8f6",
+       "c4b5",
+       "c6d4"
+      ],
+      "focused_analysis_id": "538f9d64-54a0-4ef3-83e8-4ee9201883fc",
+      "focused_line": [
+       "c8d7",
+       "g1f3",
+       "g7g6",
+       "f1e2",
+       "f8g7",
+       "e1g1",
+       "g8f6",
+       "e4e5",
+       "d6e5",
+       "f3e5",
+       "e8g8",
+       "e2f3",
+       "a7a5",
+       "f1e1",
+       "b5b4",
+       "b1d2",
+       "d7b5",
+       "d2c4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c8d7",
+         "g1f3",
+         "g7g6",
+         "f1e2",
+         "f8g7",
+         "e1g1",
+         "g8f6",
+         "e4e5",
+         "d6e5",
+         "f3e5",
+         "e8g8",
+         "e2f3",
+         "a7a5",
+         "f1e1",
+         "b5b4",
+         "b1d2",
+         "d7b5",
+         "d2c4"
+        ],
+        "score_cp": -116
+       },
+       {
+        "pv": [
+         "a7a6",
+         "a2a4",
+         "b5b4",
+         "c1e3",
+         "g8f6",
+         "b1d2",
+         "e7e6",
+         "d2c4",
+         "e6d5",
+         "c4b6",
+         "c8b7",
+         "e4d5",
+         "b8d7",
+         "b6a8",
+         "f6d5",
+         "g1f3",
+         "f8e7",
+         "e3d2",
+         "e8g8",
+         "f1c4",
+         "d8a8"
+        ],
+        "score_cp": -130
+       },
+       {
+        "pv": [
+         "b5b4",
+         "a2a3"
+        ],
+        "score_cp": -177
+       },
+       {
+        "pv": [
+         "g8f6",
+         "f1b5",
+         "c8d7",
+         "b5d3",
+         "b8a6",
+         "b1c3",
+         "a6c5",
+         "g1f3",
+         "g7g6",
+         "e1g1",
+         "f8g7",
+         "h2h3",
+         "d8b8",
+         "d3c2"
+        ],
+        "score_cp": -203
+       }
+      ],
+      "material_gain": 7,
+      "missed_type": "capture",
+      "played_move": "cxd5",
+      "proving_line": [
+       "c8d7",
+       "b1c3",
+       "g8f6",
+       "c1e3",
+       "g7g6",
+       "f1b5",
+       "d7b5",
+       "c3b5",
+       "d8a5",
+       "b5c3"
+      ],
+      "reply_analysis_id": "27c2bedb-f0ff-4f99-ad37-f1b3a25a87ab",
+      "source_score_mate": null,
+      "swing_cp": 544
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnbqkbnr/p3pppp/3p4/1p1p4/2P1P3/8/PP3PPP/RNBQKBNR w KQkq - 0 5",
+   "game_id": "https://lichess.org/15lzmn9d",
+   "move_index": 8,
+   "played_move": "cxd5",
+   "position_id": "recorded:https://lichess.org/15lzmn9d:8"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/descpsmi:82_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "491a0541-8f68-4c44-ba46-01f1349b1178",
+     "evidence_id": "recorded:https://lichess.org/descpsmi:82_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "8/8/6k1/8/8/1P2R3/P2K3p/7Q b - - 0 42",
+      "analysis_depth": "deep",
+      "before_fen": "8/8/6k1/8/8/1P2RQ2/P2K3p/7r w - - 4 42",
+      "best_move": "f3g4",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "cf1c81b4-cdf1-4d8e-a9a5-f846dce7e27d",
+      "fast_line": [
+       "f3g4",
+       "g6f6",
+       "e3e6",
+       "f6f7",
+       "g4g6",
+       "f7f8",
+       "e6e8"
+      ],
+      "focused_analysis_id": "491a0541-8f68-4c44-ba46-01f1349b1178",
+      "focused_line": [
+       "g6f5",
+       "h1h2",
+       "f5g5",
+       "h2f2",
+       "g5g6",
+       "e3g3",
+       "g6h7",
+       "f2h2"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g6f5",
+         "h1h2",
+         "f5g5",
+         "h2f2",
+         "g5g6",
+         "e3g3",
+         "g6h7",
+         "f2h2"
+        ],
+        "score_mate": -4
+       },
+       {
+        "pv": [
+         "g6g5",
+         "h1g2",
+         "g5f6",
+         "g2f2",
+         "f6g6",
+         "e3g3",
+         "g6h7",
+         "f2h2"
+        ],
+        "score_mate": -4
+       },
+       {
+        "pv": [
+         "g6g7",
+         "e3f3",
+         "g7h7",
+         "f3g3",
+         "h7h6",
+         "h1h2"
+        ],
+        "score_mate": -3
+       },
+       {
+        "pv": [
+         "g6f6",
+         "h1f1",
+         "f6g5",
+         "e3g3",
+         "g5h6",
+         "f1h3"
+        ],
+        "score_mate": -3
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Qxh1",
+      "proving_line": [
+       "g6h6",
+       "e3e6",
+       "h6h5",
+       "h1d5",
+       "h5g4",
+       "e6g6",
+       "g4h4"
+      ],
+      "reply_analysis_id": "44f722ce-b18e-4c23-b9c2-4769705cf494",
+      "source_score_mate": 4,
+      "swing_cp": 8859
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "8/8/6k1/8/8/1P2RQ2/P2K3p/7r w - - 4 42",
+   "game_id": "https://lichess.org/descpsmi",
+   "move_index": 82,
+   "played_move": "Qxh1",
+   "position_id": "recorded:https://lichess.org/descpsmi:82"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/8ok6jtv5:17_ev2"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "0c06c9b9-f6a4-4ed8-8331-aba54148dcbc",
+     "evidence_id": "recorded:https://lichess.org/8ok6jtv5:17_ev2",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rnb1k2r/pppp2b1/4pnqp/5p2/3P1B2/2PB1N2/PP3PPP/RN1Q1RK1 w kq - 2 10",
+      "analysis_depth": "deep",
+      "before_fen": "rnb1k1nr/pppp2b1/4p1qp/5p2/3P1B2/2PB1N2/PP3PPP/RN1Q1RK1 b kq - 1 9",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "69ac801c-b597-4a40-89b5-c2f966c8c0ec",
+      "fast_line": [
+       "d7d6",
+       "b1a3"
+      ],
+      "focused_analysis_id": "0c06c9b9-f6a4-4ed8-8331-aba54148dcbc",
+      "focused_line": [
+       "f4c7",
+       "b8c6",
+       "f1e1",
+       "d7d5",
+       "c3c4",
+       "e8g8",
+       "b1c3",
+       "f6e4",
+       "c4d5",
+       "e6d5",
+       "d3b5",
+       "a7a6",
+       "b5a4",
+       "g6f7",
+       "a4c6",
+       "b7c6",
+       "c7f4",
+       "c6c5",
+       "d4c5",
+       "c8b7",
+       "a1c1",
+       "a8c8",
+       "c3e2",
+       "c8c5",
+       "c1c5",
+       "e4c5",
+       "e2d4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f4c7",
+         "b8c6",
+         "f1e1",
+         "d7d5",
+         "c3c4",
+         "e8g8",
+         "b1c3",
+         "f6e4",
+         "c4d5",
+         "e6d5",
+         "d3b5",
+         "a7a6",
+         "b5a4",
+         "g6f7",
+         "a4c6",
+         "b7c6",
+         "c7f4",
+         "c6c5",
+         "d4c5",
+         "c8b7",
+         "a1c1",
+         "a8c8",
+         "c3e2",
+         "c8c5",
+         "c1c5",
+         "e4c5",
+         "e2d4"
+        ],
+        "score_cp": 440
+       },
+       {
+        "pv": [
+         "f3h4",
+         "g6f7",
+         "f4c7",
+         "d7d5",
+         "c7f4",
+         "b8c6",
+         "g2g3",
+         "c8d7",
+         "b1a3",
+         "a7a6",
+         "d3e2",
+         "c6e7",
+         "a3c2",
+         "e7g6",
+         "h4g6",
+         "f7g6",
+         "c2b4"
+        ],
+        "score_cp": 341
+       },
+       {
+        "pv": [
+         "f1e1",
+         "e8d8",
+         "f3e5",
+         "g6e8",
+         "f4g3",
+         "d7d6",
+         "g3h4",
+         "b8d7",
+         "d3e2",
+         "h6h5",
+         "a2a4",
+         "d7f8",
+         "c3c4",
+         "c8d7",
+         "b1c3",
+         "d6e5",
+         "d4e5"
+        ],
+        "score_cp": 318
+       },
+       {
+        "pv": [
+         "d3c4",
+         "e8d8",
+         "f3e5",
+         "g6e8",
+         "f4g3",
+         "b8c6",
+         "e5c6",
+         "b7c6",
+         "b1d2",
+         "e8g6",
+         "d2f3",
+         "f6e4",
+         "f3e5",
+         "g7e5",
+         "d4e5",
+         "c8b7"
+        ],
+        "score_cp": 187
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "Nf6",
+      "proving_line": [
+       "f4c7",
+       "b8c6",
+       "b1d2",
+       "d7d5",
+       "f3h4",
+       "g6g5",
+       "d2f3",
+       "g5g4",
+       "d3b5",
+       "f6e4"
+      ],
+      "reply_analysis_id": "7e7315f0-1ae2-467b-94df-0cdb97889617",
+      "source_score_mate": null,
+      "swing_cp": 289,
+      "threat_move": "f4c7",
+      "threatened_piece": "p",
+      "threatened_square": "c7"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rnb1k1nr/pppp2b1/4p1qp/5p2/3P1B2/2PB1N2/PP3PPP/RN1Q1RK1 b kq - 1 9",
+   "game_id": "https://lichess.org/8ok6jtv5",
+   "move_index": 17,
+   "played_move": "Nf6",
+   "position_id": "recorded:https://lichess.org/8ok6jtv5:17"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/8ok6jtv5:32_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "15be3b24-4cc7-4cf5-870b-c4c5a6764d89",
+     "evidence_id": "recorded:https://lichess.org/8ok6jtv5:32_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r1b3k1/pp1p2B1/2n1p1rp/5p1q/3P2n1/2P2N2/PP2BPPP/RN1Q1RK1 b - - 0 17",
+      "analysis_depth": "deep",
+      "before_fen": "r1b3k1/pp1p2b1/2n1p1rp/4Bp1q/3P2n1/2P2N2/PP2BPPP/RN1Q1RK1 w - - 13 17",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "6ef139c8-4ece-4665-b4d5-be8be4c4d5f4",
+      "fast_line": [
+       "e5g3",
+       "b7b6",
+       "b1d2",
+       "g7f6",
+       "f3e5",
+       "f6e5",
+       "d4e5",
+       "c8b7",
+       "h2h3",
+       "c6e5",
+       "h3g4",
+       "e5g4"
+      ],
+      "focused_analysis_id": "15be3b24-4cc7-4cf5-870b-c4c5a6764d89",
+      "focused_line": [
+       "g6g7",
+       "b1d2",
+       "b7b6",
+       "h2h3",
+       "g4f6",
+       "g1h2",
+       "c8b7",
+       "f3e1",
+       "h5g6",
+       "g2g3",
+       "f6e4",
+       "d2e4",
+       "f5e4",
+       "e1g2",
+       "a8f8",
+       "e2g4",
+       "g7f7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g6g7",
+         "b1d2",
+         "b7b6",
+         "h2h3",
+         "g4f6",
+         "g1h2",
+         "c8b7",
+         "f3e1",
+         "h5g6",
+         "g2g3",
+         "f6e4",
+         "d2e4",
+         "f5e4",
+         "e1g2",
+         "a8f8",
+         "e2g4",
+         "g7f7"
+        ],
+        "score_cp": -92
+       },
+       {
+        "pv": [
+         "g8g7",
+         "h2h3"
+        ],
+        "score_cp": -446
+       },
+       {
+        "pv": [
+         "b7b6",
+         "h2h3",
+         "g6g7",
+         "h3g4",
+         "h5g4",
+         "f3e1",
+         "g4h4",
+         "f2f4",
+         "c6e7",
+         "c3c4",
+         "c8b7",
+         "e2f3",
+         "b7e4",
+         "b1c3",
+         "e7g6",
+         "c3e2",
+         "g6f4"
+        ],
+        "score_cp": -463
+       },
+       {
+        "pv": [
+         "b7b5",
+         "h2h3",
+         "g6g7",
+         "h3g4",
+         "f5g4",
+         "f3h2",
+         "c8b7",
+         "e2g4",
+         "h5g6",
+         "b1d2",
+         "c6e7",
+         "g2g3",
+         "h6h5",
+         "g4f3",
+         "h5h4",
+         "d1e1",
+         "e7d5"
+        ],
+        "score_cp": -468
+       }
+      ],
+      "hanging_piece": "B",
+      "hanging_square": "g7",
+      "material_gain": 3,
+      "played_move": "Bxg7",
+      "proving_line": [
+       "g6g7",
+       "d4d5"
+      ],
+      "reply_analysis_id": "d7df0f82-8abd-4474-a467-ddd2b20c8ed7",
+      "source_score_mate": null,
+      "swing_cp": 308
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r1b3k1/pp1p2b1/2n1p1rp/4Bp1q/3P2n1/2P2N2/PP2BPPP/RN1Q1RK1 w - - 13 17",
+   "game_id": "https://lichess.org/8ok6jtv5",
+   "move_index": 32,
+   "played_move": "Bxg7",
+   "position_id": "recorded:https://lichess.org/8ok6jtv5:32"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/a301qp92:20_ev1"
+    ],
+    "primary": "board_awareness.hanging_piece",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply wins this piece in its own local exchange",
+     "engine_analysis_id": "68585766-f9c4-4a06-97d7-ee83aa372bad",
+     "evidence_id": "recorded:https://lichess.org/a301qp92:20_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 b - - 1 11",
+      "analysis_depth": "deep",
+      "before_fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B3p3/5N2/PPP2PPP/RNBQR1K1 w - - 0 11",
+      "blunder_type": "hanging_piece_lost",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "88c17bd9-2f2d-41c9-b945-0c6fb58eed89",
+      "fast_line": [
+       "f3d2",
+       "c8g4"
+      ],
+      "focused_analysis_id": "68585766-f9c4-4a06-97d7-ee83aa372bad",
+      "focused_line": [
+       "c6d4",
+       "c1g5",
+       "b7b5",
+       "c2c3",
+       "d4e6",
+       "g5f6",
+       "g7f6",
+       "a4b5",
+       "a8b8",
+       "b1a3",
+       "f6f5",
+       "h2h3",
+       "d6f4",
+       "g2g3",
+       "d8d1",
+       "g3f4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c6d4",
+         "c1g5",
+         "b7b5",
+         "c2c3",
+         "d4e6",
+         "g5f6",
+         "g7f6",
+         "a4b5",
+         "a8b8",
+         "b1a3",
+         "f6f5",
+         "h2h3",
+         "d6f4",
+         "g2g3",
+         "d8d1",
+         "g3f4"
+        ],
+        "score_cp": 700
+       },
+       {
+        "pv": [
+         "f6g4",
+         "g2g3",
+         "c6d4",
+         "e1e4",
+         "d6c5",
+         "e4g4",
+         "b7b5",
+         "c1g5",
+         "c8g4",
+         "d1g4",
+         "d8c8",
+         "g4c8",
+         "a8c8"
+        ],
+        "score_cp": 585
+       },
+       {
+        "pv": [
+         "d6h2",
+         "g1h2",
+         "f6g4",
+         "h2g1",
+         "d8h4",
+         "d1g4",
+         "c8g4",
+         "d4c6",
+         "b7c6",
+         "b1c3",
+         "f7f5",
+         "a4c6",
+         "a8c8",
+         "c6d7",
+         "c8d8",
+         "c1g5",
+         "h4g5"
+        ],
+        "score_cp": 583
+       },
+       {
+        "pv": [
+         "c8g4",
+         "d4c6",
+         "b7c6",
+         "d1d2",
+         "d8c7",
+         "h2h3",
+         "e4e3",
+         "d2e3",
+         "f8e8",
+         "e3d2",
+         "f6e4",
+         "d2e3",
+         "d6h2",
+         "g1h1",
+         "e4f2",
+         "e3f2",
+         "h2g3",
+         "e1e8",
+         "a8e8",
+         "f2f1",
+         "e8e1",
+         "f1e1",
+         "g3e1",
+         "h3g4",
+         "c7g3",
+         "b1d2",
+         "g3h4",
+         "h1g1",
+         "h4f2",
+         "g1h1",
+         "e1d2",
+         "c1d2",
+         "f2d2",
+         "a1f1",
+         "f7f6",
+         "g2g3",
+         "g8f8",
+         "f1f4",
+         "d2d1",
+         "h1g2"
+        ],
+        "score_cp": 392
+       }
+      ],
+      "hanging_piece": "N",
+      "hanging_square": "d4",
+      "material_gain": 3,
+      "played_move": "Nd4",
+      "proving_line": [
+       "c6d4",
+       "c1g5",
+       "d6e7",
+       "b1c3"
+      ],
+      "reply_analysis_id": "9a4431da-ca81-4ab6-aa5b-11505d8f31b6",
+      "source_score_mate": null,
+      "swing_cp": 386
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B3p3/5N2/PPP2PPP/RNBQR1K1 w - - 0 11",
+   "game_id": "https://lichess.org/a301qp92",
+   "move_index": 20,
+   "played_move": "Nd4",
+   "position_id": "recorded:https://lichess.org/a301qp92:20"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/a301qp92:21_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "8f4198a7-1677-4efc-90e7-545d787fff69",
+     "evidence_id": "recorded:https://lichess.org/a301qp92:21_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r1b2rk1/ppq2ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 w - - 2 12",
+      "analysis_depth": "deep",
+      "before_fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 b - - 1 11",
+      "best_move": "c6d4",
+      "captured_piece": "N",
+      "captured_square": "d4",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "9a4431da-ca81-4ab6-aa5b-11505d8f31b6",
+      "fast_line": [
+       "c6d4",
+       "c1g5",
+       "d6e7",
+       "b1c3"
+      ],
+      "focused_analysis_id": "8f4198a7-1677-4efc-90e7-545d787fff69",
+      "focused_line": [
+       "h2h3",
+       "c6d4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "h2h3",
+         "c6d4"
+        ],
+        "score_cp": -353
+       },
+       {
+        "pv": [
+         "d4c6",
+         "d6h2",
+         "g1f1",
+         "b7c6",
+         "d1e2",
+         "a7a5",
+         "c2c4",
+         "f8e8",
+         "b1c3",
+         "h7h6",
+         "e2c2",
+         "c8f5",
+         "c1e3",
+         "e8e6",
+         "a1d1",
+         "f6g4"
+        ],
+        "score_cp": -502
+       },
+       {
+        "pv": [
+         "c1g5",
+         "d6h2",
+         "g1f1",
+         "c8g4",
+         "d4e2",
+         "f8d8",
+         "d1c1",
+         "g4e2",
+         "e1e2",
+         "c6d4",
+         "g5f6",
+         "g7f6",
+         "b1c3",
+         "d4e2",
+         "c3e2",
+         "h2e5",
+         "c2c3",
+         "g8h8",
+         "c1h6",
+         "a7a5",
+         "g2g3"
+        ],
+        "score_cp": -504
+       },
+       {
+        "pv": [
+         "c2c3",
+         "d6h2",
+         "g1f1",
+         "c6d4",
+         "c3d4",
+         "c7c4",
+         "e1e2",
+         "c8g4",
+         "b1c3",
+         "a8d8",
+         "a4b3",
+         "c4c8",
+         "c1g5",
+         "c8f5",
+         "g5f6",
+         "f5f6",
+         "d1c2",
+         "f6h4"
+        ],
+        "score_cp": -516
+       }
+      ],
+      "material_gain": 3,
+      "missed_type": "capture",
+      "played_move": "Qc7",
+      "proving_line": [
+       "h2h3",
+       "d6h2",
+       "g1h1",
+       "f8d8",
+       "c1e3",
+       "c6d4",
+       "e3d4"
+      ],
+      "reply_analysis_id": "08410db7-10d6-4085-bb6e-64fe79cdf2ce",
+      "source_score_mate": null,
+      "swing_cp": 557
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 b - - 1 11",
+   "game_id": "https://lichess.org/a301qp92",
+   "move_index": 21,
+   "played_move": "Qc7",
+   "position_id": "recorded:https://lichess.org/a301qp92:21"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/61wsdfp4:30_ev2"
+    ],
+    "primary": "threat_processing.missed_direct_threat",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass reply begins with a profitable local capture",
+     "engine_analysis_id": "0db89131-7650-4ea4-9037-ad4116e14646",
+     "evidence_id": "recorded:https://lichess.org/61wsdfp4:30_ev2",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "1r2kb1r/pb3ppp/8/3qp3/3p1P2/7P/PPP1NKP1/1RBQ1R2 b k - 3 16",
+      "analysis_depth": "deep",
+      "before_fen": "1r2kb1r/pb3ppp/8/3qp3/3p1P2/7P/PPP1N1P1/1RBQ1RK1 w k - 2 16",
+      "blunder_type": "missed_direct_threat",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "3ba12ba2-91b3-4053-b6ba-81b62b9282f3",
+      "fast_line": [
+       "f1f2",
+       "f8c5"
+      ],
+      "focused_analysis_id": "0db89131-7650-4ea4-9037-ad4116e14646",
+      "focused_line": [
+       "d5g2",
+       "f2e1",
+       "f8b4",
+       "c1d2",
+       "b4e7",
+       "d2a5",
+       "e7h4",
+       "e1d2",
+       "g2e4",
+       "e2d4",
+       "e4d4",
+       "d2c1",
+       "e8g8",
+       "d1d4",
+       "e5d4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d5g2",
+         "f2e1",
+         "f8b4",
+         "c1d2",
+         "b4e7",
+         "d2a5",
+         "e7h4",
+         "e1d2",
+         "g2e4",
+         "e2d4",
+         "e4d4",
+         "d2c1",
+         "e8g8",
+         "d1d4",
+         "e5d4"
+        ],
+        "score_cp": 749
+       },
+       {
+        "pv": [
+         "f8b4",
+         "f1g1",
+         "e8g8",
+         "f2g3",
+         "f8e8",
+         "g3h2",
+         "b4d6",
+         "h2h1",
+         "b8c8",
+         "c1d2"
+        ],
+        "score_cp": 587
+       },
+       {
+        "pv": [
+         "f8e7",
+         "f1g1",
+         "e8g8",
+         "f2g3",
+         "e7d6",
+         "g3h2",
+         "f8e8",
+         "h2h1",
+         "b8c8",
+         "d1d3",
+         "d6b8",
+         "f4e5"
+        ],
+        "score_cp": 579
+       },
+       {
+        "pv": [
+         "f8c5",
+         "f2e1",
+         "d5a2",
+         "f4e5",
+         "e8g8",
+         "c1f4",
+         "b7g2",
+         "f1g1",
+         "g2e4",
+         "b1a1",
+         "a2b2",
+         "a1b1",
+         "b2b1",
+         "g1g7",
+         "g8h8"
+        ],
+        "score_cp": 568
+       }
+      ],
+      "material_gain": 1,
+      "opponent_executed_threat": true,
+      "played_move": "Kf2",
+      "proving_line": [
+       "d5g2",
+       "f2e1",
+       "f8e7",
+       "f4e5",
+       "e7h4",
+       "e1d2",
+       "e8g8",
+       "f1g1",
+       "g2h3"
+      ],
+      "reply_analysis_id": "f0c40fe0-2eb6-4479-8d49-dc9a5cad3756",
+      "source_score_mate": null,
+      "swing_cp": 240,
+      "threat_move": "d5g2",
+      "threatened_piece": "P",
+      "threatened_square": "g2"
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "1r2kb1r/pb3ppp/8/3qp3/3p1P2/7P/PPP1N1P1/1RBQ1RK1 w k - 2 16",
+   "game_id": "https://lichess.org/61wsdfp4",
+   "move_index": 30,
+   "played_move": "Kf2",
+   "position_id": "recorded:https://lichess.org/61wsdfp4:30"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/61wsdfp4:43_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "071a4daf-76aa-4ca1-894f-e89f90a6ab03",
+     "evidence_id": "recorded:https://lichess.org/61wsdfp4:43_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "3rk2r/p5pp/3Q4/4p3/1P2b3/7P/PP2N1q1/1RB1KR2 w k - 3 23",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "1r2k2r/p5pp/3Q4/4p3/1P2b3/7P/PP2N1q1/1RB1KR2 b k - 2 22",
+      "before_score_cp": -780,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "3fac8968-5614-4704-8654-96a0b8f93c9a",
+      "fast_line": [
+       "b8b7",
+       "b1a1",
+       "b7e7",
+       "d6b8",
+       "e8d7",
+       "b8a7",
+       "d7e8",
+       "a7b8",
+       "e8d7",
+       "b8b5",
+       "e4c6",
+       "b5d3",
+       "d7c7"
+      ],
+      "focused_analysis_id": "071a4daf-76aa-4ca1-894f-e89f90a6ab03",
+      "focused_line": [
+       "d6e6"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d6e6"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "f1f8",
+         "h8f8",
+         "d6e6"
+        ],
+        "score_mate": 2
+       },
+       {
+        "pv": [
+         "d6e5",
+         "e8d7",
+         "f1f7",
+         "d7c8",
+         "e5c7"
+        ],
+        "score_mate": 3
+       },
+       {
+        "pv": [
+         "d6c7",
+         "d8d1",
+         "e1d1",
+         "g2f1",
+         "d1d2",
+         "f1g2",
+         "c7c8",
+         "e8f7",
+         "c8h8",
+         "e4f3",
+         "h8b8",
+         "g2e2",
+         "d2c3",
+         "f3e4",
+         "b8a7",
+         "f7e6",
+         "c3b3",
+         "e2d3",
+         "b3a4"
+        ],
+        "score_cp": 69
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "09da7410-378b-4439-882d-0146253215c8",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "g2f1",
+         "e1f1",
+         "e8f7",
+         "d6c7",
+         "f7e6",
+         "c7c4",
+         "e4d5",
+         "c4g4",
+         "e6d6",
+         "c1g5",
+         "b8f8",
+         "f1g1"
+        ],
+        "score_cp": -780
+       },
+       {
+        "pv": [
+         "b8b7",
+         "d6e6",
+         "e8d8",
+         "c1g5",
+         "g2g5",
+         "b1d1",
+         "d8c7",
+         "e6d6",
+         "c7c8",
+         "f1f8",
+         "h8f8",
+         "d6f8",
+         "c8c7",
+         "f8d6",
+         "c7c8",
+         "d1c1",
+         "g5c1",
+         "e2c1",
+         "a7a5"
+        ],
+        "score_cp": -874
+       },
+       {
+        "pv": [
+         "b8b5",
+         "d6e6",
+         "e8d8",
+         "c1g5",
+         "g2g5",
+         "b1d1",
+         "d8c7",
+         "e6d7",
+         "c7b8",
+         "d7b5",
+         "b8a8",
+         "d1d7",
+         "g5e3",
+         "b5c5",
+         "e3c5",
+         "b4c5",
+         "e4c6",
+         "d7d6",
+         "h8b8",
+         "b2b3",
+         "e5e4",
+         "f1f7"
+        ],
+        "score_cp": -907
+       },
+       {
+        "pv": [
+         "b8b6",
+         "d6e5",
+         "e8d8",
+         "c1g5",
+         "d8c8",
+         "b1c1",
+         "b6c6",
+         "f1g1",
+         "g2f3",
+         "c1c6",
+         "e4c6",
+         "g5f4",
+         "f3e2",
+         "e5e2",
+         "h8e8",
+         "e2e8",
+         "c6e8",
+         "g1g7",
+         "e8g6",
+         "g7c7",
+         "c8d8",
+         "c7a7"
+        ],
+        "score_cp": -926
+       }
+      ],
+      "mating_line": [
+       "d6e6"
+      ],
+      "played_move": "Rd8",
+      "proving_line": [
+       "d6e6"
+      ],
+      "reply_analysis_id": "820e0909-0de3-4e04-af33-2a9e8ff1dfc2",
+      "source_score_mate": null,
+      "swing_cp": 9348
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "1r2k2r/p5pp/3Q4/4p3/1P2b3/7P/PP2N1q1/1RB1KR2 b k - 2 22",
+   "game_id": "https://lichess.org/61wsdfp4",
+   "move_index": 43,
+   "played_move": "Rd8",
+   "position_id": "recorded:https://lichess.org/61wsdfp4:43"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/7hvhc1t7:16_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "89cc0251-7937-4746-b4a3-a378b54a407d",
+     "evidence_id": "recorded:https://lichess.org/7hvhc1t7:16_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/1b4b1/1PP1P1PB/PB1PNPQP/RN2K2R b KQ - 4 9",
+      "analysis_depth": "deep",
+      "before_fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/1b4b1/1PP1PQPB/PB1PNP1P/RN2K2R w KQ - 3 9",
+      "best_move": "h3g4",
+      "captured_piece": "b",
+      "captured_square": "g4",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "f3cd9b75-d38a-45c4-b39e-6227d18a3d91",
+      "fast_line": [
+       "h3g4",
+       "b4d6",
+       "h2h3",
+       "h7h5",
+       "g4f5",
+       "e5e4",
+       "h3h4",
+       "g5h6",
+       "f3g2",
+       "c6e5",
+       "e2f4"
+      ],
+      "focused_analysis_id": "89cc0251-7937-4746-b4a3-a378b54a407d",
+      "focused_line": [
+       "g4e2",
+       "e1e2",
+       "b4c5",
+       "b3b4",
+       "c5d6",
+       "d2d3",
+       "e5e4",
+       "d3d4",
+       "b7b5",
+       "a2a3",
+       "a7a5",
+       "b1d2",
+       "h7h5",
+       "e2d1",
+       "c6e7",
+       "g2f1",
+       "c7c6",
+       "f1e2",
+       "e7c8",
+       "a3a4",
+       "a5b4",
+       "a4b5",
+       "a8a1",
+       "b2a1",
+       "b4c3",
+       "a1c3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "g4e2",
+         "e1e2",
+         "b4c5",
+         "b3b4",
+         "c5d6",
+         "d2d3",
+         "e5e4",
+         "d3d4",
+         "b7b5",
+         "a2a3",
+         "a7a5",
+         "b1d2",
+         "h7h5",
+         "e2d1",
+         "c6e7",
+         "g2f1",
+         "c7c6",
+         "f1e2",
+         "e7c8",
+         "a3a4",
+         "a5b4",
+         "a4b5",
+         "a8a1",
+         "b2a1",
+         "b4c3",
+         "a1c3"
+        ],
+        "score_cp": 213
+       },
+       {
+        "pv": [
+         "g4h3",
+         "g2h3",
+         "b4e7",
+         "f2f4",
+         "g5g6",
+         "e1g1",
+         "g6c2",
+         "b2c1",
+         "f8e8",
+         "f4e5",
+         "c6e5",
+         "h3f5",
+         "c2f5",
+         "f1f5",
+         "e7d6",
+         "f5f1"
+        ],
+        "score_cp": 189
+       },
+       {
+        "pv": [
+         "b4d6"
+        ],
+        "score_cp": 163
+       },
+       {
+        "pv": [
+         "b4e7",
+         "h3g4",
+         "g5g4",
+         "f2f4",
+         "g4g6",
+         "b1a3",
+         "e7a3",
+         "b2a3",
+         "f8e8",
+         "e1g1",
+         "a8d8",
+         "f4f5",
+         "g6g5",
+         "a1d1",
+         "e5e4",
+         "a3c5",
+         "c6e5",
+         "c5d4",
+         "e5f3",
+         "f1f3",
+         "e4f3",
+         "g2f3",
+         "f6e4",
+         "h2h4",
+         "g5e7",
+         "b3b4",
+         "b7b6",
+         "e2f4"
+        ],
+        "score_cp": 150
+       }
+      ],
+      "material_gain": 3,
+      "missed_type": "capture",
+      "played_move": "Qg2",
+      "proving_line": [
+       "g4h3",
+       "g2h3",
+       "b4e7",
+       "b2a3",
+       "g5g6",
+       "a3e7",
+       "c6e7",
+       "b1a3",
+       "f8e8",
+       "h3g2",
+       "e7c6"
+      ],
+      "reply_analysis_id": "b408860e-152a-4f3c-9f73-6e5367ad2b3a",
+      "source_score_mate": null,
+      "swing_cp": 479
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/1b4b1/1PP1PQPB/PB1PNP1P/RN2K2R w KQ - 3 9",
+   "game_id": "https://lichess.org/7hvhc1t7",
+   "move_index": 16,
+   "played_move": "Qg2",
+   "position_id": "recorded:https://lichess.org/7hvhc1t7:16"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/7hvhc1t7:20_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "e43ff46e-93ee-4d49-978f-fbc68656969e",
+     "evidence_id": "recorded:https://lichess.org/7hvhc1t7:20_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/8/1PB1P1PB/P2PKPQP/RN5R b - - 0 11",
+      "analysis_depth": "deep",
+      "before_fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/8/1Pb1P1PB/PB1PKPQP/RN5R w - - 0 11",
+      "best_move": "b1c3",
+      "captured_piece": "b",
+      "captured_square": "c3",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "a245fd8e-e244-4fbc-971f-b2dcee538a65",
+      "fast_line": [
+       "b1c3",
+       "g5g6",
+       "f2f3",
+       "c6b4",
+       "c3d1",
+       "g6c2",
+       "b2e5",
+       "c2d3",
+       "e2f2",
+       "b4c2",
+       "e5f6",
+       "g7f6"
+      ],
+      "focused_analysis_id": "e43ff46e-93ee-4d49-978f-fbc68656969e",
+      "focused_line": [
+       "d5d4",
+       "c3b2",
+       "c6b4",
+       "g2f3",
+       "a8d8",
+       "f3f5",
+       "g5h6",
+       "h3g2",
+       "f6d7",
+       "b1a3",
+       "h6a6",
+       "a3c4",
+       "d7c5",
+       "h1d1"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d5d4",
+         "c3b2",
+         "c6b4",
+         "g2f3",
+         "a8d8",
+         "f3f5",
+         "g5h6",
+         "h3g2",
+         "f6d7",
+         "b1a3",
+         "h6a6",
+         "a3c4",
+         "d7c5",
+         "h1d1"
+        ],
+        "score_cp": -105
+       },
+       {
+        "pv": [
+         "f8e8",
+         "h1c1",
+         "g5g6",
+         "b1a3",
+         "a8d8",
+         "e2f1",
+         "d5d4",
+         "c3b2",
+         "c6b4",
+         "c1c7",
+         "f6e4",
+         "f2f3"
+        ],
+        "score_cp": -123
+       },
+       {
+        "pv": [
+         "a8d8",
+         "f2f4",
+         "g5h5",
+         "g3g4",
+         "h5g6",
+         "g4g5",
+         "f6e4",
+         "f4f5",
+         "g6d6",
+         "d2d3",
+         "e4c5",
+         "b1d2",
+         "d5d4"
+        ],
+        "score_cp": -126
+       },
+       {
+        "pv": [
+         "g5g6",
+         "g2f3",
+         "d5d4",
+         "h3f5",
+         "g6h6",
+         "c3b2",
+         "e5e4",
+         "f5e4",
+         "f6e4",
+         "f3e4",
+         "a8d8",
+         "e4f5"
+        ],
+        "score_cp": -189
+       }
+      ],
+      "material_gain": 4,
+      "missed_type": "capture",
+      "played_move": "Bxc3",
+      "proving_line": [
+       "d5d4",
+       "c3b2"
+      ],
+      "reply_analysis_id": "3b6272ae-eb0f-4d3f-a099-e9eb1b43048b",
+      "source_score_mate": null,
+      "swing_cp": 207
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/8/1Pb1P1PB/PB1PKPQP/RN5R w - - 0 11",
+   "game_id": "https://lichess.org/7hvhc1t7",
+   "move_index": 20,
+   "played_move": "Bxc3",
+   "position_id": "recorded:https://lichess.org/7hvhc1t7:20"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/y3m3quag:6_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "72baadaf-1daf-48d2-874e-28cc3d7f16a0",
+     "evidence_id": "recorded:https://lichess.org/y3m3quag:6_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r2qkbnr/ppp1pppp/2n5/3p1b2/3P4/3BP3/PPPB1PPP/RN1QK1NR b KQkq - 3 4",
+      "analysis_depth": "deep",
+      "before_fen": "r2qkbnr/ppp1pppp/2n5/3p1b2/3P4/3BP3/PPP2PPP/RNBQK1NR w KQkq - 2 4",
+      "best_move": "d3f5",
+      "captured_piece": "b",
+      "captured_square": "f5",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "ea9d493f-1a2b-48ea-b929-be9c1584547f",
+      "fast_line": [
+       "d3f5",
+       "e7e5",
+       "d4e5",
+       "c6e5",
+       "f5h3",
+       "f8b4",
+       "c2c3",
+       "d8h4",
+       "c3b4",
+       "h4b4",
+       "b1d2"
+      ],
+      "focused_analysis_id": "72baadaf-1daf-48d2-874e-28cc3d7f16a0",
+      "focused_line": [
+       "e7e6",
+       "d3f5",
+       "e6f5",
+       "b2b3",
+       "d8g5",
+       "d1f3",
+       "g8f6",
+       "g1h3",
+       "g5g4",
+       "h3f4",
+       "g4f3",
+       "g2f3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e7e6",
+         "d3f5",
+         "e6f5",
+         "b2b3",
+         "d8g5",
+         "d1f3",
+         "g8f6",
+         "g1h3",
+         "g5g4",
+         "h3f4",
+         "g4f3",
+         "g2f3"
+        ],
+        "score_cp": -3
+       },
+       {
+        "pv": [
+         "f5d3",
+         "c2d3",
+         "d8d7",
+         "g1f3",
+         "f7f6",
+         "b2b4",
+         "a7a6",
+         "b1c3",
+         "e7e5",
+         "d4e5",
+         "f6e5",
+         "a2a3",
+         "g8f6",
+         "d1b3",
+         "g7g5",
+         "h2h3",
+         "f8e7",
+         "b4b5",
+         "a6b5",
+         "b3b5",
+         "e5e4",
+         "d3e4",
+         "d5e4",
+         "f3e5",
+         "c6e5",
+         "b5e5"
+        ],
+        "score_cp": -9
+       },
+       {
+        "pv": [
+         "d8d7",
+         "g1f3",
+         "e7e6",
+         "d3f5",
+         "e6f5",
+         "b2b3",
+         "g8f6",
+         "e1g1",
+         "b7b6",
+         "c2c4",
+         "f8d6",
+         "d1c2",
+         "d5c4",
+         "b3c4",
+         "e8g8",
+         "h2h3"
+        ],
+        "score_cp": -11
+       },
+       {
+        "pv": [
+         "f5g6",
+         "g1f3",
+         "e7e6",
+         "d3b5",
+         "f8d6",
+         "c2c4",
+         "d5c4",
+         "d2c3",
+         "g8e7",
+         "b5c4",
+         "c6b4",
+         "c3b4",
+         "d6b4",
+         "b1d2",
+         "e8g8",
+         "a2a3",
+         "b4d6",
+         "e1g1"
+        ],
+        "score_cp": -11
+       }
+      ],
+      "material_gain": 5,
+      "missed_type": "capture",
+      "played_move": "Bd2",
+      "proving_line": [
+       "f5d3",
+       "c2d3"
+      ],
+      "reply_analysis_id": "b3eb5c3a-a163-480d-9a31-7c8b6e9ff6b3",
+      "source_score_mate": null,
+      "swing_cp": 786
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2qkbnr/ppp1pppp/2n5/3p1b2/3P4/3BP3/PPP2PPP/RNBQK1NR w KQkq - 2 4",
+   "game_id": "https://lichess.org/y3m3quag",
+   "move_index": 6,
+   "played_move": "Bd2",
+   "position_id": "recorded:https://lichess.org/y3m3quag:6"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/y3m3quag:35_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "0f143835-fc83-4294-963d-f65fa0f09f8c",
+     "evidence_id": "recorded:https://lichess.org/y3m3quag:35_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "2kr2nr/pp3ppp/2p1pq2/8/4P3/1QN2K2/PP3PPP/7R w - - 2 19",
+      "analysis_depth": "deep",
+      "before_fen": "2kr2nr/pp3ppp/2p1p3/8/3qP3/1QN2K2/PP3PPP/7R b - - 1 18",
+      "best_move": "d4d3",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "85c14b29-30d9-45bb-a80c-09b9b9cc0c96",
+      "fast_line": [
+       "d4d3",
+       "f3f4",
+       "e6e5",
+       "f4e5",
+       "d3d4",
+       "e5f4",
+       "d4f2",
+       "f4g4",
+       "f2g2",
+       "g4f4",
+       "g2f2",
+       "f4g5"
+      ],
+      "focused_analysis_id": "0f143835-fc83-4294-963d-f65fa0f09f8c",
+      "focused_line": [
+       "f3e2",
+       "f6g5",
+       "h1e1",
+       "d8d2",
+       "e2f1",
+       "g5h4",
+       "c3e2",
+       "g8f6",
+       "b3g3",
+       "h4h6",
+       "e4e5",
+       "f6e4",
+       "g3e3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f3e2",
+         "f6g5",
+         "h1e1",
+         "d8d2",
+         "e2f1",
+         "g5h4",
+         "c3e2",
+         "g8f6",
+         "b3g3",
+         "h4h6",
+         "e4e5",
+         "f6e4",
+         "g3e3"
+        ],
+        "score_cp": -882
+       },
+       {
+        "pv": [
+         "f3e3",
+         "g8h6",
+         "e3e2",
+         "h6g4",
+         "f2f3",
+         "f6d4",
+         "f3g4",
+         "d4d2",
+         "e2f1",
+         "d2c1",
+         "f1f2",
+         "c1h1",
+         "e4e5",
+         "h1h2",
+         "b3a4",
+         "d8d2",
+         "f2e3"
+        ],
+        "score_cp": -992
+       },
+       {
+        "pv": [
+         "f3g3",
+         "d8d3",
+         "f2f3",
+         "f6g5",
+         "g3f2",
+         "g5e3",
+         "f2g3",
+         "d3d2",
+         "h2h4",
+         "g7g5",
+         "c3e2",
+         "e3e2",
+         "h4g5",
+         "e2f2",
+         "g3g4",
+         "f2g2",
+         "g4f4",
+         "e6e5",
+         "f4f5"
+        ],
+        "score_cp": -1165
+       },
+       {
+        "pv": [
+         "f3g4",
+         "f6f2",
+         "c3d5",
+         "f2g2",
+         "b3g3",
+         "g2e4",
+         "g3f4",
+         "e4g2",
+         "f4g3",
+         "g2d5",
+         "h1g1",
+         "d5e4",
+         "g3f4"
+        ],
+        "score_cp": -1247
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Qf6+",
+      "proving_line": [
+       "f3e3",
+       "f6g5",
+       "e3e2",
+       "g5d2",
+       "e2f1",
+       "d2d3",
+       "f1e1",
+       "d3a6",
+       "b3a3"
+      ],
+      "reply_analysis_id": "13565999-ec02-4bc7-81e4-41b042c74398",
+      "source_score_mate": null,
+      "swing_cp": 532
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "2kr2nr/pp3ppp/2p1p3/8/3qP3/1QN2K2/PP3PPP/7R b - - 1 18",
+   "game_id": "https://lichess.org/y3m3quag",
+   "move_index": 35,
+   "played_move": "Qf6+",
+   "position_id": "recorded:https://lichess.org/y3m3quag:35"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/8dqmtc5l:26_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "7c2e358d-c3f2-4c00-b15e-b7d2def9e39b",
+     "evidence_id": "recorded:https://lichess.org/8dqmtc5l:26_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r2q1rk1/1pp2pp1/p1n2n1p/2bN4/2P1p3/3bP1PN/PB1P1PBP/R2QK2R b KQ - 1 14",
+      "analysis_depth": "deep",
+      "before_fen": "r2q1rk1/1pp2pp1/p1n2n1p/2bN2N1/2P1p3/3bP1P1/PB1P1PBP/R2QK2R w KQ - 0 14",
+      "best_move": "d5f6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "6c7321e1-7d7c-47ce-948f-f1a74f313769",
+      "fast_line": [
+       "d5f6",
+       "g7f6"
+      ],
+      "focused_analysis_id": "7c2e358d-c3f2-4c00-b15e-b7d2def9e39b",
+      "focused_line": [
+       "f6d7",
+       "h3f4",
+       "c6e5",
+       "b2e5",
+       "d7e5",
+       "f4d3",
+       "e5d3",
+       "e1f1",
+       "f7f5",
+       "a1b1",
+       "c5d6",
+       "f1g1",
+       "b7b5",
+       "g2f1",
+       "c7c6",
+       "f1d3",
+       "c6d5",
+       "c4c5",
+       "d6c5",
+       "d3e2",
+       "d5d4",
+       "d1b3",
+       "g8h7",
+       "g1g2",
+       "d4d3",
+       "e2d1",
+       "c5d6",
+       "b3d5"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f6d7",
+         "h3f4",
+         "c6e5",
+         "b2e5",
+         "d7e5",
+         "f4d3",
+         "e5d3",
+         "e1f1",
+         "f7f5",
+         "a1b1",
+         "c5d6",
+         "f1g1",
+         "b7b5",
+         "g2f1",
+         "c7c6",
+         "f1d3",
+         "c6d5",
+         "c4c5",
+         "d6c5",
+         "d3e2",
+         "d5d4",
+         "d1b3",
+         "g8h7",
+         "g1g2",
+         "d4d3",
+         "e2d1",
+         "c5d6",
+         "b3d5"
+        ],
+        "score_cp": 165
+       },
+       {
+        "pv": [
+         "f6d5"
+        ],
+        "score_cp": 118
+       },
+       {
+        "pv": [
+         "c5e7",
+         "h3f4",
+         "d3c4",
+         "d5e7",
+         "d8e7",
+         "a1c1",
+         "c4a2",
+         "b2f6",
+         "e7f6",
+         "g2e4",
+         "a6a5",
+         "d1a4",
+         "c6b4",
+         "e4b7",
+         "a8b8"
+        ],
+        "score_cp": 60
+       },
+       {
+        "pv": [
+         "f6e8",
+         "h3f4",
+         "d3c4",
+         "g2e4",
+         "c6b4",
+         "a1c1",
+         "c4d5",
+         "f4d5",
+         "b4d3",
+         "e4d3",
+         "d8d5",
+         "e1e2",
+         "c5b4",
+         "d1b3",
+         "d5b3",
+         "a2b3",
+         "c7c6",
+         "h2h4",
+         "e8c7",
+         "f2f4"
+        ],
+        "score_cp": -107
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Nh3",
+      "proving_line": [
+       "f6d7",
+       "h3f4"
+      ],
+      "reply_analysis_id": "df46034c-6dca-4e90-b838-e4ed06c70fa4",
+      "source_score_mate": null,
+      "swing_cp": 439
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2q1rk1/1pp2pp1/p1n2n1p/2bN2N1/2P1p3/3bP1P1/PB1P1PBP/R2QK2R w KQ - 0 14",
+   "game_id": "https://lichess.org/8dqmtc5l",
+   "move_index": 26,
+   "played_move": "Nh3",
+   "position_id": "recorded:https://lichess.org/8dqmtc5l:26"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/8dqmtc5l:28_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "7e1f9ef2-9b81-496c-bdbc-20436580a6c3",
+     "evidence_id": "recorded:https://lichess.org/8dqmtc5l:28_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "r2q1r1k/1pp2pp1/p1n2n1p/2bN4/2P1p3/2BbP1PN/P2P1PBP/R2QK2R b KQ - 3 15",
+      "analysis_depth": "deep",
+      "before_fen": "r2q1r1k/1pp2pp1/p1n2n1p/2bN4/2P1p3/3bP1PN/PB1P1PBP/R2QK2R w KQ - 2 15",
+      "best_move": "d5f6",
+      "captured_piece": "n",
+      "captured_square": "f6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 3,
+      "fast_analysis_id": "8a4d6b8e-b546-4840-a046-e3bd59c978bf",
+      "fast_line": [
+       "d5f6",
+       "c6b4"
+      ],
+      "focused_analysis_id": "7e1f9ef2-9b81-496c-bdbc-20436580a6c3",
+      "focused_line": [
+       "c5e7",
+       "h3f4",
+       "d3c4",
+       "d5f6",
+       "e7f6",
+       "a1c1",
+       "c4a2",
+       "d1a4",
+       "a2e6",
+       "f4e6",
+       "f7e6",
+       "g2e4",
+       "a6a5"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c5e7",
+         "h3f4",
+         "d3c4",
+         "d5f6",
+         "e7f6",
+         "a1c1",
+         "c4a2",
+         "d1a4",
+         "a2e6",
+         "f4e6",
+         "f7e6",
+         "g2e4",
+         "a6a5"
+        ],
+        "score_cp": -9
+       },
+       {
+        "pv": [
+         "f6d5",
+         "c4d5",
+         "c6b4",
+         "c3b4",
+         "c5b4",
+         "h3f4",
+         "d3c4",
+         "g2e4",
+         "b7b5",
+         "e4f3",
+         "a8b8",
+         "a2a3",
+         "b4a5",
+         "a1c1",
+         "d8d6"
+        ],
+        "score_cp": -22
+       },
+       {
+        "pv": [
+         "f6d7",
+         "d1h5"
+        ],
+        "score_cp": -73
+       },
+       {
+        "pv": [
+         "f6e8",
+         "h3f4",
+         "d3c4",
+         "g2e4",
+         "h8g8",
+         "d2d3",
+         "c4d5",
+         "e4d5",
+         "e8f6",
+         "d5g2",
+         "c5b4",
+         "c3b4",
+         "c6b4",
+         "e1g1",
+         "a8b8",
+         "d3d4",
+         "b4d5",
+         "f4d5",
+         "f6d5",
+         "d1b3"
+        ],
+        "score_cp": -165
+       }
+      ],
+      "material_gain": 3,
+      "missed_type": "capture",
+      "played_move": "Bc3",
+      "proving_line": [
+       "c5e7",
+       "a1c1"
+      ],
+      "reply_analysis_id": "42f09991-9a5b-441c-bf37-f7d291f07442",
+      "source_score_mate": null,
+      "swing_cp": 449
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2q1r1k/1pp2pp1/p1n2n1p/2bN4/2P1p3/3bP1PN/PB1P1PBP/R2QK2R w KQ - 2 15",
+   "game_id": "https://lichess.org/8dqmtc5l",
+   "move_index": 28,
+   "played_move": "Bc3",
+   "position_id": "recorded:https://lichess.org/8dqmtc5l:28"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/ce12lh0d:32_ev1"
+    ],
+    "primary": "threat_processing.missed_capture",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal capture",
+     "engine_analysis_id": "2071dedf-83ce-4d1b-900e-b733b6ea1d2b",
+     "evidence_id": "recorded:https://lichess.org/ce12lh0d:32_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "4rrk1/p1p2ppp/2N5/2Qp1b2/5B2/2N5/PPP3PP/4RK1n b - - 4 17",
+      "analysis_depth": "deep",
+      "before_fen": "4rrk1/p1p2ppp/2N5/2Qp1b2/5B2/2N5/PPP3PP/R4K1n w - - 3 17",
+      "best_move": "c3d5",
+      "captured_piece": "p",
+      "captured_square": "d5",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "exchange_gain": 1,
+      "fast_analysis_id": "d0e9a26e-93b5-40dc-a647-2e6907306bea",
+      "fast_line": [
+       "c3d5",
+       "a7a6",
+       "f1g1",
+       "g8h8",
+       "g1h1",
+       "e8e1",
+       "a1e1",
+       "f8c8",
+       "d5c7"
+      ],
+      "focused_analysis_id": "2071dedf-83ce-4d1b-900e-b733b6ea1d2b",
+      "focused_line": [
+       "f5c2",
+       "c6e7",
+       "e8e7",
+       "e1e7",
+       "g7g5",
+       "c3d5",
+       "c2d3",
+       "f1e1",
+       "g5f4",
+       "d5f6",
+       "g8g7",
+       "f6e8",
+       "g7g6",
+       "c5c6",
+       "g6h5"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "f5c2",
+         "c6e7",
+         "e8e7",
+         "e1e7",
+         "g7g5",
+         "c3d5",
+         "c2d3",
+         "f1e1",
+         "g5f4",
+         "d5f6",
+         "g8g7",
+         "f6e8",
+         "g7g6",
+         "c5c6",
+         "g6h5"
+        ],
+        "score_cp": -971
+       },
+       {
+        "pv": [
+         "h1g3",
+         "f4g3",
+         "g8h8",
+         "c6e7",
+         "f5e6",
+         "c3d5",
+         "e6d5",
+         "c5d5",
+         "h7h6",
+         "d5f5"
+        ],
+        "score_cp": -1012
+       },
+       {
+        "pv": [
+         "e8e1",
+         "f1e1",
+         "f8e8",
+         "c6e7",
+         "g8f8",
+         "c3d5",
+         "h7h5",
+         "f4c7",
+         "h1g3",
+         "h2g3",
+         "h5h4",
+         "g3h4",
+         "a7a6"
+        ],
+        "score_cp": -1032
+       },
+       {
+        "pv": [
+         "e8e6",
+         "c3d5",
+         "f5e4",
+         "d5e7",
+         "g8h8",
+         "e7g6",
+         "h7g6",
+         "c5f8",
+         "h8h7",
+         "f1g1",
+         "e4c6",
+         "e1e6",
+         "f7e6",
+         "f8d8",
+         "h1f2",
+         "g1f2",
+         "c6d5",
+         "f2e1",
+         "d5a2"
+        ],
+        "score_cp": -987
+       }
+      ],
+      "material_gain": 10,
+      "missed_type": "capture",
+      "played_move": "Re1",
+      "proving_line": [
+       "f5d7",
+       "c6e7",
+       "e8e7",
+       "e1e7",
+       "d7g4",
+       "c3d5",
+       "h7h5",
+       "c5c7"
+      ],
+      "reply_analysis_id": "ce8dbba5-bd78-47ce-bae4-cdd2ff6c9851",
+      "source_score_mate": null,
+      "swing_cp": 211
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "4rrk1/p1p2ppp/2N5/2Qp1b2/5B2/2N5/PPP3PP/R4K1n w - - 3 17",
+   "game_id": "https://lichess.org/ce12lh0d",
+   "move_index": 32,
+   "played_move": "Re1",
+   "position_id": "recorded:https://lichess.org/ce12lh0d:32"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/l0gjct48:47_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "eaec98a1-4f96-46cc-9e50-468362864734",
+     "evidence_id": "recorded:https://lichess.org/l0gjct48:47_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "1r3k2/Q4p2/2pq3N/4p3/1n1P4/4P3/PP5P/2Kb2R1 w - - 0 25",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "1r3k2/Q4p2/2pq3N/4p2b/1n1P4/4P3/PP5P/2KR2R1 b - - 2 24",
+      "before_score_cp": -601,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "9013c483-c042-4021-8e2d-286933c54723",
+      "fast_line": [
+       "h5g6",
+       "g1g6"
+      ],
+      "focused_analysis_id": "eaec98a1-4f96-46cc-9e50-468362864734",
+      "focused_line": [
+       "a7f7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "a7f7"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "g1g8"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "c1d1",
+         "d6h6",
+         "a7b8",
+         "f8e7",
+         "b8b4",
+         "h6d6",
+         "b4d6",
+         "e7d6",
+         "h2h4",
+         "e5d4",
+         "g1g8",
+         "d4e3",
+         "d1e2",
+         "d6c5",
+         "h4h5",
+         "c5d5"
+        ],
+        "score_cp": 1036
+       },
+       {
+        "pv": [
+         "c1d2",
+         "d6h6",
+         "a7b8",
+         "f8e7",
+         "b8b4",
+         "h6d6",
+         "b4d6",
+         "e7d6",
+         "g1d1",
+         "e5d4",
+         "h2h4",
+         "f7f5"
+        ],
+        "score_cp": 849
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "e8e69e90-aaf5-435d-a70b-7d35e0e75948",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "h5g6",
+         "g1g6",
+         "b4a2",
+         "a7a2",
+         "d6g6",
+         "a2a7",
+         "b8e8",
+         "d1f1",
+         "e8e7",
+         "a7b8",
+         "e7e8",
+         "b8b4",
+         "f8g7"
+        ],
+        "score_cp": -601
+       },
+       {
+        "pv": [
+         "b4a2",
+         "a7a2",
+         "d6h6",
+         "a2a3",
+         "f8e8",
+         "g1g8",
+         "e8d7",
+         "g8b8",
+         "h5d1",
+         "b8b7",
+         "d7e6",
+         "b7e7",
+         "e6f5",
+         "e7e5",
+         "f5g6",
+         "a3d3",
+         "g6g7",
+         "d3d1",
+         "f7f6",
+         "e5e7",
+         "g7f8",
+         "e7e4"
+        ],
+        "score_cp": -864
+       },
+       {
+        "pv": [
+         "d6h6",
+         "a7b8",
+         "f8e7",
+         "b8b4",
+         "h6d6",
+         "b4d6",
+         "e7d6",
+         "d1f1",
+         "e5d4"
+        ],
+        "score_cp": -926
+       },
+       {
+        "pv": [
+         "b4d3",
+         "d1d3",
+         "h5g6",
+         "g1g6",
+         "d6g6",
+         "a7b8",
+         "f8g7",
+         "d3d1",
+         "e5e4",
+         "h6f7",
+         "g6f7",
+         "b8e5",
+         "g7h6",
+         "e5h8",
+         "f7h7",
+         "h8f6",
+         "h7g6",
+         "f6h4",
+         "g6h5",
+         "h4f4",
+         "h5g5",
+         "f4e4"
+        ],
+        "score_cp": -982
+       }
+      ],
+      "mating_line": [
+       "a7f7"
+      ],
+      "played_move": "Bxd1",
+      "proving_line": [
+       "a7f7"
+      ],
+      "reply_analysis_id": "a2be3c9b-3302-472c-9a40-591fdab6eff7",
+      "source_score_mate": null,
+      "swing_cp": 9345
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "1r3k2/Q4p2/2pq3N/4p2b/1n1P4/4P3/PP5P/2KR2R1 b - - 2 24",
+   "game_id": "https://lichess.org/l0gjct48",
+   "move_index": 47,
+   "played_move": "Bxd1",
+   "position_id": "recorded:https://lichess.org/l0gjct48:47"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/l0gjct48:49_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "61bc6091-8a0c-4e36-b666-5d993779a0fd",
+     "evidence_id": "recorded:https://lichess.org/l0gjct48:49_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "1r3k2/Q4p2/2pq3N/8/1n1p4/4P3/PP5P/2Kb1R2 w - - 0 26",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "1r3k2/Q4p2/2pq3N/4p3/1n1P4/4P3/PP5P/2Kb1R2 b - - 1 25",
+      "before_score_cp": -32,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "08842df0-e21a-421d-b476-e41a9cf03a9e",
+      "fast_line": [
+       "d1h5",
+       "h6f7"
+      ],
+      "focused_analysis_id": "61bc6091-8a0c-4e36-b666-5d993779a0fd",
+      "focused_line": [
+       "a7f7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "a7f7"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "f1f7",
+         "f8e8",
+         "f7f8",
+         "d6f8",
+         "a7b8",
+         "e8e7",
+         "b8b4",
+         "e7e8",
+         "b4f8",
+         "e8f8",
+         "c1d1",
+         "d4e3",
+         "d1e2",
+         "f8e7",
+         "e2d3",
+         "e3e2",
+         "d3e2",
+         "e7d6",
+         "e2e3",
+         "d6e7"
+        ],
+        "score_cp": 742
+       },
+       {
+        "pv": [
+         "f1d1",
+         "b8b7",
+         "a7b7",
+         "d6c5",
+         "c1d2",
+         "d4e3",
+         "d2e2",
+         "c5h5",
+         "e2e3",
+         "h5h6",
+         "e3d4",
+         "h6d6",
+         "d4c4",
+         "d6d1",
+         "b7b4",
+         "f8g8",
+         "c4c5",
+         "d1d5",
+         "c5b6",
+         "d5d8",
+         "b6a7",
+         "d8c7",
+         "a7a8",
+         "c7d8",
+         "a8b7"
+        ],
+        "score_cp": 39
+       },
+       {
+        "pv": [
+         "h6f7",
+         "b4d3",
+         "c1d1",
+         "d3b2",
+         "d1e1",
+         "d6b4",
+         "e1f2",
+         "d4e3",
+         "a7e3",
+         "b2d1",
+         "f1d1",
+         "b4h4",
+         "f2f1",
+         "h4c4",
+         "d1d3",
+         "c4f7",
+         "e3f3",
+         "b8b1",
+         "f1f2",
+         "b1b2",
+         "f2g3",
+         "f7f3",
+         "d3f3",
+         "f8e8"
+        ],
+        "score_cp": 23
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "e85d5550-c23c-4f30-b36b-b41c9c7cf252",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "d1h5",
+         "h6f7",
+         "b4d3",
+         "c1b1",
+         "b8b2",
+         "b1a1",
+         "d6d5",
+         "f7e5",
+         "b2f2",
+         "f1f2",
+         "d3f2",
+         "a7h7",
+         "d5h1",
+         "a1b2",
+         "f2d1",
+         "b2a3"
+        ],
+        "score_cp": -32
+       },
+       {
+        "pv": [
+         "f8e8",
+         "a7f7"
+        ],
+        "score_cp": -772
+       },
+       {
+        "pv": [
+         "b4d3",
+         "c1d1",
+         "f8e8",
+         "a7f7",
+         "e8d8",
+         "f7g7",
+         "d6e7",
+         "f1f8",
+         "d8d7",
+         "g7e7",
+         "d7e7",
+         "f8b8",
+         "e5d4",
+         "h6g8",
+         "e7e6"
+        ],
+        "score_cp": -841
+       },
+       {
+        "pv": [
+         "d1b3",
+         "a2b3",
+         "b4d3",
+         "c1d1",
+         "f8e8",
+         "a7f7",
+         "e8d8",
+         "f7g7",
+         "d8c8",
+         "f1f8",
+         "d6f8",
+         "g7f8",
+         "c8b7",
+         "f8f7",
+         "b7a6",
+         "f7c4",
+         "a6a7",
+         "c4d3"
+        ],
+        "score_cp": -887
+       }
+      ],
+      "mating_line": [
+       "a7f7"
+      ],
+      "played_move": "exd4",
+      "proving_line": [
+       "a7f7"
+      ],
+      "reply_analysis_id": "44cb5758-a5c8-4b5d-894c-7c3141470eba",
+      "source_score_mate": null,
+      "swing_cp": 9881
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "1r3k2/Q4p2/2pq3N/4p3/1n1P4/4P3/PP5P/2Kb1R2 b - - 1 25",
+   "game_id": "https://lichess.org/l0gjct48",
+   "move_index": 49,
+   "played_move": "exd4",
+   "position_id": "recorded:https://lichess.org/l0gjct48:49"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/ui2g2idg:42_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "47f916d1-509f-4668-85a9-b1f2fb166349",
+     "evidence_id": "recorded:https://lichess.org/ui2g2idg:42_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "2r3k1/Nq1nppbp/3p2p1/3P4/4P3/1Q6/PP1B1PPP/2R3K1 b - - 0 22",
+      "analysis_depth": "deep",
+      "before_fen": "2r3k1/pq1nppbp/3p2p1/1N1P4/4P3/1Q6/PP1B1PPP/2R3K1 w - - 1 22",
+      "best_move": "c1c8",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "e08c4443-7e0e-471d-9282-59e2742d02f1",
+      "fast_line": [
+       "c1c8",
+       "b7c8"
+      ],
+      "focused_analysis_id": "47f916d1-509f-4668-85a9-b1f2fb166349",
+      "focused_line": [
+       "c8c1",
+       "d2c1",
+       "b7a7",
+       "a2a3",
+       "a7a5",
+       "b3d1",
+       "a5c7",
+       "h2h3",
+       "h7h5",
+       "a3a4",
+       "c7c5",
+       "c1e3",
+       "c5b4",
+       "b2b3",
+       "d7c5",
+       "d1c2",
+       "b4e1",
+       "g1h2",
+       "g7e5",
+       "f2f4",
+       "e1e3",
+       "f4e5",
+       "c5e4",
+       "e5e6",
+       "g8g7",
+       "e6f7",
+       "g7f7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c8c1",
+         "d2c1",
+         "b7a7",
+         "a2a3",
+         "a7a5",
+         "b3d1",
+         "a5c7",
+         "h2h3",
+         "h7h5",
+         "a3a4",
+         "c7c5",
+         "c1e3",
+         "c5b4",
+         "b2b3",
+         "d7c5",
+         "d1c2",
+         "b4e1",
+         "g1h2",
+         "g7e5",
+         "f2f4",
+         "e1e3",
+         "f4e5",
+         "c5e4",
+         "e5e6",
+         "g8g7",
+         "e6f7",
+         "g7f7"
+        ],
+        "score_cp": 455
+       },
+       {
+        "pv": [
+         "c8b8",
+         "b3b7",
+         "b8b7",
+         "c1c8",
+         "g7f8",
+         "a7c6",
+         "f7f5",
+         "b2b3",
+         "f5e4",
+         "d2e3",
+         "d7b6",
+         "c6d8",
+         "b6c8",
+         "d8b7",
+         "e7e5",
+         "a2a4",
+         "c8e7",
+         "b7d6",
+         "e7d5",
+         "d6e4",
+         "d5e3",
+         "f2e3",
+         "f8h6"
+        ],
+        "score_cp": -546
+       },
+       {
+        "pv": [
+         "c8c7",
+         "c1c7",
+         "b7c7",
+         "a7c6",
+         "d7f6",
+         "b3c4",
+         "c7b6",
+         "b2b4",
+         "f6g4",
+         "d2e1",
+         "g4e5",
+         "c6e5",
+         "g7e5",
+         "g2g3",
+         "g8g7",
+         "a2a4"
+        ],
+        "score_cp": -611
+       },
+       {
+        "pv": [
+         "b7a7",
+         "c1c8",
+         "d7f8",
+         "h2h3",
+         "f7f5",
+         "e4f5",
+         "a7a6",
+         "b3c4",
+         "a6c4",
+         "c8c4",
+         "g6f5",
+         "a2a4",
+         "g7b2",
+         "g2g3",
+         "f8d7"
+        ],
+        "score_cp": -747
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Nxa7",
+      "proving_line": [
+       "c8c1",
+       "d2c1"
+      ],
+      "reply_analysis_id": "a6169c43-218a-4212-bc85-df628d9d3e1b",
+      "source_score_mate": null,
+      "swing_cp": 770
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "2r3k1/pq1nppbp/3p2p1/1N1P4/4P3/1Q6/PP1B1PPP/2R3K1 w - - 1 22",
+   "game_id": "https://lichess.org/ui2g2idg",
+   "move_index": 42,
+   "played_move": "Nxa7",
+   "position_id": "recorded:https://lichess.org/ui2g2idg:42"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/ui2g2idg:59_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "c3ab2c1f-b723-42b7-a409-40b1f5b0cef1",
+     "evidence_id": "recorded:https://lichess.org/ui2g2idg:59_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "1Q6/4ppkp/3p2p1/3Pb3/1P2P3/P2nB2P/2q1KPP1/8 w - - 3 31",
+      "analysis_depth": "deep",
+      "before_fen": "1Q6/4ppkp/3p2p1/3Pb3/qP2P3/P2nB2P/4KPP1/8 b - - 2 30",
+      "best_move": "a4c2",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "eaa1d6af-d274-44d9-92f2-1fcfea8a5712",
+      "fast_line": [
+       "a4c2",
+       "e3d2",
+       "d3f4",
+       "e2f3",
+       "c2d1",
+       "f3g3",
+       "d1d2",
+       "g3h4",
+       "f4e2",
+       "b8g8",
+       "g7g8",
+       "b4b5",
+       "d2f4",
+       "g2g4",
+       "f4f2",
+       "h4g5"
+      ],
+      "focused_analysis_id": "c3ab2c1f-b723-42b7-a409-40b1f5b0cef1",
+      "focused_line": [
+       "e3d2",
+       "e5f4",
+       "b8f8",
+       "g7f8",
+       "e4e5",
+       "c2d2",
+       "e2f3",
+       "d2f2",
+       "f3e4",
+       "f2e3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e3d2",
+         "e5f4",
+         "b8f8",
+         "g7f8",
+         "e4e5",
+         "c2d2",
+         "e2f3",
+         "d2f2",
+         "f3e4",
+         "f2e3"
+        ],
+        "score_mate": -5
+       },
+       {
+        "pv": [
+         "e2f3",
+         "c2d1"
+        ],
+        "score_mate": -1
+       },
+       {
+        "pv": [
+         "e2f1",
+         "c2d1"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Qc2+",
+      "proving_line": [
+       "e3d2",
+       "d3f4"
+      ],
+      "reply_analysis_id": "8e1340c7-e0ab-4c33-9350-e6c8e2200d8f",
+      "source_score_mate": null,
+      "swing_cp": 587
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "1Q6/4ppkp/3p2p1/3Pb3/qP2P3/P2nB2P/4KPP1/8 b - - 2 30",
+   "game_id": "https://lichess.org/ui2g2idg",
+   "move_index": 59,
+   "played_move": "Qc2+",
+   "position_id": "recorded:https://lichess.org/ui2g2idg:59"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/r5urywfn:74_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "6afe4c2b-085e-4a4d-b3a0-36f991536306",
+     "evidence_id": "recorded:https://lichess.org/r5urywfn:74_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "8/4kp2/7R/4R3/3Pp1p1/4N1P1/5PKP/r7 b - - 4 38",
+      "analysis_depth": "deep",
+      "before_fen": "8/4kp2/7R/1R6/3Pp1p1/4N1P1/5PKP/r7 w - - 3 38",
+      "best_move": "b5b7",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "101bb8f9-17b0-4920-aec2-6ac53b7a597f",
+      "fast_line": [
+       "b5b7",
+       "e7f8",
+       "e3f5",
+       "a1g1",
+       "g2g1",
+       "f7f6",
+       "h6h8"
+      ],
+      "focused_analysis_id": "6afe4c2b-085e-4a4d-b3a0-36f991536306",
+      "focused_line": [
+       "e7d8",
+       "e3f5",
+       "a1a7",
+       "h6h8",
+       "d8c7",
+       "e5e7",
+       "c7b6",
+       "h8h6",
+       "b6b5",
+       "e7a7",
+       "b5c4",
+       "a7d7",
+       "c4b5",
+       "d7e7",
+       "f7f6"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e7d8",
+         "e3f5",
+         "a1a7",
+         "h6h8",
+         "d8c7",
+         "e5e7",
+         "c7b6",
+         "h8h6",
+         "b6b5",
+         "e7a7",
+         "b5c4",
+         "a7d7",
+         "c4b5",
+         "d7e7",
+         "f7f6"
+        ],
+        "score_cp": -1291
+       },
+       {
+        "pv": [
+         "e7d7",
+         "e3f5",
+         "a1g1",
+         "g2g1",
+         "f7f6",
+         "h6f6",
+         "d7d8",
+         "e5e7",
+         "e4e3",
+         "f6f8"
+        ],
+        "score_mate": -5
+       },
+       {
+        "pv": [
+         "e7f8",
+         "e3f5",
+         "a1g1",
+         "g2g1",
+         "f7f6",
+         "h6f6",
+         "f8g8",
+         "e5e8",
+         "g8h7",
+         "f6h6"
+        ],
+        "score_mate": -5
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Re5+",
+      "proving_line": [
+       "e7f8",
+       "e3g4",
+       "a1b1",
+       "e5g5",
+       "f8e7",
+       "h6h8",
+       "e7d6"
+      ],
+      "reply_analysis_id": "a6af284a-a2c4-4de5-9921-1e35511e4d57",
+      "source_score_mate": 4,
+      "swing_cp": 8931
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "8/4kp2/7R/1R6/3Pp1p1/4N1P1/5PKP/r7 w - - 3 38",
+   "game_id": "https://lichess.org/r5urywfn",
+   "move_index": 74,
+   "played_move": "Re5+",
+   "position_id": "recorded:https://lichess.org/r5urywfn:74"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 0.8,
+    "evidence_refs": [
+     "recorded:https://lichess.org/r5urywfn:86_ev1"
+    ],
+    "primary": "threat_processing.missed_check",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation starts with a legal check",
+     "engine_analysis_id": "23b745b0-8527-49a8-a4c2-64c24ef0d85f",
+     "evidence_id": "recorded:https://lichess.org/r5urywfn:86_ev1",
+     "kind": "missed_opportunity",
+     "payload": {
+      "after_fen": "2r5/3k4/1R5R/8/3P2N1/6P1/5PKP/8 b - - 0 44",
+      "analysis_depth": "deep",
+      "before_fen": "2r5/3k4/1R5R/8/3P2p1/4N1P1/5PKP/8 w - - 5 44",
+      "best_move": "h6h7",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "f1c00849-ee19-4485-8fae-06865b63724f",
+      "fast_line": [
+       "h6h7",
+       "d7e8",
+       "b6b7",
+       "c8c7",
+       "b7b8",
+       "c7c8",
+       "b8c8"
+      ],
+      "focused_analysis_id": "23b745b0-8527-49a8-a4c2-64c24ef0d85f",
+      "focused_line": [
+       "c8c2",
+       "h6h7",
+       "d7c8",
+       "d4d5",
+       "c2c3",
+       "d5d6",
+       "c3c2",
+       "g4f6",
+       "c2e2",
+       "h7h8",
+       "e2e8",
+       "h8e8"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c8c2",
+         "h6h7",
+         "d7c8",
+         "d4d5",
+         "c2c3",
+         "d5d6",
+         "c3c2",
+         "g4f6",
+         "c2e2",
+         "h7h8",
+         "e2e8",
+         "h8e8"
+        ],
+        "score_mate": -6
+       },
+       {
+        "pv": [
+         "c8c1",
+         "h6h7",
+         "d7c8",
+         "g4f6",
+         "c1c4",
+         "d4d5",
+         "c4c2",
+         "d5d6",
+         "c2e2",
+         "h7h8",
+         "e2e8",
+         "h8e8"
+        ],
+        "score_mate": -6
+       },
+       {
+        "pv": [
+         "c8c3",
+         "g4f6",
+         "d7c8",
+         "h6h8",
+         "c8c7",
+         "f6d5",
+         "c7d7",
+         "h8h7",
+         "d7d8",
+         "d5c3",
+         "d8c8",
+         "c3d5",
+         "c8d8",
+         "b6b8"
+        ],
+        "score_mate": -7
+       },
+       {
+        "pv": [
+         "d7c7",
+         "g4e5",
+         "c8a8",
+         "b6c6",
+         "c7b8",
+         "e5d7",
+         "b8b7",
+         "d7c5",
+         "b7b8",
+         "h6h8",
+         "b8a7",
+         "c6a6"
+        ],
+        "score_mate": -6
+       }
+      ],
+      "missed_type": "check",
+      "played_move": "Nxg4",
+      "proving_line": [
+       "d7d8",
+       "b6a6",
+       "d8c7",
+       "h6h7",
+       "c7b8"
+      ],
+      "reply_analysis_id": "c028945c-7c91-4d34-bea4-99358c941c4e",
+      "source_score_mate": 4,
+      "swing_cp": 8718
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "2r5/3k4/1R5R/8/3P2p1/4N1P1/5PKP/8 w - - 5 44",
+   "game_id": "https://lichess.org/r5urywfn",
+   "move_index": 86,
+   "played_move": "Nxg4",
+   "position_id": "recorded:https://lichess.org/r5urywfn:86"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/fwbxa5oz:71_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "eeab5b88-aabe-4ec8-a67d-d7dcf5fdbb6b",
+     "evidence_id": "recorded:https://lichess.org/fwbxa5oz:71_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "8/3NR3/r4pkp/p7/5PP1/1p5P/8/6K1 w - - 0 37",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "8/3NR3/r4pkp/p7/1p3PP1/7P/8/6K1 b - - 0 36",
+      "before_score_cp": -463,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "1dc95604-ec7b-4253-b7c3-47891539fa3c",
+      "fast_line": [
+       "f6f5",
+       "d7e5"
+      ],
+      "focused_analysis_id": "eeab5b88-aabe-4ec8-a67d-d7dcf5fdbb6b",
+      "focused_line": [
+       "d7f8"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d7f8"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "h3h4",
+         "h6h5",
+         "d7f8",
+         "g6h6",
+         "e7h7"
+        ],
+        "score_mate": 3
+       },
+       {
+        "pv": [
+         "g1h2",
+         "f6f5",
+         "g4f5",
+         "g6h5",
+         "f5f6",
+         "b3b2",
+         "e7e5",
+         "h5g6",
+         "f4f5",
+         "g6g5",
+         "e5b5",
+         "a6f6",
+         "h3h4",
+         "g5h4",
+         "d7f6",
+         "h4g5",
+         "f6d7",
+         "b2b1q",
+         "b5b1"
+        ],
+        "score_cp": 681
+       },
+       {
+        "pv": [
+         "g1g2",
+         "f6f5",
+         "g4f5",
+         "g6h5",
+         "f5f6",
+         "b3b2",
+         "e7e5",
+         "h5g6",
+         "f4f5",
+         "g6g5",
+         "e5b5",
+         "a6f6",
+         "h3h4",
+         "g5h4",
+         "d7f6",
+         "a5a4",
+         "b5b2",
+         "a4a3",
+         "b2b1",
+         "h4g5",
+         "f6e4",
+         "g5g4"
+        ],
+        "score_cp": 666
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "fb29b8ed-0238-4a39-ae80-4f0c0a8e4611",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "f6f5",
+         "d7e5",
+         "g6f6",
+         "e7h7",
+         "a6a8",
+         "h7h6",
+         "f6e7",
+         "h6b6",
+         "f5g4",
+         "h3g4",
+         "a5a4",
+         "b6b4",
+         "a4a3",
+         "b4b1",
+         "a3a2",
+         "b1a1",
+         "a8a3",
+         "g1f2",
+         "a3a4",
+         "f4f5"
+        ],
+        "score_cp": -463
+       },
+       {
+        "pv": [
+         "a6a8",
+         "h3h4",
+         "h6h5",
+         "f4f5",
+         "g6h6",
+         "d7f6",
+         "h5g4",
+         "e7h7"
+        ],
+        "score_mate": -4
+       },
+       {
+        "pv": [
+         "h6h5",
+         "d7f8",
+         "g6h6",
+         "e7h7"
+        ],
+        "score_mate": -2
+       },
+       {
+        "pv": [
+         "b4b3",
+         "d7f8"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "mating_line": [
+       "d7f8"
+      ],
+      "played_move": "b3",
+      "proving_line": [
+       "d7f8"
+      ],
+      "reply_analysis_id": "6de5b9d0-4894-4c11-89d5-fbb5d97733d3",
+      "source_score_mate": null,
+      "swing_cp": 9664
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "8/3NR3/r4pkp/p7/1p3PP1/7P/8/6K1 b - - 0 36",
+   "game_id": "https://lichess.org/fwbxa5oz",
+   "move_index": 71,
+   "played_move": "b3",
+   "position_id": "recorded:https://lichess.org/fwbxa5oz:71"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/0sara2m9:23_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "fd42833e-6e50-48f9-bbf4-9543582169f4",
+     "evidence_id": "recorded:https://lichess.org/0sara2m9:23_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r3kbnr/1bQ2ppp/p1n1p3/8/2P5/2N1BN2/PP2PPPP/2KR1B1R w kq - 1 13",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "rn2kbnr/1bQ2ppp/p3p3/8/2P5/2N1BN2/PP2PPPP/2KR1B1R b kq - 0 12",
+      "before_score_cp": -2066,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "7c5ecf97-feef-4f6a-9445-1663f1025539",
+      "fast_line": [
+       "f8e7",
+       "c7b7",
+       "e7d6",
+       "b7a8",
+       "d6c7",
+       "a8a7",
+       "g8h6",
+       "a7c7"
+      ],
+      "focused_analysis_id": "fd42833e-6e50-48f9-bbf4-9543582169f4",
+      "focused_line": [
+       "c7d7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c7d7"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "c7b7",
+         "c6d4",
+         "f3e5",
+         "g8f6",
+         "b7a8",
+         "e8e7",
+         "a8b7",
+         "f6d7",
+         "b7d7",
+         "e7f6",
+         "d7f7",
+         "f6e5",
+         "f7f4"
+        ],
+        "score_mate": 7
+       },
+       {
+        "pv": [
+         "e3b6",
+         "f8e7",
+         "c7b7",
+         "a8b8",
+         "b7c6",
+         "e8f8",
+         "c4c5",
+         "g8h6",
+         "c6c7",
+         "b8e8",
+         "d1d7",
+         "f7f6",
+         "e2e4",
+         "a6a5",
+         "b6a5",
+         "h6g4",
+         "f1a6"
+        ],
+        "score_cp": 1660
+       },
+       {
+        "pv": [
+         "e3g5",
+         "g8f6",
+         "c7b7",
+         "c6d8",
+         "b7a8",
+         "f8e7",
+         "c4c5",
+         "e8g8",
+         "c5c6",
+         "h7h6",
+         "c6c7",
+         "h6g5",
+         "a8a6",
+         "e7c5",
+         "c7d8q"
+        ],
+        "score_cp": 1628
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "54a37c94-72b7-4012-b0bc-91759ed57035",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "f8e7",
+         "c7b7",
+         "f7f6",
+         "b7a8",
+         "e8f7",
+         "a8b8",
+         "g7g5",
+         "d1d7",
+         "g5g4",
+         "f3d4",
+         "e6e5",
+         "d4c6",
+         "h7h5",
+         "c4c5",
+         "h8h7",
+         "c6e5",
+         "f6e5",
+         "b8e5",
+         "f7e8"
+        ],
+        "score_cp": -2066
+       },
+       {
+        "pv": [
+         "f8d6",
+         "d1d6",
+         "b8c6",
+         "c7b7",
+         "f7f6",
+         "b7c6",
+         "e8f7",
+         "c6a8",
+         "a6a5",
+         "d6d7",
+         "g8e7",
+         "a8h8",
+         "e6e5",
+         "h8h7",
+         "f7e8",
+         "d7e7",
+         "e8e7",
+         "h7g7",
+         "e7e6"
+        ],
+        "score_cp": -2625
+       },
+       {
+        "pv": [
+         "b7d5",
+         "c7c8",
+         "e8e7",
+         "c3d5",
+         "e6d5",
+         "d1d5",
+         "f7f5",
+         "d5e5",
+         "e7f7",
+         "c8e6"
+        ],
+        "score_mate": -5
+       },
+       {
+        "pv": [
+         "f8c5",
+         "d1d8"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "mating_line": [
+       "c7d7"
+      ],
+      "played_move": "Nc6",
+      "proving_line": [
+       "c7d7"
+      ],
+      "reply_analysis_id": "940b6261-6055-423a-9dd9-9ffaafc14702",
+      "source_score_mate": null,
+      "swing_cp": 8223
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rn2kbnr/1bQ2ppp/p3p3/8/2P5/2N1BN2/PP2PPPP/2KR1B1R b kq - 0 12",
+   "game_id": "https://lichess.org/0sara2m9",
+   "move_index": 23,
+   "played_move": "Nc6",
+   "position_id": "recorded:https://lichess.org/0sara2m9:23"
+  },
+  {
+   "corpus": "tests/fixtures/m48/recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "recorded:https://lichess.org/wkc0hzao:30_ev2"
+    ],
+    "primary": "tactics.fork.knight",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation exposes a tactical opportunity",
+     "engine_analysis_id": "277d55f6-e378-4aa1-a0cd-69425c4c0f83",
+     "evidence_id": "recorded:https://lichess.org/wkc0hzao:30_ev2",
+     "kind": "missed_tactic",
+     "payload": {
+      "after_fen": "r3k1nr/3qbppp/ppb1p3/4P3/P1NP4/1QP1BN2/5PPP/R3R1K1 b kq - 2 16",
+      "analysis_depth": "deep",
+      "before_fen": "r3k1nr/3qbppp/ppb1p3/4P3/P1NP4/2P1BN2/5PPP/R2QR1K1 w kq - 1 16",
+      "best_move": "c4b6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "40ab20ed-ade2-45f3-9a5e-5ac24c09f0aa",
+      "fast_line": [
+       "c4b6",
+       "d7b7",
+       "b6a8",
+       "b7a8",
+       "a1b1",
+       "g8h6",
+       "e3h6",
+       "c6f3",
+       "d1f3",
+       "a8f3",
+       "g2f3"
+      ],
+      "focused_analysis_id": "277d55f6-e378-4aa1-a0cd-69425c4c0f83",
+      "focused_line": [
+       "c6d5",
+       "f3d2",
+       "a8c8",
+       "c4b6",
+       "d5b3",
+       "b6d7",
+       "e8d7",
+       "d2b3",
+       "c8c3",
+       "a1b1",
+       "g8h6",
+       "d4d5",
+       "e6d5",
+       "e5e6",
+       "f7e6",
+       "e3d4",
+       "c3d3",
+       "d4g7",
+       "h8b8",
+       "b3c5",
+       "e7c5",
+       "b1b8",
+       "h6g4",
+       "b8b7",
+       "d7d8",
+       "b7b2",
+       "g4f2",
+       "b2f2",
+       "d3d2",
+       "g7f6",
+       "d8d7",
+       "f6h4",
+       "d2a2",
+       "g1f1",
+       "c5f2",
+       "h4f2",
+       "a2a4",
+       "f2g3",
+       "h7h5"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "c6d5",
+         "f3d2",
+         "a8c8",
+         "c4b6",
+         "d5b3",
+         "b6d7",
+         "e8d7",
+         "d2b3",
+         "c8c3",
+         "a1b1",
+         "g8h6",
+         "d4d5",
+         "e6d5",
+         "e5e6",
+         "f7e6",
+         "e3d4",
+         "c3d3",
+         "d4g7",
+         "h8b8",
+         "b3c5",
+         "e7c5",
+         "b1b8",
+         "h6g4",
+         "b8b7",
+         "d7d8",
+         "b7b2",
+         "g4f2",
+         "b2f2",
+         "d3d2",
+         "g7f6",
+         "d8d7",
+         "f6h4",
+         "d2a2",
+         "g1f1",
+         "c5f2",
+         "h4f2",
+         "a2a4",
+         "f2g3",
+         "h7h5"
+        ],
+        "score_cp": -318
+       },
+       {
+        "pv": [
+         "a8b8",
+         "c4b6"
+        ],
+        "score_cp": -417
+       },
+       {
+        "pv": [
+         "g8h6",
+         "c4b6",
+         "d7b7",
+         "a1b1",
+         "a8d8",
+         "e3h6",
+         "g7h6",
+         "e1e3",
+         "e8g8",
+         "a4a5",
+         "g8h8",
+         "b3d1",
+         "f8g8",
+         "g2g3",
+         "h6h5",
+         "b6c4",
+         "b7d7",
+         "c4d6",
+         "e7d6",
+         "e5d6",
+         "d7d6"
+        ],
+        "score_cp": -390
+       },
+       {
+        "pv": [
+         "d7b7",
+         "b3b6",
+         "c6f3",
+         "g2f3",
+         "b7c8",
+         "c4d6",
+         "e7d6",
+         "e5d6",
+         "g8f6",
+         "b6c5",
+         "e8g8"
+        ],
+        "score_cp": -407
+       }
+      ],
+      "fork_square": "b6",
+      "played_move": "Qb3",
+      "proving_line": [
+       "c6d5",
+       "f3d2",
+       "a8c8",
+       "a1b1",
+       "d7c6",
+       "c4d6",
+       "e7d6",
+       "c3c4",
+       "d6c7",
+       "c4d5",
+       "c6d5",
+       "e1c1",
+       "d5b3",
+       "b1b3"
+      ],
+      "reply_analysis_id": "0c8fcf46-71fc-4ae9-92a5-df7f404745a5",
+      "results_in_material_gain": true,
+      "source_score_mate": null,
+      "swing_cp": 470,
+      "tactic_type": "knight_fork",
+      "targets": [
+       {
+        "piece": "q",
+        "square": "d7"
+       },
+       {
+        "piece": "r",
+        "square": "a8"
+       }
+      ]
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r3k1nr/3qbppp/ppb1p3/4P3/P1NP4/2P1BN2/5PPP/R2QR1K1 w kq - 1 16",
+   "game_id": "https://lichess.org/wkc0hzao",
+   "move_index": 30,
+   "played_move": "Qb3",
+   "position_id": "recorded:https://lichess.org/wkc0hzao:30"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/grcc15yt:30_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "5f218495-943e-4ee7-ba31-34ffd2868786",
+     "evidence_id": "fresh80_recorded:https://lichess.org/grcc15yt:30_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "rn2k1nr/1b2qpp1/ppppp3/8/2PPPP2/3Q2p1/PP2B1P1/RN2BRK1 b kq - 0 16",
+      "after_score_mate": 3,
+      "analysis_depth": "deep",
+      "before_fen": "rn2k1nr/1b2qpp1/ppppp3/8/2PPP3/3Q1Pp1/PP2B1P1/RN2BRK1 w kq - 2 16",
+      "before_score_cp": 63,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "f385fd3d-1762-46ca-a4c0-107a534afce6",
+      "fast_line": [
+       "e1g3",
+       "g8f6"
+      ],
+      "focused_analysis_id": "5f218495-943e-4ee7-ba31-34ffd2868786",
+      "focused_line": [
+       "h8h1",
+       "g1h1",
+       "e7h4",
+       "h1g1",
+       "h4h2"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "h8h1",
+         "g1h1",
+         "e7h4",
+         "h1g1",
+         "h4h2"
+        ],
+        "score_mate": 3
+       },
+       {
+        "pv": [
+         "c6c5",
+         "e1g3",
+         "b8c6",
+         "d4d5",
+         "c6d4",
+         "b1c3",
+         "e8c8",
+         "b2b4",
+         "d4e2",
+         "c3e2",
+         "f7f5",
+         "e4e5",
+         "g8h6",
+         "b4c5",
+         "d6c5",
+         "e2c3",
+         "c8b8"
+        ],
+        "score_cp": -45
+       },
+       {
+        "pv": [
+         "b8d7",
+         "e1g3",
+         "g8f6",
+         "e4e5",
+         "f6h5",
+         "e2h5",
+         "h8h5",
+         "b1c3",
+         "f7f5",
+         "e5f6",
+         "g7f6",
+         "f4f5",
+         "e6e5",
+         "d4e5",
+         "d6e5",
+         "c3e4",
+         "e8c8",
+         "a1d1",
+         "d8h8",
+         "d3d6",
+         "h5h1",
+         "g1f2",
+         "h1f1",
+         "f2f1",
+         "e7d6",
+         "d1d6"
+        ],
+        "score_cp": -96
+       },
+       {
+        "pv": [
+         "g8f6",
+         "e1g3",
+         "b8d7",
+         "e4e5",
+         "f6h5",
+         "e2h5",
+         "h8h5",
+         "b1c3",
+         "f7f5",
+         "e5f6",
+         "g7f6",
+         "f4f5",
+         "e6e5",
+         "d4e5",
+         "d6e5",
+         "c3e4",
+         "e8c8",
+         "a1d1",
+         "d8h8",
+         "d3d6",
+         "e7d6",
+         "d1d6",
+         "h5h1",
+         "g1f2",
+         "h1f1",
+         "f2f1"
+        ],
+        "score_cp": -69
+       }
+      ],
+      "mate_in": 3,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "b327a2c4-68a5-4960-bd2e-0d885f74b53c",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "e1g3",
+         "g8f6"
+        ],
+        "score_cp": 63
+       },
+       {
+        "pv": [
+         "b2b3",
+         "h8h1",
+         "g1h1",
+         "e7h4",
+         "h1g1",
+         "h4h2"
+        ],
+        "score_mate": -3
+       },
+       {
+        "pv": [
+         "d3d2",
+         "h8h1",
+         "g1h1",
+         "e7h4",
+         "h1g1",
+         "h4h2"
+        ],
+        "score_mate": -3
+       },
+       {
+        "pv": [
+         "d4d5",
+         "h8h1",
+         "g1h1",
+         "e7h4",
+         "h1g1",
+         "h4h2"
+        ],
+        "score_mate": -3
+       }
+      ],
+      "mating_line": [
+       "h8h1",
+       "g1h1",
+       "e7h4",
+       "h1g1",
+       "h4h2"
+      ],
+      "played_move": "f4",
+      "proving_line": [
+       "h8h1",
+       "g1h1",
+       "e7h4",
+       "h1g1",
+       "h4h2"
+      ],
+      "reply_analysis_id": "ad7f842e-acd1-4589-beed-0ecee37f4235",
+      "source_score_mate": null,
+      "swing_cp": 10044
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "rn2k1nr/1b2qpp1/ppppp3/8/2PPP3/3Q1Pp1/PP2B1P1/RN2BRK1 w kq - 2 16",
+   "game_id": "https://lichess.org/grcc15yt",
+   "move_index": 30,
+   "played_move": "f4",
+   "position_id": "fresh80_recorded:https://lichess.org/grcc15yt:30"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/grcc15yt:51_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "f704c605-a97a-4d8b-b494-1220f1b00613",
+     "evidence_id": "fresh80_recorded:https://lichess.org/grcc15yt:51_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r5k1/1b1nn2R/ppppppp1/8/2PPPP2/2N5/PP1BBKP1/7R w - - 7 27",
+      "after_score_mate": 2,
+      "analysis_depth": "deep",
+      "before_fen": "r4k2/1b1nn2R/ppppppp1/8/2PPPP2/2N5/PP1BBKP1/7R b - - 6 26",
+      "before_score_cp": -942,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "f525695a-9b49-485d-9557-8ed5e17e0a24",
+      "fast_line": [
+       "f8e8",
+       "h7h8",
+       "d7f8",
+       "c3a4",
+       "b6b5",
+       "a4b6",
+       "a8d8",
+       "d4d5",
+       "c6d5",
+       "c4b5",
+       "d5e4"
+      ],
+      "focused_analysis_id": "f704c605-a97a-4d8b-b494-1220f1b00613",
+      "focused_line": [
+       "h7h8",
+       "g8f7",
+       "h1h7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "h7h8",
+         "g8f7",
+         "h1h7"
+        ],
+        "score_mate": 2
+       },
+       {
+        "pv": [
+         "h7e7",
+         "d7f8",
+         "f4f5",
+         "e6f5",
+         "d2h6",
+         "f8e6",
+         "e4f5",
+         "g6f5",
+         "e7e6",
+         "a8b8",
+         "e6e7",
+         "b7a8",
+         "e7g7",
+         "g8h8",
+         "d4d5",
+         "c6c5"
+        ],
+        "score_cp": 1134
+       },
+       {
+        "pv": [
+         "f4f5",
+         "e7f5",
+         "h7d7",
+         "f5g7",
+         "d2h6",
+         "g7e8",
+         "d7b7",
+         "e6e5",
+         "e2g4",
+         "f6f5",
+         "e4f5",
+         "g6f5"
+        ],
+        "score_cp": 1079
+       },
+       {
+        "pv": [
+         "e4e5",
+         "d7f8",
+         "h7e7",
+         "f6f5",
+         "e7b7",
+         "a8d8",
+         "f2e1",
+         "d6d5",
+         "c3a4",
+         "d5c4"
+        ],
+        "score_cp": 1062
+       }
+      ],
+      "mate_in": 2,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "6100babb-d573-44fd-98c4-0c6128bd2829",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "f8e8",
+         "e4e5",
+         "d6e5",
+         "h7h8",
+         "d7f8",
+         "f4e5",
+         "f6e5",
+         "d4e5",
+         "c6c5",
+         "d2g5",
+         "e7f5",
+         "g5f6",
+         "e8f7",
+         "h1h3",
+         "f5d4",
+         "h3d3",
+         "d4f5"
+        ],
+        "score_cp": -942
+       },
+       {
+        "pv": [
+         "a8e8",
+         "f4f5",
+         "e6f5",
+         "d2f4",
+         "d7e5",
+         "d4e5",
+         "d6e5",
+         "f4e3",
+         "c6c5",
+         "e4f5",
+         "g6f5",
+         "h7h8",
+         "f8g7"
+        ],
+        "score_cp": -993
+       },
+       {
+        "pv": [
+         "f6f5",
+         "e4e5",
+         "a8e8",
+         "h1h6",
+         "a6a5",
+         "h7h8",
+         "e7g8",
+         "h6g6",
+         "f8e7",
+         "g6g7",
+         "e7d8",
+         "e2h5",
+         "e8f8"
+        ],
+        "score_cp": -998
+       },
+       {
+        "pv": [
+         "c6c5",
+         "h7h8",
+         "e7g8",
+         "f4f5",
+         "a8e8",
+         "f5g6",
+         "f8e7",
+         "d4d5",
+         "e6d5",
+         "c3d5",
+         "b7d5",
+         "c4d5",
+         "d7e5",
+         "h8h7",
+         "e7d8"
+        ],
+        "score_cp": -1008
+       }
+      ],
+      "mating_line": [
+       "h7h8",
+       "g8f7",
+       "h1h7"
+      ],
+      "played_move": "Kg8",
+      "proving_line": [
+       "h7h8",
+       "g8f7",
+       "h1h7"
+      ],
+      "reply_analysis_id": "1a61ec5d-0362-43e1-8ed5-d908b956cb98",
+      "source_score_mate": null,
+      "swing_cp": 9021
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r4k2/1b1nn2R/ppppppp1/8/2PPPP2/2N5/PP1BBKP1/7R b - - 6 26",
+   "game_id": "https://lichess.org/grcc15yt",
+   "move_index": 51,
+   "played_move": "Kg8",
+   "position_id": "fresh80_recorded:https://lichess.org/grcc15yt:51"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/cnw6r6h7:34_ev2"
+    ],
+    "primary": "tactics.fork.knight",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation exposes a tactical opportunity",
+     "engine_analysis_id": "b5ee8a2d-cbd5-4de1-90fd-4b53763421ac",
+     "evidence_id": "fresh80_recorded:https://lichess.org/cnw6r6h7:34_ev2",
+     "kind": "missed_tactic",
+     "payload": {
+      "after_fen": "r1b1r1k1/pp1n1p1p/2pb1PpB/4p3/2B1P3/4N3/PPP3PP/3R1RK1 b - - 1 18",
+      "analysis_depth": "deep",
+      "before_fen": "r1b1r1k1/pp1n1p1p/2pb1PpB/3Np3/2B1P3/8/PPP3PP/3R1RK1 w - - 0 18",
+      "best_move": "d5e7",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "c56ff3a4-0e74-4f9d-84e8-efe194a0b099",
+      "fast_line": [
+       "d5e7",
+       "d6e7",
+       "f6e7",
+       "e8e7",
+       "h6g5",
+       "b7b5",
+       "g5e7",
+       "b5c4",
+       "d1d6",
+       "c4c3",
+       "b2c3",
+       "c8a6",
+       "d6d7",
+       "a6f1",
+       "g1f1",
+       "a8e8",
+       "d7a7",
+       "e8e7",
+       "a7e7"
+      ],
+      "focused_analysis_id": "b5ee8a2d-cbd5-4de1-90fd-4b53763421ac",
+      "focused_line": [
+       "d6c7",
+       "b2b4",
+       "a7a5",
+       "a2a3",
+       "a5b4",
+       "a3b4",
+       "a8a4",
+       "d1b1",
+       "c7d6",
+       "c2c3",
+       "d6f8",
+       "h6f8",
+       "d7f8",
+       "c4b3",
+       "a4a8",
+       "e3c4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d6c7",
+         "b2b4",
+         "a7a5",
+         "a2a3",
+         "a5b4",
+         "a3b4",
+         "a8a4",
+         "d1b1",
+         "c7d6",
+         "c2c3",
+         "d6f8",
+         "h6f8",
+         "d7f8",
+         "c4b3",
+         "a4a8",
+         "e3c4"
+        ],
+        "score_cp": -33
+       },
+       {
+        "pv": [
+         "d6f8"
+        ],
+        "score_cp": -35
+       },
+       {
+        "pv": [
+         "d6c5",
+         "h2h3"
+        ],
+        "score_cp": -36
+       },
+       {
+        "pv": [
+         "d6b4",
+         "g2g4",
+         "b4c5",
+         "c4e2",
+         "d7b6",
+         "b2b3",
+         "c8e6",
+         "g1g2",
+         "a8d8",
+         "g2f3",
+         "d8d1",
+         "e3d1",
+         "b6d7",
+         "f3g3",
+         "a7a5"
+        ],
+        "score_cp": -70
+       }
+      ],
+      "fork_square": "e7",
+      "played_move": "Ne3",
+      "proving_line": [
+       "d6c5",
+       "g1h1"
+      ],
+      "reply_analysis_id": "c45ab0d4-1193-45ac-9ad7-ce8ce67606f8",
+      "results_in_material_gain": true,
+      "source_score_mate": null,
+      "swing_cp": 525,
+      "tactic_type": "knight_fork",
+      "targets": [
+       {
+        "piece": "b",
+        "square": "c8"
+       },
+       {
+        "piece": "k",
+        "square": "g8"
+       }
+      ]
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r1b1r1k1/pp1n1p1p/2pb1PpB/3Np3/2B1P3/8/PPP3PP/3R1RK1 w - - 0 18",
+   "game_id": "https://lichess.org/cnw6r6h7",
+   "move_index": 34,
+   "played_move": "Ne3",
+   "position_id": "fresh80_recorded:https://lichess.org/cnw6r6h7:34"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/mfm4dwt8:22_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "767a5d9e-9bac-4a3c-ab72-35ac317e3ec7",
+     "evidence_id": "fresh80_recorded:https://lichess.org/mfm4dwt8:22_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "r2q1rk1/1pp1bppp/p3bn2/4p3/1n2P3/PPN2PP1/1B1PN2P/R2QKB1R b KQ - 0 12",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "r2q1rk1/1pp1bppp/p3bn2/4p3/1n2P3/1PN2PP1/PB1PN2P/R2QKB1R w KQ - 1 12",
+      "before_score_cp": -258,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "76b7ccfe-5f56-4a7a-bbbd-bbcbf8021c86",
+      "fast_line": [
+       "e2c1",
+       "d8d6"
+      ],
+      "focused_analysis_id": "767a5d9e-9bac-4a3c-ab72-35ac317e3ec7",
+      "focused_line": [
+       "b4d3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "b4d3"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "b4c6",
+         "f1g2",
+         "d8d3",
+         "f3f4",
+         "a8d8",
+         "e2c1",
+         "d3d4",
+         "f4f5",
+         "e6c8",
+         "b3b4",
+         "f8e8",
+         "c1b3",
+         "d4a7",
+         "c3d5",
+         "f6d5",
+         "e4d5"
+        ],
+        "score_cp": 205
+       },
+       {
+        "pv": [
+         "e6b3",
+         "d1b3",
+         "b4d3",
+         "e1d1",
+         "c7c5",
+         "c3d5",
+         "c5c4",
+         "d5e7",
+         "d8e7",
+         "b3c3",
+         "e7c5",
+         "e2c1",
+         "d3f2",
+         "d1e1",
+         "f2h1",
+         "c3e3",
+         "c5c7",
+         "f1g2",
+         "b7b5",
+         "g2h1",
+         "f6d7",
+         "h1g2"
+        ],
+        "score_cp": 43
+       },
+       {
+        "pv": [
+         "f6e4",
+         "a3b4",
+         "e6b3",
+         "d1c1",
+         "e4f6",
+         "b4b5",
+         "a6b5",
+         "a1a8",
+         "d8a8",
+         "c3b5",
+         "c7c6",
+         "b5c3",
+         "f8d8",
+         "c1a1",
+         "a8a1",
+         "b2a1",
+         "b7b5",
+         "c3e4",
+         "f6e4",
+         "f3e4"
+        ],
+        "score_cp": -23
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "317e1ca3-f12b-42eb-a4cd-65ffe5ec0626",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "e2c1",
+         "e7c5"
+        ],
+        "score_cp": -258
+       },
+       {
+        "pv": [
+         "e2g1",
+         "b7b5",
+         "d2d3",
+         "d8d7",
+         "f3f4",
+         "e5f4",
+         "a2a3",
+         "e6g4"
+        ],
+        "score_cp": -424
+       },
+       {
+        "pv": [
+         "d2d4",
+         "e5d4",
+         "c3b1",
+         "d4d3",
+         "e2f4",
+         "b4c2",
+         "e1d2",
+         "f6d7",
+         "b1c3",
+         "c2a1",
+         "b2a1",
+         "d7c5",
+         "b3b4",
+         "c5d7",
+         "f1d3",
+         "c7c6"
+        ],
+        "score_cp": -549
+       },
+       {
+        "pv": [
+         "e2f4",
+         "e5f4",
+         "d2d4",
+         "d8d4",
+         "d1d4",
+         "b4c2",
+         "e1f2",
+         "c2d4",
+         "c3d5",
+         "f4g3",
+         "h2g3",
+         "e6d5",
+         "b2d4",
+         "d5e6",
+         "d4e3",
+         "f8d8",
+         "a1c1",
+         "c7c6",
+         "g3g4",
+         "f6d7",
+         "f1e2",
+         "a6a5"
+        ],
+        "score_cp": -701
+       }
+      ],
+      "mating_line": [
+       "b4d3"
+      ],
+      "played_move": "a3",
+      "proving_line": [
+       "b4d3"
+      ],
+      "reply_analysis_id": "4ff76343-2e8e-441c-b534-ca145697e013",
+      "source_score_mate": null,
+      "swing_cp": 9746
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r2q1rk1/1pp1bppp/p3bn2/4p3/1n2P3/1PN2PP1/PB1PN2P/R2QKB1R w KQ - 1 12",
+   "game_id": "https://lichess.org/mfm4dwt8",
+   "move_index": 22,
+   "played_move": "a3",
+   "position_id": "fresh80_recorded:https://lichess.org/mfm4dwt8:22"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/vnzp3o18:76_ev1"
+    ],
+    "primary": "threat_processing.allowed_mate",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the move newly allows the opponent's engine-proved mate in at most three",
+     "engine_analysis_id": "6ef93d25-d03f-4741-9b23-89773db928f8",
+     "evidence_id": "fresh80_recorded:https://lichess.org/vnzp3o18:76_ev1",
+     "kind": "blunder_analysis",
+     "payload": {
+      "after_fen": "7Q/1p1q1kp1/3pRP1p/2pP1KpP/2Pr4/p7/8/8 b - - 6 39",
+      "after_score_mate": 1,
+      "analysis_depth": "deep",
+      "before_fen": "7Q/1p1q1kp1/3pRP1p/2pP2pP/2Pr2K1/p7/8/8 w - - 5 39",
+      "before_score_cp": 820,
+      "before_score_mate": null,
+      "blunder_type": "allowed_mate",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "aa9c364c-92c7-49aa-8424-c4d242c2844d",
+      "fast_line": [
+       "g4g3",
+       "d4d3",
+       "g3f2",
+       "d3d2",
+       "f2e3",
+       "d7e6",
+       "d5e6",
+       "f7f6",
+       "h8f8",
+       "f6e6",
+       "e3d2",
+       "a3a2",
+       "f8e8",
+       "e6f5",
+       "e8a8",
+       "f5g4"
+      ],
+      "focused_analysis_id": "6ef93d25-d03f-4741-9b23-89773db928f8",
+      "focused_line": [
+       "d4f4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d4f4"
+        ],
+        "score_mate": 1
+       },
+       {
+        "pv": [
+         "g7f6",
+         "h8h7"
+        ],
+        "score_cp": -2366
+       },
+       {
+        "pv": [
+         "d4d5",
+         "c4d5",
+         "g7f6",
+         "h8h7",
+         "f7f8",
+         "h7d7",
+         "c5c4",
+         "e6e8"
+        ],
+        "score_mate": -4
+       },
+       {
+        "pv": [
+         "a3a2",
+         "h8g7"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "mate_in": 1,
+      "mate_rule_version": "m78-focused-source-v1",
+      "mate_source_analysis_id": "8d4a0297-a360-4847-ac2f-8d33a880ad3f",
+      "mate_source_config": {
+       "multipv": 4,
+       "nodes": 1000000
+      },
+      "mate_source_multipv": [
+       {
+        "pv": [
+         "g4g3",
+         "d4d3",
+         "g3f2",
+         "d3d2",
+         "f2e3",
+         "d7e6",
+         "d5e6",
+         "f7f6",
+         "e3d2",
+         "a3a2",
+         "e6e7",
+         "f6e7",
+         "h8g7",
+         "e7d8",
+         "g7a1",
+         "d8c8",
+         "d2d3"
+        ],
+        "score_cp": 820
+       },
+       {
+        "pv": [
+         "g4h3",
+         "d7e6",
+         "d5e6",
+         "f7f6",
+         "h8e8",
+         "a3a2",
+         "e8f7",
+         "f6e5",
+         "e6e7",
+         "d4d3",
+         "h3g2",
+         "d3d2",
+         "g2f3",
+         "d2d3",
+         "f3f2"
+        ],
+        "score_cp": 448
+       },
+       {
+        "pv": [
+         "g4f3",
+         "d4f4",
+         "f3e2",
+         "f4f6",
+         "e6f6",
+         "f7f6",
+         "h8f8",
+         "d7f7",
+         "f8d6",
+         "f6f5",
+         "d6g3",
+         "f7h5",
+         "e2f2",
+         "h5g4",
+         "g3a3"
+        ],
+        "score_cp": -428
+       },
+       {
+        "pv": [
+         "g4f5",
+         "d4f4"
+        ],
+        "score_mate": -1
+       }
+      ],
+      "mating_line": [
+       "d4f4"
+      ],
+      "played_move": "Kf5",
+      "proving_line": [
+       "d4f4"
+      ],
+      "reply_analysis_id": "0cd79cc4-27d0-47e7-811e-1e306e961175",
+      "source_score_mate": null,
+      "swing_cp": 10645
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "7Q/1p1q1kp1/3pRP1p/2pP2pP/2Pr2K1/p7/8/8 w - - 5 39",
+   "game_id": "https://lichess.org/vnzp3o18",
+   "move_index": 76,
+   "played_move": "Kf5",
+   "position_id": "fresh80_recorded:https://lichess.org/vnzp3o18:76"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/zyhneh6b:28_ev2"
+    ],
+    "primary": "tactics.fork.knight",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation exposes a tactical opportunity",
+     "engine_analysis_id": "f66f0752-f0ce-451b-b116-6ef695534b40",
+     "evidence_id": "fresh80_recorded:https://lichess.org/zyhneh6b:28_ev2",
+     "kind": "missed_tactic",
+     "payload": {
+      "after_fen": "r3k2r/p4p2/2p2N1p/4pb2/8/2PPbP2/PP4PP/R3K1NR b KQkq - 0 15",
+      "analysis_depth": "deep",
+      "before_fen": "r3k2r/p4p2/2p2p1p/4pb2/4N3/2PPbP2/PP4PP/R3K1NR w KQkq - 0 15",
+      "best_move": "e4d6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "0b759181-9af6-4377-8fb8-8a402d0ec8a5",
+      "fast_line": [
+       "e4d6",
+       "e8f8",
+       "d6f5",
+       "e3g5",
+       "b2b4",
+       "a8b8",
+       "h2h4",
+       "b8d8",
+       "h4g5"
+      ],
+      "focused_analysis_id": "f66f0752-f0ce-451b-b116-6ef695534b40",
+      "focused_line": [
+       "e8e7",
+       "f6g4",
+       "e3g1",
+       "h1g1",
+       "f5g4",
+       "f3g4",
+       "a8g8",
+       "h2h3",
+       "h6h5",
+       "g4h5",
+       "h8h5",
+       "e1e2",
+       "g8g3",
+       "d3d4",
+       "e5d4",
+       "c3d4",
+       "h5a5",
+       "b2b3",
+       "a5a3"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e8e7",
+         "f6g4",
+         "e3g1",
+         "h1g1",
+         "f5g4",
+         "f3g4",
+         "a8g8",
+         "h2h3",
+         "h6h5",
+         "g4h5",
+         "h8h5",
+         "e1e2",
+         "g8g3",
+         "d3d4",
+         "e5d4",
+         "c3d4",
+         "h5a5",
+         "b2b3",
+         "a5a3"
+        ],
+        "score_cp": -136
+       },
+       {
+        "pv": [
+         "e8f8",
+         "f6g4",
+         "e3b6",
+         "e1c1",
+         "a8e8",
+         "g4f6",
+         "e8d8",
+         "c1c2",
+         "f8e7",
+         "f6e4",
+         "h6h5",
+         "g1e2",
+         "h8h6",
+         "h2h4",
+         "a7a5",
+         "a2a4",
+         "h6g6",
+         "g2g3",
+         "f5e6",
+         "e4g5"
+        ],
+        "score_cp": -196
+       },
+       {
+        "pv": [
+         "e8d8",
+         "f6g4",
+         "f5g4",
+         "f3g4",
+         "h8g8",
+         "g1f3",
+         "g8g4",
+         "g2g3",
+         "f7f6",
+         "e1e2",
+         "e3c5",
+         "h1f1",
+         "d8d7",
+         "e2d2",
+         "a7a5",
+         "a1e1",
+         "h6h5",
+         "e1e2",
+         "c5e7",
+         "d2c2",
+         "a8g8",
+         "f3h4",
+         "d7e6",
+         "d3d4"
+        ],
+        "score_cp": -252
+       }
+      ],
+      "fork_square": "d6",
+      "played_move": "Nxf6+",
+      "proving_line": [
+       "e8e7",
+       "f6g4",
+       "f5g4",
+       "f3g4",
+       "e3g1",
+       "h1g1",
+       "a8g8",
+       "h2h3",
+       "h6h5",
+       "g4h5",
+       "h8h5",
+       "a1d1"
+      ],
+      "reply_analysis_id": "8ba60ec5-5546-4260-b6ad-068780e2eee5",
+      "results_in_material_gain": true,
+      "source_score_mate": null,
+      "swing_cp": 530,
+      "tactic_type": "knight_fork",
+      "targets": [
+       {
+        "piece": "b",
+        "square": "f5"
+       },
+       {
+        "piece": "k",
+        "square": "e8"
+       }
+      ]
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "r3k2r/p4p2/2p2p1p/4pb2/4N3/2PPbP2/PP4PP/R3K1NR w KQkq - 0 15",
+   "game_id": "https://lichess.org/zyhneh6b",
+   "move_index": 28,
+   "played_move": "Nxf6+",
+   "position_id": "fresh80_recorded:https://lichess.org/zyhneh6b:28"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/vwa8ajti:54_ev2"
+    ],
+    "primary": "tactics.fork.knight",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation exposes a tactical opportunity",
+     "engine_analysis_id": "f957235b-fca3-48ae-b6a3-17dec41dcc18",
+     "evidence_id": "fresh80_recorded:https://lichess.org/vwa8ajti:54_ev2",
+     "kind": "missed_tactic",
+     "payload": {
+      "after_fen": "4k1rr/3q4/P2p1p2/2PNp3/4P2n/2NP2P1/2P2P2/1R3RK1 b - - 0 28",
+      "analysis_depth": "deep",
+      "before_fen": "4k1rr/3q4/P2p1p2/2pNp3/1P2P2n/2NP2P1/2P2P2/1R3RK1 w - - 1 28",
+      "best_move": "d5f6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "d92647ab-263d-4a7a-902b-5f08def7d241",
+      "fast_line": [
+       "d5f6",
+       "e8d8",
+       "f6d7",
+       "h4f3",
+       "g1g2",
+       "f3h4",
+       "g2h2",
+       "h4f3"
+      ],
+      "focused_analysis_id": "f957235b-fca3-48ae-b6a3-17dec41dcc18",
+      "focused_line": [
+       "d7h3",
+       "b1b8",
+       "e8f7",
+       "b8b7",
+       "f7g6",
+       "d5f4",
+       "e5f4",
+       "g3h4",
+       "h3g4",
+       "g1h1",
+       "h8h4"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "d7h3",
+         "b1b8",
+         "e8f7",
+         "b8b7",
+         "f7g6",
+         "d5f4",
+         "e5f4",
+         "g3h4",
+         "h3g4",
+         "g1h1",
+         "h8h4"
+        ],
+        "score_mate": 6
+       },
+       {
+        "pv": [
+         "d7c8",
+         "d5f6",
+         "e8f7",
+         "f6d7",
+         "g8d8",
+         "b1b8",
+         "h4f3",
+         "g1g2",
+         "c8a6",
+         "b8d8",
+         "h8d8",
+         "d7b6",
+         "f3d4",
+         "f1h1",
+         "d4c2",
+         "c5c6",
+         "a6b6",
+         "h1h7",
+         "f7g6",
+         "c3d5",
+         "b6c5"
+        ],
+        "score_cp": 364
+       },
+       {
+        "pv": [
+         "h4f3",
+         "g1g2",
+         "f3h4",
+         "g2h2",
+         "h4g6",
+         "h2g2"
+        ],
+        "score_cp": 0
+       },
+       {
+        "pv": [
+         "h8h6",
+         "d5f6",
+         "h6f6",
+         "b1b8",
+         "e8f7",
+         "b8b7",
+         "d7b7",
+         "a6b7",
+         "d6c5",
+         "f1b1",
+         "h4f3",
+         "g1g2",
+         "g8h8",
+         "b1h1",
+         "h8h1",
+         "b7b8q",
+         "h1h2",
+         "g2f1",
+         "f3d2",
+         "f1g1",
+         "f6f2",
+         "b8a7"
+        ],
+        "score_cp": 0
+       }
+      ],
+      "fork_square": "f6",
+      "played_move": "bxc5",
+      "proving_line": [
+       "d7h3",
+       "b1b8",
+       "e8f7",
+       "b8b7",
+       "f7g6",
+       "d5e7",
+       "g6g5",
+       "f2f4",
+       "e5f4",
+       "g1f2",
+       "f4g3",
+       "f2e2",
+       "h3h2",
+       "e2d1",
+       "g3g2",
+       "f1e1",
+       "g8e8"
+      ],
+      "reply_analysis_id": "3a188980-6d1a-4bba-a01d-6b8dfbec0d91",
+      "results_in_material_gain": true,
+      "source_score_mate": null,
+      "swing_cp": 832,
+      "tactic_type": "knight_fork",
+      "targets": [
+       {
+        "piece": "q",
+        "square": "d7"
+       },
+       {
+        "piece": "k",
+        "square": "e8"
+       },
+       {
+        "piece": "r",
+        "square": "g8"
+       }
+      ]
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "4k1rr/3q4/P2p1p2/2pNp3/1P2P2n/2NP2P1/2P2P2/1R3RK1 w - - 1 28",
+   "game_id": "https://lichess.org/vwa8ajti",
+   "move_index": 54,
+   "played_move": "bxc5",
+   "position_id": "fresh80_recorded:https://lichess.org/vwa8ajti:54"
+  },
+  {
+   "corpus": "tests/fixtures/m48/fresh80_recorded.json",
+   "diagnosis": {
+    "confidence": 1.0,
+    "evidence_refs": [
+     "fresh80_recorded:https://lichess.org/1ronesu1:56_ev3"
+    ],
+    "primary": "tactics.fork.knight",
+    "secondary": []
+   },
+   "evidence": [
+    {
+     "claim": "the fast-pass principal variation exposes a tactical opportunity",
+     "engine_analysis_id": "44ec6093-e2ec-4e73-92da-cfd15aed6d4d",
+     "evidence_id": "fresh80_recorded:https://lichess.org/1ronesu1:56_ev3",
+     "kind": "missed_tactic",
+     "payload": {
+      "after_fen": "3k1r2/1Qp1n3/B2pq3/3P1p1r/3NP1p1/7P/PP3P2/1K2R3 b - - 0 29",
+      "analysis_depth": "deep",
+      "before_fen": "3k1r2/1Qp1n3/p2pq3/3P1p1r/3NP1p1/7P/PP3P2/1K2RB2 w - - 2 29",
+      "best_move": "d4e6",
+      "diagnosis_capabilities": {
+       "tactics.back_rank": "m94-back-rank-v2",
+       "tactics.discovered_attack": "m94-discovered-attack-v2",
+       "tactics.skewer": "m94-skewer-v2"
+      },
+      "diagnosis_rule_version": "m48-fast-local-v1",
+      "fast_analysis_id": "1f08a7dd-d5d9-4bed-b3d2-9393c6c548f5",
+      "fast_line": [
+       "d4e6",
+       "d8d7",
+       "b7c7",
+       "d7e8",
+       "c7d8",
+       "e8f7",
+       "d8f8",
+       "f7g6",
+       "f8g7"
+      ],
+      "focused_analysis_id": "44ec6093-e2ec-4e73-92da-cfd15aed6d4d",
+      "focused_line": [
+       "e6c8",
+       "b7a7",
+       "g4g3",
+       "a6c8",
+       "g3f2",
+       "d4e6",
+       "d8e8",
+       "e6c7",
+       "e8d8",
+       "a7f2",
+       "d8c7",
+       "e1c1",
+       "c7d8",
+       "f2b6",
+       "d8e8",
+       "b6b5",
+       "e8f7",
+       "c8e6",
+       "f7g6",
+       "e4f5",
+       "g6h7"
+      ],
+      "focused_multipv": [
+       {
+        "pv": [
+         "e6c8",
+         "b7a7",
+         "g4g3",
+         "a6c8",
+         "g3f2",
+         "d4e6",
+         "d8e8",
+         "e6c7",
+         "e8d8",
+         "a7f2",
+         "d8c7",
+         "e1c1",
+         "c7d8",
+         "f2b6",
+         "d8e8",
+         "b6b5",
+         "e8f7",
+         "c8e6",
+         "f7g6",
+         "e4f5",
+         "g6h7"
+        ],
+        "score_cp": -1047
+       },
+       {
+        "pv": [
+         "e6g8",
+         "b7b8",
+         "d8d7",
+         "a6b5",
+         "e7c6",
+         "d5c6",
+         "d7e7",
+         "b8c7",
+         "e7f6",
+         "c7d6",
+         "f6g5",
+         "d4e6",
+         "g8e6",
+         "d6e6",
+         "f5f4",
+         "e6g4",
+         "g5f6"
+        ],
+        "score_cp": -1261
+       },
+       {
+        "pv": [
+         "e6e5",
+         "b7b8",
+         "e7c8",
+         "d4c6",
+         "d8e8",
+         "a6c8",
+         "e8f7",
+         "c6e5",
+         "d6e5",
+         "b8c7",
+         "f7f6",
+         "c7d6",
+         "f6g7",
+         "d6e5",
+         "g7h6"
+        ],
+        "score_cp": -1195
+       },
+       {
+        "pv": [
+         "e7d5",
+         "d4e6",
+         "d8e7",
+         "e4d5",
+         "f8f7",
+         "b7a8",
+         "e7f6",
+         "a8d8",
+         "f6g6",
+         "h3g4",
+         "c7c5",
+         "d8g8",
+         "g6f6",
+         "g4g5",
+         "f6e7"
+        ],
+        "score_cp": -1661
+       }
+      ],
+      "fork_square": "e6",
+      "played_move": "Bxa6",
+      "proving_line": [
+       "e6c8",
+       "b7a7",
+       "g4h3",
+       "a6c8",
+       "h3h2",
+       "d4e6",
+       "d8e8",
+       "e1h1",
+       "e7c8",
+       "a7c7",
+       "f8g8",
+       "c7c6"
+      ],
+      "reply_analysis_id": "ae239ad5-e005-4c33-ae2f-df0ac36774e5",
+      "results_in_material_gain": true,
+      "source_score_mate": 5,
+      "swing_cp": 9042,
+      "tactic_type": "knight_fork",
+      "targets": [
+       {
+        "piece": "k",
+        "square": "d8"
+       },
+       {
+        "piece": "r",
+        "square": "f8"
+       }
+      ]
+     },
+     "position_id": "recorded",
+     "producer": {}
+    }
+   ],
+   "fen": "3k1r2/1Qp1n3/p2pq3/3P1p1r/3NP1p1/7P/PP3P2/1K2RB2 w - - 2 29",
+   "game_id": "https://lichess.org/1ronesu1",
+   "move_index": 56,
+   "played_move": "Bxa6",
+   "position_id": "fresh80_recorded:https://lichess.org/1ronesu1:56"
+  }
+ ],
+ "source": "recorded real-game corpora, Scan64 diagnosis pipeline"
+}

@@ -1,0 +1,23 @@
+# Publisher Modelfile (praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF, tag v1.0)
+# with FROM pointed at the pinned GGUF and num_ctx set to the uniform benchmark value.
+FROM @GGUF@
+
+# The training format, exactly: the turns the rows had, then an
+# assistant turn whose thinking block is already opened and closed.
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+<think>
+
+</think>
+
+"""
+
+PARAMETER temperature 0
+PARAMETER top_p 1
+PARAMETER num_ctx @NUM_CTX@
+PARAMETER stop "<|im_end|>"
+SYSTEM """You are Prax. Diagnose the mistake using ONLY the evidence given. Every claim must be typed. Output JSON."""
+PARAMETER num_predict @NUM_PREDICT@

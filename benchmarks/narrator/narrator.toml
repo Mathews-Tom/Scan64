@@ -1,0 +1,122 @@
+# Narrator model benchmark (issue #369).
+#
+# One command, from the repository root, with Ollama serving on 127.0.0.1:11434:
+#   uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml --setup
+# --setup pulls library models, downloads pinned GGUF files (sha256-checked) and
+# creates one Ollama model per entry from benchmarks/narrator/modelfiles/.
+# Rebuild the positions file (deterministic, no engine needed):
+#   uv run python -m benchmarks.narrator.build_positions benchmarks/narrator/narrator.toml
+
+[run]
+runs_per_position = 3
+# Ollama endpoint for every model unless a model sets its own base_url. The
+# benchmark server runs on 11435 so it cannot collide with a desktop Ollama on
+# the app's fixed local port 11434; the adapter is the same either way.
+base_url = "http://127.0.0.1:11435"
+results_dir = "benchmarks/narrator/results"     # relative to the repository root
+gguf_cache = "~/.cache/scan64-narrator-bench/gguf"
+# Generous client timeout so slow models are measured, not cut off. The
+# production local-Ollama limit is reported as the share of calls within it.
+request_timeout_s = 120
+production_time_limit_s = 4.0
+# Uniform context window and output cap written into every benchmark Modelfile
+# (PARAMETER num_ctx / num_predict). Prompts are under 1 300 tokens. The app sends
+# no output cap, but an answer over 512 tokens cannot arrive within the 4 s local
+# limit at the speeds measured here; a capped answer ends as invalid JSON, which
+# the pipeline counts as a provider error, the same outcome the timeout gives.
+num_ctx = 4096
+num_predict = 512
+# Other Ollama servers sharing this GPU. Each model waits until none of them has
+# a model loaded, and every run records whether one was loaded during it.
+foreign_ollama = ["http://127.0.0.1:11434"]
+
+# The pipeline under test. Swap these dotted paths to benchmark another prompt
+# builder; with the defaults, a rerun after #367 picks up the new prompt in
+# scan64.explanations.assembly with no code or config change.
+# pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment) -> Explanation
+# grounding_context: (diagnosis, evidence, fen) -> GroundedExplanationContext, used to
+# count rejected claims one by one.
+pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
+grounding_context = "scan64.explanations.assembly:_grounding_context"
+
+[positions]
+file = "benchmarks/narrator/positions.json"
+count = 50
+per_code_cap = 9
+per_game_cap = 2
+corpora = [
+  "tests/fixtures/m48/recorded.json",
+  "tests/fixtures/m48/fresh80_recorded.json",
+  "tests/fixtures/m48/m79_fresh80_recorded.json",
+  "tests/fixtures/m48/m93_fresh80_recorded.json",
+]
+
+# Every model is served as an Ollama model named "scan64-bench-<name>" built from
+# modelfiles/<name>.Modelfile. `from` is either an Ollama library tag (pulled)
+# or a pinned Hugging Face GGUF (downloaded and sha256-checked).
+
+[[models]]
+name = "chessgpt-base"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 2.8
+base_model = "RedPajama-INCITE-3B (GPT-NeoX)"
+training_data = "Waterhorse/chess_data: games, puzzles, annotated games, chess books and forum text"
+hf_repo = "msj121/chessgpt-base-v1-Q4_K_M-GGUF"
+hf_revision = "108f93dfe7e681f49a27dfae2963ba7a404e0f5b"
+hf_file = "chessgpt-base-v1-q4_k_m.gguf"
+sha256 = "613df34b8766b4f60859e6a8ced00ba6f2148b512dbae0cc5b1e8d9e677e6d73"
+
+[[models]]
+name = "praxis-4b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 4.2
+base_model = "Qwen/Qwen3.5-4B + LoRA"
+training_data = "praxis-chess/praxis-chess-evidence-graphs: engine evidence graphs with typed claims"
+hf_repo = "praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF"
+hf_revision = "915c2646d695db3211091aa00ac2ef7f9ee91cd5"
+hf_file = "praxis-chess-reasoner-qwen3.5-4b-Q4_K_M.gguf"
+sha256 = "6a32cdc809334dfb4cfba1a56c955f32d1aab8dd4531a8631c1011851cd6d9fe"
+
+[[models]]
+name = "qwen3-4b-chess-explain"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 4.0
+base_model = "Qwen/Qwen3-4B (unsloth bnb-4bit)"
+training_data = "not stated on the model card"
+hf_repo = "HillPhelmuth/Qwen3_4B_Chess_Explain_GGUF_Quants"
+hf_revision = "6372f39f5d88eec3060f6ccfb50c60e930878eed"
+hf_file = "unsloth.Q4_K_M.gguf"
+sha256 = "d3ea10820b0ed4920baff7bf71e536ec1ecd87ee4fccaf6b0239bcd7cdd908b6"
+
+[[models]]
+name = "chesslm-qwen3-8b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 8.2
+base_model = "Qwen/Qwen3-8B"
+training_data = "Lichess/chess-puzzles, RLVR with a Stockfish verifier"
+hf_repo = "VamidkaZ/ChessLM_Qwen3-Q4_K_M-GGUF"
+hf_revision = "86dbc1719ad495e711873416141e0ac3974fb460"
+hf_file = "chesslm_qwen3-q4_k_m.gguf"
+sha256 = "e6640c1b60b0649602761bb9106a705473f520589a65a8eb208909d3b8221086"
+
+[[models]]
+name = "qwen3.5-4b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 4.7
+base_model = "Qwen/Qwen3.5-4B"
+training_data = "general web, code and synthetic data (Qwen report)"
+ollama_tag = "qwen3.5:4b"
+
+[[models]]
+name = "qwen3-8b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.2
+base_model = "Qwen/Qwen3-8B"
+training_data = "general web, code and synthetic data (Qwen report)"
+ollama_tag = "qwen3:8b"
