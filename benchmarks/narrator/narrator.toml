@@ -21,11 +21,15 @@ request_timeout_s = 120
 production_time_limit_s = 4.0
 # Uniform context window and output cap written into every benchmark Modelfile
 # (PARAMETER num_ctx / num_predict). Prompts are under 1 300 tokens. The app sends
-# no output cap, but an answer over 512 tokens cannot arrive within the 4 s local
-# limit at the speeds measured here; a capped answer ends as invalid JSON, which
-# the pipeline counts as a provider error, the same outcome the timeout gives.
+# no output cap; a capped answer ends as invalid JSON, which the pipeline counts
+# as a provider error. The 4 s production limit is reported separately.
 num_ctx = 4096
-num_predict = 512
+num_predict = 1024
+# Fields merged into every /api/chat body. The app's adapter sends no `think`
+# field, so Ollama 0.40 lets Qwen3/Qwen3.5 models think first; in a smoke run
+# every thinking model spent its whole output budget thinking and returned no
+# JSON. Disabling thinking measures the wording, which is the question here.
+request_overrides = { think = false }
 # Other Ollama servers sharing this GPU. Each model waits until none of them has
 # a model loaded, and every run records whether one was loaded during it.
 foreign_ollama = ["http://127.0.0.1:11434"]

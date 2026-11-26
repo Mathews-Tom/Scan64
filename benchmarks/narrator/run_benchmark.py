@@ -125,6 +125,7 @@ class BenchConfig:
     production_time_limit_s: float
     num_ctx: int
     num_predict: int
+    request_overrides: dict[str, Any]
     foreign_ollama: tuple[str, ...]
     pipeline_entry: str
     grounding_context: str
@@ -167,6 +168,7 @@ def load_config(path: Path) -> BenchConfig:
         production_time_limit_s=float(run["production_time_limit_s"]),
         num_ctx=int(run["num_ctx"]),
         num_predict=int(run["num_predict"]),
+        request_overrides=dict(run["request_overrides"]),
         foreign_ollama=tuple(run["foreign_ollama"]),
         pipeline_entry=run["pipeline_entry"],
         grounding_context=run["grounding_context"],
@@ -290,20 +292,34 @@ def load_positions(path: Path) -> list[Position]:
 
 
 class _MeteredTransport(httpx.AsyncBaseTransport):
-    """Keeps the token counts Ollama reports; the adapter discards them."""
+    """Merges ``request_overrides`` into each chat request and keeps the token
+    counts Ollama reports (the adapter discards them)."""
 
-    def __init__(self) -> None:
+    def __init__(self, overrides: dict[str, Any]) -> None:
         self._inner = httpx.AsyncHTTPTransport()
+        self._overrides = overrides
         self.last_body: dict[str, Any] | None = None
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if self._overrides and request.url.path.endswith("/api/chat"):
+            body = {**json.loads(await request.aread()), **self._overrides}
+            request = httpx.Request(
+                request.method,
+                request.url,
+                headers={
+                    key: value
+                    for key, value in request.headers.items()
+                    if key.lower() != "content-length"
+                },
+                json=body,
+            )
         response = await self._inner.handle_async_request(request)
         content = await response.aread()
         try:
-            body = json.loads(content)
+            reply: object = json.loads(content)
         except json.JSONDecodeError:
-            body = None
-        self.last_body = body if isinstance(body, dict) else None
+            reply = None
+        self.last_body = cast(dict[str, Any], reply) if isinstance(reply, dict) else None
         return httpx.Response(
             status_code=response.status_code,
             headers=response.headers,
@@ -412,7 +428,7 @@ async def run_one(
     entry: PipelineEntry,
     context_builder: ContextBuilder,
 ) -> dict[str, Any]:
-    transport = _MeteredTransport()
+    transport = _MeteredTransport(config.request_overrides)
     async with httpx.AsyncClient(transport=transport, timeout=config.request_timeout_s) as client:
         adapter = create_llm_provider(
             LLMProviderConfig(provider="ollama", model=model.served_name, base_url=model.base_url),
@@ -757,6 +773,7 @@ async def run(
                 "runs_per_position": config.runs_per_position,
                 "num_ctx": config.num_ctx,
                 "num_predict": config.num_predict,
+                "request_overrides": config.request_overrides,
                 "request_timeout_s": config.request_timeout_s,
                 "gpu": _gpu_name(),
                 "ollama_version": ",".join(sorted(versions)),
