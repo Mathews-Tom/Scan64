@@ -6,9 +6,10 @@ non-commercial sets means the complete bundled artwork is NOT offered for
 unrestricted commercial use. Selecting another set does not remove these
 restrictions from redistribution of the bundled non-commercial artwork.
 
-All 96 SVGs are distributed unmodified from lichess-org/lila/public/piece.
-The cburnett and merida SVGs were taken at lila commit
-47948db658a1678d14e97d41c1bcf82958e70ded.
+The 108 SVGs in every directory except sophia/ are distributed unmodified from
+lichess-org/lila/public/piece. The cburnett, merida and mpchess SVGs were taken
+at lila commit 47948db658a1678d14e97d41c1bcf82958e70ded. The 12 sophia/ SVGs
+are distributed unmodified from GNOME Chess (see sophia/ below).
 Source and attribution authority:
 https://github.com/lichess-org/lila/blob/master/COPYING.md
 A snapshot of that authority is included in UPSTREAM-COPYING.txt.
@@ -63,6 +64,25 @@ Creative Commons Attribution 4.0 International. Attribution required.
 Full terms: CC-BY-4.0.txt
 https://creativecommons.org/licenses/by/4.0/
 
+mpchess/ — mpchess, Maxime Chupin
+https://github.com/chupinmaxime/mpchess-pieces
+(upstream commit 720f6e050b4ee9b6e68f1ef5d89330a44850d54e)
+https://github.com/lichess-org/lila/tree/master/public/piece/mpchess
+GNU General Public License, version 3 or (at your option) any later version.
+Full terms: mpchess/LICENSE.txt (copied from the upstream repository)
+
+sophia/ — Sophia (GNOME Chess "simple" pieces), the GNOME Chess authors,
+based on original work by Max Froumentin (ChessSophia.svg, W3C)
+https://gitlab.gnome.org/GNOME/gnome-chess/-/tree/de63bdec5cf9f0770890086262e6a127d5c4a619/data/pieces/simple
+W3C Software Notice and License (GPL-compatible permissive licence).
+Copyright (c) 1994-2002 World Wide Web Consortium, (Massachusetts Institute of
+Technology, Institut National de Recherche en Informatique et en Automatique,
+Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
+Full notice: sophia/COPYING.html (copied from GNOME Chess).
+Changes: none to the SVG content. Files were renamed on 2026-11-25 from
+GNOME Chess names (whiteKing.svg ... blackPawn.svg) to wK.svg ... bP.svg.
+
 No artwork modifications were made by Scan64. Directory naming for Firi is
-lowercased locally; the SVG content is unchanged. Licence summaries here are
+lowercased locally and Sophia files are renamed as listed above; the SVG
+content is unchanged. Licence summaries here are
 not substitutes for the full licence texts.

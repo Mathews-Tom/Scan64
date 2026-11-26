@@ -87,6 +87,22 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
+## Chess piece artwork
+- **Usage**: Board piece graphics in the web client, selected under **Settings → Chessboard**. The artwork is separately licensed and is not relicensed under Scan64's GPL.
+- **Full attribution and licence texts**: `apps/scan64-web/public/pieces/NOTICE.txt`, served locally and linked from `licenses.html`. It covers every bundled set: Staunton (cburnett), Merida, Chessnut, Spatial, Firi, California, Maestro, Staunty, mpchess and Sophia.
+
+### mpchess
+- **Author**: Maxime Chupin.
+- **License**: GPL-3.0-or-later. Full text: `apps/scan64-web/public/pieces/mpchess/LICENSE.txt`.
+- **Source**: https://github.com/lichess-org/lila/tree/47948db658a1678d14e97d41c1bcf82958e70ded/public/piece/mpchess (licence listed in lila `COPYING.md`); upstream https://github.com/chupinmaxime/mpchess-pieces at `720f6e050b4ee9b6e68f1ef5d89330a44850d54e`.
+- **Bundled files**: `apps/scan64-web/public/pieces/mpchess/{w,b}{K,Q,R,B,N,P}.svg`, unmodified.
+
+### Sophia (GNOME Chess "simple" pieces)
+- **Authors**: the GNOME Chess authors, based on original work by Max Froumentin (`ChessSophia.svg`, W3C).
+- **License**: W3C Software Notice and License (GPL-compatible). Copyright (c) 1994-2002 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/. Full notice: `apps/scan64-web/public/pieces/sophia/COPYING.html`.
+- **Source**: https://gitlab.gnome.org/GNOME/gnome-chess/-/tree/de63bdec5cf9f0770890086262e6a127d5c4a619/data/pieces/simple.
+- **Bundled files**: `apps/scan64-web/public/pieces/sophia/{w,b}{K,Q,R,B,N,P}.svg`. SVG content unmodified; files renamed on 2026-11-25 from `whiteKing.svg` … `blackPawn.svg`.
+
 ## Syzygy 3-piece tablebase data
 - **Source**: `http://tablebase.sesse.net/syzygy/3-4-5/`, downloaded 2026-07-14.
 - **Usage**: Offline WDL/DTZ verification of the initial curated endgame catalog.

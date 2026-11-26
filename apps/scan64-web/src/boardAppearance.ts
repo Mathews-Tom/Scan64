@@ -1,12 +1,18 @@
+/**
+ * `staunton` marks sets drawn in the Staunton pattern that FIDE Handbook C.02 requires for
+ * tournament pieces. Settings groups sets by this flag; stored values never change.
+ */
 export const PIECE_SET_OPTIONS = [
-  { value: 'cburnett', label: 'Staunton (cburnett)' },
-  { value: 'merida', label: 'Merida' },
-  { value: 'chessnut', label: 'Chessnut' },
-  { value: 'spatial', label: 'Spatial' },
-  { value: 'firi', label: 'Firi' },
-  { value: 'california', label: 'California (non-commercial)' },
-  { value: 'maestro', label: 'Maestro (non-commercial)' },
-  { value: 'staunty', label: 'Staunty (non-commercial)' },
+  { value: 'cburnett', label: 'Staunton (cburnett)', staunton: true },
+  { value: 'merida', label: 'Merida', staunton: true },
+  { value: 'chessnut', label: 'Chessnut', staunton: true },
+  { value: 'spatial', label: 'Spatial', staunton: false },
+  { value: 'firi', label: 'Firi', staunton: false },
+  { value: 'california', label: 'California (non-commercial)', staunton: true },
+  { value: 'maestro', label: 'Maestro (non-commercial)', staunton: true },
+  { value: 'staunty', label: 'Staunty (non-commercial)', staunton: true },
+  { value: 'mpchess', label: 'mpchess', staunton: true },
+  { value: 'sophia', label: 'Sophia (GNOME Chess)', staunton: true },
 ] as const;
 
 export const BOARD_THEME_OPTIONS = [
