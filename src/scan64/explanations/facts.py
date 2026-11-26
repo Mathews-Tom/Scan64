@@ -191,7 +191,9 @@ def narrator_facts_schema() -> dict[str, Any]:
 
 
 def write_schema(path: Path = SCHEMA_PATH) -> None:
-    path.write_text(json.dumps(narrator_facts_schema(), indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(narrator_facts_schema(), indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 # --- Payload fields --------------------------------------------------------

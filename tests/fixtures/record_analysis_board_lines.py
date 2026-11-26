@@ -49,7 +49,7 @@ async def main() -> None:
         analysis = await adapter.analyze_position(fen, nodes=HINT_NODES, multipv=HINT_MULTIPV)
         positions[name] = {"fen": fen, "config": analysis.config, "raw_result": analysis.raw_result}
     record["positions"] = positions
-    FIXTURE.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    FIXTURE.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote {FIXTURE}")
 
 

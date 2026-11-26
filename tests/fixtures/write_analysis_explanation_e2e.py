@@ -37,7 +37,7 @@ async def main() -> None:
     facts = build_board_lines_facts(board, lines)
     resolved = await resolve_board_lines_explanation(facts, environment={})
     read = explanation_read(board, lines, facts, resolved)
-    OUTPUT.write_text(read.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    OUTPUT.write_text(read.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote {OUTPUT}")
 
 
