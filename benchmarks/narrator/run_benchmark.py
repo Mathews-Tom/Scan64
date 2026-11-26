@@ -294,12 +294,21 @@ def load_positions(path: Path) -> list[Position]:
 
 class _MeteredTransport(httpx.AsyncBaseTransport):
     """Merges ``request_overrides`` into each chat request and keeps the token
-    counts Ollama reports (the adapter discards them)."""
+    counts Ollama reports (the adapter discards them).
+
+    With ``stream = true`` in the overrides, Ollama streams NDJSON chunks. The
+    transport records the time to the first content token and joins the chunks
+    into the one non-streamed reply body the production adapter parses, so the
+    parse path is the same either way. It also keeps any thinking text: the
+    benchmark sends ``think = false`` and reports every call that still thinks.
+    """
 
     def __init__(self, overrides: dict[str, Any]) -> None:
         self._inner = httpx.AsyncHTTPTransport()
         self._overrides = overrides
         self.last_body: dict[str, Any] | None = None
+        self.first_token_s: float | None = None
+        self.thinking_chars = 0
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         if self._overrides and request.url.path.endswith("/api/chat"):
@@ -314,19 +323,67 @@ class _MeteredTransport(httpx.AsyncBaseTransport):
                 },
                 json=body,
             )
+        started = time.perf_counter()
         response = await self._inner.handle_async_request(request)
-        content = await response.aread()
+        if self._overrides.get("stream") is True and request.url.path.endswith("/api/chat"):
+            content = await self._join_stream(response, started)
+            headers = {
+                key: value
+                for key, value in response.headers.items()
+                if key.lower() not in ("content-length", "transfer-encoding", "content-type")
+            }
+            headers["content-type"] = "application/json"
+        else:
+            content = await response.aread()
+            headers = dict(response.headers)
         try:
             reply: object = json.loads(content)
         except json.JSONDecodeError:
             reply = None
         self.last_body = cast(dict[str, Any], reply) if isinstance(reply, dict) else None
+        if self.last_body is not None:
+            message = self.last_body.get("message")
+            thinking = message.get("thinking") if isinstance(message, dict) else None
+            if isinstance(thinking, str):
+                self.thinking_chars = len(thinking)
         return httpx.Response(
             status_code=response.status_code,
-            headers=response.headers,
+            headers=headers,
             content=content,
             request=request,
         )
+
+    async def _join_stream(self, response: httpx.Response, started: float) -> bytes:
+        if response.status_code != 200:
+            return await response.aread()
+        parts: list[str] = []
+        thinking: list[str] = []
+        final: dict[str, Any] = {}
+        buffer = b""
+        async for raw in response.aiter_raw():
+            buffer += raw
+            *lines, buffer = buffer.split(b"\n")
+            for line in lines:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                message = chunk.get("message") or {}
+                if message.get("content"):
+                    if self.first_token_s is None:
+                        self.first_token_s = time.perf_counter() - started
+                    parts.append(message["content"])
+                if message.get("thinking"):
+                    thinking.append(message["thinking"])
+                if chunk.get("done"):
+                    final = chunk
+        await response.aclose()
+        joined = {key: value for key, value in final.items() if key != "message"}
+        joined["message"] = {
+            "role": "assistant",
+            "content": "".join(parts),
+            **({"thinking": "".join(thinking)} if thinking else {}),
+        }
+        return json.dumps(joined).encode()
 
     async def aclose(self) -> None:
         await self._inner.aclose()
@@ -491,6 +548,10 @@ async def run_one(
         else None,
         "prompt_eval_count": body.get("prompt_eval_count"),
         "eval_count": body.get("eval_count"),
+        "done_reason": body.get("done_reason"),
+        "first_token_s": transport.first_token_s,
+        "thinking_chars": transport.thinking_chars,
+        "think_tag_in_content": "<think>" in str((body.get("message") or {}).get("content", "")),
         "explanation_text": explanation.text if explanation is not None else None,
         "claims": claims,
     }
@@ -680,6 +741,15 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "san_legal_rate": sum(t["legal"] for t in san) / len(san) if san else None,
             "san_correct_rate": sum(t["correct"] for t in san) / len(san) if san else None,
             "latency_p50_s": _percentile(latencies, 0.5),
+            "first_token_p50_s": _percentile(
+                [r["first_token_s"] for r in runs if r.get("first_token_s") is not None], 0.5
+            )
+            if any(r.get("first_token_s") is not None for r in runs)
+            else None,
+            "length_stop_rate": sum(r.get("done_reason") == "length" for r in runs) / len(runs),
+            "thinking_calls": sum(
+                bool(r.get("thinking_chars")) or bool(r.get("think_tag_in_content")) for r in runs
+            ),
             "latency_p95_s": _percentile(latencies, 0.95),
             "within_production_limit_rate": sum(
                 lat <= config.production_time_limit_s for lat in latencies
@@ -721,8 +791,9 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         "",
         "| Model | Role | Params (B) | Grounding pass | Provider errors | Claims / expl. "
         "| False chess statements / expl. | Rejected claims / expl. | SAN legal | SAN correct "
-        "(SAN tokens) | Latency p50 / p95 (s) | Within 4 s | VRAM (GiB) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "(SAN tokens) | Latency p50 / p95 (s) | First token p50 (s) | Within 4 s "
+        "| Hit output cap | Calls that thought | VRAM (GiB) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, row in summary["models"].items():
         lines.append(
@@ -734,7 +805,10 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f"| {_fmt(row['san_legal_rate'], '.1%')} "
             f"| {_fmt(row['san_correct_rate'], '.1%')} ({row['san_tokens']}) "
             f"| {row['latency_p50_s']:.2f} / {row['latency_p95_s']:.2f} "
-            f"| {row['within_production_limit_rate']:.1%} | {row['vram_model_gib']:.2f} |"
+            f"| {_fmt(row.get('first_token_p50_s'), '.2f')} "
+            f"| {row['within_production_limit_rate']:.1%} "
+            f"| {row.get('length_stop_rate', 0):.1%} | {row.get('thinking_calls', 0)} "
+            f"| {row['vram_model_gib']:.2f} |"
         )
     return "\n".join(lines) + "\n"
 

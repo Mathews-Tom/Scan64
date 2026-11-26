@@ -1,0 +1,4 @@
+# General-purpose baseline: Ollama library model, unchanged except the uniform context window.
+FROM gemma4:e4b
+PARAMETER num_ctx @NUM_CTX@
+PARAMETER num_predict @NUM_PREDICT@
