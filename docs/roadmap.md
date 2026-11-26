@@ -302,9 +302,9 @@ Engine output, diagnosis measurement, file formats, project governance and open 
 
 #### F1 — Engine and evidence contract
 
-- [ ] **F1.1 Swappable engine with full engine output.** Any UCI engine is selected by a TOML profile; every stored line keeps its full PV, cp or mate score, WDL, depth, seldepth, nodes and MultiPV index. *Wave 0 · Size M · In progress on the epic [#371](https://github.com/Mathews-Tom/Scan64/issues/371) branch · issue [#360](https://github.com/Mathews-Tom/Scan64/issues/360)*
+- [ ] **F1.1 Swappable engine with full engine output.** Any UCI engine is selected by a TOML profile; every stored line keeps its full PV, cp or mate score, depth, seldepth, nodes and MultiPV index, plus WDL when the engine reports it (the field is absent, never zero, when it does not). *Wave 0 · Size M · In progress on the epic [#371](https://github.com/Mathews-Tom/Scan64/issues/371) branch · issue [#360](https://github.com/Mathews-Tom/Scan64/issues/360)*
 - [ ] **F1.2 Line provenance.** Every stored line records its start FEN and search identity; the validator replays each line from its own start, so after-position lines become citable. *Wave 0 · Size M · Needs F1.1*
-- [ ] **F1.3 Expected score as the common unit.** Review, hints, accuracy and reports express loss as expected score from engine WDL, not centipawns. *Wave 1 · Size M · Needs F1.1*
+- [ ] **F1.3 Expected score as the common unit.** Review, hints, accuracy and reports express loss as expected score rather than raw centipawns: from the engine's WDL when it reports one, otherwise from a documented conversion of the cp or mate score, with the source recorded. *Wave 1 · Size M · Needs F1.1*
 - [ ] **F1.4 Replayable evidence manifest.** `scan64-cli verify` re-runs any stored diagnosis from its recorded engine hash, options and limits, and reports agreement. *Wave 2 · Size M · Needs F1.1*
 - [ ] **F1.5 Engine-payload retention.** Stored engine payloads follow a configurable retention and compaction policy; the database stays bounded on large imports. *Wave 2 · Size M · Ready · careful review*
 - [ ] **F1.6 Bulk analysis capacity.** A resumable bulk queue with priorities, progress and pause analyses thousands of games in the background without starving play. *Wave 2 · Size M · Ready · issue [#365](https://github.com/Mathews-Tom/Scan64/issues/365)*
@@ -609,7 +609,7 @@ Other devices, languages, accessibility, tools for coaches, community content, b
 
 ## 7. How to pick up an item
 
-1. **Choose an item.** Start with one marked **Ready**, or one whose dependencies are ticked. A feature (for example F2) or a whole wave can be taken as a group.
+1. **Choose an item.** Start with one marked **Ready**, or one whose **Needs** items are all ticked. Items marked **In progress** or **Waiting on a decision** are not open to pick up, even when their dependencies are met. A feature (for example F2) or a whole wave can be taken as a group.
 2. **Say you are on it.** Comment on the item's linked issue or open one titled with its ID, for example `[F2.1] Public diagnosis benchmark v1`, so work is not duplicated. Larger efforts run as an epic issue with child issues and a working branch, as epic [#371](https://github.com/Mathews-Tom/Scan64/issues/371) does.
 3. **Study before you build.** Trace the code path the item touches at a pinned commit, with file and line references, and list what exists and what is missing. Issue [#361](https://github.com/Mathews-Tom/Scan64/issues/361) and its narrator pipeline trace are an example.
 4. **Write the plan in the issue.** State the outcome, the scope and what is out of scope, acceptance criteria phrased as "Done when …", how you will verify it, and the risks. Check it against the [principles](#principles-every-item-keeps).
