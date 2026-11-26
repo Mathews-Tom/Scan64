@@ -54,7 +54,7 @@ Scan64 grows along its learning loop. Every item in this roadmap does at least o
 
 ### Principles every item keeps
 
-A pull request that breaks one of these is not merged, however useful the feature.
+A pull request that breaks one of these is not merged, however useful the feature. They hold on every surface Scan64 runs on: the desktop app today, and any phone or tablet app it gains.
 
 1. **The engine and the board decide chess facts.** Language models only word them, and a deterministic explanation always exists.
 2. **Nothing leaves the player's machine without an explicit action,** and declining never reduces function.
@@ -158,7 +158,7 @@ White boxes exist today, green boxes are planned, and the dashed red box waits o
 
 - **A provider layer.** The analysis engine, tablebases, a human-move model and the language model sit behind provider contracts, so each can be replaced by configuration.
 - **Open data packs beside the app.** Benchmarks, a corpus, rating-band statistics and models are built in public from Lichess public-domain data and installed as optional packs. The app stays fully usable without them.
-- **More than one surface.** A companion on the local network and a stable local API let other devices and tools use the same local data, with no hosted account.
+- **More than one surface.** A companion on the local network, a phone app built on the same principles as the desktop app, and a stable local API let other devices and tools use the player's data, with no hosted account.
 
 ## 4. Workflows
 
@@ -230,7 +230,7 @@ Waves order the work by dependency: a wave holds the items whose prerequisites a
 | 3 | Practice breadth and lesson formats | … train endgames against perfect tablebase defence, drill calculation and visualisation, edit a repertoire on the board and hear explanations read aloud. Lesson authors write to LessonSpec 1.0 and pack format v2. | 32 | 19 |
 | 4 | Open data and rating-band context | … see how often players at their rating find a move, how their numbers compare with their rating band and which repertoire gaps opponents reach most. More tactical patterns become lessons, each only after passing its measurement. | 18 | 2 |
 | 5 | Curriculum, coaching and extensions | … follow a foundations path as a beginner, receive assignment packs from a coach, run the daily queue on a phone on the same network, and use detectors, packs and translations published by others. | 27 | 4 |
-| 6 | Research tracks and new devices | … use each longer-term track once it passes its own measurement: a personal mistake model, a fine-tuned narrator, conversational and voice coaching, shared analysis computing, native mobile and physical boards. | 24 | 4 |
+| 6 | Research tracks and new devices | … use each longer-term track once it passes its own measurement: a personal mistake model, a fine-tuned narrator, conversational and voice coaching, shared analysis computing, a native phone app and physical boards. | 24 | 5 |
 
 ### Items that unblock the most work
 
@@ -571,7 +571,7 @@ Other devices, languages, accessibility, tools for coaches, community content, b
 - [ ] **X1.1 LAN companion.** A phone or tablet on the same network pairs with the desktop install. *Wave 5 · Size L · Ready · careful review*
 - [ ] **X1.2 Companion PWA.** The companion installs to the home screen and keeps an offline due queue. *Wave 5 · Size M · Needs X1.1*
 - [ ] **X1.3 Account-free sync.** Two installs sync through a user-chosen folder, end-to-end encrypted. *Wave 6 · Size L · Needs F3.1, F3.4 · careful review*
-- [ ] **X1.4 Native mobile.** A mobile app with an on-device engine. *Wave 6 · Size XL · Waiting on a decision: the device strategy, after the local-network companion*
+- [ ] **X1.4 Native mobile.** A phone and tablet app with the same principles as the desktop app: the player's data stays on the device, analysis runs on an on-device engine, no account is required, and the same learning loop and export formats let work move between devices. Planning it includes choosing how much of the desktop stack it shares. *Wave 6 · Size XL · Ready*
 
 #### X2 — Language
 
