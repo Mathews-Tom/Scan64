@@ -1,0 +1,11 @@
+# ChessGPT base (GPT-NeoX, no chat template): a plain completion layout. The
+# app's request adds a JSON-schema `format`, so output is grammar-constrained.
+FROM @GGUF@
+TEMPLATE """{{ if .System }}{{ .System }}
+
+{{ end }}{{ .Prompt }}
+
+"""
+PARAMETER stop "<|endoftext|>"
+PARAMETER num_ctx @NUM_CTX@
+PARAMETER num_predict @NUM_PREDICT@
