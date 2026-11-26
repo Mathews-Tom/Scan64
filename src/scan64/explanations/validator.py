@@ -486,11 +486,27 @@ _NUMBER_WORDS = {
     "seven": 7,
     "eight": 8,
 }
-_SQ = r"[a-h][1-8]"
+# Squares stay lowercase inside case-insensitive rules: "G5" must reach the
+# unparsed-token rejection, not chess.parse_square (which raises ValueError).
+_SQ = r"(?-i:[a-h][1-8])"
 _PIECE = r"(?P<piece>king|queen|rook|bishop|knight|pawn)s?"
+# "the learner" and "the side to move" are the names NARRATOR_SYSTEM_PROMPT and
+# BOARD_NARRATOR_SYSTEM_PROMPT ask for; both mean the side to move in ``fen``.
 _COLOUR = (
     r"(?:(?P<colour>your\s+opponent's|the\s+opponent's|opponent's|white's|black's"
+    r"|the\s+learner's|learner's|the\s+side\s+to\s+move's"
     r"|white|black|your)\s+)?"
+)
+_LEARNER_WORDS = frozenset(
+    {
+        "you",
+        "your",
+        "the learner",
+        "the learner's",
+        "learner's",
+        "the side to move",
+        "the side to move's",
+    }
 )
 _COUNT = r"(?:(?P<count>the|a|an|one|two|three|four|five|six|seven|eight|\d+)\s+)?"
 _VERB_OBJECT_WORDS = (
@@ -522,7 +538,7 @@ def _colour(match: re.Match[str], facts: _ClaimEvidence) -> chess.Color | None:
         return chess.WHITE
     if word in ("black", "black's"):
         return chess.BLACK
-    if word == "your":
+    if word in _LEARNER_WORDS:
         return facts.learner
     return not facts.learner
 
@@ -575,7 +591,10 @@ def _uci_facts(match: re.Match[str], facts: _ClaimEvidence) -> list[_MoveFact]:
     matched = [fact for fact in facts.moves if fact.move.uci() == uci]
     if matched:
         return matched
-    move = chess.Move.from_uci(uci)
+    try:
+        move = chess.Move.from_uci(uci)
+    except ValueError as error:  # e.g. "e4e4": python-chess rejects it as a move
+        raise _reject("illegal_move", f"names an illegal move: {uci!r}") from error
     if _legal_anywhere(facts, lambda board: move in board.legal_moves):
         raise _reject("move_not_verified", f"names a move outside verified lines: {uci!r}")
     raise _reject("illegal_move", f"names an illegal move: {uci!r}")
@@ -629,7 +648,8 @@ def _mate_in(match: re.Match[str], facts: _ClaimEvidence) -> None:
 
 
 def _evaluation(match: re.Match[str], facts: _ClaimEvidence) -> None:
-    value = float((match.group("value") or match.group("signed")).replace("−", "-"))
+    raw = match.group("value") or match.group("signed")
+    value = float(raw.replace("−", "-").replace("–", "-"))
     unit = (match.group("unit") or "pawns").lower()
     centipawns = abs(round(value if unit in ("cp", "centipawn", "centipawns") else value * 100))
     if not any(abs(centipawns - known) <= EVALUATION_TOLERANCE_CP for known in facts.centipawns):
@@ -694,7 +714,7 @@ def _side_colour(word: str, facts: _ClaimEvidence) -> chess.Color:
         return chess.WHITE
     if word == "black":
         return chess.BLACK
-    return facts.learner if word == "you" else not facts.learner
+    return facts.learner if word in _LEARNER_WORDS else not facts.learner
 
 
 def _advantage(board: chess.Board, colour: chess.Color) -> int:
@@ -855,7 +875,8 @@ _RULES: tuple[tuple[re.Pattern[str], _Handler], ...] = (
         re.compile(
             r"\b(?:material\s+(?:balance\s+)?(?:is|was|stays|remains)\s+(?:now\s+|still\s+)?"
             r"(?P<equal>equal|even|level|balanced)"
-            r"|(?P<who>white|black|you|your\s+opponent|the\s+opponent)\s+"
+            r"|(?P<who>white|black|you|your\s+opponent|the\s+opponent|the\s+learner"
+            r"|the\s+side\s+to\s+move)\s+"
             r"(?:is|are|was|were|will\s+be|would\s+be|stays|remains)\s+(?:now\s+|still\s+)?"
             r"(?P<direction>up|down|ahead|behind)\s+(?:by\s+)?"
             r"(?:(?:(?P<count>a|an|the|one|two|three|four|five|six|seven|eight|\d+)\s+)?"
@@ -891,10 +912,11 @@ _RULES: tuple[tuple[re.Pattern[str], _Handler], ...] = (
     ),
     (
         re.compile(
-            r"(?<![\w.])(?P<value>[+\-−]?\d+(?:\.\d+)?)\s*-?\s*"
+            r"(?<![\w.])(?P<value>[+\-−–]?\d+(?:\.\d+)?)\s*-?\s*"
             r"(?P<unit>pawns?|points?|centipawns?|cp)\b"
-            # A sentence-ending full stop after the number is still an evaluation.
-            r"|(?<![\w.])(?P<signed>[+\-−]\d+\.\d+)(?!\w|\.\d)",
+            # Any decimal is an evaluation, signed or not ("drops to 7.4"). A
+            # sentence-ending full stop after the number is still an evaluation.
+            r"|(?<![\w.])(?P<signed>[+\-−–]?\d+\.\d+)(?!\w|\.\d)",
             _I,
         ),
         _evaluation,

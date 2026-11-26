@@ -184,10 +184,33 @@ ADVERSARIAL = [
     (MISSED_CAPTURE, "Bxg5 is a back-rank tactic.", "tactic_not_supported"),
     (MISSED_CAPTURE, "Bxg5 is a back rank tactic.", "tactic_not_supported"),
     (MISSED_CAPTURE, "Castling was safer.", "move_type_not_supported"),
+    # Review of #380: texts that crashed the validator or slipped past it.
+    (MISSED_CAPTURE, "The bishop can capture the queen on G5.", "unparsed_chess_token"),
+    (MISSED_CAPTURE, "The knight wins the queen on G5.", "unparsed_chess_token"),
+    (MISSED_CAPTURE, "Play e4e4 now.", "illegal_move"),
+    (MISSED_CAPTURE, "The learner is up a rook.", "material_not_supported"),
+    (MISSED_CAPTURE, "The side to move is up a rook.", "material_not_supported"),
+    (MISSED_CAPTURE, "The learner's queen on g5 is attacked.", "piece_not_on_square"),
+    (MISSED_CAPTURE, "The side to move's queen on g5 is attacked.", "piece_not_on_square"),
+    (MISSED_CAPTURE, "The evaluation drops to 7.4.", "evaluation_not_supported"),
+    (MISSED_CAPTURE, "The evaluation is –2.3.", "evaluation_not_supported"),
+    (MISSED_CAPTURE, "Bxg5, scored 0.41, keeps the queen safe.", "evaluation_not_supported"),
     # Chess tokens outside the grammar.
     (MISSED_CAPTURE, "White is completely winning here.", "unparsed_chess_token"),
     (MISSED_CAPTURE, "Play Ng1-f3 now.", "unparsed_chess_token"),
 ]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The learner's opponent has a queen on g5.",
+        "The swing is 8.50.",
+        "The side to move can win the queen.",
+    ],
+)
+def test_prompt_side_names_and_unsigned_evaluations_pass_when_grounded(text: str) -> None:
+    _validate(MISSED_CAPTURE, text)
 
 
 @pytest.mark.parametrize(("scenario", "text"), CORRECT)
