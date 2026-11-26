@@ -181,6 +181,8 @@ ADVERSARIAL = [
     (HANGING_PIECE, "bxa6 wins a pawn.", "material_not_supported"),
     (MISSED_CAPTURE, "Bxg5+ wins the queen.", "check_not_supported"),
     (MISSED_CAPTURE, "Bxg5 is a fork.", "tactic_not_supported"),
+    (MISSED_CAPTURE, "Bxg5 is a back-rank tactic.", "tactic_not_supported"),
+    (MISSED_CAPTURE, "Bxg5 is a back rank tactic.", "tactic_not_supported"),
     (MISSED_CAPTURE, "Castling was safer.", "move_type_not_supported"),
     # Chess tokens outside the grammar.
     (MISSED_CAPTURE, "White is completely winning here.", "unparsed_chess_token"),
