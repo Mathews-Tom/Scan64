@@ -10,6 +10,7 @@ import pytest
 
 from scan64.providers.llm import local_ollama as local
 from scan64.providers.llm.adapters import LLMProviderError
+from scan64.providers.llm.config import LLMConfigurationError
 from scan64.providers.llm.contracts import ExplanationRequest, LLMMessage
 
 
@@ -180,7 +181,8 @@ async def test_connection_failure(peer: Callable) -> None:
 
 @pytest.mark.asyncio
 async def test_absolute_deadline(peer: Callable, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(local, "_OPERATION_SECONDS", 0.01)
+    monkeypatch.setattr(local, "_PROBE_SECONDS", 0.01)
+    monkeypatch.setenv(local.TIMEOUT_ENV, "0.01")
 
     async def handler(req: httpx.Request) -> httpx.Response:
         await asyncio.sleep(1)
@@ -201,10 +203,72 @@ async def test_request_byte_limit_prevents_chat(peer: Callable) -> None:
         return tags({"name": "local"})
 
     peer(handler)
-    oversized = ExplanationRequest(messages=(LLMMessage(role="user", content="x" * (128 * 1024)),))
+    oversized = ExplanationRequest(
+        messages=(LLMMessage(role="user", content="x" * local.DEFAULT_MAX_REQUEST_BYTES),)
+    )
     with pytest.raises(LLMProviderError):
         await local.LocalOllamaExplanationProvider("local", authorized).generate(oversized)
     assert paths == ["/api/tags"]
+
+
+@pytest.mark.asyncio
+async def test_configured_request_byte_limit_prevents_chat(
+    peer: Callable, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        paths.append(req.url.path)
+        return tags({"name": "local"})
+
+    peer(handler)
+    monkeypatch.setenv(local.MAX_REQUEST_BYTES_ENV, "2048")
+    small = ExplanationRequest(messages=(LLMMessage(role="user", content="x" * 4096),))
+    with pytest.raises(LLMProviderError):
+        await local.LocalOllamaExplanationProvider("local", authorized).generate(small)
+    assert paths == ["/api/tags"]
+
+
+def test_limits_default_and_parse_from_the_environment() -> None:
+    assert local.LocalOllamaLimits.from_environment({}) == local.LocalOllamaLimits(
+        operation_seconds=local.DEFAULT_OPERATION_SECONDS,
+        max_request_bytes=local.DEFAULT_MAX_REQUEST_BYTES,
+        max_response_bytes=local.DEFAULT_MAX_RESPONSE_BYTES,
+    )
+    assert local.LocalOllamaLimits.from_environment(
+        {
+            local.TIMEOUT_ENV: "12.5",
+            local.MAX_REQUEST_BYTES_ENV: "65536",
+            local.MAX_RESPONSE_BYTES_ENV: "131072",
+        }
+    ) == local.LocalOllamaLimits(12.5, 65536, 131072)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("SCAN64_LOCAL_LLM_TIMEOUT_SECONDS", "0"),
+        ("SCAN64_LOCAL_LLM_TIMEOUT_SECONDS", "nan"),
+        ("SCAN64_LOCAL_LLM_TIMEOUT_SECONDS", "601"),
+        ("SCAN64_LOCAL_LLM_TIMEOUT_SECONDS", "soon"),
+        ("SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES", "12"),
+        ("SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES", "1.5"),
+        ("SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES", str(17 * 1024 * 1024)),
+    ],
+)
+def test_invalid_limits_fail_loudly(name: str, value: str) -> None:
+    with pytest.raises(LLMConfigurationError, match=name):
+        local.LocalOllamaLimits.from_environment({name: value})
+
+
+@pytest.mark.asyncio
+async def test_invalid_limit_is_not_swallowed_as_unavailable(
+    peer: Callable, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    peer(lambda req: tags({"name": "local"}))
+    monkeypatch.setenv(local.TIMEOUT_ENV, "-1")
+    with pytest.raises(LLMConfigurationError):
+        await local.LocalOllamaExplanationProvider("local", authorized).generate(request())
 
 
 @pytest.mark.asyncio
