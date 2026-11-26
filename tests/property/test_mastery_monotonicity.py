@@ -1,13 +1,19 @@
 from datetime import UTC, datetime
 
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from sqlmodel import Session, SQLModel, create_engine
 
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.profiling.profile_update import apply_analysis_observation
+from scan64.persistence.models import load_models
+
+# create_all needs every table that a foreign key names, so register all models.
+load_models()
 
 
+# Each example builds a fresh SQLite schema; its time is not what this test measures.
+@settings(deadline=None)
 @given(st.integers(min_value=2, max_value=10), st.sampled_from([1200, 1900]))
 def test_repeated_diagnoses_monotonically_lower_mastery_and_uncertainty(
     observation_count: int, rating: int

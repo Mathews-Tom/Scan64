@@ -58,25 +58,22 @@ def test_config_requires_an_absolute_configuration_path() -> None:
 
 
 @pytest.mark.parametrize(
-    ("config_text", "error"),
+    ("binary", "weights", "error"),
     [
-        (
-            '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n'
-            '1500 = "/operator/maia-1500.pb.gz"\n',
-            "maia.binary_path must be absolute",
-        ),
-        (
-            '[maia]\nbinary_path = "/operator/lc0"\n\n[maia.checkpoints]\n'
-            '1500 = "maia-1500.pb.gz"\n',
-            "weights path must be absolute",
-        ),
+        ("lc0", None, "maia.binary_path must be absolute"),
+        (None, "maia-1500.pb.gz", "weights path must be absolute"),
     ],
 )
 def test_config_requires_absolute_operator_paths(
-    tmp_path: Path, config_text: str, error: str
+    tmp_path: Path, binary: str | None, weights: str | None, error: str
 ) -> None:
+    # An absolute path needs a drive on Windows, so build the valid ones from tmp_path.
+    binary = binary or (tmp_path / "lc0").as_posix()
+    weights = weights or (tmp_path / "maia-1500.pb.gz").as_posix()
     config_path = tmp_path / "maia.toml"
-    config_path.write_text(config_text)
+    config_path.write_text(
+        f'[maia]\nbinary_path = "{binary}"\n\n[maia.checkpoints]\n1500 = "{weights}"\n'
+    )
 
     with pytest.raises(MaiaConfigurationError, match=error):
         MaiaConfig.from_toml(config_path)

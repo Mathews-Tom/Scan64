@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import socket
 import threading
@@ -85,6 +86,10 @@ class _DownloadTransport(httpx.HTTPTransport):
                 self._socket.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass  # The response may already have closed the socket.
+            if os.name == "nt":
+                # Winsock shutdown() does not wake a recv() blocked in another
+                # thread; closesocket() cancels it.
+                self._socket.close()
 
     def interrupt(self) -> None:
         with self._lock:
