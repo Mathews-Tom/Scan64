@@ -1,0 +1,788 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\projects\Scan64
+configfile: pyproject.toml
+plugins: anyio-4.14.2, hypothesis-6.156.6, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 36 items
+
+tests\integration\test_habit_archive.py ................F
+
+================================== FAILURES ===================================
+_ test_habit_archive_rejects_tampered_provenance_atomically[forged_game_source] _
+
+client = <starlette.testclient.TestClient object at 0x0000029621FD4050>
+db_session = <sqlmodel.orm.session.Session object at 0x0000029623060AA0>
+tamper = 'forged_game_source'
+
+    @pytest.mark.parametrize(
+        "tamper",
+        [
+            "unknown_policy",
+            "missing_policy",
+            "pre_cutover",
+            "boolean_goal",
+            "same_day_goal",
+            "forged_met_at",
+            "forged_goal",
+            "duplicate_epd",
+            "duplicate_source",
+            "wrong_day",
+            "wrong_grade",
+            "hinted_lesson",
+            "earlier_attempt",
+            "forged_trust",
+            "forged_epd",
+            "forged_evidence",
+            "forged_game_source",
+            "practice_before_start",
+            "practice_repeat",
+            "practice_one_game",
+            "practice_false_completion",
+            "window_import",
+            "window_short",
+            "window_unscored",
+            "window_unfinished",
+            "window_order",
+            "window_recurrence",
+            "window_retired_after_award",
+            "award_duplicate",
+            "award_wrong_policy",
+            "award_wrong_start",
+            "award_wrong_completion",
+            "pattern_forged_reference",
+            "pattern_forged_occurrence",
+            "invalidation_without_reason",
+            "extra_snapshot_field",
+        ],
+    )
+    def test_habit_archive_rejects_tampered_provenance_atomically(
+        client: TestClient,
+        db_session: Session,
+        tamper: str,
+    ) -> None:
+>       archive, headers = _seed_archive(client, db_session)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_habit_archive.py:513: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <starlette.testclient.TestClient object at 0x0000029621FD4050>
+session = <sqlmodel.orm.session.Session object at 0x0000029623060AA0>
+award = True, reviewed_sources = True, duplicate_lessons = False
+
+    def _seed_archive(
+        client: TestClient,
+        session: Session,
+        *,
+        award: bool = True,
+        reviewed_sources: bool = True,
+        duplicate_lessons: bool = False,
+    ) -> tuple[dict[str, Any], dict[str, str]]:
+        headers = _register(client)
+        start = (datetime.now(UTC) - timedelta(days=14)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        policy = session.get(HabitPolicy, PLAYER)
+        assert policy is not None
+        policy.effective_at = start - timedelta(days=2)
+        session.add(policy)
+        lesson_inputs = (
+            (["d2d4"], 1, "e2e4"),
+            (["e2e4", "e7e5", "g1f3"], 3, "b1c3"),
+            (["e2e4", "e7e5", "g1f3", "b8c6", "f1b5"], 5, "f1c4"),
+        )
+        opportunities = []
+        for index, (moves, ply, best) in enumerate(lesson_inputs):
+            opportunity = _lesson(
+                session,
+                player_id=PLAYER,
+                moves=moves,
+                ply=ply,
+                best_move=best,
+                created_at=start - timedelta(hours=3 - index),
+            )
+            game = session.get(Game, opportunity.game_id)
+            assert game is not None
+            game.created_at = start - timedelta(days=1)
+            session.add(game)
+            session.add(
+                AnalysisJob(
+                    game_id=game.id,
+                    status="completed",
+                    created_at=start - timedelta(hours=5),
+                    completed_at=start - timedelta(hours=4),
+                )
+            )
+            opportunities.append(opportunity)
+            if duplicate_lessons:
+                spec = deepcopy(opportunity.lesson_spec)
+                original_ref = spec["diagnosis"]["evidence_refs"][0]
+                proof = session.get(Evidence, original_ref)
+                assert proof is not None
+                duplicate_ref = f"duplicate-{original_ref}"
+                session.add(Evidence(**{**proof.model_dump(), "evidence_id": duplicate_ref}))
+                spec["diagnosis"]["evidence_refs"] = [duplicate_ref]
+                duplicate = PersistedLessonOpportunity(
+                    **{
+                        **opportunity.model_dump(),
+                        "id": uuid4(),
+                        "lesson_spec": spec,
+                    }
+                )
+                session.add(duplicate)
+                session.add(
+                    ReviewSchedule(
+                        player_id=PLAYER,
+                        item_id=str(duplicate.id),
+                        skill_id=SKILL,
+                        next_review_at=start,
+                    )
+                )
+        if not reviewed_sources:
+            for row in session.exec(select(GameMoveReview)).all():
+                session.delete(row)
+        session.commit()
+        pattern = read_player_patterns(PLAYER, session).recurring_diagnoses[0].model_dump(mode="json")
+        target = PatternTarget(player_id=PLAYER, code=SKILL, started_at=start, pattern_snapshot=pattern)
+        completed_times = []
+        for index, opportunity in enumerate(opportunities):
+            completed = start + timedelta(hours=index + 1)
+            completed_times.append(completed)
+            study = StudySession(player_id=PLAYER, domain="training", started_at=start)
+            session.add(study)
+            attempt = LessonAttempt(
+                session_id=study.id,
+                player_id=PLAYER,
+                lesson_id=str(opportunity.id),
+                source_kind="persisted_opportunity",
+                opportunity_id=opportunity.id,
+                submitted_move=lesson_inputs[index][2],
+                elapsed_ms=500,
+                hints_used=0,
+                success=True,
+                grading_status="verified",
+                profile_update_result="applied",
+                completed_at=completed,
+            )
+            session.add(attempt)
+            source = session.get(Position, opportunity.source_position_id)
+            assert source is not None
+            epd = chess.Board(source.fen).epd()
+            refs = opportunity.lesson_spec["diagnosis"]["evidence_refs"]
+            session.add(
+                HabitCredit(
+                    player_id=PLAYER,
+                    utc_day=start.date().isoformat(),
+                    source_kind="lesson",
+                    source_id=attempt.id,
+                    source_key=f"lesson:{opportunity.id}",
+                    source_epd=epd,
+                    completed_at=completed,
+                    trust_snapshot={
+                        "opportunity_id": str(opportunity.id),
+                        "game_id": str(opportunity.game_id),
+                        "position_id": str(source.id),
+                        "code": SKILL,
+                        "verification_analysis_id": str(opportunity.verification_analysis_id),
+                        "evidence_references": refs,
+                        "hints_authority": "app_reported",
+                        "hints_used": 0,
+                    },
+                )
+            )
+            target.practice.append(
+                {
+                    "attempt_id": attempt.id,
+                    "opportunity_id": str(opportunity.id),
+                    "game_id": str(opportunity.game_id),
+                    "source_epd": epd,
+                    "completed_at": completed.isoformat(),
+                }
+            )
+        target.practice_completed_at = completed_times[-1]
+        session.add(
+            HabitDay(
+                player_id=PLAYER,
+                utc_day=start.date().isoformat(),
+                goal=3,
+                met_at=completed_times[-1],
+            )
+        )
+        session.add(
+            HabitGoal(
+                player_id=PLAYER,
+                effective_day=(start + timedelta(days=1)).date().isoformat(),
+                goal=4,
+                created_at=start + timedelta(hours=4),
+            )
+        )
+        window_jobs = []
+        if award:
+            for index in range(5):
+                created = start + timedelta(days=1, hours=index)
+                game = Game(
+                    pgn="",
+                    owner_player_id=PLAYER,
+                    owner_color="white",
+                    result="1/2-1/2",
+                    moves=["g1f3", "g8f6", "f3g1", "f6g8"] * 10,
+                    created_at=created,
+                )
+                session.add(game)
+                session.add(PlaySession(player_id=PLAYER, game_id=game.id, status="completed"))
+                job = AnalysisJob(
+                    game_id=game.id,
+                    status="completed",
+                    created_at=created,
+                    completed_at=created + timedelta(minutes=10),
+                )
+                session.add(job)
+                window_jobs.append(job)
+                positions: dict[str, Position] = {}
+                analyses: dict[UUID, EngineAnalysis] = {}
+                rows = stage_game_review(
+                    game,
+                    [EngineAnalysis(raw_result=[{"score_cp": 0}]) for _ in range(41)],
+                    positions,
+                    analyses,
+                    set(),
+                )
+                session.add_all(positions.values())
+                session.add_all(analyses.values())
+                session.add_all(rows)
+                target.window_game_ids.append(str(game.id))
+            session.add(target)
+>           session.flush()
+
+tests\integration\test_habit_archive.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlmodel.orm.session.Session object at 0x0000029623060AA0>
+objects = None
+
+    def flush(self, objects: Optional[Sequence[Any]] = None) -> None:
+        """Flush all the object changes to the database.
+    
+        Writes out all pending object creations, deletions and modifications
+        to the database as INSERTs, DELETEs, UPDATEs, etc.  Operations are
+        automatically ordered by the Session's unit of work dependency
+        solver.
+    
+        Database operations will be issued in the current transactional
+        context and do not affect the state of the transaction, unless an
+        error occurs, in which case the entire transaction is rolled back.
+        You may flush() as often as you like within a transaction to move
+        changes from Python to the database's transaction buffer.
+    
+        :param objects: Optional; restricts the flush operation to operate
+          only on elements that are in the given collection.
+    
+          This feature is for an extremely narrow set of use cases where
+          particular objects may need to be operated upon before the
+          full flush() occurs.  It is not intended for general use.
+    
+        """
+    
+        if self._flushing:
+            raise sa_exc.InvalidRequestError("Session is already flushing")
+    
+        if self._is_clean():
+            return
+        try:
+            self._flushing = True
+>           self._flush(objects)
+
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlmodel.orm.session.Session object at 0x0000029623060AA0>
+objects = None
+
+    def _flush(self, objects: Optional[Sequence[object]] = None) -> None:
+        dirty = self._dirty_states
+        if not dirty and not self._deleted and not self._new:
+            self.identity_map._modified.clear()
+            return
+    
+        flush_context = UOWTransaction(self)
+    
+        if self.dispatch.before_flush:
+            self.dispatch.before_flush(self, flush_context, objects)
+            # re-establish "dirty states" in case the listeners
+            # added
+            dirty = self._dirty_states
+    
+        deleted = set(self._deleted)
+        new = set(self._new)
+    
+        dirty = set(dirty).difference(deleted)
+    
+        # create the set of all objects we want to operate upon
+        if objects:
+            # specific list passed in
+            objset = set()
+            for o in objects:
+                try:
+                    state = attributes.instance_state(o)
+    
+                except exc.NO_STATE as err:
+                    raise exc.UnmappedInstanceError(o) from err
+                objset.add(state)
+        else:
+            objset = None
+    
+        # store objects whose fate has been decided
+        processed = set()
+    
+        # put all saves/updates into the flush context.  detect top-level
+        # orphans and throw them into deleted.
+        if objset:
+            proc = new.union(dirty).intersection(objset).difference(deleted)
+        else:
+            proc = new.union(dirty).difference(deleted)
+    
+        for state in proc:
+            is_orphan = _state_mapper(state)._is_orphan(state)
+    
+            is_persistent_orphan = is_orphan and state.has_identity
+    
+            if (
+                is_orphan
+                and not is_persistent_orphan
+                and state._orphaned_outside_of_session
+            ):
+                self._expunge_states([state])
+            else:
+                _reg = flush_context.register_object(
+                    state, isdelete=is_persistent_orphan
+                )
+                assert _reg, "Failed to add object to the flush context!"
+                processed.add(state)
+    
+        # put all remaining deletes into the flush context.
+        if objset:
+            proc = deleted.intersection(objset).difference(processed)
+        else:
+            proc = deleted.difference(processed)
+        for state in proc:
+            _reg = flush_context.register_object(state, isdelete=True)
+            assert _reg, "Failed to add object to the flush context!"
+    
+        if not flush_context.has_work:
+            return
+    
+        flush_context.transaction = transaction = self._autobegin_t()._begin()
+        try:
+            self._warn_on_events = True
+            try:
+                flush_context.execute()
+            finally:
+                self._warn_on_events = False
+    
+            self.dispatch.after_flush(self, flush_context)
+    
+            flush_context.finalize_flush_changes()
+    
+            if not objects and self.identity_map._modified:
+                len_ = len(self.identity_map._modified)
+    
+                statelib.InstanceState._commit_all_states(
+                    [
+                        (state, state.dict)
+                        for state in self.identity_map._modified
+                    ],
+                    instance_dict=self.identity_map,
+                )
+                util.warn(
+                    "Attribute history events accumulated on %d "
+                    "previously clean instances "
+                    "within inner-flush event handlers have been "
+                    "reset, and will not result in database updates. "
+                    "Consider using set_committed_value() within "
+                    "inner-flush event handlers to avoid this warning." % len_
+                )
+    
+            # useful assertions:
+            # if not objects:
+            #    assert not self.identity_map._modified
+            # else:
+            #    assert self.identity_map._modified == \
+            #            self.identity_map._modified.difference(objects)
+    
+            self.dispatch.after_flush_postexec(self, flush_context)
+    
+            transaction.commit()
+    
+        except:
+>           with util.safe_reraise():
+                 ^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4488: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.util.langhelpers.safe_reraise object at 0x0000029622BB1D50>
+type_ = None, value = None, traceback = None
+
+    def __exit__(
+        self,
+        type_: Optional[Type[BaseException]],
+        value: Optional[BaseException],
+        traceback: Optional[types.TracebackType],
+    ) -> NoReturn:
+        assert self._exc_info is not None
+        # see #2703 for notes
+        if type_ is None:
+            exc_type, exc_value, exc_tb = self._exc_info
+            assert exc_value is not None
+            self._exc_info = None  # remove potential circular references
+>           raise exc_value.with_traceback(exc_tb)
+
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:122: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlmodel.orm.session.Session object at 0x0000029623060AA0>
+objects = None
+
+    def _flush(self, objects: Optional[Sequence[object]] = None) -> None:
+        dirty = self._dirty_states
+        if not dirty and not self._deleted and not self._new:
+            self.identity_map._modified.clear()
+            return
+    
+        flush_context = UOWTransaction(self)
+    
+        if self.dispatch.before_flush:
+            self.dispatch.before_flush(self, flush_context, objects)
+            # re-establish "dirty states" in case the listeners
+            # added
+            dirty = self._dirty_states
+    
+        deleted = set(self._deleted)
+        new = set(self._new)
+    
+        dirty = set(dirty).difference(deleted)
+    
+        # create the set of all objects we want to operate upon
+        if objects:
+            # specific list passed in
+            objset = set()
+            for o in objects:
+                try:
+                    state = attributes.instance_state(o)
+    
+                except exc.NO_STATE as err:
+                    raise exc.UnmappedInstanceError(o) from err
+                objset.add(state)
+        else:
+            objset = None
+    
+        # store objects whose fate has been decided
+        processed = set()
+    
+        # put all saves/updates into the flush context.  detect top-level
+        # orphans and throw them into deleted.
+        if objset:
+            proc = new.union(dirty).intersection(objset).difference(deleted)
+        else:
+            proc = new.union(dirty).difference(deleted)
+    
+        for state in proc:
+            is_orphan = _state_mapper(state)._is_orphan(state)
+    
+            is_persistent_orphan = is_orphan and state.has_identity
+    
+            if (
+                is_orphan
+                and not is_persistent_orphan
+                and state._orphaned_outside_of_session
+            ):
+                self._expunge_states([state])
+            else:
+                _reg = flush_context.register_object(
+                    state, isdelete=is_persistent_orphan
+                )
+                assert _reg, "Failed to add object to the flush context!"
+                processed.add(state)
+    
+        # put all remaining deletes into the flush context.
+        if objset:
+            proc = deleted.intersection(objset).difference(processed)
+        else:
+            proc = deleted.difference(processed)
+        for state in proc:
+            _reg = flush_context.register_object(state, isdelete=True)
+            assert _reg, "Failed to add object to the flush context!"
+    
+        if not flush_context.has_work:
+            return
+    
+        flush_context.transaction = transaction = self._autobegin_t()._begin()
+        try:
+            self._warn_on_events = True
+            try:
+>               flush_context.execute()
+
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4449: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.orm.unitofwork.UOWTransaction object at 0x0000029622BB1220>
+
+    def execute(self) -> None:
+        postsort_actions = self._generate_actions()
+    
+        postsort_actions = sorted(
+            postsort_actions,
+            key=lambda item: item.sort_key,
+        )
+        # sort = topological.sort(self.dependencies, postsort_actions)
+        # print "--------------"
+        # print "\ndependencies:", self.dependencies
+        # print "\ncycles:", self.cycles
+        # print "\nsort:", list(sort)
+        # print "\nCOUNT OF POSTSORT ACTIONS", len(postsort_actions)
+    
+        # execute
+        if self.cycles:
+            for subset in topological.sort_as_subsets(
+                self.dependencies, postsort_actions
+            ):
+                set_ = set(subset)
+                while set_:
+                    n = set_.pop()
+                    n.execute_aggregate(self, set_)
+        else:
+            for rec in topological.sort(self.dependencies, postsort_actions):
+>               rec.execute(self)
+
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:465: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SaveUpdateAll(Mapper[EngineAnalysis(engineanalysis)])
+uow = <sqlalchemy.orm.unitofwork.UOWTransaction object at 0x0000029622BB1220>
+
+    @util.preload_module("sqlalchemy.orm.persistence")
+    def execute(self, uow):
+>       util.preloaded.orm_persistence.save_obj(
+            self.mapper,
+            uow.states_for_mapper_hierarchy(self.mapper, False, False),
+            uow,
+        )
+
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:641: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+base_mapper = <Mapper at 0x2961fc30a10; EngineAnalysis>
+states = <generator object UOWTransaction.states_for_mapper_hierarchy at 0x00000296208AFF10>
+uowtransaction = <sqlalchemy.orm.unitofwork.UOWTransaction object at 0x0000029622BB1220>
+single = False
+
+    def save_obj(base_mapper, states, uowtransaction, single=False):
+        """Issue ``INSERT`` and/or ``UPDATE`` statements for a list
+        of objects.
+    
+        This is called within the context of a UOWTransaction during a
+        flush operation, given a list of states to be flushed.  The
+        base mapper in an inheritance hierarchy handles the inserts/
+        updates for all descendant mappers.
+    
+        """
+    
+        # if batch=false, call _save_obj separately for each object
+        if not single and not base_mapper.batch:
+            for state in _sort_states(base_mapper, states):
+                save_obj(base_mapper, [state], uowtransaction, single=True)
+            return
+    
+        states_to_update = []
+        states_to_insert = []
+    
+        for (
+            state,
+            dict_,
+            mapper,
+            connection,
+            has_identity,
+            row_switch,
+            update_version_id,
+        ) in _organize_states_for_save(base_mapper, states, uowtransaction):
+            if has_identity or row_switch:
+                states_to_update.append(
+                    (state, dict_, mapper, connection, update_version_id)
+                )
+            else:
+                states_to_insert.append((state, dict_, mapper, connection))
+    
+        for table, mapper in base_mapper._sorted_tables.items():
+            if table not in mapper._pks_by_table:
+                continue
+            insert = _collect_insert_commands(table, states_to_insert)
+    
+            update = _collect_update_commands(
+                uowtransaction, table, states_to_update
+            )
+    
+            _emit_update_statements(
+                base_mapper,
+                uowtransaction,
+                mapper,
+                table,
+                update,
+            )
+    
+>           _emit_insert_statements(
+                base_mapper,
+                uowtransaction,
+                mapper,
+                table,
+                insert,
+            )
+
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+base_mapper = <Mapper at 0x2961fc30a10; EngineAnalysis>
+uowtransaction = <sqlalchemy.orm.unitofwork.UOWTransaction object at 0x0000029622BB1220>
+mapper = <Mapper at 0x2961fc30a10; EngineAnalysis>
+table = Table('engineanalysis', MetaData(), Column('id', Uuid(), table=<engineanalysis>, primary_key=True, nullable=False, def...e=<engineanalysis>, nullable=False, default=CallableColumnDefault(<function list at 0x000002961FC13060>)), schema=None)
+insert = <generator object _collect_insert_commands at 0x00000296226F4680>
+bookkeeping = True, use_orm_insert_stmt = None
+execution_options = {'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x00000296219A5C10>}
+
+    def _emit_insert_statements(
+        base_mapper,
+        uowtransaction,
+        mapper,
+        table,
+        insert,
+        *,
+        bookkeeping=True,
+        use_orm_insert_stmt=None,
+        execution_options=None,
+    ):
+        """Emit INSERT statements corresponding to value lists collected
+        by _collect_insert_commands()."""
+    
+        if use_orm_insert_stmt is not None:
+            cached_stmt = use_orm_insert_stmt
+            exec_opt = util.EMPTY_DICT
+    
+            # if a user query with RETURNING was passed, we definitely need
+            # to use RETURNING.
+            returning_is_required_anyway = bool(use_orm_insert_stmt._returning)
+            deterministic_results_reqd = (
+                returning_is_required_anyway
+                and use_orm_insert_stmt._sort_by_parameter_order
+            ) or bookkeeping
+        else:
+            returning_is_required_anyway = False
+            deterministic_results_reqd = bookkeeping
+            cached_stmt = base_mapper._memo(("insert", table), table.insert)
+            exec_opt = {"compiled_cache": base_mapper._compiled_cache}
+    
+        if execution_options:
+            execution_options = util.EMPTY_DICT.merge_with(
+                exec_opt, execution_options
+            )
+        else:
+            execution_options = exec_opt
+    
+        return_result = None
+    
+        for (
+            (connection, _, hasvalue, has_all_pks, has_all_defaults),
+            records,
+        ) in groupby(
+            insert,
+            lambda rec: (
+                rec[4],  # connection
+                set(rec[2]),  # parameter keys
+                bool(rec[5]),  # whether we have "value" parameters
+                rec[6],
+                rec[7],
+            ),
+        ):
+            statement = cached_stmt
+    
+            if use_orm_insert_stmt is not None:
+                statement = statement._annotate(
+                    {
+                        "_emit_insert_table": table,
+                        "_emit_insert_mapper": mapper,
+                    }
+                )
+    
+            if (
+                (
+                    not bookkeeping
+                    or (
+                        has_all_defaults
+                        or not base_mapper._prefer_eager_defaults(
+                            connection.dialect, table
+                        )
+                        or not table.implicit_returning
+                        or not connection.dialect.insert_returning
+                    )
+                )
+                and not returning_is_required_anyway
+                and has_all_pks
+                and not hasvalue
+            ):
+                # the "we don't need newly generated values back" section.
+                # here we have all the PKs, all the defaults or we don't want
+                # to fetch them, or the dialect doesn't support RETURNING at all
+                # so we have to post-fetch / use lastrowid anyway.
+>               records = list(records)
+                          ^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1046: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+table = Table('engineanalysis', MetaData(), Column('id', Uuid(), table=<engineanalysis>, primary_key=True, nullable=False, def...e=<engineanalysis>, nullable=False, default=CallableColumnDefault(<function list at 0x000002961FC13060>)), schema=None)
+states_to_insert = [(<sqlalchemy.orm.state.InstanceState object at 0x0000029621B257F0>, {'_sa_instance_state': <sqlalchemy.orm.state.Inst.....}, <Mapper at 0x2961fc30a10; EngineAnalysis>, <sqlalchemy.engine.base.Connection object at 0x000002962263C9E0>), ...]
+bulk = False, return_defaults = False, render_nulls = False
+include_bulk_keys = ()
+
+    def _collect_insert_commands(
+        table,
+        states_to_insert,
+        *,
+        bulk=False,
+        return_defaults=False,
+        render_nulls=False,
+        include_bulk_keys=(),
+    ):
+        """Identify sets of values to use in INSERT statements for a
+        list of states.
+    
+        """
+        for state, state_dict, mapper, connection in states_to_insert:
+            if table not in mapper._pks_by_table:
+                continue
+    
+            params = {}
+            value_params = {}
+    
+            propkey_to_col = mapper._propkey_to_col[table]
+    
+            eval_none = mapper._insert_cols_evaluating_none[table]
+    
+>           for propkey in set(propkey_to_col).intersection(state_dict):
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: 'set_iterator' object does not support item assignment
+
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:351: TypeError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\projects\Scan64\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_habit_archive.py: 17 warnings
+  D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    cursor.execute(statement, parameters)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_habit_archive.py::test_habit_archive_rejects_tampered_provenance_atomically[forged_game_source]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+================= 1 failed, 16 passed, 18 warnings in 13.73s ==================

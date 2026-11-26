@@ -1,0 +1,101 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\projects\Scan64
+configfile: pyproject.toml
+plugins: anyio-4.14.2, hypothesis-6.156.6, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 36 items
+
+tests\integration\test_habit_archive.py .......Windows fatal exception: access violation
+
+Current thread 0x00008730 (most recent call first):
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\annotation.py", line 108 in _gen_annotations_cache_key
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\cache_key.py", line 324 in _gen_cache_key
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\cache_key.py", line 336 in _gen_cache_key
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\cache_key.py", line 382 in _generate_cache_key
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\cache_key.py", line 413 in _generate_cache_key
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 1247 in oneshot
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 694 in _compile_w_cache
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1635 in _execute_clauseelement
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526 in _execute_on_connection
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1421 in execute
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306 in orm_execute_statement
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2271 in _execute_internal
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2373 in execute
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 136 in execute
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 695 in load_on_pk_identity
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3881 in _get_impl
+  File "D:\projects\Scan64\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3702 in get
+  File "D:\projects\Scan64\src\scan64\api\data_lifecycle.py", line 470 in _validate_habit_archive
+  File "D:\projects\Scan64\src\scan64\api\data_lifecycle.py", line 2985 in import_player_data
+  File "D:\projects\Scan64\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033 in run
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000094f0 (most recent call first):
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00000f8c (most recent call first):
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\windows_events.py", line 774 in _poll
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\windows_events.py", line 445 in select
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\base_events.py", line 1954 in _run_once
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\base_events.py", line 640 in run_forever
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322 in run_forever
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\base_events.py", line 673 in run_until_complete
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\asyncio\runners.py", line 118 in run
+  File "D:\projects\Scan64\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2481 in run
+  File "D:\projects\Scan64\.venv\Lib\site-packages\anyio\_core\_eventloop.py", line 83 in run
+  File "D:\projects\Scan64\.venv\Lib\site-packages\anyio\from_thread.py", line 536 in run_blocking_portal
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00004c04 (most recent call first):
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "C:\Users\<user>\AppData\Roaming\uv\python\cpython-3.12.8-windows-x86_64-none\Lib\concurrent\futures\_base.py", line 451 in result
+  File "D:\projects\Scan64\.venv\Lib\site-packages\anyio\from_thread.py", line 338 in call
+  File "D:\projects\Scan64\.venv\Lib\site-packages\starlette\testclient.py", line 353 in handle_request
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 1014 in _send_single_request
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 979 in _send_handling_redirects
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 942 in _send_handling_auth
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 914 in send
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 825 in request
+  File "D:\projects\Scan64\.venv\Lib\site-packages\starlette\testclient.py", line 454 in request
+  File "D:\projects\Scan64\.venv\Lib\site-packages\httpx\_client.py", line 1144 in post
+  File "D:\projects\Scan64\.venv\Lib\site-packages\starlette\testclient.py", line 555 in post
+  File "D:\projects\Scan64\tests\integration\test_habit_archive.py", line 623 in test_habit_archive_rejects_tampered_provenance_atomically
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\python.py", line 167 in pytest_pyfunc_call
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\python.py", line 1707 in runtest
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 184 in pytest_runtest_call
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 250 in <lambda>
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 361 in from_call
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 249 in call_and_report
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 139 in runtestprotocol
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\runner.py", line 118 in pytest_runtest_protocol
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\main.py", line 408 in pytest_runtestloop
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\main.py", line 384 in _main
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\main.py", line 330 in wrap_session
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\main.py", line 377 in pytest_cmdline_main
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\projects\Scan64\.venv\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\config\__init__.py", line 229 in _main
+  File "D:\projects\Scan64\.venv\Lib\site-packages\_pytest\config\__init__.py", line 253 in _console_main
+  File "D:\projects\Scan64\.venv\Scripts\pytest.exe\__main__.py", line 10 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main

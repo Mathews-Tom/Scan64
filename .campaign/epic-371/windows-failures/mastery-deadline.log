@@ -1,0 +1,33 @@
+271-
+272-================================== FAILURES ===================================
+273:_____ test_repeated_diagnoses_monotonically_lower_mastery_and_uncertainty _____
+274-
+275-    @given(st.integers(min_value=2, max_value=10), st.sampled_from([1200, 1900]))
+276->   def test_repeated_diagnoses_monotonically_lower_mastery_and_uncertainty(
+277-                   ^^^
+278-        observation_count: int, rating: int
+279-    ) -> None:
+280-
+281-tests\property\test_mastery_monotonicity.py:12: 
+282-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+283-
+284-args = (10, 1900), kwargs = {}
+285-
+286-    @proxies(self.test)
+287-    def test(*args, **kwargs):
+288-        arg_drawtime = math.fsum(data.draw_times.values())
+289-        arg_stateful = math.fsum(data._stateful_run_times.values())
+290-        arg_gctime = gc_cumulative_time()
+291-        with unwrap_markers_from_group(), ensure_free_stackframes():
+292-            start = time.perf_counter()
+293-            try:
+294-                result = self.test(*args, **kwargs)
+295-            finally:
+296-                finish = time.perf_counter()
+297-                in_drawtime = math.fsum(data.draw_times.values()) - arg_drawtime
+298-                in_stateful = (
+299-                    math.fsum(data._stateful_run_times.values()) - arg_stateful
+300-                )
+301-                in_gctime = gc_cumulative_time() - arg_gctime
+302-                runtime = finish - start - in_drawtime - in_stateful - in_gctime
+303-                self._timing_features = {

@@ -1,0 +1,121 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\projects\Scan64
+configfile: pyproject.toml
+plugins: anyio-4.14.2, hypothesis-6.156.6, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 5 items
+
+tests\integration\test_web_serving.py F                                  [ 20%]
+tests\unit\test_desktop_package_smoke.py F                               [ 40%]
+tests\unit\test_maia_coverage_disclosure.py F.                           [ 80%]
+tests\unit\test_puzzle_import_job.py F                                   [100%]
+
+================================== FAILURES ===================================
+_____________________ test_real_assets_and_missing_assets _____________________
+
+web_client = <starlette.testclient.TestClient object at 0x00000271FF94B620>
+
+    def test_real_assets_and_missing_assets(web_client: TestClient) -> None:
+        assert web_client.get("/assets/app.js").text == "console.log('Scan64')"
+        for path in ["/assets/missing.js", "/assets/missing", "/missing.css"]:
+            response = web_client.get(path)
+>           assert response.status_code == 404
+E           assert 200 == 404
+E            +  where 200 = <Response [200 OK]>.status_code
+
+tests\integration\test_web_serving.py:42: AssertionError
+_________ test_process_executable_identifies_the_running_interpreter __________
+
+    def test_process_executable_identifies_the_running_interpreter() -> None:
+        helpers = packaging.smoke_helpers()
+        executable = helpers.process_executable(packaging.os.getpid())
+        assert executable is not None
+>       assert executable.samefile(helpers.sys.executable)
+E       AssertionError: assert False
+E        +  where False = samefile('D:\\projects\\Scan64\\.venv\\Scripts\\python.exe')
+E        +    where samefile = WindowsPath('C:/Users/<user>/AppData/Roaming/uv/python/cpython-3.12.8-windows-x86_64-none/python.exe').samefile
+E        +    and   'D:\\projects\\Scan64\\.venv\\Scripts\\python.exe' = <module 'sys' (built-in)>.executable
+E        +      where <module 'sys' (built-in)> = <module 'desktop_smoke' from 'D:\\projects\\Scan64\\scripts\\desktop-smoke.py'>.sys
+
+tests\unit\test_desktop_package_smoke.py:88: AssertionError
+_ test_config_requires_absolute_operator_paths[[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n-maia.binary_path must be absolute] _
+
+tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-Syd/pytest-711/test_config_requires_absolute_0')
+config_text = '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n'
+error = 'maia.binary_path must be absolute'
+
+    @pytest.mark.parametrize(
+        ("config_text", "error"),
+        [
+            (
+                '[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n'
+                '1500 = "/operator/maia-1500.pb.gz"\n',
+                "maia.binary_path must be absolute",
+            ),
+            (
+                '[maia]\nbinary_path = "/operator/lc0"\n\n[maia.checkpoints]\n'
+                '1500 = "maia-1500.pb.gz"\n',
+                "weights path must be absolute",
+            ),
+        ],
+    )
+    def test_config_requires_absolute_operator_paths(
+        tmp_path: Path, config_text: str, error: str
+    ) -> None:
+        config_path = tmp_path / "maia.toml"
+        config_path.write_text(config_text)
+    
+>       with pytest.raises(MaiaConfigurationError, match=error):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'maia.binary_path must be absolute'
+E         Actual message: 'Maia checkpoint 1500 weights path must be absolute'
+
+tests\unit\test_maia_coverage_disclosure.py:81: AssertionError
+_________________ test_cancel_interrupts_stalled_http_stream __________________
+
+engine = Engine(sqlite:///C:\Users\<user>\AppData\Local\Temp\pytest-of-Syd\pytest-711\test_cancel_interrupts_stalled0\catalog.db)
+tmp_path = WindowsPath('C:/Users/<user>/AppData/Local/Temp/pytest-of-Syd/pytest-711/test_cancel_interrupts_stalled0')
+
+    def test_cancel_interrupts_stalled_http_stream(engine: Engine, tmp_path: Path) -> None:
+        with fixture_server(stall=True) as url:
+            job = ObservedJob(engine, tmp_path / "imports", download_url=url)
+            job.start("download")
+            deadline = time.monotonic() + 3
+            while job.state().done == 0 and time.monotonic() < deadline:
+                time.sleep(0.005)
+            assert job.state().done == 1
+            started = time.monotonic()
+            job.cancel()
+>           assert finished(job).status == "cancelled"
+                   ^^^^^^^^^^^^^
+
+tests\unit\test_puzzle_import_job.py:204: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+job = <tests.unit.test_puzzle_import_job.ObservedJob object at 0x00000271FF94A990>
+
+    def finished(job: PuzzleImportJob) -> ImportJobState:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            state = job.state()
+            if state.status not in {"running", "cancelling"}:
+                return state
+            time.sleep(0.005)
+>       pytest.fail("Import did not finish promptly")
+E       Failed: Import did not finish promptly
+
+tests\unit\test_puzzle_import_job.py:74: Failed
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\projects\Scan64\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_web_serving.py::test_real_assets_and_missing_assets
+FAILED tests/unit/test_desktop_package_smoke.py::test_process_executable_identifies_the_running_interpreter
+FAILED tests/unit/test_maia_coverage_disclosure.py::test_config_requires_absolute_operator_paths[[maia]\nbinary_path = "lc0"\n\n[maia.checkpoints]\n1500 = "/operator/maia-1500.pb.gz"\n-maia.binary_path must be absolute]
+FAILED tests/unit/test_puzzle_import_job.py::test_cancel_interrupts_stalled_http_stream
+=================== 4 failed, 1 passed, 1 warning in 6.29s ====================
