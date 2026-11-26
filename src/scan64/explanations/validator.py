@@ -707,7 +707,8 @@ def _move_kind(predicate: Callable[[_MoveFact], bool], label: str) -> _Handler:
 
 
 def _tactic(match: re.Match[str], facts: _ClaimEvidence) -> None:
-    word = " ".join(match.group("tactic").lower().split())
+    # The pattern accepts "back-rank" and "back rank"; the keys use a space.
+    word = " ".join(match.group("tactic").lower().replace("-", " ").split())
     stem = next(key for key in _TACTIC_WORDS if word.startswith(key))
     if not _TACTIC_WORDS[stem] & facts.tactics:
         raise _reject("tactic_not_supported", f"names a tactic absent from evidence: {match[0]!r}")

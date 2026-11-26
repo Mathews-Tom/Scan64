@@ -181,6 +181,8 @@ ADVERSARIAL = [
     (HANGING_PIECE, "bxa6 wins a pawn.", "material_not_supported"),
     (MISSED_CAPTURE, "Bxg5+ wins the queen.", "check_not_supported"),
     (MISSED_CAPTURE, "Bxg5 is a fork.", "tactic_not_supported"),
+    (MISSED_CAPTURE, "Bxg5 exploits the back-rank weakness.", "tactic_not_supported"),
+    (MISSED_CAPTURE, "Bxg5 exploits the back rank weakness.", "tactic_not_supported"),
     (MISSED_CAPTURE, "Castling was safer.", "move_type_not_supported"),
     # Chess tokens outside the grammar.
     (MISSED_CAPTURE, "White is completely winning here.", "unparsed_chess_token"),
@@ -212,6 +214,13 @@ def test_evaluation_tolerance_boundary() -> None:
     with pytest.raises(GroundedExplanationValidationError) as raised:
         _validate(MISSED_CAPTURE, f"The swing is {within - 0.01:.2f} pawns.")
     assert raised.value.reason == "evaluation_not_supported"
+
+
+@pytest.mark.parametrize("spelling", ["back-rank", "back rank", "Back-Rank"])
+def test_back_rank_tactic_is_grounded_in_either_spelling(spelling: str) -> None:
+    payload = {**MISSED_CAPTURE.evidence.payload, "tactic_type": "back_rank"}
+    scenario = _scenario("ev_back_rank", MISSED_CAPTURE.fen, "Nf3", payload)
+    _validate(scenario, f"Bxg5 exploits the {spelling} weakness.")
 
 
 def test_text_without_chess_tokens_passes() -> None:
