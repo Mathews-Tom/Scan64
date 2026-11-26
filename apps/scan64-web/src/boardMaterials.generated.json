@@ -1,0 +1,157 @@
+{
+  "board_px": 2000,
+  "budget_bytes_per_board": 700000,
+  "min_luminance_ratio": 3.1,
+  "boards": [
+    {
+      "id": "walnut-maple",
+      "label": "Walnut and maple",
+      "group": "wood",
+      "sources": {
+        "light": "white_maple_veneer",
+        "dark": "walnut_veneer"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/walnut-maple.webp",
+          "bytes": 228338
+        },
+        "avif": {
+          "url": "/boards/walnut-maple.avif",
+          "bytes": 175400
+        }
+      },
+      "light_mean": "#e6d0a8",
+      "dark_mean": "#6a4a32",
+      "light_luminance": 0.6483,
+      "dark_luminance": 0.0827,
+      "luminance_ratio": 5.26,
+      "max_texture_bytes": 228338
+    },
+    {
+      "id": "rosewood-boxwood",
+      "label": "Rosewood and boxwood",
+      "group": "wood",
+      "sources": {
+        "light": "angli_veneer",
+        "dark": "rosewood_veneer1"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/rosewood-boxwood.webp",
+          "bytes": 437352
+        },
+        "avif": {
+          "url": "/boards/rosewood-boxwood.avif",
+          "bytes": 305574
+        }
+      },
+      "light_mean": "#ead39c",
+      "dark_mean": "#5b2b1a",
+      "light_luminance": 0.6657,
+      "dark_luminance": 0.0417,
+      "luminance_ratio": 7.8,
+      "max_texture_bytes": 437352
+    },
+    {
+      "id": "mahogany-maple",
+      "label": "Mahogany and maple",
+      "group": "wood",
+      "sources": {
+        "light": "white_maple_veneer",
+        "dark": "sapele_veneer"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/mahogany-maple.webp",
+          "bytes": 395336
+        },
+        "avif": {
+          "url": "/boards/mahogany-maple.avif",
+          "bytes": 299026
+        }
+      },
+      "light_mean": "#efdcb7",
+      "dark_mean": "#793a23",
+      "light_luminance": 0.731,
+      "dark_luminance": 0.074,
+      "luminance_ratio": 6.3,
+      "max_texture_bytes": 395336
+    },
+    {
+      "id": "ebony-boxwood",
+      "label": "Ebony and boxwood",
+      "group": "wood",
+      "sources": {
+        "light": "angli_veneer",
+        "dark": "flamed_black_veneer"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/ebony-boxwood.webp",
+          "bytes": 230606
+        },
+        "avif": {
+          "url": "/boards/ebony-boxwood.avif",
+          "bytes": 178561
+        }
+      },
+      "light_mean": "#e8cf93",
+      "dark_mean": "#2f2620",
+      "light_luminance": 0.6393,
+      "dark_luminance": 0.0211,
+      "luminance_ratio": 9.68,
+      "max_texture_bytes": 230606
+    },
+    {
+      "id": "marble",
+      "label": "White and black marble",
+      "group": "stone",
+      "sources": {
+        "light": "Marble005",
+        "dark": "Marble006"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/marble.webp",
+          "bytes": 532450
+        },
+        "avif": {
+          "url": "/boards/marble.avif",
+          "bytes": 519897
+        }
+      },
+      "light_mean": "#e7e6e2",
+      "dark_mean": "#212120",
+      "light_luminance": 0.7914,
+      "dark_luminance": 0.0224,
+      "luminance_ratio": 11.62,
+      "max_texture_bytes": 532450
+    },
+    {
+      "id": "granite",
+      "label": "Grey and blue granite",
+      "group": "stone",
+      "sources": {
+        "light": "Granite002A",
+        "dark": "Granite005A"
+      },
+      "files": {
+        "webp": {
+          "url": "/boards/granite.webp",
+          "bytes": 659626
+        },
+        "avif": {
+          "url": "/boards/granite.avif",
+          "bytes": 470859
+        }
+      },
+      "light_mean": "#c1c0bc",
+      "dark_mean": "#383b45",
+      "light_luminance": 0.5632,
+      "dark_luminance": 0.0469,
+      "luminance_ratio": 6.32,
+      "max_texture_bytes": 659626
+    }
+  ]
+}

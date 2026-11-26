@@ -103,6 +103,23 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 - **Source**: https://gitlab.gnome.org/GNOME/gnome-chess/-/tree/de63bdec5cf9f0770890086262e6a127d5c4a619/data/pieces/simple.
 - **Bundled files**: `apps/scan64-web/public/pieces/sophia/{w,b}{K,Q,R,B,N,P}.svg`. SVG content unmodified; files renamed on 2026-11-25 from `whiteKing.svg` … `blackPawn.svg`.
 
+## Material board textures
+- **License**: CC0-1.0 (public domain dedication), https://creativecommons.org/publicdomain/zero/1.0/. Compatible with GPL-3.0-or-later.
+- **Usage**: Wood and stone boards under **Settings → Chessboard**. Only albedo (colour) maps are used; no roughness, normal, specular or gloss maps, so the boards stay matte.
+- **Build**: `uv run scripts/build-board-textures.py` downloads each source listed in `scripts/board-textures.toml`, verifies its SHA-256, and writes `apps/scan64-web/public/boards/{id}.avif` and `{id}.webp`. Each square is a separate crop, rotated and scaled to the board's colours; the source pixels are otherwise unmodified.
+- **Bundled notice**: `apps/scan64-web/public/boards/NOTICE.txt`, linked from `licenses.html`.
+- **Sources**:
+  - Granite 002 A (ambientCG (Lennart Demes)), CC0-1.0: https://ambientcg.com/view?id=Granite002A (file https://ambientcg.com/get?file=Granite002A_2K-JPG.zip, colour map SHA-256 `20830cc40b04ef173e5ff176204711aa31d20f9503d9c04bed8758e9a1c90018`). Used in: Grey and blue granite.
+  - Granite 005 A (ambientCG (Lennart Demes)), CC0-1.0: https://ambientcg.com/view?id=Granite005A (file https://ambientcg.com/get?file=Granite005A_2K-JPG.zip, colour map SHA-256 `39a19c22c82177ba7883d27ed4c810b089f679c36d88820c5aa65943f260f55c`). Used in: Grey and blue granite.
+  - Marble 005 (ambientCG (Lennart Demes)), CC0-1.0: https://ambientcg.com/view?id=Marble005 (file https://ambientcg.com/get?file=Marble005_4K-JPG.zip, colour map SHA-256 `a14b9d20bcaa8beb7c4a40558338004626a062ac311dbb14c910899eb17bf826`). Used in: White and black marble.
+  - Marble 006 (ambientCG (Lennart Demes)), CC0-1.0: https://ambientcg.com/view?id=Marble006 (file https://ambientcg.com/get?file=Marble006_4K-JPG.zip, colour map SHA-256 `ec05915901eb74f0cdffc8ba34154edede63bd7238363cfb965e7dcbd52891fe`). Used in: White and black marble.
+  - Angli Veneer (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/angli_veneer (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/angli_veneer/angli_veneer_diff_4k.jpg, colour map SHA-256 `94d8285a6d3230a6a90d30de7d5262dfbf01a163a2064b9fc734c37cd55159ea`). Used in: Rosewood and boxwood, Ebony and boxwood.
+  - Flamed Black Veneer (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/flamed_black_veneer (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/flamed_black_veneer/flamed_black_veneer_diff_4k.jpg, colour map SHA-256 `0fb467edb7d51b1dfb290d2b3d72608026c35c9a2fcac15246b7c039cf641e29`). Used in: Ebony and boxwood.
+  - Rosewood Veneer1 (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/rosewood_veneer1 (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rosewood_veneer1/rosewood_veneer1_diff_4k.jpg, colour map SHA-256 `84518fafb00a903e80887f5df2df28c1386110ac692ff7f549b9470735d4da4b`). Used in: Rosewood and boxwood.
+  - Sapele Veneer (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/sapele_veneer (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/sapele_veneer/sapele_veneer_diff_4k.jpg, colour map SHA-256 `99869bfe49452608917cc649b4fe1962c2b70c682126e92a36b84cb0370738e3`). Used in: Mahogany and maple.
+  - Walnut Veneer (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/walnut_veneer (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/walnut_veneer/walnut_veneer_diff_4k.jpg, colour map SHA-256 `10e83615504c2d2a8f5a8665ab0d36f550b0ab2a60c6188dc9a317a65e7362ec`). Used in: Walnut and maple.
+  - White Maple Veneer (Jenelle van Heerden), CC0-1.0: https://polyhaven.com/a/white_maple_veneer (file https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_maple_veneer/white_maple_veneer_diff_4k.jpg, colour map SHA-256 `f5c5788ed517c5801999c62d4e5397765eaec04360155793694292dd1aa9af7c`). Used in: Walnut and maple, Mahogany and maple.
+
 ## Syzygy 3-piece tablebase data
 - **Source**: `http://tablebase.sesse.net/syzygy/3-4-5/`, downloaded 2026-07-14.
 - **Usage**: Offline WDL/DTZ verification of the initial curated endgame catalog.

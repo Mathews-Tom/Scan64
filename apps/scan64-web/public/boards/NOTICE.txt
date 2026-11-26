@@ -1,0 +1,55 @@
+Scan64 material board textures
+
+Each board image combines crops of the albedo (colour) maps below, scaled to the
+board's colours by scripts/build-board-textures.py. All sources are dedicated to the
+public domain under CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+
+Granite 002 A (ambientCG (Lennart Demes)), CC0-1.0
+  Page: https://ambientcg.com/view?id=Granite002A
+  File: https://ambientcg.com/get?file=Granite002A_2K-JPG.zip
+  SHA-256 of the colour map: 20830cc40b04ef173e5ff176204711aa31d20f9503d9c04bed8758e9a1c90018
+
+Granite 005 A (ambientCG (Lennart Demes)), CC0-1.0
+  Page: https://ambientcg.com/view?id=Granite005A
+  File: https://ambientcg.com/get?file=Granite005A_2K-JPG.zip
+  SHA-256 of the colour map: 39a19c22c82177ba7883d27ed4c810b089f679c36d88820c5aa65943f260f55c
+
+Marble 005 (ambientCG (Lennart Demes)), CC0-1.0
+  Page: https://ambientcg.com/view?id=Marble005
+  File: https://ambientcg.com/get?file=Marble005_4K-JPG.zip
+  SHA-256 of the colour map: a14b9d20bcaa8beb7c4a40558338004626a062ac311dbb14c910899eb17bf826
+
+Marble 006 (ambientCG (Lennart Demes)), CC0-1.0
+  Page: https://ambientcg.com/view?id=Marble006
+  File: https://ambientcg.com/get?file=Marble006_4K-JPG.zip
+  SHA-256 of the colour map: ec05915901eb74f0cdffc8ba34154edede63bd7238363cfb965e7dcbd52891fe
+
+Angli Veneer (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/angli_veneer
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/angli_veneer/angli_veneer_diff_4k.jpg
+  SHA-256 of the colour map: 94d8285a6d3230a6a90d30de7d5262dfbf01a163a2064b9fc734c37cd55159ea
+
+Flamed Black Veneer (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/flamed_black_veneer
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/flamed_black_veneer/flamed_black_veneer_diff_4k.jpg
+  SHA-256 of the colour map: 0fb467edb7d51b1dfb290d2b3d72608026c35c9a2fcac15246b7c039cf641e29
+
+Rosewood Veneer1 (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/rosewood_veneer1
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rosewood_veneer1/rosewood_veneer1_diff_4k.jpg
+  SHA-256 of the colour map: 84518fafb00a903e80887f5df2df28c1386110ac692ff7f549b9470735d4da4b
+
+Sapele Veneer (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/sapele_veneer
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/sapele_veneer/sapele_veneer_diff_4k.jpg
+  SHA-256 of the colour map: 99869bfe49452608917cc649b4fe1962c2b70c682126e92a36b84cb0370738e3
+
+Walnut Veneer (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/walnut_veneer
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/walnut_veneer/walnut_veneer_diff_4k.jpg
+  SHA-256 of the colour map: 10e83615504c2d2a8f5a8665ab0d36f550b0ab2a60c6188dc9a317a65e7362ec
+
+White Maple Veneer (Jenelle van Heerden), CC0-1.0
+  Page: https://polyhaven.com/a/white_maple_veneer
+  File: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_maple_veneer/white_maple_veneer_diff_4k.jpg
+  SHA-256 of the colour map: f5c5788ed517c5801999c62d4e5397765eaec04360155793694292dd1aa9af7c
