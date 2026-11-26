@@ -34,6 +34,42 @@ export interface PositionAnalysisRead {
   lines: PositionAnalysisLine[];
 }
 
+/** Analysis Board line explanation request; budgets may only narrow the analysis limits. */
+export interface PositionExplanationRequest {
+  player_id: string;
+  fen: string;
+  multipv?: number;
+  nodes?: number;
+  depth?: number;
+}
+
+export interface PositionExplanationLine extends PositionAnalysisLine {
+  line_id: string;
+  rank: number;
+  depth: number | null;
+  seldepth: number | null;
+}
+
+/** One grounded claim; `moves` is the UCI prefix of the linked line that it cites. */
+export interface PositionExplanationClaim {
+  text: string;
+  evidence_ref: string;
+  line_id: string;
+  moves: string[];
+}
+
+export interface PositionExplanationRead {
+  fen: string;
+  /** `template`: deterministic wording; `narrator`: configured model wording that passed grounding. */
+  source: 'template' | 'narrator';
+  fallback_reason: string | null;
+  text: string;
+  lines: PositionExplanationLine[];
+  claims: PositionExplanationClaim[];
+  /** Board-lines facts (schemas/board-lines-facts.schema.json). */
+  facts: Record<string, unknown>;
+}
+
 export interface MoveInsight {
   step: 3;
   fen: string;

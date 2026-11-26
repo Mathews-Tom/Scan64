@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
-import type { PlaySessionRead, PositionAnalysisLine } from '../api/types';
+import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead } from '../api/types';
 import { OwnedGameReview } from './OwnedGameReview';
 import { CoachBoard } from './CoachBoard';
 import { analysisEntries, analysisMoveLabel, analysisReplay, commitAnalysisMoves, createAnalysisTree, exportAnalysisPgn, type AnalysisTree } from './analysisTree';
 import { Button, Field, Panel } from './Primitives';
 import './WorkingScreens.css';
+import './AnalysisScreen.css';
 
 interface AnalysisScreenProps {
   gameId?: string;
@@ -38,6 +39,18 @@ export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisS
 type Evaluation = { state: 'loading' } | { state: 'ready'; lines: PositionAnalysisLine[]; revision: number }
   | { state: 'error'; message: string; busy: boolean };
 
+type LineExplanation = { state: 'idle' } | { state: 'loading' } | { state: 'ready'; result: PositionExplanationRead }
+  | { state: 'error'; message: string };
+
+/** The moves of one engine line a claim cites: `plies` from the start of line `lineId`. */
+interface LineHighlight { lineId: string; plies: number }
+
+const engineLineId = (index: number) => `line-${index + 1}`;
+
+function claimHighlight(claim: PositionExplanationClaim): LineHighlight {
+  return { lineId: claim.line_id, plies: claim.moves.length };
+}
+
 function evaluationLabel(line: PositionAnalysisLine): string {
   if (line.mate !== null) return `${line.mate < 0 ? '−' : '+'}M${Math.abs(line.mate)}`;
   if (line.score_cp === null) return 'Unscored';
@@ -60,6 +73,9 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
   const [error, setError] = useState<string | null>(null);
   const [fenInput, setFenInput] = useState(fen);
   const [evaluation, setEvaluation] = useState<Evaluation>({ state: 'loading' });
+  const [explanation, setExplanation] = useState<LineExplanation>({ state: 'idle' });
+  const [pinnedClaim, setPinnedClaim] = useState<number | null>(null);
+  const [previewClaim, setPreviewClaim] = useState<number | null>(null);
 
   // Invalidate in the interaction itself, not just effect cleanup: A → B → A
   // must not allow the first A response to become current again.
@@ -67,6 +83,9 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     revision.current += 1;
     loadGeneration.current += 1;
     setEvaluation({ state: 'loading' });
+    setExplanation({ state: 'idle' });
+    setPinnedClaim(null);
+    setPreviewClaim(null);
     setStudy({ tree: nextTree, selected: next, revision: revision.current });
     setFenInput(nextTree.nodes[next].fen);
     setError(null);
@@ -150,6 +169,36 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     }
   };
 
+  const explainLines = async () => {
+    const requestedRevision = revision.current;
+    const current = () => revision.current === requestedRevision;
+    setExplanation({ state: 'loading' });
+    setPinnedClaim(null);
+    setPreviewClaim(null);
+    try {
+      const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
+      if (!current()) return;
+      const result = await ApiClient.explainPosition({ player_id: playerId, fen });
+      if (!current()) return;
+      if (new Chess(result.fen).fen() !== fen) throw new Error('Engine returned a different position. Retry the explanation.');
+      // Show exactly the lines the explanation describes.
+      setEvaluation({ state: 'ready', lines: result.lines, revision: requestedRevision });
+      setExplanation({ state: 'ready', result });
+    } catch (caught) {
+      if (current()) setExplanation({
+        state: 'error',
+        message: caught instanceof Error ? caught.message : 'Could not explain the engine lines.',
+      });
+    }
+  };
+
+  const claims = explanation.state === 'ready' ? explanation.result.claims : [];
+  const activeClaim = previewClaim ?? pinnedClaim;
+  const highlight: LineHighlight | null = activeClaim !== null && activeClaim < claims.length
+    ? claimHighlight(claims[activeClaim]) : null;
+  const cites = (index: number, moveIndex: number) =>
+    highlight !== null && highlight.lineId === engineLineId(index) && moveIndex < highlight.plies;
+
   const playFromHere = async () => {
     if (!onPlayFromHere) return;
     loadGeneration.current += 1;
@@ -229,10 +278,13 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
             <Button onClick={() => selectPosition(tree, selected)}>Retry</Button>
           </>}
           {evaluation.state === 'ready' && (evaluation.lines.length ? <ol className="analysis-engine-lines">
-            {evaluation.lines.map((line, index) => <li key={index}>
+            {evaluation.lines.map((line, index) => <li key={index}
+              data-highlighted={highlight?.lineId === engineLineId(index) ? 'true' : undefined}>
               <strong aria-label={`Line ${index + 1} evaluation ${evaluationLabel(line)}`}>{evaluationLabel(line)}</strong>
               <div className="working-actions" aria-label={`Engine line ${index + 1}`}>
                 {line.moves.map((move, moveIndex) => <Button key={moveIndex}
+                  className={cites(index, moveIndex) ? 'analysis-line-move--cited' : ''}
+                  data-cited={cites(index, moveIndex) ? 'true' : undefined}
                   aria-label={`Play line ${index + 1} through ${moveIndex + 1}: ${move.san}`}
                   onClick={() => {
                     if (evaluation.revision !== revision.current) return;
@@ -242,6 +294,37 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
               </div>
             </li>)}
           </ol> : <p>No legal continuation: this position has ended.</p>)}
+          {evaluation.state === 'ready' && evaluation.lines.length > 0 && <section className="analysis-line-explanation"
+            data-testid="line-explanation" aria-label="Line explanation" aria-busy={explanation.state === 'loading'}>
+            <Button onClick={() => { void explainLines(); }} disabled={explanation.state === 'loading'}>
+              {explanation.state === 'ready' ? 'Explain lines again' : 'Explain lines'}
+            </Button>
+            {explanation.state === 'loading' && <p role="status">Explaining the engine lines…</p>}
+            {explanation.state === 'error' && <p role="alert">{explanation.message}</p>}
+            {explanation.state === 'ready' && <>
+              <p className="analysis-line-explanation__source">
+                {explanation.result.source === 'narrator'
+                  ? 'Worded by your configured model; every claim was checked against the engine lines.'
+                  : 'Template explanation from the engine lines.'}
+                {' '}Hover or select a claim to highlight the moves it cites.
+              </p>
+              <ol className="analysis-line-claims" aria-label="Explanation claims">
+                {claims.map((claim, index) => {
+                  const rank = claim.line_id.replace('line-', '');
+                  return <li key={index}>
+                    <button type="button" className="analysis-line-claim" aria-pressed={pinnedClaim === index}
+                      aria-label={`Line ${rank}: ${claim.text}`}
+                      onMouseEnter={() => setPreviewClaim(index)} onMouseLeave={() => setPreviewClaim(null)}
+                      onFocus={() => setPreviewClaim(index)} onBlur={() => setPreviewClaim(null)}
+                      onClick={() => setPinnedClaim(pinned => pinned === index ? null : index)}>
+                      <span className="analysis-line-claim__line" aria-hidden="true">Line {rank}</span>
+                      <span>{claim.text}</span>
+                    </button>
+                  </li>;
+                })}
+              </ol>
+            </>}
+          </section>}
         </section>
       </Panel>
     </div>

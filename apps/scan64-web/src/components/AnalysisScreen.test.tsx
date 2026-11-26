@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AnalysisScreen } from './AnalysisScreen';
 import { ApiClient, ApiRequestError } from '../api/client';
 import { Chess } from 'chess.js';
-import type { PositionAnalysisRead } from '../api/types';
+import type { PositionAnalysisRead, PositionExplanationRead } from '../api/types';
 
 vi.mock('chessground', () => ({
   Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
@@ -14,6 +14,7 @@ vi.mock('../api/client', () => ({
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
     analyzePosition: vi.fn(),
+    explainPosition: vi.fn(),
   },
   ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
@@ -349,5 +350,88 @@ describe('AnalysisScreen', () => {
       playSession,
       'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
+  });
+
+  describe('Explain lines', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const explained: PositionExplanationRead = {
+      fen: startFen,
+      source: 'template',
+      fallback_reason: null,
+      text: 'White to move. Line 1: 1.e4 e5. Line 2 (1.d4) scores 0.11 pawns less than line 1 for the side to move.',
+      lines: [
+        { line_id: 'line-1', rank: 1, score_cp: 41, mate: null, depth: 14, seldepth: 24,
+          moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }] },
+        { line_id: 'line-2', rank: 2, score_cp: 30, mate: null, depth: 13, seldepth: 20,
+          moves: [{ uci: 'd2d4', san: 'd4' }, { uci: 'g8f6', san: 'Nf6' }] },
+      ],
+      claims: [
+        { text: 'White to move. The engine\'s first choice is 1.e4.', evidence_ref: 'line-1', line_id: 'line-1', moves: ['e2e4'] },
+        { text: 'Line 1: 1.e4 e5.', evidence_ref: 'line-1', line_id: 'line-1', moves: ['e2e4', 'e7e5'] },
+        { text: 'Line 2 (1.d4) scores 0.11 pawns less than line 1 for the side to move.', evidence_ref: 'comparison',
+          line_id: 'line-2', moves: ['d2d4', 'g8f6'] },
+      ],
+      facts: {},
+    };
+    const cited = () => Array.from(document.querySelectorAll('[data-cited="true"]')).map(node => node.textContent);
+
+    it('shows the explanation next to the lines and highlights the moves each claim cites', async () => {
+      vi.mocked(ApiClient.explainPosition).mockResolvedValue(explained);
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      const claims = within(await screen.findByRole('list', { name: 'Explanation claims' }));
+      expect(ApiClient.explainPosition).toHaveBeenCalledWith({ player_id: 'player-1', fen: startFen });
+      expect(screen.getByText(/Template explanation from the engine lines/)).toBeInTheDocument();
+      // The board shows exactly the explained lines.
+      expect(screen.getByLabelText('Line 2 evaluation +0.30')).toBeInTheDocument();
+      expect(cited()).toEqual([]);
+
+      const comparison = claims.getByRole('button', { name: /^Line 2: Line 2 \(1\.d4\)/ });
+      fireEvent.mouseEnter(comparison);
+      expect(cited()).toEqual(['d4', 'Nf6']);
+      fireEvent.mouseLeave(comparison);
+      expect(cited()).toEqual([]);
+
+      const opening = claims.getByRole('button', { name: /^Line 1: White to move/ });
+      fireEvent.click(opening);
+      expect(opening).toHaveAttribute('aria-pressed', 'true');
+      expect(cited()).toEqual(['e4']);
+      fireEvent.mouseEnter(comparison);
+      expect(cited()).toEqual(['d4', 'Nf6']);
+      fireEvent.mouseLeave(comparison);
+      expect(cited()).toEqual(['e4']);
+      fireEvent.click(opening);
+      expect(cited()).toEqual([]);
+    });
+
+    it('labels provider wording that passed grounding', async () => {
+      vi.mocked(ApiClient.explainPosition).mockResolvedValue({ ...explained, source: 'narrator' });
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      expect(await screen.findByText(/Worded by your configured model/)).toBeInTheDocument();
+    });
+
+    it('reports a failed explanation without discarding the engine lines', async () => {
+      vi.mocked(ApiClient.explainPosition).mockRejectedValue(
+        new ApiRequestError('Failed to explain engine lines: Analysis capacity is busy; try again shortly', 503),
+      );
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Analysis capacity is busy');
+      expect(screen.getByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Explain lines' })).toBeEnabled();
+    });
+
+    it('drops an explanation that arrives after the position changed', async () => {
+      const pending = Promise.withResolvers<PositionExplanationRead>();
+      vi.mocked(ApiClient.explainPosition).mockReturnValue(pending.promise);
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      await act(async () => { pending.resolve(explained); await pending.promise; });
+      await screen.findByRole('button', { name: 'Explain lines' });
+      expect(screen.queryByRole('list', { name: 'Explanation claims' })).not.toBeInTheDocument();
+    });
   });
 });

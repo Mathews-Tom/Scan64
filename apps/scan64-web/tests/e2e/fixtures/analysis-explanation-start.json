@@ -1,0 +1,1358 @@
+{
+  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "source": "template",
+  "fallback_reason": null,
+  "text": "White to move. The engine's first choice is 1.e4. Line 1: 1.e4 e5. The engine scores line 1 +0.41 for the side to move at depth 14. Over line 1 the material balance does not change. At its end material is equal. Line 2: 1.Nf3 d5 2.d4 e6 3.c4 Nf6 4.Nc3 Bb4 5.Qa4+ Nc6 6.e3 O-O 7.Bd2 a5 8.a3 Bxc3 9.Bxc3. The engine scores line 2 +0.35 for the side to move at depth 13. Over line 2 the material balance does not change. At its end material is equal. In line 2 the side to move gives check once. Line 3: 1.d4 Nf6 2.c4 e6 3.Nc3 d5 4.cxd5 exd5 5.Bf4 c5 6.e3 cxd4 7.Qxd4 Nc6 8.Bb5. The engine scores line 3 +0.30 for the side to move at depth 13. Over line 3 the material balance does not change. At its end material is equal. Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move. Line 3 (1.d4) scores 0.11 pawns less than line 1 for the side to move.",
+  "lines": [
+    {
+      "line_id": "line-1",
+      "rank": 1,
+      "score_cp": 41,
+      "mate": null,
+      "depth": 14,
+      "seldepth": 24,
+      "moves": [
+        {
+          "uci": "e2e4",
+          "san": "e4"
+        },
+        {
+          "uci": "e7e5",
+          "san": "e5"
+        }
+      ]
+    },
+    {
+      "line_id": "line-2",
+      "rank": 2,
+      "score_cp": 35,
+      "mate": null,
+      "depth": 13,
+      "seldepth": 21,
+      "moves": [
+        {
+          "uci": "g1f3",
+          "san": "Nf3"
+        },
+        {
+          "uci": "d7d5",
+          "san": "d5"
+        },
+        {
+          "uci": "d2d4",
+          "san": "d4"
+        },
+        {
+          "uci": "e7e6",
+          "san": "e6"
+        },
+        {
+          "uci": "c2c4",
+          "san": "c4"
+        },
+        {
+          "uci": "g8f6",
+          "san": "Nf6"
+        },
+        {
+          "uci": "b1c3",
+          "san": "Nc3"
+        },
+        {
+          "uci": "f8b4",
+          "san": "Bb4"
+        },
+        {
+          "uci": "d1a4",
+          "san": "Qa4+"
+        },
+        {
+          "uci": "b8c6",
+          "san": "Nc6"
+        },
+        {
+          "uci": "e2e3",
+          "san": "e3"
+        },
+        {
+          "uci": "e8g8",
+          "san": "O-O"
+        },
+        {
+          "uci": "c1d2",
+          "san": "Bd2"
+        },
+        {
+          "uci": "a7a5",
+          "san": "a5"
+        },
+        {
+          "uci": "a2a3",
+          "san": "a3"
+        },
+        {
+          "uci": "b4c3",
+          "san": "Bxc3"
+        },
+        {
+          "uci": "d2c3",
+          "san": "Bxc3"
+        }
+      ]
+    },
+    {
+      "line_id": "line-3",
+      "rank": 3,
+      "score_cp": 30,
+      "mate": null,
+      "depth": 13,
+      "seldepth": 23,
+      "moves": [
+        {
+          "uci": "d2d4",
+          "san": "d4"
+        },
+        {
+          "uci": "g8f6",
+          "san": "Nf6"
+        },
+        {
+          "uci": "c2c4",
+          "san": "c4"
+        },
+        {
+          "uci": "e7e6",
+          "san": "e6"
+        },
+        {
+          "uci": "b1c3",
+          "san": "Nc3"
+        },
+        {
+          "uci": "d7d5",
+          "san": "d5"
+        },
+        {
+          "uci": "c4d5",
+          "san": "cxd5"
+        },
+        {
+          "uci": "e6d5",
+          "san": "exd5"
+        },
+        {
+          "uci": "c1f4",
+          "san": "Bf4"
+        },
+        {
+          "uci": "c7c5",
+          "san": "c5"
+        },
+        {
+          "uci": "e2e3",
+          "san": "e3"
+        },
+        {
+          "uci": "c5d4",
+          "san": "cxd4"
+        },
+        {
+          "uci": "d1d4",
+          "san": "Qxd4"
+        },
+        {
+          "uci": "b8c6",
+          "san": "Nc6"
+        },
+        {
+          "uci": "f1b5",
+          "san": "Bb5"
+        }
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "text": "White to move. The engine's first choice is 1.e4.",
+      "evidence_ref": "line-1",
+      "line_id": "line-1",
+      "moves": [
+        "e2e4"
+      ]
+    },
+    {
+      "text": "Line 1: 1.e4 e5.",
+      "evidence_ref": "line-1",
+      "line_id": "line-1",
+      "moves": [
+        "e2e4",
+        "e7e5"
+      ]
+    },
+    {
+      "text": "The engine scores line 1 +0.41 for the side to move at depth 14.",
+      "evidence_ref": "line-1",
+      "line_id": "line-1",
+      "moves": [
+        "e2e4",
+        "e7e5"
+      ]
+    },
+    {
+      "text": "Over line 1 the material balance does not change. At its end material is equal.",
+      "evidence_ref": "line-1",
+      "line_id": "line-1",
+      "moves": [
+        "e2e4",
+        "e7e5"
+      ]
+    },
+    {
+      "text": "Line 2: 1.Nf3 d5 2.d4 e6 3.c4 Nf6 4.Nc3 Bb4 5.Qa4+ Nc6 6.e3 O-O 7.Bd2 a5 8.a3 Bxc3 9.Bxc3.",
+      "evidence_ref": "line-2",
+      "line_id": "line-2",
+      "moves": [
+        "g1f3",
+        "d7d5",
+        "d2d4",
+        "e7e6",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "f8b4",
+        "d1a4",
+        "b8c6",
+        "e2e3",
+        "e8g8",
+        "c1d2",
+        "a7a5",
+        "a2a3",
+        "b4c3",
+        "d2c3"
+      ]
+    },
+    {
+      "text": "The engine scores line 2 +0.35 for the side to move at depth 13.",
+      "evidence_ref": "line-2",
+      "line_id": "line-2",
+      "moves": [
+        "g1f3",
+        "d7d5",
+        "d2d4",
+        "e7e6",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "f8b4",
+        "d1a4",
+        "b8c6",
+        "e2e3",
+        "e8g8",
+        "c1d2",
+        "a7a5",
+        "a2a3",
+        "b4c3",
+        "d2c3"
+      ]
+    },
+    {
+      "text": "Over line 2 the material balance does not change. At its end material is equal.",
+      "evidence_ref": "line-2",
+      "line_id": "line-2",
+      "moves": [
+        "g1f3",
+        "d7d5",
+        "d2d4",
+        "e7e6",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "f8b4",
+        "d1a4",
+        "b8c6",
+        "e2e3",
+        "e8g8",
+        "c1d2",
+        "a7a5",
+        "a2a3",
+        "b4c3",
+        "d2c3"
+      ]
+    },
+    {
+      "text": "In line 2 the side to move gives check once.",
+      "evidence_ref": "line-2",
+      "line_id": "line-2",
+      "moves": [
+        "g1f3",
+        "d7d5",
+        "d2d4",
+        "e7e6",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "f8b4",
+        "d1a4",
+        "b8c6",
+        "e2e3",
+        "e8g8",
+        "c1d2",
+        "a7a5",
+        "a2a3",
+        "b4c3",
+        "d2c3"
+      ]
+    },
+    {
+      "text": "Line 3: 1.d4 Nf6 2.c4 e6 3.Nc3 d5 4.cxd5 exd5 5.Bf4 c5 6.e3 cxd4 7.Qxd4 Nc6 8.Bb5.",
+      "evidence_ref": "line-3",
+      "line_id": "line-3",
+      "moves": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "b1c3",
+        "d7d5",
+        "c4d5",
+        "e6d5",
+        "c1f4",
+        "c7c5",
+        "e2e3",
+        "c5d4",
+        "d1d4",
+        "b8c6",
+        "f1b5"
+      ]
+    },
+    {
+      "text": "The engine scores line 3 +0.30 for the side to move at depth 13.",
+      "evidence_ref": "line-3",
+      "line_id": "line-3",
+      "moves": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "b1c3",
+        "d7d5",
+        "c4d5",
+        "e6d5",
+        "c1f4",
+        "c7c5",
+        "e2e3",
+        "c5d4",
+        "d1d4",
+        "b8c6",
+        "f1b5"
+      ]
+    },
+    {
+      "text": "Over line 3 the material balance does not change. At its end material is equal.",
+      "evidence_ref": "line-3",
+      "line_id": "line-3",
+      "moves": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "b1c3",
+        "d7d5",
+        "c4d5",
+        "e6d5",
+        "c1f4",
+        "c7c5",
+        "e2e3",
+        "c5d4",
+        "d1d4",
+        "b8c6",
+        "f1b5"
+      ]
+    },
+    {
+      "text": "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move.",
+      "evidence_ref": "comparison",
+      "line_id": "line-2",
+      "moves": [
+        "g1f3",
+        "d7d5",
+        "d2d4",
+        "e7e6",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "f8b4",
+        "d1a4",
+        "b8c6",
+        "e2e3",
+        "e8g8",
+        "c1d2",
+        "a7a5",
+        "a2a3",
+        "b4c3",
+        "d2c3"
+      ]
+    },
+    {
+      "text": "Line 3 (1.d4) scores 0.11 pawns less than line 1 for the side to move.",
+      "evidence_ref": "comparison",
+      "line_id": "line-3",
+      "moves": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "b1c3",
+        "d7d5",
+        "c4d5",
+        "e6d5",
+        "c1f4",
+        "c7c5",
+        "e2e3",
+        "c5d4",
+        "d1d4",
+        "b8c6",
+        "f1b5"
+      ]
+    }
+  ],
+  "facts": {
+    "schema_version": "board-lines-facts/1",
+    "position": {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "side_to_move": "white",
+      "material": {
+        "white": 39,
+        "black": 39,
+        "learner_advantage": 0
+      },
+      "evaluation": {
+        "status": "centipawns",
+        "centipawns": 41,
+        "source": "analysis_board_pass"
+      }
+    },
+    "lines": [
+      {
+        "line_id": "line-1",
+        "rank": 1,
+        "evaluation": {
+          "status": "centipawns",
+          "centipawns": 41,
+          "source": "analysis_board_pass"
+        },
+        "difference_from_best_cp": null,
+        "depth": 14,
+        "seldepth": 24,
+        "wdl": null,
+        "uci": [
+          "e2e4",
+          "e7e5"
+        ],
+        "moves": [
+          {
+            "ply": 1,
+            "side": "white",
+            "mover": "learner",
+            "san": "e4",
+            "uci": "e2e4",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "centipawns",
+              "centipawns": 41,
+              "source": "analysis_board_pass"
+            }
+          },
+          {
+            "ply": 2,
+            "side": "black",
+            "mover": "opponent",
+            "san": "e5",
+            "uci": "e7e5",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          }
+        ],
+        "outcome": {
+          "material_change": 0,
+          "material_at_end": {
+            "white": 39,
+            "black": 39,
+            "learner_advantage": 0
+          },
+          "checks_by_side_to_move": 0,
+          "checks_by_opponent": 0,
+          "ends_in_checkmate": false,
+          "ends_in_stalemate": false,
+          "first_move_threats": []
+        }
+      },
+      {
+        "line_id": "line-2",
+        "rank": 2,
+        "evaluation": {
+          "status": "centipawns",
+          "centipawns": 35,
+          "source": "analysis_board_pass"
+        },
+        "difference_from_best_cp": 6,
+        "depth": 13,
+        "seldepth": 21,
+        "wdl": null,
+        "uci": [
+          "g1f3",
+          "d7d5",
+          "d2d4",
+          "e7e6",
+          "c2c4",
+          "g8f6",
+          "b1c3",
+          "f8b4",
+          "d1a4",
+          "b8c6",
+          "e2e3",
+          "e8g8",
+          "c1d2",
+          "a7a5",
+          "a2a3",
+          "b4c3",
+          "d2c3"
+        ],
+        "moves": [
+          {
+            "ply": 1,
+            "side": "white",
+            "mover": "learner",
+            "san": "Nf3",
+            "uci": "g1f3",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "centipawns",
+              "centipawns": 35,
+              "source": "analysis_board_pass"
+            }
+          },
+          {
+            "ply": 2,
+            "side": "black",
+            "mover": "opponent",
+            "san": "d5",
+            "uci": "d7d5",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 3,
+            "side": "white",
+            "mover": "learner",
+            "san": "d4",
+            "uci": "d2d4",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 4,
+            "side": "black",
+            "mover": "opponent",
+            "san": "e6",
+            "uci": "e7e6",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 5,
+            "side": "white",
+            "mover": "learner",
+            "san": "c4",
+            "uci": "c2c4",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 6,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Nf6",
+            "uci": "g8f6",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 7,
+            "side": "white",
+            "mover": "learner",
+            "san": "Nc3",
+            "uci": "b1c3",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 8,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Bb4",
+            "uci": "f8b4",
+            "piece": "bishop",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 9,
+            "side": "white",
+            "mover": "learner",
+            "san": "Qa4+",
+            "uci": "d1a4",
+            "piece": "queen",
+            "captures": null,
+            "check": true,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [
+              {
+                "square": "b4",
+                "piece": "bishop",
+                "colour": "black"
+              }
+            ],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 10,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Nc6",
+            "uci": "b8c6",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 11,
+            "side": "white",
+            "mover": "learner",
+            "san": "e3",
+            "uci": "e2e3",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 12,
+            "side": "black",
+            "mover": "opponent",
+            "san": "O-O",
+            "uci": "e8g8",
+            "piece": "king",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": "kingside",
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 13,
+            "side": "white",
+            "mover": "learner",
+            "san": "Bd2",
+            "uci": "c1d2",
+            "piece": "bishop",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 14,
+            "side": "black",
+            "mover": "opponent",
+            "san": "a5",
+            "uci": "a7a5",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 15,
+            "side": "white",
+            "mover": "learner",
+            "san": "a3",
+            "uci": "a2a3",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 16,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Bxc3",
+            "uci": "b4c3",
+            "piece": "bishop",
+            "captures": {
+              "square": "c3",
+              "piece": "knight",
+              "colour": "white"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 36,
+              "black": 39,
+              "learner_advantage": -3
+            },
+            "new_threats": [
+              {
+                "square": "b2",
+                "piece": "pawn",
+                "colour": "white"
+              }
+            ],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 17,
+            "side": "white",
+            "mover": "learner",
+            "san": "Bxc3",
+            "uci": "d2c3",
+            "piece": "bishop",
+            "captures": {
+              "square": "c3",
+              "piece": "bishop",
+              "colour": "black"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 36,
+              "black": 36,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          }
+        ],
+        "outcome": {
+          "material_change": 0,
+          "material_at_end": {
+            "white": 36,
+            "black": 36,
+            "learner_advantage": 0
+          },
+          "checks_by_side_to_move": 1,
+          "checks_by_opponent": 0,
+          "ends_in_checkmate": false,
+          "ends_in_stalemate": false,
+          "first_move_threats": []
+        }
+      },
+      {
+        "line_id": "line-3",
+        "rank": 3,
+        "evaluation": {
+          "status": "centipawns",
+          "centipawns": 30,
+          "source": "analysis_board_pass"
+        },
+        "difference_from_best_cp": 11,
+        "depth": 13,
+        "seldepth": 23,
+        "wdl": null,
+        "uci": [
+          "d2d4",
+          "g8f6",
+          "c2c4",
+          "e7e6",
+          "b1c3",
+          "d7d5",
+          "c4d5",
+          "e6d5",
+          "c1f4",
+          "c7c5",
+          "e2e3",
+          "c5d4",
+          "d1d4",
+          "b8c6",
+          "f1b5"
+        ],
+        "moves": [
+          {
+            "ply": 1,
+            "side": "white",
+            "mover": "learner",
+            "san": "d4",
+            "uci": "d2d4",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "centipawns",
+              "centipawns": 30,
+              "source": "analysis_board_pass"
+            }
+          },
+          {
+            "ply": 2,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Nf6",
+            "uci": "g8f6",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 3,
+            "side": "white",
+            "mover": "learner",
+            "san": "c4",
+            "uci": "c2c4",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 4,
+            "side": "black",
+            "mover": "opponent",
+            "san": "e6",
+            "uci": "e7e6",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 5,
+            "side": "white",
+            "mover": "learner",
+            "san": "Nc3",
+            "uci": "b1c3",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 6,
+            "side": "black",
+            "mover": "opponent",
+            "san": "d5",
+            "uci": "d7d5",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 39,
+              "learner_advantage": 0
+            },
+            "new_threats": [
+              {
+                "square": "c4",
+                "piece": "pawn",
+                "colour": "white"
+              }
+            ],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 7,
+            "side": "white",
+            "mover": "learner",
+            "san": "cxd5",
+            "uci": "c4d5",
+            "piece": "pawn",
+            "captures": {
+              "square": "d5",
+              "piece": "pawn",
+              "colour": "black"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 39,
+              "black": 38,
+              "learner_advantage": 1
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 8,
+            "side": "black",
+            "mover": "opponent",
+            "san": "exd5",
+            "uci": "e6d5",
+            "piece": "pawn",
+            "captures": {
+              "square": "d5",
+              "piece": "pawn",
+              "colour": "white"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 38,
+              "black": 38,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 9,
+            "side": "white",
+            "mover": "learner",
+            "san": "Bf4",
+            "uci": "c1f4",
+            "piece": "bishop",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 38,
+              "black": 38,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 10,
+            "side": "black",
+            "mover": "opponent",
+            "san": "c5",
+            "uci": "c7c5",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 38,
+              "black": 38,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 11,
+            "side": "white",
+            "mover": "learner",
+            "san": "e3",
+            "uci": "e2e3",
+            "piece": "pawn",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 38,
+              "black": 38,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 12,
+            "side": "black",
+            "mover": "opponent",
+            "san": "cxd4",
+            "uci": "c5d4",
+            "piece": "pawn",
+            "captures": {
+              "square": "d4",
+              "piece": "pawn",
+              "colour": "white"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 37,
+              "black": 38,
+              "learner_advantage": -1
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 13,
+            "side": "white",
+            "mover": "learner",
+            "san": "Qxd4",
+            "uci": "d1d4",
+            "piece": "queen",
+            "captures": {
+              "square": "d4",
+              "piece": "pawn",
+              "colour": "black"
+            },
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 37,
+              "black": 37,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 14,
+            "side": "black",
+            "mover": "opponent",
+            "san": "Nc6",
+            "uci": "b8c6",
+            "piece": "knight",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 37,
+              "black": 37,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          },
+          {
+            "ply": 15,
+            "side": "white",
+            "mover": "learner",
+            "san": "Bb5",
+            "uci": "f1b5",
+            "piece": "bishop",
+            "captures": null,
+            "check": false,
+            "checkmate": false,
+            "promotion": null,
+            "castling": null,
+            "material_after": {
+              "white": 37,
+              "black": 37,
+              "learner_advantage": 0
+            },
+            "new_threats": [],
+            "evaluation_after": {
+              "status": "unknown"
+            }
+          }
+        ],
+        "outcome": {
+          "material_change": 0,
+          "material_at_end": {
+            "white": 37,
+            "black": 37,
+            "learner_advantage": 0
+          },
+          "checks_by_side_to_move": 0,
+          "checks_by_opponent": 0,
+          "ends_in_checkmate": false,
+          "ends_in_stalemate": false,
+          "first_move_threats": []
+        }
+      }
+    ]
+  }
+}
