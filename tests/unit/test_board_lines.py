@@ -223,3 +223,11 @@ def test_template_claims_cite_prefixes_of_their_lines() -> None:
     for claim in template_board_claims(facts).claims:
         linked = by_id[claim_line_id(claim, facts)]
         assert claim.line and linked[: len(claim.line)] == claim.line
+
+
+def test_a_line_may_state_how_far_it_trails_line_one() -> None:
+    facts = _facts("start", 3)
+    claim = _claim("1.Nf3 is 6 centipawns worse than line 1.", "line-2", ("g1f3",))
+    validate_generated_explanation(
+        GeneratedExplanation(claims=(claim,)), board_lines_grounding(facts)
+    )

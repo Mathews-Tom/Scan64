@@ -336,7 +336,13 @@ def board_lines_grounding(facts: BoardLinesFacts) -> GroundedExplanationContext:
             position_id=facts.position.fen,
             engine_analysis_id="analysis-board",
             claim=f"Engine line {line.rank}",
-            payload={"board_multipv": [_multipv_entry(line)]},
+            # A line's own facts include how far it trails line 1.
+            payload={
+                "board_multipv": [_multipv_entry(line)],
+                "best_differences_cp": [line.difference_from_best_cp]
+                if line.difference_from_best_cp is not None
+                else [],
+            },
         )
         for line in facts.lines
     ]
@@ -545,10 +551,12 @@ BOARD_NARRATOR_SYSTEM_PROMPT = (
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
     "lines. Each claim: text (one or two plain sentences), evidence_ref (the line_id of the "
     f'line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing lines), line (a '
-    "JSON list of UCI move strings copied from the start of that line's uci list; never "
-    f'empty; for "{COMPARISON_EVIDENCE_ID}" copy from the line being compared), certainty '
-    '"observed", disclosure_level 1. Name sides as "the side to move", "the opponent", '
-    '"White to move" or "White plays ..."; never use a bare colour word as an adjective.'
+    'JSON list of UCI move strings such as "e2e4", copied in order from the start of that '
+    "line's uci list, never SAN and never empty; for "
+    f'"{COMPARISON_EVIDENCE_ID}" copy from the line being compared), certainty "observed", '
+    'disclosure_level 1. Name sides as "the side to move", "the opponent", "White to move" or '
+    '"White plays ..."; never use a bare colour word as an adjective. Mention checkmate, '
+    "stalemate, checks or captures only where the facts record one."
 )
 
 
