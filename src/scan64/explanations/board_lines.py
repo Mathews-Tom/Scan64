@@ -23,7 +23,6 @@ evaluation after its first move; no other move is scored (``unknown``).
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -66,8 +65,6 @@ from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm.adapters import LLMExplanationProvider
 from scan64.providers.llm.contracts import GeneratedExplanation
-
-logger = logging.getLogger(__name__)
 
 BOARD_SCHEMA_VERSION: Literal["board-lines-facts/1"] = "board-lines-facts/1"
 BOARD_SCHEMA_PATH = (
