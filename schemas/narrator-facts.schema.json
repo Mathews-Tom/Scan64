@@ -18,7 +18,8 @@
             "fast_pass",
             "reply_pass",
             "focused_pass",
-            "mate_source_pass"
+            "mate_source_pass",
+            "analysis_board_pass"
           ],
           "title": "Source",
           "type": "string"
@@ -178,7 +179,8 @@
             "fast_pass",
             "reply_pass",
             "focused_pass",
-            "mate_source_pass"
+            "mate_source_pass",
+            "analysis_board_pass"
           ],
           "title": "Source",
           "type": "string"

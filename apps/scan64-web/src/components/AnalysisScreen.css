@@ -1,0 +1,62 @@
+.analysis-line-explanation {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.analysis-line-explanation > button {
+  justify-self: start;
+}
+
+.analysis-line-explanation__source {
+  font-size: 0.875em;
+}
+
+.analysis-line-claims {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.analysis-line-claim {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.analysis-line-claim:hover,
+.analysis-line-claim:focus-visible,
+.analysis-line-claim[aria-pressed='true'] {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.analysis-line-claim__line {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Highlights must not change layout: hovering a claim must not move the claim list. */
+.analysis-engine-lines > li[data-highlighted='true'] {
+  box-shadow: -6px 0 0 -3px var(--accent);
+}
+
+.analysis-engine-lines .working-actions > button.analysis-line-move--cited {
+  border-color: var(--ink);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

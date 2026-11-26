@@ -10,6 +10,7 @@ from fastapi import FastAPI, Response
 from sqlmodel import Session
 
 import scan64.persistence.database as database
+from scan64.api.analysis_explanation import router as analysis_explanation_router
 from scan64.api.coach import router as coach_router
 from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
@@ -125,6 +126,7 @@ app.include_router(play_router)
 app.include_router(play_assistance_router)
 app.include_router(learning_router)
 app.include_router(insights_router)
+app.include_router(analysis_explanation_router)
 app.include_router(puzzles_router)
 app.include_router(repertoire_router)
 app.include_router(lesson_packs_router)

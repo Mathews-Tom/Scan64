@@ -157,3 +157,22 @@ async def test_cancelled_initialization_closes_partial_pool_and_can_retry(manage
     monkeypatch.setattr(PooledStockfishAdapter, "ensure_started", AsyncMock())
     await manager.interactive_pool.initialize()
     assert manager.interactive_pool._queue.qsize() == 2
+
+
+@pytest.mark.asyncio
+async def test_hint_overrides_narrow_the_budget_and_key_the_cache(manager, monkeypatch):
+    result = EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 0}])
+    analyze = AsyncMock(return_value=result)
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    await manager.analyze_hint(chess.Board())
+    await manager.analyze_hint(chess.Board(), nodes=50_000, depth=12)
+    await manager.analyze_hint(chess.Board(), nodes=50_000, depth=12)
+    assert [call.kwargs for call in analyze.await_args_list] == [
+        {"nodes": 200_000, "time_ms": 1500, "multipv": 4},
+        {"nodes": 50_000, "time_ms": 1500, "multipv": 4, "depth": 12},
+    ]
+    with pytest.raises(ValueError, match="200000-node limit"):
+        await manager.analyze_hint(chess.Board(), nodes=200_001)
+    with pytest.raises(ValueError, match="positive"):
+        await manager.analyze_hint(chess.Board(), depth=0)
+    assert analyze.await_count == 2

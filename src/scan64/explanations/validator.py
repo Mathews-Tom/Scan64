@@ -59,6 +59,7 @@ RejectionReason = Literal[
     "threat_not_supported",
     "wrong_side_to_move",
     "unparsed_chess_token",
+    "missing_line",
 ]
 REJECTION_REASONS: tuple[RejectionReason, ...] = get_args(RejectionReason)
 
@@ -217,9 +218,12 @@ _BEFORE_LINE_FIELDS = ("fast_line",)
 _AFTER_LINE_FIELDS = ("proving_line", "mating_line", "focused_line")
 _BEFORE_MOVE_FIELDS = ("best_move", "pinning_move", "played_move")
 _AFTER_MOVE_FIELDS = ("threat_move", "incoming_threat")
-_BEFORE_MULTIPV_FIELDS = ("mate_source_multipv",)
+# ``board_multipv``: Analysis Board engine lines (``explanations/board_lines.py``).
+_BEFORE_MULTIPV_FIELDS = ("mate_source_multipv", "board_multipv")
 _AFTER_MULTIPV_FIELDS = ("focused_multipv",)
 _CENTIPAWN_FIELDS = ("swing_cp", "before_score_cp")
+# Best-line score minus each compared line's score (Analysis Board comparison).
+_CENTIPAWN_LIST_FIELDS = ("best_differences_cp",)
 _MATE_FIELDS = ("mate_in", "before_score_mate", "after_score_mate", "source_score_mate")
 _GAIN_FIELDS = ("material_gain", "exchange_gain")
 _GAIN_FLAG_FIELDS = ("wins_material", "results_in_material_gain", "opponent_executed_threat")
@@ -340,6 +344,11 @@ class _ClaimEvidence:
                     self._add_square(entry)
         for cp_field in _CENTIPAWN_FIELDS:
             _add_int(self.centipawns, payload.get(cp_field))
+        for cp_list_field in _CENTIPAWN_LIST_FIELDS:
+            values = payload.get(cp_list_field)
+            if isinstance(values, list):
+                for value in values:
+                    _add_int(self.centipawns, value)
         for mate_field in _MATE_FIELDS:
             _add_int(self.mates, payload.get(mate_field))
         for multipv_field in (*_BEFORE_MULTIPV_FIELDS, *_AFTER_MULTIPV_FIELDS):
@@ -884,7 +893,8 @@ _RULES: tuple[tuple[re.Pattern[str], _Handler], ...] = (
         re.compile(
             r"(?<![\w.])(?P<value>[+\-−]?\d+(?:\.\d+)?)\s*-?\s*"
             r"(?P<unit>pawns?|points?|centipawns?|cp)\b"
-            r"|(?<![\w.])(?P<signed>[+\-−]\d+\.\d+)(?![\w.])",
+            # A sentence-ending full stop after the number is still an evaluation.
+            r"|(?<![\w.])(?P<signed>[+\-−]\d+\.\d+)(?!\w|\.\d)",
             _I,
         ),
         _evaluation,
