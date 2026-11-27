@@ -23,7 +23,9 @@ changes (both comparisons), raised to the next ``STEP`` multiple strictly above
 it, and not below ``FLOOR``. A term whose own null quantile is above the pooled term threshold
 gets its own value. ``choose_quantile`` takes the ``q`` in ``QUANTILES`` with the
 largest separation: the share of mistakes (``benchmark`` and ``slow``) with at
-least one fact minus the share of null moves with one.
+least one fact minus the share of null moves with one. ``floor_table`` repeats
+the choice for each floor in ``FLOORS``; ``FLOOR`` is the one with the largest
+separation.
 """
 
 from __future__ import annotations
@@ -174,11 +176,11 @@ def _stated(kind: FactorKind, guide_name: str, config: FactorConfig) -> bool:
     return _group(kind, guide_name) not in config.excluded_groups
 
 
-def _fit_value(changes: Sequence[float], quantile: float) -> float:
+def _fit_value(changes: Sequence[float], quantile: float, floor: float = FLOOR) -> float:
     """The smallest ``STEP`` multiple, at least ``FLOOR``, that at most ``1 - quantile``
     of the null changes reach (the size rule passes ``abs(change) >= threshold``)."""
     allowed = (1 - quantile) * len(changes) + 1e-9
-    steps = FLOOR / STEP
+    steps = round(floor / STEP)
     while True:
         threshold = round(steps * STEP, 2)
         if sum(change >= threshold - 1e-9 for change in changes) <= allowed:
@@ -205,11 +207,13 @@ def null_changes(measured: Sequence[Measurement]) -> dict[tuple[FactorKind, str]
     return pooled
 
 
-def fit_thresholds(measured: Sequence[Measurement], quantile: float) -> dict[str, Any]:
+def fit_thresholds(
+    measured: Sequence[Measurement], quantile: float, floor: float = FLOOR
+) -> dict[str, Any]:
     """Thresholds from the null quantiles (module docstring)."""
     pooled = null_changes(measured)
     groups = {
-        name: _fit_value(changes, quantile)
+        name: _fit_value(changes, quantile, floor)
         for (kind, name), changes in sorted(pooled.items())
         if kind == "group" and _stated(kind, name, FACTOR_CONFIG)
     }
@@ -219,13 +223,13 @@ def fit_thresholds(measured: Sequence[Measurement], quantile: float) -> dict[str
         if kind == "term" and _stated(kind, name, FACTOR_CONFIG)
         for change in changes
     ]
-    term = _fit_value(term_values, quantile)
+    term = _fit_value(term_values, quantile, floor)
     terms = {
         name: fitted
         for (kind, name), changes in sorted(pooled.items())
         if kind == "term"
         and _stated(kind, name, FACTOR_CONFIG)
-        and (fitted := _fit_value(changes, quantile)) > term
+        and (fitted := _fit_value(changes, quantile, floor)) > term
     }
     return {"quantile": quantile, "term": term, "groups": groups, "terms": terms}
 
@@ -241,10 +245,38 @@ def separation(measured: Sequence[Measurement], config: FactorConfig) -> float:
     )
 
 
-def choose_quantile(measured: Sequence[Measurement]) -> dict[str, Any]:
+def choose_quantile(measured: Sequence[Measurement], floor: float = FLOOR) -> dict[str, Any]:
     """The fit with the largest separation over ``QUANTILES`` (first on a tie)."""
-    fits = [fit_thresholds(measured, q) for q in QUANTILES]
+    fits = [fit_thresholds(measured, q, floor) for q in QUANTILES]
     return max(fits, key=lambda fit: separation(measured, fitted_config(fit)))
+
+
+FLOORS = (0.10, 0.15, 0.20, 0.25)
+
+
+def floor_table(measured: Sequence[Measurement]) -> str:
+    """Each floor in ``FLOORS`` with its own best quantile."""
+    lines = [
+        "| Floor (pawns) | Quantile | Mistakes with a fact | Null moves with a fact | Separation "
+        "| Class match (positions with a fact) |",
+        "|---|---|---|---|---|---|",
+    ]
+    for floor in FLOORS:
+        fit = choose_quantile(measured, floor)
+        config = fitted_config(fit)
+        with_fact = [
+            (m, facts)
+            for m in measured
+            if m.set in ("benchmark", "slow") and (facts := fired(m, config))
+        ]
+        match = sum(any(_matches(c, m.code) for c in facts) for m, facts in with_fact)
+        lines.append(
+            f"| {floor:.2f} | {fit['quantile']} "
+            f"| {fire_rate(measured, ('benchmark', 'slow'), config):.0%} "
+            f"| {fire_rate(measured, ('null',), config):.0%} "
+            f"| {separation(measured, config):+.2f} | {match / len(with_fact):.0%} |"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def sweep_table(measured: Sequence[Measurement]) -> str:
@@ -444,6 +476,7 @@ def main() -> None:
         sys.exit(0 if same else 1)
     print(json.dumps(fit, indent=1, sort_keys=True))
     print(sweep_table(measured))
+    print(floor_table(measured))
     print(null_table(measured, fit))
     print(report(measured, config))
     if args.json:
