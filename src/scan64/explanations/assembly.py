@@ -87,6 +87,18 @@ def _grounding_context(
     )
 
 
+def grounding_context_for(
+    diagnosis: Diagnosis, evidence: Sequence[Evidence], fen: str
+) -> GroundedExplanationContext:
+    """The grounding context ``resolve_explanation`` checks a generation against.
+
+    Public for tools that score generations outside the pipeline, such as the
+    narrator benchmark. Raises ``NarratorFactsError`` like the pipeline's own
+    facts step.
+    """
+    return _grounding_context(build_narrator_facts(diagnosis, evidence, fen), evidence, fen)
+
+
 NARRATOR_SYSTEM_PROMPT = (
     "You explain one chess mistake to the learner who made it. The user message is a JSON "
     f"document following the Scan64 schema {SCHEMA_VERSION} "

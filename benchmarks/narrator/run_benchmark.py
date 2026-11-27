@@ -191,18 +191,54 @@ def _git(*args: str) -> str:
 
 
 def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
-    """Pin the prompt builder under test: commit, dirty flag, module source hash."""
+    """Pin the code under test: commit, whole-tree dirty flag, module and runner hashes.
+
+    ``dirty`` covers the whole tree except the results directory, so uncommitted
+    runner or config changes are flagged, not only changes under ``src``.
+    """
     entry = _resolve(config.pipeline_entry)
     source_file = Path(inspect.getfile(entry))
+    results = config.results_dir.relative_to(REPO_ROOT).as_posix()
     return {
         "pipeline_entry": config.pipeline_entry,
         "grounding_context": config.grounding_context,
         "commit": _git("rev-parse", "HEAD"),
         "module_commit": _git("log", "-1", "--format=%H", "--", str(source_file)),
-        "dirty": bool(_git("status", "--porcelain", "--", "src")),
+        "dirty": bool(_git("status", "--porcelain", "--", ".", f":(exclude){results}")),
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
+        "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
+
+
+RESUME_PINNED = (
+    "pipeline_entry",
+    "grounding_context",
+    "commit",
+    "module_file",
+    "module_sha256",
+    "runner_sha256",
+)
+
+
+def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
+    """Refuse to append to a run whose header no longer describes the code (rule 6).
+
+    New records sit under the existing header, so the run must have started from a
+    clean tree, the tree must be clean now, and the commit, module and runner must
+    equal the header's. A header without one of these keys (written by an older
+    runner) cannot be resumed.
+    """
+    if identity["dirty"]:
+        raise RuntimeError("Resume refused: the working tree has uncommitted changes")
+    if header["pipeline"].get("dirty") is not False:
+        raise RuntimeError("Resume refused: the run started from a dirty or unrecorded tree")
+    changed = [key for key in RESUME_PINNED if header["pipeline"].get(key) != identity[key]]
+    if changed:
+        raise RuntimeError(
+            f"Resume refused: {', '.join(changed)} changed since the run started: "
+            f"{header['pipeline']} != {identity}"
+        )
 
 
 # --- Setup ---------------------------------------------------------------------
@@ -294,12 +330,21 @@ def load_positions(path: Path) -> list[Position]:
 
 class _MeteredTransport(httpx.AsyncBaseTransport):
     """Merges ``request_overrides`` into each chat request and keeps the token
-    counts Ollama reports (the adapter discards them)."""
+    counts Ollama reports (the adapter discards them).
+
+    With ``stream = true`` in the overrides, Ollama streams NDJSON chunks. The
+    transport records the time to the first content token and joins the chunks
+    into the one non-streamed reply body the production adapter parses, so the
+    parse path is the same either way. It also keeps any thinking text: the
+    benchmark sends ``think = false`` and reports every call that still thinks.
+    """
 
     def __init__(self, overrides: dict[str, Any]) -> None:
         self._inner = httpx.AsyncHTTPTransport()
         self._overrides = overrides
         self.last_body: dict[str, Any] | None = None
+        self.first_token_s: float | None = None
+        self.thinking_chars = 0
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         if self._overrides and request.url.path.endswith("/api/chat"):
@@ -314,19 +359,67 @@ class _MeteredTransport(httpx.AsyncBaseTransport):
                 },
                 json=body,
             )
+        started = time.perf_counter()
         response = await self._inner.handle_async_request(request)
-        content = await response.aread()
+        if self._overrides.get("stream") is True and request.url.path.endswith("/api/chat"):
+            content = await self._join_stream(response, started)
+            headers = {
+                key: value
+                for key, value in response.headers.items()
+                if key.lower() not in ("content-length", "transfer-encoding", "content-type")
+            }
+            headers["content-type"] = "application/json"
+        else:
+            content = await response.aread()
+            headers = dict(response.headers)
         try:
             reply: object = json.loads(content)
         except json.JSONDecodeError:
             reply = None
         self.last_body = cast(dict[str, Any], reply) if isinstance(reply, dict) else None
+        if self.last_body is not None:
+            message = self.last_body.get("message")
+            thinking = message.get("thinking") if isinstance(message, dict) else None
+            if isinstance(thinking, str):
+                self.thinking_chars = len(thinking)
         return httpx.Response(
             status_code=response.status_code,
-            headers=response.headers,
+            headers=headers,
             content=content,
             request=request,
         )
+
+    async def _join_stream(self, response: httpx.Response, started: float) -> bytes:
+        if response.status_code != 200:
+            return await response.aread()
+        parts: list[str] = []
+        thinking: list[str] = []
+        final: dict[str, Any] = {}
+        buffer = b""
+        async for raw in response.aiter_raw():
+            buffer += raw
+            *lines, buffer = buffer.split(b"\n")
+            for line in lines:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                message = chunk.get("message") or {}
+                if message.get("content"):
+                    if self.first_token_s is None:
+                        self.first_token_s = time.perf_counter() - started
+                    parts.append(message["content"])
+                if message.get("thinking"):
+                    thinking.append(message["thinking"])
+                if chunk.get("done"):
+                    final = chunk
+        await response.aclose()
+        joined = {key: value for key, value in final.items() if key != "message"}
+        joined["message"] = {
+            "role": "assistant",
+            "content": "".join(parts),
+            **({"thinking": "".join(thinking)} if thinking else {}),
+        }
+        return json.dumps(joined).encode()
 
     async def aclose(self) -> None:
         await self._inner.aclose()
@@ -496,6 +589,10 @@ async def run_one(
         else None,
         "prompt_eval_count": body.get("prompt_eval_count"),
         "eval_count": body.get("eval_count"),
+        "done_reason": body.get("done_reason"),
+        "first_token_s": transport.first_token_s,
+        "thinking_chars": transport.thinking_chars,
+        "think_tag_in_content": "<think>" in str((body.get("message") or {}).get("content", "")),
         "explanation_text": explanation.text if explanation is not None else None,
         "claims": claims,
     }
@@ -588,6 +685,8 @@ async def measure_model(
             "ollama_size_bytes": served[0]["size"],
             "ollama_size_vram_bytes": served[0]["size_vram"],
             "ollama_context_length": served[0].get("context_length"),
+            # Pins library models, which are named only by a mutable Ollama tag.
+            "ollama_digest": served[0].get("digest"),
             "gpu_idle_used_mib": idle_mib,
             "gpu_loaded_used_mib": peak_mib,
         },
@@ -636,8 +735,110 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (rank - low)
 
 
+# --- Coverage --------------------------------------------------------------------
+#
+# The validator rejects false claims but asks for no content, so an answer with
+# one vague true claim passes. Coverage counts how many of three key engine facts
+# an accepted answer states: the played move, the engine's key move, and the
+# result (piece, check, mate or tactic). A move counts in UCI, in SAN, or in the
+# claim's own line.
+
+_PIECE_NAMES = {"p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king"}
+_TACTIC_NAMES = {
+    "knight_fork": ("fork",),
+    "fork": ("fork",),
+    "pin": ("pin",),
+    "skewer": ("skewer",),
+    "discovered_attack": ("discovered",),
+    "back_rank": ("back rank", "back-rank"),
+    "overloaded_defender": ("overload",),
+}
+
+
+@dataclass(frozen=True)
+class KeyFacts:
+    played: tuple[str, ...]
+    key_move: tuple[str, ...]
+    result: tuple[str, ...]
+
+
+def _move_forms(fen: str, uci: str) -> tuple[str, ...]:
+    forms = [uci]
+    try:
+        board = chess.Board(fen)
+        move = chess.Move.from_uci(uci)
+        if move in board.legal_moves:
+            forms.append(board.san(move).rstrip("+#"))
+    except ValueError:
+        pass
+    return tuple(forms)
+
+
+def key_facts(payload: dict[str, Any]) -> KeyFacts:
+    """The three facts a useful narration of this evidence states."""
+    before, after = payload["before_fen"], payload["after_fen"]
+    played_san = str(payload["played_move"]).rstrip("+#")
+    played: tuple[str, ...] = (played_san,)
+    board = chess.Board(before)
+    try:
+        played = (played_san, board.parse_san(played_san).uci())
+    except ValueError:
+        pass
+    if payload.get("best_move"):
+        key_move = _move_forms(before, payload["best_move"])
+    elif payload.get("threat_move"):
+        key_move = _move_forms(after, payload["threat_move"])
+    elif payload.get("mating_line"):
+        key_move = _move_forms(after, payload["mating_line"][0])
+    else:
+        key_move = _move_forms(after, payload["proving_line"][0])
+    if payload.get("mate_in"):
+        result: tuple[str, ...] = ("mate",)
+    elif payload.get("tactic_type"):
+        result = _TACTIC_NAMES.get(payload["tactic_type"], (str(payload["tactic_type"]),))
+    else:
+        piece = next(
+            (
+                payload[k]
+                for k in ("captured_piece", "threatened_piece", "hanging_piece")
+                if payload.get(k)
+            ),
+            None,
+        )
+        result = (_PIECE_NAMES[str(piece).lower()],) if piece else ("check",)
+    return KeyFacts(played=played, key_move=key_move, result=result)
+
+
+def _states_move(forms: tuple[str, ...], text: str, lines: list[str]) -> bool:
+    return any(
+        form in lines or re.search(rf"(?<![A-Za-z0-9]){re.escape(form)}(?![A-Za-z0-9])", text)
+        for form in forms
+    )
+
+
+def coverage(claims: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
+    """Share of the three key facts that the claims state."""
+    text = " ".join(claim["text"] for claim in claims)
+    lines = [move for claim in claims for move in claim.get("line", [])]
+    lowered = text.lower()
+    stated = (
+        _states_move(facts.played, text, lines),
+        _states_move(facts.key_move, text, lines),
+        any(re.search(rf"\b{re.escape(word)}", lowered) for word in facts.result),
+    )
+    return sum(stated) / len(stated)
+
+
+def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
+    raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
+    return {
+        item["position_id"]: key_facts(item["evidence"][0]["payload"]) for item in raw["positions"]
+    }
+
+
 def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[str, Any]:
     header = next(record for record in records if record.get("record") == "header")
+    facts = _position_facts(config)
     by_model: dict[str, dict[str, Any]] = {}
     for model in config.models:
         runs = [r for r in records if r.get("record") == "run" and r["model"] == model.name]
@@ -657,6 +858,8 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         rejected = [sum(1 for c in run["claims"] if c["rejection_reason"]) for run in generated]
         san = [token for claim in claims for token in claim["san_tokens"]]
         latencies = [run["latency_s"] for run in runs]
+        accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
+        covered = [coverage(run["claims"], facts[run["position_id"]]) for run in accepted_runs]
         by_code: dict[str, float] = {}
         for code in sorted({run["code"] for run in runs}):
             subset = [run for run in runs if run["code"] == code]
@@ -669,6 +872,11 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "runs": len(runs),
             "grounding_pass_rate": sum(r["outcome"] == "accepted" for r in runs) / len(runs),
             "grounding_pass_rate_by_code": by_code,
+            # Mean share of the three key facts in accepted answers, and the same
+            # share over all calls with a fallback counted as 0: what a user gets.
+            "coverage_accepted": statistics.fmean(covered) if covered else None,
+            "delivered_coverage": sum(covered) / len(runs),
+            "full_coverage_rate": sum(value == 1 for value in covered) / len(runs),
             "provider_error_rate": sum(r["provider_error"] is not None for r in runs) / len(runs),
             "pipeline_exception_rate": sum(r["outcome"] == "pipeline_exception" for r in runs)
             / len(runs),
@@ -685,13 +893,25 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "san_legal_rate": sum(t["legal"] for t in san) / len(san) if san else None,
             "san_correct_rate": sum(t["correct"] for t in san) / len(san) if san else None,
             "latency_p50_s": _percentile(latencies, 0.5),
+            "first_token_p50_s": _percentile(
+                [r["first_token_s"] for r in runs if r.get("first_token_s") is not None], 0.5
+            )
+            if any(r.get("first_token_s") is not None for r in runs)
+            else None,
+            "length_stop_rate": sum(r.get("done_reason") == "length" for r in runs) / len(runs),
+            "thinking_calls": sum(
+                bool(r.get("thinking_chars")) or bool(r.get("think_tag_in_content")) for r in runs
+            ),
             "latency_p95_s": _percentile(latencies, 0.95),
             "within_production_limit_rate": sum(
                 lat <= config.production_time_limit_s for lat in latencies
             )
             / len(latencies),
             "load_and_first_call_s": load["load_and_first_call_s"],
-            "vram_model_gib": load["ollama_size_vram_bytes"] / 2**30,
+            # Measured GPU memory rise when the model loads (weights, KV cache and
+            # buffers). Ollama's size_vram under-reports some models (gemma4).
+            "vram_model_gib": (load["gpu_loaded_used_mib"] - load["gpu_idle_used_mib"]) / 1024,
+            "ollama_size_vram_gib": load["ollama_size_vram_bytes"] / 2**30,
             "model_size_gib": load["ollama_size_bytes"] / 2**30,
             "gpu_peak_over_idle_gib": (done[0]["gpu_peak_used_mib"] - done[0]["gpu_idle_used_mib"])
             / 1024
@@ -724,22 +944,33 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"{header['runs_per_position']} runs, GPU {header['gpu']}, "
         f"Ollama {header['ollama_version']}.",
         "",
-        "| Model | Role | Params (B) | Grounding pass | Provider errors | Claims / expl. "
+        "Coverage: share of three key engine facts (played move, key move, result) that "
+        "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
+        "coverage: share of all calls accepted with all three facts.",
+        "",
+        "| Model | Role | Params (B) | Grounding pass | Coverage (accepted) "
+        "| Delivered coverage | Full coverage | Provider errors | Claims / expl. "
         "| False chess statements / expl. | Rejected claims / expl. | SAN legal | SAN correct "
-        "(SAN tokens) | Latency p50 / p95 (s) | Within 4 s | VRAM (GiB) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "(SAN tokens) | Latency p50 / p95 (s) | First token p50 (s) | Within 4 s "
+        "| Hit output cap | Calls that thought | GPU memory (GiB) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, row in summary["models"].items():
         lines.append(
             f"| {name} | {row['role']} | {row['params_b']} "
-            f"| {row['grounding_pass_rate']:.1%} | {row['provider_error_rate']:.1%} "
+            f"| {row['grounding_pass_rate']:.1%} "
+            f"| {_fmt(row['coverage_accepted'], '.1%')} | {row['delivered_coverage']:.1%} "
+            f"| {row['full_coverage_rate']:.1%} | {row['provider_error_rate']:.1%} "
             f"| {_fmt(row['claims_per_explanation'], '.2f')} "
             f"| {_fmt(row['false_chess_statements_per_explanation'], '.2f')} "
             f"| {_fmt(row['rejected_claims_per_explanation'], '.2f')} "
             f"| {_fmt(row['san_legal_rate'], '.1%')} "
             f"| {_fmt(row['san_correct_rate'], '.1%')} ({row['san_tokens']}) "
             f"| {row['latency_p50_s']:.2f} / {row['latency_p95_s']:.2f} "
-            f"| {row['within_production_limit_rate']:.1%} | {row['vram_model_gib']:.2f} |"
+            f"| {_fmt(row.get('first_token_p50_s'), '.2f')} "
+            f"| {row['within_production_limit_rate']:.1%} "
+            f"| {row.get('length_stop_rate', 0):.1%} | {row.get('thinking_calls', 0)} "
+            f"| {row['vram_model_gib']:.2f} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -771,12 +1002,7 @@ async def run(
     if sink.exists():
         records = _read(sink)
         header = next(r for r in records if r.get("record") == "header")
-        pinned = ("pipeline_entry", "grounding_context", "module_file", "module_sha256")
-        if any(header["pipeline"][key] != identity[key] for key in pinned):
-            raise RuntimeError(
-                f"Resume refused: pipeline changed since the run started: "
-                f"{header['pipeline']} != {identity}"
-            )
+        refuse_resume(header, identity)
         done = {
             (r["model"], r["position_id"], r["run"]) for r in records if r.get("record") == "run"
         }
