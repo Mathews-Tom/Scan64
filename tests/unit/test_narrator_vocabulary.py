@@ -81,7 +81,7 @@ def test_threat_fails_on_a_position_with_no_threat_fact() -> None:
 
 def test_a_passed_factor_name_is_allowed_and_an_absent_one_is_not() -> None:
     text = "After {played}, your king safety suffered: {factor:king_safety:best}."
-    assert "king safety fell by" in _validate(text, MISSED_THREAT)
+    assert "king safety is" in _validate(text, MISSED_THREAT)
     plain = "After {played}, your king safety suffered."
     assert _reason(plain, NO_KING) == "chess_token_outside_slot"
 

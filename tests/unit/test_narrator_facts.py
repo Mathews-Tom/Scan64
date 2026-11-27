@@ -402,7 +402,9 @@ class _Provider:
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
         self.requests.append(request)
-        match = re.search(r"^Evidence (\S+?)[,:]", request.messages[-1].content, re.MULTILINE)
+        match = re.search(
+            r'^Evidence item, evidence_ref "([^"]+)"', request.messages[-1].content, re.MULTILINE
+        )
         assert match is not None
         return GeneratedExplanation(
             claims=(

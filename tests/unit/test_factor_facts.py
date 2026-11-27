@@ -196,8 +196,12 @@ def test_lesson_factor_slots_are_code_rendered_and_labelled() -> None:
         if (c.key, c.compared_with) == ("king_safety", "best")
     )
     assert king.value == (
-        f"king safety fell by {abs(change.change_pawns):.2f} pawns for you, "
-        "compared with the best move"
+        f"after your move, king safety is {abs(change.change_pawns):.2f} pawns worse for you "
+        "than after the best move"
+    )
+    before = next(c for c in facts.factors.changes if c.compared_with == "before")  # type: ignore[union-attr]
+    assert factor[f"factor:{before.key}:played"].value == (
+        f"after your move, {before.name} fell by {abs(before.change_pawns):.2f} pawns for you"
     )
     assert king.source == FACTOR_SOURCE
     assert all(slot.source == FACTOR_SOURCE for slot in factor.values())
@@ -232,8 +236,8 @@ def test_analysis_board_factor_slots_name_their_line() -> None:
         slots = catalogue.slots_for(line.line_id)
         for change in line.factors.changes:
             slot = slots[f"factor:{change.key}:{line.line_id}"]
-            assert slot.value.startswith(f"over line {line.rank}, {change.name} ")
-            assert slot.value.endswith("for the side to move, compared with line 1")
+            assert slot.value.startswith(f"in line {line.rank}, {change.name} is ")
+            assert slot.value.endswith("for the side to move than in line 1")
             assert slot.source == FACTOR_SOURCE
     assert any(line.factors and line.factors.changes for line in facts.lines[1:])
 
@@ -243,15 +247,19 @@ def test_analysis_board_factor_slots_name_their_line() -> None:
 
 def test_the_prompt_lists_the_factor_slots_and_names_causes_only_through_them() -> None:
     from scan64.explanations.assembly import _explanation_request
+    from scan64.explanations.slots import FACTOR_SLOT_SUFFIX
 
     facts = _facts(CLEAR_CAUSE)
     system, slots = _explanation_request(facts).messages
     assert "Name a cause only through a {factor:...} slot" in system.content
     assert "With no factor slot, name no cause." in system.content
     for change in facts.factors.changes:  # type: ignore[union-attr]
-        assert f"{{factor:{change.key}:{change.compared_with}}} = {change.name} " in slots.content
+        suffix = FACTOR_SLOT_SUFFIX[change.compared_with]
+        assert f"{{factor:{change.key}:{suffix}}} = after your move, {change.name} " in (
+            slots.content
+        )
     assert f"come from {FACTOR_SOURCE}." in slots.content
-    assert "king" in slots.content.split("Chess words allowed outside slots: ")[1]
+    assert "king" in slots.content.split("Chess words allowed: ")[1]
     none = _explanation_request(_facts(NO_CAUSE)).messages[1].content
     assert "{factor:" not in none and FACTOR_SOURCE not in none
 

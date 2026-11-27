@@ -104,7 +104,7 @@ def chess_words_outside_slots(prose: str, words: frozenset[str]) -> str | None:
 # Prompt layout (#408): plies of a line shown in the prompt, and plies whose
 # clause slots ({capture:L:N} ...) the prompt lists. Validation is not limited.
 PROMPT_LINE_PLIES = 6
-PROMPT_CLAUSE_PLIES = 3
+PROMPT_CLAUSE_PLIES = 2
 
 
 @dataclass(frozen=True)
@@ -151,6 +151,8 @@ class SlotCatalogue:
     # Fact names per evidence item beyond its slot names: the mistake class,
     # the evidence tactic and the passed factor changes (vocabulary rule).
     terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # An example claim text built from this catalogue's own slots (prompt only).
+    example: str | None = None
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})
@@ -202,15 +204,17 @@ class SlotCatalogue:
         sources = sorted({s.source for _, slots in items for s in slots.values() if s.source})
         for evidence_id, slots in items:
             used = [g for g in groups if any(s.group == g for s in slots.values())]
-            lines = f", lines {', '.join(used)}" if used else ""
-            out.append(f"Evidence {evidence_id}{lines}:")
+            lines = f"; lines {', '.join(used)}" if used else ""
+            out.append(f'Evidence item, evidence_ref "{evidence_id}"{lines}:')
             for name, slot in slots.items():
                 if slot.group is None and name not in self.shared:
                     emit(slot)
             allowed = sorted(w for w in self.vocabulary(evidence_id) if CHESS_WORDS.fullmatch(w))
             if allowed:
-                out.append(f"Chess words allowed outside slots: {', '.join(allowed)}.")
+                out.append(f"Chess words allowed: {', '.join(allowed)}.")
         out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
+        if self.example:
+            out.append(f'Example claim text with these slots: "{self.example}"')
         return "\n".join(out)
 
 
@@ -375,15 +379,28 @@ def line_slots(
 
 
 def factor_value(change: FactorChange, side: str, reference: str, lead: str = "") -> str:
-    """``king safety fell by 0.70 pawns for you, compared with the best move``."""
-    direction = "rose" if change.change_pawns > 0 else "fell"
-    return (
-        f"{lead}{change.name} {direction} by {abs(change.change_pawns):.2f} pawns for {side}, "
-        f"compared with {reference}"
-    )
+    """A clause stating one change, for example (``reference`` in brackets):
+
+    - ``""``: ``after your move, king safety fell by 0.65 pawns for you``;
+    - ``"after the best move"``: ``after your move, king safety is 0.60 pawns worse for
+      you than after the best move``.
+
+    ``lead`` (``after your move, ``; Analysis Board ``in line 2, ``) names the
+    position the change belongs to, so the value is true wherever it is placed.
+    """
+    amount = f"{abs(change.change_pawns):.2f} pawns"
+    if not reference:
+        direction = "rose" if change.change_pawns > 0 else "fell"
+        return f"{lead}{change.name} {direction} by {amount} for {side}"
+    relation = "better" if change.change_pawns > 0 else "worse"
+    return f"{lead}{change.name} is {amount} {relation} for {side} than {reference}"
 
 
-FACTOR_REFERENCES = {"before": "before your move", "best": "the best move"}
+# The reference point of a lesson factor change, as code words it, and the
+# slot suffix: {factor:KEY:played} is what your move changed (from the
+# position before it), {factor:KEY:best} the gap to the best move.
+FACTOR_REFERENCES = {"before": "", "best": "after the best move"}
+FACTOR_SLOT_SUFFIX = {"before": "played", "best": "best"}
 
 
 def factor_slots(
@@ -399,7 +416,7 @@ def factor_slots(
         return []
     return [
         Slot(
-            f"factor:{change.key}:{suffix or change.compared_with}",
+            f"factor:{change.key}:{suffix or FACTOR_SLOT_SUFFIX[change.compared_with]}",
             factor_value(change, side, references[change.compared_with], lead),
             "",
             phrase=True,
@@ -464,7 +481,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     shared += move_event_slots("played", played, (played.uci,))
     best = position.best_move
     if best is not None:
-        shared.append(Slot("best", best.san, "the engine's best move", (best.uci,)))
+        shared.append(Slot("best", best.san, "the move you should have played", (best.uci,)))
         shared += move_event_slots("best", best, (best.uci,))
     shared.append(Slot("mistake", position.mistake_class.name, "the mistake class", phrase=True))
     for name, evaluation, meaning in (
@@ -474,7 +491,9 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         value = evaluation_value(evaluation, side=LEARNER, other=OPPONENT)
         if value is not None:
             shared.append(Slot(name, value, meaning, phrase=value.startswith("mate")))
-    shared += factor_slots(facts.factors, side="you", references=FACTOR_REFERENCES)
+    shared += factor_slots(
+        facts.factors, side="you", references=FACTOR_REFERENCES, lead="after your move, "
+    )
     difference = position.evaluation_difference_cp
     if difference is not None and difference > 0:
         shared.append(
@@ -502,8 +521,31 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         tactic = (item.tactic.replace("_", " "),) if item.tactic else ()
         terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_names)
     return SlotCatalogue(
-        by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared), terms=terms
+        by_evidence=by_evidence,
+        shared=frozenset(slot.name for slot in shared),
+        terms=terms,
+        example=_lesson_example({slot.name for slot in shared}),
     )
+
+
+def _lesson_example(names: set[str]) -> str:
+    """``You played {played}, but {best} was stronger: {capture:best}.`` from existing slots."""
+    if "best" not in names:
+        return "You played {played}, a {mistake}."
+    text = "You played {played}, but {best} was stronger"
+    clause = next(
+        (
+            f"{kind}:best"
+            for kind in ("capture", "mate", "check", "threat")
+            if f"{kind}:best" in names
+        ),
+        None,
+    )
+    text += f": {{{clause}}}." if clause else "."
+    factor = next((name for name in sorted(names) if name.startswith("factor:")), None)
+    if factor is not None:
+        text += f" That was a {{mistake}}: {{{factor}}}."
+    return text
 
 
 __all__ = [
@@ -518,6 +560,8 @@ __all__ = [
     "SlotCatalogue",
     "chess_words_outside_slots",
     "evaluation_value",
+    "FACTOR_REFERENCES",
+    "FACTOR_SLOT_SUFFIX",
     "factor_slots",
     "factor_value",
     "lesson_slot_catalogue",

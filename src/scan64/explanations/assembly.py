@@ -125,7 +125,7 @@ def slot_rules(names: str, example: str) -> str:
         "or evaluations. Use a chess word only if the slot list allows it.\n"
         "- Name a cause only through a {factor:...} slot. With no factor slot, name no "
         "cause.\n"
-        f'Example claim text: "{example}"'
+        f"- Use only slot names the slot list holds. {example}"
     )
 
 
@@ -135,12 +135,14 @@ NARRATOR_SYSTEM_PROMPT = (
     "words around them.\n"
     "- "
     + slot_rules(
-        "{played} or {line:L1}", "You played {played}, but {best} was stronger: {capture:best}."
+        "{played} or {line:L1}",
+        "The slot list ends with an example claim text.",
     )
     + "\n"
     "Answer with claims. Each claim: text (one or two plain sentences with slots), "
-    'evidence_ref (an evidence id from the slot list), line [], certainty "observed", '
-    'disclosure_level 1. Call the learner "you" and the other side "your opponent".'
+    "evidence_ref (the quoted evidence_ref of an evidence item, never a line id), line [], "
+    'certainty "observed", disclosure_level 1. Call the learner "you" and the other side '
+    '"your opponent".'
 )
 
 

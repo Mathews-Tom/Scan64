@@ -475,9 +475,9 @@ def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
     slots += factor_slots(
         line.factors,
         side=SIDE_TO_MOVE,
-        references={"best": "line 1"},
+        references={"best": "in line 1"},
         suffix=lid,
-        lead=f"over line {k}, ",
+        lead=f"in line {k}, ",
     )
     # Every slot of the line is listed under the line and links a claim to it.
     slots = [replace(slot, group=lid, cite=None if slot.moves else line.uci[:1]) for slot in slots]
@@ -503,7 +503,15 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
             slot.name: slot
             for slot in (*shared, *(slot for slots in per_line.values() for slot in slots))
         }
-    return SlotCatalogue(by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared))
+    names = {name for slots in by_evidence.values() for name in slots}
+    example = "{label:line-1} starts with {first:line-1}."
+    if "diff:line-2" in names:
+        example = "{label:line-2} starts with {first:line-2} and scores {diff:line-2}."
+    return SlotCatalogue(
+        by_evidence=by_evidence,
+        shared=frozenset(slot.name for slot in shared),
+        example=example,
+    )
 
 
 def board_slot_grounding(facts: BoardLinesFacts) -> GroundedExplanationContext:
@@ -655,14 +663,14 @@ BOARD_NARRATOR_SYSTEM_PROMPT = (
     "- "
     + slot_rules(
         "{first:line-1} or {line:line-1}",
-        "{label:line-2} starts with {first:line-2} and scores {diff:line-2}.",
+        "The slot list ends with an example claim text.",
     )
     + "\n"
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
     "lines. Each claim: text (one or two plain sentences with slots), evidence_ref (the "
-    f'evidence id of the line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing '
-    'lines), line [], certainty "observed", disclosure_level 1. Call the sides "the side to '
-    'move" and "the opponent".'
+    f'quoted evidence_ref of its line, or "{COMPARISON_EVIDENCE_ID}" to compare lines), '
+    'line [], certainty "observed", disclosure_level 1. Call the sides "the side to move" '
+    'and "the opponent".'
 )
 
 

@@ -76,7 +76,9 @@ def ollama_tokens(url: str, model: str, request: ExplanationRequest) -> int:
 
 def main() -> None:
     ollama = sys.argv[2:4] if len(sys.argv) >= 4 and sys.argv[1] == "--ollama" else None
-    for label, requests in (("lessons", lesson_requests()), ("board", board_requests())):
+    sets = [("lessons", lesson_requests())]
+    sets += [(f"board MultiPV {count}", board_requests(count)) for count in (3, 4)]
+    for label, requests in sets:
         rows = []
         for name, request in requests.items():
             real = ollama_tokens(*ollama, request) if ollama else None
