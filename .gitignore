@@ -234,3 +234,7 @@ pnpm-debug.log*
 
 # Operator-provided neural-network weights
 *.pb.gz
+
+.campaign/*/.markers/
+.campaign/*/worktrees/
+.campaign/*/check.lock
