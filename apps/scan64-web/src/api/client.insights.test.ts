@@ -62,6 +62,15 @@ describe('explainPosition', () => {
     });
   });
 
+  it('passes the abort signal to the request', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetch);
+    const signal = new AbortController().signal;
+    await ApiClient.explainPosition({ player_id: 'p', fen: 'position' }, signal);
+    expect(fetch).toHaveBeenCalledWith('/v1/analysis/position/explanation', expect.objectContaining({ signal }));
+  });
+
   it('preserves the status and server detail of a rejected request', async () => {
     localStorage.setItem('scan64_player_token:p', 'secret');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 422, statusText: 'Unprocessable', json: async () => ({ detail: 'multipv exceeds the 4-line analysis limit' }) }));
