@@ -203,8 +203,9 @@ async def test_grounded_provider_wording_replaces_the_template() -> None:
     ]
     assert [claim.line for claim in resolved.explanation.claims] == [("e2e4",), ("g1f3",)]
     [request] = provider.requests
-    assert BoardLinesFacts.model_validate_json(request.messages[1].content) == facts
-    assert request.messages[2].content == board_slot_catalogue(facts).prompt()
+    # The model gets the slot list only (#408); the facts stay in the pipeline.
+    assert [m.role for m in request.messages] == ["system", "user"]
+    assert request.messages[1].content == board_slot_catalogue(facts).prompt()
 
 
 @pytest.mark.asyncio

@@ -147,9 +147,38 @@ def validate_generated_explanation(
             claims.append(claim)
         else:
             text = render_slot_text(claim.text, context.slots, claim.evidence_ref)
-            claims.append(claim.model_copy(update={"text": text}))
+            update: dict[str, Any] = {"text": text}
+            if not claim.line:
+                update["line"] = slot_citation(
+                    claim.text,
+                    context.slots,
+                    claim.evidence_ref,
+                    context.verified_lines.get(claim.evidence_ref, ()),
+                )
+            claims.append(claim.model_copy(update=update))
 
     return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
+
+
+def slot_citation(
+    text: str,
+    catalogue: SlotCatalogue,
+    evidence_id: str,
+    verified: Iterable[tuple[str, ...]],
+) -> tuple[str, ...]:
+    """The line a slot claim cites when it names none (#408).
+
+    The longest ``Slot.citation`` among the claim's slots that is a prefix of
+    a verified line of its evidence item; ``()`` when no slot belongs to a line.
+    """
+    slots = catalogue.slots_for(evidence_id)
+    lines = tuple(verified)
+    best: tuple[str, ...] = ()
+    for match in SLOT_TOKEN.finditer(text):
+        cited = slots[match.group("name")].citation
+        if len(cited) > len(best) and any(line[: len(cited)] == cited for line in lines):
+            best = cited
+    return best
 
 
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:

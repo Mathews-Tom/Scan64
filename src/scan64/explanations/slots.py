@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import chess
 
@@ -101,6 +101,12 @@ def chess_words_outside_slots(prose: str, words: frozenset[str]) -> str | None:
     return None
 
 
+# Prompt layout (#408): plies of a line shown in the prompt, and plies whose
+# clause slots ({capture:L:N} ...) the prompt lists. Validation is not limited.
+PROMPT_LINE_PLIES = 6
+PROMPT_CLAUSE_PLIES = 3
+
+
 @dataclass(frozen=True)
 class Slot:
     """One fact the narrator may name. ``value`` is code-rendered.
@@ -110,6 +116,12 @@ class Slot:
     as opposed to SAN, which keeps its case. ``source`` labels a value that
     comes from a module other than the engine and the board, such as the
     factor module version of a factor slot.
+
+    ``group`` (a line ID), ``listed`` and ``preview`` shape the prompt only:
+    the prompt lists a line's slots once under the line, leaves out unlisted
+    slots (every ``{move:L:N}``, clauses of later plies) and shows ``preview``
+    in place of a long value. ``cite`` is the line prefix a claim using this
+    slot is linked to when ``moves`` is empty.
     """
 
     name: str
@@ -118,6 +130,16 @@ class Slot:
     moves: tuple[str, ...] = ()
     phrase: bool = False
     source: str | None = None
+    # Prompt layout only; validation accepts every slot of the catalogue.
+    group: str | None = None
+    listed: bool = True
+    preview: str | None = None
+    cite: tuple[str, ...] | None = None
+
+    @property
+    def citation(self) -> tuple[str, ...]:
+        """The line prefix a claim using this slot cites when it names none."""
+        return self.cite if self.cite is not None else self.moves
 
 
 @dataclass(frozen=True)
@@ -141,33 +163,60 @@ class SlotCatalogue:
         return frozenset(name for slots in self.by_evidence.values() for name in slots)
 
     def prompt(self) -> str:
-        """The slot list the narrator receives as its last user message."""
-        lines = [
-            "Slots. Write each chess fact as one of these slots, in braces. Code puts the "
-            "value after = in its place. A claim may use only the slots listed for the "
-            "evidence item it cites."
-        ]
+        """The slot list, the narrator's only user message (#408: no facts JSON).
+
+        Each listed slot appears once: position slots, then each line's slots
+        under the line, then each evidence item with its lines, its own slots
+        and the chess words it allows outside slots.
+        """
+        out = ["Slot list ({name} = the value code writes in its place):"]
         items = list(self.by_evidence.items())
         if not items:
-            return lines[0]
+            return out[0]
+        shown: set[str] = set()
+
+        def emit(slot: Slot) -> None:
+            if slot.listed and slot.value not in shown:
+                shown.add(slot.value)
+                out.append(_prompt_line(slot))
+
         first = items[0][1]
         shared = [first[name] for name in first if name in self.shared]
-        if shared and len(items) > 1:
-            lines.append("For every evidence item:")
-            lines += [_prompt_line(slot) for slot in shared]
+        if shared:
+            out.append("For every evidence item:")
+            for slot in shared:
+                emit(slot)
+        groups: dict[str, list[Slot]] = {}
+        for _, slots in items:
+            for slot in slots.values():
+                if slot.group is not None and slot.name not in self.shared:
+                    members = groups.setdefault(slot.group, [])
+                    if slot not in members:
+                        members.append(slot)
+        for group, members in groups.items():
+            plies = sum(1 for slot in members if slot.name.startswith(f"move:{group}:"))
+            note = f" {{move:{group}:N}} = move N, N from 1 to {plies}." if plies else ""
+            out.append(f"Line {group}:{note}")
+            for slot in members:
+                emit(slot)
+        sources = sorted({s.source for _, slots in items for s in slots.values() if s.source})
         for evidence_id, slots in items:
-            lines.append(f"For evidence {evidence_id}:")
-            lines += [
-                _prompt_line(slot)
-                for name, slot in slots.items()
-                if len(items) == 1 or name not in self.shared
-            ]
-        return "\n".join(lines)
+            used = [g for g in groups if any(s.group == g for s in slots.values())]
+            lines = f", lines {', '.join(used)}" if used else ""
+            out.append(f"Evidence {evidence_id}{lines}:")
+            for name, slot in slots.items():
+                if slot.group is None and name not in self.shared:
+                    emit(slot)
+            allowed = sorted(w for w in self.vocabulary(evidence_id) if CHESS_WORDS.fullmatch(w))
+            if allowed:
+                out.append(f"Chess words allowed outside slots: {', '.join(allowed)}.")
+        out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
+        return "\n".join(out)
 
 
 def _prompt_line(slot: Slot) -> str:
     meaning = f" ({slot.meaning})" if slot.meaning else ""
-    return f"{{{slot.name}}} = {slot.value}{meaning}"
+    return f"{{{slot.name}}} = {slot.preview or slot.value}{meaning}"
 
 
 def render(text: str, slots: Mapping[str, Slot]) -> str:
@@ -299,23 +348,29 @@ def line_slots(
     uci: Sequence[str],
     moves: Sequence[MoveFacts],
     *,
-    mover_words: Mapping[str, str],
+    mover_words: Mapping[str, str] | None = None,
 ) -> list[Slot]:
-    """``{line:L}``, ``{move:L:N}`` and the clause slots of every ply of one line."""
+    """``{line:L}``, ``{move:L:N}`` and the clause slots of every ply of one line.
+
+    The prompt shows the first ``PROMPT_LINE_PLIES`` plies of the line and the
+    clause slots of the first ``PROMPT_CLAUSE_PLIES`` plies; every slot is valid.
+    """
     full = tuple(uci)
-    slots = [Slot(f"line:{line_id}", numbered_san(board, full), f"engine line {line_id}", full)]
+    value = numbered_san(board, full)
+    preview = None
+    if len(full) > PROMPT_LINE_PLIES:
+        preview = f"{numbered_san(board, full[:PROMPT_LINE_PLIES])} ... ({len(full)} moves)"
+    slots = [Slot(f"line:{line_id}", value, "", full, group=line_id, preview=preview)]
     for move in moves:
         prefix = full[: move.ply]
-        who = mover_words.get(move.mover, move.mover)
         slots.append(
-            Slot(
-                f"move:{line_id}:{move.ply}",
-                move.san,
-                f"move {move.ply} of {line_id}, {who}",
-                prefix,
-            )
+            Slot(f"move:{line_id}:{move.ply}", move.san, "", prefix, group=line_id, listed=False)
         )
-        slots += move_event_slots(f"{line_id}:{move.ply}", move, prefix)
+        who = (mover_words or {}).get(move.mover, "")
+        slots += [
+            replace(slot, meaning=who, group=line_id, listed=move.ply <= PROMPT_CLAUSE_PLIES)
+            for slot in move_event_slots(f"{line_id}:{move.ply}", move, prefix)
+        ]
     return slots
 
 
@@ -346,7 +401,7 @@ def factor_slots(
         Slot(
             f"factor:{change.key}:{suffix or change.compared_with}",
             factor_value(change, side, references[change.compared_with], lead),
-            change.name,
+            "",
             phrase=True,
             source=factors.source,
         )

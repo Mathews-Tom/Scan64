@@ -419,24 +419,24 @@ def _points(value: int) -> str:
 def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
     lid, k = line.line_id, line.rank
     slots = [
-        Slot(f"label:{lid}", f"line {k}", "the line's name", phrase=True),
+        Slot(f"label:{lid}", f"line {k}", "", phrase=True),
         Slot(
             f"first:{lid}",
             numbered_san(board, line.uci[:1]),
-            f"first move of line {k}",
+            "",
             line.uci[:1],
         ),
     ]
     evaluation = evaluation_value(line.evaluation, side=SIDE_TO_MOVE, other=_BOARD_OPPONENT)
     if evaluation is not None:
-        slots.append(Slot(f"eval:{lid}", evaluation, f"engine score of line {k}, side to move"))
+        slots.append(Slot(f"eval:{lid}", evaluation, ""))
     if line.difference_from_best_cp is not None and line.difference_from_best_cp != 0:
         relation = "less" if line.difference_from_best_cp > 0 else "more"
         slots.append(
             Slot(
                 f"diff:{lid}",
                 f"{pawn_units(line.difference_from_best_cp, signed=False)} {relation} than line 1",
-                f"line {k} against line 1, side to move",
+                "",
             )
         )
     outcome = line.outcome
@@ -479,6 +479,8 @@ def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
         suffix=lid,
         lead=f"over line {k}, ",
     )
+    # Every slot of the line is listed under the line and links a claim to it.
+    slots = [replace(slot, group=lid, cite=None if slot.moves else line.uci[:1]) for slot in slots]
     slots += line_slots(lid, board, line.uci, line.moves, mover_words=_BOARD_MOVERS)
     return slots
 
@@ -647,15 +649,9 @@ def template_board_explanation(facts: BoardLinesFacts) -> Explanation:
 # --- Provider wording ----------------------------------------------------------------
 
 BOARD_NARRATOR_SYSTEM_PROMPT = (
-    "You explain the chess engine's top lines for one position. The first user message is a "
-    f"JSON document following the Scan64 schema {BOARD_SCHEMA_VERSION} "
-    "(schemas/board-lines-facts.schema.json). The board library and the chess engine computed "
-    "every fact in it; a field left out has its schema default (no capture, no check, no "
-    "threats). Use only those facts: do not work out moves, captures, checks, threats, "
-    "material or evaluations yourself, and state nothing the facts do not state.\n"
-    "- position: side_to_move is the side whose options the lines are. In move facts, mover "
-    '"learner" is the side to move and "opponent" the other side.\n'
-    "- lines: engine lines in engine order (rank 1 is best), each from the position.\n"
+    "You explain the chess engine's top lines for one position. Code computed every fact "
+    "with the board library, the chess engine and the factor module; you only choose plain "
+    "words around them. Line 1 is the engine's first choice.\n"
     "- "
     + slot_rules(
         "{first:line-1} or {line:line-1}",
@@ -664,11 +660,9 @@ BOARD_NARRATOR_SYSTEM_PROMPT = (
     + "\n"
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
     "lines. Each claim: text (one or two plain sentences with slots), evidence_ref (the "
-    f'line_id of the line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing '
-    'lines), line (a JSON list of UCI move strings such as "e2e4", copied in order from the '
-    "start of that line's uci list, never SAN and never empty; for "
-    f'"{COMPARISON_EVIDENCE_ID}" copy from the line being compared), certainty "observed", '
-    'disclosure_level 1. Call the sides "the side to move" and "the opponent".'
+    f'evidence id of the line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing '
+    'lines), line [], certainty "observed", disclosure_level 1. Call the sides "the side to '
+    'move" and "the opponent".'
 )
 
 
@@ -683,7 +677,6 @@ def board_lines_request(
     return ExplanationRequest(
         messages=(
             LLMMessage(role="system", content=board_narrator_system_prompt(voice)),
-            LLMMessage(role="user", content=facts.to_prompt_json()),
             LLMMessage(role="user", content=board_slot_catalogue(facts).prompt()),
         )
     )

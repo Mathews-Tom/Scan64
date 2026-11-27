@@ -236,3 +236,72 @@ def test_analysis_board_factor_slots_name_their_line() -> None:
             assert slot.value.endswith("for the side to move, compared with line 1")
             assert slot.source == FACTOR_SOURCE
     assert any(line.factors and line.factors.changes for line in facts.lines[1:])
+
+
+# --- Prompt -----------------------------------------------------------------------------
+
+
+def test_the_prompt_lists_the_factor_slots_and_names_causes_only_through_them() -> None:
+    from scan64.explanations.assembly import _explanation_request
+
+    facts = _facts(CLEAR_CAUSE)
+    system, slots = _explanation_request(facts).messages
+    assert "Name a cause only through a {factor:...} slot" in system.content
+    assert "With no factor slot, name no cause." in system.content
+    for change in facts.factors.changes:  # type: ignore[union-attr]
+        assert f"{{factor:{change.key}:{change.compared_with}}} = {change.name} " in slots.content
+    assert f"come from {FACTOR_SOURCE}." in slots.content
+    assert "king" in slots.content.split("Chess words allowed outside slots: ")[1]
+    none = _explanation_request(_facts(NO_CAUSE)).messages[1].content
+    assert "{factor:" not in none and FACTOR_SOURCE not in none
+
+
+def test_a_slot_claim_without_a_line_cites_the_line_of_its_slots() -> None:
+    from chess_lesson_spec import ExplanationClaim
+
+    from scan64.explanations.assembly import grounding_context_for
+    from scan64.explanations.validator import validate_generated_explanation
+    from scan64.providers.llm import GeneratedExplanation
+
+    item = POSITIONS[CLEAR_CAUSE]
+    context = grounding_context_for(
+        Diagnosis(**item["diagnosis"]), [Evidence(**e) for e in item["evidence"]], item["fen"]
+    )
+    evidence_id = context.evidence[0].evidence_id
+    verified = context.verified_lines[evidence_id]
+    claims = (
+        ExplanationClaim(text="See {line:L1}.", evidence_ref=evidence_id, disclosure_level=1),
+        ExplanationClaim(text="Keep calm.", evidence_ref=evidence_id, disclosure_level=1),
+    )
+    explanation = validate_generated_explanation(GeneratedExplanation(claims=claims), context)
+    assert explanation.claims[0].line in verified
+    assert explanation.claims[1].line == ()
+
+
+def test_a_board_comparison_claim_is_linked_through_its_slots() -> None:
+    from chess_lesson_spec import ExplanationClaim
+
+    from scan64.chess.analysis.models import EngineAnalysis
+    from scan64.explanations.board_lines import (
+        COMPARISON_EVIDENCE_ID,
+        _validated_provider_explanation,
+        build_board_lines_facts,
+        claim_line_id,
+        scored_legal_lines,
+    )
+    from scan64.providers.llm import GeneratedExplanation
+
+    entry = json.loads(
+        (Path(__file__).parents[1] / "fixtures/analysis_board_lines.json").read_text("utf-8")
+    )["positions"]["start"]
+    board = chess.Board(entry["fen"])
+    analysis = EngineAnalysis(config=entry["config"], raw_result=entry["raw_result"])
+    facts = build_board_lines_facts(board, scored_legal_lines(board, analysis)[:3])
+    claim = ExplanationClaim(
+        text="{label:line-2} scores {diff:line-2}.",
+        evidence_ref=COMPARISON_EVIDENCE_ID,
+        disclosure_level=1,
+    )
+    [linked] = _validated_provider_explanation(GeneratedExplanation(claims=(claim,)), facts).claims
+    assert linked.line == facts.lines[1].uci[:1]
+    assert claim_line_id(linked, facts) == "line-2"

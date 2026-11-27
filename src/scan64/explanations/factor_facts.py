@@ -52,13 +52,15 @@ class FactorConfig:
     named part of a group. ``excluded_groups`` are never stated: material is
     stated by the capture and material slots; Imbalance and Winnable are
     scaling terms with no plain-word cause. ``max_changes`` caps the facts per
-    comparison, largest first, so the prompt stays small.
+    comparison, largest first, so the prompt stays small; ``max_board_changes``
+    caps them per Analysis Board line (up to four lines share one prompt).
     """
 
     thresholds: Mapping[Literal["group", "term"], float]
     quiet_ply_limit: int
     excluded_groups: frozenset[str]
     max_changes: int
+    max_board_changes: int
 
 
 FACTOR_CONFIG = FactorConfig(
@@ -66,6 +68,7 @@ FACTOR_CONFIG = FactorConfig(
     quiet_ply_limit=8,
     excluded_groups=frozenset({"Material", "Imbalance", "Winnable"}),
     max_changes=3,
+    max_board_changes=2,
 )
 
 # Plain names, learner's view. A name is also the vocabulary the narrator may
@@ -373,6 +376,7 @@ def line_factor_facts(
     changes: list[FactorChange] = []
     if best.values is not None and this.values is not None and swing_cp is not None:
         changes = passed_changes(this.values, best.values, swing_cp, "best", config)
+        changes = changes[: config.max_board_changes]
     return FactorFacts(
         source=FACTOR_SOURCE,
         points=(best.point, this.point),

@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -204,22 +205,24 @@ def test_stored_schema_matches_the_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_prompt_is_schema_valid_json_for_every_fixture_diagnosis() -> None:
+async def test_facts_are_schema_valid_json_and_the_prompt_is_the_slot_list() -> None:
     seen: set[str] = set()
     for case_id, board, evidence, played, swing in _CASES:
         diagnoses = await _diagnoses(evidence, played, swing)
         for diagnosis in diagnoses:
             facts = build_narrator_facts(diagnosis, evidence, board.fen())
             request = assembly._explanation_request(facts)
-            system, user, slots = request.messages
+            # The model gets the system prompt and the slot list only (#408).
+            system, slots = request.messages
             # The default voice is the last line of the system prompt (#387).
             assert system.content.startswith(NARRATOR_SYSTEM_PROMPT + "\n")
             assert system.content == narrator_system_prompt()
             assert slots.content == lesson_slot_catalogue(facts).prompt()
-            parsed = NarratorFacts.model_validate_json(user.content, strict=True)
+            # The facts JSON is kept for validation and storage.
+            stored = facts.to_prompt_json()
+            parsed = NarratorFacts.model_validate_json(stored, strict=True)
             assert parsed == facts, case_id
-            assert user.content == facts.to_prompt_json()
-            assert json.loads(user.content)["schema_version"] == "narrator-facts/1"
+            assert json.loads(stored)["schema_version"] == "narrator-facts/1"
             assert parsed.position.mistake_class.code == diagnosis.primary
             assert parsed.position.played_move.san == played
             for line in parsed.lines:
@@ -399,12 +402,13 @@ class _Provider:
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
         self.requests.append(request)
-        facts = json.loads(request.messages[1].content)
+        match = re.search(r"^Evidence (\S+?)[,:]", request.messages[-1].content, re.MULTILINE)
+        assert match is not None
         return GeneratedExplanation(
             claims=(
                 ExplanationClaim(
                     text=self.text,
-                    evidence_ref=facts["evidence"][0]["evidence_id"],
+                    evidence_ref=match.group(1),
                     line=self.line,
                     disclosure_level=1,
                 ),
@@ -413,7 +417,7 @@ class _Provider:
 
 
 @pytest.mark.asyncio
-async def test_resolve_sends_json_facts_and_accepts_a_continuation_line() -> None:
+async def test_resolve_sends_the_slot_list_and_accepts_a_continuation_line() -> None:
     diagnosis, evidence = _missed_capture()
     provider = _Provider("After {played}, your opponent has a strong reply.", line=("g1f3", "g5g2"))
     explanation = await resolve_explanation(
@@ -421,7 +425,7 @@ async def test_resolve_sends_json_facts_and_accepts_a_continuation_line() -> Non
     )
     assert explanation.claims[0].line == ("g1f3", "g5g2")
     assert explanation.text == "After Nf3, your opponent has a strong reply."
-    NarratorFacts.model_validate_json(provider.requests[0].messages[1].content)
+    assert provider.requests[0].messages[1].content.startswith("Slot list")
 
 
 @pytest.mark.asyncio
