@@ -22,8 +22,10 @@ from scan64.providers.engine import (
     line_from_info,
     load_engine_profile,
 )
+from scan64.providers.engine.config import scaled_nodes
 from scan64.providers.engine.uci import full_strength_options, startup_options
-from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig, search_limit
+from scan64.providers.stockfish.identity import analysis_identity
 from scan64.providers.stockfish.pool import (
     HINT_MULTIPV,
     HINT_NODES,
@@ -205,6 +207,49 @@ def test_engine_identity_keys_never_cross_engines() -> None:
     ethereal = identity("Ethereal 14.40", "c", Threads=1, Hash=16)
     keys = {_key(chess.STARTING_FEN, config) for config in (stockfish, impostor, ethereal)}
     assert None not in keys and len(keys) == 3
+
+
+def test_node_scale_parses_validates_and_scales(tmp_path: Path) -> None:
+    profile = load_engine_profile(
+        write_profile(tmp_path, "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nnode_scale = 0.002\n")
+    )
+    assert profile.node_scale == 0.002
+    assert (
+        load_engine_profile(
+            write_profile(tmp_path, "[engine]\nname = 'x'\nbinary_path = 'x'\n")
+        ).node_scale
+        == 1.0
+    )
+    for bad in ("0", "1.5", "-0.1", "true", "'half'"):
+        with pytest.raises(EngineConfigurationError, match="node_scale"):
+            load_engine_profile(
+                write_profile(
+                    tmp_path, f"[engine]\nname = 'x'\nbinary_path = 'x'\nnode_scale = {bad}\n"
+                )
+            )
+    assert scaled_nodes(1_000_000, 0.002) == 2_000
+    assert scaled_nodes(10, 0.001) == 1
+    assert scaled_nodes(None, 0.5) is None
+    assert search_limit(10_000, None, None, node_scale=0.5).nodes == 5_000
+
+
+def test_node_scale_is_part_of_identity_only_when_not_one() -> None:
+    engine = double("Lc0", ("Threads", "MultiPV"))
+    raw = {"engine_name": "Lc0", "engine_version": "sha256:" + "d" * 64, "network": None}
+    default = analysis_identity(engine, raw, 1, 1.0)
+    scaled = analysis_identity(engine, raw, 1, 0.002)
+    # Rows written before node_scale existed keep their exact reuse key.
+    assert "node_scale" not in default
+    assert scaled["node_scale"] == 0.002
+    keys = {
+        _key(chess.STARTING_FEN, dict(c, nodes=10_000, depth=None, time_ms=None, multipv=1))
+        for c in (default, scaled)
+    }
+    assert None not in keys and len(keys) == 2
+    assert (
+        EngineConfig(binary_path="x", name="e", node_scale=0.5).fingerprint()
+        != EngineConfig(binary_path="x", name="e", node_scale=1.0).fingerprint()
+    )
 
 
 def test_startup_and_reset_send_only_declared_options() -> None:

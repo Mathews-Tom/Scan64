@@ -24,6 +24,7 @@ name = "ethereal"                                  # label for logs; not part of
 binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands) or a bare command on PATH
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
+node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
 
 [engine.options]          # extra UCI options; each must be declared by the engine
 UCI_ShowWDL = true
@@ -50,6 +51,15 @@ Rules (all enforced at load or engine start, failing with the file and key):
 - The only per-use override today is `hint` (interactive hints; it still runs
   inside the three-second hint deadline). Review (10,000 nodes), focused passes,
   lesson verification and mate-source searches keep the budgets in their callers.
+- `engine.node_scale` (default 1) scales every node budget Scan64 sends to this
+  engine: game analysis, focused passes, hints, lesson verification, Analysis
+  Board lines, the bot ladder and Skill Level play. The budgets are sized for an
+  alpha-beta engine's nodes/second; an engine with slow neural nodes (Lc0,
+  Maia-3) sets a value below 1, for example `0.002` so that a 1,000,000-node
+  focused search sends 2,000 nodes. The engine receives at least 1 node. Stored
+  rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
+  1, so rows from different scales never reuse each other; rows at scale 1 keep
+  their pre-existing reuse key.
 - The profile file is re-read when its modification time or size changes; a
   running pool keeps the processes it started with.
 
@@ -137,7 +147,7 @@ is now `EngineConfig` and reads the active profile.
 | `chess/games/clocks.py:266–285` | Clocked opponent uses `StockfishOpponentProvider(StockfishConfig())` | Same as opponents. |
 | `learning/tolerance.py:11` | `win_probability` uses the Lichess logistic on `score_cp` | Assumes Stockfish-scale centipawns. Ethereal and Berserk declare a `Normalize` option (default on); other engines' scales can differ. Not engine-adjusted. |
 | `chess/analysis/orchestration.py:91–102`, `jobs.py` (swing 150 cp), `learning/diagnosis/arbitration.py` ("Eval drop >= 2.0") | Centipawn thresholds and mate-to-score mapping | Same score-scale assumption. |
-| `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; others fixed. Lc0 nodes cost far more time than alpha-beta nodes. |
+| `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; every budget scales by `engine.node_scale` for engines with slow nodes (Lc0, Maia-3). |
 | `learning/exercises/exact_replay.py:42` | `Verification(engine="stockfish")` label | Label only; does not record the actual engine. Follow-up. |
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
 | `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |

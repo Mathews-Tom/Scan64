@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import os
 from collections import OrderedDict
 from collections.abc import AsyncGenerator
@@ -11,7 +12,7 @@ import chess.engine
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.opponents.bot_policy import choose_ladder_move
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import UciOptionValue
+from scan64.providers.engine.config import UciOptionValue, scaled_nodes
 from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
@@ -97,7 +98,9 @@ class PooledStockfishAdapter:
     async def analysis_identity(self) -> dict[str, Any]:
         await self.ensure_started()
         assert self._engine is not None and self._identity is not None
-        return analysis_identity(self._engine, self._identity, self.config.threads)
+        return analysis_identity(
+            self._engine, self._identity, self.config.threads, self.config.node_scale
+        )
 
     async def reset(self) -> None:
         """Force the next UCI call to present a fresh game identity.
@@ -128,8 +131,9 @@ class PooledStockfishAdapter:
         options["Skill Level"] = skill_level
         await engine.configure(options)
         board = chess.Board(fen)
+        scaled = dataclasses.replace(limit, nodes=scaled_nodes(limit.nodes, self.config.node_scale))
         return await self._engine.play(
-            board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
+            board, scaled, info=chess.engine.INFO_SCORE, game=self.game_token
         )
 
     async def play_bot_move(self, fen: str, context: OpponentContext) -> chess.engine.PlayResult:
@@ -137,7 +141,13 @@ class PooledStockfishAdapter:
         assert self._engine is not None
         engine = self._engine
         try:
-            return await choose_ladder_move(engine, chess.Board(fen), context, self.game_token)
+            return await choose_ladder_move(
+                engine,
+                chess.Board(fen),
+                context,
+                self.game_token,
+                node_scale=self.config.node_scale,
+            )
         except chess.engine.EngineError as error:
             # The ladder resets Stockfish's strength controls and searches every
             # legal move; name the missing option instead of a raw UCI error.
@@ -163,9 +173,8 @@ class PooledStockfishAdapter:
         engine = self._engine
         await engine.configure(full_strength_options(engine, self.config.threads))
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
-        raw_result = await search(
-            engine, board, search_limit(nodes, depth, time_ms), multipv, game=self.game_token
-        )
+        limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
+        raw_result = await search(engine, board, limit, multipv, game=self.game_token)
 
         config_dict = dict(
             await self.analysis_identity(),

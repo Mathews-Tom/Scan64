@@ -50,13 +50,15 @@ def engine_identity(engine: chess.engine.UciProtocol, binary_path: str) -> dict[
 
 
 def analysis_identity(
-    engine: chess.engine.UciProtocol, identity: dict[str, Any], threads: int
+    engine: chess.engine.UciProtocol, identity: dict[str, Any], threads: int, node_scale: float
 ) -> dict[str, Any]:
     """Include defaults and overrides, not just the two user-facing options.
 
     python-chess manages MultiPV (keyed separately), pondering, analysis mode
     and standard-chess mode. Pool play may have changed the strength controls;
-    analysis restores these exact values before searching.
+    analysis restores these exact values before searching. A profile's
+    ``node_scale`` changes every search, so it is recorded when it is not 1;
+    ``nodes`` stays the Scan64 budget, not the scaled count sent to the engine.
     """
     options = dict(engine.config)
     options.pop("MultiPV", None)
@@ -70,4 +72,6 @@ def analysis_identity(
         "UCI_Chess960": False,
     }
     options.update({name: value for name, value in overrides.items() if name in engine.options})
-    return EngineAnalysisConfig(**identity, options=options).model_dump()
+    if node_scale == 1:
+        return EngineAnalysisConfig(**identity, options=options).model_dump(exclude={"node_scale"})
+    return EngineAnalysisConfig(**identity, options=options, node_scale=node_scale).model_dump()

@@ -129,7 +129,11 @@ async def test_ladder_search_uses_full_strength_and_fixed_nodes(
     engine.analyse.return_value = candidates()
     token = object()
     result = await choose_ladder_move(
-        engine, chess.Board(), OpponentContext(0, bot_level=level, nodes=3210), token
+        engine,
+        chess.Board(),
+        OpponentContext(0, bot_level=level, nodes=3210),
+        token,
+        node_scale=1.0,
     )
     assert result.move in chess.Board().legal_moves
     engine.configure.assert_awaited_once_with(
@@ -147,12 +151,28 @@ async def test_ladder_search_uses_full_strength_and_fixed_nodes(
 async def test_default_nodes_match_production_and_calibration() -> None:
     engine = AsyncMock()
     engine.analyse.return_value = candidates()
-    await choose_ladder_move(engine, chess.Board(), OpponentContext(0, bot_level=1), object())
+    await choose_ladder_move(
+        engine, chess.Board(), OpponentContext(0, bot_level=1), object(), node_scale=1.0
+    )
     assert engine.analyse.await_args.args[1].nodes == DEFAULT_BOT_NODES
     with pytest.raises(ValueError, match="positive"):
         await choose_ladder_move(
-            engine, chess.Board(), OpponentContext(0, bot_level=1, nodes=0), object()
+            engine,
+            chess.Board(),
+            OpponentContext(0, bot_level=1, nodes=0),
+            object(),
+            node_scale=1.0,
         )
+
+
+@pytest.mark.asyncio
+async def test_ladder_budget_follows_the_profile_node_scale() -> None:
+    engine = AsyncMock()
+    engine.analyse.return_value = candidates()
+    await choose_ladder_move(
+        engine, chess.Board(), OpponentContext(0, bot_level=1), object(), node_scale=0.01
+    )
+    assert engine.analyse.await_args.args[1].nodes == DEFAULT_BOT_NODES // 100
 
 
 @pytest.mark.asyncio
