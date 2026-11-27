@@ -1,0 +1,45 @@
+name: Rule change proposal
+description: Propose a change to a rule, the review procedure, CI or the merge settings. The owner decides and makes the change.
+title: "Rule change: "
+labels: ["rule-change"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The rules are CONTRIBUTING.md, docs/review-procedure.md, everything under .github/,
+        scripts/check.sh, scripts/ci_areas.py, scripts/scan64_coord.py and the repository rulesets.
+        Don't open a pull request that changes them; describe the change here instead.
+  - type: input
+    id: rule
+    attributes:
+      label: Rule or file
+      description: For example "CONTRIBUTING.md guardrail 9", "docs/review-procedure.md step 4", or "scripts/ci_areas.py rule for docs/".
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: The failure it comes from
+      description: Links to the pull request, review, CI run or issue where the current rule failed or cost time.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed change
+      description: The exact new text or setting.
+    validations:
+      required: true
+  - type: textarea
+    id: prevents
+    attributes:
+      label: What it prevents
+    validations:
+      required: true
+  - type: textarea
+    id: cost
+    attributes:
+      label: What it costs
+      description: Time per pull request, CI minutes, and who it slows down.
+    validations:
+      required: true

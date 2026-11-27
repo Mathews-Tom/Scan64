@@ -1,5 +1,7 @@
 # Narrator model evaluation (#369, #389)
 
+> **2026-11-26 rerun on the #367 prompt: the 2026-11-26 `praxis-4b` recommendation is out of date.** The rerun ([`summary_20261126_230005`](../../benchmarks/narrator/results/summary_20261126_230005.md), 9 models, RTX 5090) gives `praxis-4b` a 4.0% grounding pass; 56% of its calls hit the output cap, and its 0.00 false chess statements come from answers that never parse. The #389 decision below replaces that recommendation; the pre-#367 runs are under [Earlier runs](#earlier-runs-pre-367-pipeline-only).
+
 Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine and board facts. The validator decides whether its claims replace the template explanation.
 
 Decision: use `gemma4-12b` (Ollama `gemma4:12b`, Apache-2.0). On GPUs with less than 10 GiB free, use `praxis-4b`. See [Decision](#decision). This replaces the 2026-11-26 choice of `praxis-4b`, which was measured on the pre-#367 prompt only.
@@ -239,7 +241,7 @@ The coverage view of these runs is in `rescored_20261126_162415.{md,json}`.
 
 ### CPU only (two models)
 
-`cpu/summary_20261126_170614.{md,json}`, config `narrator_cpu.toml`. Ollama 0.40.18 with no GPU (`size_vram` 0), Intel Core i9-14900HX, first 10 positions x 1 run.
+`cpu/summary_20261126_170614.{md,json}`, runs in `runs_20261126_170614.jsonl`, config `benchmarks/narrator/narrator_cpu.toml` (removed in `e318b0b`; CPU runs are out of scope, and the file is in the git history). A separate Ollama 0.40.18 server on 127.0.0.1:11436 started with `CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu`; its device discovery listed only `cpu`, and Ollama reported `size_vram` 0 for both models, so no layer ran on the GPU. CPU: Intel Core i9-14900HX, 32 logical cores. First 10 positions x 1 run, same pipeline and module hash as the GPU runs. The summary header names the GPU present in the machine, not one in use.
 
 | Model | Latency p50 / p95 (s) | Grounding pass (10 calls) |
 |---|---|---|

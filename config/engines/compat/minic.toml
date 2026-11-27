@@ -1,0 +1,4 @@
+# Compat set (#397): MultiPV capped below 8, a non-standard WDL option.
+[engine]
+name = "minic"
+binary_path = "~/.local/opt/engines/Minic"
