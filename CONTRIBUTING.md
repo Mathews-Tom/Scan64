@@ -40,13 +40,13 @@ export SCAN64_DATA_DIR=/tmp/scan64-contributing-data
 
 ## Checks and documentation
 
-CI runs the repository gate on every pull request. Locally, run the checks that cover your change ([rule 9](#rules)). Run the whole gate yourself only before an epic merges into `main`, before a release, or when no narrower check covers the change:
+CI runs the jobs that a pull request's changed files can affect, as chosen by `scripts/ci_areas.py`: Python tests on Linux and macOS, Python static checks, the web client, and the desktop shell. A file that no rule recognises runs every job. Pull requests into `main`, and every push to `main` or an epic branch, run all of them. The `Gate` job reports the result as the one required check. Locally, run the checks that cover your change ([rule 9](#rules)). `scripts/check.sh` has the same sections as CI. Name the ones you need, and run all of them only before an epic merges into `main`, before a release, or when no narrower check covers the change:
 
 ```sh
-scripts/check.sh
+scripts/check.sh python-tests python-static   # sections: python-tests, python-static, web, desktop; none runs all
 ```
 
-It covers backend tests excluding `real_model`, Ruff, strict typing, recorded diagnosis precision, dependency licences, the production web build, frontend lint/unit tests and Playwright. The checkpoint-dependent [Maia operator gate](docs/maia.md#verify) and the web client's Lighthouse report are separate.
+It covers backend tests excluding `real_model` (in four pytest-xdist workers), Ruff, strict typing, recorded diagnosis precision, dependency licences, the production web build, frontend lint/unit tests and Playwright, and the desktop shell's cargo format, Clippy and tests. The checkpoint-dependent [Maia operator gate](docs/maia.md#verify) and the web client's Lighthouse report are separate.
 
 Keep board coverage based on real pointer interaction, alongside keyboard UCI/SAN, readable-position, promotion, focus and responsive controls; do not replace it with test-only move hooks. Human macOS Safari/VoiceOver acceptance is still pending owner observation, not an automated pass. Record actual versions and observations when completing that acceptance.
 
@@ -112,7 +112,19 @@ Each rule below comes from a real failure, review finding or repair round in Sca
 | 30 | Feature pull requests never edit `CHANGELOG.md` or version files. A release is prepared once, after its changes merge. | Changelog conflicts and half-released trains |
 | 31 | Release versions never use semver prereleases such as `1.0.0-rc.1`. Tauri writes the version verbatim into the `.deb` control file, where dpkg orders `1.0.0-rc.1` above `1.0.0`. | A final release that installs as a downgrade |
 
-Propose a new rule in the pull request that fixes the failure it comes from.
+Propose a new rule, or a change to one, in a rule-change issue that links the failure it comes from ([Changing the rules](#changing-the-rules)).
+
+## Changing the rules
+
+Only the owner (Tom, `Mathews-Tom`) changes Scan64's rules. They are:
+
+- this file, `CONTRIBUTING.md`
+- the [review procedure](docs/review-procedure.md)
+- everything under `.github/`: workflows, `CODEOWNERS`, and the pull request and issue templates
+- `scripts/check.sh`, `scripts/ci_areas.py` and `scripts/scan64_coord.py`
+- the repository rulesets and settings
+
+`CODEOWNERS` makes every change to these files need the owner's approval, and only repository admins can change rulesets. Contributors and agents don't edit them, not even to fix a typo. To propose a change, open a [rule-change issue](https://github.com/Mathews-Tom/Scan64/issues/new?template=rule-change.yml) that gives the failure it comes from, the exact change, what it prevents and what it costs. The owner decides on the issue and makes the change.
 
 ## Local desktop builds
 
@@ -190,11 +202,17 @@ If an LLM fits both GPUs, it runs on the 5090. If an engine runs on Linux and Wi
 2. **Claim before you start:** `scan64-coord claim <N>`. It refuses a ticket that another machine has claimed.
 3. **Never push to a ticket that another machine claimed.** To hand over, agree in a comment on the ticket, then run `scan64-coord claim <N> --takeover`. For a share of a ticket another machine owns, `scan64-coord split <N> "<title>"` creates and claims a sub-issue.
 4. **Release when you stop:** `scan64-coord release <N> --review` when your PR is open (the machine keeps the claim, and the ticket's open PRs get its label); `--done` when the work is merged; no flag to give the ticket back.
-5. **Tests on another OS only when the change can behave differently there.** CI runs the full Python suite on Linux, the Python suite and strict typing on macOS (`Python (macos-15)`), and the desktop smoke test and installer build on all three OSes. Add `needs-test:windows` or `needs-test:mac` only when the PR touches something CI can't check on that OS: Windows behaviour beyond the desktop smoke test (paths, process handling, CRLF), macOS versions newer than CI's, the installed desktop app, or Safari and WebKit rendering. Say in a PR comment what to check. The machine with that OS runs those checks and the changed test files, and posts the results as a PR comment. It does not push to the PR. Both Macs see `needs-test:mac`; to reach one of them only, for example for a Safari 14–16 check, use `scan64-coord ask <N> mac-old "<request>"`.
+5. **Tests on another OS only when the change can behave differently there.** When a pull request changes Python code, CI runs the Python suite on Linux and the suite and static checks on macOS (`Python (macos-15)`). When it changes the desktop shell or its build files, CI runs the desktop smoke test and installer build on all three OSes. Pull requests into `main` run all of them. Add `needs-test:windows` or `needs-test:mac` only when the PR touches something CI can't check on that OS: Windows behaviour beyond the desktop smoke test (paths, process handling, CRLF), macOS versions newer than CI's, the installed desktop app, or Safari and WebKit rendering. Say in a PR comment what to check. The machine with that OS runs those checks and the changed test files, and posts the results as a PR comment. It does not push to the PR. Both Macs see `needs-test:mac`; to reach one of them only, for example for a Safari 14–16 check, use `scan64-coord ask <N> mac-old "<request>"`.
 6. **Requests between machines go through GitHub, not chat.** `scan64-coord ask <N> <machine> "<request>"` comments on issue or PR N and adds `needs:<machine>`. The other machine sees N under "Waiting on this machine" in its status at session start, acts, and replies with `scan64-coord answer <N> "<result>"`, which removes the label. Requests without a ticket go on the coordination issue #404. Requests for a person rather than an agent mention them in the comment as usual.
-7. **Every change goes through a pull request.** This includes one-line fixes and changes to an epic branch. Never push directly to `main` or to an epic branch. Name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Anyone can merge any pull request, their own included, once someone other than its author has approved it and the required checks pass. A push after the approval needs a new approval. GitHub enforces this on `main` and on `epic/*` branches.
+7. **Every change goes through a pull request.** This includes one-line fixes and changes to an epic branch. Never push directly to `main` or to an epic branch. Name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Anyone can merge a pull request into an epic branch, their own included, once all of these hold for its current head commit:
+   - the `Gate` check passed;
+   - a review under the [review procedure](docs/review-procedure.md) set the `scan64/review` status to success;
+   - no "Request changes" review is open;
+   - if it touches a path in [`.github/CODEOWNERS`](.github/CODEOWNERS), a listed owner other than its author approved it.
+
+   A reviewer files a blocking finding as "Request changes", or as a failed `scan64/review` status when reviewing on the author's own account, and everything else as a comment. A pull request into `main` also needs an approval from someone other than its author after its last push. GitHub enforces all of this on `main` and on `epic/*` branches.
 8. **No status files in the repository.** Status lives on the board and in the issues. Local campaign notes stay local.
-9. **Run only checks that can fail.** Run a check only if a plausible defect in the change could make it fail. For a pull request, that means its changed test files and the checks for the areas it touches (for example, frontend checks only when the frontend changed); CI covers the rest. Don't rerun a check on a commit that already has a result, and don't repeat the epic's full suite for each pull request stacked on it. State in the PR what you ran and what you left to CI.
+9. **Run only checks that can fail.** Run a check only if a plausible defect in the change could make it fail. For a pull request, that means its changed test files and the checks for the areas it touches (for example, frontend checks only when the frontend changed); CI covers the rest and skips the jobs no changed file can affect. Don't rerun a check on a commit that already has a result, and don't repeat the epic's full suite for each pull request stacked on it. State in the PR what you ran and what you left to CI.
 
 ### Setup on each machine (once)
 
