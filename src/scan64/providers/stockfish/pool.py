@@ -22,6 +22,8 @@ from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    BotPolicyMismatchError,
+    BotStrengthRangeError,
     Engine,
     EngineCapabilityError,
     full_strength_options,
@@ -160,7 +162,7 @@ class PooledStockfishAdapter:
         current = bot_policy_version(self.config)
         saved = context.bot_policy_version
         if saved is not None and saved != current:
-            raise EngineCapabilityError(
+            raise BotPolicyMismatchError(
                 f"This game was started under the bot ladder {saved!r}; the server now "
                 f"plays {current!r}. Start a new game to play this level."
             )
@@ -201,7 +203,7 @@ class PooledStockfishAdapter:
         elo = ladder.elo_for(context.bot_level)
         if within_declared_range(engine, "UCI_Elo", elo) != elo:
             declared = engine.options["UCI_Elo"]
-            raise EngineCapabilityError(
+            raise BotStrengthRangeError(
                 f"Engine profile {self.config.name!r} gives bot level {context.bot_level} "
                 f"UCI_Elo {elo}, outside the {declared.min}-{declared.max} that "
                 f"{engine.id.get('name', 'the configured engine')} declares"

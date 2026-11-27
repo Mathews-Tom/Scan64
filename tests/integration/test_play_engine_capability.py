@@ -56,6 +56,7 @@ def assert_bot_play_unavailable(response_json: dict[str, object]) -> None:
     assert detail["message"] == "Bot play is unavailable under the active engine profile."
     assert "Skill Level" in str(detail["reason"])
     assert "Ethereal" in str(detail["reason"])
+    assert detail["kind"] == "missing_capability"
 
 
 @pytest.mark.usefixtures("ethereal_profile")
@@ -147,6 +148,7 @@ def test_out_of_range_elo_returns_an_actionable_503(
     detail = body["detail"]
     assert isinstance(detail, dict) and detail["code"] == "bot_play_unavailable"
     assert "UCI_Elo 1000, outside the 1350-3450" in str(detail["reason"])
+    assert detail["kind"] == "elo_out_of_range"
     narrow_arasan_profile.play.assert_not_awaited()
 
 
@@ -176,6 +178,7 @@ def test_a_session_from_another_ladder_cannot_continue_or_change_cohort(
     assert "started under the bot ladder 'stockfish-error-budget-v1'" in str(
         response.json()["detail"]["reason"]
     )
+    assert response.json()["detail"]["kind"] == "policy_mismatch"
     narrow_arasan_profile.play.assert_not_awaited()
     db_session.expire_all()
     stored = db_session.exec(select(PlaySession)).one()

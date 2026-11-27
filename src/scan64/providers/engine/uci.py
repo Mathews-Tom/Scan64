@@ -42,6 +42,21 @@ ELO_LADDER_OPTIONS = ("UCI_LimitStrength", "UCI_Elo")
 class EngineCapabilityError(RuntimeError):
     """The configured engine lacks an option or protocol feature a feature requires."""
 
+    # Tells the player which action fixes it; play sends it as ``detail.kind``.
+    kind = "missing_capability"
+
+
+class BotPolicyMismatchError(EngineCapabilityError):
+    """A bot session was recorded under another ladder policy than the server plays."""
+
+    kind = "policy_mismatch"
+
+
+class BotStrengthRangeError(EngineCapabilityError):
+    """A ladder level asks the engine for a strength outside its declared range."""
+
+    kind = "elo_out_of_range"
+
 
 def _engine_label(engine: Engine) -> str:
     return str(engine.id.get("name", "the configured engine"))

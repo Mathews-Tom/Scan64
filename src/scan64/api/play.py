@@ -153,6 +153,7 @@ def bot_play_unavailable(error: EngineCapabilityError) -> HTTPException:
             "code": BOT_PLAY_UNAVAILABLE,
             "message": "Bot play is unavailable under the active engine profile.",
             "reason": str(error),
+            "kind": error.kind,
         },
     )
 
