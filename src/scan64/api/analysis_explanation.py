@@ -37,6 +37,7 @@ from scan64.api.insights import (
     free_analysis_manager,
     position_analysis_line,
 )
+from scan64.chess.variants import STANDARD, VariantName
 from scan64.explanations.assembly import TemplateFallbackReason
 from scan64.explanations.board_lines import (
     BoardLinesExplanation,
@@ -128,6 +129,9 @@ def explanation_calls(request: Request) -> ExplanationCalls:
 class AnalysisExplanationRequest(BaseModel):
     player_id: str
     fen: str
+    # Explanations read standard-chess factor facts; any other variant is
+    # refused rather than explained under standard rules.
+    variant: VariantName = STANDARD
     multipv: int | None = Field(
         default=None,
         ge=1,
@@ -189,6 +193,11 @@ async def explain_position(
     player_id = require_authenticated_player(request, session)
     if player_id != body.player_id:
         raise HTTPException(status_code=404, detail="Player not found")
+    if body.variant != STANDARD:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Explanations cover standard chess only, not {body.variant}",
+        )
     board = free_analysis_board(body.fen)
     if board.is_game_over():
         raise HTTPException(

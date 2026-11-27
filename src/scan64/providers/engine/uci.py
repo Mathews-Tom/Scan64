@@ -80,15 +80,17 @@ def require_options(engine: Engine, names: Iterable[str], feature: str) -> None:
 
 
 def engine_variants(engine: Engine) -> frozenset[str]:
-    """The variants the engine declares: UCI ``UCI_Variant`` choices, XBoard ``variants``.
+    """The variants the engine declares, in its protocol's names.
 
-    Standard chess is always playable; an engine without the option or feature
-    declares no other variant.
+    UCI: the ``UCI_Variant`` choices, compared with a board's ``uci_variant``.
+    XBoard: the ``variants`` feature, compared with ``xboard_variant`` (antichess
+    is ``giveaway`` there). Standard chess (``chess``, XBoard ``normal``) is
+    always playable; an engine without the option or feature declares no other.
     """
     if isinstance(engine, chess.engine.XBoardProtocol):
         declared = str(engine.features.get("variants", "normal")).split(",")
-        names = {"chess" if name == "normal" else name for name in declared if name}
-    elif declares(engine, "UCI_Variant"):
+        return frozenset({name for name in declared if name} | {"normal"})
+    if declares(engine, "UCI_Variant"):
         names = set(engine.options["UCI_Variant"].var or ())
     else:
         names = set()
@@ -98,14 +100,17 @@ def engine_variants(engine: Engine) -> frozenset[str]:
 def require_variant(engine: Engine, board: chess.Board) -> None:
     """Refuse a search on a variant board the engine does not declare.
 
-    python-chess sets ``UCI_Variant`` from the board type on every search (it
-    is a managed option, so profiles cannot set it), but sends any value the
-    engine names in ``UCI_Variant`` without checking its choices. Scan64 checks
-    them first, so an engine never searches a variant position under the
-    rules of another variant.
+    python-chess sets ``UCI_Variant`` from the board type on every search (a
+    managed option, so profiles cannot set it). An undeclared variant fails
+    there as a plain ``EngineError`` (an invalid combo value over UCI, a
+    missing variant over XBoard), which the endpoints report as a generic
+    analysis failure. Checking first gives the player the reason instead.
     """
     variant = type(board).uci_variant
-    if variant in engine_variants(engine):
+    name = (
+        type(board).xboard_variant if isinstance(engine, chess.engine.XBoardProtocol) else variant
+    )
+    if name in engine_variants(engine):
         return
     raise EngineCapabilityError(
         f"Analysing {variant} needs an engine that declares it as a variant; "

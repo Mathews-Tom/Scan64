@@ -66,7 +66,11 @@ with open(log_path, "a", encoding="utf-8") as log:
         elif command == "go":
             moves = [move.uci() for move in board.legal_moves][:multipv]
             for rank, move in enumerate(moves, start=1):
-                prefix = f"info depth 1 seldepth 1 multipv {rank}" if multipv_declared else "info depth 1 seldepth 1"
+                prefix = (
+                    f"info depth 1 seldepth 1 multipv {rank}"
+                    if multipv_declared
+                    else "info depth 1 seldepth 1"
+                )
                 send(f"{prefix} nodes 1 score cp 0 pv {move}")
             send(f"bestmove {moves[0]}")
         elif command == "quit":

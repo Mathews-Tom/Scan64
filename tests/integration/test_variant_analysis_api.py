@@ -107,3 +107,21 @@ def test_standard_analysis_still_answers_without_a_variant_field(
         )
     assert response.status_code == 200, response.json()
     assert response.json()["variant"] == "chess"
+
+
+def test_an_explanation_of_variant_lines_is_refused_not_given_under_standard_rules(
+    app_session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log = _profile(tmp_path, monkeypatch, "chess,atomic")
+    with TestClient(app) as client:
+        player_id = f"variant-{uuid4()}"
+        created = client.post("/v1/players", json={"id": player_id})
+        client.headers["Authorization"] = f"Bearer {created.json()['access_token']}"
+        response = client.post(
+            "/v1/analysis/position/explanation",
+            json={"player_id": player_id, "fen": chess.STARTING_FEN, "variant": "atomic"},
+        )
+    assert response.status_code == 422, response.json()
+    assert "standard chess only, not atomic" in response.json()["detail"]
+    # Refused before the pool: the engine never searched.
+    assert not log.exists() or "go" not in log.read_text(encoding="utf-8").split()

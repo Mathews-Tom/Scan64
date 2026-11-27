@@ -194,6 +194,42 @@ play never falls back to Stockfish. The play endpoints
 stays committed; a bot-first session is not created. The web client shows
 that bot play is unavailable under the active engine profile.
 
+## Chess variants (#398)
+
+Scan64 reads variant positions with python-chess's variant boards: crazyhouse,
+three-check (`3check`), atomic, antichess, king of the hill, horde and racing
+kings. Searching one needs an engine that declares the variant; Stockfish,
+Arasan, Caissa and the other engines in the compatibility set play standard
+chess only. Fairy-Stockfish (GPL-3.0, not bundled) declares all of them.
+
+- **API.** `POST /v1/analysis/position` takes an optional `variant` (the names
+  above; default `chess`). The FEN is parsed under that variant's rules: a FEN
+  that is not a position of the variant is a 422 before any engine access. The
+  reply names the variant it was searched under. The explanation endpoint
+  covers standard chess only and rejects any other `variant` with 422.
+- **Engine check.** python-chess sets `UCI_Variant` from the board on every
+  search; it is a managed option, so a profile cannot set it. Before any search
+  Scan64 compares the board's variant with the engine's declared variants:
+  the `UCI_Variant` choices over UCI, or the `variants` feature over XBoard,
+  where antichess is `giveaway`. An undeclared variant is an
+  `EngineCapabilityError`, answered as 503 `engine_capability_unavailable`
+  whose `reason` names the variant and Fairy-Stockfish. Without the check
+  python-chess raises a plain `EngineError`, which the endpoint reports as a
+  generic analysis failure.
+- **Hint cache.** The cache key includes the variant: the same FEN is a
+  different position under another variant's rules.
+- **Install Fairy-Stockfish.** Download a release for your OS from
+  https://github.com/fairy-stockfish/Fairy-Stockfish/releases, or build it
+  from source with `make -j profile-build ARCH=x86-64-avx2 largeboards=yes`
+  in `src/`. Point a profile's `binary_path` at it and select that profile
+  (see "Selecting an engine").
+- **Not covered.** Diagnosis, lessons, puzzles, the narrator's explanations,
+  bot play and position health read standard chess only.
+- **Not verified with Fairy-Stockfish itself.** The tests use the fake UCI
+  engine (`tests/fixtures/engines/fake_uci.py`, `FAKE_UCI_VARIANTS`), which
+  plays by python-chess. No run has checked Fairy-Stockfish's FEN, pocket and
+  drop formats against python-chess's.
+
 ## Stockfish-specific assumptions outside the engine provider
 
 Found with `grep -rn -i stockfish src/` plus review of score, limit and option
