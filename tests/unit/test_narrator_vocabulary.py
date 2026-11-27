@@ -37,7 +37,8 @@ POSITIONS: dict[str, dict[str, Any]] = {
         (Path(__file__).parents[2] / "benchmarks/narrator/positions.json").read_text("utf-8")
     )["positions"]
 }
-MISSED_THREAT = "recorded:https://lichess.org/6x5nq6qd:57"  # king safety change passed
+MISSED_THREAT = "recorded:https://lichess.org/6x5nq6qd:57"  # missed direct threat
+KING_FACT = "recorded:https://lichess.org/15lzmn9d:7"  # king safety change passed (#410 thresholds)
 NO_THREAT = "recorded:https://lichess.org/a301qp92:21"  # missed capture, no threat fact
 NO_KING = "recorded:https://lichess.org/fiv37vzi:42"  # missed direct threat, no king fact
 
@@ -81,7 +82,7 @@ def test_threat_fails_on_a_position_with_no_threat_fact() -> None:
 
 def test_a_passed_factor_name_is_allowed_and_an_absent_one_is_not() -> None:
     text = "After {played}, your king safety suffered: {factor:king_safety:best}."
-    assert "king safety is" in _validate(text, MISSED_THREAT)
+    assert "king safety is" in _validate(text, KING_FACT)
     plain = "After {played}, your king safety suffered."
     assert _reason(plain, NO_KING) == "chess_token_outside_slot"
 

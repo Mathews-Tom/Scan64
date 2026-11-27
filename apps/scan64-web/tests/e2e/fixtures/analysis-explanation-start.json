@@ -981,6 +981,14 @@
               "guide_name": "Mobility",
               "compared_with": "best",
               "change_pawns": -0.4
+            },
+            {
+              "key": "space",
+              "name": "space",
+              "kind": "group",
+              "guide_name": "Space",
+              "compared_with": "best",
+              "change_pawns": -0.2
             }
           ]
         }

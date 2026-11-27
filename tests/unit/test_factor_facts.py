@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -43,8 +44,26 @@ def _facts(position_id: str) -> NarratorFacts:
     )
 
 
-def test_config_is_one_table_with_the_starting_thresholds() -> None:
-    assert FACTOR_CONFIG.thresholds == {"group": 0.30, "term": 0.15}
+def _no_cause_facts() -> NarratorFacts:
+    """NO_CAUSE with its factor changes removed: the facts of a mistake with no cause.
+
+    Under the #410 thresholds every quiet benchmark mistake has a factor change;
+    the slot and prompt rules for "no cause" are tested on this copy.
+    """
+    facts = _facts(NO_CAUSE)
+    assert facts.factors is not None
+    return facts.model_copy(update={"factors": facts.factors.model_copy(update={"changes": ()})})
+
+
+def test_config_is_one_table_with_the_fitted_thresholds() -> None:
+    # Fitted in #410; benchmarks/factor_calibration/calibrate.py --check refits them.
+    assert FACTOR_CONFIG.thresholds == {"group": 0.10, "term": 0.10}
+    assert FACTOR_CONFIG.threshold("group", "King") == 0.75
+    assert FACTOR_CONFIG.threshold("term", "King danger") == 0.45
+    assert FACTOR_CONFIG.threshold("group", "Space") == 0.10
+    groups = {group for _, group in PARTS}
+    assert set(FACTOR_CONFIG.overrides) <= (set(GROUP_NAMES) | set(TERM_NAMES))
+    assert not groups & set(TERM_NAMES)
     assert FACTOR_CONFIG.quiet_ply_limit == 8
     assert GUIDE_COMMIT[:7] in FACTOR_SOURCE
 
@@ -89,11 +108,19 @@ def test_quiet_ply_respects_the_ply_limit() -> None:
 
 
 def test_threshold_per_kind() -> None:
+    config = replace(FACTOR_CONFIG, thresholds={"group": 0.30, "term": 0.15}, overrides={})
     played = {("group", "King"): -0.29, ("term", "King danger"): -0.15}
-    changes = passed_changes(played, {}, -100, "before")
+    changes = passed_changes(played, {}, -100, "before", config)
     assert [(c.kind, c.key, c.change_pawns) for c in changes] == [("term", "king_attack", -0.15)]
     played = {("group", "King"): -0.30}
-    assert [c.name for c in passed_changes(played, {}, -100, "best")] == ["king safety"]
+    assert [c.name for c in passed_changes(played, {}, -100, "best", config)] == ["king safety"]
+
+
+def test_an_override_replaces_the_kind_threshold() -> None:
+    played = {("group", "King"): -0.74, ("group", "Space"): -0.10}
+    assert [c.key for c in passed_changes(played, {}, -100, "before")] == ["space"]
+    played = {("group", "King"): -0.75}
+    assert [c.key for c in passed_changes(played, {}, -100, "before")] == ["king_safety"]
 
 
 def test_a_factor_disagreeing_in_sign_with_the_engine_is_no_fact() -> None:
@@ -128,12 +155,13 @@ def test_a_mistake_with_a_clear_factor_cause() -> None:
     assert factors.engine_swing_cp is not None and factors.engine_swing_cp < 0
     king = [c for c in factors.changes if c.key == "king_safety"]
     assert {c.compared_with for c in king} == {"before", "best"}
-    assert all(c.change_pawns <= -FACTOR_CONFIG.thresholds["group"] for c in king)
+    assert all(c.change_pawns <= -FACTOR_CONFIG.threshold("group", "King") for c in king)
 
 
 def test_a_mistake_with_no_factor_cause() -> None:
-    factors = _facts(NO_CAUSE).factors
-    assert factors is not None and all(p.quiet for p in factors.points)
+    # 1.Nf3 instead of 1.Nc3, scored 50 cp worse: no factor falls by a threshold.
+    factors = mistake_factor_facts(chess.Board(), ["g1f3", "g8f6"], ["b1c3", "g8f6"], -50)
+    assert all(p.quiet for p in factors.points)
     assert factors.changes == ()
 
 
@@ -152,7 +180,7 @@ def test_every_change_agrees_with_the_engine_swing(position_id: str) -> None:
     assert factors.engine_swing_cp is not None
     for change in factors.changes:
         assert (change.change_pawns > 0) == (factors.engine_swing_cp > 0)
-        threshold = FACTOR_CONFIG.thresholds[change.kind]
+        threshold = FACTOR_CONFIG.threshold(change.kind, change.guide_name)
         assert abs(change.change_pawns) >= threshold - 0.005
 
 
@@ -210,7 +238,7 @@ def test_lesson_factor_slots_are_code_rendered_and_labelled() -> None:
 def test_no_factor_slot_without_a_passed_change() -> None:
     from scan64.explanations.slots import lesson_slot_catalogue
 
-    catalogue = lesson_slot_catalogue(_facts(NO_CAUSE))
+    catalogue = lesson_slot_catalogue(_no_cause_facts())
     assert not any(name.startswith("factor:") for name in catalogue.names())
 
 
@@ -260,7 +288,7 @@ def test_the_prompt_lists_the_factor_slots_and_names_causes_only_through_them() 
         )
     assert f"come from {FACTOR_SOURCE}." in slots.content
     assert "king" in slots.content.split("Allowed plain words: ")[1]
-    none = _explanation_request(_facts(NO_CAUSE)).messages[1].content
+    none = _explanation_request(_no_cause_facts()).messages[1].content
     assert "{factor:" not in none and FACTOR_SOURCE not in none
     assert "No factor slot: no cause was measured, so name no cause." in none
 

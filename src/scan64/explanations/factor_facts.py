@@ -24,7 +24,7 @@ score difference between the lines as the swing (``board_factor_changes``).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 import chess
@@ -49,7 +49,8 @@ class FactorConfig:
 
     ``thresholds`` are the smallest change, in pawns, that becomes a fact:
     ``group`` for an evaluation group (King, Mobility, ...), ``term`` for one
-    named part of a group. ``excluded_groups`` are never stated: material is
+    named part of a group. ``overrides`` replaces that value for one group or
+    part, by its guide name. ``excluded_groups`` are never stated: material is
     stated by the capture and material slots; Imbalance and Winnable are
     scaling terms with no plain-word cause. ``max_changes`` caps the facts per
     comparison, largest first, so the prompt stays small; ``max_board_changes``
@@ -61,14 +62,48 @@ class FactorConfig:
     excluded_groups: frozenset[str]
     max_changes: int
     max_board_changes: int
+    # Per-name thresholds (guide group or part name) that replace the kind's
+    # value in ``thresholds``; fitted in #410.
+    overrides: Mapping[str, float] = field(default_factory=dict)
+
+    def threshold(self, kind: Literal["group", "term"], guide_name: str) -> float:
+        """The smallest change, in pawns, of ``guide_name`` that becomes a fact."""
+        return self.overrides.get(guide_name, self.thresholds[kind])
 
 
+# Thresholds fitted in #410 (docs/evaluation/factor-calibration.md): the
+# smallest multiple of 0.05 pawns, at least 0.10, that at most 10% of the
+# changes at null moves (engine swing within 25 cp) reach. Refit and check with
+# ``python -m benchmarks.factor_calibration.calibrate --check``.
 FACTOR_CONFIG = FactorConfig(
-    thresholds={"group": 0.30, "term": 0.15},
+    thresholds={"group": 0.10, "term": 0.10},
     quiet_ply_limit=8,
     excluded_groups=frozenset({"Material", "Imbalance", "Winnable"}),
     max_changes=3,
     max_board_changes=2,
+    overrides={
+        # Groups.
+        "King": 0.75,
+        "Mobility": 0.35,
+        "Pawns": 0.25,
+        "Pieces": 0.35,
+        "Threats": 0.60,
+        # Terms whose null changes exceed the term default.
+        "Bishop pawns": 0.15,
+        "Connected bonus": 0.15,
+        "Flank attack": 0.20,
+        "Hanging": 0.35,
+        "King danger": 0.45,
+        "King protector": 0.15,
+        "Minor threat": 0.30,
+        "Passed file": 0.15,
+        "Pawn push threat": 0.25,
+        "Restricted": 0.15,
+        "Rook on file": 0.15,
+        "Rook threat": 0.15,
+        "Slider on queen": 0.30,
+        "Trapped rook": 0.20,
+    },
 )
 
 # Plain names, learner's view. A name is also the vocabulary the narrator may
@@ -276,7 +311,7 @@ def passed_changes(
     changes = []
     for (kind, guide_name), value in played.items():
         change = value - reference.get((kind, guide_name), 0.0)
-        if abs(change) < config.thresholds[kind] or (change > 0) != (swing_cp > 0):
+        if abs(change) < config.threshold(kind, guide_name) or (change > 0) != (swing_cp > 0):
             continue
         group = guide_name if kind == "group" else dict(PARTS)[guide_name]
         if group in config.excluded_groups:

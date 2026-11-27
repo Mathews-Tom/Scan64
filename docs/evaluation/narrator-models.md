@@ -40,6 +40,7 @@ Dropped from the first shortlist: `chessgpt-base`, `qwen3-4b-chess-explain`, `ch
 | Coverage (accepted) | Share of three key engine facts (played move, key move, result) that an accepted answer states. On the slot path it counts only the slots the answer uses (`slot_coverage`). |
 | Delivered coverage | Coverage over all calls; a fallback counts as 0. This is what a learner gets. |
 | Full coverage | Share of all calls accepted with all three key facts. |
+| Names a factor (accepted / where available) | Share of accepted answers that use at least one listed `{factor:...}` slot, a measured factor change (#410). The second value counts only positions whose slot list has a factor slot (33 of the 50 benchmark positions with the fitted thresholds). Runs recorded before the slot path show `—`. |
 | False chess statements / expl. | Claims rejected for a chess reason, per explanation. On the slot path this includes `chess_token_outside_slot`. |
 | Latency p50 / p95 | Wall time of the provider call. |
 | First token p50 | Time to the first streamed token. |
