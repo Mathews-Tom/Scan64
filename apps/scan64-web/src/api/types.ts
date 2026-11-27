@@ -870,5 +870,6 @@ export interface HealthMeterRead {
 export interface PositionHealthRead {
   fen: string;
   learner: 'white' | 'black';
+  overall: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead };
   groups: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead }[];
 }

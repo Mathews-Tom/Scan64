@@ -41,6 +41,8 @@ def test_position_health_reads_every_group_for_both_sides(
         "passed pawns",
         "space",
     ]
+    assert body["overall"]["name"] == "overall"
+    assert body["overall"]["learner"]["level"] == "good"
     mobility = next(g for g in body["groups"] if g["key"] == "Mobility")
     assert mobility["learner"]["trend"] == "rising"
     assert 0 < mobility["learner"]["health"] < 1

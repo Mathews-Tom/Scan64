@@ -5,9 +5,9 @@ import { filledSegments, LEVEL_WORDS, meterText, SEGMENTS, TREND_MARKS } from '.
 import './PositionHealthPanel.css';
 
 
-function Meter({ name, side, meter }: { name: string; side: string; meter: HealthMeterRead }) {
+function Meter({ name, side, meter, large = false }: { name: string; side: string; meter: HealthMeterRead; large?: boolean }) {
   const filled = filledSegments(meter.health);
-  return <div className="health-meter" data-level={meter.level} role="img" aria-label={`${side} ${meterText(name, meter)}`}>
+  return <div className={large ? 'health-meter health-meter--overall' : 'health-meter'} data-level={meter.level} role="img" aria-label={`${side} ${meterText(name, meter)}`}>
     <span className="health-meter__track" aria-hidden="true">
       {Array.from({ length: SEGMENTS }, (_, index) =>
         <span key={index} className="health-meter__segment" data-on={index < filled ? 'true' : undefined}
@@ -47,6 +47,11 @@ export function PositionHealthPanel({ fen, previousFen }: { fen: string; previou
       <table className="position-health__table">
         <thead><tr><th scope="col"><span className="visually-hidden">Factor</span></th><th scope="col">White</th><th scope="col">Black</th></tr></thead>
         <tbody>
+          <tr className="position-health__overall">
+            <th scope="row">overall</th>
+            <td><Meter large name="overall" side="White" meter={view.health.overall.learner} /></td>
+            <td><Meter large name="overall" side="Black" meter={view.health.overall.opponent} /></td>
+          </tr>
           {view.health.groups.map(group => <tr key={group.key}>
             <th scope="row">{group.name}</th>
             <td><Meter name={group.name} side="White" meter={group.learner} /></td>
@@ -57,7 +62,7 @@ export function PositionHealthPanel({ fen, previousFen }: { fen: string; previou
       <button type="button" className="position-health__details-toggle" aria-expanded={details} aria-controls={detailsId}
         onClick={() => setDetails(open => !open)}>{details ? 'Hide details' : 'Show details'}</button>
       {details && <dl id={detailsId} className="position-health__details">
-        {view.health.groups.map(group => <div key={group.key}>
+        {[view.health.overall, ...view.health.groups].map(group => <div key={group.key}>
           <dt>{group.name}</dt>
           <dd>White: {terms(group.learner)}</dd>
           <dd>Black: {terms(group.opponent)}</dd>

@@ -21,7 +21,7 @@ EXPOSED = "r1b1k2r/ppp2ppp/2n5/3q4/8/8/PPP3PP/RNB1K1NR w KQkq - 0 1"
 
 
 def test_start_reads_healthy_and_equal_for_both_sides() -> None:
-    readings = position_health(chess.Board(), "white")
+    readings = position_health(chess.Board(), "white").groups
     assert [g.key for g in readings] == [g.key for g in HEALTH_SCALE]
     for group in readings:
         assert group.learner == group.opponent
@@ -30,7 +30,7 @@ def test_start_reads_healthy_and_equal_for_both_sides() -> None:
 
 
 def test_exposed_king_reads_low_for_its_side_only() -> None:
-    king = {g.key: g for g in position_health(chess.Board(EXPOSED), "white")}["King"]
+    king = {g.key: g for g in position_health(chess.Board(EXPOSED), "white").groups}["King"]
     assert king.learner.level == "low"
     assert king.opponent.level == "good"
     assert king.learner.terms[0].name == "King danger"
@@ -40,7 +40,8 @@ def test_exposed_king_reads_low_for_its_side_only() -> None:
 def test_learner_colour_swaps_the_sides() -> None:
     as_white = position_health(chess.Board(EXPOSED), "white")
     as_black = position_health(chess.Board(EXPOSED), "black")
-    for white, black in zip(as_white, as_black, strict=True):
+    assert as_white.overall.learner == as_black.overall.opponent
+    for white, black in zip(as_white.groups, as_black.groups, strict=True):
         assert white.learner == black.opponent
 
 
@@ -48,7 +49,7 @@ def test_previous_position_gives_the_trend() -> None:
     before = chess.Board()
     after = chess.Board()
     after.push_san("e4")
-    readings = {g.key: g for g in position_health(after, "black", before)}
+    readings = {g.key: g for g in position_health(after, "black", before).groups}
     assert readings["Mobility"].opponent.trend == "rising"
 
 
@@ -73,3 +74,18 @@ def test_a_position_reads_within_the_panel_budget() -> None:
     started = time.perf_counter()
     position_health(board, "white", chess.Board())
     assert time.perf_counter() - started < 0.1
+
+
+def test_overall_reads_the_factor_total_without_tempo() -> None:
+    start = position_health(chess.Board(), "white").overall
+    assert start.learner == start.opponent
+    assert start.learner.level == "good"
+    # The same position with the other side to move: tempo must not move the meter.
+    black_to_move = chess.Board(chess.STARTING_FEN.replace(" w ", " b "))
+    assert position_health(black_to_move, "white").overall == start
+    queenless = chess.Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1")
+    overall = position_health(queenless, "white").overall
+    assert overall.learner.level == "low"
+    assert overall.opponent.level == "good"
+    assert overall.learner.terms[0].name == "Material"
+    assert overall.learner.terms[0].pawns < 0

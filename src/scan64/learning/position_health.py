@@ -12,6 +12,12 @@ fitting that scale (#416). Until it lands, each group's scale is its #410
 change threshold with a floor of ``SCALE_FLOOR`` pawns. ``HEALTH_SCALE`` is the
 one table to refit.
 
+The overall meter maps the factor module's own total, the guide's ``Main
+evaluation`` (every group with Stockfish's weights, phase taper and scaling),
+the same way, so groups are never weighted by hand. Tempo is left out: it
+flips sign every move and would swing the meter on each ply. Its provisional
+scale is ``OVERALL_SCALE`` pawns.
+
 Side values: most parts of the guide belong to the side they describe. The
 attacking parts belong to the attacker (Black's ``King danger`` is Black's
 attack on White's king; Black's ``Threats`` are threats against White), so a
@@ -43,6 +49,8 @@ LEVELS: Mapping[Level, float] = {"good": 2 / 3, "fair": 1 / 3}
 TREND_STEP = 0.05
 # Terms shown in a meter's details view, largest first.
 DETAIL_TERMS = 3
+# Provisional scale of the overall meter, pawns: 2 pawns down reads 0.5.
+OVERALL_SCALE = 1.0
 
 
 @dataclass(frozen=True)
@@ -93,6 +101,14 @@ class GroupReading:
     name: str
     learner: MeterReading
     opponent: MeterReading
+
+
+@dataclass(frozen=True)
+class PositionHealth:
+    """The overall meter and one meter per group, for both sides."""
+
+    overall: GroupReading
+    groups: tuple[GroupReading, ...]
 
 
 def _tapered(mg: int | None, eg: int | None, phase: int) -> float:
@@ -161,18 +177,51 @@ def _meter(
     return MeterReading(round(now, 3), level(now), trend(now, before), terms)
 
 
+def _overall_pawns(report: FactorReport, side: Side) -> float:
+    white = FactorReport.to_pawns(report.evaluation - report.tempo)
+    return white if side == "white" else -white
+
+
+def _overall(report: FactorReport, previous: FactorReport | None, side: Side) -> MeterReading:
+    now = health(_overall_pawns(report, side), 0.0, OVERALL_SCALE)
+    before = (
+        None if previous is None else health(_overall_pawns(previous, side), 0.0, OVERALL_SCALE)
+    )
+    sign = 1 if side == "white" else -1
+    groups = sorted(
+        (
+            TermReading(name, sign * FactorReport.to_pawns(g.tapered))
+            for name, g in report.groups.items()
+        ),
+        key=lambda r: abs(r.pawns),
+        reverse=True,
+    )
+    terms = tuple(
+        TermReading(r.name, round(r.pawns, 2)) for r in groups[:DETAIL_TERMS] if round(r.pawns, 2)
+    )
+    return MeterReading(round(now, 3), level(now), trend(now, before), terms)
+
+
 def position_health(
     board: chess.Board, learner: Side, previous: chess.Board | None = None
-) -> tuple[GroupReading, ...]:
+) -> PositionHealth:
     """Every meter for ``learner`` and the opponent; ``previous`` gives the trend."""
     report = evaluate_factors(board)
     before = None if previous is None else evaluate_factors(previous)
-    return tuple(
-        GroupReading(
-            group.key,
-            group.name,
-            _meter(report, before, group, learner),
-            _meter(report, before, group, _other(learner)),
-        )
-        for group in HEALTH_SCALE
+    return PositionHealth(
+        overall=GroupReading(
+            "Overall",
+            "overall",
+            _overall(report, before, learner),
+            _overall(report, before, _other(learner)),
+        ),
+        groups=tuple(
+            GroupReading(
+                group.key,
+                group.name,
+                _meter(report, before, group, learner),
+                _meter(report, before, group, _other(learner)),
+            )
+            for group in HEALTH_SCALE
+        ),
     )

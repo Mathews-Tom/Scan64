@@ -13,6 +13,11 @@
 .health-meter[data-level='low'] { --meter-hue: 28; }
 .health-meter__segment[data-on] { background: oklch(0.68 0.11 var(--meter-hue)); }
 .health-meter__word { color: var(--muted); }
+/* The overall meter: the factor module's total, taller and set apart from the groups. */
+.health-meter--overall .health-meter__track { height: 12px; }
+.health-meter--overall .health-meter__word { color: var(--ink); font-weight: 600; }
+.position-health__overall th, .position-health__overall td { padding-bottom: var(--space-2); border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent); font-weight: 600; }
+.position-health__overall + tr th, .position-health__overall + tr td { padding-top: var(--space-2); }
 .health-meter__trend { font-size: 9px; color: var(--muted); }
 .position-health__details-toggle { margin-top: var(--space-2); background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--type-label); }
 .position-health__details { font-size: var(--type-label); margin: var(--space-2) 0 0; }

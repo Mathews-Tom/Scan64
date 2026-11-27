@@ -11,6 +11,7 @@ const meter = (health: number, level: HealthMeterRead['level'], trend: HealthMet
 const READ: PositionHealthRead = {
   fen: '8/8/8/8/8/8/8/K6k w - - 0 1',
   learner: 'white',
+  overall: { key: 'Overall', name: 'overall', learner: meter(0.3, 'low', 'falling', -2.1), opponent: meter(0.95, 'good', 'rising', 2.1) },
   groups: [{ key: 'King', name: 'king safety', learner: meter(0.2, 'low', 'falling'), opponent: meter(0.9, 'good', 'steady', 0.4) }],
 };
 
@@ -37,6 +38,8 @@ describe('position health meters', () => {
     render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
     expect(await screen.findByRole('img', { name: 'White king safety: low, falling' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Black king safety: good' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'White overall: low, falling' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Black overall: good, rising' })).toBeInTheDocument();
     expect(call).toHaveBeenCalledWith(expect.objectContaining({ fen: READ.fen, learner: 'white', previous_fen: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(screen.getByText('White: King danger -1.20')).toBeInTheDocument();

@@ -13,7 +13,13 @@ from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
 from scan64.api.insights import free_analysis_board
-from scan64.learning.position_health import Level, MeterReading, Trend, position_health
+from scan64.learning.position_health import (
+    GroupReading,
+    Level,
+    MeterReading,
+    Trend,
+    position_health,
+)
 from scan64.persistence.database import get_session
 
 router = APIRouter()
@@ -55,10 +61,21 @@ class GroupHealthRead(BaseModel):
     learner: MeterRead
     opponent: MeterRead
 
+    @classmethod
+    def from_reading(cls, reading: GroupReading) -> GroupHealthRead:
+        return cls(
+            key=reading.key,
+            name=reading.name,
+            learner=MeterRead.from_reading(reading.learner),
+            opponent=MeterRead.from_reading(reading.opponent),
+        )
+
 
 class PositionHealthRead(BaseModel):
     fen: str
     learner: Literal["white", "black"]
+    # The factor module's total evaluation as one meter per side.
+    overall: GroupHealthRead
     groups: list[GroupHealthRead]
 
 
@@ -73,13 +90,6 @@ def read_position_health(
     return PositionHealthRead(
         fen=board.fen(),
         learner=body.learner,
-        groups=[
-            GroupHealthRead(
-                key=g.key,
-                name=g.name,
-                learner=MeterRead.from_reading(g.learner),
-                opponent=MeterRead.from_reading(g.opponent),
-            )
-            for g in readings
-        ],
+        overall=GroupHealthRead.from_reading(readings.overall),
+        groups=[GroupHealthRead.from_reading(g) for g in readings.groups],
     )
