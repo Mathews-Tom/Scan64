@@ -69,6 +69,7 @@ from scan64.explanations.validator import (
     GroundedExplanationValidationError,
     validate_generated_explanation,
 )
+from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
 from scan64.learning.evidence.composer import line_material_gain
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
@@ -644,10 +645,17 @@ BOARD_NARRATOR_SYSTEM_PROMPT = (
 )
 
 
-def board_lines_request(facts: BoardLinesFacts) -> ExplanationRequest:
+def board_narrator_system_prompt(voice: NarratorVoice = DEFAULT_NARRATOR_VOICE) -> str:
+    """BOARD_NARRATOR_SYSTEM_PROMPT with the voice fragment as its last line (#387)."""
+    return with_voice(BOARD_NARRATOR_SYSTEM_PROMPT, voice)
+
+
+def board_lines_request(
+    facts: BoardLinesFacts, voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
+) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
-            LLMMessage(role="system", content=BOARD_NARRATOR_SYSTEM_PROMPT),
+            LLMMessage(role="system", content=board_narrator_system_prompt(voice)),
             LLMMessage(role="user", content=facts.to_prompt_json()),
             LLMMessage(role="user", content=board_slot_catalogue(facts).prompt()),
         )
@@ -681,13 +689,19 @@ async def resolve_board_lines_explanation(
     local_provider: LLMExplanationProvider | None = None,
     environment: Mapping[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
+    voice: NarratorVoice | None = None,
 ) -> BoardLinesExplanation:
-    """Template first; a configured provider's wording replaces it only when grounded."""
+    """Template first; a configured provider's wording replaces it only when grounded.
+
+    ``voice`` overrides the configured narrator voice (``run_with_explanation_provider``).
+    """
     template = BoardLinesExplanation(template_board_explanation(facts), "template", None)
 
-    async def attempt(provider: LLMExplanationProvider) -> BoardLinesExplanation:
+    async def attempt(
+        provider: LLMExplanationProvider, chosen: NarratorVoice
+    ) -> BoardLinesExplanation:
         try:
-            generated = await provider.generate(board_lines_request(facts))
+            generated = await provider.generate(board_lines_request(facts, chosen))
             return BoardLinesExplanation(
                 _validated_provider_explanation(generated, facts), "narrator", None
             )
@@ -699,7 +713,12 @@ async def resolve_board_lines_explanation(
             return BoardLinesExplanation(template.explanation, "template", "provider_error")
 
     return await run_with_explanation_provider(
-        template, attempt, local_provider=local_provider, environment=environment, client=client
+        template,
+        attempt,
+        local_provider=local_provider,
+        environment=environment,
+        client=client,
+        voice=voice,
     )
 
 
@@ -716,6 +735,7 @@ __all__ = [
     "board_slot_catalogue",
     "board_slot_grounding",
     "board_lines_request",
+    "board_narrator_system_prompt",
     "build_board_lines_facts",
     "claim_line_id",
     "numbered_san",

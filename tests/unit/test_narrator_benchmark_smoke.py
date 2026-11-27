@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_configured_pipeline_paths_score_the_first_position() -> None:
     config = load_config(ROOT / "benchmarks/narrator/narrator.toml")
+    assert config.voice == "coach"
     position = load_positions(config.positions_file)[0]
     context_builder: Any = _resolve(config.grounding_context)
     entry: Any = _resolve(config.pipeline_entry)
@@ -36,6 +37,7 @@ def test_configured_pipeline_paths_score_the_first_position() -> None:
             position.fen,
             local_provider=None,
             environment={},
+            voice=config.voice,
         )
     )
     assert explanation.text

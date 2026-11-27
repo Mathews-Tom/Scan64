@@ -22,6 +22,7 @@ from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations import assembly
 from scan64.explanations.assembly import (
     NARRATOR_SYSTEM_PROMPT,
+    narrator_system_prompt,
     resolve_explanation,
     template_fallback_counts,
 )
@@ -211,7 +212,9 @@ async def test_prompt_is_schema_valid_json_for_every_fixture_diagnosis() -> None
             facts = build_narrator_facts(diagnosis, evidence, board.fen())
             request = assembly._explanation_request(facts)
             system, user, slots = request.messages
-            assert system.content == NARRATOR_SYSTEM_PROMPT
+            # The default voice is the last line of the system prompt (#387).
+            assert system.content.startswith(NARRATOR_SYSTEM_PROMPT + "\n")
+            assert system.content == narrator_system_prompt()
             assert slots.content == lesson_slot_catalogue(facts).prompt()
             parsed = NarratorFacts.model_validate_json(user.content, strict=True)
             assert parsed == facts, case_id
