@@ -35,10 +35,15 @@ UCI_ShowWDL = true
 nodes = 200000
 time_ms = 1500
 multipv = 4
+
+[ladder]                  # optional: how the bot ladder weakens this engine
+strength = "elo"          # "skill" (default) or "elo"
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]  # UCI_Elo for levels 1-8, increasing
+movetime_ms = 500         # fixed time per bot move; "elo" only
 ```
 
 Examples: [`config/engines/`](../config/engines/) (`ethereal.toml`,
-`berserk.toml`, `stockfish-wdl.toml`).
+`berserk.toml`, `stockfish-wdl.toml`, `arasan.toml`).
 
 Rules (all enforced at load or engine start, failing with the file and key):
 
@@ -87,6 +92,20 @@ Rules (all enforced at load or engine start, failing with the file and key):
   that hits it ends `failed` with that reason as its `error`.
 - The profile file is re-read when its modification time or size changes; a
   running pool keeps the processes it started with.
+- `[ladder]` selects the bot ladder's strength path. `skill` (the default, and
+  the only path without a profile) searches every legal move at full strength
+  and picks a move inside the level's error budget, seeded per session; it
+  needs `MultiPV`, `Skill Level` and `UCI_LimitStrength`. `elo` sets
+  `UCI_LimitStrength = true` and the level's `UCI_Elo`, then plays one move in
+  `movetime_ms` with the engine's own randomness (not seeded; the session's
+  node budget is unused). It needs `UCI_LimitStrength` and `UCI_Elo`; a level's
+  `UCI_Elo` outside the range the engine declares fails the move with
+  `EngineConfigurationError`. The `elo` values are what Scan64 sends, not a
+  measured playing strength. The analysis reset turns `UCI_LimitStrength` off
+  again before every search. Sessions record the path in `bot_policy_version`:
+  `stockfish-error-budget-v1` for `skill`,
+  `uci-elo-v1:<engine name>:<elo list>:<movetime>ms` for `elo`, so strength
+  cohorts never mix the two.
 
 ## What every stored line contains
 
@@ -138,14 +157,17 @@ threads, hash, options) and the effective hint limits.
 | Focused pass, hints, Analysis Board lines, lesson verification (MultiPV 2–8) | `MultiPV` (UCI only) | `EngineCapabilityError` (API: 503 `engine_capability_unavailable`; job: `failed` with the reason). No single-line substitute. |
 | WDL in stored lines | engine reports `wdl` (Berserk by default; Stockfish/Lc0 with `UCI_ShowWDL`) | `wdl` key absent. |
 | Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength` where declared (`UCI_Elo` is not sent: it is ignored while `UCI_LimitStrength` is off) | Skipped: an engine without these controls is always at full strength. |
-| Bot ladder opponent (levels 1–8) | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength` | `EngineCapabilityError` naming the missing options. |
+| Bot ladder opponent (levels 1–8), `[ladder] strength = "skill"` | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength` | `EngineCapabilityError` naming the missing options; when the engine declares `UCI_Elo` the message names `[ladder] strength = "elo"`. |
+| Bot ladder opponent, `[ladder] strength = "elo"` | `UCI_LimitStrength`, `UCI_Elo` | `EngineCapabilityError` naming the missing options. |
 | Legacy Skill Level opponent (sessions without `bot_level`) | `Skill Level` | `EngineCapabilityError` naming `Skill Level`. |
 
-Opponent strength stays Stockfish-only on purpose: the ladder's error budgets,
-`BOT_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
-cohorts (`api/strength.py`) are defined against Stockfish. Opponent moves come
-from the same interactive pool as hints. Bot play is therefore unavailable under
-a non-Stockfish profile. Play never falls back to Stockfish. The play endpoints
+The `skill` ladder stays Stockfish-only on purpose: its error budgets,
+`SKILL_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
+cohorts (`api/strength.py`) are defined against Stockfish. An engine with
+`UCI_Elo` but no `Skill Level` (Arasan 26.1) plays the ladder through
+`[ladder] strength = "elo"`. Opponent moves come from the same interactive pool
+as hints. A profile that can play neither ladder makes bot play unavailable;
+play never falls back to Stockfish. The play endpoints
 (`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
 `…/opponent-move`) return 503 with
 `detail = {code: "bot_play_unavailable", message, reason}`. `reason` is the
@@ -317,11 +339,13 @@ date and the engine versions.
   always at full strength.
 - The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
   starts the engine with `popen_uci` and sets `Hash` unconditionally.
-- The bot ladder and Skill Level opponent need a strength path through
-  `UCI_LimitStrength`/`UCI_Elo` alone, with time limits, for engines without
-  `Skill Level` (Arasan 26.1, Minic, Rodent V); see #396 and #393.
 - The bot ladder's node-limited MultiPV search and Skill Level play do not
   go through the search deadline yet; `[limits]` accepts only `hint`.
+- The legacy Skill Level opponent (sessions without `bot_level`) has no
+  `UCI_Elo` path; it still needs `Skill Level`.
+- A bot session keeps the `bot_policy_version` it was created with, but its
+  moves follow the profile the pool runs now: switching `[ladder]` mid-game
+  changes the policy of open sessions.
 - An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
   for any N) reports `works` with much less search than asked for; no state in
   the compatibility table shows it.
