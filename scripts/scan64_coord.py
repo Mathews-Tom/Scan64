@@ -42,8 +42,10 @@ REPO = "Mathews-Tom/Scan64"
 BOARD_OWNER = "Mathews-Tom"
 BOARD_NUMBER = "1"
 RULES = "CONTRIBUTING.md, section 'Working across machines'"
-# hook-session refreshes the installed copy from this ref of the checkout setup ran in.
-TOOL_REF = "origin/main"
+# hook-session refreshes the installed copy from the first of these refs, in the
+# checkout setup ran in, that has the tool. While epic/371 is open the tool is
+# only there; once it reaches main, main wins and the epic ref may disappear.
+TOOL_REFS = ("origin/main", "origin/epic/371")
 TOOL_PATH = "scripts/scan64_coord.py"
 # Not ~/.local/share/scan64-coord: that is where the earlier standalone repo was cloned.
 INSTALL_DIR = Path.home() / ".local" / "share" / "scan64" / "coord"
@@ -465,36 +467,35 @@ def status_lines() -> list[str]:
 
 
 def refresh_installed_copy() -> None:
-    """Update the installed copy from TOOL_REF of the checkout setup ran in.
+    """Update the installed copy from the first of TOOL_REFS that has the tool.
 
-    Fetches only TOOL_REF's branch; the checkout's working tree is never touched.
+    Fetches only those branches; the checkout's working tree is never touched.
     Any failure keeps the installed copy as it is.
     """
     repo_file = INSTALL_DIR / "repo"
     if not repo_file.exists():
         return
     repo = repo_file.read_text(encoding="utf-8").strip()
-    remote, _, branch = TOOL_REF.partition("/")
-    try:
-        subprocess.run(
-            ["git", "-C", repo, "fetch", "-q", remote, branch], capture_output=True, timeout=15
-        )
-        shown = subprocess.run(
-            ["git", "-C", repo, "show", f"{TOOL_REF}:{TOOL_PATH}"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=15,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return
     installed = INSTALL_DIR / "scan64_coord.py"
-    if (
-        shown.returncode == 0
-        and shown.stdout
-        and shown.stdout != installed.read_text(encoding="utf-8")
-    ):
-        installed.write_text(shown.stdout, encoding="utf-8")
+    for ref in TOOL_REFS:
+        remote, _, branch = ref.partition("/")
+        try:
+            subprocess.run(
+                ["git", "-C", repo, "fetch", "-q", remote, branch], capture_output=True, timeout=15
+            )
+            shown = subprocess.run(
+                ["git", "-C", repo, "show", f"{ref}:{TOOL_PATH}"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return
+        if shown.returncode == 0 and shown.stdout:
+            if shown.stdout != installed.read_text(encoding="utf-8"):
+                installed.write_text(shown.stdout, encoding="utf-8")
+            return
 
 
 def cmd_hook_session() -> int:
@@ -586,7 +587,7 @@ def cmd_setup(name: str) -> int:
     installed = INSTALL_DIR / "scan64_coord.py"
     installed.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     (INSTALL_DIR / "repo").write_text(repo + "\n", encoding="utf-8")
-    print(f"Installed copy: {installed} (refreshed from {TOOL_REF} of {repo})")
+    print(f"Installed copy: {installed} (refreshed from {' or '.join(TOOL_REFS)} of {repo})")
     bin_dir = Path.home() / ".local" / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":

@@ -140,7 +140,7 @@ On Windows, use `python` instead of `python3`. Setup writes the machine name to 
 
 With Claude Code, also run `scan64-coord install-hooks`, then open `/hooks` once or restart Claude Code. This adds two hooks to `~/.claude/settings.json` and keeps the existing ones:
 
-- At session start, the agent gets `scan64-coord status` in its context, after the installed copy refreshes itself from `origin/main`.
+- At session start, the agent gets `scan64-coord status` in its context, after the installed copy refreshes itself from `origin/main`, or from `origin/epic/371` while the tool is only on the epic branch.
 - Before a `git push` or `gh pr create` in a Scan64 checkout, the hook blocks the command if the branch's ticket belongs to another machine.
 
 Other agents and people run `scan64-coord status` at the start of a session and `scan64-coord check` before pushing.
