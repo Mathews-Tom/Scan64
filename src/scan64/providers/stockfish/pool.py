@@ -10,9 +10,13 @@ import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.opponents.bot_policy import choose_elo_move, choose_ladder_move
+from scan64.chess.opponents.bot_policy import (
+    bot_policy_version,
+    choose_elo_move,
+    choose_ladder_move,
+)
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import EngineConfigurationError, UciOptionValue, scaled_nodes
+from scan64.providers.engine.config import UciOptionValue, scaled_nodes
 from scan64.providers.engine.uci import (
     ELO_LADDER_OPTIONS,
     FULL_STRENGTH,
@@ -153,6 +157,13 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
+        current = bot_policy_version(self.config)
+        saved = context.bot_policy_version
+        if saved is not None and saved != current:
+            raise EngineCapabilityError(
+                f"This game was started under the bot ladder {saved!r}; the server now "
+                f"plays {current!r}. Start a new game to play this level."
+            )
         if self.config.ladder.strength == "elo":
             return await self._play_elo_bot_move(engine, fen, context)
         try:
@@ -190,7 +201,7 @@ class PooledStockfishAdapter:
         elo = ladder.elo_for(context.bot_level)
         if within_declared_range(engine, "UCI_Elo", elo) != elo:
             declared = engine.options["UCI_Elo"]
-            raise EngineConfigurationError(
+            raise EngineCapabilityError(
                 f"Engine profile {self.config.name!r} gives bot level {context.bot_level} "
                 f"UCI_Elo {elo}, outside the {declared.min}-{declared.max} that "
                 f"{engine.id.get('name', 'the configured engine')} declares"

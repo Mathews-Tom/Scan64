@@ -109,12 +109,19 @@ Rules (all enforced at load or engine start, failing with the file and key):
   `movetime_ms` with the engine's own randomness (not seeded; the session's
   node budget is unused). It needs `UCI_LimitStrength` and `UCI_Elo`; a level's
   `UCI_Elo` outside the range the engine declares fails the move with
-  `EngineConfigurationError`. The `elo` values are what Scan64 sends, not a
+  `EngineCapabilityError` (a 503 the player can act on, not a server error). The `elo` values are what Scan64 sends, not a
   measured playing strength. The analysis reset turns `UCI_LimitStrength` off
   again before every search. Sessions record the path in `bot_policy_version`:
   `stockfish-error-budget-v1` for `skill`,
-  `uci-elo-v1:<engine name>:<elo list>:<movetime>ms` for `elo`, so strength
-  cohorts never mix the two.
+  `uci-elo-v1:<engine name>:<elo list>:<movetime>ms` for `elo`. A session
+  plays only under the policy it recorded: when the server's `[ladder]` or
+  engine changes while a bot game is open, the next bot move fails with
+  `EngineCapabilityError` naming both policies, so a game is never counted in
+  one strength cohort and played under another. Sessions without a recorded
+  policy predate the Elo path and play only under
+  `stockfish-error-budget-v1`. The opponent's name comes from the recorded
+  policy: `Arasan (level 1: First steps)` for an Elo session on the `arasan`
+  profile, `Stockfish (...)` for error-budget and unstamped sessions.
 
 ## What every stored line contains
 
@@ -352,9 +359,9 @@ date and the engine versions.
   go through the search deadline yet; `[limits]` accepts only `hint`.
 - The legacy Skill Level opponent (sessions without `bot_level`) has no
   `UCI_Elo` path; it still needs `Skill Level`.
-- A bot session keeps the `bot_policy_version` it was created with, but its
-  moves follow the profile the pool runs now: switching `[ladder]` mid-game
-  changes the policy of open sessions.
+- A bot game open when `[ladder]` or the engine changes cannot continue (see
+  the ladder section); it stays in its recorded cohort, and the player starts
+  a new game.
 - An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
   for any N) reports `works` with much less search than asked for; no state in
   the compatibility table shows it.

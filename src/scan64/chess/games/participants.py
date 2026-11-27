@@ -7,6 +7,7 @@ from collections.abc import Sequence
 import chess
 
 from scan64.chess.games.models import Game
+from scan64.chess.opponents.bot_policy import policy_engine_name
 from scan64.chess.opponents.bots import get_bot_level
 
 
@@ -31,7 +32,9 @@ def opponent_name(opponent_config: dict[str, str]) -> str:
         return f"Maia {checkpoint}" if checkpoint else "Maia"
     if "bot_level" in opponent_config:
         level = get_bot_level(int(opponent_config["bot_level"]))
-        return f"Stockfish (level {level.level}: {level.name})"
+        # The engine recorded with the session; unstamped sessions are Stockfish.
+        engine = policy_engine_name(opponent_config.get("bot_policy_version", ""))
+        return f"{engine} (level {level.level}: {level.name})"
     try:
         strength = int(opponent_config.get("strength", "0"))
     except ValueError:

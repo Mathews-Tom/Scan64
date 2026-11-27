@@ -102,3 +102,81 @@ def test_bot_first_move_returns_503_and_creates_no_session(
     assert_bot_play_unavailable(response.json())
     db_session.expire_all()
     assert db_session.exec(select(PlaySession)).all() == []
+
+
+@pytest.fixture(name="narrow_arasan_profile")
+def narrow_arasan_profile_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> AsyncMock:
+    """An Elo-ladder profile whose level 1 UCI_Elo (1000) the engine does not accept."""
+    binary = tmp_path / "arasan"
+    binary.write_bytes(b"arasan test double")
+    profile = tmp_path / "engine.toml"
+    profile.write_text(
+        f"[engine]\nname = \"arasan\"\nbinary_path = '{binary}'\n"
+        '[ladder]\nstrength = "elo"\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n'
+        "movetime_ms = 100\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
+    engine = AsyncMock()
+    engine.id = {"name": "Arasan 26.1"}
+    engine.config = {}
+    engine.options = dict.fromkeys(("Threads", "Hash", "MultiPV", "UCI_LimitStrength"))
+    engine.options["UCI_Elo"] = chess.engine.Option("UCI_Elo", "spin", 3450, 1350, 3450, [])
+    engine.play.return_value = chess.engine.PlayResult(chess.Move.from_uci("e7e5"), None)
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    return engine
+
+
+def _move_detail(client: TestClient, level: str) -> tuple[str, dict[str, object]]:
+    created = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "profile-player", "opponent_config": {"bot_level": level}},
+    )
+    assert created.status_code == 200, created.text
+    session_id = created.json()["id"]
+    response = client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"})
+    return session_id, response.json() | {"status": response.status_code}
+
+
+def test_out_of_range_elo_returns_an_actionable_503(
+    narrow_arasan_profile: AsyncMock, client: TestClient, db_session: Session
+) -> None:
+    authorize(client, db_session)
+    _, body = _move_detail(client, "1")
+    assert body["status"] == 503, body
+    detail = body["detail"]
+    assert isinstance(detail, dict) and detail["code"] == "bot_play_unavailable"
+    assert "UCI_Elo 1000, outside the 1350-3450" in str(detail["reason"])
+    narrow_arasan_profile.play.assert_not_awaited()
+
+
+def test_a_session_from_another_ladder_cannot_continue_or_change_cohort(
+    narrow_arasan_profile: AsyncMock, client: TestClient, db_session: Session
+) -> None:
+    authorize(client, db_session)
+    created = client.post(
+        "/v1/play-sessions",
+        json={"player_id": "profile-player", "opponent_config": {"bot_level": "3"}},
+    )
+    assert created.status_code == 200, created.text
+    session_id = created.json()["id"]
+    play_session = db_session.exec(select(PlaySession)).one()
+    assert play_session.opponent_config["bot_policy_version"].startswith("uci-elo-v1:arasan:")
+    # The session was saved under the error-budget ladder; the server now runs Arasan's.
+    play_session.opponent_config = {
+        **play_session.opponent_config,
+        "bot_policy_version": "stockfish-error-budget-v1",
+    }
+    db_session.add(play_session)
+    db_session.commit()
+
+    response = client.post(f"/v1/play-sessions/{session_id}/moves", json={"move": "e2e4"})
+
+    assert response.status_code == 503, response.text
+    assert "started under the bot ladder 'stockfish-error-budget-v1'" in str(
+        response.json()["detail"]["reason"]
+    )
+    narrow_arasan_profile.play.assert_not_awaited()
+    db_session.expire_all()
+    stored = db_session.exec(select(PlaySession)).one()
+    assert stored.opponent_config["bot_policy_version"] == "stockfish-error-budget-v1"

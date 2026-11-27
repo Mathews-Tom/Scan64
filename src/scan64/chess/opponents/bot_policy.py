@@ -35,6 +35,14 @@ def bot_policy_version(config: EngineConfig) -> str:
     return f"uci-elo-v1:{config.name}:{elo}:{ladder.movetime_ms}ms"
 
 
+def policy_engine_name(version: str) -> str:
+    """The engine a recorded ladder policy plays with, for display."""
+    if version.startswith("uci-elo-v1:"):
+        name = version.split(":")[1]
+        return name[:1].upper() + name[1:]
+    return "Stockfish"
+
+
 def error_budget(level: int) -> int:
     return get_bot_level(level).error_budget_cp
 
