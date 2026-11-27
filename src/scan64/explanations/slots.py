@@ -88,10 +88,16 @@ class Slot:
 
 @dataclass(frozen=True)
 class SlotCatalogue:
-    """Slots per evidence item: a claim may use only its own item's slots."""
+    """Slots per evidence item: a claim may use only its own item's slots.
+
+    ``combined`` maps an evidence item whose slots are exactly those of other
+    items (such as the Analysis Board ``comparison``) to those items; the
+    prompt names them instead of listing every slot again.
+    """
 
     by_evidence: Mapping[str, Mapping[str, Slot]]
     shared: frozenset[str] = field(default_factory=frozenset)
+    combined: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})
@@ -115,6 +121,10 @@ class SlotCatalogue:
             lines.append("For every evidence item:")
             lines += [_prompt_line(slot) for slot in shared]
         for evidence_id, slots in items:
+            if evidence_id in self.combined:
+                parts = ", ".join(self.combined[evidence_id])
+                lines.append(f"For evidence {evidence_id}: every slot listed for {parts}.")
+                continue
             lines.append(f"For evidence {evidence_id}:")
             lines += [
                 _prompt_line(slot)

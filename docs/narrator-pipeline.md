@@ -417,7 +417,7 @@ The narrator writes prose with named slots; code writes every chess token. For e
 
 `K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
 
-Analysis Board slots, per line evidence item `line-K` (the `comparison` item lists the slots of every line):
+Analysis Board slots, per line evidence item `line-K`. The `comparison` item may use the slots of every line; the slot list names those lines (`For evidence comparison: every slot listed for line-1, line-2, ...`) instead of repeating their slots, which kept the longest recorded board prompt (MultiPV 4) inside the 12288-token default with a 2,048-token answer (`tests/unit/test_llm_context_budget.py`):
 
 | Slot | Value (example) |
 |---|---|
