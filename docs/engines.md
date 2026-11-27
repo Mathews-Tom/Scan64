@@ -26,6 +26,7 @@ protocol = "uci"                                   # optional: "uci" (default) o
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
 node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
+search_deadline_s = 120                            # optional, > 0: wall-clock bound on node/depth-only searches
 
 [engine.options]          # extra UCI options; each must be declared by the engine
 UCI_ShowWDL = true
@@ -61,6 +62,15 @@ Rules (all enforced at load or engine start, failing with the file and key):
   rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
   1, so rows from different scales never reuse each other; rows at scale 1 keep
   their pre-existing reuse key.
+- `engine.search_deadline_s` (default 120) bounds every analysis search that
+  has no time limit of its own (fast pass, focused pass, lesson verification,
+  Analysis Board lines). Past it the search is stopped and the request fails
+  with `EngineCapabilityError` saying the engine did not finish its node or
+  depth limit: an engine that ignores `go nodes` (Rodent V 1.2) reports
+  `unavailable` instead of hanging. It is not part of the cache identity.
+- A pooled engine whose process exits (`EngineTerminatedError`) fails that
+  request and is replaced: the next checkout from the pool starts a new
+  process.
 - `engine.protocol = "xboard"` runs an XBoard (protover 2) engine. The engine
   must declare `ping` and `setboard`; one that sends `setboard=0` (Fairy-Max
   5.0b) fails at start with `EngineCapabilityError`, since every Scan64 search
@@ -300,12 +310,8 @@ date and the engine versions.
 - The bot ladder and Skill Level opponent need a strength path through
   `UCI_LimitStrength`/`UCI_Elo` alone, with time limits, for engines without
   `Skill Level` (Arasan 26.1, Minic, Rodent V); see #396 and #393.
-- Node-only searches (fast pass, focused pass, lesson verification) have no
-  time limit or deadline, so an engine that ignores `go nodes` (Rodent V 1.2)
-  hangs them. `[limits]` accepts only `hint`.
-- The batch pool keeps an engine process that died and does not restart it:
-  after one `EngineTerminatedError`, later searches fail with "engine process
-  dead".
+- The bot ladder's node-limited MultiPV search and Skill Level play do not
+  go through the search deadline yet; `[limits]` accepts only `hint`.
 - An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
   for any N) reports `works` with much less search than asked for; no state in
   the compatibility table shows it.
