@@ -17,13 +17,14 @@ runs_per_position = 3
 base_url = "http://127.0.0.1:11435"
 results_dir = "benchmarks/narrator/results"     # relative to the repository root
 gguf_cache = "~/.cache/scan64-narrator-bench/gguf"
-# Generous client timeout so slow models are measured, not cut off. The
-# production local-Ollama limit is reported as the share of calls within it.
+# Generous client timeout so slow models are measured, not cut off. The app's
+# local-Ollama timeout defaults to 180 s (configurable up to 600 s); the summary
+# reports the share of calls within the 4 s interactive target below.
 request_timeout_s = 120
 production_time_limit_s = 4.0
 # Uniform context window and output cap written into every benchmark Modelfile
-# (PARAMETER num_ctx / num_predict). Prompts are under 1 300 tokens. The app sends
-# no output cap; its only bound is the 4 s production limit, reported separately.
+# (PARAMETER num_ctx / num_predict). The app sends no output cap; its only bound
+# is its request timeout.
 # The cap here is a runaway guard, not a length limit: real answers use 60-450
 # tokens, and a model that loops (praxis-2b repeats UCI moves) stops after about
 # 10 s instead of running to the context end. Such calls show in "Hit output cap".

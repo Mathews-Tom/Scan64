@@ -191,17 +191,23 @@ def _git(*args: str) -> str:
 
 
 def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
-    """Pin the prompt builder under test: commit, dirty flag, module source hash."""
+    """Pin the code under test: commit, whole-tree dirty flag, module and runner hashes.
+
+    ``dirty`` covers the whole tree except the results directory, so uncommitted
+    runner or config changes are flagged, not only changes under ``src``.
+    """
     entry = _resolve(config.pipeline_entry)
     source_file = Path(inspect.getfile(entry))
+    results = config.results_dir.relative_to(REPO_ROOT).as_posix()
     return {
         "pipeline_entry": config.pipeline_entry,
         "grounding_context": config.grounding_context,
         "commit": _git("rev-parse", "HEAD"),
         "module_commit": _git("log", "-1", "--format=%H", "--", str(source_file)),
-        "dirty": bool(_git("status", "--porcelain", "--", "src")),
+        "dirty": bool(_git("status", "--porcelain", "--", ".", f":(exclude){results}")),
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
+        "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
 
 
@@ -644,6 +650,8 @@ async def measure_model(
             "ollama_size_bytes": served[0]["size"],
             "ollama_size_vram_bytes": served[0]["size_vram"],
             "ollama_context_length": served[0].get("context_length"),
+            # Pins library models, which are named only by a mutable Ollama tag.
+            "ollama_digest": served[0].get("digest"),
             "gpu_idle_used_mib": idle_mib,
             "gpu_loaded_used_mib": peak_mib,
         },
