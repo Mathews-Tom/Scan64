@@ -1,7 +1,8 @@
 # Linux engine builds (#397, #411)
 
 The engines behind the Linux compatibility run
-(`results/compat_20261127_202247.jsonl`, profiles in
+(`results/compat_20261127_202247.jsonl`, with the Lc0 rows rerun in
+`results/compat_20261127_233522.jsonl`; profiles in
 `config/engines/compat/linux/`) were installed on linux-5090 on 2026-11-27:
 Ubuntu, gcc 15.2.0, CUDA 13.2, RTX 5090 (sm_120), Ryzen Threadripper 9960X
 (Zen 5, AVX-512). This is the build record for that run, copied from the

@@ -408,9 +408,11 @@ Linux run (linux-5090, 2026-11-27, commit `edda2ed`, #411): the ten engines
 above plus Stockfish 11, Lc0 with the BT4 network, Caissa, Arasan, Ethereal,
 Berserk and Koivisto, from `benchmarks/engines/compat-linux.toml` with the
 profiles in `config/engines/compat/linux/`. The states are copied from
-`benchmarks/engines/results/compat_20261127_202247.jsonl`; the generated table
-with the reason for every `unavailable` and `blocked` cell, and the run notes, is
-`compat_20261127_202247.md` next to it. Each engine's source, tag and
+`benchmarks/engines/results/compat_20261127_202247.jsonl`, except the two Lc0
+rows, which come from `compat_20261127_233522.jsonl` (an Lc0-only rerun at
+`747152f`, after the profiles moved to wrapper scripts; same states as
+`202247`). The generated tables with the reason for every `unavailable` and
+`blocked` cell, and the run notes, are the `.md` files next to them. Each engine's source, tag and
 commit, build command, binary SHA-256 and network URL and SHA-256 are in
 [`benchmarks/engines/linux-builds.md`](../benchmarks/engines/linux-builds.md);
 the binary SHA-256 is also in every JSONL record. This table replaces nothing above.
