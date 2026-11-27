@@ -520,9 +520,15 @@ def test_explicit_binary_takes_stockfish_protocol_scale_and_deadline(
     path = write_profile(
         tmp_path,
         "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nprotocol = 'xboard'\n"
-        "node_scale = 0.002\nsearch_deadline_s = 30\n",
+        "node_scale = 0.002\nsearch_deadline_s = 30\nscore_scale = 2.8\n\n"
+        "[ladder]\nstrength = 'elo'\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n"
+        "movetime_ms = 500\n",
     )
     monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    assert StockfishConfig().score_scale == 2.8
+    assert StockfishConfig().ladder.strength == "elo"
+    stockfish = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (stockfish.score_scale, stockfish.ladder.strength) == (1.0, "skill")
     # scan64 calibrate --stockfish: an explicit Stockfish binary under this profile.
     explicit = StockfishConfig(binary_path="/opt/sf/stockfish")
     assert (explicit.protocol, explicit.node_scale, explicit.search_deadline_s) == (
