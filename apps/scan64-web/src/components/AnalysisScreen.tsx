@@ -76,8 +76,8 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
   const [explanation, setExplanation] = useState<LineExplanation>({ state: 'idle' });
   const [pinnedClaim, setPinnedClaim] = useState<number | null>(null);
   const [previewClaim, setPreviewClaim] = useState<number | null>(null);
-  // The running explanation request; leaving its position aborts it so the
-  // server stops the generation and frees the player's explanation slot.
+  // The running explanation request; leaving its position aborts it. The
+  // server cancels its model call when the player's next explanation starts.
   const explanationRequest = useRef<AbortController | null>(null);
   const abortExplanation = () => {
     explanationRequest.current?.abort();

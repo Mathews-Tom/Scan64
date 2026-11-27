@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import json
+import socket
 import threading
-from collections.abc import Awaitable, Callable
+import time
+from collections.abc import Awaitable, Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import chess
+import httpx
 import pytest
+import uvicorn
 from chess_lesson_spec import ExplanationClaim
-from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -362,50 +366,94 @@ def test_playwright_fixture_is_the_current_template_response(
     )
 
 
-class _BlockingProvider:
-    """Holds the model call open until the test releases it."""
+class _FirstCallBlocks:
+    """The first model call runs until it is cancelled; later calls fail at once."""
 
     def __init__(self) -> None:
+        self.calls = 0
         self.started = threading.Event()
-        self.release = threading.Event()
+        self.cancelled = threading.Event()
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        self.calls += 1
+        if self.calls > 1:
+            raise LLMProviderError("second call")
         self.started.set()
-        while not self.release.is_set():
-            await asyncio.sleep(0.01)
-        raise LLMProviderError("released")
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+        raise LLMProviderError("never cancelled")
 
 
-def test_a_second_explanation_for_the_same_player_is_busy_503(
+def _grant_player(provider: _FirstCallBlocks) -> Callable[..., Awaitable[Any]]:
+    async def grant(session: Session, player_id: str, owner_generation: int | None) -> Any:
+        return provider if player_id == PLAYER else None
+
+    return grant
+
+
+def test_a_second_explanation_for_the_same_player_cancels_the_first(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers = register(db_session)
     other_headers = register(db_session, "explain-other")
     analyze = recorded("start")
     monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
-    provider = _BlockingProvider()
-
-    async def grant(session: Session, player_id: str, owner_generation: int | None) -> Any:
-        return provider if player_id == PLAYER else None
-
-    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", grant)
+    provider = _FirstCallBlocks()
+    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", _grant_player(provider))
     with ThreadPoolExecutor(max_workers=1) as pool:
         first = pool.submit(client.post, ENDPOINT, headers=headers, json=body("start"))
         assert provider.started.wait(10)
-        busy = client.post(ENDPOINT, headers=headers, json=body("start"))
-        # The slot is per player: another player is admitted meanwhile.
+        # Calls are per player: another player runs while the first call runs.
         other = client.post(
             ENDPOINT, headers=other_headers, json={**body("start"), "player_id": "explain-other"}
         )
-        provider.release.set()
-        assert first.result(10).json()["fallback_reason"] == "provider_error"
-    assert busy.status_code == 503
-    assert busy.json()["detail"] == "An explanation is already running; try again shortly"
+        assert not provider.cancelled.is_set()
+        second = client.post(ENDPOINT, headers=headers, json=body("start"))
+        replaced = first.result(10)
+    assert provider.cancelled.is_set()
+    assert replaced.status_code == 409
+    assert replaced.json()["detail"] == endpoint_module.SUPERSEDED_DETAIL
+    assert second.status_code == 200, second.text
+    assert second.json()["fallback_reason"] == "provider_error"
     assert other.status_code == 200, other.text
-    assert analyze.await_count == 2
-    # The finished request frees the slot.
-    after = client.post(ENDPOINT, headers=headers, json=body("start"))
-    assert after.status_code == 200, after.text
+    assert provider.calls == 2
+    assert analyze.await_count == 3
+    assert not app.state.analysis_explanation_calls.running(PLAYER)
+
+
+def test_a_request_replaced_during_its_search_starts_no_model_call(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    analysis = recorded("start")
+    searching = threading.Event()
+    finish_search = threading.Event()
+
+    async def analyze(*args: Any, **kwargs: Any) -> EngineAnalysis:
+        if not searching.is_set():
+            searching.set()
+            while not finish_search.is_set():
+                await asyncio.sleep(0.01)
+        result: EngineAnalysis = await analysis(*args, **kwargs)
+        return result
+
+    provider = _Provider(None)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", _grant(provider))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(client.post, ENDPOINT, headers=headers, json=body("start"))
+        assert searching.wait(10)
+        second = client.post(ENDPOINT, headers=headers, json=body("start"))
+        finish_search.set()
+        replaced = first.result(10)
+    assert second.status_code == 200, second.text
+    assert replaced.status_code == 409
+    assert replaced.json()["detail"] == endpoint_module.SUPERSEDED_DETAIL
+    # Only the latest request reached the model.
+    assert len(provider.requests) == 1
 
 
 def test_a_failed_explanation_frees_the_player_slot(
@@ -443,51 +491,61 @@ def test_the_request_session_is_released_before_search_and_generation(
     assert in_transaction == [False, False]
 
 
-class _Request:
-    def __init__(self, disconnect_after: int | None) -> None:
-        self.polls = 0
-        self.disconnect_after = disconnect_after
-
-    async def is_disconnected(self) -> bool:
-        self.polls += 1
-        return self.disconnect_after is not None and self.polls >= self.disconnect_after
-
-
-@pytest.mark.asyncio
-async def test_a_client_disconnect_cancels_the_generation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(endpoint_module, "DISCONNECT_POLL_SECONDS", 0.01)
-    cancelled = asyncio.Event()
-
-    async def generation() -> str:
-        try:
-            await asyncio.sleep(60)
-        except asyncio.CancelledError:
-            cancelled.set()
-            raise
-        return "unreachable"
-
-    request = _Request(disconnect_after=2)
-    with pytest.raises(HTTPException) as raised:
-        await endpoint_module.cancel_on_disconnect(cast(Request, request), generation())
-    assert raised.value.status_code == endpoint_module.CLIENT_CLOSED_REQUEST
-    assert cancelled.is_set()
-    assert request.polls == 2
-
-
-@pytest.mark.asyncio
-async def test_a_connected_client_receives_the_generation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(endpoint_module, "DISCONNECT_POLL_SECONDS", 0.01)
-
-    async def generation() -> str:
-        await asyncio.sleep(0.05)
-        return "worded"
-
-    request = _Request(disconnect_after=None)
-    assert await endpoint_module.cancel_on_disconnect(cast(Request, request), generation()) == (
-        "worded"
+@contextmanager
+def _served(asgi_app: Any) -> Iterator[str]:
+    """Serve ``asgi_app`` with uvicorn on an ephemeral port; the lifespan is the caller's."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    server = uvicorn.Server(
+        uvicorn.Config(asgi_app, lifespan="off", log_level="warning", timeout_graceful_shutdown=5)
     )
-    assert request.polls >= 1
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    try:
+        deadline = time.monotonic() + 10
+        while not server.started:
+            assert thread.is_alive() and time.monotonic() < deadline, "uvicorn did not start"
+            time.sleep(0.01)
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(10)
+        sock.close()
+
+
+def test_through_uvicorn_a_new_request_cancels_the_abandoned_model_call(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real middleware stack: the client leaves, then explains again.
+
+    ``Request.is_disconnected`` never sees the first client leave behind
+    ``IdempotencyMiddleware``; the second request must cancel the first call.
+    """
+    headers = register(db_session)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", recorded("start"))
+    provider = _FirstCallBlocks()
+    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", _grant_player(provider))
+
+    async def leave_then_explain_again(base_url: str) -> httpx.Response:
+        async with httpx.AsyncClient(base_url=base_url, headers=headers, timeout=20) as http:
+            first = asyncio.ensure_future(http.post(ENDPOINT, json=body("start")))
+            while not provider.started.is_set():
+                assert not first.done(), first.result().text
+                await asyncio.sleep(0.01)
+            # The player moves on: the client aborts the first request.
+            first.cancel()
+            with suppress(asyncio.CancelledError):
+                await first
+            await asyncio.sleep(0.5)
+            # The abandoned call still runs: the server did not see the disconnect.
+            assert not provider.cancelled.is_set()
+            return await http.post(ENDPOINT, json=body("start"))
+
+    with _served(app) as base_url:
+        second = asyncio.run(leave_then_explain_again(base_url))
+        # Checked before the server stops, since its shutdown also cancels tasks.
+        assert provider.cancelled.is_set()
+    assert second.status_code == 200, second.text
+    assert second.json()["fallback_reason"] == "provider_error"
+    assert provider.calls == 2

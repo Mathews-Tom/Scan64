@@ -6,18 +6,22 @@ default budget the explained lines are the lines the board already shows.
 ``nodes`` and ``depth`` may only narrow that budget; ``multipv`` selects how many
 of the engine's ranked lines are explained.
 
-Each player runs one explanation at a time; a second request gets 503 while
-the first one runs. The request releases its DB session before the engine
-search and the model call. The model call stops when the client disconnects:
-the endpoint polls ``Request.is_disconnected`` and cancels the generation,
-which closes the provider's HTTP stream and frees the player's slot.
+The latest explanation request from a player wins: it cancels that player's
+running model call, and an older request that is still in its engine search
+returns 409 without starting one. So each player has at most one model call
+running, and leaving a position never waits for the abandoned call to end. This
+does not depend on disconnect detection, which ``Request.is_disconnected``
+cannot give behind ``IdempotencyMiddleware`` (a ``BaseHTTPMiddleware``). The
+engine search is not cancelled; the hint deadline bounds it. The request
+releases its DB session before the engine search and the model call.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Iterator, Sequence
-from contextlib import contextmanager, suppress
+from collections.abc import Coroutine, Iterator, Sequence
+from contextlib import contextmanager
+from typing import Any
 
 import chess
 import chess.engine
@@ -57,54 +61,68 @@ router = APIRouter(tags=["insights"])
 # still bound it. Stockfish's own maximum search depth is 245.
 MAX_EXPLANATION_DEPTH = 245
 
-# How often the model call checks for a closed client connection.
-DISCONNECT_POLL_SECONDS = 0.25
-# Non-standard "client closed request" status. The client is gone, so nobody
-# reads it; it keeps the access log honest.
-CLIENT_CLOSED_REQUEST = 499
+SUPERSEDED_DETAIL = "A newer explanation request from this player replaced this one"
 
 
-def _running_players(request: Request) -> set[str]:
-    running: set[str] | None = getattr(request.app.state, "analysis_explanation_players", None)
-    if running is None:
-        running = set()
-        request.app.state.analysis_explanation_players = running
-    return running
+def _superseded() -> HTTPException:
+    return HTTPException(status_code=409, detail=SUPERSEDED_DETAIL)
 
 
-@contextmanager
-def explanation_slot(request: Request, player_id: str) -> Iterator[None]:
-    """Admit one explanation per player; raise 503 while one already runs."""
-    running = _running_players(request)
-    if player_id in running:
-        raise HTTPException(
-            status_code=503,
-            detail="An explanation is already running; try again shortly",
-        )
-    running.add(player_id)
-    try:
-        yield
-    finally:
-        running.discard(player_id)
+class ExplanationCalls:
+    """Each player's model call; the player's latest explanation request wins.
+
+    In-process state on ``app.state``. ``claim`` makes a request the player's
+    latest and cancels the model call the player has running. ``run`` starts a
+    model call only for the latest request, so an older request still in its
+    engine search never starts one.
+    """
+
+    def __init__(self) -> None:
+        self._latest: dict[str, object] = {}
+        self._running: dict[str, asyncio.Task[Any]] = {}
+
+    def running(self, player_id: str) -> bool:
+        return player_id in self._running
+
+    @contextmanager
+    def claim(self, player_id: str) -> Iterator[object]:
+        ticket = object()
+        self._latest[player_id] = ticket
+        running = self._running.pop(player_id, None)
+        if running is not None:
+            running.cancel()
+        try:
+            yield ticket
+        finally:
+            if self._latest.get(player_id) is ticket:
+                del self._latest[player_id]
+
+    async def run[T](self, player_id: str, ticket: object, work: Coroutine[Any, Any, T]) -> T:
+        """Run ``work`` as the player's model call; 409 once a newer request claims."""
+        if self._latest.get(player_id) is not ticket:
+            work.close()
+            raise _superseded()
+        task = asyncio.ensure_future(work)
+        self._running[player_id] = task
+        try:
+            return await task
+        except asyncio.CancelledError:
+            current = asyncio.current_task()
+            # Only ``claim`` cancels the call alone; a cancelled request re-raises.
+            if task.cancelled() and current is not None and current.cancelling() == 0:
+                raise _superseded() from None
+            raise
+        finally:
+            if self._running.get(player_id) is task:
+                del self._running[player_id]
 
 
-async def cancel_on_disconnect[T](request: Request, work: Awaitable[T]) -> T:
-    """Run ``work``; cancel it and raise 499 when the client disconnects."""
-    task = asyncio.ensure_future(work)
-    try:
-        while True:
-            done, _ = await asyncio.wait({task}, timeout=DISCONNECT_POLL_SECONDS)
-            if done:
-                return task.result()
-            if await request.is_disconnected():
-                raise HTTPException(
-                    status_code=CLIENT_CLOSED_REQUEST, detail="The client closed the request"
-                )
-    finally:
-        if not task.done():
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+def explanation_calls(request: Request) -> ExplanationCalls:
+    calls: ExplanationCalls | None = getattr(request.app.state, "analysis_explanation_calls", None)
+    if calls is None:
+        calls = ExplanationCalls()
+        request.app.state.analysis_explanation_calls = calls
+    return calls
 
 
 class AnalysisExplanationRequest(BaseModel):
@@ -180,15 +198,16 @@ async def explain_position(
     budget_nodes, _, budget_multipv = manager.hint_limits()
     count = _requested_lines(body, budget_multipv)
     _check_nodes(body.nodes, budget_nodes)
-    with explanation_slot(request, player_id):
+    calls = explanation_calls(request)
+    with calls.claim(player_id) as ticket:
         owner_generation = session.exec(select(local_explanation_owner_generation(player_id))).one()
         # The provider re-reads its grant on its own connection, so the
         # request session is not needed after this point.
         local_provider = await read_local_explanation_provider(session, player_id, owner_generation)
         session.close()
         lines, facts = await _explained_lines(manager, board, body, count)
-        resolved = await cancel_on_disconnect(
-            request, resolve_board_lines_explanation(facts, local_provider=local_provider)
+        resolved = await calls.run(
+            player_id, ticket, resolve_board_lines_explanation(facts, local_provider=local_provider)
         )
     return explanation_read(board, lines, facts, resolved)
 
@@ -265,8 +284,8 @@ def explanation_read(
 __all__ = [
     "AnalysisExplanationRead",
     "AnalysisExplanationRequest",
-    "cancel_on_disconnect",
+    "ExplanationCalls",
+    "explanation_calls",
     "explanation_read",
-    "explanation_slot",
     "router",
 ]
