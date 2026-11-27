@@ -10,10 +10,11 @@ import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.opponents.bot_policy import choose_ladder_move
+from scan64.chess.opponents.bot_policy import choose_elo_move, choose_ladder_move
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import UciOptionValue, scaled_nodes
+from scan64.providers.engine.config import EngineConfigurationError, UciOptionValue, scaled_nodes
 from scan64.providers.engine.uci import (
+    ELO_LADDER_OPTIONS,
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
@@ -24,6 +25,7 @@ from scan64.providers.engine.uci import (
     open_engine,
     require_options,
     startup_options,
+    within_declared_range,
 )
 from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
@@ -142,6 +144,8 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
+        if self.config.ladder.strength == "elo":
+            return await self._play_elo_bot_move(engine, fen, context)
         try:
             return await choose_ladder_move(
                 engine,
@@ -155,11 +159,41 @@ class PooledStockfishAdapter:
             # legal move; name the missing option instead of a raw UCI error.
             missing = missing_options(engine, (*FULL_STRENGTH, *LADDER_OPTIONS))
             if missing:
+                elo_hint = (
+                    ""
+                    if missing_options(engine, ELO_LADDER_OPTIONS)
+                    else '; it declares UCI_Elo, so set [ladder] strength = "elo" in its profile'
+                )
                 raise EngineCapabilityError(
                     f"The bot ladder requires UCI option(s) {', '.join(missing)}, which "
                     f"{engine.id.get('name', 'the configured engine')} does not declare"
+                    f"{elo_hint}"
                 ) from error
             raise
+
+    async def _play_elo_bot_move(
+        self, engine: Engine, fen: str, context: OpponentContext
+    ) -> chess.engine.PlayResult:
+        require_options(engine, ELO_LADDER_OPTIONS, "The Elo bot ladder")
+        assert context.bot_level is not None
+        ladder = self.config.ladder
+        assert ladder.movetime_ms is not None
+        elo = ladder.elo_for(context.bot_level)
+        if within_declared_range(engine, "UCI_Elo", elo) != elo:
+            declared = engine.options["UCI_Elo"]
+            raise EngineConfigurationError(
+                f"Engine profile {self.config.name!r} gives bot level {context.bot_level} "
+                f"UCI_Elo {elo}, outside the {declared.min}-{declared.max} that "
+                f"{engine.id.get('name', 'the configured engine')} declares"
+            )
+        return await choose_elo_move(
+            engine,
+            chess.Board(fen),
+            context,
+            self.game_token,
+            elo=elo,
+            movetime_ms=ladder.movetime_ms,
+        )
 
     async def analyze_position(
         self,

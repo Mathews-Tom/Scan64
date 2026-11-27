@@ -22,7 +22,7 @@ from scan64.providers.engine import (
     line_from_info,
     load_engine_profile,
 )
-from scan64.providers.engine.config import scaled_nodes
+from scan64.providers.engine.config import LadderSettings, scaled_nodes
 from scan64.providers.engine.uci import full_strength_options, startup_options
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig, search_limit
 from scan64.providers.stockfish.identity import analysis_identity
@@ -35,6 +35,10 @@ from scan64.providers.stockfish.pool import (
 )
 
 ETHEREAL_OPTIONS = ("Hash", "Threads", "EvalFile", "MultiPV", "Ponder", "UCI_Chess960")
+
+
+ENGINE = "[engine]\nname = 'x'\nbinary_path = 'x'\n"
+ELO_LADDER = "[ladder]\nstrength = 'elo'\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n"
 
 
 def write_profile(tmp_path: Path, body: str) -> Path:
@@ -128,6 +132,17 @@ def test_profile_is_reread_after_edit(monkeypatch: pytest.MonkeyPatch, tmp_path:
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\nnodes = -1\n", "positive"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\ndepth = 9\n", "Unknown"),
         ("[engine\n", "Invalid engine configuration"),
+        (f"{ENGINE}[ladder]\nstrength = 'nodes'\n", "ladder.strength must be one of"),
+        (f"{ENGINE}[ladder]\nelo = [1000]\n", "applies only to"),
+        (f"{ENGINE}[ladder]\nstrength = 'elo'\nelo = [1000]\nmovetime_ms = 5\n", "8 integers"),
+        (f"{ENGINE}{ELO_LADDER}movetime_ms = 0\n", "ladder.movetime_ms"),
+        (f"{ENGINE}{ELO_LADDER}", "ladder.movetime_ms"),
+        (
+            f"{ENGINE}[ladder]\nstrength = 'elo'\nelo = [1, 2, 3, 4, 5, 6, 6, 8]\n"
+            "movetime_ms = 5\n",
+            "increase",
+        ),
+        (f"{ENGINE}{ELO_LADDER}movetime_ms = 5\ndepth = 3\n", r"Unknown keys in \[ladder\]"),
     ],
 )
 def test_invalid_profiles_fail_fast(tmp_path: Path, body: str, message: str) -> None:
@@ -374,3 +389,14 @@ async def test_hint_limits_come_from_profile_and_key_the_cache(
 def test_shipped_profiles_parse(profile: Path) -> None:
     parsed = load_engine_profile(profile.resolve())
     assert parsed.name and parsed.binary_path
+
+
+def test_ladder_defaults_to_skill_and_parses_elo(tmp_path: Path) -> None:
+    assert load_engine_profile(write_profile(tmp_path, ENGINE)).ladder == LadderSettings()
+    ladder = load_engine_profile(
+        write_profile(tmp_path, f"{ENGINE}{ELO_LADDER}movetime_ms = 400\n")
+    ).ladder
+    assert (ladder.strength, ladder.movetime_ms) == ("elo", 400)
+    assert [ladder.elo_for(level) for level in (1, 8)] == [1000, 2500]
+    with pytest.raises(EngineConfigurationError, match="under skill"):
+        LadderSettings().elo_for(1)
