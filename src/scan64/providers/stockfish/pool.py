@@ -571,6 +571,10 @@ class EnginePoolManager:
                         else:
                             self._line_cache.move_to_end(key)
                         results[index] = cached.model_copy(deep=True)
+                except chess.engine.EngineTerminatedError:
+                    # As in ``EnginePool.acquire``: later checkouts get a live engine.
+                    adapter.discard()
+                    raise
                 finally:
                     await lease.__aexit__(None, None, None)
         except (TimeoutError, chess.engine.EngineError, OSError):

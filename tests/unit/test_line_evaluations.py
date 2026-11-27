@@ -16,6 +16,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import chess
+import chess.engine
 import pytest
 from chess_lesson_spec import Diagnosis
 
@@ -341,3 +342,20 @@ async def test_line_cache_is_keyed_by_engine_identity(
     monkeypatch.setattr(PooledStockfishAdapter, "analysis_identity", _identity("sha256:b"))
     await manager.analyze_hint_positions(boards, deadline=loop.time() + 1)
     assert analyze.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_an_engine_that_exits_during_line_scoring_is_discarded(
+    manager: EnginePoolManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyze = AsyncMock(side_effect=chess.engine.EngineTerminatedError("engine exited"))
+    discard: list[PooledStockfishAdapter] = []
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    monkeypatch.setattr(PooledStockfishAdapter, "analysis_identity", _identity("sha256:a"))
+    monkeypatch.setattr(PooledStockfishAdapter, "discard", lambda self: discard.append(self))
+    loop = asyncio.get_running_loop()
+    results = await manager.analyze_hint_positions(_boards(2), deadline=loop.time() + 1)
+    assert results == [None, None]
+    assert len(discard) == 1
+    assert manager.interactive_pool._queue.qsize() == 2
+    assert not manager._hint_in_progress

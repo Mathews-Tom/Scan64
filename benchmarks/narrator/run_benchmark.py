@@ -141,6 +141,8 @@ class BenchConfig:
     voice: NarratorVoice
     positions_file: Path
     models: tuple[ModelEntry, ...]
+    # The TOML file this config was read from; its digest is in the run header.
+    config_file: Path
 
 
 def load_config(path: Path) -> BenchConfig:
@@ -185,6 +187,7 @@ def load_config(path: Path) -> BenchConfig:
         voice=parse_narrator_voice(run.get("voice")),
         positions_file=REPO_ROOT / run.get("positions_file", raw["positions"]["file"]),
         models=models,
+        config_file=path.resolve(),
     )
 
 
@@ -201,11 +204,18 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
+def _config_label(path: Path) -> str:
+    """Repository-relative path of a config file, or its name outside the repository."""
+    return path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else path.name
+
+
 def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
-    """Pin the code under test: commit, whole-tree dirty flag, module and runner hashes.
+    """Pin the code under test: commit, whole-tree dirty flag, module, runner and config hashes.
 
     ``dirty`` covers the whole tree except the results directory, so uncommitted
-    runner or config changes are flagged, not only changes under ``src``.
+    runner or config changes are flagged, not only changes under ``src``. The
+    config digest also covers a ``--config`` file outside the repository, which
+    ``dirty`` cannot see.
     """
     entry = _resolve(config.pipeline_entry)
     source_file = Path(inspect.getfile(entry))
@@ -219,6 +229,8 @@ def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "config_file": _config_label(config.config_file),
+        "config_sha256": hashlib.sha256(config.config_file.read_bytes()).hexdigest(),
     }
 
 
@@ -229,6 +241,7 @@ RESUME_PINNED = (
     "module_file",
     "module_sha256",
     "runner_sha256",
+    "config_sha256",
 )
 
 
@@ -236,9 +249,9 @@ def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
     """Refuse to append to a run whose header no longer describes the code (rule 6).
 
     New records sit under the existing header, so the run must have started from a
-    clean tree, the tree must be clean now, and the commit, module and runner must
-    equal the header's. A header without one of these keys (written by an older
-    runner) cannot be resumed.
+    clean tree, the tree must be clean now, and the commit, module, runner and
+    config file digest must equal the header's. A header without one of these keys
+    (written by an older runner) cannot be resumed.
     """
     if identity["dirty"]:
         raise RuntimeError("Resume refused: the working tree has uncommitted changes")
@@ -1082,6 +1095,13 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"Ollama {header['ollama_version']}"
         + (f", `num_ctx` {header['num_ctx']}." if "num_ctx" in header else ".")
         + (f" Positions `{header['positions_file']}`." if "positions_file" in header else "")
+        # Config digest; headers before it have none and keep their summary text.
+        + (
+            f" Config `{header['pipeline']['config_file']}` (sha256 "
+            f"`{header['pipeline']['config_sha256'][:12]}`)."
+            if "config_sha256" in header["pipeline"]
+            else ""
+        )
         # Voice (#387); headers before #387 have none and keep their summary text.
         + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
         "",

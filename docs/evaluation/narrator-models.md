@@ -53,6 +53,7 @@ Procedure: rank the models that pass by GPU memory, smallest first, and choose t
 - Request: `think = false` and `stream = true` in every `/api/chat` body. `num_ctx` 4096 in every request, `num_predict` 2048. Client timeout 120 s.
 - Hardware: NVIDIA GeForce RTX 5090 32 GB. No other Ollama server held a model during any call.
 - Every runs header: `assembly.py` sha256 `79c006f90a10`, runner sha256 `3649f46a330a`, `dirty: false`. The header commits (`29f0424`, `ecfc8de`, `937353f`) differ only in committed result files.
+- Later runs: the header's `pipeline` also records `config_file` and `config_sha256`, the SHA-256 of the config file (`narrator.toml` or the file given on the command line), and `--resume` refuses a run whose config file has changed. The runs below predate this field.
 
 | Runs file | Positions | Voice | Models |
 |---|---|---|---|
