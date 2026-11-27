@@ -62,7 +62,9 @@ Rules (all enforced at load or engine start, failing with the file and key):
   1, so rows from different scales never reuse each other; rows at scale 1 keep
   their pre-existing reuse key.
 - `engine.protocol = "xboard"` runs an XBoard (protover 2) engine. The engine
-  must declare `ping` and `setboard`. Scan64 sends `engine.threads` as `cores`
+  must declare `ping` and `setboard`; one that sends `setboard=0` (Fairy-Max
+  5.0b) fails at start with `EngineCapabilityError`, since every Scan64 search
+  starts from a FEN. Scan64 sends `engine.threads` as `cores`
   and `engine.hash_mb` as `memory` when the engine declares `smp`/`memory`.
   XBoard has no MultiPV, so only single-line searches work: game review and
   single-line analysis run; a search for more lines (focused passes, Analysis
@@ -299,3 +301,21 @@ date and the engine versions.
   always at full strength.
 - The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
   starts the engine with `popen_uci` and sets `Hash` unconditionally.
+- The bot ladder sends `UCI_Elo = 1320` itself (`bot_policy.py`), outside
+  Stockfish 11's declared range (min 1350). The analysis reset clamps to the
+  declared range; the ladder does not.
+- The bot ladder and Skill Level opponent need a strength path through
+  `UCI_LimitStrength`/`UCI_Elo` alone, with time limits, for engines without
+  `Skill Level` (Arasan 26.1, Minic, Rodent V); see #396 and #393.
+- Node-only searches (fast pass, focused pass, lesson verification) have no
+  time limit or deadline, so an engine that ignores `go nodes` (Rodent V 1.2)
+  hangs them. `[limits]` accepts only `hint`.
+- The batch pool keeps an engine process that died and does not restart it:
+  after one `EngineTerminatedError`, later searches fail with "engine process
+  dead".
+- An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
+  for any N) reports `works` with much less search than asked for; no state in
+  the compatibility table shows it.
+- Profiles have no working directory, environment variables or command-line
+  arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
+  and option values get no `~` expansion.
