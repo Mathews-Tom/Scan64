@@ -128,6 +128,7 @@ _SINGLE_PART_GROUPS = frozenset(
     group for group in GROUP_NAMES if sum(1 for _, g in PARTS if g == group) == 1
 )
 
+FactorKind = Literal["group", "term"]
 PointName = Literal["before", "played", "best", "line"]
 Comparison = Literal["before", "best"]
 
@@ -233,10 +234,12 @@ def quiet_ply(
 # --- Measurement -------------------------------------------------------------------
 
 
-def _learner_values(report: FactorReport, learner: chess.Color) -> dict[tuple[str, str], float]:
+def _learner_values(
+    report: FactorReport, learner: chess.Color
+) -> dict[tuple[FactorKind, str], float]:
     """``(kind, guide name)`` -> pawns, learner's view."""
     sign = 1 if learner == chess.WHITE else -1
-    values: dict[tuple[str, str], float] = {}
+    values: dict[tuple[FactorKind, str], float] = {}
     for name, group in report.groups.items():
         if name in GROUP_NAMES:
             values[("group", name)] = sign * group.tapered / PAWN_VALUE_EG
@@ -258,8 +261,8 @@ def evaluation_cp(status: str, value: int | None) -> int | None:
 
 
 def passed_changes(
-    played: Mapping[tuple[str, str], float],
-    reference: Mapping[tuple[str, str], float],
+    played: Mapping[tuple[FactorKind, str], float],
+    reference: Mapping[tuple[FactorKind, str], float],
     swing_cp: int,
     compared_with: Comparison,
     config: FactorConfig = FACTOR_CONFIG,
@@ -293,7 +296,7 @@ def passed_changes(
 @dataclass(frozen=True)
 class MeasuredPoint:
     point: FactorPoint
-    values: Mapping[tuple[str, str], float] | None
+    values: Mapping[tuple[FactorKind, str], float] | None
 
 
 def measure_point(

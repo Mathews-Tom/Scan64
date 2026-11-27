@@ -176,3 +176,63 @@ def test_analysis_board_line_against_line_one() -> None:
     facts = line_factor_facts(root, best, worse, -200)
     assert [p.point for p in facts.points] == ["best", "line"]
     assert all(c.compared_with == "best" and c.change_pawns < 0 for c in facts.changes)
+
+
+# --- Slots ---------------------------------------------------------------------------
+
+
+def test_lesson_factor_slots_are_code_rendered_and_labelled() -> None:
+    from scan64.explanations.slots import lesson_slot_catalogue
+
+    facts = _facts(CLEAR_CAUSE)
+    slots = lesson_slot_catalogue(facts).slots_for(facts.evidence[0].evidence_id)
+    factor = {name: slot for name, slot in slots.items() if name.startswith("factor:")}
+    assert factor
+    assert len(factor) == len(facts.factors.changes)  # type: ignore[union-attr]
+    king = factor["factor:king_safety:best"]
+    change = next(
+        c
+        for c in facts.factors.changes  # type: ignore[union-attr]
+        if (c.key, c.compared_with) == ("king_safety", "best")
+    )
+    assert king.value == (
+        f"king safety fell by {abs(change.change_pawns):.2f} pawns for you, "
+        "compared with the best move"
+    )
+    assert king.source == FACTOR_SOURCE
+    assert all(slot.source == FACTOR_SOURCE for slot in factor.values())
+
+
+def test_no_factor_slot_without_a_passed_change() -> None:
+    from scan64.explanations.slots import lesson_slot_catalogue
+
+    catalogue = lesson_slot_catalogue(_facts(NO_CAUSE))
+    assert not any(name.startswith("factor:") for name in catalogue.names())
+
+
+def test_analysis_board_factor_slots_name_their_line() -> None:
+    from scan64.chess.analysis.models import EngineAnalysis
+    from scan64.explanations.board_lines import (
+        board_slot_catalogue,
+        build_board_lines_facts,
+        scored_legal_lines,
+    )
+
+    recording = json.loads(
+        (Path(__file__).parents[1] / "fixtures/analysis_board_lines.json").read_text("utf-8")
+    )
+    entry = recording["positions"]["en_passant"]
+    board = chess.Board(entry["fen"])
+    analysis = EngineAnalysis(config=entry["config"], raw_result=entry["raw_result"])
+    facts = build_board_lines_facts(board, scored_legal_lines(board, analysis)[:3])
+    assert facts.lines[0].factors is None
+    catalogue = board_slot_catalogue(facts)
+    for line in facts.lines[1:]:
+        assert line.factors is not None and line.factors.source == FACTOR_SOURCE
+        slots = catalogue.slots_for(line.line_id)
+        for change in line.factors.changes:
+            slot = slots[f"factor:{change.key}:{line.line_id}"]
+            assert slot.value.startswith(f"over line {line.rank}, {change.name} ")
+            assert slot.value.endswith("for the side to move, compared with line 1")
+            assert slot.source == FACTOR_SOURCE
+    assert any(line.factors and line.factors.changes for line in facts.lines[1:])

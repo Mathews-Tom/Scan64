@@ -40,6 +40,7 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
     slot_rules,
 )
+from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, line_factor_facts
 from scan64.explanations.facts import (
     UNKNOWN,
     CentipawnEvaluation,
@@ -60,6 +61,7 @@ from scan64.explanations.slots import (
     Slot,
     SlotCatalogue,
     evaluation_value,
+    factor_slots,
     line_slots,
     numbered_san,
     pawn_units,
@@ -204,6 +206,10 @@ class BoardLineFacts(_Facts):
     )
     moves: tuple[MoveFacts, ...] = Field(min_length=1)
     outcome: LineOutcome
+    factors: FactorFacts | None = Field(
+        default=None,
+        description="Factor changes of this line against line 1 (#408); lines 2 and later.",
+    )
 
 
 class BoardPositionFacts(_Facts):
@@ -300,7 +306,21 @@ def _line_facts(
         uci=line.uci,
         moves=tuple(moves),
         outcome=outcome,
+        factors=_line_factors(board, best, line) if rank > 1 else None,
     )
+
+
+def _score_cp(line: ScoredLine) -> int | None:
+    if line.score_mate is not None:
+        return evaluation_cp("mate", line.score_mate)
+    return line.score_cp
+
+
+def _line_factors(board: chess.Board, best: ScoredLine, line: ScoredLine) -> FactorFacts:
+    """Factor changes of ``line`` against line 1; the swing is this line's score minus line 1's."""
+    best_cp, line_cp = _score_cp(best), _score_cp(line)
+    swing = line_cp - best_cp if best_cp is not None and line_cp is not None else None
+    return line_factor_facts(board, best.uci, line.uci, swing)
 
 
 def build_board_lines_facts(board: chess.Board, lines: Sequence[ScoredLine]) -> BoardLinesFacts:
@@ -452,6 +472,13 @@ def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
         slots.append(Slot(f"end:{lid}", f"line {k} ends in checkmate", "", line.uci, phrase=True))
     elif outcome.ends_in_stalemate:
         slots.append(Slot(f"end:{lid}", f"line {k} ends in stalemate", "", line.uci, phrase=True))
+    slots += factor_slots(
+        line.factors,
+        side=SIDE_TO_MOVE,
+        references={"best": "line 1"},
+        suffix=lid,
+        lead=f"over line {k}, ",
+    )
     slots += line_slots(lid, board, line.uci, line.moves, mover_words=_BOARD_MOVERS)
     return slots
 

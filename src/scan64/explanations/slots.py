@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 import chess
 
+from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
     CentipawnEvaluation,
     EvidenceFacts,
@@ -76,7 +77,9 @@ class Slot:
 
     ``moves`` are the UCI moves the value states, in line order; ``phrase``
     marks a value that starts with a word (capitalised at a sentence start),
-    as opposed to SAN, which keeps its case.
+    as opposed to SAN, which keeps its case. ``source`` labels a value that
+    comes from a module other than the engine and the board, such as the
+    factor module version of a factor slot.
     """
 
     name: str
@@ -84,6 +87,7 @@ class Slot:
     meaning: str
     moves: tuple[str, ...] = ()
     phrase: bool = False
+    source: str | None = None
 
 
 @dataclass(frozen=True)
@@ -278,6 +282,41 @@ def line_slots(
     return slots
 
 
+def factor_value(change: FactorChange, side: str, reference: str, lead: str = "") -> str:
+    """``king safety fell by 0.70 pawns for you, compared with the best move``."""
+    direction = "rose" if change.change_pawns > 0 else "fell"
+    return (
+        f"{lead}{change.name} {direction} by {abs(change.change_pawns):.2f} pawns for {side}, "
+        f"compared with {reference}"
+    )
+
+
+FACTOR_REFERENCES = {"before": "before your move", "best": "the best move"}
+
+
+def factor_slots(
+    factors: FactorFacts | None,
+    *,
+    side: str,
+    references: Mapping[str, str],
+    suffix: str | None = None,
+    lead: str = "",
+) -> list[Slot]:
+    """``{factor:KEY:REF}`` per passed change; ``suffix`` replaces ``REF`` (Analysis Board)."""
+    if factors is None:
+        return []
+    return [
+        Slot(
+            f"factor:{change.key}:{suffix or change.compared_with}",
+            factor_value(change, side, references[change.compared_with], lead),
+            "",
+            phrase=True,
+            source=factors.source,
+        )
+        for change in factors.changes
+    ]
+
+
 # --- Lesson catalogue (NarratorFacts) ----------------------------------------------
 
 LEARNER = "the learner"
@@ -343,6 +382,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         value = evaluation_value(evaluation, side=LEARNER, other=OPPONENT)
         if value is not None:
             shared.append(Slot(name, value, meaning, phrase=value.startswith("mate")))
+    shared += factor_slots(facts.factors, side="you", references=FACTOR_REFERENCES)
     difference = position.evaluation_difference_cp
     if difference is not None and difference > 0:
         shared.append(
@@ -377,6 +417,8 @@ __all__ = [
     "Slot",
     "SlotCatalogue",
     "evaluation_value",
+    "factor_slots",
+    "factor_value",
     "lesson_slot_catalogue",
     "line_slots",
     "move_event_slots",
