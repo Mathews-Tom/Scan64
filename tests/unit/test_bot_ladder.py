@@ -129,11 +129,15 @@ async def test_ladder_search_uses_full_strength_and_fixed_nodes(
     engine.analyse.return_value = candidates()
     token = object()
     result = await choose_ladder_move(
-        engine, chess.Board(), OpponentContext(0, bot_level=level, nodes=3210), token
+        engine,
+        chess.Board(),
+        OpponentContext(0, bot_level=level, nodes=3210),
+        token,
+        node_scale=1.0,
     )
     assert result.move in chess.Board().legal_moves
     engine.configure.assert_awaited_once_with(
-        {"Threads": 1, "Skill Level": 20, "UCI_LimitStrength": False, "UCI_Elo": 1320}
+        {"Threads": 1, "Skill Level": 20, "UCI_LimitStrength": False}
     )
     call = engine.analyse.await_args
     assert call.args[1].nodes == 3210
@@ -147,12 +151,28 @@ async def test_ladder_search_uses_full_strength_and_fixed_nodes(
 async def test_default_nodes_match_production_and_calibration() -> None:
     engine = AsyncMock()
     engine.analyse.return_value = candidates()
-    await choose_ladder_move(engine, chess.Board(), OpponentContext(0, bot_level=1), object())
+    await choose_ladder_move(
+        engine, chess.Board(), OpponentContext(0, bot_level=1), object(), node_scale=1.0
+    )
     assert engine.analyse.await_args.args[1].nodes == DEFAULT_BOT_NODES
     with pytest.raises(ValueError, match="positive"):
         await choose_ladder_move(
-            engine, chess.Board(), OpponentContext(0, bot_level=1, nodes=0), object()
+            engine,
+            chess.Board(),
+            OpponentContext(0, bot_level=1, nodes=0),
+            object(),
+            node_scale=1.0,
         )
+
+
+@pytest.mark.asyncio
+async def test_ladder_budget_follows_the_profile_node_scale() -> None:
+    engine = AsyncMock()
+    engine.analyse.return_value = candidates()
+    await choose_ladder_move(
+        engine, chess.Board(), OpponentContext(0, bot_level=1), object(), node_scale=0.01
+    )
+    assert engine.analyse.await_args.args[1].nodes == DEFAULT_BOT_NODES // 100
 
 
 @pytest.mark.asyncio
@@ -184,14 +204,12 @@ async def test_pool_resets_strength_for_analysis_and_legacy_play(
             "Threads": 2,
             "Skill Level": 20,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
         await adapter.play_move(chess.STARTING_FEN, 4, chess.engine.Limit(nodes=123))
         assert engine.configure.await_args.args[0] == {
             "Threads": 2,
             "Skill Level": 4,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
     finally:
         await adapter.quit()

@@ -1,0 +1,4 @@
+# Compat set (#397): no MultiPV, an unusual centipawn scale.
+[engine]
+name = "alexandria"
+binary_path = "~/.local/opt/engines/Alexandria"

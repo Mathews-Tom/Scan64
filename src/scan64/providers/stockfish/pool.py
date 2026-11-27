@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import os
 from collections import OrderedDict
 from collections.abc import AsyncGenerator
@@ -11,14 +12,16 @@ import chess.engine
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.opponents.bot_policy import choose_ladder_move
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import UciOptionValue
+from scan64.providers.engine.config import UciOptionValue, scaled_nodes
 from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    Engine,
     EngineCapabilityError,
     full_strength_options,
     missing_options,
+    open_engine,
     require_options,
     startup_options,
 )
@@ -79,13 +82,13 @@ def engine_pool_enabled() -> bool:
 class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
-        self._engine: chess.engine.UciProtocol | None = None
+        self._engine: Engine | None = None
         self._identity: dict[str, Any] | None = None
         self.game_token: object | None = None
 
     async def ensure_started(self) -> None:
         if self._engine is None:
-            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            engine = await open_engine(self.config)
             try:
                 await engine.configure(startup_options(engine, self.config))
                 self._identity = engine_identity(engine, self.config.binary_path)
@@ -97,7 +100,9 @@ class PooledStockfishAdapter:
     async def analysis_identity(self) -> dict[str, Any]:
         await self.ensure_started()
         assert self._engine is not None and self._identity is not None
-        return analysis_identity(self._engine, self._identity, self.config.threads)
+        return analysis_identity(
+            self._engine, self._identity, self.config.threads, self.config.node_scale
+        )
 
     async def reset(self) -> None:
         """Force the next UCI call to present a fresh game identity.
@@ -110,6 +115,11 @@ class PooledStockfishAdapter:
         search-history state between them.
         """
         self.game_token = object()
+
+    def discard(self) -> None:
+        """Forget a process that has exited; the next checkout starts a new one."""
+        self._engine = None
+        self._identity = None
 
     async def quit(self) -> None:
         if self._engine is not None:
@@ -128,8 +138,9 @@ class PooledStockfishAdapter:
         options["Skill Level"] = skill_level
         await engine.configure(options)
         board = chess.Board(fen)
+        scaled = dataclasses.replace(limit, nodes=scaled_nodes(limit.nodes, self.config.node_scale))
         return await self._engine.play(
-            board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
+            board, scaled, info=chess.engine.INFO_SCORE, game=self.game_token
         )
 
     async def play_bot_move(self, fen: str, context: OpponentContext) -> chess.engine.PlayResult:
@@ -137,7 +148,13 @@ class PooledStockfishAdapter:
         assert self._engine is not None
         engine = self._engine
         try:
-            return await choose_ladder_move(engine, chess.Board(fen), context, self.game_token)
+            return await choose_ladder_move(
+                engine,
+                chess.Board(fen),
+                context,
+                self.game_token,
+                node_scale=self.config.node_scale,
+            )
         except chess.engine.EngineError as error:
             # The ladder resets Stockfish's strength controls and searches every
             # legal move; name the missing option instead of a raw UCI error.
@@ -163,8 +180,14 @@ class PooledStockfishAdapter:
         engine = self._engine
         await engine.configure(full_strength_options(engine, self.config.threads))
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
+        limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
         raw_result = await search(
-            engine, board, search_limit(nodes, depth, time_ms), multipv, game=self.game_token
+            engine,
+            board,
+            limit,
+            multipv,
+            game=self.game_token,
+            deadline_s=self.config.search_deadline_s,
         )
 
         config_dict = dict(
@@ -228,6 +251,10 @@ class EnginePool:
         try:
             await adapter.reset()
             yield adapter
+        except chess.engine.EngineTerminatedError:
+            # The caller still gets the error; later checkouts get a live engine.
+            adapter.discard()
+            raise
         finally:
             self._queue.put_nowait(adapter)
 

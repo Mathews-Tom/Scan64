@@ -1,0 +1,5 @@
+# Compat set (#397): slow neural nodes, no Hash. Set engine.node_scale from the
+# measured nodes/second (see docs/engines.md) before a full run.
+[engine]
+name = "lc0"
+binary_path = "~/.local/opt/engines/lc0"

@@ -14,6 +14,8 @@ import chess.engine
 
 from scan64.chess.opponents.bots import get_bot_level
 from scan64.chess.opponents.protocols import OpponentContext
+from scan64.providers.engine.config import scaled_nodes
+from scan64.providers.engine.uci import Engine
 
 DEFAULT_BOT_NODES = 1_000
 
@@ -52,22 +54,25 @@ def sample_candidate(
 
 
 async def choose_ladder_move(
-    engine: chess.engine.UciProtocol,
+    engine: Engine,
     board: chess.Board,
     context: OpponentContext,
     game: object,
+    *,
+    node_scale: float,
 ) -> chess.engine.PlayResult:
+    """``node_scale`` is the engine profile's; the bot budget is sized for Stockfish."""
     assert context.bot_level is not None
     get_bot_level(context.bot_level)
     nodes = context.nodes if context.nodes is not None else DEFAULT_BOT_NODES
     if nodes < 1:
         raise ValueError("Bot node budget must be positive")
+    search_nodes = scaled_nodes(nodes, node_scale)
     await engine.configure(
         {
             "Threads": 1,
             "Skill Level": 20,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
     )
     # Search every legal move so each level has the same candidate population;
@@ -75,7 +80,7 @@ async def choose_ladder_move(
     multipv = board.legal_moves.count()
     candidates = await engine.analyse(
         board,
-        chess.engine.Limit(nodes=nodes),
+        chess.engine.Limit(nodes=search_nodes),
         multipv=multipv,
         game=game,
         info=chess.engine.INFO_SCORE | chess.engine.INFO_PV,

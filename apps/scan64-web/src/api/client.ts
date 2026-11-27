@@ -98,6 +98,22 @@ async function playRequestError(response: Response, fallback: string): Promise<A
   return new ApiRequestError(`${fallback}: ${response.statusText}`, response.status);
 }
 
+/**
+ * The text of an error body's ``detail``: the string itself, or for a 503
+ * ``engine_capability_unavailable`` its message and the engine's reason.
+ */
+export function errorDetailText(body: unknown, fallback: string): string {
+  const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+  if (typeof detail === 'string') return detail;
+  if (detail !== null && typeof detail === 'object' && 'code' in detail
+      && detail.code === 'engine_capability_unavailable'
+      && 'message' in detail && typeof detail.message === 'string') {
+    const reason = 'reason' in detail && typeof detail.reason === 'string' ? ` ${detail.reason}.` : '';
+    return `${detail.message}${reason}`;
+  }
+  return fallback;
+}
+
 export class LessonAttemptLimitError extends ApiRequestError {
   readonly attemptsUsed: number;
 
@@ -318,8 +334,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to get hint: ${detail}`, response.status);
     }
     return await response.json() as PositionInsight;
@@ -333,8 +348,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to analyse position: ${detail}`, response.status);
     }
     return await response.json() as PositionAnalysisRead;
@@ -349,8 +363,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to explain engine lines: ${detail}`, response.status);
     }
     return await response.json() as PositionExplanationRead;
@@ -455,8 +468,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to backfill game review: ${detail}`, response.status);
     }
     return await response.json() as GameReviewRead;
@@ -751,8 +763,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Habit request failed: ${detail}`, response.status);
     }
     return await response.json() as HabitSummaryRead;

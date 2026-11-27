@@ -1,0 +1,5 @@
+# Compat set (#397): a Python UCI wrapper with rating options. binary_path
+# takes no arguments: point it at a launcher that runs `maia3-uci --model 5m`.
+[engine]
+name = "maia-3"
+binary_path = "~/.local/opt/engines/maia3-uci"
