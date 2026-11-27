@@ -1,4 +1,4 @@
-"""Launch ``tests/fixtures/engines/fake_xboard.py`` as an engine binary."""
+"""Launch the fake engines in ``tests/fixtures/engines`` as engine binaries."""
 
 from __future__ import annotations
 
@@ -8,20 +8,33 @@ from pathlib import Path
 
 import pytest
 
-FAKE_XBOARD = Path(__file__).resolve().parents[1] / "fixtures" / "engines" / "fake_xboard.py"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "engines"
+FAKE_XBOARD = FIXTURES / "fake_xboard.py"
+FAKE_UCI = FIXTURES / "fake_uci.py"
+
+
+def _launcher(script: Path, tmp_path: Path) -> Path:
+    if os.name == "nt":
+        launcher = tmp_path / f"{script.stem}.cmd"
+        launcher.write_text(f'@"{sys.executable}" "{script}" %*\r\n', encoding="utf-8")
+    else:
+        launcher = tmp_path / script.stem
+        launcher.write_text(
+            f'#!/bin/sh\nexec "{sys.executable}" "{script}" "$@"\n', encoding="utf-8"
+        )
+        launcher.chmod(0o755)
+    return launcher
 
 
 def fake_xboard_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     """Return ``(launcher, command_log)``; the launcher is a runnable engine path."""
     log = tmp_path / "xboard.log"
     monkeypatch.setenv("FAKE_XBOARD_LOG", str(log))
-    if os.name == "nt":
-        launcher = tmp_path / "fake_xboard.cmd"
-        launcher.write_text(f'@"{sys.executable}" "{FAKE_XBOARD}" %*\r\n', encoding="utf-8")
-    else:
-        launcher = tmp_path / "fake_xboard"
-        launcher.write_text(
-            f'#!/bin/sh\nexec "{sys.executable}" "{FAKE_XBOARD}" "$@"\n', encoding="utf-8"
-        )
-        launcher.chmod(0o755)
-    return launcher, log
+    return _launcher(FAKE_XBOARD, tmp_path), log
+
+
+def fake_uci_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    """A UCI engine that declares no MultiPV; returns ``(launcher, command_log)``."""
+    log = tmp_path / "uci.log"
+    monkeypatch.setenv("FAKE_UCI_LOG", str(log))
+    return _launcher(FAKE_UCI, tmp_path), log

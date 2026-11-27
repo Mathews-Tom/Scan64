@@ -377,6 +377,44 @@ def test_shipped_profiles_parse(profile: Path) -> None:
     assert parsed.name and parsed.binary_path
 
 
+def test_explicit_binary_ignores_a_non_stockfish_profile_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        """
+[engine]
+name = "ethereal"
+binary_path = "ethereal"
+threads = 2
+hash_mb = 64
+
+[engine.options]
+EvalFile = "net.bin"
+
+[limits.hint]
+nodes = 1000
+""",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    # The calibrate path: an explicit Stockfish binary under an Ethereal profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish", threads=1, hash_size=16)
+    assert (explicit.name, dict(explicit.options), dict(explicit.limits)) == ("stockfish", {}, {})
+    assert (explicit.threads, explicit.hash_size) == (1, 16)
+    # Unset resources still follow the profile; explicit identity fields win.
+    partial = StockfishConfig(binary_path="/opt/sf/stockfish", name="sf", options={"Hash": 8})
+    assert (partial.threads, partial.hash_size, partial.name) == (2, 64, "sf")
+    assert dict(partial.options) == {"Hash": 8}
+    profile = StockfishConfig()
+    assert (profile.binary_path, profile.name, dict(profile.options)) == (
+        "ethereal",
+        "ethereal",
+        {"EvalFile": "net.bin"},
+    )
+    assert "hint" in profile.limits
+    assert StockfishConfig() == StockfishConfig()
+
+
 @pytest.mark.asyncio
 async def test_node_search_past_its_deadline_is_a_capability_error(tmp_path: Path) -> None:
     from scan64.providers.engine.uci import EngineCapabilityError
@@ -390,12 +428,14 @@ async def test_node_search_past_its_deadline_is_a_capability_error(tmp_path: Pat
         ).search_deadline_s
         == 30.0
     )
-    with pytest.raises(EngineConfigurationError, match="engine.search_deadline_s"):
-        load_engine_profile(
-            write_profile(
-                tmp_path, "[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = 0\n"
+    for bad in ("0", "inf", "nan", "true"):
+        with pytest.raises(EngineConfigurationError, match="engine.search_deadline_s"):
+            load_engine_profile(
+                write_profile(
+                    tmp_path,
+                    f"[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = {bad}\n",
+                )
             )
-        )
 
     async def never_finishes(*args: object, **kwargs: object) -> object:
         await asyncio.sleep(3600)
@@ -445,3 +485,29 @@ async def test_pool_replaces_an_engine_that_terminated(
         assert len(engines) == 2
     finally:
         await pool.close()
+
+
+def test_explicit_binary_takes_stockfish_protocol_scale_and_deadline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nprotocol = 'xboard'\n"
+        "node_scale = 0.002\nsearch_deadline_s = 30\n",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    # scan64 calibrate --stockfish: an explicit Stockfish binary under this profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (explicit.protocol, explicit.node_scale, explicit.search_deadline_s) == (
+        "uci",
+        1.0,
+        120.0,
+    )
+    profile = StockfishConfig()
+    assert (profile.protocol, profile.node_scale, profile.search_deadline_s) == (
+        "xboard",
+        0.002,
+        30.0,
+    )
+    given = StockfishConfig(binary_path="/opt/sf/stockfish", node_scale=0.5, protocol="xboard")
+    assert (given.node_scale, given.protocol) == (0.5, "xboard")

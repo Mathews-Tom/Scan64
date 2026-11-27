@@ -26,9 +26,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
+import subprocess
 import sys
 import time
 import tomllib
@@ -58,6 +60,7 @@ from scan64.learning.exercises.sound_moves import analyze_lesson_source
 from scan64.learning.play_assistance import grade_play_moves
 from scan64.providers.engine.config import ENGINE_CONFIG_ENV, EngineConfig, load_engine_profile
 from scan64.providers.engine.uci import EngineCapabilityError
+from scan64.providers.stockfish.identity import executable_signature
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -154,6 +157,25 @@ def done_keys(results: Path) -> set[tuple[str, str]]:
         (record["engine"], record["feature"])
         for record in map(json.loads, results.read_text(encoding="utf-8").splitlines())
     }
+
+
+def _git(*args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def code_provenance() -> dict[str, Any]:
+    """The Scan64 code under test; ``dirty`` covers ``src`` and ``benchmarks``."""
+    return {
+        "commit": _git("rev-parse", "HEAD"),
+        "dirty": bool(_git("status", "--porcelain", "--", "src", "benchmarks")),
+    }
+
+
+def file_sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def append(results: Path, record: dict[str, Any]) -> None:
@@ -307,6 +329,20 @@ async def run_engine(
         )
         return
     profile = load_engine_profile(entry.profile)
+    try:
+        executable = executable_signature(profile.binary_path)[0]
+    except FileNotFoundError:
+        LOG.warning("%s: engine binary not found at %s", entry.name, profile.binary_path)
+        append(
+            results,
+            {
+                "engine": entry.name,
+                "feature": "*",
+                "status": "not installed",
+                "reason": f"engine binary not found: {profile.binary_path}",
+            },
+        )
+        return
     os.environ[ENGINE_CONFIG_ENV] = str(entry.profile)
     engine_config = EngineConfig()
     run = EngineRun(config, engine_config)
@@ -314,6 +350,9 @@ async def run_engine(
         "profile": profile.name,
         "protocol": profile.protocol,
         "node_scale": profile.node_scale,
+        **code_provenance(),
+        "profile_sha256": file_sha256(entry.profile),
+        "binary_sha256": file_sha256(executable),
     }
     try:
         # game_analysis always runs first: the focused pass needs its evaluations.
