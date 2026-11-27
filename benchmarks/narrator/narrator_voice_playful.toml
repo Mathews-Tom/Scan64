@@ -1,0 +1,179 @@
+# Narrator model benchmark, voice "playful" (#389): a copy of narrator.toml that differs only in
+# `voice`. Run the top models by delivered coverage with --models to compare voices.
+#
+# Narrator model benchmark (issue #369).
+#
+# One command, from the repository root, with Ollama serving on 127.0.0.1:11434:
+#   uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml --setup
+# narrator_v1.toml holds the first six-model list; summarize runs_20261126_145813
+# and runs_20261126_162415 with it.
+# --setup pulls library models, downloads pinned GGUF files (sha256-checked) and
+# creates one Ollama model per entry from benchmarks/narrator/modelfiles/.
+# Rebuild the positions file (deterministic, no engine needed):
+#   uv run python -m benchmarks.narrator.build_positions benchmarks/narrator/narrator.toml
+
+[run]
+runs_per_position = 3
+# Ollama endpoint for every model unless a model sets its own base_url. The
+# benchmark server runs on 11435 so it cannot collide with a desktop Ollama on
+# the app's fixed local port 11434; the adapter is the same either way.
+base_url = "http://127.0.0.1:11435"
+results_dir = "benchmarks/narrator/results"     # relative to the repository root
+gguf_cache = "~/.cache/scan64-narrator-bench/gguf"
+# Generous client timeout so slow models are measured, not cut off. The app's
+# local-Ollama timeout defaults to 180 s (configurable up to 600 s); the summary
+# reports the share of calls within the 4 s interactive target below.
+request_timeout_s = 120
+production_time_limit_s = 4.0
+# Uniform context window and output cap written into every benchmark Modelfile
+# (PARAMETER num_ctx / num_predict). The app sends no output cap; its only bound
+# is its request timeout.
+# The cap here is a runaway guard, not a length limit: real answers use 60-450
+# tokens, and a model that loops (praxis-2b repeats UCI moves) stops after about
+# 10 s instead of running to the context end. Such calls show in "Hit output cap".
+# 12288: the #367 facts prompt is 3 500-7 400 tokens, plus up to 2 048 output
+# tokens. The app's local default (8192) leaves about 800 output tokens for the
+# longest prompt; prompt_eval_count per call shows how close each run comes.
+num_ctx = 12288
+num_predict = 2048
+# Fields merged into every /api/chat body. The app's adapter sends no `think`
+# field, so Ollama 0.40 lets Qwen3/Qwen3.5 models think first; in a smoke run
+# every thinking model spent its whole output budget thinking and returned no
+# JSON. Disabling thinking measures the wording, which is the question here.
+# stream = true streams the reply; the runner joins it for the production parser
+# and records the time to the first token. Every call that still produces thinking
+# text or a <think> tag is counted in the summary.
+request_overrides = { think = false, stream = true }
+# Other Ollama servers sharing this GPU. Each model waits until none of them has
+# a model loaded, and every run records whether one was loaded during it.
+foreign_ollama = ["http://127.0.0.1:11434"]
+
+# The pipeline under test. Swap these dotted paths to benchmark another prompt
+# builder. grounding_context_for builds NarratorFacts (#367) exactly as
+# resolve_explanation does; tests/unit/test_narrator_benchmark_smoke.py resolves
+# both paths on positions[0] in CI, so a signature change fails a test.
+# pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment, voice)
+#   -> Explanation
+# grounding_context: (diagnosis, evidence, fen) -> GroundedExplanationContext, used to
+# count rejected claims one by one.
+pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
+grounding_context = "scan64.explanations.assembly:grounding_context_for"
+# Narrator voice (#387): coach, terse or playful. The runner passes it to
+# pipeline_entry as `voice=` and records it in the run header; one runs file
+# holds one voice, so run once per voice to compare voices. Default "coach".
+voice = "playful"
+
+[positions]
+file = "benchmarks/narrator/positions.json"
+count = 50
+per_code_cap = 9
+per_game_cap = 2
+corpora = [
+  "tests/fixtures/m48/recorded.json",
+  "tests/fixtures/m48/fresh80_recorded.json",
+  "tests/fixtures/m48/m79_fresh80_recorded.json",
+  "tests/fixtures/m48/m93_fresh80_recorded.json",
+]
+
+# Every model is served as an Ollama model named "scan64-bench-<name>" built from
+# modelfiles/<name>.Modelfile. `from` is either an Ollama library tag (pulled)
+# or a pinned Hugging Face GGUF (downloaded and sha256-checked).
+
+# 2B tier
+
+[[models]]
+name = "praxis-2b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 2.27
+base_model = "Qwen/Qwen3.5-2B + LoRA"
+training_data = "praxis-chess/praxis-chess-evidence-graphs: engine evidence graphs with typed claims"
+hf_repo = "praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF"
+hf_revision = "b0f36382638fa617ec0affbfd495d78cb286d6fa"
+hf_file = "praxis-chess-reasoner-qwen3.5-2b-Q4_K_M.gguf"
+sha256 = "120b35e4416217761dd050eca57d3013bd4206a677022922ed9f8b4372360770"
+
+[[models]]
+name = "second-2b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 1.88
+base_model = "Qwen/Qwen3.5-2B, SFT + DAPO (joebos/Second-1.0-2B)"
+training_data = "4,457 rule-checked Stockfish-fact explanations and human commentary; RL with rule-check penalties"
+hf_repo = "mradermacher/Second-1.0-2B-GGUF"
+hf_revision = "60c5ef49ab672c9f5bfbbbabe21b4ace7bc5909c"
+hf_file = "Second-1.0-2B.Q4_K_M.gguf"
+sha256 = "485a46aa9d47ad9dac804aaa5340e904cd6b04f64309d22b971d79d224cdc6f9"
+
+[[models]]
+name = "qwen3.5-2b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 2.27
+base_model = "Qwen/Qwen3.5-2B"
+training_data = "general web, code and synthetic data (vendor report)"
+ollama_tag = "qwen3.5:2b"
+
+# 4B tier
+
+[[models]]
+name = "praxis-4b"
+role = "chess"
+licence = "Apache-2.0"
+params_b = 4.2
+base_model = "Qwen/Qwen3.5-4B + LoRA"
+training_data = "praxis-chess/praxis-chess-evidence-graphs: engine evidence graphs with typed claims"
+hf_repo = "praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF"
+hf_revision = "915c2646d695db3211091aa00ac2ef7f9ee91cd5"
+hf_file = "praxis-chess-reasoner-qwen3.5-4b-Q4_K_M.gguf"
+sha256 = "6a32cdc809334dfb4cfba1a56c955f32d1aab8dd4531a8631c1011851cd6d9fe"
+
+
+[[models]]
+name = "qwen3.5-4b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 4.7
+base_model = "Qwen/Qwen3.5-4B"
+training_data = "general web, code and synthetic data (Qwen report)"
+ollama_tag = "qwen3.5:4b"
+
+
+[[models]]
+name = "gemma4-e4b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.0
+base_model = "google/gemma-4-E4B-it (4.5B effective)"
+training_data = "general web, code and synthetic data (vendor report)"
+ollama_tag = "gemma4:e4b"
+
+# 8B-12B tier (Caissa-Chess-M1 dropped: a chain-of-thought reasoning model; the
+# narrator must only word engine evidence, with no reasoning of its own)
+
+[[models]]
+name = "qwen3.5-9b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 9.65
+base_model = "Qwen/Qwen3.5-9B"
+training_data = "general web, code and synthetic data (vendor report)"
+ollama_tag = "qwen3.5:9b"
+
+[[models]]
+name = "granite4.2-8b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.79
+base_model = "ibm-granite/granite-4.2-8b"
+training_data = "general web, code and synthetic data (vendor report)"
+ollama_tag = "granite4.2:8b"
+
+[[models]]
+name = "gemma4-12b"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 11.95
+base_model = "google/gemma-4-12b-it"
+training_data = "general web, code and synthetic data (vendor report)"
+ollama_tag = "gemma4:12b"
