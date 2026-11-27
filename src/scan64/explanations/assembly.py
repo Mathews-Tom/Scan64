@@ -33,6 +33,7 @@ from scan64.explanations.facts import (
     verified_lines_by_evidence,
 )
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG
+from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
     GroundedExplanationContext,
@@ -84,6 +85,7 @@ def _grounding_context(
         evidence=tuple(item for item in evidence if item.evidence_id in referenced_ids),
         verified_lines=verified_lines_by_evidence(facts),
         requested_hint_level=_FULL_DISCLOSURE_HINT_LEVEL,
+        slots=lesson_slot_catalogue(facts),
     )
 
 
@@ -99,28 +101,42 @@ def grounding_context_for(
     return _grounding_context(build_narrator_facts(diagnosis, evidence, fen), evidence, fen)
 
 
+def slot_rules(names: str, example: str) -> str:
+    """The slot instructions NARRATOR_SYSTEM_PROMPT and BOARD_NARRATOR_SYSTEM_PROMPT share."""
+    return (
+        "Write every chess fact only through a slot from the slot list (the last user "
+        f"message): put the slot name in braces, for example {names}, and code puts the "
+        "slot's value in its place. Copy slot names exactly; use only slots listed for the "
+        "evidence item the claim cites. Outside the slots write plain words only: no moves, "
+        "squares, piece names, colour words, numbers or evaluations, and none of the words "
+        "check, mate, capture, take, trade, threat, attack, defend, hang, material, win, lose, "
+        "gain, ahead, behind or a tactic name. A slot value is a whole fact; do not add a "
+        "chess fact around it, and do not say which side gains from it unless a slot says so. "
+        f'Example claim text: "{example}"'
+    )
+
+
 NARRATOR_SYSTEM_PROMPT = (
-    "You explain one chess mistake to the learner who made it. The user message is a JSON "
-    f"document following the Scan64 schema {SCHEMA_VERSION} "
+    "You explain one chess mistake to the learner who made it. The first user message is a "
+    f"JSON document following the Scan64 schema {SCHEMA_VERSION} "
     "(schemas/narrator-facts.schema.json). The board library and the chess engine computed "
     "every fact in it; a field left out has its schema default (no capture, no check, "
     "no threats). Use only those facts: do not work out moves, captures, checks, "
-    "threats, material or evaluations yourself, and state nothing the JSON does not state.\n"
+    "threats, material or evaluations yourself, and state nothing the facts do not state.\n"
     "- position: the learner is side_to_move; played_move is the mistake; best_move is the "
     "engine's choice; mistake_class names the mistake.\n"
-    "- Evaluations are from the learner's point of view in centipawns (100 = one pawn). "
-    "Never state an evaluation whose status is unknown.\n"
-    "- lines: engine lines from the position before the mistake; each move lists its SAN, "
-    "piece, captures, check, checkmate, material_after, new_threats and evaluation_after. A "
-    "line with begins_with_played_move=true starts with the learner's mistake.\n"
-    "- Name moves in SAN exactly as given. Name only pieces and squares that appear in the "
-    "facts.\n"
-    "Answer with claims. Each claim: text (one or two plain sentences), evidence_ref (an "
-    "evidence_id from evidence), line (a JSON list of UCI move strings copied from the start "
-    "of the uci list of a line whose line_id is in that evidence item's line_ids, or []; "
-    'never a line_id), certainty "observed", disclosure_level 1. Name sides as '
-    '"the learner", "the opponent", "White to move" or "White plays ..."; never use a bare '
-    "colour word as an adjective."
+    "- lines: engine lines from the position before the mistake. A line with "
+    "begins_with_played_move=true starts with the learner's mistake.\n"
+    "- "
+    + slot_rules(
+        "{played} or {line:L1}", "You played {played}, but {best} was stronger: {capture:best}."
+    )
+    + "\n"
+    "Answer with claims. Each claim: text (one or two plain sentences with slots), "
+    "evidence_ref (an evidence_id from evidence), line (a JSON list of UCI move strings "
+    "copied from the start of the uci list of a line whose line_id is in that evidence "
+    'item\'s line_ids, or []; never a line_id), certainty "observed", disclosure_level 1. '
+    'Call the learner "you" and the other side "your opponent".'
 )
 
 
@@ -129,6 +145,7 @@ def _explanation_request(facts: NarratorFacts) -> ExplanationRequest:
         messages=(
             LLMMessage(role="system", content=NARRATOR_SYSTEM_PROMPT),
             LLMMessage(role="user", content=facts.to_prompt_json()),
+            LLMMessage(role="user", content=lesson_slot_catalogue(facts).prompt()),
         )
     )
 

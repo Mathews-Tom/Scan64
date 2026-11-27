@@ -152,13 +152,13 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
     provider = _Provider(
         (
             ExplanationClaim(
-                text="The engine's first choice is 1.e4, scored +0.41.",
+                text="The engine's first choice is {first:line-1}, scored {eval:line-1}.",
                 evidence_ref="line-1",
                 line=("e2e4",),
                 disclosure_level=1,
             ),
             ExplanationClaim(
-                text="1.d4 is 0.11 pawns behind it.",
+                text="{first:line-3} scores {diff:line-3}.",
                 evidence_ref=COMPARISON_EVIDENCE_ID,
                 line=("d2d4",),
                 disclosure_level=1,
@@ -169,8 +169,10 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
     data = client.post(ENDPOINT, headers=headers, json=body("start")).json()
     assert data["source"] == "narrator"
     assert data["fallback_reason"] is None
+    # Code fills every slot (#386).
     assert data["text"] == (
-        "The engine's first choice is 1.e4, scored +0.41. 1.d4 is 0.11 pawns behind it."
+        "The engine's first choice is 1.e4, scored +0.41 pawns. "
+        "1.d4 scores 0.11 pawns less than line 1."
     )
     assert [(claim["line_id"], claim["moves"]) for claim in data["claims"]] == [
         ("line-1", ["e2e4"]),
@@ -194,7 +196,7 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
                     disclosure_level=1,
                 ),
             ),
-            "evaluation_not_supported",
+            "chess_token_outside_slot",
         ),
         (
             (
@@ -205,7 +207,7 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
                     disclosure_level=1,
                 ),
             ),
-            "material_not_supported",
+            "chess_token_outside_slot",
         ),
         (
             (
