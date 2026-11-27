@@ -109,8 +109,14 @@ threads, hash, options) and the effective hint limits.
 Opponent strength stays Stockfish-only on purpose: the ladder's error budgets,
 `BOT_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
 cohorts (`api/strength.py`) are defined against Stockfish. Opponent moves come
-from the same interactive pool as hints, so a non-Stockfish profile currently
-disables bot play with that error (see follow-ups).
+from the same interactive pool as hints. Bot play is therefore unavailable under
+a non-Stockfish profile. Play never falls back to Stockfish. The play endpoints
+(`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
+`…/opponent-move`) return 503 with
+`detail = {code: "bot_play_unavailable", message, reason}`. `reason` is the
+`EngineCapabilityError` text that names the missing options. The player's move
+stays committed; a bot-first session is not created. The web client shows
+that bot play is unavailable under the active engine profile.
 
 ## Stockfish-specific assumptions outside the engine provider
 
@@ -134,7 +140,7 @@ is now `EngineConfig` and reads the active profile.
 | `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; others fixed. Lc0 nodes cost far more time than alpha-beta nodes. |
 | `learning/exercises/exact_replay.py:42` | `Verification(engine="stockfish")` label | Label only; does not record the actual engine. Follow-up. |
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
-| `cli/serve.py:24` | Requires `stockfish` on `PATH`, even with `SCAN64_STOCKFISH_PATH` or a profile | Follow-up (outside this change's scope). |
+| `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |
 | `cli/main.py:27`, `cli/bots.py` | `calibrate --stockfish` and calibration output | Calibration is Stockfish-only by design. |
 | `Dockerfile`, `scripts/build-server.py`, `scan64-server.spec`, desktop shell | Bundle and pin Stockfish 18 + networks; pass `SCAN64_STOCKFISH_PATH` | Bundling unchanged; other engines are operator-provided. |
 | `SCAN64_ENGINE_POOL_*` | Pool sizes | Engine-neutral. |
@@ -156,7 +162,52 @@ built on Windows 11 x64 with Zig 0.17.1's bundled clang
 Then point a profile at the binary (for example `config/engines/ethereal.toml`)
 and set `SCAN64_ENGINE_CONFIG`. `tests/integration/test_second_engine.py` runs a
 stored game through the production analysis job and the hint pool with
-Ethereal (or `SCAN64_TEST_SECOND_ENGINE`) and skips when no binary exists.
+Ethereal (or `SCAN64_TEST_SECOND_ENGINE`). Outside CI it skips when no binary
+exists.
+
+### How CI provides the second engine
+
+CI does not build a second engine. The `Run repository quality gate` step in
+`.github/workflows/ci.yml` sets `SCAN64_TEST_SECOND_ENGINE` to
+[`tests/fixtures/scripted_uci_engine.py`](../tests/fixtures/scripted_uci_engine.py):
+
+| Property | Value |
+| --- | --- |
+| `id name` | `Scan64 Scripted UCI Fixture` (does not start with `Stockfish`) |
+| Declared options | `Threads`, `Hash`, `MultiPV` only (no `Skill Level`, no `UCI_Elo`) |
+| Moves and scores | Legal moves only; two-ply material search; `mate 1` for a mating move |
+| Each `info` line | `depth`, `seldepth`, `multipv`, `score`, `nodes`, `pv` |
+| Engine identity | The `sha256:` digest of the script file, so its rows never match Stockfish rows |
+
+The fixture checks the configuration path, the stored line fields and cache
+separation. It does not check chess strength or the score scale of a real engine.
+
+With `CI` set (GitHub Actions sets it), the tests do not skip. A missing second
+engine or Stockfish fails both tests. A `SCAN64_TEST_SECOND_ENGINE` path that is
+not a file fails the tests everywhere.
+
+Why not Ethereal in CI: the Ethereal build above (commit `0e47e9b`, classical,
+`gcc -O3 -DUSE_POPCNT`) passes both tests locally. On the GitHub `ubuntu-latest`
+runner (AMD EPYC 9V74) the same build crashed with a segmentation fault on its
+first `go`. The engine pool then did not shut down, and the job hung for 45 minutes.
+An `-O1` ASan build did not crash there, so the cause is not found.
+
+Run the test locally against a real engine:
+
+```bash
+commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
+curl -fL -o ethereal.tar.gz "https://github.com/AndyGrant/Ethereal/archive/$commit.tar.gz"
+echo "46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  ethereal.tar.gz" | sha256sum --check
+mkdir ethereal && tar -xzf ethereal.tar.gz -C ethereal --strip-components=1
+(cd ethereal/src && gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o ../../Ethereal)
+SCAN64_TEST_SECOND_ENGINE="$PWD/Ethereal" uv run pytest tests/integration/test_second_engine.py
+```
+
+Run it against the CI fixture:
+
+```bash
+SCAN64_TEST_SECOND_ENGINE="$PWD/tests/fixtures/scripted_uci_engine.py" uv run pytest tests/integration/test_second_engine.py
+```
 
 ## Comparison of open-source UCI engines
 
@@ -202,7 +253,5 @@ is missing are recorded as "not installed".
 
 - Separate the opponent engine from the analysis engine (app/play wiring) so a
   non-Stockfish analysis profile keeps Stockfish bot play.
-- `cli/serve.py` should check the configured binary instead of `stockfish` on `PATH`.
 - `exact_replay.py` should record the actual engine name in `Verification`.
 - Per-use overrides for review/focused/verification budgets, needed for Lc0.
-- Map `EngineCapabilityError` to a client-visible 4xx/503 in the play API.

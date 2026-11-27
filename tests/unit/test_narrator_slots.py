@@ -17,7 +17,11 @@ from chess_lesson_spec import Diagnosis, ExplanationClaim
 
 from scan64.explanations import assembly
 from scan64.explanations.assembly import resolve_explanation
-from scan64.explanations.board_lines import COMPARISON_EVIDENCE_ID, board_slot_grounding
+from scan64.explanations.board_lines import (
+    COMPARISON_EVIDENCE_ID,
+    board_slot_catalogue,
+    board_slot_grounding,
+)
 from scan64.explanations.facts import build_narrator_facts
 from scan64.explanations.slots import (
     CHESS_PROSE,
@@ -331,3 +335,28 @@ def test_every_board_slot_renders_on_every_recorded_position(position: str) -> N
         chess.Board(facts.position.fen), facts.lines[0].uci[:1]
     )
     assert "line:line-2" not in by_line
+
+
+@pytest.mark.parametrize("count", [1, 2, 4])
+def test_the_board_slot_list_names_the_comparison_lines_instead_of_repeating_them(
+    count: int,
+) -> None:
+    facts = _board_facts("king_pawn", count)
+    catalogue = board_slot_catalogue(facts)
+    prompt = catalogue.prompt()
+    line_ids = [line.line_id for line in facts.lines]
+    for line_id in line_ids:
+        for slot in catalogue.slots_for(line_id).values():
+            if slot.name not in catalogue.shared:
+                assert prompt.count(f"{{{slot.name}}} = ") <= 1
+    reference = f'evidence_ref "{COMPARISON_EVIDENCE_ID}"'
+    if count == 1:
+        assert reference not in prompt
+        assert COMPARISON_EVIDENCE_ID not in catalogue.by_evidence
+    else:
+        assert catalogue.combined[COMPARISON_EVIDENCE_ID] == tuple(line_ids)
+        assert f"{reference}; lines {', '.join(line_ids)}:" in prompt.splitlines()
+        # The comparison item still accepts every line's slots.
+        comparison = catalogue.slots_for(COMPARISON_EVIDENCE_ID)
+        for line_id in line_ids:
+            assert catalogue.slots_for(line_id).items() <= comparison.items()

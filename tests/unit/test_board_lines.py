@@ -17,6 +17,8 @@ from scan64.explanations.board_lines import (
     BoardLinesFacts,
     board_lines_facts_schema,
     board_lines_grounding,
+    board_lines_request,
+    board_narrator_system_prompt,
     board_slot_catalogue,
     build_board_lines_facts,
     claim_line_id,
@@ -245,3 +247,18 @@ def test_a_line_may_state_how_far_it_trails_line_one() -> None:
     validate_generated_explanation(
         GeneratedExplanation(claims=(claim,)), board_lines_grounding(facts)
     )
+
+
+@pytest.mark.parametrize("name", sorted(POSITIONS))
+def test_prompt_is_the_slot_list_but_a_claim_may_cite_the_full_line(name: str) -> None:
+    facts = _facts(name, 4)
+    system, slots = board_lines_request(facts).messages
+    assert system.content == board_narrator_system_prompt()
+    catalogue = board_slot_catalogue(facts)
+    assert slots.content == catalogue.prompt()
+    # No facts JSON reaches the model (#408), so long lines do not grow the prompt (#388).
+    assert '"schema_version"' not in system.content + slots.content
+    for line in facts.lines:
+        assert catalogue.slots_for(line.line_id)[f"line:{line.line_id}"].moves == line.uci
+    # The facts the response, template and grounding use are not cut.
+    assert [len(line.moves) for line in facts.lines] == [len(line.uci) for line in facts.lines]

@@ -8,7 +8,7 @@ configurable through the environment (documented in docs/narrator-pipeline.md):
 | ``SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`` | 180 | model listing plus chat, one deadline |
 | ``SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES`` | 262144 (256 KiB) | serialised chat request |
 | ``SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES`` | 262144 (256 KiB) | each response body |
-| ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 8192 | ``num_ctx``; a prompt filling it is rejected |
+| ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 12288 | ``num_ctx``; a prompt filling it is rejected |
 
 The installation probe (``detect_local_ollama``) sends no evidence and keeps
 its fixed 4 s deadline. An invalid value raises ``LLMConfigurationError``.
@@ -26,7 +26,13 @@ from typing import TypeGuard
 
 import httpx
 
-from scan64.providers.llm.adapters import LLMProviderError, OllamaExplanationAdapter
+from scan64.providers.llm.adapters import (
+    DEFAULT_OLLAMA_CONTEXT_TOKENS,
+    MAX_OLLAMA_CONTEXT_TOKENS,
+    MIN_OLLAMA_CONTEXT_TOKENS,
+    LLMProviderError,
+    OllamaExplanationAdapter,
+)
 from scan64.providers.llm.config import LLMConfigurationError
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
@@ -39,9 +45,9 @@ CONTEXT_TOKENS_ENV = "SCAN64_LOCAL_LLM_CONTEXT_TOKENS"
 DEFAULT_OPERATION_SECONDS = 180.0
 DEFAULT_MAX_REQUEST_BYTES = 256 * 1024
 DEFAULT_MAX_RESPONSE_BYTES = 256 * 1024
-DEFAULT_CONTEXT_TOKENS = 8192
-_MIN_CONTEXT_TOKENS = 2048
-_MAX_CONTEXT_TOKENS = 131072
+DEFAULT_CONTEXT_TOKENS = DEFAULT_OLLAMA_CONTEXT_TOKENS
+_MIN_CONTEXT_TOKENS = MIN_OLLAMA_CONTEXT_TOKENS
+_MAX_CONTEXT_TOKENS = MAX_OLLAMA_CONTEXT_TOKENS
 _MAX_OPERATION_SECONDS = 600.0
 _MIN_BYTES = 1024
 _MAX_BYTES = 16 * 1024 * 1024

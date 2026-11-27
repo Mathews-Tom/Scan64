@@ -144,7 +144,12 @@ class Slot:
 
 @dataclass(frozen=True)
 class SlotCatalogue:
-    """Slots per evidence item: a claim may use only its own item's slots."""
+    """Slots per evidence item: a claim may use only its own item's slots.
+
+    ``combined`` maps an evidence item whose slots are exactly those of other
+    items (such as the Analysis Board ``comparison``) to those items; the
+    prompt names them as the item's lines instead of listing every slot again.
+    """
 
     by_evidence: Mapping[str, Mapping[str, Slot]]
     shared: frozenset[str] = field(default_factory=frozenset)
@@ -153,6 +158,7 @@ class SlotCatalogue:
     terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     # An example claim text built from this catalogue's own slots (prompt only).
     example: str | None = None
+    combined: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})
@@ -203,7 +209,10 @@ class SlotCatalogue:
                 emit(slot)
         sources = sorted({s.source for _, slots in items for s in slots.values() if s.source})
         for evidence_id, slots in items:
-            used = [g for g in groups if any(s.group == g for s in slots.values())]
+            if evidence_id in self.combined:
+                used = list(self.combined[evidence_id])
+            else:
+                used = [g for g in groups if any(s.group == g for s in slots.values())]
             lines = f"; lines {', '.join(used)}" if used else ""
             out.append(f'evidence_ref "{evidence_id}"{lines}:')
             for name, slot in slots.items():

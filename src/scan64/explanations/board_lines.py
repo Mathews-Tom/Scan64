@@ -602,7 +602,11 @@ def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
 
 
 def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
-    """Slots per line evidence item; ``comparison`` holds every line's slots."""
+    """Slots per line evidence item; ``comparison`` holds every line's slots.
+
+    The prompt lists ``comparison`` by reference to the lines, so each line's
+    slots appear once (#415: repeating them doubled the Analysis Board prompt).
+    """
     board = chess.Board(facts.position.fen)
     shared: list[Slot] = []
     evaluation = evaluation_value(
@@ -623,10 +627,16 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
     example = "{label:line-1} starts with {first:line-1}."
     if "diff:line-2" in names:
         example = "{label:line-2} starts with {first:line-2} and scores {diff:line-2}."
+    combined = (
+        {COMPARISON_EVIDENCE_ID: tuple(line.line_id for line in facts.lines)}
+        if len(facts.lines) > 1
+        else {}
+    )
     return SlotCatalogue(
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
         example=example,
+        combined=combined,
     )
 
 

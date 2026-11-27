@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiRequestError, LessonAttemptLimitError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
+import { ApiClient, ApiRequestError, BotPlayUnavailableError, BOT_PLAY_UNAVAILABLE_MESSAGE, LessonAttemptLimitError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
 import { onboardingFixture, strengthFixture } from '../components/strength.test-fixtures';
 
 describe('ApiClient', () => {
@@ -380,6 +380,40 @@ describe('ApiClient', () => {
 
     await expect(request).rejects.toBeInstanceOf(ApiRequestError);
     await expect(request).rejects.toMatchObject({ status: 404 });
+  });
+
+  it.each([
+    ['move', () => ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' })],
+    ['resume', () => ApiClient.resumePlaySession('sess-1', 'player-1')],
+    ['opponent move', () => ApiClient.resumePlaySessionOpponentMove('sess-1', 3)],
+    ['create', () => ApiClient.createPlaySession({ player_id: 'player-1', opponent_config: {} })],
+  ])('maps a 503 bot_play_unavailable %s response to BotPlayUnavailableError', async (_name, call) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Service Unavailable',
+      json: async () => ({ detail: {
+        code: 'bot_play_unavailable',
+        message: 'Bot play is unavailable under the active engine profile.',
+        reason: 'The bot ladder requires UCI option(s) Skill Level, which Ethereal does not declare',
+      } }),
+    });
+    const error = await call().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(BotPlayUnavailableError);
+    expect(error).toMatchObject({
+      status: 503, message: BOT_PLAY_UNAVAILABLE_MESSAGE, reason: expect.stringContaining('Skill Level'),
+    });
+  });
+
+  it('keeps other 503 move responses as plain ApiRequestError', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Busy', json: async () => ({ detail: 'busy' }),
+    });
+    const error = await ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' }).catch((caught: unknown) => caught);
+    expect(error).not.toBeInstanceOf(BotPlayUnavailableError);
+    expect(error).toMatchObject({ status: 503, message: 'Failed to make move: Busy' });
   });
 
   it('makePlaySessionMove calls POST /v1/play-sessions/{id}/moves', async () => {
