@@ -50,6 +50,7 @@ from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.tolerance import SOUND_MOVE_WIN_PROBABILITY_LOSS, review_loss, win_probability
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
 from scan64.persistence.database import get_session
+from scan64.providers.engine import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"])
@@ -141,7 +142,7 @@ def _objective_analysis_for_lesson(
                 StockfishAdapter(StockfishConfig()), spec.source.fen, nodes=100_000
             )
         )
-    except (OSError, chess.engine.EngineError) as error:
+    except (OSError, chess.engine.EngineError, EngineCapabilityError) as error:
         raise ObjectiveAnalysisUnavailable(
             "Objective engine analysis is unavailable", used_fallback=True
         ) from error

@@ -1,0 +1,5 @@
+# Compat set (#397): the network is loaded from an external file. Set the
+# engine's network option in [engine.options] to the downloaded net.
+[engine]
+name = "triumviratus"
+binary_path = "~/.local/opt/engines/Triumviratus"

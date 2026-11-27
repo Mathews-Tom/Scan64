@@ -1,0 +1,4 @@
+# Compat set (#397): truncated PVs.
+[engine]
+name = "obsidian"
+binary_path = "~/.local/opt/engines/Obsidian"

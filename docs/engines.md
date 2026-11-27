@@ -22,8 +22,12 @@ A profile:
 [engine]
 name = "ethereal"                                  # label for logs; not part of cache identity
 binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands) or a bare command on PATH
+protocol = "uci"                                   # optional: "uci" (default) or "xboard"
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
+node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
+search_deadline_s = 120                            # optional, > 0: wall-clock bound on node/depth-only searches
+score_scale = 1.0                                  # optional, > 0: engine centipawns per Stockfish centipawn
 
 [engine.options]          # extra UCI options; each must be declared by the engine
 UCI_ShowWDL = true
@@ -32,10 +36,15 @@ UCI_ShowWDL = true
 nodes = 200000
 time_ms = 1500
 multipv = 4
+
+[ladder]                  # optional: how the bot ladder weakens this engine
+strength = "elo"          # "skill" (default) or "elo"
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]  # UCI_Elo for levels 1-8, increasing
+movetime_ms = 500         # fixed time per bot move; "elo" only
 ```
 
 Examples: [`config/engines/`](../config/engines/) (`ethereal.toml`,
-`berserk.toml`, `stockfish-wdl.toml`).
+`berserk.toml`, `stockfish-wdl.toml`, `arasan.toml`).
 
 Rules (all enforced at load or engine start, failing with the file and key):
 
@@ -50,8 +59,69 @@ Rules (all enforced at load or engine start, failing with the file and key):
 - The only per-use override today is `hint` (interactive hints; it still runs
   inside the three-second hint deadline). Review (10,000 nodes), focused passes,
   lesson verification and mate-source searches keep the budgets in their callers.
+- `engine.node_scale` (default 1) scales every node budget Scan64 sends to this
+  engine: game analysis, focused passes, hints, lesson verification, Analysis
+  Board lines, the bot ladder and Skill Level play. The budgets are sized for an
+  alpha-beta engine's nodes/second; an engine with slow neural nodes (Lc0,
+  Maia-3) sets a value below 1, for example `0.002` so that a 1,000,000-node
+  focused search sends 2,000 nodes. The engine receives at least 1 node. Stored
+  rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
+  1, so rows from different scales never reuse each other; rows at scale 1 keep
+  their pre-existing reuse key.
+- `engine.search_deadline_s` (default 120) bounds every analysis search that
+  has no time limit of its own (fast pass, focused pass, lesson verification,
+  Analysis Board lines). Past it the search is stopped and the request fails
+  with `EngineCapabilityError` saying the engine did not finish its node or
+  depth limit: an engine that ignores `go nodes` (Rodent V 1.2) reports
+  `unavailable` instead of hanging. It is not part of the cache identity.
+- A pooled engine whose process exits (`EngineTerminatedError`) fails that
+  request and is replaced: the next checkout from the pool starts a new
+  process.
+- `engine.score_scale` (default 1) is the engine's centipawns per Stockfish
+  centipawn. Scan64's win-probability curve (Lichess logistic) is fitted to
+  Stockfish, so every win probability divides a line's `score_cp` by it
+  first; stored `score_cp` stays the engine's own number. Each stored line and
+  the row's identity record `score_scale` when it is not 1, so rows at
+  different scales never reuse each other and rows at 1 keep their
+  pre-existing reuse key. Other centipawn thresholds (the 150 cp fast-pass
+  swing, narrator facts) still read raw `score_cp`.
+- `engine.protocol = "xboard"` runs an XBoard (protover 2) engine. The engine
+  must declare `ping` and `setboard`; one that sends `setboard=0` (Fairy-Max
+  5.0b) fails at start with `EngineCapabilityError`, since every Scan64 search
+  starts from a FEN. Scan64 sends `engine.threads` as `cores`
+  and `engine.hash_mb` as `memory` when the engine declares `smp`/`memory`.
+  XBoard has no MultiPV, so only single-line searches work: game review and
+  single-line analysis run; a search for more lines (focused passes, Analysis
+  Board lines, hints with MultiPV, the bot ladder) raises
+  `EngineCapabilityError` naming the engine, never a single-line substitute.
+  Stored rows record `protocol = "xboard"`; UCI rows omit the key.
+- Any request the active engine cannot serve answers HTTP 503 with
+  `{"detail": {"code": "engine_capability_unavailable", "message": ..., "reason": ...}}`;
+  `reason` names the missing option and the engine. A background analysis job
+  that hits it ends `failed` with that reason as its `error`.
 - The profile file is re-read when its modification time or size changes; a
   running pool keeps the processes it started with.
+- `[ladder]` selects the bot ladder's strength path. `skill` (the default, and
+  the only path without a profile) searches every legal move at full strength
+  and picks a move inside the level's error budget, seeded per session; it
+  needs `MultiPV`, `Skill Level` and `UCI_LimitStrength`. `elo` sets
+  `UCI_LimitStrength = true` and the level's `UCI_Elo`, then plays one move in
+  `movetime_ms` with the engine's own randomness (not seeded; the session's
+  node budget is unused). It needs `UCI_LimitStrength` and `UCI_Elo`; a level's
+  `UCI_Elo` outside the range the engine declares fails the move with
+  `EngineCapabilityError` (a 503 the player can act on, not a server error). The `elo` values are what Scan64 sends, not a
+  measured playing strength. The analysis reset turns `UCI_LimitStrength` off
+  again before every search. Sessions record the path in `bot_policy_version`:
+  `stockfish-error-budget-v1` for `skill`,
+  `uci-elo-v1:<engine name>:<elo list>:<movetime>ms` for `elo`. A session
+  plays only under the policy it recorded: when the server's `[ladder]` or
+  engine changes while a bot game is open, the next bot move fails with
+  `EngineCapabilityError` naming both policies, so a game is never counted in
+  one strength cohort and played under another. Sessions without a recorded
+  policy predate the Elo path and play only under
+  `stockfish-error-budget-v1`. The opponent's name comes from the recorded
+  policy: `Arasan (level 1: First steps)` for an Elo session on the `arasan`
+  profile, `Stockfish (...)` for error-budget and unstamped sessions.
 
 ## What every stored line contains
 
@@ -82,7 +152,10 @@ are keyed on the effective engine inputs:
 
 - `engine_version`: SHA-256 of the executable (embedded networks included).
 - `network`: SHA-256 of external network/weights files named by `EvalFile`,
-  `EvalFileSmall` or `WeightsFile` when those files exist.
+  `EvalFileSmall`, `WeightsFile` or Arasan's `NNUE file` when those files
+  exist. A relative path is resolved where its engine loads it: the working
+  directory, then the executable's directory, for the first three; only the
+  executable's directory for `NNUE file` (Arasan 26.1 `globals.cpp`).
 - `options`: every UCI option value the process holds after configuration,
   including profile options, with the full-strength overrides applied.
 - `nodes`, `depth`, `time_ms`, `multipv` and the full FEN.
@@ -99,18 +172,21 @@ threads, hash, options) and the effective hint limits.
 
 | Feature | Requires | Without it |
 | --- | --- | --- |
-| Fast pass, review, backfill | any UCI engine | — |
-| Focused pass, hints, lesson verification (MultiPV 2–8) | `MultiPV` | python-chess raises `EngineError` for MultiPV > 1; the job fails with that error. No single-line substitute. |
+| Fast pass, review, backfill | any UCI or XBoard engine | — |
+| Focused pass, hints, Analysis Board lines, lesson verification (MultiPV 2–8) | `MultiPV` (UCI only) | `EngineCapabilityError` (API: 503 `engine_capability_unavailable`; job: `failed` with the reason). No single-line substitute. |
 | WDL in stored lines | engine reports `wdl` (Berserk by default; Stockfish/Lc0 with `UCI_ShowWDL`) | `wdl` key absent. |
-| Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` where declared | Skipped: an engine without these controls is always at full strength. |
-| Bot ladder opponent (levels 1–8) | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` | `EngineCapabilityError` naming the missing options. |
+| Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength` where declared (`UCI_Elo` is not sent: it is ignored while `UCI_LimitStrength` is off) | Skipped: an engine without these controls is always at full strength. |
+| Bot ladder opponent (levels 1–8), `[ladder] strength = "skill"` | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength` | `EngineCapabilityError` naming the missing options; when the engine declares `UCI_Elo` the message names `[ladder] strength = "elo"`. |
+| Bot ladder opponent, `[ladder] strength = "elo"` | `UCI_LimitStrength`, `UCI_Elo` | `EngineCapabilityError` naming the missing options. |
 | Legacy Skill Level opponent (sessions without `bot_level`) | `Skill Level` | `EngineCapabilityError` naming `Skill Level`. |
 
-Opponent strength stays Stockfish-only on purpose: the ladder's error budgets,
-`BOT_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
-cohorts (`api/strength.py`) are defined against Stockfish. Opponent moves come
-from the same interactive pool as hints. Bot play is therefore unavailable under
-a non-Stockfish profile. Play never falls back to Stockfish. The play endpoints
+The `skill` ladder stays Stockfish-only on purpose: its error budgets,
+`SKILL_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
+cohorts (`api/strength.py`) are defined against Stockfish. An engine with
+`UCI_Elo` but no `Skill Level` (Arasan 26.1) plays the ladder through
+`[ladder] strength = "elo"`. Opponent moves come from the same interactive pool
+as hints. A profile that can play neither ladder makes bot play unavailable;
+play never falls back to Stockfish. The play endpoints
 (`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
 `…/opponent-move`) return 503 with
 `detail = {code: "bot_play_unavailable", message, reason}`. `reason` is the
@@ -137,7 +213,7 @@ is now `EngineConfig` and reads the active profile.
 | `chess/games/clocks.py:266–285` | Clocked opponent uses `StockfishOpponentProvider(StockfishConfig())` | Same as opponents. |
 | `learning/tolerance.py:11` | `win_probability` uses the Lichess logistic on `score_cp` | Assumes Stockfish-scale centipawns. Ethereal and Berserk declare a `Normalize` option (default on); other engines' scales can differ. Not engine-adjusted. |
 | `chess/analysis/orchestration.py:91–102`, `jobs.py` (swing 150 cp), `learning/diagnosis/arbitration.py` ("Eval drop >= 2.0") | Centipawn thresholds and mate-to-score mapping | Same score-scale assumption. |
-| `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; others fixed. Lc0 nodes cost far more time than alpha-beta nodes. |
+| `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; every budget scales by `engine.node_scale` for engines with slow nodes (Lc0, Maia-3). |
 | `learning/exercises/exact_replay.py:42` | `Verification(engine="stockfish")` label | Label only; does not record the actual engine. Follow-up. |
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
 | `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |
@@ -249,9 +325,94 @@ Re-run: `uv run python -m benchmarks.engines.compare_engines benchmarks/engines/
 (`--resume <results.jsonl>` continues an interrupted run). Engines whose binary
 is missing are recorded as "not installed".
 
+## Engine compatibility set
+
+[`benchmarks/engines/compat.py`](../benchmarks/engines/compat.py) runs every
+engine in [`compat.toml`](../benchmarks/engines/compat.toml) through Scan64's
+own features, each at its production entry point and budget, and records one
+of: `works`; `unavailable` (an `EngineCapabilityError`, with its exact reason,
+which the API returns as 503 `engine_capability_unavailable`); `blocked` (the
+focused pass, when game analysis did not work); `error` (any other exception:
+a bug). Each engine is selected through its profile in
+[`config/engines/compat/`](../config/engines/compat/), as a user selects it.
+
+```
+uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml
+uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml --only Lc0
+uv run python -m benchmarks.engines.compat CONFIG --resume RESULTS.jsonl
+```
+
+Features: `game_analysis` (fast pass, `REVIEW_NODES`), `focused_pass`
+(1,000,000 nodes, MultiPV 4), `hints` (play assistance), `lesson_verification`
+(MultiPV 2/4/8 widening), `analysis_board` (hint search, scored legal lines),
+`bot_ladder`, `skill_level_opponent`.
+
+Every record carries its provenance: the Scan64 `commit`, `dirty` (uncommitted
+changes under `src/` or `benchmarks/`), and the SHA-256 of the profile file and
+of the resolved engine binary. A profile whose binary is missing records `not
+installed`.
+
+Scan64 downloads and bundles none of these engines. Each user installs the
+engine and points a profile at it.
+
+| Engine | Source | Licence | Behaviour it stresses |
+| --- | --- | --- | --- |
+| Alexandria | https://github.com/PGG106/Alexandria | GPL-3.0 | no MultiPV; unusual centipawn scale |
+| Minic | https://github.com/tryingsomestuff/Minic | GPL-3.0 | MultiPV capped below 8; non-standard WDL option |
+| Obsidian | https://github.com/gab8192/Obsidian | GPL-3.0 | truncated PVs |
+| Triumviratus | https://github.com/Tors3/Triumviratus | GPL-3.0 | network from an external file |
+| Fairy-Max | Debian package `fairymax` | not stated at source | XBoard only; no MultiPV, Hash or Threads |
+| Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace |
+| Rodent V | https://github.com/nescitus/Rodent-V | GPL-3.0 | large option list; personality files |
+| PZChessBot | https://github.com/kevlu8/PZChessBot | AGPL-3.0 | lower-case option names |
+| Lc0 | https://github.com/LeelaChessZero/lc0 | GPL-3.0 (network licence not stated) | slow neural nodes; no Hash |
+| Maia-3 | https://github.com/CSSLab/maia3 | AGPL-3.0 (weights licence not stated) | Python UCI wrapper; rating options |
+
+### Results
+
+Windows smoke (windows-4080, 2026-11-27): Stockfish 18 and Ethereal 14.40 from
+the comparison above, and the XBoard test engine
+`tests/fixtures/engines/fake_xboard.py`.
+
+| Engine | game_analysis | focused_pass | hints | lesson_verification | analysis_board | bot_ladder | skill_level_opponent |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Stockfish 18 | works | works | works | works | works | works | works |
+| Ethereal 14.40 | works | works | works | works | works | unavailable¹ | unavailable² |
+| XBoard test engine | works | unavailable³ | unavailable³ | unavailable³ | unavailable³ | unavailable⁴ | unavailable² |
+
+1. "The bot ladder requires UCI option(s) Skill Level, UCI_LimitStrength,
+   which Ethereal 14.40 (PEXT) does not declare". The table was recorded before
+   5732be7, when the reset also required `UCI_Elo`.
+2. "Skill Level opponent play requires UCI option(s) Skill Level, which … does
+   not declare".
+3. "4 analysis lines need MultiPV, which FakeXBoard 1 cannot provide over
+   XBoard" (lesson verification: 2 lines).
+4. As 1, plus `MultiPV`.
+
+The ten-engine run is done on the Linux machine, where every engine in the set
+builds and runs. Its table replaces nothing above; it is added here with the
+date and the engine versions.
+
 ## Follow-ups
 
 - Separate the opponent engine from the analysis engine (app/play wiring) so a
   non-Stockfish analysis profile keeps Stockfish bot play.
 - `exact_replay.py` should record the actual engine name in `Verification`.
-- Per-use overrides for review/focused/verification budgets, needed for Lc0.
+- The bot ladder fails on engines with MultiPV but no strength controls
+  (Ethereal): it requires the Stockfish reset options even where the engine is
+  always at full strength.
+- The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
+  starts the engine with `popen_uci` and sets `Hash` unconditionally.
+- The bot ladder's node-limited MultiPV search and Skill Level play do not
+  go through the search deadline yet; `[limits]` accepts only `hint`.
+- The legacy Skill Level opponent (sessions without `bot_level`) has no
+  `UCI_Elo` path; it still needs `Skill Level`.
+- A bot game open when `[ladder]` or the engine changes cannot continue (see
+  the ladder section); it stays in its recorded cohort, and the player starts
+  a new game.
+- An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
+  for any N) reports `works` with much less search than asked for; no state in
+  the compatibility table shows it.
+- Profiles have no working directory, environment variables or command-line
+  arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
+  and option values get no `~` expansion.

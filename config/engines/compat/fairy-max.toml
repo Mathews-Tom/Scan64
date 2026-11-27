@@ -1,0 +1,6 @@
+# Compat set (#397): XBoard only, no MultiPV, Hash or Threads.
+# Installed with `apt install fairymax`, which puts it on PATH.
+[engine]
+name = "fairy-max"
+binary_path = "fairymax"
+protocol = "xboard"

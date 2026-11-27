@@ -12,6 +12,9 @@ class OpponentContext:
     seed: int = 0
     ply: int = 0
     nodes: int | None = None
+    # The ladder policy the session was created under; the engine refuses
+    # to play the move under another one, so strength cohorts never mix.
+    bot_policy_version: str | None = None
 
 
 @dataclasses.dataclass
