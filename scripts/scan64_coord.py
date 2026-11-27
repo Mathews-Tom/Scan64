@@ -41,7 +41,8 @@ RULES = "CONTRIBUTING.md, section 'Working across machines'"
 # hook-session refreshes the installed copy from this ref of the checkout setup ran in.
 TOOL_REF = "origin/main"
 TOOL_PATH = "scripts/scan64_coord.py"
-INSTALL_DIR = Path.home() / ".local" / "share" / "scan64-coord"
+# Not ~/.local/share/scan64-coord: that is where the earlier standalone repo was cloned.
+INSTALL_DIR = Path.home() / ".local" / "share" / "scan64" / "coord"
 MACHINE_FILE = Path.home() / ".config" / "scan64" / "machine"
 CLAUDE_SETTINGS = Path.home() / ".claude" / "settings.json"
 _MACHINE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -76,8 +77,9 @@ def is_push_command(command: str) -> bool:
 def merge_hooks(settings: dict[str, Any], base: str) -> list[str]:
     """Add the SessionStart and PreToolUse(Bash) hooks to Claude Code settings in place.
 
-    Existing hooks stay. A hook that already runs scan64_coord.py is not added twice.
-    Returns one message per event.
+    Other hooks stay. A hook that already runs a scan64_coord.py, including one from
+    the earlier standalone scan64-coord repo, is pointed at ``base`` instead of added
+    twice. Returns one message per event.
     """
     hooks = settings.setdefault("hooks", {})
     wanted = {
@@ -87,12 +89,17 @@ def merge_hooks(settings: dict[str, Any], base: str) -> list[str]:
     messages = []
     for event, (matcher, command) in wanted.items():
         entries = hooks.setdefault(event, [])
-        if any(
-            "scan64_coord.py" in hook.get("command", "")
+        existing = [
+            hook
             for entry in entries
             for hook in entry.get("hooks", [])
-        ):
-            messages.append(f"{event}: already installed")
+            if "scan64_coord.py" in hook.get("command", "")
+        ]
+        if existing:
+            changed = any(hook["command"] != command for hook in existing)
+            for hook in existing:
+                hook["command"] = command
+            messages.append(f"{event}: {'updated' if changed else 'already installed'}")
             continue
         entry = next((e for e in entries if e.get("matcher", "") == matcher), None)
         if entry is None:

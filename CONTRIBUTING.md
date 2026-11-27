@@ -135,7 +135,7 @@ From a Scan64 checkout, with `gh` logged in:
 python3 scripts/scan64_coord.py setup <machine>   # for example: setup mac
 ```
 
-On Windows, use `python` instead of `python3`. Setup writes the machine name to `~/.config/scan64/machine`, installs a copy of the tool in `~/.local/share/scan64-coord` and a `scan64-coord` command in `~/.local/bin`, and prints the current status. It changes nothing in the checkout.
+On Windows, use `python` instead of `python3`. Setup writes the machine name to `~/.config/scan64/machine`, installs a copy of the tool in `~/.local/share/scan64/coord` and a `scan64-coord` command in `~/.local/bin`, and prints the current status. It changes nothing in the checkout. A machine that used the earlier standalone `scan64-coord` repo reruns `setup` and `install-hooks`: its hooks are pointed at the new copy, and the old clone in `~/.local/share/scan64-coord` can then be deleted.
 
 With Claude Code, also run `scan64-coord install-hooks`, then open `/hooks` once or restart Claude Code. This adds two hooks to `~/.claude/settings.json` and keeps the existing ones:
 

@@ -81,6 +81,37 @@ def test_merge_hooks_keeps_existing_hooks_and_is_idempotent() -> None:
     ]
 
 
+def test_merge_hooks_repoints_hooks_from_the_earlier_standalone_repo() -> None:
+    old = '"python" "/home/u/.local/share/scan64-coord/scan64_coord.py"'
+    settings: dict[str, Any] = {
+        "hooks": {
+            "SessionStart": [
+                {"matcher": "", "hooks": [{"type": "command", "command": f"{old} hook-session"}]}
+            ],
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [{"type": "command", "command": f"{old} hook-pretool"}],
+                }
+            ],
+        }
+    }
+
+    messages = coord.merge_hooks(settings, '"python" "/new/scan64_coord.py"')
+
+    assert messages == ["SessionStart: updated", "PreToolUse: updated"]
+    commands = [
+        hook["command"]
+        for event in ("SessionStart", "PreToolUse")
+        for entry in settings["hooks"][event]
+        for hook in entry["hooks"]
+    ]
+    assert commands == [
+        '"python" "/new/scan64_coord.py" hook-session',
+        '"python" "/new/scan64_coord.py" hook-pretool',
+    ]
+
+
 @pytest.mark.parametrize(
     ("flags", "status"),
     [([], "Todo"), (["--review"], "In review"), (["--done"], "Done")],
