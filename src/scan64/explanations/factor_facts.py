@@ -13,7 +13,11 @@ Each line is followed to its first quiet position (``quiet_ply``) within
 (``before`` or ``best``) to ``played`` becomes a fact only when
 
 - its size reaches the threshold of its kind (``FACTOR_CONFIG``), and
-- its sign agrees with the engine's score swing across the mistake.
+- its sign agrees with the engine's score swing between the two points: the
+  engine score at the measured position minus the score at the reference
+  position, from the per-move evaluations along the lines (#367). When either
+  score is unknown, the swing across the mistake (or between the board lines'
+  scores) is used instead.
 
 The engine stays the judge; the factors only name parts of its verdict. Values
 are in pawns from the learner's point of view (positive favours the learner).
@@ -23,7 +27,7 @@ score difference between the lines as the swing (``board_factor_changes``).
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -207,6 +211,20 @@ class FactorChange(_Facts):
     )
 
 
+class FactorSwing(_Facts):
+    """The engine swing a comparison's sign rule used."""
+
+    compared_with: Comparison
+    swing_cp: int = Field(
+        description="Engine score at the played (board: line) point minus the score at the "
+        "reference point, learner's view; mates count as large scores."
+    )
+    source: Literal["points", "mistake"] = Field(
+        description="points: per-move evaluations at both measured positions; mistake: the "
+        "position scores were unknown, so engine_swing_cp."
+    )
+
+
 class FactorFacts(_Facts):
     source: str = Field(description="Factor module version.")
     points: tuple[FactorPoint, ...]
@@ -215,7 +233,31 @@ class FactorFacts(_Facts):
         description="Engine score after the mistake minus before it, learner's view; mates "
         "count as large scores. Absent: no factor fact (the engine gave no direction).",
     )
+    swings: tuple[FactorSwing, ...] = Field(
+        default=(), description="The swing each comparison used (#367); absent before #367."
+    )
     changes: tuple[FactorChange, ...] = ()
+
+
+# Learner-view engine score, as ``evaluation_cp``, of the position a move
+# prefix from the measured root reaches; ``None`` when unscored.
+PointScore = Callable[[Sequence[str]], int | None]
+
+
+def _swing(
+    point_score: PointScore | None,
+    measured: FactorPoint,
+    reference: FactorPoint,
+    compared_with: Comparison,
+    fallback: int | None,
+) -> FactorSwing | None:
+    if point_score is not None:
+        end, start = point_score(measured.uci), point_score(reference.uci)
+        if end is not None and start is not None:
+            return FactorSwing(compared_with=compared_with, swing_cp=end - start, source="points")
+    if fallback is None:
+        return None
+    return FactorSwing(compared_with=compared_with, swing_cp=fallback, source="mistake")
 
 
 def factor_key(name: str) -> str:
@@ -371,25 +413,41 @@ def mistake_factor_facts(
     best_line: Sequence[str] | None,
     swing_cp: int | None,
     config: FactorConfig = FACTOR_CONFIG,
+    *,
+    point_score: PointScore | None = None,
 ) -> FactorFacts:
-    """Factor facts of one mistake; ``played_line`` starts with the learner's move."""
+    """Factor facts of one mistake; ``played_line`` starts with the learner's move.
+
+    ``point_score`` gives the engine score at a measured position; each
+    comparison's sign rule uses the score change between its two points, or
+    ``swing_cp`` when either score is unknown.
+    """
     learner = before.turn
     measured = [measure_point(before, "before", (), 0, learner, config)]
     measured.append(measure_point(before, "played", played_line, 1, learner, config))
     if best_line:
         measured.append(measure_point(before, "best", best_line, 1, learner, config))
-    by_point = {m.point.point: m.values for m in measured}
+    by_point = {m.point.point: m for m in measured}
     changes: list[FactorChange] = []
+    swings: list[FactorSwing] = []
     played = by_point.get("played")
-    if played is not None and swing_cp is not None:
+    if played is not None and played.values is not None:
         for reference in ("before", "best"):
-            values = by_point.get(reference)
-            if values is not None:
-                changes += passed_changes(played, values, swing_cp, reference, config)
+            other = by_point.get(reference)
+            if other is None or other.values is None:
+                continue
+            swing = _swing(point_score, played.point, other.point, reference, swing_cp)
+            if swing is None:
+                continue
+            swings.append(swing)
+            changes += passed_changes(
+                played.values, other.values, swing.swing_cp, reference, config
+            )
     return FactorFacts(
         source=FACTOR_SOURCE,
         points=tuple(m.point for m in measured),
         engine_swing_cp=swing_cp,
+        swings=tuple(swings),
         changes=tuple(changes),
     )
 
@@ -400,27 +458,38 @@ def line_factor_facts(
     line: Sequence[str],
     swing_cp: int | None,
     config: FactorConfig = FACTOR_CONFIG,
+    *,
+    point_score: PointScore | None = None,
 ) -> FactorFacts:
     """Analysis Board: ``line`` against line 1 (``best_line``), side to move's view.
 
-    ``swing_cp`` is this line's score minus line 1's score.
+    ``swing_cp`` is this line's score minus line 1's score; the sign rule uses
+    the score change between the two measured positions when ``point_score``
+    knows both.
     """
     side = root.turn
     best = measure_point(root, "best", best_line, 1, side, config)
     this = measure_point(root, "line", line, 1, side, config)
     changes: list[FactorChange] = []
-    if best.values is not None and this.values is not None and swing_cp is not None:
-        changes = passed_changes(this.values, best.values, swing_cp, "best", config)
-        changes = changes[: config.max_board_changes]
+    swings: list[FactorSwing] = []
+    if best.values is not None and this.values is not None:
+        swing = _swing(point_score, this.point, best.point, "best", swing_cp)
+        if swing is not None:
+            swings.append(swing)
+            changes = passed_changes(this.values, best.values, swing.swing_cp, "best", config)
+            changes = changes[: config.max_board_changes]
     return FactorFacts(
         source=FACTOR_SOURCE,
         points=(best.point, this.point),
         engine_swing_cp=swing_cp,
+        swings=tuple(swings),
         changes=tuple(changes),
     )
 
 
 __all__ = [
+    "FactorSwing",
+    "PointScore",
     "line_factor_facts",
     "FACTOR_CONFIG",
     "FACTOR_SOURCE",

@@ -116,6 +116,18 @@
           "title": "Moves",
           "type": "array"
         },
+        "evaluation_change": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineEvaluationChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The board position's score (line 1) against this line's last scored move, side to move's view (#368)."
+        },
         "outcome": {
           "$ref": "#/$defs/LineOutcome"
         },
@@ -213,7 +225,8 @@
             "reply_pass",
             "focused_pass",
             "mate_source_pass",
-            "analysis_board_pass"
+            "analysis_board_pass",
+            "line_pass"
           ],
           "title": "Source",
           "type": "string"
@@ -308,6 +321,15 @@
           "description": "Engine score after the mistake minus before it, learner's view; mates count as large scores. Absent: no factor fact (the engine gave no direction).",
           "title": "Engine Swing Cp"
         },
+        "swings": {
+          "default": [],
+          "description": "The swing each comparison used (#367); absent before #367.",
+          "items": {
+            "$ref": "#/$defs/FactorSwing"
+          },
+          "title": "Swings",
+          "type": "array"
+        },
         "changes": {
           "default": [],
           "items": {
@@ -358,6 +380,96 @@
         "point"
       ],
       "title": "FactorPoint",
+      "type": "object"
+    },
+    "FactorSwing": {
+      "additionalProperties": false,
+      "description": "The engine swing a comparison's sign rule used.",
+      "properties": {
+        "compared_with": {
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "swing_cp": {
+          "description": "Engine score at the played (board: line) point minus the score at the reference point, learner's view; mates count as large scores.",
+          "title": "Swing Cp",
+          "type": "integer"
+        },
+        "source": {
+          "description": "points: per-move evaluations at both measured positions; mistake: the position scores were unknown, so engine_swing_cp.",
+          "enum": [
+            "points",
+            "mistake"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compared_with",
+        "swing_cp",
+        "source"
+      ],
+      "title": "FactorSwing",
+      "type": "object"
+    },
+    "LineEvaluationChange": {
+      "additionalProperties": false,
+      "description": "What the line wins or loses by engine evaluation, learner's view (#368).",
+      "properties": {
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation of the position before the line's first move.",
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation after ply end_ply, the line's last scored move.",
+          "title": "End"
+        },
+        "end_ply": {
+          "minimum": 1,
+          "title": "End Ply",
+          "type": "integer"
+        },
+        "change_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "end minus start, learner's view; positive: the line gains for the learner. Absent unless both are centipawn scores.",
+          "title": "Change Cp"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "end_ply"
+      ],
+      "title": "LineEvaluationChange",
       "type": "object"
     },
     "LineOutcome": {
@@ -430,7 +542,8 @@
             "reply_pass",
             "focused_pass",
             "mate_source_pass",
-            "analysis_board_pass"
+            "analysis_board_pass",
+            "line_pass"
           ],
           "title": "Source",
           "type": "string"

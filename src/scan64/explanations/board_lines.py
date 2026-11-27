@@ -17,7 +17,10 @@ that fails validation, or a claim linked to no line, falls back to the template.
 Coordinates: every line starts at the board position; "you" and "the learner"
 in claim grammar mean the side to move. Evaluations are the engine's MultiPV
 scores from the side to move's point of view: a line's score is recorded as the
-evaluation after its first move; no other move is scored (``unknown``).
+evaluation after its first move. Later plies, up to ``MAX_LINE_PLIES``, carry
+the small per-position searches the endpoint ran within its deadline
+(``board_line_positions``, ``line_scores``); a ply no search reached is
+``unknown``.
 """
 
 from __future__ import annotations
@@ -42,12 +45,19 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
     slot_rules,
 )
-from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, line_factor_facts
+from scan64.explanations.factor_facts import (
+    FactorFacts,
+    PointScore,
+    evaluation_cp,
+    line_factor_facts,
+)
 from scan64.explanations.facts import (
+    MAX_LINE_PLIES,
     UNKNOWN,
     CentipawnEvaluation,
     ColourName,
     Evaluation,
+    LineEvaluationChange,
     MateEvaluation,
     Material,
     MoveFacts,
@@ -57,6 +67,8 @@ from scan64.explanations.facts import (
     _Facts,
     _move_facts,
     _position_key,
+    evaluation_as_cp,
+    line_evaluation_change,
     material,
 )
 from scan64.explanations.slots import (
@@ -207,6 +219,11 @@ class BoardLineFacts(_Facts):
         min_length=1, description="The full engine line. Cite it, or a prefix, as a claim line."
     )
     moves: tuple[MoveFacts, ...] = Field(min_length=1)
+    evaluation_change: LineEvaluationChange | None = Field(
+        default=None,
+        description="The board position's score (line 1) against this line's last scored "
+        "move, side to move's view (#368).",
+    )
     outcome: LineOutcome
     factors: FactorFacts | None = Field(
         default=None,
@@ -261,12 +278,71 @@ def _difference_cp(best: ScoredLine, line: ScoredLine) -> int | None:
     return best.score_cp - line.score_cp
 
 
-def _stored_evaluations(board: chess.Board, lines: Sequence[ScoredLine]) -> StoredEvaluations:
+def board_line_positions(board: chess.Board, lines: Sequence[ScoredLine]) -> list[chess.Board]:
+    """Positions along ``lines`` that the MultiPV scores do not cover, to score per move.
+
+    Plies 2 to ``MAX_LINE_PLIES`` of each line, ordered by ply, then by line, so
+    a deadline that stops scoring early leaves the plies nearest the board
+    position scored. Each board keeps its moves from ``board`` (repetition
+    history). A position appears once; game-over positions are skipped.
+    """
+    first = set()
+    for line in lines:
+        after = board.copy(stack=False)
+        after.push(line.moves[0])
+        first.add(_position_key(after))
+    seen: set[str] = set()
+    positions: list[chess.Board] = []
+    for ply in range(2, MAX_LINE_PLIES + 1):
+        for line in lines:
+            if len(line.moves) < ply:
+                continue
+            replay = board.copy()
+            for move in line.moves[:ply]:
+                replay.push(move)
+            key = _position_key(replay)
+            if key in first or key in seen or replay.is_game_over(claim_draw=False):
+                continue
+            seen.add(key)
+            positions.append(replay)
+    return positions
+
+
+def line_scores(
+    positions: Sequence[chess.Board], analyses: Sequence[EngineAnalysis | None]
+) -> dict[str, tuple[chess.Color, str, int]]:
+    """Position key -> ``(side to move, kind, score)`` of each completed search."""
+    scores: dict[str, tuple[chess.Color, str, int]] = {}
+    for position, analysis in zip(positions, analyses, strict=True):
+        best = analysis.raw_result[0] if analysis is not None and analysis.raw_result else {}
+        mate, cp = _strict_int(best.get("score_mate")), _strict_int(best.get("score_cp"))
+        if mate is not None:
+            scores[_position_key(position)] = (position.turn, "mate", mate)
+        elif cp is not None:
+            scores[_position_key(position)] = (position.turn, "cp", cp)
+    return scores
+
+
+def _stored_evaluations(
+    board: chess.Board,
+    lines: Sequence[ScoredLine],
+    scores: Mapping[str, tuple[chess.Color, str, int]],
+) -> StoredEvaluations:
     by_position: dict[str, CentipawnEvaluation | MateEvaluation] = {}
     for line in lines:
         after = board.copy(stack=False)
         after.push(line.moves[0])
         by_position.setdefault(_position_key(after), _evaluation(line))
+    for key, (turn, kind, value) in scores.items():
+        signed = value if turn == board.turn else -value
+        if kind == "mate":
+            by_position.setdefault(
+                key, MateEvaluation(status="mate", mate_in=signed, source="line_pass")
+            )
+        else:
+            by_position.setdefault(
+                key, CentipawnEvaluation(status="centipawns", centipawns=signed, source="line_pass")
+            )
     return StoredEvaluations(
         before=_evaluation(lines[0]), after_played=UNKNOWN, by_position=by_position
     )
@@ -278,12 +354,16 @@ def _line_facts(
     line: ScoredLine,
     best: ScoredLine,
     evaluations: StoredEvaluations,
+    point_score: PointScore,
 ) -> BoardLineFacts:
     side = board.turn
     replay = board
     moves: list[MoveFacts] = []
     for ply, move in enumerate(line.moves, start=1):
         fact, replay = _move_facts(replay, move, ply, side, evaluations)
+        if ply > MAX_LINE_PLIES:
+            # Scores past the scored plies would come from another line's search.
+            fact = fact.model_copy(update={"evaluation_after": UNKNOWN})
         moves.append(fact)
     gain = line_material_gain(board, list(line.uci))
     if gain is None:
@@ -307,8 +387,9 @@ def _line_facts(
         wdl=line.wdl,
         uci=line.uci,
         moves=tuple(moves),
+        evaluation_change=line_evaluation_change(evaluations.before, moves),
         outcome=outcome,
-        factors=_line_factors(board, best, line) if rank > 1 else None,
+        factors=_line_factors(board, best, line, point_score) if rank > 1 else None,
     )
 
 
@@ -318,19 +399,33 @@ def _score_cp(line: ScoredLine) -> int | None:
     return line.score_cp
 
 
-def _line_factors(board: chess.Board, best: ScoredLine, line: ScoredLine) -> FactorFacts:
-    """Factor changes of ``line`` against line 1; the swing is this line's score minus line 1's."""
+def _line_factors(
+    board: chess.Board, best: ScoredLine, line: ScoredLine, point_score: PointScore
+) -> FactorFacts:
+    """Factor changes of ``line`` against line 1.
+
+    The swing is the score at this line's measured position minus the score at
+    line 1's, else this line's score minus line 1's.
+    """
     best_cp, line_cp = _score_cp(best), _score_cp(line)
     swing = line_cp - best_cp if best_cp is not None and line_cp is not None else None
-    return line_factor_facts(board, best.uci, line.uci, swing)
+    return line_factor_facts(board, best.uci, line.uci, swing, point_score=point_score)
 
 
-def build_board_lines_facts(board: chess.Board, lines: Sequence[ScoredLine]) -> BoardLinesFacts:
-    """Facts for ``lines`` (engine order, best first) searched from ``board``."""
+def build_board_lines_facts(
+    board: chess.Board,
+    lines: Sequence[ScoredLine],
+    scores: Mapping[str, tuple[chess.Color, str, int]] | None = None,
+) -> BoardLinesFacts:
+    """Facts for ``lines`` (engine order, best first) searched from ``board``.
+
+    ``scores`` (``line_scores``) holds the per-position searches along the lines.
+    """
     if not lines:
         raise BoardLinesError("No engine line to explain")
     root = board.copy(stack=False)
-    evaluations = _stored_evaluations(root, lines)
+    evaluations = _stored_evaluations(root, lines, scores or {})
+    point_score = _board_point_score(root, lines, evaluations)
     return BoardLinesFacts(
         schema_version=BOARD_SCHEMA_VERSION,
         position=BoardPositionFacts(
@@ -340,10 +435,29 @@ def build_board_lines_facts(board: chess.Board, lines: Sequence[ScoredLine]) -> 
             evaluation=evaluations.before,
         ),
         lines=tuple(
-            _line_facts(root, rank, line, lines[0], evaluations)
+            _line_facts(root, rank, line, lines[0], evaluations, point_score)
             for rank, line in enumerate(lines, start=1)
         ),
     )
+
+
+def _board_point_score(
+    root: chess.Board, lines: Sequence[ScoredLine], evaluations: StoredEvaluations
+) -> PointScore:
+    """Score at a prefix of a line, side to move's view; the root is line 1's score."""
+    by_prefix: dict[tuple[str, ...], int | None] = {(): evaluation_as_cp(evaluations.before)}
+    for line in lines:
+        replay = root.copy(stack=False)
+        for ply, move in enumerate(line.moves[:MAX_LINE_PLIES], start=1):
+            replay.push(move)
+            score = evaluation_as_cp(evaluations.after(replay))
+            if score is not None:
+                by_prefix.setdefault(line.uci[:ply], score)
+
+    def lookup(prefix: Sequence[str]) -> int | None:
+        return by_prefix.get(tuple(prefix))
+
+    return lookup
 
 
 # --- Grounding ---------------------------------------------------------------------

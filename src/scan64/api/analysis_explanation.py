@@ -4,11 +4,14 @@ The search is the free-analysis search: the same interactive pool, hint
 admission, deadline and cache as ``POST /v1/analysis/position``, so with the
 default budget the explained lines are the lines the board already shows.
 ``nodes`` and ``depth`` may only narrow that budget; ``multipv`` selects how many
-of the engine's ranked lines are explained.
+of the engine's ranked lines are explained. Within the same request deadline,
+each position along the explained lines (plies 2 to 8) is scored with a small
+search; plies the deadline does not reach stay ``unknown``.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 
 import chess
@@ -31,8 +34,10 @@ from scan64.explanations.board_lines import (
     BoardLinesFacts,
     ExplanationSource,
     ScoredLine,
+    board_line_positions,
     build_board_lines_facts,
     claim_line_id,
+    line_scores,
     resolve_board_lines_explanation,
     scored_legal_lines,
 )
@@ -41,6 +46,7 @@ from scan64.explanations.settings import (
     read_local_explanation_provider,
 )
 from scan64.persistence.database import get_session
+from scan64.providers.stockfish.pool import HINT_DEADLINE_S
 
 router = APIRouter(tags=["insights"])
 
@@ -122,6 +128,8 @@ async def explain_position(
     budget_nodes, _, budget_multipv = manager.hint_limits()
     count = _requested_lines(body, budget_multipv)
     _check_nodes(body.nodes, budget_nodes)
+    # One request deadline covers the line search and the per-move scoring.
+    deadline = asyncio.get_running_loop().time() + HINT_DEADLINE_S
     try:
         analysis = await manager.analyze_hint(board, nodes=body.nodes, depth=body.depth)
     except TimeoutError:
@@ -141,7 +149,9 @@ async def explain_position(
             detail="The analysis engine could not analyze this position; try again shortly",
         )
 
-    facts = build_board_lines_facts(board, lines)
+    positions = board_line_positions(board, lines)
+    scored = await manager.analyze_hint_positions(positions, deadline=deadline)
+    facts = build_board_lines_facts(board, lines, line_scores(positions, scored))
     owner_generation = session.exec(select(local_explanation_owner_generation(player_id))).one()
     local_provider = await read_local_explanation_provider(session, player_id, owner_generation)
     resolved = await resolve_board_lines_explanation(facts, local_provider=local_provider)

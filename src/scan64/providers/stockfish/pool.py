@@ -1,7 +1,8 @@
 import asyncio
+import json
 import os
 from collections import OrderedDict
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -30,6 +31,13 @@ HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
+# Wall deadline of one hint request, including lazy engine startup.
+HINT_DEADLINE_S = 3.0
+# Per-position search along Analysis Board lines (#367); equals
+# ``scan64.explanations.facts.LINE_NODES``.
+LINE_NODES = 10_000
+LINE_CACHE_SIZE = 1024
+LineCacheKey = tuple[str, tuple[str, ...], bool, str, int]
 HintCacheKey = tuple[
     str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int, int | None
 ]
@@ -269,6 +277,9 @@ class EnginePoolManager:
         # Only public engine inputs/results; never player IDs, hint steps,
         # session snapshots or history-dependent nudge projections.
         self._hint_cache: OrderedDict[HintCacheKey, EngineAnalysis] = OrderedDict()
+        # Keyed by the engine's analysis identity (executable digest, networks,
+        # options): a search is never reused for another engine.
+        self._line_cache: OrderedDict[LineCacheKey, EngineAnalysis] = OrderedDict()
 
     @classmethod
     def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
@@ -295,6 +306,7 @@ class EnginePoolManager:
         await self.interactive_pool.close()
         await self.batch_pool.close()
         self._hint_cache.clear()
+        self._line_cache.clear()
 
     async def analyze_interactive(
         self,
@@ -400,7 +412,7 @@ class EnginePoolManager:
             raise TimeoutError("Hint capacity is busy")
         self._hint_in_progress = True
         try:
-            async with asyncio.timeout(3):
+            async with asyncio.timeout(HINT_DEADLINE_S):
                 await self.interactive_pool.initialize()
                 lease = self.interactive_pool.acquire()
                 async with asyncio.timeout(0.25):
@@ -430,6 +442,64 @@ class EnginePoolManager:
                     await lease.__aexit__(None, None, None)
         finally:
             self._hint_in_progress = False
+
+    async def analyze_hint_positions(
+        self, boards: Sequence[chess.Board], *, deadline: float, nodes: int = LINE_NODES
+    ) -> list[EngineAnalysis | None]:
+        """Score ``boards`` in order with one hint-admitted engine until ``deadline``.
+
+        ``deadline`` is an event-loop time (``loop.time()``), normally the
+        request's hint deadline. Same admission as ``analyze_hint``: no queue,
+        250 ms acquisition, at least two interactive engines. Each search is
+        ``nodes`` nodes at MultiPV 1. Results keep the input order; a position
+        not searched by the deadline, or when admission or the engine fails, is
+        ``None``. Completed searches are cached by the engine's analysis identity.
+        """
+        results: list[EngineAnalysis | None] = [None] * len(boards)
+        loop = asyncio.get_running_loop()
+        if (
+            not boards
+            or self.interactive_pool.concurrency < 2
+            or self._hint_in_progress
+            or deadline <= loop.time()
+        ):
+            return results
+        self._hint_in_progress = True
+        try:
+            async with asyncio.timeout_at(deadline):
+                await self.interactive_pool.initialize()
+                lease = self.interactive_pool.acquire()
+                async with asyncio.timeout(0.25):
+                    adapter = await lease.__aenter__()
+                try:
+                    identity = json.dumps(
+                        await adapter.analysis_identity(), sort_keys=True, default=str
+                    )
+                    for index, board in enumerate(boards):
+                        key: LineCacheKey = (
+                            board.root().fen(en_passant="fen"),
+                            tuple(move.uci() for move in board.move_stack),
+                            board.chess960,
+                            identity,
+                            nodes,
+                        )
+                        cached = self._line_cache.get(key)
+                        if cached is None:
+                            cached = await adapter.analyze_position(board.copy(), nodes=nodes)
+                            self._line_cache[key] = cached
+                            if len(self._line_cache) > LINE_CACHE_SIZE:
+                                self._line_cache.popitem(last=False)
+                        else:
+                            self._line_cache.move_to_end(key)
+                        results[index] = cached.model_copy(deep=True)
+                finally:
+                    await lease.__aexit__(None, None, None)
+        except (TimeoutError, chess.engine.EngineError, OSError):
+            # Best effort: unscored positions stay unknown in the facts.
+            pass
+        finally:
+            self._hint_in_progress = False
+        return results
 
 
 PooledUciEngineAdapter = PooledStockfishAdapter
