@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -116,11 +116,12 @@ Only codes in `TRUSTED_CODES` (`learning/diagnosis/trust.py:12-21`) reach an exp
 
 `_attempt_grounded_generation` first calls `build_narrator_facts(diagnosis, evidence, fen)` (`explanations/facts.py`). A `NarratorFactsError` (no referenced evidence, unparsable FEN, payload `before_fen` differing from `fen`, referenced items disagreeing on `played_move` or `before_fen`, an illegal played move or stored line, an untaxonomised code) logs a warning and falls back to the template with reason `invalid_evidence`; no provider is called. `fen` is the **before** position in all three callers (`jobs.py`, `analyse.py`, `coach_interruption.py`). `_grounding_context` keeps the referenced evidence, takes the verified lines from the facts (`verified_lines_by_evidence`) and sets `requested_hint_level = 3`.
 
-`_explanation_request` produces three messages:
+`_explanation_request` produces two messages (#408; before, the `NarratorFacts` JSON was a second user message):
 
-- `system`: `NARRATOR_SYSTEM_PROMPT`. It names the schema, states that the board library and the engine computed every fact, forbids working out moves, captures, checks, threats, material or evaluations, and explains the learner's point of view and the line coordinates. Its slot rules (`slot_rules`, shared with the Analysis Board prompt) tell the model to write every chess fact only as a slot from the slot list, to use only the slots of the cited evidence item, and to write no moves, squares, piece names, colour words, numbers, evaluations, or check, mate, capture, threat, material or tactic words outside the slots. It asks for claims citing an `evidence_id` and, optionally, a prefix of a listed line's `uci` (never a `line_id`), and names the sides "you" and "your opponent".
-- `user`: the `NarratorFacts` document as compact JSON (`NarratorFacts.to_prompt_json`, fields equal to their schema default omitted).
-- `user`: the slot list (`SlotCatalogue.prompt`, section 13): one line per slot, `{name} = value (meaning)`, grouped by evidence item.
+- `system`: `NARRATOR_SYSTEM_PROMPT`, then the voice line (section 14). It states that code computed every fact with the board library, the engine and the factor module. Its slot rules (`slot_rules`, shared with the Analysis Board prompt) tell the model to write every chess fact only as a slot from the slot list and to copy slot names exactly; to write no moves, squares, piece names, colours, numbers or evaluations outside slots, and a chess word only when the slot list allows it as a plain word (section 13); and to name a cause only through a `{factor:...}` slot, and no cause without one. It asks for claims with the quoted `evidence_ref` of an evidence item (never a line ID), `line` `[]`, and names the sides "you" and "your opponent".
+- `user`: the slot list (`SlotCatalogue.prompt`, section 13): the slots with their code-rendered values, the mistake class (`{mistake}`), the plain chess words each evidence item allows, the factor module version, and an example claim text built from this position's own slots.
+
+The `NarratorFacts` document is not sent. It stays in the pipeline: it builds the slots and the grounding context, and `to_prompt_json` remains its compact serialisation for storage and tests.
 
 `_grounding_context` also sets `slots` to `lesson_slot_catalogue(facts)`, so the validator checks provider output on the slot path (section 8).
 
@@ -130,6 +131,7 @@ The schema is generated from the pydantic models in `explanations/facts.py` (`uv
 
 | Object | Fields | Computed by |
 |---|---|---|
+| `factors` (#408) | `source` (factor module version), `points` (`before`, `played`, `best`: moves from the before-position, `quiet`), `engine_swing_cp`, `changes[]` (`key`, `name`, `kind`, `guide_name`, `compared_with`, `change_pawns`) | factor module at quiet positions; section 16 |
 | `position` | `fen`, `side_to_move` (the learner), `material`, `played_move` and `best_move` (move facts), `evaluation_before`, `evaluation_after` (after the played move), `best_move_evaluation`, `evaluation_difference_cp` (best minus played, both centipawn scores only), `swing_cp`, `mistake_class` (`code` = `diagnosis.primary`, `name` from the taxonomy seeds) | python-chess; evaluations from stored searches |
 | `evidence[]` | `evidence_id`, `kind`, `claim`, `line_ids`, `pieces` (square, piece, colour, payload role), `squares`, `tactic`, `mate_in`, `material_gain` | payload fields |
 | `lines[]` | `line_id`, `origins` (payload fields), `begins_with_played_move`, `uci` (citable), `full_plies` (set when cut), `moves[]` | python-chess replay |
@@ -220,10 +222,10 @@ A run between these two, with the current prompt before it stated that `line` ho
 
 | Path | When | Claim text check | Returned claims |
 |---|---|---|---|
-| Slot (#386) | `context.slots` is set: lesson provider output (`_grounding_context`) and Analysis Board provider output (`board_slot_grounding`) | `render_slot_text`: every slot is listed for the cited evidence item, and the prose outside the slots matches no `CHESS_PROSE` rule (section 13) | text with every slot filled by code |
+| Slot (#386) | `context.slots` is set: lesson provider output (`_grounding_context`) and Analysis Board provider output (`board_slot_grounding`) | `render_slot_text`: every slot is listed for the cited evidence item, and the prose outside the slots holds no notation and no chess word outside the item's vocabulary (section 13, #408) | text with every slot filled by code; a claim with an empty `line` gets the line of its slots (`slot_citation`) |
 | Grammar (#366) | `context.slots` is unset: the Analysis Board template (`board_lines_grounding`), `attach_validated_explanation` callers, tests | `_validate_claim_text`, the claim grammar below | unchanged |
 
-The slot path does not run the claim grammar. Slot-path reason codes:
+The slot path does not run the claim grammar. On the slot path an `evidence_ref` wrapped in one pair of quotes that a model copied from the slot list is read without them when the inner ID is known (`_unquoted_evidence_ref`). A claim with an empty `line` cites the longest `Slot.citation` among its slots that is a prefix of a verified line of its evidence item (`slot_citation`); the Analysis Board links a comparison claim to a line this way. Slot-path reason codes:
 
 | Reason | Raised when |
 |---|---|
@@ -358,7 +360,7 @@ Evaluations are the engine's MultiPV scores from the side to move's point of vie
 
 **Template.** `template_board_claims` writes, from the facts only: the side to move and line 1's first move; per line, the line in numbered SAN, its score and depth, the first move's attacks on undefended pieces (up to two), whether it wins or loses material and the material balance at its end, the side to move's checks, and checkmate or stalemate at its end; per line after the first, its difference to line 1, or both scores when a mate is involved. `template_board_explanation` runs these claims through the same validator: the template is grounded by construction, and a rejection is a bug that raises instead of being shown. `tests/unit/test_board_lines.py` validates it for the 12 recorded positions at MultiPV 1 to 4.
 
-**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` (with the shared `slot_rules`), then `BoardLinesFacts.to_prompt_json()` (defaults omitted), then the board slot list. The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
+**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` (with the shared `slot_rules` and the voice line), then the board slot list; since #408 the `BoardLinesFacts` JSON is not sent (it stays in the response as `facts`). Lines 2 and later carry `factors`: factor changes against line 1 (section 16), stated by `{factor:KEY:line-K}` slots. The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
 
 **Measured local run.** 2026-11-26, RTX 4080 Laptop GPU, Ollama with `qwen3:8b`, the recorded `start`, `scholar_mate_in_one`, `italian_black` and `promotion` lines (MultiPV 3), one run before and one after the prompt change below: 0 of 8 explanations accepted, 15 to 38 s per request. Rejection reasons: `check_not_supported` and `move_type_not_supported` (a negated fact such as "no checks" or "does not threaten stalemate" is read as a claim), `evaluation_not_supported` (a line's gap to line 1 cited from that line's evidence, which did not hold it; it does now), `malformed_line_move` (SAN in `line`; the prompt now states UCI), `missing_line` (comparison claims without a line) and `unparsed_chess_token` (a bare colour word). One unsupported claim rejects the whole explanation, so with this model the board shows the template. Model choice is evaluated in #369.
 
@@ -372,7 +374,9 @@ The narrator writes prose with named slots; code writes every chess token. For e
 
 ### Catalogue
 
-`lesson_slot_catalogue(NarratorFacts)` and `board_slot_catalogue(BoardLinesFacts)` (`board_lines.py`) build a `SlotCatalogue`: per evidence item, a map from slot name to `Slot(name, value, meaning, moves, phrase)`. `value` is rendered by code; `moves` are the UCI moves the value states (the benchmark counts coverage from them); `phrase` marks a value that starts with a word, which is capitalised at a sentence start.
+`lesson_slot_catalogue(NarratorFacts)` and `board_slot_catalogue(BoardLinesFacts)` (`board_lines.py`) build a `SlotCatalogue`: per evidence item, a map from slot name to `Slot(name, value, meaning, moves, phrase)`. `value` is rendered by code; `moves` are the UCI moves the value states (the benchmark counts coverage from them); `phrase` marks a value that starts with a word, which is capitalised at a sentence start. Since #408: `source` labels a value from another module (the factor module version on factor slots); `group`, `listed` and `preview` shape the prompt only; `cite` is the line prefix a claim using the slot cites when `moves` is empty.
+
+**Prompt layout (#408).** `SlotCatalogue.prompt` lists each slot once: the position slots, then each line's slots under `Line L:` (the line value cut to `PROMPT_LINE_PLIES = 6` plies with its length, the clause slots of the first `PROMPT_CLAUSE_PLIES = 2` plies with the mover, and one note for every `{move:L:N}`), then each evidence item as `evidence_ref "ID"; lines ...:` with its own slots and `Allowed plain words: ...`. It ends with the factor module version (or `No factor slot: no cause was measured, so name no cause.`) and an example claim text built from the position's own slots. Validation accepts every slot of the catalogue, listed or not.
 
 | Slot | Value (example) | Present when |
 |---|---|---|
@@ -391,6 +395,8 @@ The narrator writes prose with named slots; code writes every chess token. For e
 | `{mate_in}` | `mate in 1` | the evidence item's `mate_in` is positive |
 | `{material_gain}` | `a material swing of 9 points` | the evidence item's `material_gain` is not zero |
 | `{piece:N}` | `the black queen on g5` | Nth entry of the evidence item's `pieces` |
+| `{factor:KEY:played}` | `after your move, king safety fell by 0.65 pawns for you` | a factor change from the position before the move passed (section 16) |
+| `{factor:KEY:best}` | `after your move, king safety is 0.60 pawns worse for you than after the best move` | a factor change against the best move's line passed |
 | `{square:N}` | `e7` | Nth entry of the evidence item's `squares` |
 
 `K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
@@ -408,32 +414,45 @@ Analysis Board slots, per line evidence item `line-K` (the `comparison` item lis
 | `{balance:line-K}` | `at the end of line K the side to move is up 3 points of material` / `material is equal` |
 | `{checks:line-K}` | `the side to move gives check twice in line K` (only with checks) |
 | `{end:line-K}` | `line K ends in checkmate` / `stalemate` |
+| `{factor:KEY:line-K}` | `in line 2, king safety is 0.62 pawns worse for the side to move than in line 1` (lines 2 and later, up to 2 per line) |
 | `{line:line-K}`, `{move:line-K:N}` and the clause slots | as for lessons |
 
-### Prose rule set
+### Prose rule set and vocabulary rule
 
-`CHESS_PROSE` is one compiled, case-insensitive pattern. The prose outside the slots (each slot replaced by a placeholder) is rejected as `chess_token_outside_slot` when it contains any of:
+The prose outside the slots (each slot replaced by a placeholder) is checked by `chess_words_outside_slots` against two fixed, case-insensitive patterns. `CHESS_PROSE` is their union (the #386 blanket rule) and stays exported.
 
-| Rule | Covers |
-|---|---|
-| a digit | squares, SAN, UCI, move numbers, evaluations, mate counts, `+150 cp` |
-| `#`, `O-O`/`0-0`, figurines | mate suffix, castling notation |
-| `king`, `queen`, `rook`, `bishop`, `knight`, `pawn` (plural too) | piece names and piece-on-square phrases |
-| `white`, `black` | colour words |
-| check, checkmate, mate, stalemate forms | checks and mates |
-| capture, recapture, take, takes, took, taking, exchange, trade forms | captures |
-| fork, pin, skewer, discovered, back rank, overload, deflect, decoy, sacrifice, zwischenzug, en passant, promote, castle forms | tactics and move types |
-| threat, attack, hang, hung, undefended, defend, en prise forms | threats |
-| material, centipawn, win, lose, gain forms, ahead, behind, advantage, equal | material and evaluation claims |
-| `a-file`, `a-pawn`, kingside, queenside, file, rank, diagonal | board geometry |
+| Pattern | Rule | Covers |
+|---|---|---|
+| `NOTATION` | always rejected | a digit (squares, SAN, UCI, move numbers, evaluations, mate counts, `+150 cp`); `#`, `O-O`/`0-0`, figurines |
+| `CHESS_WORDS` | rejected unless the facts contain the word | piece names; `white`, `black`; check and mate forms; capture, take, exchange and trade forms; tactic and move-type words (fork, pin, skewer, discovered, back rank, overload, deflect, decoy, sacrifice, zwischenzug, en passant, promote, castle); threat, attack, hang, undefended, defend, en prise; material, centipawn, win, lose, gain, ahead, behind, advantage, equal; `a-file`, `a-pawn`, kingside, queenside, file, rank, diagonal |
 
-The set is closed. A fact a model wants to state that no slot covers is a missing slot, not a missing prose rule. Number words (`two`, `three`) are not in the set; a count stated in words carries no square, move or evaluation.
+**Vocabulary rule (#408).** A `CHESS_WORDS` match passes when each of its words is in the cited evidence item's vocabulary (`SlotCatalogue.vocabulary`). The vocabulary is the words of four kinds of fact names, nothing else:
+
+| Source | Example | Words |
+|---|---|---|
+| slot names listed for the item | `{capture:best}`, `{threat:L1:2}`, `{mate_in}`, `{factor:king_safety:best}` | capture, best, threat, mate, king, safety ... |
+| the mistake class name | `Missed direct threat` | missed, direct, threat |
+| the evidence tactic | `knight_fork` | knight, fork |
+| names of passed factor changes | `king safety`, `pawn shelter` | king, safety, pawn, shelter |
+
+Words compare in lower case with a plural `s` removed (`threats` = `threat`); other forms do not match (`threatened` is not `threat`). The rule is one mechanism over the facts; it has no phrase list. Squares, moves, numbers and evaluations stay rejected because they contain a digit; colour words, `advantage` and `equal` stay rejected because no fact name contains them; a piece-on-square phrase needs a square.
+
+| Text | Position | Result |
+|---|---|---|
+| `Your move, {played}, missed a direct threat, as seen in line {line:L2}.` | missed direct threat | passes |
+| `After {played}, your piece on d2 became a {mistake}.` | any | `chess_token_outside_slot` (`2`) |
+| `{played} missed a threat.` | missed capture, no threat slot or factor (`a301qp92:21`) | `chess_token_outside_slot` |
+| `After {played}, your king safety suffered.` | no king-safety factor | `chess_token_outside_slot` |
+
+Every adversarial text of the claim-grounding suite (#366, #384) is still rejected as free prose on three benchmark positions (`tests/unit/test_narrator_vocabulary.py`). A correct grammar-suite text without notation may now pass when the facts name its words, for example `Check the opponent's captures before moving.` where check and capture slots exist.
+
+**Looseness.** A clause slot of any ply admits its word for the whole item: `threat` is in the vocabulary of 48 of the 50 benchmark positions, because most lines have a `{threat:L:N}` slot. The word then carries no square, move or number, so it cannot state which piece is threatened.
 
 **Limits.** A slot value is true by construction, but the prose may still relate two true slots wrongly (for example "after `{best}`, `{threat:L2:2}`" when line L2 does not start with the best move). Clause slots (`{capture:K}`, `{threat:K}`) state the move inside the value to keep such relations local. The mover words in the slot list (`your move`, `your opponent's move`) help the model attach a move to the right side.
 
 ### Contract decision
 
-The output contract is unchanged: `GeneratedExplanation` claims with `text`, `evidence_ref`, `line`, `certainty`, `disclosure_level`. A smaller contract (text only) would drop the evidence scope that keeps a claim to one item's slots and the cited line the Analysis Board links claims with, and would change the provider JSON schema. The slot list is a third message, so the facts JSON stays the second message, as tests and the #367 schema expect.
+The output contract is unchanged: `GeneratedExplanation` claims with `text`, `evidence_ref`, `line`, `certainty`, `disclosure_level`. A smaller contract (text only) would drop the evidence scope that keeps a claim to one item's slots and the cited line the Analysis Board links claims with, and would change the provider JSON schema. Since #408 the slot list is the only user message; `line` stays in the contract, the prompt asks for `[]`, and code fills it from the claim's slots (section 8).
 
 ### Benchmark
 
@@ -451,7 +470,7 @@ A voice sets the tone and sentence style of the plain words around the slots. It
 
 **Prompt.** `with_voice` appends one line to the system prompt: the voice fragment, then a fixed sentence that every slot rule applies unchanged and that the voice never adds a chess fact. `narrator_system_prompt(voice)` (lessons) and `board_narrator_system_prompt(voice)` (Analysis Board) build it. `NARRATOR_SYSTEM_PROMPT` and `BOARD_NARRATOR_SYSTEM_PROMPT` are unchanged; the voice line comes after them. The facts JSON and the slot list do not depend on the voice. Because the default voice also adds its line, the default prompt differs from the #386 prompt by that line.
 
-**Checks.** The voice does not reach the validator. Every voice uses the same slot path, the same `CHESS_PROSE` rules and the same reason codes (sections 8 and 13). Tests (`tests/unit/test_narrator_voice.py`) check, for each voice, that the prompt builds, that a raw chess claim outside a slot falls back as `chess_token_outside_slot` for lessons and the Analysis Board, and that no fragment matches `CHESS_PROSE` or names reasoning.
+**Checks.** The voice does not reach the validator. Every voice uses the same slot path, the same prose rules (`NOTATION`, `CHESS_WORDS` and the vocabulary rule) and the same reason codes (sections 8 and 13). Tests (`tests/unit/test_narrator_voice.py`) check, for each voice, that the prompt builds, that a raw chess claim outside a slot falls back as `chess_token_outside_slot` for lessons and the Analysis Board, and that no fragment matches `CHESS_PROSE` or names reasoning.
 
 **Selection.** `run_with_explanation_provider` picks the voice in this order:
 
@@ -475,7 +494,7 @@ voice = "terse"
 
 ## 15. Factor module (#407)
 
-The factor module computes the evaluation of a position as named factors, so later work (#408) can say why a move changed the score. It is a Python port of the Stockfish Evaluation Guide (hxim, GPL-3.0, commit `63ff375`), which documents the Stockfish 12-era classical evaluation. Module: `src/scan64/explanations/factors/`. The narrator does not read it yet.
+The factor module computes the evaluation of a position as named factors, so the narrator can say why a move changed the score (section 16, #408). It is a Python port of the Stockfish Evaluation Guide (hxim, GPL-3.0, commit `63ff375`), which documents the Stockfish 12-era classical evaluation. Module: `src/scan64/explanations/factors/`. Since #408 the narrator reads it through factor facts (section 16).
 
 **API.** `evaluate_factors(board)` takes a python-chess board or a FEN and returns a `FactorReport` (White's point of view, internal units; `FactorReport.to_pawns` divides by 206):
 
@@ -500,3 +519,58 @@ A side value belongs to the side that earns it, as in the guide: White's `King d
 - The guide skips Stockfish's specialized endgames (KPK, KRK and others) and has no search, so factor values in those endgames and in tactical positions describe the static position only.
 - The module needs exactly one king per side and no pawn on the first or last rank (`ValueError` otherwise).
 - Pure Python on python-chess: no engine binary and no network access at runtime.
+
+## 16. Factor facts (#408)
+
+Factor changes across each mistake are narrator facts, so the narrator can name why the engine's score changed. The engine judges; a factor change is stated only when the engine's verdict agrees with it. Module: `src/scan64/explanations/factor_facts.py`.
+
+**Three points.** `narrator_factor_facts` measures the factor module (section 15) at:
+
+| Point | Position | Line followed |
+|---|---|---|
+| `before` | before the learner's move | none |
+| `played` | after the learner's move and the engine's reply line | the verified line from `focused_line`, else `focused_multipv[1]`, else the played move alone |
+| `best` | after the engine's best move and its line | the verified line from `fast_line`, else the best move alone |
+
+**Quiet positions.** `quiet_ply` follows a line from its first move to the first quiet position, within `quiet_ply_limit = 8` plies. Quiet: the side to move is not in check, and the line's next move is neither a capture nor a check. At the end of a line the engine names no next move, so quiet also needs no pending capture: no legal capture of an undefended piece, of a more valuable piece, or en passant. A point with no quiet position is `quiet: false` and is not measured. On the 50 benchmark positions, `played` is not quiet in 11 (mostly allowed mates, whose lines are checks to the end) and `best` in 6.
+
+**Rule.** A change is `played` minus a reference point (`before` or `best`), in pawns (internal units / 206), from the learner's point of view. It becomes a fact only when both hold:
+
+1. its size reaches the threshold of its kind;
+2. its sign agrees with the engine swing: the score after the learner's move minus the score before it (learner's view; a mate counts as ±(100 000 − distance); `-swing_cp` when a score is unknown). A zero or unknown swing gives no fact.
+
+**Config table** (`FACTOR_CONFIG`; calibrated in #410):
+
+| Field | Value | Meaning |
+|---|---|---|
+| `thresholds["group"]` | 0.30 pawns | smallest change of an evaluation group |
+| `thresholds["term"]` | 0.15 pawns | smallest change of one named part of a group |
+| `quiet_ply_limit` | 8 plies | longest walk to a quiet position |
+| `excluded_groups` | Material, Imbalance, Winnable | never stated: capture and material slots state material; Imbalance and Winnable are scaling terms |
+| `max_changes` | 3 | facts per comparison, largest first |
+| `max_board_changes` | 2 | facts per Analysis Board line |
+
+**Names.** Groups: pawn structure, piece placement, mobility, threats, passed pawns, space, king safety. Parts have plain names (`GROUP_NAMES`, `TERM_NAMES`), for example `King danger` is `king attack` and `Shelter strength` is `pawn shelter`. A part that is the only part of its group (Mobility, Space) is stated as the group. Each name gives the slot key (`king safety` → `king_safety`) and the words the vocabulary rule admits (section 13).
+
+**Facts and slots.** `NarratorFacts.factors` (`FactorFacts`, schema `narrator-facts/1`, optional, so earlier documents stay valid) holds `source` (`FACTOR_SOURCE`, `scan64-factors/1, Stockfish Evaluation Guide 63ff375`), the points, the swing and the passed changes. Each change is a slot: `{factor:KEY:played}` (against `before`) and `{factor:KEY:best}` (against `best`), shared by every evidence item and labelled with the source (`Slot.source`). Analysis Board: `BoardLineFacts.factors` for lines 2 and later compares the line's quiet position with line 1's, with the swing this line's score minus line 1's; its slots are `{factor:KEY:line-K}`. Values are rendered by code and name their position, so they stay true wherever the model places them.
+
+**Measured on the 50 benchmark positions.** 37 have at least one passed change (the Stockfish 11 measurement in #406 found 37 with a non-material term moving at least 0.3 pawns). Most frequent: king safety (13 against `before`, 13 against `best`), king attack (12, 10), threats (9, 7), hanging pieces (8, 8). 13 positions have none: in 11 the `played` point is not quiet, in 1 no change passes both rules, and in 1 (`ui2g2idg:59`) the stored best move equals the played move, so nothing is measured (`factors` absent). Facts for all 50 take 0.72 s (linux-5090).
+
+**Prompt size.** The model gets the system prompt and the slot list only (section 5). Largest prompt, `prompt_eval_count` from Ollama with think=false (`tests/helpers/narrator/prompt_tokens.py --ollama`), RTX 5090:
+
+| Prompt set | Before (#386 prompt with facts JSON) | After |
+|---|---|---|
+| Lessons, 50 benchmark positions (gemma4-12b) | 9869 | 1410 |
+| Analysis Board, 12 recorded positions, MultiPV 3 (gemma4-12b) | 10047 | 1302 |
+| Analysis Board, MultiPV 4 (gemma4-12b) | — | 1608 |
+
+The lowest ratio measured was 2.58 characters per token (gemma4-12b, qwen3.5-9b, granite4.2-8b). `estimated_prompt_tokens` divides characters by 2.4, and `tests/unit/test_narrator_prompt_size.py` fails when any lesson or board prompt (MultiPV 1 to 4, every voice) reaches `PROMPT_TOKEN_TARGET = 2000` estimated tokens.
+
+**Grounding check.** An ad-hoc run (not the benchmark harness), 2026-11-27, RTX 5090, 50 benchmark positions, one run per model, think=false, `num_ctx` 4096. Accepted explanations: gemma4-e4b 49, gemma4-12b 45, qwen3.5-4b 24 (24 rejected as `chess_token_outside_slot`). The interim #386 run had gemma4-e4b at 45%. These are grounding pass counts, not a measure of chess teaching quality.
+
+**Limits.**
+
+- The factors are the classical Stockfish evaluation (section 15), not the engine that judges. A factor fact names a part of the classical evaluation whose change agrees in sign with the engine; it does not prove that part caused the engine's score.
+- The sign rule does not compare sizes: a 0.3-pawn factor change can accompany a 9-pawn swing.
+- A group and one of its parts can both pass (king safety and king attack).
+- Lines are the stored verified lines, cut at 8 plies (section 5); a line that is still forcing at its end gives no measurement.
