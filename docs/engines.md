@@ -156,7 +156,37 @@ built on Windows 11 x64 with Zig 0.17.1's bundled clang
 Then point a profile at the binary (for example `config/engines/ethereal.toml`)
 and set `SCAN64_ENGINE_CONFIG`. `tests/integration/test_second_engine.py` runs a
 stored game through the production analysis job and the hint pool with
-Ethereal (or `SCAN64_TEST_SECOND_ENGINE`) and skips when no binary exists.
+Ethereal (or `SCAN64_TEST_SECOND_ENGINE`). Outside CI it skips when no binary
+exists.
+
+### How CI provides the second engine
+
+The Linux `Quality` job in `.github/workflows/ci.yml` builds Ethereal before
+`scripts/check.sh` runs:
+
+| Item | Value |
+| --- | --- |
+| Source | `https://github.com/AndyGrant/Ethereal/archive/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a.tar.gz` (Ethereal 14.40) |
+| Source SHA-256 | `46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf` (`sha256sum --check`; a mismatch stops the job) |
+| Build | `gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt src/*.c src/pyrrhic/tbprobe.c -lpthread -lm` (classical evaluation, no network file, no AVX2/BMI2 so any x86-64 runner can run it) |
+| Cache | `actions/cache` on `$RUNNER_TEMP/ethereal-bin`; the key holds the OS, architecture, commit, source checksum prefix and flags |
+| Check | The binary must answer `uci` with `uciok` before the job sets `SCAN64_TEST_SECOND_ENGINE` |
+
+With `CI` set (GitHub Actions sets it), the test does not skip. A missing
+second engine or Stockfish fails both tests. A `SCAN64_TEST_SECOND_ENGINE` path
+that is not a file fails the tests everywhere. To change the pinned commit,
+update the commit, the checksum and the cache key together.
+
+Run the same build locally:
+
+```bash
+commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
+curl -fL -o ethereal.tar.gz "https://github.com/AndyGrant/Ethereal/archive/$commit.tar.gz"
+echo "46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  ethereal.tar.gz" | sha256sum --check
+mkdir ethereal && tar -xzf ethereal.tar.gz -C ethereal --strip-components=1
+(cd ethereal/src && gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o ../../Ethereal)
+SCAN64_TEST_SECOND_ENGINE="$PWD/Ethereal" uv run pytest tests/integration/test_second_engine.py
+```
 
 ## Comparison of open-source UCI engines
 
