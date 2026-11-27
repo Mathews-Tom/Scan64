@@ -161,23 +161,32 @@ exists.
 
 ### How CI provides the second engine
 
-The Linux `Quality` job in `.github/workflows/ci.yml` builds Ethereal before
-`scripts/check.sh` runs:
+CI does not build a second engine. The `Run repository quality gate` step in
+`.github/workflows/ci.yml` sets `SCAN64_TEST_SECOND_ENGINE` to
+[`tests/fixtures/scripted_uci_engine.py`](../tests/fixtures/scripted_uci_engine.py):
 
-| Item | Value |
+| Property | Value |
 | --- | --- |
-| Source | `https://github.com/AndyGrant/Ethereal/archive/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a.tar.gz` (Ethereal 14.40) |
-| Source SHA-256 | `46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf` (`sha256sum --check`; a mismatch stops the job) |
-| Build | `gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt src/*.c src/pyrrhic/tbprobe.c -lpthread -lm` (classical evaluation, no network file, no AVX2/BMI2 so any x86-64 runner can run it) |
-| Cache | `actions/cache` on `$RUNNER_TEMP/ethereal-bin`; the key holds the OS, architecture, commit, source checksum prefix and flags |
-| Check | The binary must answer `uci` with `uciok` before the job sets `SCAN64_TEST_SECOND_ENGINE` |
+| `id name` | `Scan64 Scripted UCI Fixture` (does not start with `Stockfish`) |
+| Declared options | `Threads`, `Hash`, `MultiPV` only (no `Skill Level`, no `UCI_Elo`) |
+| Moves and scores | Legal moves only; two-ply material search; `mate 1` for a mating move |
+| Each `info` line | `depth`, `seldepth`, `multipv`, `score`, `nodes`, `pv` |
+| Engine identity | The `sha256:` digest of the script file, so its rows never match Stockfish rows |
 
-With `CI` set (GitHub Actions sets it), the test does not skip. A missing
-second engine or Stockfish fails both tests. A `SCAN64_TEST_SECOND_ENGINE` path
-that is not a file fails the tests everywhere. To change the pinned commit,
-update the commit, the checksum and the cache key together.
+The fixture checks the configuration path, the stored line fields and cache
+separation. It does not check chess strength or the score scale of a real engine.
 
-Run the same build locally:
+With `CI` set (GitHub Actions sets it), the tests do not skip. A missing second
+engine or Stockfish fails both tests. A `SCAN64_TEST_SECOND_ENGINE` path that is
+not a file fails the tests everywhere.
+
+Why not Ethereal in CI: the Ethereal build above (commit `0e47e9b`, classical,
+`gcc -O3 -DUSE_POPCNT`) passes both tests locally. On the GitHub `ubuntu-latest`
+runner (AMD EPYC 9V74) the same build crashed with a segmentation fault on its
+first `go`. The engine pool then did not shut down, and the job hung for 45 minutes.
+An `-O1` ASan build did not crash there, so the cause is not found.
+
+Run the test locally against a real engine:
 
 ```bash
 commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
@@ -186,6 +195,12 @@ echo "46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  ethereal
 mkdir ethereal && tar -xzf ethereal.tar.gz -C ethereal --strip-components=1
 (cd ethereal/src && gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o ../../Ethereal)
 SCAN64_TEST_SECOND_ENGINE="$PWD/Ethereal" uv run pytest tests/integration/test_second_engine.py
+```
+
+Run it against the CI fixture:
+
+```bash
+SCAN64_TEST_SECOND_ENGINE="$PWD/tests/fixtures/scripted_uci_engine.py" uv run pytest tests/integration/test_second_engine.py
 ```
 
 ## Comparison of open-source UCI engines
