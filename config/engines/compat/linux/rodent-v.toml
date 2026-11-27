@@ -4,3 +4,6 @@
 [engine]
 name = "rodent-v"
 binary_path = "~/.local/opt/engines/rodent-v/rodent_v-cwd"
+# Node- and depth-only searches that never return stop here (#397, d08c64f), so
+# Rodent V records unavailable in 30 s instead of the 120 s default.
+search_deadline_s = 30
