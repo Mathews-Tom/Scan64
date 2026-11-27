@@ -20,12 +20,12 @@ type Engine = chess.engine.UciProtocol | chess.engine.XBoardProtocol
 # does not declare one of these has no such control and is already at full
 # strength, so the reset is skipped for it rather than sent and rejected. A
 # numeric value outside the engine's declared range is moved to the nearest
-# bound: Stockfish 11 declares ``UCI_Elo`` from 1350, and the Elo is unused once
-# ``UCI_LimitStrength`` is off.
+# bound. ``UCI_Elo`` is not sent: engines ignore it while ``UCI_LimitStrength``
+# is off, and a placeholder can fall outside the declared range (Stockfish 11
+# declares it from 1350).
 FULL_STRENGTH: Mapping[str, UciOptionValue] = {
     "Skill Level": 20,
     "UCI_LimitStrength": False,
-    "UCI_Elo": 1320,
 }
 # Resource options: sized by Scan64, absent on some engines (Lc0 has no Hash).
 RESOURCE_OPTIONS = ("Threads", "Hash")
