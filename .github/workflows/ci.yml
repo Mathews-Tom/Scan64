@@ -86,7 +86,16 @@ jobs:
       - name: Second-engine test (fast fail)
         timeout-minutes: 5
         run: |
-          printf 'uci\nisready\nposition startpos\ngo nodes 20000\n' | timeout 20 "$SCAN64_TEST_SECOND_ENGINE" | tail -3 || true
+          sudo apt-get install --no-install-recommends -y gdb >/dev/null
+          mkfifo "$RUNNER_TEMP/eth.in"
+          "$SCAN64_TEST_SECOND_ENGINE" < "$RUNNER_TEMP/eth.in" > "$RUNNER_TEMP/eth.out" 2>&1 &
+          eth_pid=$!
+          exec 3> "$RUNNER_TEMP/eth.in"
+          printf 'uci\nisready\nposition startpos\ngo nodes 20000\n' >&3
+          sleep 5
+          cat "$RUNNER_TEMP/eth.out"; lscpu | head -20; ps -o pid,stat,pcpu,nlwp,cmd -p "$eth_pid"
+          sudo gdb -p "$eth_pid" -batch -ex "info threads" -ex "thread apply all bt" 2>&1 | tail -40
+          exec 3>&-; kill "$eth_pid" || true
           uv run pytest tests/integration/test_second_engine.py -vv -p no:cacheprovider -o faulthandler_timeout=90
       - name: Run repository quality gate
         run: scripts/check.sh
