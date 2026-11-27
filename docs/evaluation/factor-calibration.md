@@ -15,6 +15,7 @@ The factor facts (#408, `docs/narrator-pipeline.md` section 16) state a change i
 | Size-passing changes with the swing's sign | 33% to 62% per class: the sign rule removes about half |
 | Hand check, 65 facts on 20 positions | 28 name the cause (43%), 25 are true but secondary (38%), 12 are noise (18%) |
 | Hand check, positions with a fact that names the cause | slow losses 9 of 10, tactical benchmark positions 4 of 10 |
+| Health scale (#416) | `HEALTH_SCALE` in `factor_facts.py`: per group, full at the 80th percentile of healthy values, empty at the 20th percentile in trouble, linear between; section "Health scale" |
 
 ## Position sets
 
@@ -244,6 +245,71 @@ Totals: benchmark 39 facts (10 cause, 19 secondary, 10 noise); slow 26 facts (18
 - The hand check has one reviewer and 20 positions.
 - A part name can admit a chess word to the vocabulary rule (section 13 of `docs/narrator-pipeline.md`), for example `rook` from `rook threats`. With a 0.10 threshold, `6x5nq6qd:57` fired `rook threats` at 0.10 and admitted "The learner is up a rook." The exceedance fit raised `Rook threat` to 0.15, so the adversarial suite passes, but the rule admits piece words from any passed part name. Follow-up: limit the words a factor name admits.
 
+## Health scale
+
+The position health panel (#416) shows one meter per factor group at one position. The thresholds above say when a change across a move becomes a fact; they give no scale for a value at a single position. This section fits that scale. `HEALTH_SCALE` in `src/scan64/explanations/factor_facts.py`, next to `FACTOR_CONFIG`, holds it; `calibrate.py` refits it and `--check` fails when the table differs from the fit.
+
+**Value.** A meter reads `health_values(report, side)`: the group's tapered value of the side minus the opponent's, in pawns, from that side's view (the same values the factor facts compare). `Overall` is the guide's main evaluation without tempo, which flips sign every move. The value is antisymmetric: the opponent's value is the learner's value negated, so one row serves both meters.
+
+**Samples.** Quiet positions, each labelled from one side's view:
+
+| Label | Source | Samples |
+|---|---|---|
+| healthy | `null` set, every quiet measured point (`before`, `played`, `best`), the mover's view | 119 |
+| healthy | slow-loss games (`games.json`), quiet positions from ply 10 where that side's Lichess eval is within ±100 cp; both sides of a level position count | 586 |
+| trouble | `slow` set, the `played` point of each mistake, the loser's view | 50 |
+| trouble | slow-loss games, quiet positions where that side's Lichess eval is -300 cp or less | 402 |
+
+A game position is quiet by the rule of `quiet_ply`, with the game's next move as the line: no check, and the next move is not a capture or a check. The Lichess eval of a position is the eval after the previous ply. The positions before a slow mistake are not used: they lie inside the decline (the loser at -60 to -300 cp), so they are neither level nor lost.
+
+**Fit.** `full` is the 80th percentile of the healthy values, `empty` the 20th percentile of the values in trouble, each rounded outward to 0.05 and at least 0.10 from 0 (so a group that is mostly zero, passed pawns and space, still has a range).
+
+**Curve.** Linear between the two, clamped: `health = (value - empty) / (full - empty)`, 0 at and below `empty`, 1 at and above `full` (`HealthScale.health`). A logistic was not fitted: the healthy and trouble distributions overlap for most groups (AUC below), so a fitted slope would rest on the overlap, and two stated quantiles are easier to refit and to read.
+
+| Meter | Healthy median | Healthy 80th pct | Trouble median | Trouble 20th pct | Full | Empty | Start reads | Healthy reads >= 2/3 | Trouble reads < 1/3 | AUC |
+|---|---|---|---|---|---|---|---|---|---|---|
+| King | +0.00 | +0.28 | -0.12 | -0.54 | +0.30 | -0.55 | 0.65 | 46% | 34% | 0.60 |
+| Material | -0.00 | +0.46 | -1.96 | -5.13 | +0.50 | -5.15 | 0.91 | 100% | 36% | 0.89 |
+| Threats | +0.01 | +0.24 | -0.09 | -0.38 | +0.25 | -0.40 | 0.62 | 48% | 38% | 0.58 |
+| Pieces | +0.00 | +0.22 | +0.01 | -0.20 | +0.25 | -0.25 | 0.50 | 35% | 35% | 0.49 |
+| Mobility | +0.00 | +0.40 | -0.31 | -0.61 | +0.45 | -0.65 | 0.59 | 44% | 54% | 0.70 |
+| Pawns | +0.00 | +0.14 | -0.04 | -0.24 | +0.15 | -0.25 | 0.62 | 44% | 38% | 0.58 |
+| Passed pawns | -0.00 | +0.00 | -0.00 | -0.43 | +0.10 | -0.45 | 0.82 | 98% | 25% | 0.62 |
+| Space | +0.00 | +0.12 | -0.00 | +0.00 | +0.15 | -0.10 | 0.40 | 26% | 12% | 0.54 |
+| Overall | +0.00 | +0.84 | -2.80 | -5.64 | +0.85 | -5.65 | 0.87 | 92% | 42% | 0.93 |
+
+Pawns, side's view. "Start reads": the meter at the starting position (value 0). "AUC": the chance that a healthy value is above a value in trouble (0.5: no separation).
+
+**Reading the table.**
+
+- Material (AUC 0.89) and Overall (0.93) separate healthy positions from positions in trouble. Mobility (0.70) separates them partly.
+- King safety, threats, pawn structure and passed pawns separate weakly (0.58 to 0.62). Piece placement (0.49) and space (0.54) do not: their meters show the size of the factor, not whether the side is in trouble.
+- Space is 0 in most lost positions because the guide counts space only with many pieces on the board (lost positions are mostly endgames). Its `empty` is the 0.10 minimum.
+- The positional groups read 0.40 to 0.65 at the start, not full: a level value is as common at a lost position as at a level one.
+
+**Side to move.** A check, not used in the fit: split by whether the side is to move.
+
+| Meter | Full, to move | Empty, to move | Full, waiting | Empty, waiting |
+|---|---|---|---|---|
+| King | +0.25 | -0.65 | +0.35 | -0.40 |
+| Material | +0.30 | -5.60 | +0.55 | -4.75 |
+| Threats | +0.20 | -0.50 | +0.35 | -0.25 |
+| Pieces | +0.25 | -0.25 | +0.25 | -0.20 |
+| Mobility | +0.35 | -0.70 | +0.50 | -0.60 |
+| Pawns | +0.15 | -0.30 | +0.20 | -0.25 |
+| Passed pawns | +0.10 | -0.50 | +0.10 | -0.35 |
+| Space | +0.10 | -0.10 | +0.15 | -0.10 |
+| Overall | +0.55 | -6.50 | +1.20 | -4.55 |
+
+In trouble, the side to move reads lower king safety, threats and overall values than the side waiting. One pooled row is kept: a scale that changes with the side to move would move every meter on every ply, as tempo would.
+
+**Limits.**
+
+- 20 games (1215 to 2476), one source of labels (the Lichess server analysis), and one selection rule (slow losses). The trouble samples are mostly late, lost endgames; trouble in a middlegame is underrepresented.
+- The labels come from the engine score, not from the group: a group's meter is fitted on positions where the side is in trouble for any reason, so for weakly separating groups the meter does not say that this group is the trouble.
+- The game positions are consecutive plies of the same games, so the samples are not independent; the effective sample size is smaller than the counts.
+- The quantiles (80th and 20th) and the level and trouble bounds (±100 cp, -300 cp) are stated choices, not fitted.
+
 ## Reproduce
 
 ```
@@ -254,7 +320,7 @@ uv run python -m benchmarks.factor_calibration.select_games LI5xV8sv.ndjson URrn
 uv run python -m benchmarks.factor_calibration.record_positions \
     benchmarks/factor_calibration/games.json benchmarks/factor_calibration/positions.json
 uv run python -m benchmarks.factor_calibration.calibrate          # tables in this report
-uv run python -m benchmarks.factor_calibration.calibrate --check  # FACTOR_CONFIG equals the fit
+uv run python -m benchmarks.factor_calibration.calibrate --check  # FACTOR_CONFIG and HEALTH_SCALE equal the fit
 uv run python -m benchmarks.factor_calibration.hand_check         # the 20 hand-check positions
 ```
 

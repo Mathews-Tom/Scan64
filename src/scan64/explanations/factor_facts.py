@@ -110,6 +110,47 @@ FACTOR_CONFIG = FactorConfig(
     },
 )
 
+
+@dataclass(frozen=True)
+class HealthScale:
+    """The scale of one position health meter (#416), fitted in #410.
+
+    A meter reads one value at one position: the group's tapered value of the
+    side minus the opponent's, in pawns, from that side's view
+    (``health_values``). ``full`` is the value from which the meter reads full
+    (healthy), ``empty`` the value at and below which it reads empty (in
+    trouble); between them the meter is linear (``health``). The same row
+    serves both sides: the learner's meter reads the learner's value, the
+    opponent's meter the opponent's value (the learner's value negated).
+    """
+
+    full: float
+    empty: float
+
+    def health(self, value: float) -> float:
+        """0 (in trouble) to 1 (healthy), linear from ``empty`` to ``full``."""
+        return min(1.0, max(0.0, (value - self.empty) / (self.full - self.empty)))
+
+
+# Health scales fitted in #410 (docs/evaluation/factor-calibration.md, section
+# "Health scale"): ``full`` is the 80th percentile of the values at healthy
+# positions (null moves, level game positions), ``empty`` the 20th percentile
+# at positions in trouble (after slow mistakes, lost game positions), each
+# rounded outward to 0.05 and at least 0.10 from 0. ``Overall`` is the guide's
+# main evaluation without tempo. Refit and check with
+# ``python -m benchmarks.factor_calibration.calibrate --check``.
+HEALTH_SCALE: Mapping[str, HealthScale] = {
+    "King": HealthScale(full=0.30, empty=-0.55),
+    "Material": HealthScale(full=0.50, empty=-5.15),
+    "Threats": HealthScale(full=0.25, empty=-0.40),
+    "Pieces": HealthScale(full=0.25, empty=-0.25),
+    "Mobility": HealthScale(full=0.45, empty=-0.65),
+    "Pawns": HealthScale(full=0.15, empty=-0.25),
+    "Passed pawns": HealthScale(full=0.10, empty=-0.45),
+    "Space": HealthScale(full=0.15, empty=-0.10),
+    "Overall": HealthScale(full=0.85, empty=-5.65),
+}
+
 # Plain names, learner's view. A name is also the vocabulary the narrator may
 # use outside slots when the change passes (validator, ``chess_token_outside_slot``).
 GROUP_NAMES: Mapping[str, str] = {
@@ -329,6 +370,31 @@ def _learner_values(
     return values
 
 
+# The groups a health meter reads (``HEALTH_SCALE``), besides ``Overall``.
+HEALTH_GROUPS: tuple[str, ...] = (
+    "King",
+    "Material",
+    "Threats",
+    "Pieces",
+    "Mobility",
+    "Pawns",
+    "Passed pawns",
+    "Space",
+)
+
+
+def health_values(report: FactorReport, side: chess.Color) -> dict[str, float]:
+    """The value each health meter reads, pawns, ``side``'s view (``HealthScale``).
+
+    A group is its tapered value (``side`` minus the opponent). ``Overall`` is
+    the guide's main evaluation without tempo, which flips sign every move.
+    """
+    sign = 1 if side == chess.WHITE else -1
+    values = {name: sign * report.groups[name].tapered / PAWN_VALUE_EG for name in HEALTH_GROUPS}
+    values["Overall"] = sign * (report.evaluation - report.tempo) / PAWN_VALUE_EG
+    return values
+
+
 def evaluation_cp(status: str, value: int | None) -> int | None:
     """A score as centipawns for its sign; a mate counts as +-(100000 - distance)."""
     if value is None:
@@ -494,6 +560,10 @@ __all__ = [
     "FACTOR_CONFIG",
     "FACTOR_SOURCE",
     "GROUP_NAMES",
+    "HEALTH_GROUPS",
+    "HEALTH_SCALE",
+    "HealthScale",
+    "health_values",
     "TERM_NAMES",
     "FactorChange",
     "FactorConfig",

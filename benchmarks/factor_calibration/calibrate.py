@@ -1,8 +1,8 @@
-"""Fit and check the factor-fact thresholds (issue #410).
+"""Fit and check the factor-fact thresholds and the health scale (issues #410, #416).
 
 Usage:
     uv run python -m benchmarks.factor_calibration.calibrate          # print the report tables
-    uv run python -m benchmarks.factor_calibration.calibrate --check  # FACTOR_CONFIG == the fit
+    uv run python -m benchmarks.factor_calibration.calibrate --check  # tables == the fit
 
 Position sets (``SETS``):
 
@@ -26,19 +26,39 @@ largest separation: the share of mistakes (``benchmark`` and ``slow``) with at
 least one fact minus the share of null moves with one. ``floor_table`` repeats
 the choice for each floor in ``FLOORS``; ``FLOOR`` is the one with the largest
 separation.
+
+Health scale (``fit_health``, #416): the position health meters read one value
+per factor group at one position (``health_values``: the group's tapered value
+of a side minus the opponent's, that side's view). Samples are quiet positions,
+labelled from one side's view:
+
+- healthy: every quiet measured point of the ``null`` set (the mover's view),
+  and quiet positions of the slow-loss games (``games.json``, from ply
+  ``GAME_FROM_PLY``) where that side's Lichess eval is within ``+-LEVEL_CP``;
+- trouble: the ``played`` point of every ``slow`` mistake (the loser's view),
+  and quiet game positions where that side's Lichess eval is ``TROUBLE_CP`` or
+  less.
+
+A game position is quiet by the rule of ``quiet_ply`` with the game's next move
+as the line. ``full`` is quantile ``HEALTH_FULL_QUANTILE`` of the healthy
+values, ``empty`` quantile ``HEALTH_EMPTY_QUANTILE`` of the values in trouble,
+each rounded outward to ``STEP`` and at least ``HEALTH_MIN`` from 0. Both sides
+of a level game position are healthy samples, so the fit serves both meters.
 """
 
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
+import math
 import statistics
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import chess
 from chess_lesson_spec import Diagnosis
@@ -46,11 +66,15 @@ from chess_lesson_spec import Diagnosis
 from scan64.explanations.factor_facts import (
     FACTOR_CONFIG,
     GROUP_NAMES,
+    HEALTH_GROUPS,
+    HEALTH_SCALE,
     TERM_NAMES,
     FactorChange,
     FactorConfig,
     FactorKind,
+    HealthScale,
     _learner_values,
+    health_values,
     passed_changes,
 )
 from scan64.explanations.factors import PARTS, evaluate_factors
@@ -90,6 +114,7 @@ Values = Mapping[tuple[FactorKind, str], float]
 class Measurement:
     set: str
     position_id: str
+    fen: str
     code: str
     swing_cp: int | None
     played: Values | None
@@ -137,6 +162,7 @@ def measure(name: str, sample: Mapping[str, Any]) -> Measurement | None:
     return Measurement(
         set=name,
         position_id=sample["position_id"],
+        fen=sample["fen"],
         code=code,
         swing_cp=facts.factors.engine_swing_cp,
         played=values.get("played"),
@@ -460,21 +486,185 @@ def null_table(measured: Sequence[Measurement], fit: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+# --- Health scale (#416) -------------------------------------------------------------
+
+GAMES = REPO_ROOT / "benchmarks/factor_calibration/games.json"
+HEALTH_FULL_QUANTILE = 0.8
+HEALTH_EMPTY_QUANTILE = 0.2
+HEALTH_MIN = 0.10
+LEVEL_CP = 100
+TROUBLE_CP = -300
+GAME_FROM_PLY = 10
+HealthLabel = Literal["healthy", "trouble"]
+
+
+@dataclass(frozen=True)
+class HealthSample:
+    """One side's meter values at one quiet position, with its label."""
+
+    label: HealthLabel
+    source: str
+    to_move: bool
+    values: Mapping[str, float]
+
+
+def _game_quiet(board: chess.Board, move: chess.Move) -> bool:
+    """The rule of ``quiet_ply`` with the game's next move as the line."""
+    return not (board.is_check() or board.is_capture(move) or board.gives_check(move))
+
+
+def health_samples(measured: Sequence[Measurement]) -> list[HealthSample]:
+    """Labelled meter values (module docstring, "Health scale")."""
+    samples: list[HealthSample] = []
+    for m in measured:
+        if m.set not in ("null", "slow"):
+            continue
+        root = chess.Board(m.fen)
+        for point, uci in sorted(m.points.items()):
+            if getattr(m, point) is None or (m.set == "slow" and point != "played"):
+                continue
+            board = root.copy(stack=False)
+            for token in uci:
+                board.push(chess.Move.from_uci(token))
+            label: HealthLabel = "healthy" if m.set == "null" else "trouble"
+            samples.append(
+                HealthSample(
+                    label,
+                    f"{m.set} {point}",
+                    board.turn == root.turn,
+                    health_values(evaluate_factors(board), root.turn),
+                )
+            )
+    games = json.loads(GAMES.read_text(encoding="utf-8"))["games"]
+    for game in games:
+        board = chess.Board()
+        for ply, san in enumerate(game["moves"]):
+            move = board.parse_san(san)
+            if ply >= GAME_FROM_PLY and _game_quiet(board, move):
+                # lichess_white_cp[k]: White's view after ply k + 1.
+                white_cp = game["lichess_white_cp"][ply - 1]
+                report = evaluate_factors(board)
+                for side in (chess.WHITE, chess.BLACK):
+                    cp = white_cp if side == chess.WHITE else -white_cp
+                    if abs(cp) <= LEVEL_CP:
+                        label = "healthy"
+                    elif cp <= TROUBLE_CP:
+                        label = "trouble"
+                    else:
+                        continue
+                    samples.append(
+                        HealthSample(label, "game", side == board.turn, health_values(report, side))
+                    )
+            board.push(move)
+    return samples
+
+
+def _outward(value: float, up: bool) -> float:
+    steps = value / STEP
+    rounded = math.ceil(steps - 1e-9) if up else math.floor(steps + 1e-9)
+    return round(rounded * STEP, 2)
+
+
+def fit_health(samples: Sequence[HealthSample]) -> dict[str, HealthScale]:
+    """``full``: ``HEALTH_FULL_QUANTILE`` of the healthy values, rounded up to ``STEP``
+    and at least ``HEALTH_MIN``; ``empty``: ``HEALTH_EMPTY_QUANTILE`` of the values in
+    trouble, rounded down and at most ``-HEALTH_MIN``."""
+    fitted = {}
+    for name in (*HEALTH_GROUPS, "Overall"):
+        healthy = [s.values[name] for s in samples if s.label == "healthy"]
+        trouble = [s.values[name] for s in samples if s.label == "trouble"]
+        full = _outward(_quantile(healthy, HEALTH_FULL_QUANTILE), up=True)
+        empty = _outward(_quantile(trouble, HEALTH_EMPTY_QUANTILE), up=False)
+        fitted[name] = HealthScale(full=max(full, HEALTH_MIN), empty=min(empty, -HEALTH_MIN))
+    return fitted
+
+
+def _auc(healthy: Sequence[float], trouble: Sequence[float]) -> float:
+    """Chance that a healthy value is above a value in trouble (ties count half)."""
+    ordered = sorted(trouble)
+    total = 0.0
+    for value in healthy:
+        below = bisect.bisect_left(ordered, value)
+        ties = bisect.bisect_right(ordered, value) - below
+        total += below + ties / 2
+    return total / (len(healthy) * len(trouble))
+
+
+def health_table(samples: Sequence[HealthSample], scales: Mapping[str, HealthScale]) -> str:
+    """Markdown tables for the "Health scale" section of the report."""
+    counts = Counter((s.label, s.source) for s in samples)
+    lines = ["| Label | Source | Samples |", "|---|---|---|"]
+    lines += [f"| {label} | {source} | {n} |" for (label, source), n in sorted(counts.items())]
+    lines += [
+        "",
+        "| Meter | Healthy median | Healthy 80th pct | Trouble median | Trouble 20th pct "
+        "| Full | Empty | Start reads | Healthy reads >= 2/3 | Trouble reads < 1/3 | AUC |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for name, scale in scales.items():
+        healthy = [s.values[name] for s in samples if s.label == "healthy"]
+        trouble = [s.values[name] for s in samples if s.label == "trouble"]
+        good = sum(scale.health(v) >= 2 / 3 for v in healthy) / len(healthy)
+        low = sum(scale.health(v) < 1 / 3 for v in trouble) / len(trouble)
+        lines.append(
+            f"| {name} | {statistics.median(healthy):+.2f} "
+            f"| {_quantile(healthy, HEALTH_FULL_QUANTILE):+.2f} "
+            f"| {statistics.median(trouble):+.2f} "
+            f"| {_quantile(trouble, HEALTH_EMPTY_QUANTILE):+.2f} "
+            f"| {scale.full:+.2f} | {scale.empty:+.2f} | {scale.health(0.0):.2f} "
+            f"| {good:.0%} | {low:.0%} | {_auc(healthy, trouble):.2f} |"
+        )
+    lines += [
+        "",
+        "Side to move (check, not used in the fit):",
+        "",
+        "| Meter | Full, to move | Empty, to move | Full, waiting | Empty, waiting |",
+        "|---|---|---|---|---|",
+    ]
+    by_side = {
+        flag: fit_health([s for s in samples if s.to_move == flag]) for flag in (True, False)
+    }
+    for name in scales:
+        lines.append(
+            f"| {name} | {by_side[True][name].full:+.2f} | {by_side[True][name].empty:+.2f} "
+            f"| {by_side[False][name].full:+.2f} | {by_side[False][name].empty:+.2f} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def health_source(scales: Mapping[str, HealthScale]) -> str:
+    """``HEALTH_SCALE`` entries as source lines, for pasting after a refit."""
+    return "\n".join(
+        f'    "{name}": HealthScale(full={scale.full:.2f}, empty={scale.empty:.2f}),'
+        for name, scale in scales.items()
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if FACTOR_CONFIG differs")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if FACTOR_CONFIG or HEALTH_SCALE differs"
+    )
     parser.add_argument("--json", type=Path, help="write the fit and per-position facts")
     args = parser.parse_args()
     measured = measure_all()
     fit = choose_quantile(measured)
     config = fitted_config(fit)
+    samples = health_samples(measured)
+    scales = fit_health(samples)
     if args.check:
         same = dict(config.thresholds) == dict(FACTOR_CONFIG.thresholds) and dict(
             config.overrides
         ) == dict(FACTOR_CONFIG.overrides)
+        same_health = scales == dict(HEALTH_SCALE)
         print(json.dumps(fit, indent=1, sort_keys=True))
-        sys.exit(0 if same else 1)
+        print(health_source(scales))
+        if not same_health:
+            print("HEALTH_SCALE differs from the fit", file=sys.stderr)
+        sys.exit(0 if same and same_health else 1)
     print(json.dumps(fit, indent=1, sort_keys=True))
+    print(health_source(scales))
+    print(health_table(samples, scales))
     print(sweep_table(measured))
     print(floor_table(measured))
     print(null_table(measured, fit))
