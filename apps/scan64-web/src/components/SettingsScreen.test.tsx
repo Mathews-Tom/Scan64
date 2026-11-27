@@ -192,17 +192,21 @@ describe('Independent board preferences', () => {
     localStorage.setItem('scan64-appearance', 'dark');
     initializeAppearance();
     const view = render(<SettingsScreen />);
+    // The loops find each radio by its value: 40 accessible-name queries over the whole
+    // screen took 1.3-6 s of vitest's 5 s budget. Names are checked by getByRole below.
+    const radio = (group: string, value: string) =>
+      view.container.querySelector<HTMLInputElement>(`.${group} input[type="radio"][value="${value}"]`)!;
     fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Green and buff' }));
-    for (const { value: pieceSet, label } of PIECE_SET_OPTIONS) {
-      fireEvent.click(screen.getByRole('radio', { name: label }));
+    for (const { value: pieceSet } of PIECE_SET_OPTIONS) {
+      fireEvent.click(radio('settings-piece-sets', pieceSet));
       expect(localStorage.getItem('scan64-piece-set')).toBe(pieceSet);
       expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
       expect(document.documentElement.dataset.boardTheme).toBe('green');
       expect(document.documentElement.dataset.appearance).toBe('dark');
     }
-    for (const { value: boardTheme, label: boardLabel } of BOARD_THEME_OPTIONS) {
-      fireEvent.click(screen.getByRole('radio', { name: boardLabel }));
+    for (const { value: boardTheme } of BOARD_THEME_OPTIONS) {
+      fireEvent.click(radio('settings-board-themes', boardTheme));
       expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
       expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
       expect(document.documentElement.dataset.pieceSet).toBe(lastPieceSet.value);
