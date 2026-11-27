@@ -14,8 +14,11 @@ results_dir = "benchmarks/narrator/results/cpu"
 gguf_cache = "~/.cache/scan64-narrator-bench/gguf"
 request_timeout_s = 300
 production_time_limit_s = 4.0
-num_ctx = 4096
-num_predict = 1024
+# 12288 as in narrator.toml: the #367 facts prompt is 3 500-7 400 tokens, and
+# 4096 silently truncated 6 of the first 10 positions (4 110-4 475 tokens).
+# CPU is out of scope for #369; rerun this only after checking the prompt size.
+num_ctx = 12288
+num_predict = 2048
 request_overrides = { think = false }
 foreign_ollama = []
 pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
