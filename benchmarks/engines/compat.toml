@@ -45,7 +45,7 @@ stresses = "network from an external file"
 [[engines]]
 name = "Fairy-Max"
 profile = "config/engines/compat/fairy-max.toml"
-licence = "not stated at source"
+licence = "public domain; also GPL or MIT (fairymax.c notice)"
 source = "https://packages.debian.org/source/sid/fairymax"
 stresses = "XBoard only; no MultiPV, Hash or Threads"
 

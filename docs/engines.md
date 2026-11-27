@@ -361,12 +361,27 @@ engine and points a profile at it.
 | Minic | https://github.com/tryingsomestuff/Minic | GPL-3.0 | MultiPV capped below 8; non-standard WDL option |
 | Obsidian | https://github.com/gab8192/Obsidian | GPL-3.0 | truncated PVs |
 | Triumviratus | https://github.com/Tors3/Triumviratus | GPL-3.0 | network from an external file |
-| Fairy-Max | Debian package `fairymax` | not stated at source | XBoard only; no MultiPV, Hash or Threads |
+| Fairy-Max | Debian package `fairymax` | public domain; also GPL or MIT (see below) | XBoard only; no MultiPV, Hash or Threads |
 | Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace |
 | Rodent V | https://github.com/nescitus/Rodent-V | GPL-3.0 | large option list; personality files |
 | PZChessBot | https://github.com/kevlu8/PZChessBot | AGPL-3.0 | lower-case option names |
 | Lc0 | https://github.com/LeelaChessZero/lc0 | GPL-3.0 (network licence not stated) | slow neural nodes; no Hash |
 | Maia-3 | https://github.com/CSSLab/maia3 | AGPL-3.0 (weights licence not stated) | Python UCI wrapper; rating options |
+
+Fairy-Max's licence is the notice at the top of `fairymax.c` in the Debian
+source package `fairymax_5.0b.orig.tar.gz` (unchanged by the Debian patches):
+"Fairy-Max 5.0 is free software, released in the public domain so that you have
+my permission do with it whatever you want, whether it is commercial or not, at
+your own risk. Those that are not comfortable with this, can also use or
+redistribute it under the GNU Public License or the MIT License." The notice
+names no GPL version. The package's `debian/copyright` gives upstream files the
+custom licence `fairmyax-license` (sic), whose text is the older Fairy-Max 4.8
+grant: "Fairy-Max 4.8 is free software, and you have my permission do with it
+whatever you want, whether it is commercial or not." It does not mention the
+GPL or MIT. Both texts add that configuring patented variants needs the patent
+holders' permission and that there is no warranty. The results tables generated
+before this change (`benchmarks/engines/results/compat_*.md`) still say "not
+stated at source".
 
 ### Results
 
@@ -395,9 +410,10 @@ Berserk and Koivisto, from `benchmarks/engines/compat-linux.toml` with the
 profiles in `config/engines/compat/linux/`. The states are copied from
 `benchmarks/engines/results/compat_20261127_202247.jsonl`; the generated table
 with the reason for every `unavailable` and `blocked` cell, and the run notes, is
-`compat_20261127_202247.md` next to it. Engine builds and
-commits are recorded in the machine's engine manifest; the binary SHA-256 is in
-every JSONL record. This table replaces nothing above.
+`compat_20261127_202247.md` next to it. Each engine's source, tag and
+commit, build command, binary SHA-256 and network URL and SHA-256 are in
+[`benchmarks/engines/linux-builds.md`](../benchmarks/engines/linux-builds.md);
+the binary SHA-256 is also in every JSONL record. This table replaces nothing above.
 
 | Engine | Version | Protocol | node_scale | game_analysis | focused_pass | hints | lesson_verification | analysis_board | bot_ladder | skill_level_opponent |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
