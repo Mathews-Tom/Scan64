@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
-import socket
+import ssl
 import threading
 import time
+from collections.abc import Iterable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal, Protocol, cast
+from typing import Literal
 
+import httpcore
 import httpx
 from pydantic import BaseModel
 from sqlalchemy import Engine
@@ -54,46 +55,88 @@ class ImportSubscriptionLimit(Exception):
     """The desktop puzzle import has no free progress stream slots."""
 
 
-class _NetworkStream(Protocol):
-    def get_extra_info(self, info: str) -> object: ...
+# The longest a stalled body read waits before the worker checks for a cancel.
+_CANCEL_POLL_SECONDS = 0.1
+
+
+class _CancellableStream(httpcore.NetworkStream):
+    """Read in short slices so the worker itself sees a cancel and stops.
+
+    Only the worker thread calls the socket. A cancel sets an event and never
+    touches the socket from another thread; Winsock forbids a closesocket() that
+    runs at the same time as another call on that socket.
+    """
+
+    def __init__(self, stream: httpcore.NetworkStream, cancel: threading.Event) -> None:
+        self._stream = stream
+        self._cancel = cancel
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            if self._cancel.is_set():
+                # httpcore closes the connection on this worker thread.
+                raise httpcore.ReadError("Puzzle download cancelled")
+            wait = _CANCEL_POLL_SECONDS
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    # A zero timeout would make the socket non-blocking.
+                    raise httpcore.ReadTimeout("Puzzle download read timed out")
+                wait = min(wait, remaining)
+            try:
+                return self._stream.read(max_bytes, wait)
+            except httpcore.ReadTimeout:
+                continue
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self._stream.write(buffer, timeout)
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def start_tls(
+        self,
+        ssl_context: ssl.SSLContext,
+        server_hostname: str | None = None,
+        timeout: float | None = None,
+    ) -> httpcore.NetworkStream:
+        stream = self._stream.start_tls(ssl_context, server_hostname, timeout)
+        return _CancellableStream(stream, self._cancel)
+
+    def get_extra_info(self, info: str) -> object:
+        return self._stream.get_extra_info(info)
+
+
+class _CancellableBackend(httpcore.SyncBackend):
+    def __init__(self, cancel: threading.Event) -> None:
+        self._cancel = cancel
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
+    ) -> httpcore.NetworkStream:
+        stream = super().connect_tcp(host, port, timeout, local_address, socket_options)
+        return _CancellableStream(stream, self._cancel)
 
 
 class _DownloadTransport(httpx.HTTPTransport):
-    """Interrupt even a stalled response body, not just the next progress callback."""
+    """Stop even a stalled response body, not just the next progress callback."""
 
     def __init__(self, cancel: threading.Event) -> None:
         super().__init__()
-        self.cancelled = cancel
-        self._lock = threading.Lock()
-        self._socket: socket.socket | None = None
-
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
-        response = super().handle_request(request)
-        stream = response.extensions.get("network_stream")
-        connection = (
-            cast(_NetworkStream, stream).get_extra_info("socket") if stream is not None else None
+        # httpx's default pool settings, with a backend whose reads see a cancel.
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=httpx.create_ssl_context(),
+            max_connections=100,
+            max_keepalive_connections=20,
+            keepalive_expiry=5.0,
+            network_backend=_CancellableBackend(cancel),
         )
-        with self._lock:
-            if isinstance(connection, socket.socket):
-                self._socket = connection
-            if self.cancelled.is_set():
-                self._interrupt()
-        return response
-
-    def _interrupt(self) -> None:
-        if self._socket is not None:
-            try:
-                self._socket.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass  # The response may already have closed the socket.
-            if os.name == "nt":
-                # Winsock shutdown() does not wake a recv() blocked in another
-                # thread; closesocket() cancels it.
-                self._socket.close()
-
-    def interrupt(self) -> None:
-        with self._lock:
-            self._interrupt()
 
 
 def validate_puzzle_path(value: str) -> Path:
@@ -160,7 +203,6 @@ class PuzzleImportJob:
         self._cancel = threading.Event()
         self._committed = threading.Event()
         self._thread: threading.Thread | None = None
-        self._transport: _DownloadTransport | None = None
         self._state = ImportJobState(revision=0)
         # Replaced only at publication, never mutated or handed to a subscriber.
         self._published_state = self._state.model_copy(deep=True)
@@ -234,10 +276,7 @@ class PuzzleImportJob:
                 self._cancel.set()
                 self._state.status = "cancelling"
                 self._publish_locked()
-            transport = self._transport
             result = self._state.model_copy(deep=True)
-        if transport is not None and self._cancel.is_set():
-            transport.interrupt()
         return result
 
     def close(self) -> None:
@@ -323,16 +362,10 @@ class PuzzleImportJob:
                 if path is None:
                     path = Path(temporary) / "puzzles.csv.zst"
                     transport = _DownloadTransport(self._cancel)
-                    with self._lock:
-                        self._transport = transport
-                    try:
-                        with httpx.Client(transport=transport, follow_redirects=True) as client:
-                            provenance = download_puzzles(
-                                path, url=self.download_url, client=client, progress=self._progress
-                            )
-                    finally:
-                        with self._lock:
-                            self._transport = None
+                    with httpx.Client(transport=transport, follow_redirects=True) as client:
+                        provenance = download_puzzles(
+                            path, url=self.download_url, client=client, progress=self._progress
+                        )
                 run_import(
                     self.engine,
                     path,

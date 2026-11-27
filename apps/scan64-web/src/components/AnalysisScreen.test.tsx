@@ -380,7 +380,7 @@ describe('AnalysisScreen', () => {
       render(<AnalysisScreen />);
       fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
       const claims = within(await screen.findByRole('list', { name: 'Explanation claims' }));
-      expect(ApiClient.explainPosition).toHaveBeenCalledWith({ player_id: 'player-1', fen: startFen });
+      expect(ApiClient.explainPosition).toHaveBeenCalledWith({ player_id: 'player-1', fen: startFen }, expect.any(AbortSignal));
       expect(screen.getByText(/Template explanation from the engine lines/)).toBeInTheDocument();
       // The board shows exactly the explained lines.
       expect(screen.getByLabelText('Line 2 evaluation +0.30')).toBeInTheDocument();
@@ -432,6 +432,40 @@ describe('AnalysisScreen', () => {
       await act(async () => { pending.resolve(explained); await pending.promise; });
       await screen.findByRole('button', { name: 'Explain lines' });
       expect(screen.queryByRole('list', { name: 'Explanation claims' })).not.toBeInTheDocument();
+    });
+
+    it('aborts the running explanation when the position changes and shows nothing for it', async () => {
+      let signal: AbortSignal | undefined;
+      vi.mocked(ApiClient.explainPosition).mockImplementation((_data, requestSignal) => {
+        signal = requestSignal;
+        return new Promise((_resolve, reject) => {
+          requestSignal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        });
+      });
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      await waitFor(() => expect(signal).toBeDefined());
+      expect(signal?.aborted).toBe(false);
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      expect(signal?.aborted).toBe(true);
+      await screen.findByRole('button', { name: 'Explain lines' });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText('Explaining the engine lines…')).not.toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Explanation claims' })).not.toBeInTheDocument();
+    });
+
+    it('aborts the running explanation when the board unmounts', async () => {
+      let signal: AbortSignal | undefined;
+      vi.mocked(ApiClient.explainPosition).mockImplementation((_data, requestSignal) => {
+        signal = requestSignal;
+        return new Promise(() => {});
+      });
+      const { unmount } = render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      await waitFor(() => expect(signal).toBeDefined());
+      unmount();
+      expect(signal?.aborted).toBe(true);
     });
   });
 });

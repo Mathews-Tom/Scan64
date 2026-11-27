@@ -12,11 +12,14 @@ from chess_lesson_spec import ExplanationClaim
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.board_lines import (
+    BOARD_NARRATOR_SYSTEM_PROMPT,
     BOARD_SCHEMA_PATH,
     COMPARISON_EVIDENCE_ID,
+    PROMPT_MOVE_PLIES,
     BoardLinesFacts,
     board_lines_facts_schema,
     board_lines_grounding,
+    board_lines_request,
     build_board_lines_facts,
     claim_line_id,
     numbered_san,
@@ -193,7 +196,7 @@ async def test_grounded_provider_wording_replaces_the_template() -> None:
     assert resolved.source == "narrator"
     assert resolved.explanation.claims == list(claims)
     [request] = provider.requests
-    assert BoardLinesFacts.model_validate_json(request.messages[1].content) == facts
+    assert BoardLinesFacts.model_validate_json(request.messages[1].content) == facts.for_prompt()
 
 
 @pytest.mark.asyncio
@@ -231,3 +234,20 @@ def test_a_line_may_state_how_far_it_trails_line_one() -> None:
     validate_generated_explanation(
         GeneratedExplanation(claims=(claim,)), board_lines_grounding(facts)
     )
+
+
+@pytest.mark.parametrize("name", sorted(POSITIONS))
+def test_prompt_cuts_move_facts_but_keeps_the_full_line(name: str) -> None:
+    facts = _facts(name, 4)
+    request = board_lines_request(facts)
+    system, user = request.messages
+    assert system.content == BOARD_NARRATOR_SYSTEM_PROMPT
+    prompt = BoardLinesFacts.model_validate_json(user.content, strict=True)
+    assert prompt == facts.for_prompt()
+    for shown, full in zip(prompt.lines, facts.lines, strict=True):
+        assert shown.uci == full.uci
+        assert shown.outcome == full.outcome
+        assert shown.evaluation == full.evaluation
+        assert shown.moves == full.moves[:PROMPT_MOVE_PLIES]
+    # The facts the response, template and grounding use are not cut.
+    assert [len(line.moves) for line in facts.lines] == [len(line.uci) for line in facts.lines]

@@ -162,7 +162,52 @@ built on Windows 11 x64 with Zig 0.17.1's bundled clang
 Then point a profile at the binary (for example `config/engines/ethereal.toml`)
 and set `SCAN64_ENGINE_CONFIG`. `tests/integration/test_second_engine.py` runs a
 stored game through the production analysis job and the hint pool with
-Ethereal (or `SCAN64_TEST_SECOND_ENGINE`) and skips when no binary exists.
+Ethereal (or `SCAN64_TEST_SECOND_ENGINE`). Outside CI it skips when no binary
+exists.
+
+### How CI provides the second engine
+
+CI does not build a second engine. The `Run repository quality gate` step in
+`.github/workflows/ci.yml` sets `SCAN64_TEST_SECOND_ENGINE` to
+[`tests/fixtures/scripted_uci_engine.py`](../tests/fixtures/scripted_uci_engine.py):
+
+| Property | Value |
+| --- | --- |
+| `id name` | `Scan64 Scripted UCI Fixture` (does not start with `Stockfish`) |
+| Declared options | `Threads`, `Hash`, `MultiPV` only (no `Skill Level`, no `UCI_Elo`) |
+| Moves and scores | Legal moves only; two-ply material search; `mate 1` for a mating move |
+| Each `info` line | `depth`, `seldepth`, `multipv`, `score`, `nodes`, `pv` |
+| Engine identity | The `sha256:` digest of the script file, so its rows never match Stockfish rows |
+
+The fixture checks the configuration path, the stored line fields and cache
+separation. It does not check chess strength or the score scale of a real engine.
+
+With `CI` set (GitHub Actions sets it), the tests do not skip. A missing second
+engine or Stockfish fails both tests. A `SCAN64_TEST_SECOND_ENGINE` path that is
+not a file fails the tests everywhere.
+
+Why not Ethereal in CI: the Ethereal build above (commit `0e47e9b`, classical,
+`gcc -O3 -DUSE_POPCNT`) passes both tests locally. On the GitHub `ubuntu-latest`
+runner (AMD EPYC 9V74) the same build crashed with a segmentation fault on its
+first `go`. The engine pool then did not shut down, and the job hung for 45 minutes.
+An `-O1` ASan build did not crash there, so the cause is not found.
+
+Run the test locally against a real engine:
+
+```bash
+commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
+curl -fL -o ethereal.tar.gz "https://github.com/AndyGrant/Ethereal/archive/$commit.tar.gz"
+echo "46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  ethereal.tar.gz" | sha256sum --check
+mkdir ethereal && tar -xzf ethereal.tar.gz -C ethereal --strip-components=1
+(cd ethereal/src && gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o ../../Ethereal)
+SCAN64_TEST_SECOND_ENGINE="$PWD/Ethereal" uv run pytest tests/integration/test_second_engine.py
+```
+
+Run it against the CI fixture:
+
+```bash
+SCAN64_TEST_SECOND_ENGINE="$PWD/tests/fixtures/scripted_uci_engine.py" uv run pytest tests/integration/test_second_engine.py
+```
 
 ## Comparison of open-source UCI engines
 

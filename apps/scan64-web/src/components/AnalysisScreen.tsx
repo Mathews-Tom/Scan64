@@ -76,12 +76,20 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
   const [explanation, setExplanation] = useState<LineExplanation>({ state: 'idle' });
   const [pinnedClaim, setPinnedClaim] = useState<number | null>(null);
   const [previewClaim, setPreviewClaim] = useState<number | null>(null);
+  // The running explanation request; leaving its position aborts it. The
+  // server cancels its model call when the player's next explanation starts.
+  const explanationRequest = useRef<AbortController | null>(null);
+  const abortExplanation = () => {
+    explanationRequest.current?.abort();
+    explanationRequest.current = null;
+  };
 
   // Invalidate in the interaction itself, not just effect cleanup: A → B → A
   // must not allow the first A response to become current again.
   const selectPosition = (nextTree: AnalysisTree, next: number) => {
     revision.current += 1;
     loadGeneration.current += 1;
+    abortExplanation();
     setEvaluation({ state: 'loading' });
     setExplanation({ state: 'idle' });
     setPinnedClaim(null);
@@ -92,7 +100,10 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     setStatus('');
   };
 
-  useEffect(() => () => { loadGeneration.current += 1; }, []);
+  useEffect(() => () => {
+    loadGeneration.current += 1;
+    explanationRequest.current?.abort();
+  }, []);
 
   useEffect(() => {
     // Loading a FEN already obtained its evaluation; do not search twice.
@@ -171,14 +182,17 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
 
   const explainLines = async () => {
     const requestedRevision = revision.current;
-    const current = () => revision.current === requestedRevision;
+    abortExplanation();
+    const controller = new AbortController();
+    explanationRequest.current = controller;
+    const current = () => revision.current === requestedRevision && !controller.signal.aborted;
     setExplanation({ state: 'loading' });
     setPinnedClaim(null);
     setPreviewClaim(null);
     try {
       const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
       if (!current()) return;
-      const result = await ApiClient.explainPosition({ player_id: playerId, fen });
+      const result = await ApiClient.explainPosition({ player_id: playerId, fen }, controller.signal);
       if (!current()) return;
       if (new Chess(result.fen).fen() !== fen) throw new Error('Engine returned a different position. Retry the explanation.');
       // Show exactly the lines the explanation describes.
@@ -189,6 +203,8 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
         state: 'error',
         message: caught instanceof Error ? caught.message : 'Could not explain the engine lines.',
       });
+    } finally {
+      if (explanationRequest.current === controller) explanationRequest.current = null;
     }
   };
 

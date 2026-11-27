@@ -308,7 +308,7 @@ async def test_stream_is_bounded_before_buffering(peer: Callable) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("context", "prompt_tokens"), [(None, 8192), ("4096", 4096)])
+@pytest.mark.parametrize(("context", "prompt_tokens"), [(None, 12288), ("4096", 4096)])
 async def test_prompt_that_fills_the_context_is_rejected(
     peer: Callable, monkeypatch: pytest.MonkeyPatch, context: str | None, prompt_tokens: int
 ) -> None:
