@@ -729,6 +729,8 @@ The **Position health** panel shows how the selected position stands on eight ev
 | passed pawns | passed pawns, their rank, file and blockade |
 | space | safe squares behind the pawn chain in the centre (middlegame only) |
 
+![Position health panel, light theme](images/position-health-light-1280.png) ![Position health panel, dark theme](images/position-health-dark-1280.png)
+
 Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". **Show details** lists the largest terms behind each meter in pawns; for the overall meter, the factors that move the total most.
 
 The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.
