@@ -1,0 +1,4 @@
+# Compat set (#397): a large option list and personality files.
+[engine]
+name = "rodent-v"
+binary_path = "~/.local/opt/engines/rodent-v"

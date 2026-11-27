@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -9,8 +10,9 @@ import chess
 import chess.engine
 import pytest
 
-from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
+from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig, EngineLine
 from scan64.chess.analysis.reuse import _key
+from scan64.learning.tolerance import win_probability
 from scan64.providers.engine import (
     ENGINE_CONFIG_ENV,
     STOCKFISH_PATH_ENV,
@@ -22,8 +24,10 @@ from scan64.providers.engine import (
     line_from_info,
     load_engine_profile,
 )
-from scan64.providers.engine.uci import full_strength_options, startup_options
-from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+from scan64.providers.engine.config import LadderSettings, scaled_nodes
+from scan64.providers.engine.uci import full_strength_options, lines_from_result, startup_options
+from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig, search_limit
+from scan64.providers.stockfish.identity import analysis_identity
 from scan64.providers.stockfish.pool import (
     HINT_MULTIPV,
     HINT_NODES,
@@ -33,6 +37,10 @@ from scan64.providers.stockfish.pool import (
 )
 
 ETHEREAL_OPTIONS = ("Hash", "Threads", "EvalFile", "MultiPV", "Ponder", "UCI_Chess960")
+
+
+ENGINE = "[engine]\nname = 'x'\nbinary_path = 'x'\n"
+ELO_LADDER = "[ladder]\nstrength = 'elo'\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n"
 
 
 def write_profile(tmp_path: Path, body: str) -> Path:
@@ -126,6 +134,17 @@ def test_profile_is_reread_after_edit(monkeypatch: pytest.MonkeyPatch, tmp_path:
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\nnodes = -1\n", "positive"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[limits.hint]\ndepth = 9\n", "Unknown"),
         ("[engine\n", "Invalid engine configuration"),
+        (f"{ENGINE}[ladder]\nstrength = 'nodes'\n", "ladder.strength must be one of"),
+        (f"{ENGINE}[ladder]\nelo = [1000]\n", "applies only to"),
+        (f"{ENGINE}[ladder]\nstrength = 'elo'\nelo = [1000]\nmovetime_ms = 5\n", "8 integers"),
+        (f"{ENGINE}{ELO_LADDER}movetime_ms = 0\n", "ladder.movetime_ms"),
+        (f"{ENGINE}{ELO_LADDER}", "ladder.movetime_ms"),
+        (
+            f"{ENGINE}[ladder]\nstrength = 'elo'\nelo = [1, 2, 3, 4, 5, 6, 6, 8]\n"
+            "movetime_ms = 5\n",
+            "increase",
+        ),
+        (f"{ENGINE}{ELO_LADDER}movetime_ms = 5\ndepth = 3\n", r"Unknown keys in \[ladder\]"),
     ],
 )
 def test_invalid_profiles_fail_fast(tmp_path: Path, body: str, message: str) -> None:
@@ -207,6 +226,49 @@ def test_engine_identity_keys_never_cross_engines() -> None:
     assert None not in keys and len(keys) == 3
 
 
+def test_node_scale_parses_validates_and_scales(tmp_path: Path) -> None:
+    profile = load_engine_profile(
+        write_profile(tmp_path, "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nnode_scale = 0.002\n")
+    )
+    assert profile.node_scale == 0.002
+    assert (
+        load_engine_profile(
+            write_profile(tmp_path, "[engine]\nname = 'x'\nbinary_path = 'x'\n")
+        ).node_scale
+        == 1.0
+    )
+    for bad in ("0", "1.5", "-0.1", "true", "'half'"):
+        with pytest.raises(EngineConfigurationError, match="node_scale"):
+            load_engine_profile(
+                write_profile(
+                    tmp_path, f"[engine]\nname = 'x'\nbinary_path = 'x'\nnode_scale = {bad}\n"
+                )
+            )
+    assert scaled_nodes(1_000_000, 0.002) == 2_000
+    assert scaled_nodes(10, 0.001) == 1
+    assert scaled_nodes(None, 0.5) is None
+    assert search_limit(10_000, None, None, node_scale=0.5).nodes == 5_000
+
+
+def test_node_scale_is_part_of_identity_only_when_not_one() -> None:
+    engine = double("Lc0", ("Threads", "MultiPV"))
+    raw = {"engine_name": "Lc0", "engine_version": "sha256:" + "d" * 64, "network": None}
+    default = analysis_identity(engine, raw, 1, 1.0, 1.0)
+    scaled = analysis_identity(engine, raw, 1, 0.002, 1.0)
+    # Rows written before node_scale existed keep their exact reuse key.
+    assert "node_scale" not in default
+    assert scaled["node_scale"] == 0.002
+    keys = {
+        _key(chess.STARTING_FEN, dict(c, nodes=10_000, depth=None, time_ms=None, multipv=1))
+        for c in (default, scaled)
+    }
+    assert None not in keys and len(keys) == 2
+    assert (
+        EngineConfig(binary_path="x", name="e", node_scale=0.5).fingerprint()
+        != EngineConfig(binary_path="x", name="e", node_scale=1.0).fingerprint()
+    )
+
+
 def test_startup_and_reset_send_only_declared_options() -> None:
     ethereal = double("Ethereal", ETHEREAL_OPTIONS)
     config = EngineConfig(binary_path="x", threads=2, hash_size=32, name="e", options={})
@@ -217,6 +279,39 @@ def test_startup_and_reset_send_only_declared_options() -> None:
     unknown = EngineConfig(binary_path="x", name="e", options={"Contempt": 10})
     with pytest.raises(EngineConfigurationError, match="Contempt"):
         startup_options(ethereal, unknown)
+
+
+def test_strength_reset_stays_inside_the_declared_range() -> None:
+    def spin(name: str, default: int, low: int, high: int) -> chess.engine.Option:
+        return chess.engine.Option(name, "spin", default, low, high, [])
+
+    stockfish_11 = double("Stockfish 11", ("Threads", "Skill Level", "UCI_LimitStrength"))
+    stockfish_11.options["UCI_Elo"] = spin("UCI_Elo", 1350, 1350, 2850)
+    stockfish_11.options["Skill Level"] = spin("Skill Level", 20, 0, 20)
+    assert full_strength_options(stockfish_11, 1) == {
+        "Threads": 1,
+        "Skill Level": 20,
+        "UCI_LimitStrength": False,
+    }
+    capped = double("Capped", ())
+    capped.options["Skill Level"] = spin("Skill Level", 10, 0, 10)
+    assert full_strength_options(capped, 1) == {"Skill Level": 10}
+
+
+@pytest.mark.asyncio
+async def test_uci_engine_without_multipv_refuses_multiple_lines() -> None:
+    from scan64.providers.engine.uci import EngineCapabilityError
+    from scan64.providers.stockfish.adapter import search
+
+    alexandria = double("Alexandria 9.1.0", ("Hash", "Threads", "Minimal", "UCI_Chess960"))
+    limit = chess.engine.Limit(nodes=1000)
+    with pytest.raises(EngineCapabilityError, match="3 analysis lines need the UCI option MultiPV"):
+        await search(alexandria, chess.Board(), limit, 3, deadline_s=5, score_scale=1.0)
+    alexandria.analyse.assert_not_awaited()
+    alexandria.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+    assert await search(alexandria, chess.Board(), limit, 1, deadline_s=5, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
 
 
 @pytest.mark.asyncio
@@ -336,3 +431,159 @@ nodes = 1000
     )
     assert "hint" in profile.limits
     assert StockfishConfig() == StockfishConfig()
+
+
+@pytest.mark.asyncio
+async def test_node_search_past_its_deadline_is_a_capability_error(tmp_path: Path) -> None:
+    from scan64.providers.engine.uci import EngineCapabilityError
+    from scan64.providers.stockfish.adapter import search
+
+    assert (
+        load_engine_profile(
+            write_profile(
+                tmp_path, "[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = 30\n"
+            )
+        ).search_deadline_s
+        == 30.0
+    )
+    for bad in ("0", "inf", "nan", "true"):
+        with pytest.raises(EngineConfigurationError, match="engine.search_deadline_s"):
+            load_engine_profile(
+                write_profile(
+                    tmp_path,
+                    f"[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = {bad}\n",
+                )
+            )
+
+    async def never_finishes(*args: object, **kwargs: object) -> object:
+        await asyncio.sleep(3600)
+        raise AssertionError("unreachable")
+
+    rodent = double("Rodent V 1.2", ("Hash", "Threads", "MultiPV"))
+    rodent.analyse.side_effect = never_finishes
+    with pytest.raises(
+        EngineCapabilityError,
+        match="Rodent V 1.2 did not finish a search limited to 10000 nodes within 0.05 s",
+    ):
+        await search(
+            rodent,
+            chess.Board(),
+            chess.engine.Limit(nodes=10_000),
+            1,
+            deadline_s=0.05,
+            score_scale=1.0,
+        )
+    rodent.analyse.side_effect = None
+    rodent.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+    timed = chess.engine.Limit(nodes=10_000, time=0.1)
+    assert await search(rodent, chess.Board(), timed, 1, deadline_s=0.05, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_pool_replaces_an_engine_that_terminated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scan64.providers.stockfish.pool import EnginePool
+
+    engines: list[AsyncMock] = []
+
+    async def start_engine(path: str) -> tuple[None, AsyncMock]:
+        engine = double(f"Engine {len(engines)}", ("Threads", "Hash", "MultiPV"))
+        if not engines:
+            engine.analyse.side_effect = chess.engine.EngineTerminatedError("engine process died")
+        else:
+            engine.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+        engines.append(engine)
+        return None, engine
+
+    monkeypatch.setattr(chess.engine, "popen_uci", start_engine)
+    binary = tmp_path / "engine"
+    binary.write_bytes(b"deterministic UCI test double")
+    pool = EnginePool(StockfishConfig(binary_path=str(binary)), concurrency=1)
+    try:
+        with pytest.raises(chess.engine.EngineTerminatedError):
+            async with pool.acquire() as adapter:
+                await adapter.analyze_position(chess.STARTING_FEN, nodes=100)
+        async with pool.acquire() as adapter:
+            analysis = await adapter.analyze_position(chess.STARTING_FEN, nodes=100)
+        assert analysis.raw_result == [{"pv": ["e2e4"]}]
+        assert len(engines) == 2
+    finally:
+        await pool.close()
+
+
+def test_explicit_binary_takes_stockfish_protocol_scale_and_deadline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nprotocol = 'xboard'\n"
+        "node_scale = 0.002\nsearch_deadline_s = 30\nscore_scale = 2.8\n\n"
+        "[ladder]\nstrength = 'elo'\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n"
+        "movetime_ms = 500\n",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    assert StockfishConfig().score_scale == 2.8
+    assert StockfishConfig().ladder.strength == "elo"
+    stockfish = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (stockfish.score_scale, stockfish.ladder.strength) == (1.0, "skill")
+    # scan64 calibrate --stockfish: an explicit Stockfish binary under this profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (explicit.protocol, explicit.node_scale, explicit.search_deadline_s) == (
+        "uci",
+        1.0,
+        120.0,
+    )
+    profile = StockfishConfig()
+    assert (profile.protocol, profile.node_scale, profile.search_deadline_s) == (
+        "xboard",
+        0.002,
+        30.0,
+    )
+    given = StockfishConfig(binary_path="/opt/sf/stockfish", node_scale=0.5, protocol="xboard")
+    assert (given.node_scale, given.protocol) == (0.5, "xboard")
+
+
+def test_ladder_defaults_to_skill_and_parses_elo(tmp_path: Path) -> None:
+    assert load_engine_profile(write_profile(tmp_path, ENGINE)).ladder == LadderSettings()
+    ladder = load_engine_profile(
+        write_profile(tmp_path, f"{ENGINE}{ELO_LADDER}movetime_ms = 400\n")
+    ).ladder
+    assert (ladder.strength, ladder.movetime_ms) == ("elo", 400)
+    assert [ladder.elo_for(level) for level in (1, 8)] == [1000, 2500]
+    with pytest.raises(EngineConfigurationError, match="under skill"):
+        LadderSettings().elo_for(1)
+
+
+def test_score_scale_parses_and_scales_win_probability(tmp_path: Path) -> None:
+    assert load_engine_profile(write_profile(tmp_path, ENGINE)).score_scale == 1.0
+    scaled = load_engine_profile(write_profile(tmp_path, ENGINE + "score_scale = 2.8\n"))
+    assert scaled.score_scale == 2.8
+    for bad in ("0", "-1", "true", "'2'"):
+        with pytest.raises(EngineConfigurationError, match="engine.score_scale"):
+            load_engine_profile(write_profile(tmp_path, f"{ENGINE}score_scale = {bad}\n"))
+    info: chess.engine.InfoDict = {
+        "pv": [chess.Move.from_uci("e2e4")],
+        "score": chess.engine.PovScore(chess.engine.Cp(280), chess.WHITE),
+    }
+    assert lines_from_result(info, chess.WHITE, score_scale=1.0) == [
+        {"pv": ["e2e4"], "score_cp": 280}
+    ]
+    [arasan] = lines_from_result(info, chess.WHITE, score_scale=2.8)
+    assert arasan == {"pv": ["e2e4"], "score_cp": 280, "score_scale": 2.8}
+    assert win_probability(arasan) == pytest.approx(win_probability({"score_cp": 100}))
+    assert EngineLine.model_validate(arasan).score_scale == 2.8
+
+
+def test_score_scale_is_part_of_identity_only_when_not_one() -> None:
+    engine = double("Arasan", ("Threads", "MultiPV"))
+    raw = {"engine_name": "Arasan", "engine_version": "sha256:" + "e" * 64, "network": None}
+    default = analysis_identity(engine, raw, 1, 1.0, 1.0)
+    scaled = analysis_identity(engine, raw, 1, 1.0, 2.8)
+    assert "score_scale" not in default
+    assert scaled["score_scale"] == 2.8
+    assert StockfishConfig(binary_path="x", score_scale=2.8).fingerprint() != (
+        StockfishConfig(binary_path="x", score_scale=1.0).fingerprint()
+    )

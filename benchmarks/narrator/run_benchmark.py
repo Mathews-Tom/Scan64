@@ -222,6 +222,36 @@ def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
     }
 
 
+RESUME_PINNED = (
+    "pipeline_entry",
+    "grounding_context",
+    "commit",
+    "module_file",
+    "module_sha256",
+    "runner_sha256",
+)
+
+
+def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
+    """Refuse to append to a run whose header no longer describes the code (rule 6).
+
+    New records sit under the existing header, so the run must have started from a
+    clean tree, the tree must be clean now, and the commit, module and runner must
+    equal the header's. A header without one of these keys (written by an older
+    runner) cannot be resumed.
+    """
+    if identity["dirty"]:
+        raise RuntimeError("Resume refused: the working tree has uncommitted changes")
+    if header["pipeline"].get("dirty") is not False:
+        raise RuntimeError("Resume refused: the run started from a dirty or unrecorded tree")
+    changed = [key for key in RESUME_PINNED if header["pipeline"].get(key) != identity[key]]
+    if changed:
+        raise RuntimeError(
+            f"Resume refused: {', '.join(changed)} changed since the run started: "
+            f"{header['pipeline']} != {identity}"
+        )
+
+
 # --- Setup ---------------------------------------------------------------------
 
 
@@ -1129,12 +1159,7 @@ async def run(
     if sink.exists():
         records = _read(sink)
         header = next(r for r in records if r.get("record") == "header")
-        pinned = ("pipeline_entry", "grounding_context", "module_file", "module_sha256")
-        if any(header["pipeline"][key] != identity[key] for key in pinned):
-            raise RuntimeError(
-                f"Resume refused: pipeline changed since the run started: "
-                f"{header['pipeline']} != {identity}"
-            )
+        refuse_resume(header, identity)
         # Runs before #387 have no voice field: their prompt had no voice line.
         if header.get("voice") != config.voice:
             raise RuntimeError(f"Resume refused: voice {config.voice!r} != {header.get('voice')!r}")

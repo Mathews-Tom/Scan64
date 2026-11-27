@@ -4,6 +4,10 @@ Stockfish does not expose a seed for its reduced-strength bestmove RNG. All
 eight levels therefore use full-strength MultiPV scores and the same seeded
 selection policy, with a per-level error budget. These relative practice
 levels have no human Elo estimate.
+
+A profile with ``[ladder] strength = "elo"`` instead weakens the engine
+itself: one ``UCI_Elo`` per level and a fixed move time (``choose_elo_move``).
+The engine's own randomness then decides the move, so it is not seeded.
 """
 
 import hashlib
@@ -14,8 +18,29 @@ import chess.engine
 
 from scan64.chess.opponents.bots import get_bot_level
 from scan64.chess.opponents.protocols import OpponentContext
+from scan64.providers.engine.config import EngineConfig, scaled_nodes
+from scan64.providers.engine.uci import Engine
 
 DEFAULT_BOT_NODES = 1_000
+# Stamped on every bot session; strength cohorts never mix versions.
+SKILL_POLICY_VERSION = "stockfish-error-budget-v1"
+
+
+def bot_policy_version(config: EngineConfig) -> str:
+    """The ladder policy a new session plays under, with every input that sets strength."""
+    ladder = config.ladder
+    if ladder.strength == "skill":
+        return SKILL_POLICY_VERSION
+    elo = ",".join(str(value) for value in ladder.elo)
+    return f"uci-elo-v1:{config.name}:{elo}:{ladder.movetime_ms}ms"
+
+
+def policy_engine_name(version: str) -> str:
+    """The engine a recorded ladder policy plays with, for display."""
+    if version.startswith("uci-elo-v1:"):
+        name = version.split(":")[1]
+        return name[:1].upper() + name[1:]
+    return "Stockfish"
 
 
 def error_budget(level: int) -> int:
@@ -52,22 +77,25 @@ def sample_candidate(
 
 
 async def choose_ladder_move(
-    engine: chess.engine.UciProtocol,
+    engine: Engine,
     board: chess.Board,
     context: OpponentContext,
     game: object,
+    *,
+    node_scale: float,
 ) -> chess.engine.PlayResult:
+    """``node_scale`` is the engine profile's; the bot budget is sized for Stockfish."""
     assert context.bot_level is not None
     get_bot_level(context.bot_level)
     nodes = context.nodes if context.nodes is not None else DEFAULT_BOT_NODES
     if nodes < 1:
         raise ValueError("Bot node budget must be positive")
+    search_nodes = scaled_nodes(nodes, node_scale)
     await engine.configure(
         {
             "Threads": 1,
             "Skill Level": 20,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
     )
     # Search every legal move so each level has the same candidate population;
@@ -75,7 +103,7 @@ async def choose_ladder_move(
     multipv = board.legal_moves.count()
     candidates = await engine.analyse(
         board,
-        chess.engine.Limit(nodes=nodes),
+        chess.engine.Limit(nodes=search_nodes),
         multipv=multipv,
         game=game,
         info=chess.engine.INFO_SCORE | chess.engine.INFO_PV,
@@ -83,3 +111,27 @@ async def choose_ladder_move(
     if not isinstance(candidates, list):
         candidates = [candidates]
     return sample_candidate(board, candidates, context)
+
+
+async def choose_elo_move(
+    engine: Engine,
+    board: chess.Board,
+    context: OpponentContext,
+    game: object,
+    *,
+    elo: int,
+    movetime_ms: int,
+) -> chess.engine.PlayResult:
+    """One move at the engine's own reduced strength; ``context.nodes`` is unused.
+
+    The analysis reset turns ``UCI_LimitStrength`` off again before any search.
+    """
+    assert context.bot_level is not None
+    get_bot_level(context.bot_level)
+    await engine.configure({"Threads": 1, "UCI_LimitStrength": True, "UCI_Elo": elo})
+    return await engine.play(
+        board,
+        chess.engine.Limit(time=movetime_ms / 1000),
+        game=game,
+        info=chess.engine.INFO_SCORE,
+    )

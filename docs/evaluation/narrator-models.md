@@ -2,7 +2,7 @@
 
 Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine, board and factor facts. The validator decides whether its claims replace the template explanation.
 
-Decision (2026-11-27, factor pipeline): use **`gemma4-e4b-q3km`**, gemma-4-E4B-it at Q3_K_M (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It needs 2.96–3.13 GiB of GPU memory, so it is also the choice for GPUs under 10 GiB. It is the smallest model near the quality bar; it misses the coverage bar by 2.5 points in the default voice. See [Decision](#decision). This replaces the interim choice of `gemma4-12b` with the `praxis-4b` fallback (slot run `runs_20261127_161413`).
+Decision (2026-11-27, factor pipeline): use **`gemma4-e4b-q3km`**, gemma-4-E4B-it at Q3_K_M (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It needs 2.96–3.13 GiB of GPU memory, so it is also the choice for GPUs under 10 GiB. It is the smallest model near the quality bar; it misses the coverage bar by 2.5 points in the default voice. See [Decision](#decision). This replaces the interim choice of `gemma4-12b` with the `praxis-4b` fallback (slot run `runs_20261127_161413`), which had replaced the 2026-11-26 `praxis-4b` choice measured on the pre-#367 prompt only (on the #367 prompt `praxis-4b` passes grounding in 4.0% of calls; see [Interim slot run](#interim-slot-run-superseded)).
 
 All numbers below are measured. Raw records and summaries are in `benchmarks/narrator/results/`.
 
@@ -424,7 +424,7 @@ The coverage view of these runs is in `rescored_20261126_162415.{md,json}`.
 
 ### CPU only (two models)
 
-`cpu/summary_20261126_170614.{md,json}`, config `narrator_cpu.toml`. Ollama 0.40.18 with no GPU (`size_vram` 0), Intel Core i9-14900HX, first 10 positions x 1 run.
+`cpu/summary_20261126_170614.{md,json}`, runs in `runs_20261126_170614.jsonl`, config `benchmarks/narrator/narrator_cpu.toml` (removed in `e318b0b`; CPU runs are out of scope, and the file is in the git history). A separate Ollama 0.40.18 server on 127.0.0.1:11436 started with `CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu`; its device discovery listed only `cpu`, and Ollama reported `size_vram` 0 for both models, so no layer ran on the GPU. CPU: Intel Core i9-14900HX, 32 logical cores. First 10 positions x 1 run, same pipeline and module hash as the GPU runs. The summary header names the GPU present in the machine, not one in use.
 
 | Model | Latency p50 / p95 (s) | Grounding pass (10 calls) |
 |---|---|---|

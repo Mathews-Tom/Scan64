@@ -1,0 +1,144 @@
+# Engine compatibility set, Linux run (#411, the linux-5090 share of #397).
+# Run: uv run python -m benchmarks.engines.compat benchmarks/engines/compat-linux.toml
+# Same [run] inputs as compat.toml. Profiles live in config/engines/compat/linux/
+# and point at the engines installed under ~/.local/opt/engines/<name>/ on
+# linux-5090. Rodent V, Triumviratus, Maia-3 and both Lc0 entries start through
+# small wrapper scripts there, because a profile cannot set a working directory,
+# an environment variable or command-line arguments, and option values get no ~
+# expansion (the Lc0 network path).
+
+[run]
+results_dir = "benchmarks/engines/results"
+# Fried Liver Attack to 6.Nxf7: a real game with a sacrifice for the fast pass.
+game = ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6", "f3g5", "d7d5", "e4d5", "f6d5", "g5f7"]
+focused_plies = [6, 11]                       # positions after these plies get the focused pass
+position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"   # kiwipete
+lesson_position = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"  # mate in one
+bot_level = 4
+skill_level = 5
+
+[[engines]]
+name = "Stockfish 18"
+profile = "config/engines/compat/linux/stockfish-18.toml"
+licence = "GPL-3.0"
+source = "https://github.com/official-stockfish/Stockfish"
+stresses = "reference engine"
+
+[[engines]]
+name = "Alexandria"
+profile = "config/engines/compat/linux/alexandria.toml"
+licence = "GPL-3.0"
+source = "https://github.com/PGG106/Alexandria"
+stresses = "no MultiPV; unusual centipawn scale"
+
+[[engines]]
+name = "Minic"
+profile = "config/engines/compat/linux/minic.toml"
+licence = "GPL-3.0"
+source = "https://github.com/tryingsomestuff/Minic"
+stresses = "MultiPV capped below 8; non-standard WDL option"
+
+[[engines]]
+name = "Obsidian"
+profile = "config/engines/compat/linux/obsidian.toml"
+licence = "GPL-3.0"
+source = "https://github.com/gab8192/Obsidian"
+stresses = "truncated PVs"
+
+[[engines]]
+name = "Triumviratus"
+profile = "config/engines/compat/linux/triumviratus.toml"
+licence = "GPL-3.0"
+source = "https://github.com/Tors3/Triumviratus"
+stresses = "network from an external file; shared-memory network"
+
+[[engines]]
+name = "Fairy-Max"
+profile = "config/engines/compat/linux/fairy-max.toml"
+licence = "public domain; also GPL or MIT (fairymax.c notice)"
+source = "https://packages.debian.org/source/sid/fairymax"
+stresses = "XBoard only; no MultiPV, Hash or Threads"
+
+[[engines]]
+name = "Fairy-Stockfish"
+profile = "config/engines/compat/linux/fairy-stockfish.toml"
+licence = "GPL-3.0"
+source = "https://github.com/fairy-stockfish/Fairy-Stockfish"
+stresses = "several protocols; evaluation-term trace"
+
+[[engines]]
+name = "Rodent V"
+profile = "config/engines/compat/linux/rodent-v.toml"
+licence = "GPL-3.0"
+source = "https://github.com/nescitus/Rodent-V"
+stresses = "large option list; personality files; needs its install dir as cwd"
+
+[[engines]]
+name = "PZChessBot"
+profile = "config/engines/compat/linux/pzchessbot.toml"
+licence = "AGPL-3.0"
+source = "https://github.com/kevlu8/PZChessBot"
+stresses = "lower-case option names"
+
+[[engines]]
+name = "Lc0"
+profile = "config/engines/compat/linux/lc0.toml"
+licence = "GPL-3.0 (network licence not stated)"
+source = "https://github.com/LeelaChessZero/lc0"
+stresses = "slow neural nodes; no Hash (CUDA, T1 net)"
+
+[[engines]]
+name = "Lc0 (BT4)"
+profile = "config/engines/compat/linux/lc0-bt4.toml"
+licence = "GPL-3.0 (network licence not stated)"
+source = "https://github.com/LeelaChessZero/lc0"
+stresses = "very slow neural nodes; no Hash (CUDA, BT4 net)"
+
+[[engines]]
+name = "Maia-3"
+profile = "config/engines/compat/linux/maia-3.toml"
+licence = "AGPL-3.0 (weights licence not stated)"
+source = "https://github.com/CSSLab/maia3"
+stresses = "Python UCI wrapper; rating options; ignores node limits"
+
+[[engines]]
+name = "Caissa"
+profile = "config/engines/compat/linux/caissa.toml"
+licence = "MIT"
+source = "https://github.com/Witek902/Caissa"
+stresses = "#396 bundle candidate; network from an external file"
+
+[[engines]]
+name = "Arasan"
+profile = "config/engines/compat/linux/arasan.toml"
+licence = "MIT-style (Arasan licence)"
+source = "https://github.com/jdart1/arasan-chess"
+stresses = "#396 bundle candidate; ignores go nodes; MultiPV max 10"
+
+[[engines]]
+name = "Stockfish 11"
+profile = "config/engines/compat/linux/stockfish-11.toml"
+licence = "GPL-3.0"
+source = "https://github.com/official-stockfish/Stockfish"
+stresses = "old Stockfish, classical eval"
+
+[[engines]]
+name = "Ethereal"
+profile = "config/engines/compat/linux/ethereal.toml"
+licence = "GPL-3.0"
+source = "https://github.com/AndyGrant/Ethereal"
+stresses = "MultiPV but no strength controls"
+
+[[engines]]
+name = "Berserk"
+profile = "config/engines/compat/linux/berserk.toml"
+licence = "GPL-3.0"
+source = "https://github.com/jhonnold/berserk"
+stresses = "WDL on by default; no strength controls"
+
+[[engines]]
+name = "Koivisto"
+profile = "config/engines/compat/linux/koivisto.toml"
+licence = "GPL-3.0"
+source = "https://github.com/Luecx/Koivisto"
+stresses = "no MultiPV; no strength controls"

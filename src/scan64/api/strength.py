@@ -16,6 +16,7 @@ from scan64.chess.games.clock_models import PlayClock, TimeControl
 from scan64.chess.games.clocks import clock_control
 from scan64.chess.games.eligibility import session_exclusion
 from scan64.chess.games.models import Game, PlaySession
+from scan64.chess.opponents.bot_policy import policy_engine_name
 from scan64.content.puzzle_practice_models import INITIAL_RATING, PuzzleRating, PuzzleRatingEvent
 from scan64.learning.progress import progress_reset_at
 from scan64.persistence.database import get_session
@@ -46,6 +47,8 @@ class BotCohort(ResultsWindow):
     provider: Literal["stockfish"] = "stockfish"
     bot_level: int
     bot_policy_version: str
+    # The engine the recorded policy plays with; unstamped cohorts are Stockfish.
+    engine: str
     time_control: TimeControl | None = None
     latest: ResultsWindow
     previous: ResultsWindow
@@ -159,6 +162,7 @@ def read_strength(player_id: str, session: Session) -> StrengthRead:
                 **results_window(scores).model_dump(),
                 bot_level=level_number,
                 bot_policy_version=version,
+                engine=policy_engine_name(version),
                 time_control=(
                     TimeControl(initial_seconds=initial, increment_seconds=increment)
                     if initial

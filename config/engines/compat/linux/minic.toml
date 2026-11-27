@@ -1,0 +1,4 @@
+# Linux compat set (#411): MultiPV capped at 4, a non-standard WDL option.
+[engine]
+name = "minic"
+binary_path = "~/.local/opt/engines/minic/minic"
