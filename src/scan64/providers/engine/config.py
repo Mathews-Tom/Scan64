@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -204,24 +204,55 @@ def active_engine_profile() -> EngineProfile:
     return _cache[1]
 
 
-@dataclass
+@dataclass(init=False)
 class EngineConfig:
     """Effective engine inputs. Unset fields come from ``active_engine_profile``.
 
     ``StockfishConfig`` is this class; positional and keyword construction
-    (``binary_path``, ``threads``, ``hash_size``) is unchanged.
+    (``binary_path``, ``threads``, ``hash_size``) is unchanged. An explicit
+    ``binary_path`` names a Stockfish binary: unless given, ``name`` is
+    ``stockfish`` and ``options`` and ``limits`` are empty, so a non-Stockfish
+    profile does not leak its name, options or limits onto that binary.
     """
 
-    binary_path: str = field(default_factory=lambda: active_engine_profile().binary_path)
-    threads: int = field(default_factory=lambda: active_engine_profile().threads)
-    hash_size: int = field(default_factory=lambda: active_engine_profile().hash_size)
-    name: str = field(default_factory=lambda: active_engine_profile().name)
-    options: Mapping[str, UciOptionValue] = field(
-        default_factory=lambda: active_engine_profile().options
-    )
-    limits: Mapping[str, SearchLimits] = field(
-        default_factory=lambda: active_engine_profile().limits
-    )
+    binary_path: str
+    threads: int
+    hash_size: int
+    name: str
+    options: Mapping[str, UciOptionValue]
+    limits: Mapping[str, SearchLimits]
+
+    def __init__(
+        self,
+        binary_path: str | None = None,
+        threads: int | None = None,
+        hash_size: int | None = None,
+        name: str | None = None,
+        options: Mapping[str, UciOptionValue] | None = None,
+        limits: Mapping[str, SearchLimits] | None = None,
+    ) -> None:
+        explicit_binary = binary_path is not None
+        self.binary_path = (
+            binary_path if binary_path is not None else active_engine_profile().binary_path
+        )
+        self.threads = threads if threads is not None else active_engine_profile().threads
+        self.hash_size = hash_size if hash_size is not None else active_engine_profile().hash_size
+        if name is not None:
+            self.name = name
+        else:
+            self.name = DEFAULT_ENGINE_NAME if explicit_binary else active_engine_profile().name
+        if options is not None:
+            self.options = options
+        else:
+            self.options = (
+                MappingProxyType({}) if explicit_binary else active_engine_profile().options
+            )
+        if limits is not None:
+            self.limits = limits
+        else:
+            self.limits = (
+                MappingProxyType({}) if explicit_binary else active_engine_profile().limits
+            )
 
     def fingerprint(self) -> tuple[object, ...]:
         """Process-local identity of every input that can change a search result."""

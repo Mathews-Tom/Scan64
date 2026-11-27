@@ -298,3 +298,41 @@ async def test_hint_limits_come_from_profile_and_key_the_cache(
 def test_shipped_profiles_parse(profile: Path) -> None:
     parsed = load_engine_profile(profile.resolve())
     assert parsed.name and parsed.binary_path
+
+
+def test_explicit_binary_ignores_a_non_stockfish_profile_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        """
+[engine]
+name = "ethereal"
+binary_path = "ethereal"
+threads = 2
+hash_mb = 64
+
+[engine.options]
+EvalFile = "net.bin"
+
+[limits.hint]
+nodes = 1000
+""",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    # The calibrate path: an explicit Stockfish binary under an Ethereal profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish", threads=1, hash_size=16)
+    assert (explicit.name, dict(explicit.options), dict(explicit.limits)) == ("stockfish", {}, {})
+    assert (explicit.threads, explicit.hash_size) == (1, 16)
+    # Unset resources still follow the profile; explicit identity fields win.
+    partial = StockfishConfig(binary_path="/opt/sf/stockfish", name="sf", options={"Hash": 8})
+    assert (partial.threads, partial.hash_size, partial.name) == (2, 64, "sf")
+    assert dict(partial.options) == {"Hash": 8}
+    profile = StockfishConfig()
+    assert (profile.binary_path, profile.name, dict(profile.options)) == (
+        "ethereal",
+        "ethereal",
+        {"EvalFile": "net.bin"},
+    )
+    assert "hint" in profile.limits
+    assert StockfishConfig() == StockfishConfig()
