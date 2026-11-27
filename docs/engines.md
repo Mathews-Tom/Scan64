@@ -290,7 +290,8 @@ the comparison above, and the XBoard test engine
 | XBoard test engine | works | unavailable³ | unavailable³ | unavailable³ | unavailable³ | unavailable⁴ | unavailable² |
 
 1. "The bot ladder requires UCI option(s) Skill Level, UCI_LimitStrength,
-   UCI_Elo, which Ethereal 14.40 (PEXT) does not declare".
+   which Ethereal 14.40 (PEXT) does not declare". The table was recorded before
+   5732be7, when the reset also required `UCI_Elo`.
 2. "Skill Level opponent play requires UCI option(s) Skill Level, which … does
    not declare".
 3. "4 analysis lines need MultiPV, which FakeXBoard 1 cannot provide over

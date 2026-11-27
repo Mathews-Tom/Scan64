@@ -8,6 +8,7 @@ any UCI engine, its extra UCI options and its per-use search limits.
 
 from __future__ import annotations
 
+import math
 import os
 import tomllib
 from collections.abc import Mapping
@@ -142,8 +143,16 @@ def _node_scale(table: dict[str, Any], where: str) -> float:
 
 def _search_deadline(table: dict[str, Any], where: str) -> float:
     value = table.get("search_deadline_s", DEFAULT_SEARCH_DEADLINE_S)
-    if isinstance(value, bool) or not isinstance(value, int | float) or not value > 0:
-        raise EngineConfigurationError(f"{where}.search_deadline_s must be a positive number")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or not value > 0
+    ):
+        # TOML accepts ``inf``, which would remove the bound.
+        raise EngineConfigurationError(
+            f"{where}.search_deadline_s must be a positive finite number"
+        )
     return float(value)
 
 
@@ -278,8 +287,10 @@ class EngineConfig:
     ``StockfishConfig`` is this class; positional and keyword construction
     (``binary_path``, ``threads``, ``hash_size``) is unchanged. An explicit
     ``binary_path`` names a Stockfish binary: unless given, ``name`` is
-    ``stockfish`` and ``options`` and ``limits`` are empty, so a non-Stockfish
-    profile does not leak its name, options or limits onto that binary.
+    ``stockfish``, ``options`` and ``limits`` are empty, ``protocol`` is UCI and
+    ``node_scale`` and ``search_deadline_s`` are their defaults, so a
+    non-Stockfish profile does not leak its identity, protocol, node scale or
+    deadline onto that binary (``scan64 calibrate --stockfish``).
     """
 
     binary_path: str
