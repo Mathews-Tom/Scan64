@@ -1,8 +1,8 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
-The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
+The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
 Paths are relative to the repository root.
 
@@ -116,10 +116,13 @@ Only codes in `TRUSTED_CODES` (`learning/diagnosis/trust.py:12-21`) reach an exp
 
 `_attempt_grounded_generation` first calls `build_narrator_facts(diagnosis, evidence, fen)` (`explanations/facts.py`). A `NarratorFactsError` (no referenced evidence, unparsable FEN, payload `before_fen` differing from `fen`, referenced items disagreeing on `played_move` or `before_fen`, an illegal played move or stored line, an untaxonomised code) logs a warning and falls back to the template with reason `invalid_evidence`; no provider is called. `fen` is the **before** position in all three callers (`jobs.py`, `analyse.py`, `coach_interruption.py`). `_grounding_context` keeps the referenced evidence, takes the verified lines from the facts (`verified_lines_by_evidence`) and sets `requested_hint_level = 3`.
 
-`_explanation_request` produces two messages:
+`_explanation_request` produces three messages:
 
-- `system`: `NARRATOR_SYSTEM_PROMPT`. It names the schema, states that the board library and the engine computed every fact, forbids working out moves, captures, checks, threats, material or evaluations, forbids stating an `unknown` evaluation, explains the learner's point of view and the line coordinates, asks for claims citing an `evidence_id` and, optionally, a prefix of a listed line's `uci` (never a `line_id`), and asks the model to name sides without a bare colour adjective, which the claim grammar rejects.
+- `system`: `NARRATOR_SYSTEM_PROMPT`. It names the schema, states that the board library and the engine computed every fact, forbids working out moves, captures, checks, threats, material or evaluations, and explains the learner's point of view and the line coordinates. Its slot rules (`slot_rules`, shared with the Analysis Board prompt) tell the model to write every chess fact only as a slot from the slot list, to use only the slots of the cited evidence item, and to write no moves, squares, piece names, colour words, numbers, evaluations, or check, mate, capture, threat, material or tactic words outside the slots. It asks for claims citing an `evidence_id` and, optionally, a prefix of a listed line's `uci` (never a `line_id`), and names the sides "you" and "your opponent".
 - `user`: the `NarratorFacts` document as compact JSON (`NarratorFacts.to_prompt_json`, fields equal to their schema default omitted).
+- `user`: the slot list (`SlotCatalogue.prompt`, section 13): one line per slot, `{name} = value (meaning)`, grouped by evidence item.
+
+`_grounding_context` also sets `slots` to `lesson_slot_catalogue(facts)`, so the validator checks provider output on the slot path (section 8).
 
 ### Narrator facts (`schemas/narrator-facts.schema.json`, `narrator-facts/1`)
 
@@ -169,7 +172,7 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 
 `GeneratedExplanation` (`contracts.py:18-23`) is `claims: tuple[ExplanationClaim, ...]` with at least one claim. `ExplanationClaim` (`packages/chess-lesson-spec/src/chess_lesson_spec/claims.py:8-17`) has `text`, `evidence_ref`, `line` (UCI tuple, default empty), `certainty` (default `observed`) and `disclosure_level` (≥ 1).
 
-`LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py:31-109`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`).
+`LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`). The optional `llm.voice` selects the narrator voice (section 14); an unknown name raises `LLMConfigurationError`.
 
 Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
 
@@ -221,18 +224,33 @@ A run between these two, with the current prompt before it stated that `line` ho
 
 ## 7. Owner grant (local Ollama)
 
-- Table `OwnerExplanationSettings(player_id, model, revision)` (`explanations/settings.py:23-26`).
+- Table `OwnerExplanationSettings(player_id, model, revision, voice)` (`explanations/settings.py`). `voice` (#387, migration `20261127_26`) is nullable; NULL reads as the default voice (`stored_narrator_voice`).
 - API router `/v1/players/{player_id}/explanation-settings` (`api/explanation_settings.py:18`):
-  - `GET` returns `mode` `disabled` | `local` | `operator` (`get_explanation_settings`).
+  - `GET` returns `mode` `disabled` | `local` | `operator` and, in `local` mode, the saved `voice` (`get_explanation_settings`).
   - `POST /probe` calls `detect_local_ollama` and lists local model names. It sends no evidence (`probe_explanation_settings`).
-  - `PUT` takes `{model, consent}`. `consent` must equal `model is not None`. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under `lock_puzzle_player`, then inserts, updates (new `revision`) or deletes the row (`set_explanation_settings`).
+  - `PUT` takes `{model, consent}` and an optional `voice`. `consent` must equal `model is not None`. A `voice` without a model is rejected (422). An absent `voice` keeps the saved voice; a new grant without one gets the default. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under `lock_puzzle_player`, then inserts, updates (new `revision`) or deletes the row (`set_explanation_settings`).
   - Both write endpoints return 409 while `SCAN64_LLM_CONFIG` is set (`_require_settings_control`).
-- Job fence: `_execute_analysis_job_async` selects `local_explanation_owner_generation` (deletion-audit count) in the same query as the game (`jobs.py:550`). `read_local_explanation_provider` (`settings.py:81-98`) returns a provider only if the committed grant's generation matches. Its `still_authorized` closure requires the same `(model, revision)` at chat dispatch.
-- Client: `LocalExplanationSettings.tsx` in `SettingsScreen.tsx:91`, API calls in `apps/scan64-web/src/api/explanationSettings.ts`.
+- Job fence: `_execute_analysis_job_async` selects `local_explanation_owner_generation` (deletion-audit count) in the same query as the game (`jobs.py:550`). `read_local_explanation_provider` (`settings.py:81-98`) returns a provider only if the committed grant's generation matches. It wraps the provider in `LocalNarratorProvider`, which carries the voice read with the grant. Its `still_authorized` closure requires the same `(model, revision)` at chat dispatch; a voice change does not revoke the grant.
+- Client: `LocalExplanationSettings.tsx` in `SettingsScreen.tsx:91` (model and **Narrator voice** selects), API calls in `apps/scan64-web/src/api/explanationSettings.ts`.
 
 ## 8. Validator (`src/scan64/explanations/validator.py`)
 
-`validate_generated_explanation` raises `GroundedExplanationValidationError` with a `reason` code (`REJECTION_REASONS`) on the first failure:
+`validate_generated_explanation` checks claim text on one of two paths:
+
+| Path | When | Claim text check | Returned claims |
+|---|---|---|---|
+| Slot (#386) | `context.slots` is set: lesson provider output (`_grounding_context`) and Analysis Board provider output (`board_slot_grounding`) | `render_slot_text`: every slot is listed for the cited evidence item, and the prose outside the slots matches no `CHESS_PROSE` rule (section 13) | text with every slot filled by code |
+| Grammar (#366) | `context.slots` is unset: the Analysis Board template (`board_lines_grounding`), `attach_validated_explanation` callers, tests | `_validate_claim_text`, the claim grammar below | unchanged |
+
+The slot path does not run the claim grammar. Slot-path reason codes:
+
+| Reason | Raised when |
+|---|---|
+| `unknown_slot` | a `{...}` names no slot of this position, or braces are malformed (`{played`, `{}`, `{Played}`) |
+| `slot_not_in_evidence` | the slot exists for another evidence item of this position, not the cited one |
+| `chess_token_outside_slot` | the prose outside the slots holds chess content (section 13) |
+
+It raises `GroundedExplanationValidationError` with a `reason` code (`REJECTION_REASONS`) on the first failure:
 
 1. `requested_hint_level < 1`.
 2. The context FEN does not parse.
@@ -242,7 +260,8 @@ A run between these two, with the current prompt before it stated that `line` ho
    - `certainty` ranks above `maximum_certainty`. The default is `observed` and `resolve_explanation` does not override it, so `likely` and `certain` are always rejected;
    - `disclosure_level` > `requested_hint_level` (3);
    - `line` non-empty and (`_validate_line`): any move is malformed UCI, or illegal when replayed from the context FEN, or the line is not a prefix of a verified line for that `evidence_ref` (the narrator-facts lines, section 5);
-   - `text` (`_validate_claim_text`, #366): a fixed grammar reads SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns, mate-in-N, material won or lost, check, side to move, castling, promotion, en passant and named tactics, and checks each against the cited evidence item, its payload and every board its lines reach. A chess token outside the grammar rejects the claim (`unparsed_chess_token`).
+   - `text`, slot path: see the table above;
+   - `text`, grammar path (`_validate_claim_text`, #366): a fixed grammar reads SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns, mate-in-N, material won or lost, check, side to move, castling, promotion, en passant and named tactics, and checks each against the cited evidence item, its payload and every board its lines reach. A chess token outside the grammar rejects the claim (`unparsed_chess_token`).
 
 Facts added for #367 and the claims they admit:
 
@@ -258,7 +277,7 @@ Verified evaluations for a claim come only from its cited evidence item; another
 
 Added for #368: the payload field `board_multipv` (Analysis Board lines, replayed from the context FEN, scores admitted like `mate_source_multipv`) and the list field `best_differences_cp` (best-line score minus a compared line's score) are read as evidence. A signed evaluation that ends a sentence (`scored +1.50.`) is now read as an evaluation; before, the full stop after it kept the grammar from matching and the number passed unchecked. The reason `missing_line` is raised by the Analysis Board path, not by `validate_generated_explanation` (section 12).
 
-On success the validator returns `Explanation(text=" ".join(claim.text …), claims=…)`.
+On success the validator returns `Explanation(text=" ".join(claim.text …), claims=…)`; on the slot path both hold the rendered text.
 
 `attach_validated_explanation` is a second entry point with an added FEN-match check. None of the three callers uses it.
 
@@ -281,13 +300,14 @@ Paths that return the template instead of LLM output:
 
 Failures that do **not** fall back. These propagate to the caller: `ExplanationTemplateError` (raised before any LLM call, because the template is computed first) and `LLMConfigurationError` (bad config file, missing API key env var, non-HTTPS URL, invalid `SCAN64_LOCAL_LLM_*` value).
 
-Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_template_fallback`, the reason code only, never evidence) and counted in-process (`template_fallback_counts()`). The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
+Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_template_fallback`, the pipeline and the reason code only, never evidence) and counted in-process. Section 15 gives the attempt, accept and fallback counts and the fallback rate. The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
 
 ## 10. After resolution: storage, API, client
 
 - `fill_lesson_hints` (`learning/exercises/hints.py:54-62`) runs after `resolve_explanation` in all three callers. It replaces `explanation.visualizations` with level-3 hint drawings plus one `AnimateLineCommand` per lesson-source candidate line. Engine lines shown on the board therefore come from the lesson source analysis, not from the LLM.
 - `verify_lesson` checks the lesson, including visualizations (`verification/verifier.py:99-100`). It does not check explanation text.
 - The lesson is stored in `PersistedLessonOpportunity.lesson_spec` and served through `GET /v1/games/{game_id}/learning-opportunities` (`api/games.py:266`), `GET /v1/learning/session` (`api/learning.py:331`), game review (`api/game_review.py:47`) and `critical_interruption` on play moves (`api/play.py:130-139,539-546`).
+- On the slot path the stored `explanation.text` and `claims[].text` hold the rendered text: the slot names are not stored, and the stored format is unchanged.
 - The client renders `explanation.text` only: `CriticalMomentReview.tsx:171-174`, `DailyTrainingScreen.tsx:184`, `OwnedGameReview.tsx:301`. `claims` and `claims[].line` are not rendered. `CriticalMomentReview` also appears in `PlayScreen.tsx:1522`, `PgnImportScreen.tsx:157` and `PuzzlesScreen.tsx:342`.
 
 ## 11. Gaps
@@ -333,7 +353,7 @@ flowchart TD
     BF --> TPL["template_board_explanation<br/>validated; a rejection raises"]
     BF --> RUN["ExplanationCalls.run(run_with_explanation_provider)<br/>409 if a newer request claimed<br/>operator config, else owner grant"]
     RUN --> GEN["provider.generate(board_lines_request)"]
-    GEN --> VAL["validate_generated_explanation + claim_line_id"]
+    GEN --> VAL["validate_generated_explanation (slot path) + claim_line_id"]
     VAL -->|"accepted"| NAR["source narrator"]
     VAL -->|"rejected / LLMProviderError"| TPL
     TPL --> RESP["lines (White view), claims with line_id and cited UCI prefix, facts, source, fallback_reason"]
@@ -354,14 +374,165 @@ flowchart TD
 
 Evaluations are the engine's MultiPV scores from the side to move's point of view (source `analysis_board_pass`, added to the narrator-facts `EvaluationSource`). A line's score is the `evaluation_after` of its first move; every later move is `unknown`: no other position was searched. In move facts, `mover: "learner"` is the side to move.
 
-**Grounding.** `board_lines_grounding` builds one `Evidence` per line (`board_multipv` with that line and its score, `best_differences_cp` with its difference to line 1) whose only verified line is the full line, and, with two or more lines, `comparison` holding every line, every score and every difference. The context FEN is the board position, so "you" in the claim grammar is the side to move. After `validate_generated_explanation`, `claim_line_id` links each claim to a line: its `evidence_ref` when that is a line, else the line its cited UCI prefix starts; a claim linked to no line (a `comparison` claim with an empty `line`) is rejected with `missing_line`.
+**Grounding.** `board_lines_grounding` builds one `Evidence` per line (`board_multipv` with that line and its score, `best_differences_cp` with its difference to line 1) whose only verified line is the full line, and, with two or more lines, `comparison` holding every line, every score and every difference. The context FEN is the board position, so "you" in the claim grammar is the side to move. Provider output is validated against `board_slot_grounding(facts)`: the same evidence and verified lines plus `board_slot_catalogue(facts)` (section 13), so it is checked on the slot path. The template keeps the grammar path. After `validate_generated_explanation`, `claim_line_id` links each claim to a line: its `evidence_ref` when that is a line, else the line its cited UCI prefix starts; a claim linked to no line (a `comparison` claim with an empty `line`) is rejected with `missing_line`.
 
 **Template.** `template_board_claims` writes, from the facts only: the side to move and line 1's first move; per line, the line in numbered SAN, its score and depth, the first move's attacks on undefended pieces (up to two), whether it wins or loses material and the material balance at its end, the side to move's checks, and checkmate or stalemate at its end; per line after the first, its difference to line 1, or both scores when a mate is involved. `template_board_explanation` runs these claims through the same validator: the template is grounded by construction, and a rejection is a bug that raises instead of being shown. `tests/unit/test_board_lines.py` validates it for the 12 recorded positions at MultiPV 1 to 4.
 
-**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` plus `BoardLinesFacts.for_prompt().to_prompt_json()` (move facts cut to 8 plies, defaults omitted); the prompt tells the model not to name a move past the cut in a claim's text and to take the rest of the line from `outcome`. The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
+**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` (with the shared `slot_rules`), then `BoardLinesFacts.for_prompt().to_prompt_json()` (move facts cut to 8 plies, defaults omitted), then the board slot list. The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
 
 **Admission and cancellation.** The latest explanation request from a player wins. `ExplanationCalls` (in-process state on `app.state`) keeps each player's latest request and running model-call task. On arrival, after the request checks, `claim` makes the request the player's latest and cancels the model call the player has running; cancelling it closes the provider's HTTP stream. `run` starts the model call as a task only if the request is still the latest; an older request that is still in its engine search returns 409 `A newer explanation request from this player replaced this one` without calling the model, and so does a request whose running call was cancelled. So each player has at most one model call running; other players are not affected. The engine search is not cancelled: the hint deadline (3 s) bounds it. The endpoint does not rely on client disconnects: behind `IdempotencyMiddleware`, a Starlette `BaseHTTPMiddleware`, `Request.is_disconnected()` never reports one, so an abandoned call keeps running until the same player's next explanation request cancels it, or until it ends. After the provider grant is read (`read_local_explanation_provider` re-checks the grant on its own connection), the endpoint closes the request session, so no DB connection or transaction is held during the search or the generation.
 
 **Measured local run.** 2026-11-26, RTX 4080 Laptop GPU, Ollama with `qwen3:8b`, the recorded `start`, `scholar_mate_in_one`, `italian_black` and `promotion` lines (MultiPV 3), one run before and one after the prompt change below: 0 of 8 explanations accepted, 15 to 38 s per request. Rejection reasons: `check_not_supported` and `move_type_not_supported` (a negated fact such as "no checks" or "does not threaten stalemate" is read as a claim), `evaluation_not_supported` (a line's gap to line 1 cited from that line's evidence, which did not hold it; it does now), `malformed_line_move` (SAN in `line`; the prompt now states UCI), `missing_line` (comparison claims without a line) and `unparsed_chess_token` (a bare colour word). One unsupported claim rejects the whole explanation, so with this model the board shows the template. Model choice is evaluated in #369.
 
 **Client.** `AnalysisScreen.tsx` shows **Explain lines** under the engine lines. On success it replaces the shown lines with the explained lines and lists the claims; hovering or focusing a claim highlights the cited prefix of its line (`data-cited`), and selecting it pins the highlight. `explainLines` passes an `AbortController` signal to `ApiClient.explainPosition`. Selecting another position, a new **Explain lines** request and unmounting abort it; an aborted request shows nothing. A response for a position the user has left is dropped.
+
+## 13. Fact slots (#386)
+
+The narrator writes prose with named slots; code writes every chess token. For example the claim text `You played {played}, but {capture:best}.` renders as `You played Nf3, but Bxg5 captures the black queen on g5.` Module: `src/scan64/explanations/slots.py`.
+
+**Why.** In the #385 benchmark run the claim grammar rejected most answers of the strongest models as `unparsed_chess_token` (granite4.2-8b 42 of 58 fallbacks, qwen3.5-9b 60 of 82). Each grammar gap is a false rejection or an unchecked statement. With slots, the free-prose check is a fixed rule set, and the rendered chess tokens come only from the facts.
+
+### Catalogue
+
+`lesson_slot_catalogue(NarratorFacts)` and `board_slot_catalogue(BoardLinesFacts)` (`board_lines.py`) build a `SlotCatalogue`: per evidence item, a map from slot name to `Slot(name, value, meaning, moves, phrase)`. `value` is rendered by code; `moves` are the UCI moves the value states (the benchmark counts coverage from them); `phrase` marks a value that starts with a word, which is capitalised at a sentence start.
+
+| Slot | Value (example) | Present when |
+|---|---|---|
+| `{played}` | SAN of the learner's move (`Nf3`) | always (lessons) |
+| `{best}` | SAN of the engine's best move (`Bxg5`) | `position.best_move` is set |
+| `{mistake}` | mistake class name (`Missed capture`) | always (lessons) |
+| `{eval_before}`, `{eval_after}` | signed pawn units, learner's view (`+8.50 pawns`), or `mate in 2 for the learner` / `for the opponent` | the evaluation is not `unknown` |
+| `{eval_diff}` | `8.90 pawns` | `evaluation_difference_cp` is set and positive |
+| `{line:L}` | the line in numbered SAN (`3.Bxg5 Nf6 4.Bxf6`) | line `L` is in the evidence item's `line_ids` |
+| `{move:L:N}` | SAN of ply N of line L | as above |
+| `{capture:K}` | `Bxg5 captures the black queen on g5` | the move captures |
+| `{check:K}` / `{mate:K}` | `Bb5+ gives check` / `Qh4# is checkmate` | the move checks / mates |
+| `{threat:K}` | `Nd5 attacks the undefended black queen on c7 and black rook on a8` | the move's `new_threats` is not empty |
+| `{promotion:K}`, `{castle:K}` | `e8=Q promotes to a queen`, `O-O castles kingside` | the move promotes / castles |
+| `{tactic}` | `knight fork`, `pin`, `skewer`, `discovered attack`, `back-rank mate`, `overloaded defender` | the evidence item's `tactic` is one of these |
+| `{mate_in}` | `mate in 1` | the evidence item's `mate_in` is positive |
+| `{material_gain}` | `a material swing of 9 points` | the evidence item's `material_gain` is not zero |
+| `{piece:N}` | `the black queen on g5` | Nth entry of the evidence item's `pieces` |
+| `{square:N}` | `e7` | Nth entry of the evidence item's `squares` |
+
+`K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
+
+Analysis Board slots, per line evidence item `line-K`. The `comparison` item may use the slots of every line; the slot list names those lines (`For evidence comparison: every slot listed for line-1, line-2, ...`) instead of repeating their slots, which kept the longest recorded board prompt (MultiPV 4) inside the 12288-token default with a 2,048-token answer (`tests/unit/test_llm_context_budget.py`):
+
+| Slot | Value (example) |
+|---|---|
+| `{eval}` | the position's score (line 1), side to move's view (`+0.41 pawns`, `mate in 2 for the side to move`) |
+| `{label:line-K}` | `line K` |
+| `{first:line-K}` | the first move in numbered SAN (`1.e4`) |
+| `{eval:line-K}` | the line's score |
+| `{diff:line-K}` | `0.06 pawns less than line 1` (difference set and not zero) |
+| `{outcome:line-K}` | `over line K the side to move wins 3 points of material` / `loses` / `the material balance does not change` |
+| `{balance:line-K}` | `at the end of line K the side to move is up 3 points of material` / `material is equal` |
+| `{checks:line-K}` | `the side to move gives check twice in line K` (only with checks) |
+| `{end:line-K}` | `line K ends in checkmate` / `stalemate` |
+| `{line:line-K}`, `{move:line-K:N}` and the clause slots | as for lessons |
+
+### Prose rule set
+
+`CHESS_PROSE` is one compiled, case-insensitive pattern. The prose outside the slots (each slot replaced by a placeholder) is rejected as `chess_token_outside_slot` when it contains any of:
+
+| Rule | Covers |
+|---|---|
+| a digit | squares, SAN, UCI, move numbers, evaluations, mate counts, `+150 cp` |
+| `#`, `O-O`/`0-0`, figurines | mate suffix, castling notation |
+| `king`, `queen`, `rook`, `bishop`, `knight`, `pawn` (plural too) | piece names and piece-on-square phrases |
+| `white`, `black` | colour words |
+| check, checkmate, mate, stalemate forms | checks and mates |
+| capture, recapture, take, takes, took, taking, exchange, trade forms | captures |
+| fork, pin, skewer, discovered, back rank, overload, deflect, decoy, sacrifice, zwischenzug, en passant, promote, castle forms | tactics and move types |
+| threat, attack, hang, hung, undefended, defend, en prise forms | threats |
+| material, centipawn, win, lose, gain forms, ahead, behind, advantage, equal | material and evaluation claims |
+| `a-file`, `a-pawn`, kingside, queenside, file, rank, diagonal | board geometry |
+
+The set is closed. A fact a model wants to state that no slot covers is a missing slot, not a missing prose rule. Number words (`two`, `three`) are not in the set; a count stated in words carries no square, move or evaluation.
+
+**Limits.** A slot value is true by construction, but the prose may still relate two true slots wrongly (for example "after `{best}`, `{threat:L2:2}`" when line L2 does not start with the best move). Clause slots (`{capture:K}`, `{threat:K}`) state the move inside the value to keep such relations local. The mover words in the slot list (`your move`, `your opponent's move`) help the model attach a move to the right side.
+
+### Contract decision
+
+The output contract is unchanged: `GeneratedExplanation` claims with `text`, `evidence_ref`, `line`, `certainty`, `disclosure_level`. A smaller contract (text only) would drop the evidence scope that keeps a claim to one item's slots and the cited line the Analysis Board links claims with, and would change the provider JSON schema. The slot list is a third message, so the facts JSON stays the second message, as tests and the #367 schema expect.
+
+### Benchmark
+
+`benchmarks/narrator/run_benchmark.py` records, per claim, `slots`: each slot name the text uses, its rendered value (`null` when not listed) and its UCI moves; per run of the slot pipeline, `slots_used` (all claims' slots in order). Coverage (played move, key move, result) of a record with `slots_used` is counted from the listed slots only (`slot_coverage`): a move counts when a used slot's moves or rendered SAN hold it; the result counts when a used slot's value names it. Records without `slots_used` (all runs before #386) keep the claim-text count, so their summaries recompute unchanged. `chess_token_outside_slot` counts as a false chess statement.
+
+## 14. Narrator voice (#387)
+
+A voice sets the tone and sentence style of the plain words around the slots. It adds no chess fact and asks for no reasoning. Module: `src/scan64/explanations/voice.py`.
+
+| Voice | Prompt fragment (start) |
+|---|---|
+| `coach` (default) | a calm, friendly coach; short, encouraging sentences |
+| `terse` | as few plain words as possible; no greetings, praise or filler |
+| `playful` | lively, everyday words; a warm, cheerful tone; short sentences |
+
+**Prompt.** `with_voice` appends one line to the system prompt: the voice fragment, then a fixed sentence that every slot rule applies unchanged and that the voice never adds a chess fact. `narrator_system_prompt(voice)` (lessons) and `board_narrator_system_prompt(voice)` (Analysis Board) build it. `NARRATOR_SYSTEM_PROMPT` and `BOARD_NARRATOR_SYSTEM_PROMPT` are unchanged; the voice line comes after them. The facts JSON and the slot list do not depend on the voice. Because the default voice also adds its line, the default prompt differs from the #386 prompt by that line.
+
+**Checks.** The voice does not reach the validator. Every voice uses the same slot path, the same `CHESS_PROSE` rules and the same reason codes (sections 8 and 13). Tests (`tests/unit/test_narrator_voice.py`) check, for each voice, that the prompt builds, that a raw chess claim outside a slot falls back as `chess_token_outside_slot` for lessons and the Analysis Board, and that no fragment matches `CHESS_PROSE` or names reasoning.
+
+**Selection.** `run_with_explanation_provider` picks the voice in this order:
+
+| Source | Where | Absent |
+|---|---|---|
+| `voice=` argument | `resolve_explanation`, `resolve_board_lines_explanation` (benchmark, tests) | next source |
+| operator | `voice` in the `[llm]` table of `SCAN64_LLM_CONFIG` | `coach` |
+| local grant | `OwnerExplanationSettings.voice`, set in **Settings → Local explanation wording** | `coach` |
+
+Example operator file:
+
+```toml
+[llm]
+provider = "ollama"
+model = "gemma4:12b"
+base_url = "http://127.0.0.1:11434"
+voice = "terse"
+```
+
+**Benchmark.** `voice` in the `[run]` table of `benchmarks/narrator/narrator.toml` (default `"coach"`) is passed to `pipeline_entry` as `voice=` and recorded in the run header and the summary. One runs file holds one voice; resume refuses a different voice. To compare voices, run once per voice and compare the summaries (grounding pass and coverage).
+
+## 15. Observability (#366)
+
+The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanation`) and `board` (`resolve_board_lines_explanation`). The counts start at zero when the server starts. They hold counts and reason codes only: no evidence, prompt, model output or player data.
+
+| Counter | Incremented when | Function |
+|---|---|---|
+| attempts | A configured provider is about to be used (after paths 1 to 3 of section 9) | `record_narrator_attempt` |
+| accepted | The provider's wording passed validation and replaced the template | `record_narrator_accepted` |
+| fallbacks by reason | Paths 4 to 5a of section 9 (`invalid_evidence`, `provider_error`, a validator code) | `record_template_fallback` |
+
+- One lock guards all counters, so concurrent requests count correctly.
+- Each finished attempt adds one to `accepted` or to one fallback reason. A request in flight, or one ended by an unexpected exception, has an attempt only.
+- Template-only resolution (no provider) counts nothing. The fallback rate therefore measures the narrator, not the share of template output.
+- `narrator_counts()` returns a snapshot per pipeline. `template_fallback_counts()` returns the fallbacks by reason summed over both pipelines.
+
+**Endpoint.** `GET /v1/diagnostics/narrator` (`api/diagnostics.py`) is read-only and needs no player token. It answers only a loopback client (`127.0.0.1`, `::1`); other clients get 403. The desktop shell token applies as for every other route. The response has `Cache-Control: no-store`.
+
+```json
+{
+  "lesson": {
+    "attempts": 12,
+    "accepted": 9,
+    "fallbacks": 3,
+    "fallback_rate": 0.25,
+    "fallbacks_by_reason": {"provider_error": 1, "unparsed_chess_token": 2}
+  },
+  "board": {
+    "attempts": 0,
+    "accepted": 0,
+    "fallbacks": 0,
+    "fallback_rate": null,
+    "fallbacks_by_reason": {}
+  }
+}
+```
+
+`fallback_rate` is `fallbacks / attempts`, or `null` before the first attempt.
+
+```bash
+curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
+```

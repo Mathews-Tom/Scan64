@@ -48,6 +48,7 @@ import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
 from scan64.explanations import assembly
+from scan64.explanations.slots import slot_names
 from scan64.explanations.validator import (
     _SAN_TOKEN,
     GroundedExplanationContext,
@@ -55,6 +56,7 @@ from scan64.explanations.validator import (
     _ClaimEvidence,
     validate_generated_explanation,
 )
+from scan64.explanations.voice import NarratorVoice, parse_narrator_voice
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import (
     ExplanationRequest,
@@ -89,6 +91,8 @@ CHESS_FACT_REASONS = frozenset(
         "tactic_not_supported",
         "wrong_side_to_move",
         "unparsed_chess_token",
+        # Slot path (#386): chess content written as prose instead of a slot.
+        "chess_token_outside_slot",
     }
 )
 
@@ -129,6 +133,8 @@ class BenchConfig:
     foreign_ollama: tuple[str, ...]
     pipeline_entry: str
     grounding_context: str
+    # Narrator voice passed to the pipeline entry (#387); "coach" when unset.
+    voice: NarratorVoice
     positions_file: Path
     models: tuple[ModelEntry, ...]
 
@@ -172,6 +178,7 @@ def load_config(path: Path) -> BenchConfig:
         foreign_ollama=tuple(run["foreign_ollama"]),
         pipeline_entry=run["pipeline_entry"],
         grounding_context=run["grounding_context"],
+        voice=parse_narrator_voice(run.get("voice")),
         positions_file=REPO_ROOT / raw["positions"]["file"],
         models=models,
     )
@@ -494,6 +501,25 @@ def _parses(board: chess.Board, san: str) -> bool:
 _SAN_TOKEN_RE = re.compile(_SAN_TOKEN)
 
 
+def _claim_slots(claim: Any, context: GroundedExplanationContext) -> list[dict[str, Any]]:
+    """The slots a claim names, with the code-rendered value (``None``: not listed)."""
+    if context.slots is None:
+        return []
+    listed = context.slots.slots_for(claim.evidence_ref)
+    records = []
+    for name in slot_names(claim.text):
+        slot = listed.get(name)
+        records.append(
+            {
+                "evidence_ref": claim.evidence_ref,
+                "name": name,
+                "value": slot.value if slot is not None else None,
+                "moves": list(slot.moves) if slot is not None else [],
+            }
+        )
+    return records
+
+
 def _claim_record(
     claim: Any, context: GroundedExplanationContext, board: chess.Board
 ) -> dict[str, Any]:
@@ -514,6 +540,7 @@ def _claim_record(
         "rejection_reason": reason,
         "rejection_message": message,
         "san_tokens": san,
+        "slots": _claim_slots(claim, context),
     }
 
 
@@ -552,6 +579,7 @@ async def run_one(
                 position.fen,
                 local_provider=provider,
                 environment={},
+                voice=config.voice,
             )
         except Exception as error:
             pipeline_exception = f"{type(error).__name__}: {error}; cause={error.__cause__!r}"
@@ -595,17 +623,32 @@ async def run_one(
         "think_tag_in_content": "<think>" in str((body.get("message") or {}).get("content", "")),
         "explanation_text": explanation.text if explanation is not None else None,
         "claims": claims,
+        # Every slot the generated claims name, in claim order (#386). Present
+        # only in records of the slot pipeline; coverage counts from it.
+        **(
+            {"slots_used": [slot for claim in claims for slot in claim["slots"]]}
+            if context.slots is not None
+            else {}
+        ),
     }
 
 
-def _nvidia_used_mib() -> int:
-    out = subprocess.run(
-        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    return int(out.strip().splitlines()[0])
+def _nvidia_smi(*query: str) -> str | None:
+    """Run nvidia-smi; None when it is absent or fails (CPU or non-NVIDIA machine)."""
+    try:
+        result = subprocess.run(["nvidia-smi", *query], check=True, capture_output=True, text=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def _nvidia_used_mib() -> int | None:
+    out = _nvidia_smi("--query-gpu=memory.used", "--format=csv,noheader,nounits")
+    return None if out is None else int(out.splitlines()[0])
+
+
+def _gib_over(high: int | None, low: int | None) -> float | None:
+    return None if high is None or low is None else (high - low) / 1024
 
 
 def _foreign_loaded(config: BenchConfig) -> list[str]:
@@ -694,7 +737,8 @@ async def measure_model(
     for count, (position, run) in enumerate(pending, start=1):
         record = await run_one(model, position, run, config, entry, context_builder)
         used = _nvidia_used_mib()
-        peak_mib = max(peak_mib, used)
+        if used is not None:
+            peak_mib = used if peak_mib is None else max(peak_mib, used)
         record["record"] = "run"
         record["gpu_used_mib"] = used
         record["foreign_models_loaded"] = _foreign_loaded(config)
@@ -741,7 +785,9 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
 # one vague true claim passes. Coverage counts how many of three key engine facts
 # an accepted answer states: the played move, the engine's key move, and the
 # result (piece, check, mate or tactic). A move counts in UCI, in SAN, or in the
-# claim's own line.
+# claim's own line. Records of the slot pipeline (#386) carry ``slots_used`` and
+# are counted from the slots instead (``slot_coverage``); older records keep the
+# claim-text count, so their summaries do not change.
 
 _PIECE_NAMES = {"p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king"}
 _TACTIC_NAMES = {
@@ -829,6 +875,32 @@ def coverage(claims: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
     return sum(stated) / len(stated)
 
 
+def slot_coverage(slots: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
+    """Share of the three key facts stated by the slots an answer uses (#386).
+
+    A move counts when a used slot states it (its UCI moves or its rendered
+    SAN); the result counts when a used slot's rendered value names it. Prose
+    outside the slots holds no chess content, so it adds nothing.
+    """
+    listed = [slot for slot in slots if slot.get("value") is not None]
+    text = " ".join(str(slot["value"]) for slot in listed)
+    moves = [move for slot in listed for move in slot.get("moves", [])]
+    lowered = text.lower()
+    stated = (
+        _states_move(facts.played, text, moves),
+        _states_move(facts.key_move, text, moves),
+        any(re.search(rf"\b{re.escape(word)}", lowered) for word in facts.result),
+    )
+    return sum(stated) / len(stated)
+
+
+def run_coverage(run: dict[str, Any], facts: KeyFacts) -> float:
+    """Slot coverage for slot-pipeline records; claim-text coverage for older records."""
+    if "slots_used" in run:
+        return slot_coverage(run["slots_used"], facts)
+    return coverage(run["claims"], facts)
+
+
 def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
     raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
     return {
@@ -859,7 +931,7 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         san = [token for claim in claims for token in claim["san_tokens"]]
         latencies = [run["latency_s"] for run in runs]
         accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
-        covered = [coverage(run["claims"], facts[run["position_id"]]) for run in accepted_runs]
+        covered = [run_coverage(run, facts[run["position_id"]]) for run in accepted_runs]
         by_code: dict[str, float] = {}
         for code in sorted({run["code"] for run in runs}):
             subset = [run for run in runs if run["code"] == code]
@@ -910,11 +982,13 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "load_and_first_call_s": load["load_and_first_call_s"],
             # Measured GPU memory rise when the model loads (weights, KV cache and
             # buffers). Ollama's size_vram under-reports some models (gemma4).
-            "vram_model_gib": (load["gpu_loaded_used_mib"] - load["gpu_idle_used_mib"]) / 1024,
+            # None without nvidia-smi (CPU or non-NVIDIA machine).
+            "vram_model_gib": _gib_over(load["gpu_loaded_used_mib"], load["gpu_idle_used_mib"]),
             "ollama_size_vram_gib": load["ollama_size_vram_bytes"] / 2**30,
             "model_size_gib": load["ollama_size_bytes"] / 2**30,
-            "gpu_peak_over_idle_gib": (done[0]["gpu_peak_used_mib"] - done[0]["gpu_idle_used_mib"])
-            / 1024
+            "gpu_peak_over_idle_gib": _gib_over(
+                done[0]["gpu_peak_used_mib"], done[0]["gpu_idle_used_mib"]
+            )
             if done
             else None,
             "mean_prompt_tokens": statistics.fmean(
@@ -941,8 +1015,10 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"Pipeline `{header['pipeline']['pipeline_entry']}` at commit "
         f"`{header['pipeline']['commit']}` (module sha256 "
         f"`{header['pipeline']['module_sha256'][:12]}`), {header['positions']} positions x "
-        f"{header['runs_per_position']} runs, GPU {header['gpu']}, "
-        f"Ollama {header['ollama_version']}.",
+        f"{header['runs_per_position']} runs, GPU {header['gpu'] or 'none (no nvidia-smi)'}, "
+        f"Ollama {header['ollama_version']}."
+        # Voice (#387); headers before #387 have none and keep their summary text.
+        + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
         "",
         "Coverage: share of three key engine facts (played move, key move, result) that "
         "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
@@ -970,7 +1046,7 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f"| {_fmt(row.get('first_token_p50_s'), '.2f')} "
             f"| {row['within_production_limit_rate']:.1%} "
             f"| {row.get('length_stop_rate', 0):.1%} | {row.get('thinking_calls', 0)} "
-            f"| {row['vram_model_gib']:.2f} |"
+            f"| {_fmt(row['vram_model_gib'], '.2f')} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -985,13 +1061,8 @@ def write_summary(sink: Path, config: BenchConfig) -> tuple[Path, Path]:
     return json_path, md_path
 
 
-def _gpu_name() -> str:
-    return subprocess.run(
-        ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def _gpu_name() -> str | None:
+    return _nvidia_smi("--query-gpu=name,memory.total", "--format=csv,noheader")
 
 
 async def run(
@@ -1003,6 +1074,9 @@ async def run(
         records = _read(sink)
         header = next(r for r in records if r.get("record") == "header")
         refuse_resume(header, identity)
+        # Runs before #387 have no voice field: their prompt had no voice line.
+        if header.get("voice") != config.voice:
+            raise RuntimeError(f"Resume refused: voice {config.voice!r} != {header.get('voice')!r}")
         done = {
             (r["model"], r["position_id"], r["run"]) for r in records if r.get("record") == "run"
         }
@@ -1017,6 +1091,7 @@ async def run(
                 "record": "header",
                 "started": datetime.now(UTC).isoformat(),
                 "pipeline": identity,
+                "voice": config.voice,
                 "positions_file": config.positions_file.relative_to(REPO_ROOT).as_posix(),
                 "positions_sha256": hashlib.sha256(config.positions_file.read_bytes()).hexdigest(),
                 "positions": len(positions),

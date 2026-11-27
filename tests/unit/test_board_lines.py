@@ -12,7 +12,6 @@ from chess_lesson_spec import ExplanationClaim
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.board_lines import (
-    BOARD_NARRATOR_SYSTEM_PROMPT,
     BOARD_SCHEMA_PATH,
     COMPARISON_EVIDENCE_ID,
     PROMPT_MOVE_PLIES,
@@ -20,6 +19,8 @@ from scan64.explanations.board_lines import (
     board_lines_facts_schema,
     board_lines_grounding,
     board_lines_request,
+    board_narrator_system_prompt,
+    board_slot_catalogue,
     build_board_lines_facts,
     claim_line_id,
     numbered_san,
@@ -184,9 +185,13 @@ async def test_without_a_provider_the_template_is_returned() -> None:
 async def test_grounded_provider_wording_replaces_the_template() -> None:
     facts = _facts("start", 3)
     claims = (
-        _claim("The engine's first choice is 1.e4, scored +0.41.", "line-1", ("e2e4",)),
         _claim(
-            "1.Nf3 is 0.06 pawns behind the first choice.",
+            "The engine's first choice is {first:line-1}, scored {eval:line-1}.",
+            "line-1",
+            ("e2e4",),
+        ),
+        _claim(
+            "{first:line-2} scores {diff:line-2}.",
             COMPARISON_EVIDENCE_ID,
             ("g1f3",),
         ),
@@ -194,16 +199,24 @@ async def test_grounded_provider_wording_replaces_the_template() -> None:
     provider = _Provider(claims)
     resolved = await resolve_board_lines_explanation(facts, local_provider=provider, environment={})
     assert resolved.source == "narrator"
-    assert resolved.explanation.claims == list(claims)
+    # Code fills every slot (#386); the claims keep their links.
+    assert [claim.text for claim in resolved.explanation.claims] == [
+        "The engine's first choice is 1.e4, scored +0.41 pawns.",
+        "1.Nf3 scores 0.06 pawns less than line 1.",
+    ]
+    assert [claim.line for claim in resolved.explanation.claims] == [("e2e4",), ("g1f3",)]
     [request] = provider.requests
     assert BoardLinesFacts.model_validate_json(request.messages[1].content) == facts.for_prompt()
+    assert request.messages[2].content == board_slot_catalogue(facts).prompt()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("claims", "reason"),
     [
-        ((_claim("Line 1 wins a queen.", "line-1", ("e2e4",)),), "material_not_supported"),
+        ((_claim("Line 1 wins a queen.", "line-1", ("e2e4",)),), "chess_token_outside_slot"),
+        ((_claim("{first:line-9} is best.", "line-1", ("e2e4",)),), "unknown_slot"),
+        ((_claim("{first:line-2} is best.", "line-1", ("e2e4",)),), "slot_not_in_evidence"),
         ((_claim("The lines differ.", COMPARISON_EVIDENCE_ID, ()),), "missing_line"),
         (None, "provider_error"),
     ],
@@ -240,8 +253,9 @@ def test_a_line_may_state_how_far_it_trails_line_one() -> None:
 def test_prompt_cuts_move_facts_but_keeps_the_full_line(name: str) -> None:
     facts = _facts(name, 4)
     request = board_lines_request(facts)
-    system, user = request.messages
-    assert system.content == BOARD_NARRATOR_SYSTEM_PROMPT
+    system, user, slots = request.messages
+    assert system.content == board_narrator_system_prompt()
+    assert slots.content == board_slot_catalogue(facts).prompt()
     prompt = BoardLinesFacts.model_validate_json(user.content, strict=True)
     assert prompt == facts.for_prompt()
     for shown, full in zip(prompt.lines, facts.lines, strict=True):

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -36,8 +36,11 @@ from pydantic import Field
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.assembly import (
     TemplateFallbackReason,
+    record_narrator_accepted,
+    record_narrator_attempt,
     record_template_fallback,
     run_with_explanation_provider,
+    slot_rules,
 )
 from scan64.explanations.facts import (
     MAX_LINE_PLIES,
@@ -56,11 +59,20 @@ from scan64.explanations.facts import (
     _position_key,
     material,
 )
+from scan64.explanations.slots import (
+    Slot,
+    SlotCatalogue,
+    evaluation_value,
+    line_slots,
+    numbered_san,
+    pawn_units,
+)
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
     validate_generated_explanation,
 )
+from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
 from scan64.learning.evidence.composer import line_material_gain
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
@@ -401,6 +413,116 @@ def board_lines_grounding(facts: BoardLinesFacts) -> GroundedExplanationContext:
     )
 
 
+# --- Slots (#386) ---------------------------------------------------------------------
+
+SIDE_TO_MOVE = "the side to move"
+_BOARD_OPPONENT = "the opponent"
+_BOARD_MOVERS = {"learner": "side to move", "opponent": "opponent"}
+
+
+def _points(value: int) -> str:
+    return f"{value} point{'s' if value != 1 else ''} of material"
+
+
+def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
+    lid, k = line.line_id, line.rank
+    slots = [
+        Slot(f"label:{lid}", f"line {k}", "the line's name", phrase=True),
+        Slot(
+            f"first:{lid}",
+            numbered_san(board, line.uci[:1]),
+            f"first move of line {k}",
+            line.uci[:1],
+        ),
+    ]
+    evaluation = evaluation_value(line.evaluation, side=SIDE_TO_MOVE, other=_BOARD_OPPONENT)
+    if evaluation is not None:
+        slots.append(Slot(f"eval:{lid}", evaluation, f"engine score of line {k}, side to move"))
+    if line.difference_from_best_cp is not None and line.difference_from_best_cp != 0:
+        relation = "less" if line.difference_from_best_cp > 0 else "more"
+        slots.append(
+            Slot(
+                f"diff:{lid}",
+                f"{pawn_units(line.difference_from_best_cp, signed=False)} {relation} than line 1",
+                f"line {k} against line 1, side to move",
+            )
+        )
+    outcome = line.outcome
+    if outcome.material_change > 0:
+        change = f"over line {k} the side to move wins {_points(outcome.material_change)}"
+    elif outcome.material_change < 0:
+        change = f"over line {k} the side to move loses {_points(-outcome.material_change)}"
+    else:
+        change = f"over line {k} the material balance does not change"
+    slots.append(Slot(f"outcome:{lid}", change, "", line.uci, phrase=True))
+    advantage = outcome.material_at_end.learner_advantage
+    if advantage == 0:
+        balance = f"at the end of line {k} material is equal"
+    else:
+        direction = "up" if advantage > 0 else "down"
+        balance = (
+            f"at the end of line {k} the side to move is {direction} {_points(abs(advantage))}"
+        )
+    slots.append(Slot(f"balance:{lid}", balance, "", line.uci, phrase=True))
+    if outcome.checks_by_side_to_move:
+        n = outcome.checks_by_side_to_move
+        times = "once" if n == 1 else f"{n} times"
+        slots.append(
+            Slot(
+                f"checks:{lid}",
+                f"the side to move gives check {times} in line {k}",
+                "",
+                line.uci,
+                phrase=True,
+            )
+        )
+    if outcome.ends_in_checkmate:
+        slots.append(Slot(f"end:{lid}", f"line {k} ends in checkmate", "", line.uci, phrase=True))
+    elif outcome.ends_in_stalemate:
+        slots.append(Slot(f"end:{lid}", f"line {k} ends in stalemate", "", line.uci, phrase=True))
+    slots += line_slots(lid, board, line.uci, line.moves, mover_words=_BOARD_MOVERS)
+    return slots
+
+
+def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
+    """Slots per line evidence item; ``comparison`` holds every line's slots.
+
+    The prompt lists ``comparison`` by reference to the lines, so each line's
+    slots appear once (#415: repeating them doubled the Analysis Board prompt).
+    """
+    board = chess.Board(facts.position.fen)
+    shared: list[Slot] = []
+    evaluation = evaluation_value(
+        facts.position.evaluation, side=SIDE_TO_MOVE, other=_BOARD_OPPONENT
+    )
+    if evaluation is not None:
+        shared.append(Slot("eval", evaluation, "the position's engine score, side to move"))
+    per_line = {line.line_id: _board_line_slots(board, line) for line in facts.lines}
+    by_evidence: dict[str, dict[str, Slot]] = {}
+    for line in facts.lines:
+        by_evidence[line.line_id] = {slot.name: slot for slot in (*shared, *per_line[line.line_id])}
+    if len(facts.lines) > 1:
+        by_evidence[COMPARISON_EVIDENCE_ID] = {
+            slot.name: slot
+            for slot in (*shared, *(slot for slots in per_line.values() for slot in slots))
+        }
+    combined = (
+        {COMPARISON_EVIDENCE_ID: tuple(line.line_id for line in facts.lines)}
+        if len(facts.lines) > 1
+        else {}
+    )
+    return SlotCatalogue(
+        by_evidence=by_evidence,
+        shared=frozenset(slot.name for slot in shared),
+        combined=combined,
+    )
+
+
+def board_slot_grounding(facts: BoardLinesFacts) -> GroundedExplanationContext:
+    """The grounding context for provider wording: the line grounding plus the slots."""
+    return replace(board_lines_grounding(facts), slots=board_slot_catalogue(facts))
+
+
 def claim_line_id(claim: ExplanationClaim, facts: BoardLinesFacts) -> str:
     """The line a claim is linked to; raises when it is linked to none."""
     by_id = {line.line_id: line for line in facts.lines}
@@ -416,23 +538,6 @@ def claim_line_id(claim: ExplanationClaim, facts: BoardLinesFacts) -> str:
 
 
 # --- Template ------------------------------------------------------------------------
-
-
-def numbered_san(board: chess.Board, uci: Sequence[str]) -> str:
-    """``12.Nf3 Nc6 13.O-O`` or ``12...Nc6 13.O-O`` from ``board``."""
-    replay = board.copy(stack=False)
-    parts = []
-    for index, token in enumerate(uci):
-        move = chess.Move.from_uci(token)
-        san = replay.san(move)
-        if replay.turn == chess.WHITE:
-            parts.append(f"{replay.fullmove_number}.{san}")
-        elif index == 0:
-            parts.append(f"{replay.fullmove_number}...{san}")
-        else:
-            parts.append(san)
-        replay.push(move)
-    return " ".join(parts)
 
 
 def _score_phrase(evaluation: Evaluation) -> str:
@@ -556,43 +661,44 @@ def template_board_explanation(facts: BoardLinesFacts) -> Explanation:
 # --- Provider wording ----------------------------------------------------------------
 
 BOARD_NARRATOR_SYSTEM_PROMPT = (
-    "You explain the chess engine's top lines for one position. The user message is a JSON "
-    f"document following the Scan64 schema {BOARD_SCHEMA_VERSION} "
+    "You explain the chess engine's top lines for one position. The first user message is a "
+    f"JSON document following the Scan64 schema {BOARD_SCHEMA_VERSION} "
     "(schemas/board-lines-facts.schema.json). The board library and the chess engine computed "
     "every fact in it; a field left out has its schema default (no capture, no check, no "
     "threats). Use only those facts: do not work out moves, captures, checks, threats, "
-    "material or evaluations yourself, and state nothing the JSON does not state.\n"
-    "- position: side_to_move is the side whose options the lines are; refer to it as "
-    '"the side to move". In move facts, mover "learner" is the side to move and "opponent" '
-    "the other side.\n"
-    "- Evaluations are from the side to move's point of view in centipawns (100 = one pawn). "
-    "Never state an evaluation whose status is unknown.\n"
-    "- lines: engine lines in engine order (rank 1 is best), each from the position. outcome "
-    "says what the whole line wins or loses (material_change), the material at its end, its "
-    "checks, whether it ends in checkmate or stalemate, and the threats of its first move. "
-    "difference_from_best_cp compares a line with line 1. moves holds the facts of the first "
-    f"{PROMPT_MOVE_PLIES} plies of uci only: do not name a later move in a claim's text (its "
-    "line may still copy the whole uci list), and take what the rest of the line wins or "
-    "loses from outcome.\n"
-    "- Name moves in SAN exactly as given. Name only pieces and squares that appear in the "
-    "facts.\n"
+    "material or evaluations yourself, and state nothing the facts do not state.\n"
+    "- position: side_to_move is the side whose options the lines are. In move facts, mover "
+    '"learner" is the side to move and "opponent" the other side.\n'
+    "- lines: engine lines in engine order (rank 1 is best), each from the position.\n"
+    "- "
+    + slot_rules(
+        "{first:line-1} or {line:line-1}",
+        "{label:line-2} starts with {first:line-2} and scores {diff:line-2}.",
+    )
+    + "\n"
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
-    "lines. Each claim: text (one or two plain sentences), evidence_ref (the line_id of the "
-    f'line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing lines), line (a '
-    'JSON list of UCI move strings such as "e2e4", copied in order from the start of that '
-    "line's uci list, never SAN and never empty; for "
+    "lines. Each claim: text (one or two plain sentences with slots), evidence_ref (the "
+    f'line_id of the line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing '
+    'lines), line (a JSON list of UCI move strings such as "e2e4", copied in order from the '
+    "start of that line's uci list, never SAN and never empty; for "
     f'"{COMPARISON_EVIDENCE_ID}" copy from the line being compared), certainty "observed", '
-    'disclosure_level 1. Name sides as "the side to move", "the opponent", "White to move" or '
-    '"White plays ..."; never use a bare colour word as an adjective. Mention checkmate, '
-    "stalemate, checks or captures only where the facts record one."
+    'disclosure_level 1. Call the sides "the side to move" and "the opponent".'
 )
 
 
-def board_lines_request(facts: BoardLinesFacts) -> ExplanationRequest:
+def board_narrator_system_prompt(voice: NarratorVoice = DEFAULT_NARRATOR_VOICE) -> str:
+    """BOARD_NARRATOR_SYSTEM_PROMPT with the voice fragment as its last line (#387)."""
+    return with_voice(BOARD_NARRATOR_SYSTEM_PROMPT, voice)
+
+
+def board_lines_request(
+    facts: BoardLinesFacts, voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
+) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
-            LLMMessage(role="system", content=BOARD_NARRATOR_SYSTEM_PROMPT),
+            LLMMessage(role="system", content=board_narrator_system_prompt(voice)),
             LLMMessage(role="user", content=facts.for_prompt().to_prompt_json()),
+            LLMMessage(role="user", content=board_slot_catalogue(facts).prompt()),
         )
     )
 
@@ -612,7 +718,7 @@ class BoardLinesExplanation:
 def _validated_provider_explanation(
     generated: GeneratedExplanation, facts: BoardLinesFacts
 ) -> Explanation:
-    explanation = validate_generated_explanation(generated, board_lines_grounding(facts))
+    explanation = validate_generated_explanation(generated, board_slot_grounding(facts))
     for claim in explanation.claims:
         claim_line_id(claim, facts)
     return explanation
@@ -624,25 +730,37 @@ async def resolve_board_lines_explanation(
     local_provider: LLMExplanationProvider | None = None,
     environment: Mapping[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
+    voice: NarratorVoice | None = None,
 ) -> BoardLinesExplanation:
-    """Template first; a configured provider's wording replaces it only when grounded."""
+    """Template first; a configured provider's wording replaces it only when grounded.
+
+    ``voice`` overrides the configured narrator voice (``run_with_explanation_provider``).
+    """
     template = BoardLinesExplanation(template_board_explanation(facts), "template", None)
 
-    async def attempt(provider: LLMExplanationProvider) -> BoardLinesExplanation:
+    async def attempt(
+        provider: LLMExplanationProvider, chosen: NarratorVoice
+    ) -> BoardLinesExplanation:
+        record_narrator_attempt("board")
         try:
-            generated = await provider.generate(board_lines_request(facts))
-            return BoardLinesExplanation(
-                _validated_provider_explanation(generated, facts), "narrator", None
-            )
+            generated = await provider.generate(board_lines_request(facts, chosen))
+            explanation = _validated_provider_explanation(generated, facts)
         except GroundedExplanationValidationError as error:
-            record_template_fallback(error.reason)
+            record_template_fallback(error.reason, "board")
             return BoardLinesExplanation(template.explanation, "template", error.reason)
         except LLMProviderError:
-            record_template_fallback("provider_error")
+            record_template_fallback("provider_error", "board")
             return BoardLinesExplanation(template.explanation, "template", "provider_error")
+        record_narrator_accepted("board")
+        return BoardLinesExplanation(explanation, "narrator", None)
 
     return await run_with_explanation_provider(
-        template, attempt, local_provider=local_provider, environment=environment, client=client
+        template,
+        attempt,
+        local_provider=local_provider,
+        environment=environment,
+        client=client,
+        voice=voice,
     )
 
 
@@ -657,7 +775,10 @@ __all__ = [
     "BoardLinesFacts",
     "ScoredLine",
     "board_lines_grounding",
+    "board_slot_catalogue",
+    "board_slot_grounding",
     "board_lines_request",
+    "board_narrator_system_prompt",
     "build_board_lines_facts",
     "claim_line_id",
     "numbered_san",

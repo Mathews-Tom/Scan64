@@ -9,6 +9,12 @@ from urllib.parse import urlparse
 
 import httpx
 
+from scan64.explanations.voice import (
+    DEFAULT_NARRATOR_VOICE,
+    NarratorVoice,
+    NarratorVoiceError,
+    parse_narrator_voice,
+)
 from scan64.providers.llm.adapters import (
     DEFAULT_OLLAMA_CONTEXT_TOKENS,
     MAX_OLLAMA_CONTEXT_TOKENS,
@@ -29,6 +35,8 @@ class LLMProviderConfig:
     model: str | None = None
     base_url: str | None = None
     api_key_environment: str | None = None
+    # Narrator voice (#387): ``voice`` in the [llm] table; absent means the default.
+    voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
     context_tokens: int = DEFAULT_OLLAMA_CONTEXT_TOKENS
 
     @classmethod
@@ -53,8 +61,12 @@ class LLMProviderConfig:
         provider = raw_llm.get("provider")
         if not isinstance(provider, str):
             raise LLMConfigurationError("llm.provider must be template, ollama, or openai")
+        try:
+            voice = parse_narrator_voice(raw_llm.get("voice"))
+        except NarratorVoiceError as error:
+            raise LLMConfigurationError(f"llm.voice: {error}") from error
         if provider == "template":
-            return cls(provider=provider)
+            return cls(provider=provider, voice=voice)
         if provider not in {"ollama", "openai"}:
             raise LLMConfigurationError("llm.provider must be template, ollama, or openai")
 
@@ -78,11 +90,13 @@ class LLMProviderConfig:
                 model=model,
                 base_url=base_url,
                 api_key_environment=api_key_environment,
+                voice=voice,
             )
         return cls(
             provider=provider,
             model=model,
             base_url=base_url,
+            voice=voice,
             context_tokens=_context_tokens(raw_llm.get("context_tokens")),
         )
 

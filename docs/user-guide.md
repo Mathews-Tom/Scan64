@@ -514,6 +514,16 @@ In **Settings → Local explanation wording**, choose **Detect local Ollama**, s
 
 When enabled, Scan64 sends evidence for new analysis and Coach explanations to the selected local service. Ollama is a separate process and can log or forward that evidence. Enable this setting only if you trust the service. Scan64 checks generated claims against their evidence references and verified lines, and checks every move, square, piece, evaluation and material statement in the wording against the engine evidence and the board; one unsupported statement rejects the whole generation. Missing, slow or rejected results use the built-in wording. Coach mode keeps its short response budget, so a cold or slow model falls back without delaying the move beyond that budget.
 
+Before you enable local wording, you can choose a **Narrator voice**:
+
+| Voice | Tone |
+|---|---|
+| Coach (default) | calm and encouraging |
+| Terse | few words, no filler |
+| Playful | light and cheerful |
+
+The voice changes only the tone of the words around the engine facts. Every move, evaluation and other chess fact still comes from the engine, and the same checks apply to every voice. To change the voice, detect local Ollama again, choose the voice, and enable local wording again. An operator sets the voice with `voice` in the `[llm]` table of the configuration file.
+
 Disabling prevents new evidence requests from being dispatched; requests already dispatched cannot be recalled, and saved explanations do not change. The choice belongs to the current player on this installation. Resetting learning keeps it, exporting/restoring an account does not transfer it, and deleting the account removes it. In an operator-run installation with explicit explanation configuration, the operator's choice takes precedence.
 
 ## Import a puzzle catalog
