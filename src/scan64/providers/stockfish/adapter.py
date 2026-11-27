@@ -74,6 +74,7 @@ async def search(
     game: object | None = None,
     *,
     deadline_s: float,
+    score_scale: float,
 ) -> list[dict[str, Any]]:
     """Run one search and return every MultiPV line in stored form.
 
@@ -95,7 +96,7 @@ async def search(
                 f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
             )
         single = await bounded(engine, engine.analyse(board, limit, game=game), limit, deadline_s)
-        return lines_from_result(single, board.turn)
+        return lines_from_result(single, board.turn, score_scale=score_scale)
     if multipv > 1 and not declares(engine, "MultiPV"):
         raise EngineCapabilityError(
             f"{multipv} analysis lines need the UCI option MultiPV, which "
@@ -104,7 +105,7 @@ async def search(
     result = await bounded(
         engine, engine.analyse(board, limit, multipv=multipv, game=game), limit, deadline_s
     )
-    return lines_from_result(result, board.turn)
+    return lines_from_result(result, board.turn, score_scale=score_scale)
 
 
 async def bounded[T](
@@ -161,6 +162,7 @@ class StockfishAdapter:
                     engine_identity(engine, self.config.binary_path),
                     self.config.threads,
                     self.config.node_scale,
+                    self.config.score_scale,
                 )
                 self._identity_signature = signature
             finally:
@@ -183,11 +185,17 @@ class StockfishAdapter:
                 engine_identity(engine, self.config.binary_path),
                 self.config.threads,
                 self.config.node_scale,
+                self.config.score_scale,
             )
             self._identity_signature = signature
             limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
             raw_result = await search(
-                engine, chess.Board(fen), limit, multipv, deadline_s=self.config.search_deadline_s
+                engine,
+                chess.Board(fen),
+                limit,
+                multipv,
+                deadline_s=self.config.search_deadline_s,
+                score_scale=self.config.score_scale,
             )
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv

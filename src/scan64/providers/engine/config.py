@@ -33,6 +33,10 @@ DEFAULT_NODE_SCALE = 1.0
 # V 1.2) would run until killed. Stockfish's largest Scan64 search (1M nodes)
 # takes about a second.
 DEFAULT_SEARCH_DEADLINE_S = 120.0
+# Scan64's centipawn policy (the Lichess win-probability curve) is fitted to
+# Stockfish. ``engine.score_scale`` is this engine's centipawns per Stockfish
+# centipawn (Arasan 26.1 about 2.8); win probability divides by it.
+DEFAULT_SCORE_SCALE = 1.0
 # Wire protocol of the engine process. XBoard engines get single-line analysis
 # only: python-chess rejects MultiPV over XBoard.
 type EngineProtocolName = Literal["uci", "xboard"]
@@ -160,6 +164,7 @@ class EngineProfile:
     hash_size: int
     node_scale: float
     search_deadline_s: float
+    score_scale: float
     options: MappingProxyType[str, UciOptionValue]
     limits: MappingProxyType[str, SearchLimits]
     ladder: LadderSettings
@@ -175,6 +180,7 @@ def _stockfish_profile() -> EngineProfile:
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
         search_deadline_s=DEFAULT_SEARCH_DEADLINE_S,
+        score_scale=DEFAULT_SCORE_SCALE,
         options=MappingProxyType({}),
         limits=MappingProxyType({}),
         ladder=LadderSettings(),
@@ -216,6 +222,18 @@ def _search_deadline(table: dict[str, Any], where: str) -> float:
         raise EngineConfigurationError(
             f"{where}.search_deadline_s must be a positive finite number"
         )
+    return float(value)
+
+
+def _score_scale(table: dict[str, Any], where: str) -> float:
+    value = table.get("score_scale", DEFAULT_SCORE_SCALE)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or not value > 0
+    ):
+        raise EngineConfigurationError(f"{where}.score_scale must be a positive finite number")
     return float(value)
 
 
@@ -289,6 +307,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
             "hash_mb",
             "node_scale",
             "search_deadline_s",
+            "score_scale",
             "options",
         },
         "engine",
@@ -317,6 +336,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
         search_deadline_s=_search_deadline(engine, f"{path}: engine"),
+        score_scale=_score_scale(engine, f"{path}: engine"),
         options=MappingProxyType(dict(options)),
         limits=_limits(raw.get("limits"), path),
         ladder=_ladder(raw.get("ladder"), path),
@@ -365,6 +385,7 @@ class EngineConfig:
     protocol: EngineProtocolName
     search_deadline_s: float
     ladder: LadderSettings
+    score_scale: float
     options: Mapping[str, UciOptionValue]
     limits: Mapping[str, SearchLimits]
 
@@ -380,6 +401,7 @@ class EngineConfig:
         protocol: EngineProtocolName | None = None,
         search_deadline_s: float | None = None,
         ladder: LadderSettings | None = None,
+        score_scale: float | None = None,
     ) -> None:
         explicit_binary = binary_path is not None
         self.binary_path = (
@@ -427,6 +449,12 @@ class EngineConfig:
             self.ladder = ladder
         else:
             self.ladder = LadderSettings() if explicit_binary else active_engine_profile().ladder
+        if score_scale is not None:
+            self.score_scale = score_scale
+        else:
+            self.score_scale = (
+                DEFAULT_SCORE_SCALE if explicit_binary else active_engine_profile().score_scale
+            )
 
     def fingerprint(self) -> tuple[object, ...]:
         """Process-local identity of every input that can change a search result."""
@@ -437,5 +465,6 @@ class EngineConfig:
             self.threads,
             self.hash_size,
             self.node_scale,
+            self.score_scale,
             tuple(sorted(self.options.items())),
         )

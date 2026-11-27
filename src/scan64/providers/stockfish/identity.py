@@ -49,7 +49,11 @@ def engine_identity(engine: Engine, binary_path: str) -> dict[str, Any]:
 
 
 def analysis_identity(
-    engine: Engine, identity: dict[str, Any], threads: int, node_scale: float
+    engine: Engine,
+    identity: dict[str, Any],
+    threads: int,
+    node_scale: float,
+    score_scale: float,
 ) -> dict[str, Any]:
     """Include defaults and overrides, not just the two user-facing options.
 
@@ -58,6 +62,8 @@ def analysis_identity(
     analysis restores these exact values before searching. A profile's
     ``node_scale`` changes every search, so it is recorded when it is not 1;
     ``nodes`` stays the Scan64 budget, not the scaled count sent to the engine.
+    ``score_scale`` is recorded on the same terms: its rows' lines carry it, so
+    rows at different scales never reuse each other.
     An XBoard process is recorded as ``protocol``; UCI, the default, is not.
     """
     options = dict(engine.config)
@@ -78,9 +84,12 @@ def analysis_identity(
         **identity,
         options=options,
         node_scale=None if node_scale == 1 else node_scale,
+        score_scale=None if score_scale == 1 else score_scale,
         protocol="xboard" if is_xboard(engine) else None,
     )
     # Keys at their defaults stay absent so pre-existing rows keep their reuse key.
     return config.model_dump(
-        exclude={key for key in ("node_scale", "protocol") if getattr(config, key) is None}
+        exclude={
+            key for key in ("node_scale", "score_scale", "protocol") if getattr(config, key) is None
+        }
     )

@@ -129,7 +129,8 @@ async def run_engine(
             result = await engine.analyse(
                 board, chess.engine.Limit(nodes=config.nodes), multipv=multipv, game=object()
             )
-            lines = lines_from_result(result, board.turn)
+            # Raw engine centipawns: this benchmark measures the scale.
+            lines = lines_from_result(result, board.turn, score_scale=1.0)
             record = {
                 "engine": entry.name,
                 "position": position_id,

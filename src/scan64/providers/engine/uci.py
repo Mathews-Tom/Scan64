@@ -167,7 +167,15 @@ def line_from_info(info: chess.engine.InfoDict, turn: chess.Color) -> dict[str, 
 
 
 def lines_from_result(
-    result: chess.engine.InfoDict | list[chess.engine.InfoDict], turn: chess.Color
+    result: chess.engine.InfoDict | list[chess.engine.InfoDict],
+    turn: chess.Color,
+    *,
+    score_scale: float,
 ) -> list[dict[str, Any]]:
+    """Stored lines; each carries the profile's ``score_scale`` when it is not 1."""
     infos = result if isinstance(result, list) else [result]
-    return [line_from_info(info, turn) for info in infos]
+    lines = [line_from_info(info, turn) for info in infos]
+    if score_scale != 1:
+        for line in lines:
+            line["score_scale"] = score_scale
+    return lines
