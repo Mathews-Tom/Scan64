@@ -19,6 +19,8 @@ class EngineAnalysisConfig(BaseModel):
     # Absent (``None``) at the default scale of 1, so rows written before
     # ``engine.node_scale`` existed keep the same reuse key.
     node_scale: float | None = None
+    # Absent at 1 too: ``engine.score_scale``, also stored on each line.
+    score_scale: float | None = None
     # Absent for UCI, the default; "xboard" for an XBoard engine process.
     protocol: str | None = None
 
@@ -43,6 +45,8 @@ class EngineLine(BaseModel):
     nodes: int | None = None
     nps: int | None = None
     multipv: int | None = None
+    # The profile's ``engine.score_scale`` when it was not 1; ``None`` means 1.
+    score_scale: float | None = None
 
 
 class EngineAnalysis(SQLModel, table=True):

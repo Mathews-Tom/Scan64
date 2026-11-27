@@ -35,10 +35,27 @@ XBOARD_RESOURCE_OPTIONS = ("cores", "memory")
 # The bot ladder and the legacy Skill Level opponent need these controls.
 LEGACY_STRENGTH_OPTIONS = ("Skill Level",)
 LADDER_OPTIONS = ("MultiPV",)
+# ``[ladder] strength = "elo"`` weakens the engine through these instead.
+ELO_LADDER_OPTIONS = ("UCI_LimitStrength", "UCI_Elo")
 
 
 class EngineCapabilityError(RuntimeError):
     """The configured engine lacks an option or protocol feature a feature requires."""
+
+    # Tells the player which action fixes it; play sends it as ``detail.kind``.
+    kind = "missing_capability"
+
+
+class BotPolicyMismatchError(EngineCapabilityError):
+    """A bot session was recorded under another ladder policy than the server plays."""
+
+    kind = "policy_mismatch"
+
+
+class BotStrengthRangeError(EngineCapabilityError):
+    """A ladder level asks the engine for a strength outside its declared range."""
+
+    kind = "elo_out_of_range"
 
 
 def _engine_label(engine: Engine) -> str:
@@ -165,7 +182,15 @@ def line_from_info(info: chess.engine.InfoDict, turn: chess.Color) -> dict[str, 
 
 
 def lines_from_result(
-    result: chess.engine.InfoDict | list[chess.engine.InfoDict], turn: chess.Color
+    result: chess.engine.InfoDict | list[chess.engine.InfoDict],
+    turn: chess.Color,
+    *,
+    score_scale: float,
 ) -> list[dict[str, Any]]:
+    """Stored lines; each carries the profile's ``score_scale`` when it is not 1."""
     infos = result if isinstance(result, list) else [result]
-    return [line_from_info(info, turn) for info in infos]
+    lines = [line_from_info(info, turn) for info in infos]
+    if score_scale != 1:
+        for line in lines:
+            line["score_scale"] = score_scale
+    return lines
