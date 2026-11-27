@@ -5,11 +5,19 @@ admission, deadline and cache as ``POST /v1/analysis/position``, so with the
 default budget the explained lines are the lines the board already shows.
 ``nodes`` and ``depth`` may only narrow that budget; ``multipv`` selects how many
 of the engine's ranked lines are explained.
+
+Each player runs one explanation at a time; a second request gets 503 while
+the first one runs. The request releases its DB session before the engine
+search and the model call. The model call stops when the client disconnects:
+the endpoint polls ``Request.is_disconnected`` and cancels the generation,
+which closes the provider's HTTP stream and frees the player's slot.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import asyncio
+from collections.abc import Awaitable, Iterator, Sequence
+from contextlib import contextmanager, suppress
 
 import chess
 import chess.engine
@@ -41,12 +49,62 @@ from scan64.explanations.settings import (
     read_local_explanation_provider,
 )
 from scan64.persistence.database import get_session
+from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["insights"])
 
 # Depth only narrows a search: the hint node and time budget and its deadline
 # still bound it. Stockfish's own maximum search depth is 245.
 MAX_EXPLANATION_DEPTH = 245
+
+# How often the model call checks for a closed client connection.
+DISCONNECT_POLL_SECONDS = 0.25
+# Non-standard "client closed request" status. The client is gone, so nobody
+# reads it; it keeps the access log honest.
+CLIENT_CLOSED_REQUEST = 499
+
+
+def _running_players(request: Request) -> set[str]:
+    running: set[str] | None = getattr(request.app.state, "analysis_explanation_players", None)
+    if running is None:
+        running = set()
+        request.app.state.analysis_explanation_players = running
+    return running
+
+
+@contextmanager
+def explanation_slot(request: Request, player_id: str) -> Iterator[None]:
+    """Admit one explanation per player; raise 503 while one already runs."""
+    running = _running_players(request)
+    if player_id in running:
+        raise HTTPException(
+            status_code=503,
+            detail="An explanation is already running; try again shortly",
+        )
+    running.add(player_id)
+    try:
+        yield
+    finally:
+        running.discard(player_id)
+
+
+async def cancel_on_disconnect[T](request: Request, work: Awaitable[T]) -> T:
+    """Run ``work``; cancel it and raise 499 when the client disconnects."""
+    task = asyncio.ensure_future(work)
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=DISCONNECT_POLL_SECONDS)
+            if done:
+                return task.result()
+            if await request.is_disconnected():
+                raise HTTPException(
+                    status_code=CLIENT_CLOSED_REQUEST, detail="The client closed the request"
+                )
+    finally:
+        if not task.done():
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 class AnalysisExplanationRequest(BaseModel):
@@ -122,6 +180,25 @@ async def explain_position(
     budget_nodes, _, budget_multipv = manager.hint_limits()
     count = _requested_lines(body, budget_multipv)
     _check_nodes(body.nodes, budget_nodes)
+    with explanation_slot(request, player_id):
+        owner_generation = session.exec(select(local_explanation_owner_generation(player_id))).one()
+        # The provider re-reads its grant on its own connection, so the
+        # request session is not needed after this point.
+        local_provider = await read_local_explanation_provider(session, player_id, owner_generation)
+        session.close()
+        lines, facts = await _explained_lines(manager, board, body, count)
+        resolved = await cancel_on_disconnect(
+            request, resolve_board_lines_explanation(facts, local_provider=local_provider)
+        )
+    return explanation_read(board, lines, facts, resolved)
+
+
+async def _explained_lines(
+    manager: EnginePoolManager,
+    board: chess.Board,
+    body: AnalysisExplanationRequest,
+    count: int,
+) -> tuple[list[ScoredLine], BoardLinesFacts]:
     try:
         analysis = await manager.analyze_hint(board, nodes=body.nodes, depth=body.depth)
     except TimeoutError:
@@ -141,12 +218,7 @@ async def explain_position(
             detail="The analysis engine could not analyze this position; try again shortly",
         )
 
-    facts = build_board_lines_facts(board, lines)
-    owner_generation = session.exec(select(local_explanation_owner_generation(player_id))).one()
-    local_provider = await read_local_explanation_provider(session, player_id, owner_generation)
-    resolved = await resolve_board_lines_explanation(facts, local_provider=local_provider)
-
-    return explanation_read(board, lines, facts, resolved)
+    return lines, build_board_lines_facts(board, lines)
 
 
 def explanation_read(
@@ -193,6 +265,8 @@ def explanation_read(
 __all__ = [
     "AnalysisExplanationRead",
     "AnalysisExplanationRequest",
+    "cancel_on_disconnect",
     "explanation_read",
+    "explanation_slot",
     "router",
 ]

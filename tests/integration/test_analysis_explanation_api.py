@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import chess
 import pytest
 from chess_lesson_spec import ExplanationClaim
+from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -356,3 +360,134 @@ def test_playwright_fixture_is_the_current_template_response(
     assert response.json() == expected, (
         "regenerate: uv run python tests/fixtures/write_analysis_explanation_e2e.py"
     )
+
+
+class _BlockingProvider:
+    """Holds the model call open until the test releases it."""
+
+    def __init__(self) -> None:
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        self.started.set()
+        while not self.release.is_set():
+            await asyncio.sleep(0.01)
+        raise LLMProviderError("released")
+
+
+def test_a_second_explanation_for_the_same_player_is_busy_503(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    other_headers = register(db_session, "explain-other")
+    analyze = recorded("start")
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    provider = _BlockingProvider()
+
+    async def grant(session: Session, player_id: str, owner_generation: int | None) -> Any:
+        return provider if player_id == PLAYER else None
+
+    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", grant)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(client.post, ENDPOINT, headers=headers, json=body("start"))
+        assert provider.started.wait(10)
+        busy = client.post(ENDPOINT, headers=headers, json=body("start"))
+        # The slot is per player: another player is admitted meanwhile.
+        other = client.post(
+            ENDPOINT, headers=other_headers, json={**body("start"), "player_id": "explain-other"}
+        )
+        provider.release.set()
+        assert first.result(10).json()["fallback_reason"] == "provider_error"
+    assert busy.status_code == 503
+    assert busy.json()["detail"] == "An explanation is already running; try again shortly"
+    assert other.status_code == 200, other.text
+    assert analyze.await_count == 2
+    # The finished request frees the slot.
+    after = client.post(ENDPOINT, headers=headers, json=body("start"))
+    assert after.status_code == 200, after.text
+
+
+def test_a_failed_explanation_frees_the_player_slot(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    manager = app.state.engine_pool_manager
+    monkeypatch.setattr(manager, "analyze_hint", AsyncMock(side_effect=TimeoutError))
+    assert client.post(ENDPOINT, headers=headers, json=body("start")).status_code == 503
+    monkeypatch.setattr(manager, "analyze_hint", recorded("start"))
+    assert client.post(ENDPOINT, headers=headers, json=body("start")).status_code == 200
+
+
+def test_the_request_session_is_released_before_search_and_generation(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    in_transaction: list[bool] = []
+    analysis = recorded("start")
+
+    async def analyze(*args: Any, **kwargs: Any) -> EngineAnalysis:
+        in_transaction.append(db_session.in_transaction())
+        result: EngineAnalysis = await analysis(*args, **kwargs)
+        return result
+
+    class _Checking(_Provider):
+        async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+            in_transaction.append(db_session.in_transaction())
+            return await super().generate(request)
+
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", analyze)
+    monkeypatch.setattr(endpoint_module, "read_local_explanation_provider", _grant(_Checking(None)))
+    response = client.post(ENDPOINT, headers=headers, json=body("start"))
+    assert response.status_code == 200, response.text
+    assert in_transaction == [False, False]
+
+
+class _Request:
+    def __init__(self, disconnect_after: int | None) -> None:
+        self.polls = 0
+        self.disconnect_after = disconnect_after
+
+    async def is_disconnected(self) -> bool:
+        self.polls += 1
+        return self.disconnect_after is not None and self.polls >= self.disconnect_after
+
+
+@pytest.mark.asyncio
+async def test_a_client_disconnect_cancels_the_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(endpoint_module, "DISCONNECT_POLL_SECONDS", 0.01)
+    cancelled = asyncio.Event()
+
+    async def generation() -> str:
+        try:
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        return "unreachable"
+
+    request = _Request(disconnect_after=2)
+    with pytest.raises(HTTPException) as raised:
+        await endpoint_module.cancel_on_disconnect(cast(Request, request), generation())
+    assert raised.value.status_code == endpoint_module.CLIENT_CLOSED_REQUEST
+    assert cancelled.is_set()
+    assert request.polls == 2
+
+
+@pytest.mark.asyncio
+async def test_a_connected_client_receives_the_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(endpoint_module, "DISCONNECT_POLL_SECONDS", 0.01)
+
+    async def generation() -> str:
+        await asyncio.sleep(0.05)
+        return "worded"
+
+    request = _Request(disconnect_after=None)
+    assert await endpoint_module.cancel_on_disconnect(cast(Request, request), generation()) == (
+        "worded"
+    )
+    assert request.polls >= 1
