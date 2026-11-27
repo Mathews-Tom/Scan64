@@ -181,7 +181,7 @@ base_url = "http://127.0.0.1:11434"
 context_tokens = 12288  # optional; sent as options.num_ctx
 ```
 
-`llm.context_tokens` defaults to 12288 and accepts integers in [2048, 131072]. Use at least 8192; below that, the longest prompt fills the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below.
+`llm.context_tokens` defaults to 12288 and accepts integers in [2048, 131072]. Use at least 8192; below that, the longest prompt fills the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
 
 ### Local Ollama limits
 
