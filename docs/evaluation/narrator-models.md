@@ -170,12 +170,12 @@ base_url = "http://127.0.0.1:11434"
 
 For the fallback, render `benchmarks/narrator/modelfiles/praxis-4b.Modelfile` (substitute `@GGUF@`, `@NUM_CTX@`, `@NUM_PREDICT@`, as `--setup` does). Then run `ollama create scan64-bench-praxis-4b -f <rendered Modelfile>` and pick `scan64-bench-praxis-4b:latest`.
 
-Set `SCAN64_LOCAL_LLM_CONTEXT_TOKENS=12288` for the local provider until #388 makes it the default.
+Both Ollama paths default to a 12288-token context since #388 (`SCAN64_LOCAL_LLM_CONTEXT_TOKENS` for the local provider, `llm.context_tokens` for the operator file), the value the benchmark used.
 
 ## Limits
 
 - Timeout: the app's local-Ollama timeout defaults to 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, up to 600 s). The benchmark client allowed 120 s; no call came near it (largest p95 4.63 s).
-- Context: `num_ctx` must be at least 8192; the benchmark used 12288, the default after #388. At 8192 the 4–5 positions with longer prompts fail as provider errors, so delivered coverage at the current default 8192 is lower than measured here.
+- Context: `num_ctx` must be at least 8192; the benchmark used 12288, the default since #388. An owner who lowers it to 8192 loses the 4–5 positions with longer prompts as provider errors, so delivered coverage at 8192 is lower than measured here.
 - Coverage counts slots: on the slot path a fact counts only when the answer uses a slot that states it. Free-prose coverage counts claim text. The two are close but not the same measure.
 - Thinking: every benchmark call sent `think = false`. The app adapters send no `think` field on this branch; that is a follow-up, so production calls of a thinking-capable model can differ from these numbers.
 - CPU latency is not measured for every model: only `praxis-4b` and `qwen3.5-4b`, on the pre-#367 prompt (below). The runner now runs without `nvidia-smi` and records null GPU fields.
