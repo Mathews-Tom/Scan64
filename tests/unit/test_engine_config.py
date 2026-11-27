@@ -264,6 +264,38 @@ def test_startup_and_reset_send_only_declared_options() -> None:
         startup_options(ethereal, unknown)
 
 
+def test_strength_reset_stays_inside_the_declared_range() -> None:
+    def spin(name: str, default: int, low: int, high: int) -> chess.engine.Option:
+        return chess.engine.Option(name, "spin", default, low, high, [])
+
+    stockfish_11 = double("Stockfish 11", ("Threads", "Skill Level", "UCI_LimitStrength"))
+    stockfish_11.options["UCI_Elo"] = spin("UCI_Elo", 1350, 1350, 2850)
+    stockfish_11.options["Skill Level"] = spin("Skill Level", 20, 0, 20)
+    assert full_strength_options(stockfish_11, 1) == {
+        "Threads": 1,
+        "Skill Level": 20,
+        "UCI_LimitStrength": False,
+        "UCI_Elo": 1350,
+    }
+    capped = double("Capped", ())
+    capped.options["Skill Level"] = spin("Skill Level", 10, 0, 10)
+    assert full_strength_options(capped, 1) == {"Skill Level": 10}
+
+
+@pytest.mark.asyncio
+async def test_uci_engine_without_multipv_refuses_multiple_lines() -> None:
+    from scan64.providers.engine.uci import EngineCapabilityError
+    from scan64.providers.stockfish.adapter import search
+
+    alexandria = double("Alexandria 9.1.0", ("Hash", "Threads", "Minimal", "UCI_Chess960"))
+    limit = chess.engine.Limit(nodes=1000)
+    with pytest.raises(EngineCapabilityError, match="3 analysis lines need the UCI option MultiPV"):
+        await search(alexandria, chess.Board(), limit, 3)
+    alexandria.analyse.assert_not_awaited()
+    alexandria.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+    assert await search(alexandria, chess.Board(), limit, 1) == [{"pv": ["e2e4"]}]
+
+
 @pytest.mark.asyncio
 async def test_strength_features_fail_with_named_option(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
