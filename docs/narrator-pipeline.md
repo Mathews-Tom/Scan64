@@ -68,6 +68,8 @@ Dropped by both adapters (not copied into `raw_result`): `depth`, `seldepth`, `n
 | `analyse_command` (`cli/analyse.py:26`) | `FastPassConfig(nodes=10000)` (`analyse.py:48`), MultiPV 1 | `analyze_position(candidate.fen, nodes=1_000_000, multipv=4)` (`analyse.py:84`) | same as above (`analyse.py:86-90`) | operator config only; no `local_provider` (`analyse.py:153`) | as above |
 | `prepare_coach_interruption` (`coach_interruption.py:146`), called from `play_session_service.py:449,686` | `analyze_interactive(nodes=COACH_DIAGNOSTIC_NODES)`, 10 000 nodes, MultiPV 1 (`coach_interruption.py:205-210`) | **`after_analysis` reused**: 10 000 nodes, MultiPV 1 (`coach_interruption.py:250`) | as above (`coach_interruption.py:237-241`) | operator config, else local grant (`_resolve_coach_explanation`, `coach_interruption.py:130-143`) | `COACH_EXPLANATION_TIMEOUT_SECONDS = 0.25` for consent read plus generation; on `TimeoutError`, template |
 
+`run_analysis_for_game` with the batch pool also scores every position along each prepared lesson's verified lines (10 000 nodes, MultiPV 1) before resolving its explanation (section 5, "Evaluations along lines").
+
 `FastPassOrchestrator.run_fast_pass` (`orchestration.py:144`) flags a candidate when the mover's swing exceeds `swing_threshold_cp` (150). `FocusedPassOrchestrator.run_focused_pass` (`orchestration.py:224`) searches `candidate.fen`, the position **after** the mistake, with the opponent to move.
 
 The lesson source search `analyze_lesson_source` (`learning/exercises/sound_moves.py:57`) runs 1 000 000 nodes at MultiPV 2, 4, then 8 on the before-position. It builds the accepted-move set and the hints (`fill_lesson_hints`). It is **not** passed to `resolve_explanation`, so it never reaches the LLM.
@@ -88,7 +90,9 @@ The lesson source search `analyze_lesson_source` (`learning/exercises/sound_move
 | `swing_cp`, `analysis_depth`, `before_fen`, `after_fen`, `played_move` (SAN) | scalars | — |
 | `fast_analysis_id`, `reply_analysis_id`, `focused_analysis_id`, `diagnosis_rule_version`, `diagnosis_capabilities` | identifiers | — |
 
-The fast and reply scores were added for #367. Evidence rows stored earlier lack the four score keys; the narrator facts mark those evaluations `unknown`.
+The fast and reply scores were added for #367. Evidence rows stored earlier lack the four score keys; the line pass (`line_evaluations`, section 5) scores those positions when it runs, else the narrator facts mark those evaluations `unknown`.
+
+`line_evaluations` (#367) is added to each evidence item a lesson references, after the lesson is chosen and before its explanation is resolved. Each entry is `{fen, score_cp, score_mate, analysis_id}`: one 10 000-node MultiPV 1 search (`LINE_NODES`) of a position along the item's verified lines, scores from the side to move of `fen`. The search is also stored as an `EngineAnalysis` row of the game.
 
 Per-kind additions (all at `composer.py`):
 
@@ -141,7 +145,30 @@ The schema is generated from the pydantic models in `explanations/facts.py` (`uv
 
 **Line coordinates.** Every line starts at the position before the learner's move. Lines searched from the position after it (`focused_line`, every `focused_multipv` entry, `proving_line`, `threat_move`, `incoming_threat`, and `mating_line` for an allowed mate) are prefixed with the learner's move. `fast_line`, `best_move`, `pinning_move`, every `mate_source_multipv` entry and a back-rank motif's `mating_line` start at the before-position as stored. Identical lines are merged (`origins` lists every source field); a line that is a prefix of another is merged into the longer one. Each line is cut after `MAX_LINE_PLIES = 8` plies and `full_plies` records the engine line's length. The validator accepts the cut lines only.
 
-**Evaluations.** No engine search runs in the explanation path. `StoredEvaluations.from_payload` maps positions to scores already in the payload: the fast score to the position after `fast_line[0]` and to `evaluation_before`; the reply score to the position after the played move (`evaluation_after`); each `focused_multipv` entry to the position after the played move and that entry's first move; each `mate_source_multipv` entry to the position after its first move. The deeper searches (focused, mate source; 1 000 000 nodes) overwrite the fast or reply score (10 000 nodes) for the same position. Every other move's `evaluation_after` is `{"status": "unknown"}`. Scores are converted to the learner's point of view; mates are `mate_in` full moves, negative when the learner is mated. `source` names the search.
+**Evaluations.** No engine search runs in the explanation path. Game analysis scores the lines before (see "Evaluations along lines" below). `StoredEvaluations.from_payload` maps positions to scores already in the payload: each `line_evaluations` entry to its position (source `line_pass`); the fast score to the position after `fast_line[0]` and to `evaluation_before`; the reply score to the position after the played move (`evaluation_after`); each `focused_multipv` entry to the position after the played move and that entry's first move; each `mate_source_multipv` entry to the position after its first move. Later searches overwrite earlier ones for the same position: the line pass first, then fast and reply (10 000 nodes), then focused and mate source (1 000 000 nodes). When the fast or reply score is missing (evidence stored before #367), `evaluation_before` or `evaluation_after` is the line pass score of that position. A move whose position no search scored has `evaluation_after` `{"status": "unknown"}`. Scores are converted to the learner's point of view; mates are `mate_in` full moves, negative when the learner is mated. `source` names the search.
+
+**Evaluations along lines (#367, #368).** `score_verified_lines` (`chess/analysis/line_scoring.py`) runs in `run_analysis_for_game` for each lesson it prepares, before `resolve_explanation`:
+
+1. `unscored_line_positions` lists the positions after each ply of each verified line of the referenced evidence (cut at `MAX_LINE_PLIES = 8`), and the line start when `evaluation_before` is unknown. It skips positions a stored search already scored and game-over positions (the move facts state checkmate or stalemate). Each position appears once, ordered by ply.
+2. `BatchAnalysisAdapter.prefetch` loads the owner's saved searches of those FENs. A saved row is reused only at the exact key: FEN, engine identity (executable SHA-256, networks, every UCI option) and limits. Rows are never reused across engines.
+3. The rest are searched through the job's batch adapter (the batch pool; no new pool, rule 14), `LINE_NODES = 10 000` nodes, MultiPV 1, up to the batch pool's concurrency at once. Every search is staged as an `EngineAnalysis` row with the job's other searches.
+4. The scores are written to each item's payload as `line_evaluations`.
+
+The per-call adapter (no pool, `SCAN64_ENGINE_POOL_ENABLED=0`) and `scan64 analyse` do not score lines: they would start one engine process per position (about 0.4 s each). Their lines keep only the stored scores.
+
+**Line summary.** Each verified line has `evaluation_change` (`LineEvaluationChange`): `start` (`evaluation_before`), `end` (the `evaluation_after` of its last scored move), `end_ply`, and `change_cp` (`end - start`, learner's view, only when both are centipawns). It is absent when the start or every move is unscored.
+
+**Measured** (linux-5090, AMD Ryzen Threadripper 9960X, Stockfish 18, one thread per engine, warm batch pool of 2, 50 narrator benchmark lessons; `tests/fixtures/record_narrator_line_evaluations.py` and a pooled run of the same function):
+
+| Measure | Value |
+|---|---|
+| Searches per lesson | median 33, maximum 56 |
+| Added engine time per lesson, batch pool of 2 | median 240 ms, p95 347 ms, maximum 355 ms |
+| Added engine time per lesson, one engine | median 440 ms, maximum 699 ms |
+| Line plies with a score, without the line pass | 272 of 2119 (12.8%) |
+| Line plies with a score, with the line pass | 2098 of 2119 (99.0%) |
+
+The 21 unscored plies are game-over positions. A game analysis prepares at most 5 lessons, so the added engine time is at most about 5 × 0.36 s per game on this machine.
 
 Not in the prompt: the diagnosis confidence, `position_id`, `engine_analysis_id` and `producer` of each evidence item, unreferenced evidence, engine identities and configs, analysis IDs, the lesson's accepted moves and the lesson source analysis (MultiPV 2/4/8).
 
@@ -303,6 +330,7 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 | ~~Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions~~ Resolved: Analysis Board line explanations (section 12) | `board_lines.py`, `api/analysis_explanation.py` | #368 |
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
 | ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
+| ~~Only the position after a line's first move has an engine score; later plies are `unknown`~~ Resolved: every ply up to 8 is scored (section 5, "Evaluations along lines"; section 12, "Per-move scoring") | `line_scoring.py`, `pool.py` | #367, #368 |
 | The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error | `create_llm_provider`, `config.py` | — |
 | Coach focused evidence is a 10 000-node MultiPV 1 search | `coach_interruption.py:250` | #360 |
 | The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt | `jobs.py:306`, `assembly.py:115` | #367 |
@@ -315,7 +343,7 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 2. Record each line's start FEN. Store every line as a verified line with the FEN it starts from: before-position fast and source lines, after-position focused and reply lines. Extend `GroundedExplanationContext.verified_lines` to map an evidence ID to `(start_fen, line)` pairs, and make `_validate_line` replay each line from its own start FEN.
 3. Widen verified lines: include every `focused_multipv` entry, `fast_line`, `proving_line`, `mating_line` and `mate_source_multipv` in `_verified_lines_for`. Pass the lesson source analysis (MultiPV 2/4/8, 1 000 000 nodes) into `resolve_explanation` as evidence.
 4. Raise coach depth or reuse a deeper search: replace `focused_analysis=after_analysis` (`coach_interruption.py:250`) with a MultiPV search inside the coach budget, or keep the 10 000-node line labelled as `interactive` evidence.
-5. Precompute per-move facts (#367): for each move of each verified line, give SAN, the piece moved, capture, check, material balance and engine evaluation. Serialise as JSON with a declared schema instead of `repr`.
+5. ~~Precompute per-move facts (#367): for each move of each verified line, give SAN, the piece moved, capture, check, material balance and engine evaluation. Serialise as JSON with a declared schema instead of `repr`.~~ Done (section 5), with an engine evaluation after every move since the line pass.
 6. Budget the prompt: measure the serialised request against `_MAX_REQUEST_BYTES` (128 KiB) and the model context. Set `options.num_ctx` in `OllamaExplanationAdapter`. When a line must be shortened, cut it deterministically at a stated ply and mark the cut in the payload. Review the 4 s local limit for background jobs; the coach keeps 0.25 s.
 7. Ground the claim text (#366) so long lines cannot carry invented prose facts.
 8. Log every fallback with its reason (provider error class, validator message) and record the explanation source on `Explanation`. Nothing measures acceptance rates today.
@@ -331,7 +359,8 @@ flowchart TD
     REQ["player_id, fen, multipv?, nodes?, depth?"] --> ADM["free_analysis_board + free_analysis_manager<br/>api/insights.py (same checks as /v1/analysis/position)"]
     ADM --> HINT["EnginePoolManager.analyze_hint(board, nodes, depth)<br/>hint admission, 3 s deadline, hint cache"]
     HINT --> SL["scored_legal_lines: one score kind, PV legal to its end<br/>first multipv lines (default 3)"]
-    SL --> BF["build_board_lines_facts<br/>board-lines-facts/1"]
+    SL --> LS["analyze_hint_positions: plies 2 to 8<br/>10 000 nodes each, same admission and deadline"]
+    LS --> BF["build_board_lines_facts<br/>board-lines-facts/1"]
     BF --> TPL["template_board_explanation<br/>validated; a rejection raises"]
     BF --> RUN["run_with_explanation_provider<br/>operator config, else owner grant"]
     RUN --> GEN["provider.generate(board_lines_request)"]
@@ -354,7 +383,23 @@ flowchart TD
 | `lines[]` | `line_id` (`line-1` ...), `rank`, `evaluation`, `difference_from_best_cp` (line 1 minus this line, both centipawns), `depth`, `seldepth`, `wdl`, `uci` (full line), `moves[]` (the #367 move facts), `outcome` |
 | `outcome` | `material_change` (pawn units won over the line, `line_material_gain`), `material_at_end`, `checks_by_side_to_move`, `checks_by_opponent`, `ends_in_checkmate`, `ends_in_stalemate`, `first_move_threats` (the first move's `new_threats`) |
 
-Evaluations are the engine's MultiPV scores from the side to move's point of view (source `analysis_board_pass`, added to the narrator-facts `EvaluationSource`). A line's score is the `evaluation_after` of its first move; every later move is `unknown`: no other position was searched. In move facts, `mover: "learner"` is the side to move.
+Evaluations are from the side to move's point of view. A line's MultiPV score (source `analysis_board_pass`) is the `evaluation_after` of its first move. Plies 2 to `MAX_LINE_PLIES = 8` carry the per-move searches below (source `line_pass`); later plies are `unknown`. Each line has `evaluation_change`: the board position's score (line 1) against the line's last scored move (section 5, "Line summary"). In move facts, `mover: "learner"` is the side to move.
+
+**Per-move scoring (#367, #368).** The request has one deadline, `HINT_DEADLINE_S = 3.0` s from before the line search. After the line search, `board_line_positions` lists plies 2 to 8 of each explained line, ordered by ply then line; positions equal to a line's first-move position, repeated positions and game-over positions are skipped. `EnginePoolManager.analyze_hint_positions` scores them in that order:
+
+- Same admission as the hint: no queue, 250 ms acquisition, at least two interactive engines, one hint at a time. Busy capacity scores nothing.
+- One interactive engine, `LINE_NODES = 10 000` nodes, MultiPV 1, each board with its moves from the board position (repetition history).
+- It stops at the request deadline. A position not searched by then is `unknown`; the request still succeeds. An engine error also leaves the rest `unknown`.
+- Results are cached (1024 entries) by position, moves, node budget and the engine's analysis identity (executable SHA-256, networks, every UCI option), so a cached search is never reused for another engine.
+
+**Measured** (linux-5090, Stockfish 18, cold caches, the 12 recorded positions; `tests/fixtures/record_analysis_board_line_evaluations.py` records the searches):
+
+| Explained lines | Positions per request | Added engine time per request | Hint search |
+|---|---|---|---|
+| MultiPV 3 (default) | median 15, maximum 21 | median 176 ms, maximum 208 ms | median 228 ms, maximum 282 ms |
+| MultiPV 4 | median 22, maximum 28 | median 245 ms, maximum 331 ms | median 220 ms, maximum 270 ms |
+
+On this machine every ply up to 8 is scored well inside the deadline. On a slower machine the deadline cuts the later plies first.
 
 **Grounding.** `board_lines_grounding` builds one `Evidence` per line (`board_multipv` with that line and its score, `best_differences_cp` with its difference to line 1) whose only verified line is the full line, and, with two or more lines, `comparison` holding every line, every score and every difference. The context FEN is the board position, so "you" in the claim grammar is the side to move. Provider output is validated against `board_slot_grounding(facts)`: the same evidence and verified lines plus `board_slot_catalogue(facts)` (section 13), so it is checked on the slot path. The template keeps the grammar path. After `validate_generated_explanation`, `claim_line_id` links each claim to a line: its `evidence_ref` when that is a line, else the line its cited UCI prefix starts; a claim linked to no line (a `comparison` claim with an empty `line`) is rejected with `missing_line`.
 
@@ -537,7 +582,9 @@ Factor changes across each mistake are narrator facts, so the narrator can name 
 **Rule.** A change is `played` minus a reference point (`before` or `best`), in pawns (internal units / 206), from the learner's point of view. It becomes a fact only when both hold:
 
 1. its size reaches the threshold of its kind;
-2. its sign agrees with the engine swing: the score after the learner's move minus the score before it (learner's view; a mate counts as ±(100 000 − distance); `-swing_cp` when a score is unknown). A zero or unknown swing gives no fact.
+2. its sign agrees with the engine swing between the two points (#367): the engine score at the `played` position minus the score at the reference position (`before`: `evaluation_before`; `best`: the score at the `best` position), read from the per-move evaluations of the verified lines (section 5), learner's view; a mate counts as ±(100 000 − distance). When either score is unknown, the swing across the mistake is used: the score after the learner's move minus the score before it, or `-swing_cp`. A zero or unknown swing gives no fact.
+
+`FactorFacts.swings` records the swing each comparison used and its `source`: `points` (scores at both measured positions) or `mistake` (the fallback). On the 50 benchmark lessons with recorded line scores (`tests/fixtures/narrator_line_evaluations.json`), all 71 comparisons use `points`. Against the same lessons without line scores, 8 changes are added and 5 dropped; 36 lessons have a passed change (37 without line scores). The measurement below uses the benchmark payloads, which have no `line_evaluations`.
 
 **Config table** (`FACTOR_CONFIG`; calibrated in #410):
 
@@ -552,7 +599,7 @@ Factor changes across each mistake are narrator facts, so the narrator can name 
 
 **Names.** Groups: pawn structure, piece placement, mobility, threats, passed pawns, space, king safety. Parts have plain names (`GROUP_NAMES`, `TERM_NAMES`), for example `King danger` is `king attack` and `Shelter strength` is `pawn shelter`. A part that is the only part of its group (Mobility, Space) is stated as the group. Each name gives the slot key (`king safety` → `king_safety`) and the words the vocabulary rule admits (section 13).
 
-**Facts and slots.** `NarratorFacts.factors` (`FactorFacts`, schema `narrator-facts/1`, optional, so earlier documents stay valid) holds `source` (`FACTOR_SOURCE`, `scan64-factors/1, Stockfish Evaluation Guide 63ff375`), the points, the swing and the passed changes. Each change is a slot: `{factor:KEY:played}` (against `before`) and `{factor:KEY:best}` (against `best`), shared by every evidence item and labelled with the source (`Slot.source`). Analysis Board: `BoardLineFacts.factors` for lines 2 and later compares the line's quiet position with line 1's, with the swing this line's score minus line 1's; its slots are `{factor:KEY:line-K}`. Values are rendered by code and name their position, so they stay true wherever the model places them.
+**Facts and slots.** `NarratorFacts.factors` (`FactorFacts`, schema `narrator-facts/1`, optional, so earlier documents stay valid) holds `source` (`FACTOR_SOURCE`, `scan64-factors/1, Stockfish Evaluation Guide 63ff375`), the points, the swing and the passed changes. Each change is a slot: `{factor:KEY:played}` (against `before`) and `{factor:KEY:best}` (against `best`), shared by every evidence item and labelled with the source (`Slot.source`). Analysis Board: `BoardLineFacts.factors` for lines 2 and later compares the line's quiet position with line 1's, with the swing the score at this line's quiet position minus the score at line 1's (else this line's score minus line 1's); its slots are `{factor:KEY:line-K}`. Values are rendered by code and name their position, so they stay true wherever the model places them.
 
 **Measured on the 50 benchmark positions.** 37 have at least one passed change (the Stockfish 11 measurement in #406 found 37 with a non-material term moving at least 0.3 pawns). Most frequent: king safety (13 against `before`, 13 against `best`), king attack (12, 10), threats (9, 7), hanging pieces (8, 8). 13 positions have none: in 11 the `played` point is not quiet, in 1 no change passes both rules, and in 1 (`ui2g2idg:59`) the stored best move equals the played move, so nothing is measured (`factors` absent). Facts for all 50 take 0.72 s (linux-5090).
 
