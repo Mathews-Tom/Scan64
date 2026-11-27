@@ -18,7 +18,7 @@ describe('GamesListScreen', () => {
 
   it('lists every returned game and opens the selected game', async () => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-      items: [{ id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
+      items: [{ variant: 'chess', id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
       next_cursor: null,
     });
     const onOpenGame = vi.fn();
@@ -48,7 +48,7 @@ describe('GamesListScreen', () => {
     ['????.??.??', null],
   ] as const)('does not replace partial PGN date %s with the import date', async (date, knownYear) => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-      items: [{ id: 'partial-date', white: 'Alice', black: 'Bob', result: '1-0', date, created_at: '2026-11-14T12:00:00Z', diagnosis_count: 0 }],
+      items: [{ variant: 'chess', id: 'partial-date', white: 'Alice', black: 'Bob', result: '1-0', date, created_at: '2026-11-14T12:00:00Z', diagnosis_count: 0 }],
       next_cursor: null,
     });
     render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={vi.fn()} />);

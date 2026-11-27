@@ -19,6 +19,7 @@ from scan64.chess.games.assistance import (
     StalePlaySnapshot,
     persist_assistance,
 )
+from scan64.chess.variants import STANDARD, VariantName, board_class
 from scan64.explanations.board_lines import ScoredLine, scored_legal_lines
 from scan64.learning.insights import InsightStep, insight_step, position_insight
 from scan64.persistence.database import get_session
@@ -98,6 +99,9 @@ async def insight_position(
 class PositionAnalysisRequest(BaseModel):
     player_id: str
     fen: str
+    # The rules the FEN is read and searched under; the engine must declare a
+    # variant other than standard chess.
+    variant: VariantName = STANDARD
 
 
 class PositionAnalysisMove(BaseModel):
@@ -113,6 +117,7 @@ class PositionAnalysisLine(BaseModel):
 
 class PositionAnalysisRead(BaseModel):
     fen: str
+    variant: VariantName
     lines: list[PositionAnalysisLine]
 
 
@@ -142,14 +147,16 @@ def position_analysis_line(board: chess.Board, line: ScoredLine) -> PositionAnal
     )
 
 
-def free_analysis_board(fen: str) -> chess.Board:
-    """Parse a free-analysis FEN; 422 before any engine access when it is not a position."""
+def free_analysis_board(fen: str, variant: VariantName = STANDARD) -> chess.Board:
+    """Parse a free-analysis FEN under ``variant``'s rules; 422 before any engine access
+    when it is not a position of that variant."""
     try:
-        board = chess.Board(fen)
+        board = board_class(variant)(fen)
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid FEN") from None
     if not board.is_valid():
-        raise HTTPException(status_code=422, detail="Invalid chess position")
+        detail = "Invalid chess position" if variant == STANDARD else f"Invalid {variant} position"
+        raise HTTPException(status_code=422, detail=detail)
     return board
 
 
@@ -176,10 +183,10 @@ async def analyze_position(
     player_id = require_authenticated_player(request, session)
     if player_id != body.player_id:
         raise HTTPException(status_code=404, detail="Player not found")
-    board = free_analysis_board(body.fen)
+    board = free_analysis_board(body.fen, body.variant)
     fen = board.fen()
     if board.is_game_over():
-        return PositionAnalysisRead(fen=fen, lines=[])
+        return PositionAnalysisRead(fen=fen, variant=body.variant, lines=[])
     manager = free_analysis_manager(request)
     try:
         analysis = await manager.analyze_hint(board)
@@ -190,7 +197,7 @@ async def analyze_position(
             # Evict only when free-analysis conversion rejects it, so Retry searches again.
             manager.invalidate_hint(board)
             raise
-        return PositionAnalysisRead(fen=fen, lines=lines)
+        return PositionAnalysisRead(fen=fen, variant=body.variant, lines=lines)
     except TimeoutError:
         raise HTTPException(
             status_code=503, detail="Analysis capacity is busy; try again shortly"

@@ -13,9 +13,14 @@ export type PositionInsightRequest = { player_id: string; step: 1 | 2 | 3 } & (
   { fen: string; play_session_id?: never } | { play_session_id: string; fen?: never }
 );
 
+/** A variant's UCI name (`scan64.chess.variants.VariantName`); `chess` is standard. */
+export type VariantName = 'chess' | 'crazyhouse' | '3check' | 'atomic' | 'antichess' | 'kingofthehill' | 'horde' | 'racingkings';
+
 export interface PositionAnalysisRequest {
   player_id: string;
   fen: string;
+  /** Rules the FEN is read and searched under; omitted means standard chess. */
+  variant?: VariantName;
 }
 
 export interface PositionAnalysisMove {
@@ -31,6 +36,7 @@ export interface PositionAnalysisLine {
 
 export interface PositionAnalysisRead {
   fen: string;
+  variant: VariantName;
   lines: PositionAnalysisLine[];
 }
 

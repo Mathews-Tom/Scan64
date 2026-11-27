@@ -42,7 +42,7 @@ describe('PgnImportScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     events = analysisStream();
-    vi.mocked(ApiClient.createGame).mockResolvedValue({ id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*' });
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess', id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*' });
     vi.mocked(ApiClient.createAnalysisJob).mockResolvedValue({ id: 'job-1', game_id: 'game-1', status: 'pending' });
     vi.mocked(ApiClient.getLearningOpportunities).mockResolvedValue({ session_id: 'study-1', lessons: [], next_cursor: null });
     vi.mocked(ApiClient.watchAnalysisJob).mockImplementation((_jobId, onUpdate, signal) => readProgress<AnalysisJobRead>(
@@ -238,7 +238,7 @@ describe('PgnImportScreen', () => {
     ['threat_processing.allowed_mate', 'Allowed checkmate'],
   ])('imports PGN and displays %s without renaming other codes', async (primary, label) => {
     const onExploreAnalysis = vi.fn();
-    vi.mocked(ApiClient.createGame).mockResolvedValueOnce({
+    vi.mocked(ApiClient.createGame).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-1', pgn: '...', white: 'w', black: 'b', result: '*'
     });
     vi.mocked(ApiClient.createAnalysisJob).mockResolvedValueOnce({

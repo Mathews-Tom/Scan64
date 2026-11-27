@@ -34,7 +34,7 @@ describe('AnalysisScreen', () => {
     vi.mocked(ApiClient.analyzePosition).mockReset();
     vi.mocked(ApiClient.analyzePosition).mockImplementation(async ({ fen }) => {
       const move = new Chess(fen).moves({ verbose: true })[0];
-      return { fen, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
+      return { fen, variant: 'chess' as const, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
     });
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -92,7 +92,7 @@ describe('AnalysisScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
     const position = new Chess(); position.move('e4');
     await waitFor(() => expect(screen.getByLabelText('FEN')).toHaveValue(position.fen()));
-    await act(async () => pending.resolve({ fen: candidate, lines: [{
+    await act(async () => pending.resolve({ variant: 'chess', fen: candidate, lines: [{
       score_cp: 950, mate: null, moves: [{ uci: 'e7e8q', san: 'e8=Q+' }],
     }] }));
     expect(screen.getByLabelText('FEN')).toHaveValue(position.fen());
@@ -132,7 +132,7 @@ describe('AnalysisScreen', () => {
 
   it('plays the entire legal prefix through a clicked PV move and refreshes the selected position', async () => {
     const initial = new Chess().fen();
-    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ fen: initial, lines: [{
+    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ variant: 'chess', fen: initial, lines: [{
       score_cp: 34, mate: null,
       moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }, { uci: 'g1f3', san: 'Nf3' }],
     }, { score_cp: null, mate: -4, moves: [{ uci: 'd2d4', san: 'd4' }] }] });
@@ -195,15 +195,15 @@ describe('AnalysisScreen', () => {
     const blackFen = vi.mocked(ApiClient.analyzePosition).mock.calls[1][0].fen;
     fireEvent.click(screen.getByRole('button', { name: 'First' }));
     await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(3));
-    await act(async () => secondA.resolve({ fen: new Chess().fen(), lines: [{
+    await act(async () => secondA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
       score_cp: 55, mate: null, moves: [{ uci: 'e2e4', san: 'e4' }],
     }] }));
     expect(screen.getByLabelText('Line 1 evaluation +0.55')).toBeInTheDocument();
     await act(async () => {
-      firstA.resolve({ fen: new Chess().fen(), lines: [{
+      firstA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
         score_cp: 111, mate: null, moves: [{ uci: 'd2d4', san: 'd4' }],
       }] });
-      positionB.resolve({ fen: blackFen, lines: [{
+      positionB.resolve({ variant: 'chess', fen: blackFen, lines: [{
         score_cp: null, mate: -5, moves: [{ uci: 'e7e5', san: 'e5' }],
       }] });
     });
@@ -329,7 +329,7 @@ describe('AnalysisScreen', () => {
     const onPlayFromHere = vi.fn();
     const playSession = { id: 'session-1', player_id: 'player-1', game_id: 'game-1',
     opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false, assistance_modes: [] };
-    vi.mocked(ApiClient.createGame).mockResolvedValue({
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess',
       id: 'game-1',
       pgn: '',
       white: 'White',

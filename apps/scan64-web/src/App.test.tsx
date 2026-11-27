@@ -222,7 +222,7 @@ describe('App', () => {
     const gameId = '00000000-0000-4000-8000-000000000052';
     const playSession = { id: 'session-52', player_id: 'player-1', game_id: gameId,
       status: 'active', coach_mode: false, assistance_modes: [], opponent_config: {} };
-    vi.mocked(ApiClient.createGame).mockResolvedValue({
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess',
       id: gameId, pgn: '', white: 'player-1', black: 'Stockfish', result: '*',
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
@@ -253,7 +253,7 @@ describe('App', () => {
     const gameId = '00000000-0000-4000-8000-000000000052';
     const playSession = { id: 'session-52', player_id: 'player-1', game_id: gameId,
       status: 'active', coach_mode: false, assistance_modes: [], opponent_config: {} };
-    vi.mocked(ApiClient.createGame).mockResolvedValue({
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess',
       id: gameId, pgn: '', white: 'player-1', black: 'Stockfish', result: '*',
     });
     vi.mocked(ApiClient.createPlaySession).mockResolvedValue(playSession);
@@ -436,8 +436,8 @@ it('links the latest analysed game and orders weakest skills by name without cod
   const gameId = '00000000-0000-0000-0000-000000000001';
   vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
     items: [
-      { id: '00000000-0000-0000-0000-000000000002', white: 'Newer player', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 0 },
-      { id: gameId, white: 'Ada', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 1 },
+      { variant: 'chess', id: '00000000-0000-0000-0000-000000000002', white: 'Newer player', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 0 },
+      { variant: 'chess', id: gameId, white: 'Ada', black: 'Bot', result: '*', date: '', created_at: '', diagnosis_count: 1 },
     ],
     next_cursor: null,
   });
