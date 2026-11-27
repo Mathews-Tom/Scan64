@@ -1,14 +1,15 @@
 /* Position health (#416): calm segmented meters. Lit segments take the level's
    colour; unlit segments stay neutral, so the fill length, the word and the colour
    all carry the reading. Plain hex only (no oklch() or color-mix(), which older
-   WebKit drops). On --surface each fill is at least 4.5:1 and at least 3.7:1
-   against an unlit segment, in both themes. */
+   WebKit drops). On --surface each fill is at least 4.5:1 and at least 3:1
+   against an unlit segment, in both themes; the unlit track is about 1.5:1 on the
+   surface, so an empty meter still shows its length. */
 /* While the next position loads, the last reading stays and dims a little, so it
    is not read as current; no animation. */
 .position-health[aria-busy='true'] .position-health__table { opacity: 0.6; }
 .position-health {
   min-width: 0;
-  --meter-unlit: #dedede; --meter-good: #2e7d4f; --meter-fair: #8a6a14; --meter-low: #b23b2e;
+  --meter-unlit: #cacaca; --meter-good: #2e7d4f; --meter-fair: #8a6a14; --meter-low: #b23b2e;
 }
 :root[data-appearance='dark'] .position-health {
   --meter-unlit: #4a4a4a; --meter-good: #6fd39a; --meter-fair: #e0b84f; --meter-low: #ff8a7a;
