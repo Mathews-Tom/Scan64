@@ -179,7 +179,7 @@ def load_config(path: Path) -> BenchConfig:
         pipeline_entry=run["pipeline_entry"],
         grounding_context=run["grounding_context"],
         voice=parse_narrator_voice(run.get("voice")),
-        positions_file=REPO_ROOT / raw["positions"]["file"],
+        positions_file=REPO_ROOT / run.get("positions_file", raw["positions"]["file"]),
         models=models,
     )
 

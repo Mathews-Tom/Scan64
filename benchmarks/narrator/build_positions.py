@@ -30,7 +30,11 @@ from typing import Any
 import chess
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestrator
+from scan64.chess.analysis.orchestration import (
+    CandidatePosition,
+    FastPassConfig,
+    FastPassOrchestrator,
+)
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
@@ -54,6 +58,78 @@ def _detectors() -> tuple[PatternDetector, ...]:
     return tuple(detectors)
 
 
+async def diagnose_candidate(
+    *,
+    corpus_path: Path,
+    game: dict[str, Any],
+    fens: list[str],
+    candidate: CandidatePosition,
+    focused_analysis: EngineAnalysis,
+    mate_source_analysis: EngineAnalysis | None,
+    detectors: tuple[PatternDetector, ...],
+) -> dict[str, Any] | None:
+    """Compose evidence, detect and arbitrate one fast-pass candidate, as the job does.
+
+    Returns the benchmark position record, or ``None`` without a trusted diagnosis.
+    """
+    index = candidate.move_index
+    before = chess.Board(fens[index])
+    evidence = compose_candidate_evidence(
+        before_board=before,
+        after_board=chess.Board(candidate.fen),
+        history_san=game["moves"][: index + 1],
+        initial_fen=None,
+        position_id="recorded",
+        fast_analysis=candidate.before_analysis,
+        reply_analysis=candidate.after_analysis,
+        focused_analysis=focused_analysis,
+        mate_source_analysis=mate_source_analysis,
+        played_move=game["moves"][index],
+        swing_cp=candidate.swing_cp,
+    )
+    opportunity = LearningOpportunity(
+        opportunity_id="recorded",
+        position_id="recorded",
+        player_id="recorded",
+        played_move=game["moves"][index],
+        engine_eval_before=0.0,
+        engine_eval_after=-(candidate.swing_cp / 100.0),
+    )
+    detected = []
+    for detector in detectors:
+        detected.extend(
+            await detector.detect(opportunity, evidence, PlayerContext(player_id="recorded"))
+        )
+    selection = arbitrate_diagnoses(detected, evidence)
+    if selection is None:
+        return None
+    best, secondary = selection
+    position_id = f"{corpus_path.stem}:{game['id']}:{index}"
+    renamed = {
+        item.evidence_id: f"{position_id}_ev{number}" for number, item in enumerate(evidence)
+    }
+    return {
+        "position_id": position_id,
+        "corpus": corpus_path.relative_to(REPO_ROOT).as_posix(),
+        "game_id": game["id"],
+        "move_index": index,
+        "fen": before.fen(),
+        "played_move": game["moves"][index],
+        "diagnosis": {
+            "primary": best.skill_id,
+            "secondary": [item.skill_id for item in secondary],
+            "confidence": best.confidence,
+            "evidence_refs": [renamed[ref] for ref in best.evidence_ids],
+        },
+        # Only referenced items: the explanation pipeline reads no others.
+        "evidence": [
+            {**item.model_dump(), "evidence_id": renamed[item.evidence_id]}
+            for item in evidence
+            if item.evidence_id in best.evidence_ids
+        ],
+    }
+
+
 async def _corpus_positions(
     corpus_path: Path, detectors: tuple[PatternDetector, ...]
 ) -> list[dict[str, Any]]:
@@ -66,78 +142,26 @@ async def _corpus_positions(
         ).run_fast_pass(game["moves"])
         for candidate in fast_pass.candidates:
             index = candidate.move_index
-            before = chess.Board(adapter.fens[index])
             mate_source = None
             if needs_mate_source(candidate.after_analysis):
                 mate_source = EngineAnalysis(
                     config={"nodes": 1_000_000, "multipv": 4},
                     raw_result=game["deep_before"][str(index)],
                 )
-            evidence = compose_candidate_evidence(
-                before_board=before,
-                after_board=chess.Board(candidate.fen),
-                history_san=game["moves"][: index + 1],
-                initial_fen=None,
-                position_id="recorded",
-                fast_analysis=candidate.before_analysis,
-                reply_analysis=candidate.after_analysis,
+            position = await diagnose_candidate(
+                corpus_path=corpus_path,
+                game=game,
+                fens=adapter.fens,
+                candidate=candidate,
                 focused_analysis=EngineAnalysis(
                     config={"nodes": 1_000_000, "multipv": 4},
                     raw_result=game["focused"][str(index)],
                 ),
                 mate_source_analysis=mate_source,
-                played_move=game["moves"][index],
-                swing_cp=candidate.swing_cp,
+                detectors=detectors,
             )
-            opportunity = LearningOpportunity(
-                opportunity_id="recorded",
-                position_id="recorded",
-                player_id="recorded",
-                played_move=game["moves"][index],
-                engine_eval_before=0.0,
-                engine_eval_after=-(candidate.swing_cp / 100.0),
-            )
-            detected = []
-            for detector in detectors:
-                detected.extend(
-                    await detector.detect(
-                        opportunity, evidence, PlayerContext(player_id="recorded")
-                    )
-                )
-            selection = arbitrate_diagnoses(detected, evidence)
-            if selection is None:
-                continue
-            best, secondary = selection
-            position_id = f"{corpus_path.stem}:{game['id']}:{index}"
-            renamed = {
-                item.evidence_id: f"{position_id}_ev{number}"
-                for number, item in enumerate(evidence)
-            }
-            found.append(
-                {
-                    "position_id": position_id,
-                    "corpus": corpus_path.relative_to(REPO_ROOT).as_posix(),
-                    "game_id": game["id"],
-                    "move_index": index,
-                    "fen": before.fen(),
-                    "played_move": game["moves"][index],
-                    "diagnosis": {
-                        "primary": best.skill_id,
-                        "secondary": [item.skill_id for item in secondary],
-                        "confidence": best.confidence,
-                        "evidence_refs": [renamed[ref] for ref in best.evidence_ids],
-                    },
-                    # Only referenced items: the explanation pipeline reads no others.
-                    "evidence": [
-                        {
-                            **item.model_dump(),
-                            "evidence_id": renamed[item.evidence_id],
-                        }
-                        for item in evidence
-                        if item.evidence_id in best.evidence_ids
-                    ],
-                }
-            )
+            if position is not None:
+                found.append(position)
     return found
 
 
