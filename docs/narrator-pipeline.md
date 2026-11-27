@@ -472,3 +472,31 @@ voice = "terse"
 ```
 
 **Benchmark.** `voice` in the `[run]` table of `benchmarks/narrator/narrator.toml` (default `"coach"`) is passed to `pipeline_entry` as `voice=` and recorded in the run header and the summary. One runs file holds one voice; resume refuses a different voice. To compare voices, run once per voice and compare the summaries (grounding pass and coverage).
+
+## 15. Factor module (#407)
+
+The factor module computes the evaluation of a position as named factors, so later work (#408) can say why a move changed the score. It is a Python port of the Stockfish Evaluation Guide (hxim, GPL-3.0, commit `63ff375`), which documents the Stockfish 12-era classical evaluation. Module: `src/scan64/explanations/factors/`. The narrator does not read it yet.
+
+**API.** `evaluate_factors(board)` takes a python-chess board or a FEN and returns a `FactorReport` (White's point of view, internal units; `FactorReport.to_pawns` divides by 206):
+
+| Field | Content |
+|---|---|
+| `terms` | all 125 guide functions under their guide names and groups; `white` = value on the position, `black` = value on the colour-flipped position |
+| `contributions` | 48 named parts (for example `Hanging`, `King danger`, `Passed block`) with White and Black middle-game and end-game values, net values and the tapered total |
+| `groups` | Material, Imbalance, Pawns, Pieces, Mobility, Threats, Passed pawns, Space, King, Winnable: the sums of their contributions |
+| `phase`, `scale_factor`, `middle_game`, `end_game`, `tempo`, `rule50`, `evaluation` | the guide's taper inputs and its `Main evaluation` |
+
+A side value belongs to the side that earns it, as in the guide: White's `King danger` measures White's attack on the black king. `Imbalance total` and `Winnable` are net only.
+
+**Parity.** `tests/unit/test_factors_parity.py` compares every term, for both sides, with the guide's own JavaScript on 324 positions (curated cases, the 50 narrator-benchmark positions before and after the played move, FENs from `tests/fixtures`, and openings, middle games and endgames from the recorded real games). All values match exactly. The reference values are a committed fixture (`tests/fixtures/factors/seg_reference.json.gz`), so CI needs no Node. To regenerate: build the position set with `tests/helpers/factors/build_positions.py`, then run `tests/helpers/factors/regenerate_reference.py <guide index.html>` on a guide checkout outside the repository.
+
+**Stockfish 11 comparison.** `tests/helpers/factors/sf11_compare.py` records the Stockfish 11 `eval` trace (development machine only) and compares the net middle-game and end-game group totals in internal units. Tolerance: 50 units (about 0.25 pawn) per group and phase. Of 324 positions, 232 are compared; Stockfish 11 prints no trace for 34 positions in check, 51 lazy evaluations and 7 specialized endgames. 50 group values exceed the tolerance, in King (30), Winnable (10), Pieces (4), Threats (4) and Space (2). Each one has a cause code checked against the Stockfish 11 source, for example safe checks that the guide multiplies by their count, the guide's king-pawn distance of 6 for a side without pawns, and the guide's space weight. The table of every difference is `tests/fixtures/factors/sf11_comparison.md`; a unit test rebuilds it and checks that every row has a cause.
+
+**Speed.** On linux-5090 (AMD Ryzen Threadripper 9960X, Python 3.12.13), `evaluate_factors` takes 2.87 ms mean, 3.7 ms p95 and 7.2 ms maximum over the 324 positions (3 passes). The port uses a padded board with precomputed attack tables and per-position caches. A unit test fails above 50 ms mean.
+
+**Limits.**
+
+- The guide is the classical Stockfish evaluation, not the engine that judges moves (Caissa, or Stockfish with NNUE). Its factors explain a score; they do not replace the engine's judgement.
+- The guide skips Stockfish's specialized endgames (KPK, KRK and others) and has no search, so factor values in those endgames and in tactical positions describe the static position only.
+- The module needs exactly one king per side and no pawn on the first or last rank (`ValueError` otherwise).
+- Pure Python on python-chess: no engine binary and no network access at runtime.
