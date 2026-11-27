@@ -283,7 +283,7 @@ Paths that return the template instead of LLM output:
 
 Failures that do **not** fall back. These propagate to the caller: `ExplanationTemplateError` (raised before any LLM call, because the template is computed first) and `LLMConfigurationError` (bad config file, missing API key env var, non-HTTPS URL, invalid `SCAN64_LOCAL_LLM_*` value).
 
-Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_template_fallback`, the reason code only, never evidence) and counted in-process (`template_fallback_counts()`). The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
+Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_template_fallback`, the pipeline and the reason code only, never evidence) and counted in-process. Section 15 gives the attempt, accept and fallback counts and the fallback rate. The stored `Explanation` has no field naming its source. The only implicit marker is that template output has an empty `claims` list.
 
 ## 10. After resolution: storage, API, client
 
@@ -574,3 +574,45 @@ The lowest ratio measured was 2.58 characters per token (gemma4-12b, qwen3.5-9b,
 - The sign rule does not compare sizes: a 0.3-pawn factor change can accompany a 9-pawn swing.
 - A group and one of its parts can both pass (king safety and king attack).
 - Lines are the stored verified lines, cut at 8 plies (section 5); a line that is still forcing at its end gives no measurement.
+
+## 17. Observability (#366)
+
+The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanation`) and `board` (`resolve_board_lines_explanation`). The counts start at zero when the server starts. They hold counts and reason codes only: no evidence, prompt, model output or player data.
+
+| Counter | Incremented when | Function |
+|---|---|---|
+| attempts | A configured provider is about to be used (after paths 1 to 3 of section 9) | `record_narrator_attempt` |
+| accepted | The provider's wording passed validation and replaced the template | `record_narrator_accepted` |
+| fallbacks by reason | Paths 4 to 5a of section 9 (`invalid_evidence`, `provider_error`, a validator code) | `record_template_fallback` |
+
+- One lock guards all counters, so concurrent requests count correctly.
+- Each finished attempt adds one to `accepted` or to one fallback reason. A request in flight, or one ended by an unexpected exception, has an attempt only.
+- Template-only resolution (no provider) counts nothing. The fallback rate therefore measures the narrator, not the share of template output.
+- `narrator_counts()` returns a snapshot per pipeline. `template_fallback_counts()` returns the fallbacks by reason summed over both pipelines.
+
+**Endpoint.** `GET /v1/diagnostics/narrator` (`api/diagnostics.py`) is read-only and needs no player token. It answers only a loopback client (`127.0.0.1`, `::1`); other clients get 403. The desktop shell token applies as for every other route. The response has `Cache-Control: no-store`.
+
+```json
+{
+  "lesson": {
+    "attempts": 12,
+    "accepted": 9,
+    "fallbacks": 3,
+    "fallback_rate": 0.25,
+    "fallbacks_by_reason": {"provider_error": 1, "unparsed_chess_token": 2}
+  },
+  "board": {
+    "attempts": 0,
+    "accepted": 0,
+    "fallbacks": 0,
+    "fallback_rate": null,
+    "fallbacks_by_reason": {}
+  }
+}
+```
+
+`fallback_rate` is `fallbacks / attempts`, or `null` before the first attempt.
+
+```bash
+curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
+```

@@ -598,14 +598,22 @@ async def run_one(
     }
 
 
-def _nvidia_used_mib() -> int:
-    out = subprocess.run(
-        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    return int(out.strip().splitlines()[0])
+def _nvidia_smi(*query: str) -> str | None:
+    """Run nvidia-smi; None when it is absent or fails (CPU or non-NVIDIA machine)."""
+    try:
+        result = subprocess.run(["nvidia-smi", *query], check=True, capture_output=True, text=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def _nvidia_used_mib() -> int | None:
+    out = _nvidia_smi("--query-gpu=memory.used", "--format=csv,noheader,nounits")
+    return None if out is None else int(out.splitlines()[0])
+
+
+def _gib_over(high: int | None, low: int | None) -> float | None:
+    return None if high is None or low is None else (high - low) / 1024
 
 
 def _foreign_loaded(config: BenchConfig) -> list[str]:
@@ -694,7 +702,8 @@ async def measure_model(
     for count, (position, run) in enumerate(pending, start=1):
         record = await run_one(model, position, run, config, entry, context_builder)
         used = _nvidia_used_mib()
-        peak_mib = max(peak_mib, used)
+        if used is not None:
+            peak_mib = used if peak_mib is None else max(peak_mib, used)
         record["record"] = "run"
         record["gpu_used_mib"] = used
         record["foreign_models_loaded"] = _foreign_loaded(config)
@@ -938,11 +947,13 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "load_and_first_call_s": load["load_and_first_call_s"],
             # Measured GPU memory rise when the model loads (weights, KV cache and
             # buffers). Ollama's size_vram under-reports some models (gemma4).
-            "vram_model_gib": (load["gpu_loaded_used_mib"] - load["gpu_idle_used_mib"]) / 1024,
+            # None without nvidia-smi (CPU or non-NVIDIA machine).
+            "vram_model_gib": _gib_over(load["gpu_loaded_used_mib"], load["gpu_idle_used_mib"]),
             "ollama_size_vram_gib": load["ollama_size_vram_bytes"] / 2**30,
             "model_size_gib": load["ollama_size_bytes"] / 2**30,
-            "gpu_peak_over_idle_gib": (done[0]["gpu_peak_used_mib"] - done[0]["gpu_idle_used_mib"])
-            / 1024
+            "gpu_peak_over_idle_gib": _gib_over(
+                done[0]["gpu_peak_used_mib"], done[0]["gpu_idle_used_mib"]
+            )
             if done
             else None,
             "mean_prompt_tokens": statistics.fmean(
@@ -969,7 +980,7 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"Pipeline `{header['pipeline']['pipeline_entry']}` at commit "
         f"`{header['pipeline']['commit']}` (module sha256 "
         f"`{header['pipeline']['module_sha256'][:12]}`), {header['positions']} positions x "
-        f"{header['runs_per_position']} runs, GPU {header['gpu']}, "
+        f"{header['runs_per_position']} runs, GPU {header['gpu'] or 'none (no nvidia-smi)'}, "
         f"Ollama {header['ollama_version']}."
         # Voice (#387); headers before #387 have none and keep their summary text.
         + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
@@ -1000,7 +1011,7 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f"| {_fmt(row.get('first_token_p50_s'), '.2f')} "
             f"| {row['within_production_limit_rate']:.1%} "
             f"| {row.get('length_stop_rate', 0):.1%} | {row.get('thinking_calls', 0)} "
-            f"| {row['vram_model_gib']:.2f} |"
+            f"| {_fmt(row['vram_model_gib'], '.2f')} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -1015,13 +1026,8 @@ def write_summary(sink: Path, config: BenchConfig) -> tuple[Path, Path]:
     return json_path, md_path
 
 
-def _gpu_name() -> str:
-    return subprocess.run(
-        ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def _gpu_name() -> str | None:
+    return _nvidia_smi("--query-gpu=name,memory.total", "--format=csv,noheader")
 
 
 async def run(
