@@ -86,7 +86,6 @@ class StockfishOpponentProvider(OpponentPolicy):
                     "Hash": self.config.hash_size,
                     "Skill Level": skill_level,
                     "UCI_LimitStrength": False,
-                    "UCI_Elo": 1320,
                 }
             )
 

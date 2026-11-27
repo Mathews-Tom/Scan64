@@ -137,7 +137,7 @@ async def test_ladder_search_uses_full_strength_and_fixed_nodes(
     )
     assert result.move in chess.Board().legal_moves
     engine.configure.assert_awaited_once_with(
-        {"Threads": 1, "Skill Level": 20, "UCI_LimitStrength": False, "UCI_Elo": 1320}
+        {"Threads": 1, "Skill Level": 20, "UCI_LimitStrength": False}
     )
     call = engine.analyse.await_args
     assert call.args[1].nodes == 3210
@@ -204,14 +204,12 @@ async def test_pool_resets_strength_for_analysis_and_legacy_play(
             "Threads": 2,
             "Skill Level": 20,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
         await adapter.play_move(chess.STARTING_FEN, 4, chess.engine.Limit(nodes=123))
         assert engine.configure.await_args.args[0] == {
             "Threads": 2,
             "Skill Level": 4,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
     finally:
         await adapter.quit()

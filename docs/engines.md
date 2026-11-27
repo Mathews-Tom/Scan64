@@ -127,8 +127,8 @@ threads, hash, options) and the effective hint limits.
 | Fast pass, review, backfill | any UCI or XBoard engine | — |
 | Focused pass, hints, Analysis Board lines, lesson verification (MultiPV 2–8) | `MultiPV` (UCI only) | `EngineCapabilityError` (API: 503 `engine_capability_unavailable`; job: `failed` with the reason). No single-line substitute. |
 | WDL in stored lines | engine reports `wdl` (Berserk by default; Stockfish/Lc0 with `UCI_ShowWDL`) | `wdl` key absent. |
-| Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` where declared | Skipped: an engine without these controls is always at full strength. |
-| Bot ladder opponent (levels 1–8) | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` | `EngineCapabilityError` naming the missing options. |
+| Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength` where declared (`UCI_Elo` is not sent: it is ignored while `UCI_LimitStrength` is off) | Skipped: an engine without these controls is always at full strength. |
+| Bot ladder opponent (levels 1–8) | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength` | `EngineCapabilityError` naming the missing options. |
 | Legacy Skill Level opponent (sessions without `bot_level`) | `Skill Level` | `EngineCapabilityError` naming `Skill Level`. |
 
 Opponent strength stays Stockfish-only on purpose: the ladder's error budgets,
@@ -297,9 +297,6 @@ date and the engine versions.
 - The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
   starts the engine with `popen_uci` and sets `Hash` unconditionally.
 - Map `EngineCapabilityError` to a client-visible 4xx/503 in the play API.
-- The bot ladder sends `UCI_Elo = 1320` itself (`bot_policy.py`), outside
-  Stockfish 11's declared range (min 1350). The analysis reset clamps to the
-  declared range; the ladder does not.
 - The bot ladder and Skill Level opponent need a strength path through
   `UCI_LimitStrength`/`UCI_Elo` alone, with time limits, for engines without
   `Skill Level` (Arasan 26.1, Minic, Rodent V); see #396 and #393.

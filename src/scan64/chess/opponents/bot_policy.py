@@ -73,7 +73,6 @@ async def choose_ladder_move(
             "Threads": 1,
             "Skill Level": 20,
             "UCI_LimitStrength": False,
-            "UCI_Elo": 1320,
         }
     )
     # Search every legal move so each level has the same candidate population;
