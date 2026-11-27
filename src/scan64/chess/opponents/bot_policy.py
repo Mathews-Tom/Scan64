@@ -15,6 +15,7 @@ import chess.engine
 from scan64.chess.opponents.bots import get_bot_level
 from scan64.chess.opponents.protocols import OpponentContext
 from scan64.providers.engine.config import scaled_nodes
+from scan64.providers.engine.uci import Engine
 
 DEFAULT_BOT_NODES = 1_000
 
@@ -53,7 +54,7 @@ def sample_candidate(
 
 
 async def choose_ladder_move(
-    engine: chess.engine.UciProtocol,
+    engine: Engine,
     board: chess.Board,
     context: OpponentContext,
     game: object,

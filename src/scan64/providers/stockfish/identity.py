@@ -8,9 +8,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-import chess.engine
-
 from scan64.chess.analysis.models import EngineAnalysisConfig
+from scan64.providers.engine.uci import Engine, is_xboard
 
 type ExecutableSignature = tuple[Path, int, int, int, int]
 
@@ -26,7 +25,7 @@ def executable_signature(binary_path: str) -> ExecutableSignature:
     return executable, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
 
 
-def engine_identity(engine: chess.engine.UciProtocol, binary_path: str) -> dict[str, Any]:
+def engine_identity(engine: Engine, binary_path: str) -> dict[str, Any]:
     """Read executable/network content once, when this UCI process starts."""
     executable = executable_signature(binary_path)[0]
     with executable.open("rb") as stream:
@@ -50,7 +49,7 @@ def engine_identity(engine: chess.engine.UciProtocol, binary_path: str) -> dict[
 
 
 def analysis_identity(
-    engine: chess.engine.UciProtocol, identity: dict[str, Any], threads: int, node_scale: float
+    engine: Engine, identity: dict[str, Any], threads: int, node_scale: float
 ) -> dict[str, Any]:
     """Include defaults and overrides, not just the two user-facing options.
 
@@ -59,6 +58,7 @@ def analysis_identity(
     analysis restores these exact values before searching. A profile's
     ``node_scale`` changes every search, so it is recorded when it is not 1;
     ``nodes`` stays the Scan64 budget, not the scaled count sent to the engine.
+    An XBoard process is recorded as ``protocol``; UCI, the default, is not.
     """
     options = dict(engine.config)
     options.pop("MultiPV", None)
@@ -72,6 +72,13 @@ def analysis_identity(
         "UCI_Chess960": False,
     }
     options.update({name: value for name, value in overrides.items() if name in engine.options})
-    if node_scale == 1:
-        return EngineAnalysisConfig(**identity, options=options).model_dump(exclude={"node_scale"})
-    return EngineAnalysisConfig(**identity, options=options, node_scale=node_scale).model_dump()
+    config = EngineAnalysisConfig(
+        **identity,
+        options=options,
+        node_scale=None if node_scale == 1 else node_scale,
+        protocol="xboard" if is_xboard(engine) else None,
+    )
+    # Keys at their defaults stay absent so pre-existing rows keep their reuse key.
+    return config.model_dump(
+        exclude={key for key in ("node_scale", "protocol") if getattr(config, key) is None}
+    )

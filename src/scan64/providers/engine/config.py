@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Literal
 
 ENGINE_CONFIG_ENV = "SCAN64_ENGINE_CONFIG"
 STOCKFISH_PATH_ENV = "SCAN64_STOCKFISH_PATH"
@@ -25,6 +25,11 @@ DEFAULT_HASH_MB = 16
 # Scan64's node budgets are sized for an alpha-beta engine's nodes/second. An
 # engine with slow nodes (Lc0, Maia-3) sets ``engine.node_scale`` below 1.
 DEFAULT_NODE_SCALE = 1.0
+# Wire protocol of the engine process. XBoard engines get single-line analysis
+# only: python-chess rejects MultiPV over XBoard.
+type EngineProtocolName = Literal["uci", "xboard"]
+PROTOCOLS: tuple[EngineProtocolName, ...] = ("uci", "xboard")
+DEFAULT_PROTOCOL: EngineProtocolName = "uci"
 
 # python-chess manages these per search; the strength controls are reset by the
 # pool before every analysis. A profile must not pin either group globally.
@@ -42,6 +47,9 @@ RESERVED_OPTIONS = frozenset(
         "UCI_Elo",
         "UCI_LimitStrength",
         "Skill Level",
+        # XBoard resources, sized from engine.threads / engine.hash_mb.
+        "cores",
+        "memory",
     }
 )
 
@@ -80,6 +88,7 @@ class EngineProfile:
 
     name: str
     binary_path: str
+    protocol: EngineProtocolName
     threads: int
     hash_size: int
     node_scale: float
@@ -92,6 +101,7 @@ def _stockfish_profile() -> EngineProfile:
     return EngineProfile(
         name=DEFAULT_ENGINE_NAME,
         binary_path=os.environ.get(STOCKFISH_PATH_ENV, DEFAULT_BINARY),
+        protocol=DEFAULT_PROTOCOL,
         threads=DEFAULT_THREADS,
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
@@ -106,6 +116,14 @@ def _positive(table: dict[str, Any], key: str, default: int, where: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
         raise EngineConfigurationError(f"{where}.{key} must be a positive integer")
     return value
+
+
+def _protocol(table: dict[str, Any], where: str) -> EngineProtocolName:
+    value = table.get("protocol", DEFAULT_PROTOCOL)
+    for protocol in PROTOCOLS:
+        if value == protocol:
+            return protocol
+    raise EngineConfigurationError(f"{where}.protocol must be one of {', '.join(PROTOCOLS)}")
 
 
 def _node_scale(table: dict[str, Any], where: str) -> float:
@@ -176,7 +194,9 @@ def load_engine_profile(path: Path) -> EngineProfile:
     if not isinstance(engine, dict):
         raise EngineConfigurationError(f"{path}: an [engine] table is required")
     _reject_unknown(
-        engine, {"name", "binary_path", "threads", "hash_mb", "node_scale", "options"}, "engine"
+        engine,
+        {"name", "binary_path", "protocol", "threads", "hash_mb", "node_scale", "options"},
+        "engine",
     )
     name = engine.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -197,6 +217,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
     return EngineProfile(
         name=name.strip(),
         binary_path=_binary_path(engine.get("binary_path"), path),
+        protocol=_protocol(engine, f"{path}: engine"),
         threads=_positive(engine, "threads", DEFAULT_THREADS, "engine"),
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
@@ -239,6 +260,7 @@ class EngineConfig:
     hash_size: int = field(default_factory=lambda: active_engine_profile().hash_size)
     name: str = field(default_factory=lambda: active_engine_profile().name)
     node_scale: float = field(default_factory=lambda: active_engine_profile().node_scale)
+    protocol: EngineProtocolName = field(default_factory=lambda: active_engine_profile().protocol)
     options: Mapping[str, UciOptionValue] = field(
         default_factory=lambda: active_engine_profile().options
     )
@@ -251,6 +273,7 @@ class EngineConfig:
         return (
             self.name,
             self.binary_path,
+            self.protocol,
             self.threads,
             self.hash_size,
             self.node_scale,

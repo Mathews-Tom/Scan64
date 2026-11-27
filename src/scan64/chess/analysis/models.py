@@ -19,6 +19,8 @@ class EngineAnalysisConfig(BaseModel):
     # Absent (``None``) at the default scale of 1, so rows written before
     # ``engine.node_scale`` existed keep the same reuse key.
     node_scale: float | None = None
+    # Absent for UCI, the default; "xboard" for an XBoard engine process.
+    protocol: str | None = None
 
 
 class EngineLine(BaseModel):

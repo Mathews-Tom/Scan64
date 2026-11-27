@@ -22,6 +22,7 @@ A profile:
 [engine]
 name = "ethereal"                                  # label for logs; not part of cache identity
 binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands) or a bare command on PATH
+protocol = "uci"                                   # optional: "uci" (default) or "xboard"
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
 node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
@@ -60,6 +61,14 @@ Rules (all enforced at load or engine start, failing with the file and key):
   rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
   1, so rows from different scales never reuse each other; rows at scale 1 keep
   their pre-existing reuse key.
+- `engine.protocol = "xboard"` runs an XBoard (protover 2) engine. The engine
+  must declare `ping` and `setboard`. Scan64 sends `engine.threads` as `cores`
+  and `engine.hash_mb` as `memory` when the engine declares `smp`/`memory`.
+  XBoard has no MultiPV, so only single-line searches work: game review and
+  single-line analysis run; a search for more lines (focused passes, Analysis
+  Board lines, hints with MultiPV, the bot ladder) raises
+  `EngineCapabilityError` naming the engine, never a single-line substitute.
+  Stored rows record `protocol = "xboard"`; UCI rows omit the key.
 - The profile file is re-read when its modification time or size changes; a
   running pool keeps the processes it started with.
 
