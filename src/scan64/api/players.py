@@ -20,6 +20,7 @@ from scan64.api.models import (
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
 from scan64.chess.analysis.models import PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.variants import stored_variant
 from scan64.learning.habit_models import HabitPolicy
 from scan64.persistence.database import get_session
 
@@ -106,6 +107,7 @@ class PlayerGameRead(BaseModel):
     date: str
     created_at: datetime
     diagnosis_count: int
+    variant: str
 
 
 def _diagnosis_counts(game_ids: list[UUID], session: Session) -> dict[UUID, int]:
@@ -172,6 +174,7 @@ def list_player_games(
                 date=game.date or game.created_at.strftime("%Y.%m.%d"),
                 created_at=game.created_at,
                 diagnosis_count=counts.get(game.id, 0),
+                variant=stored_variant(game.headers),
             )
             for game in games
         ],

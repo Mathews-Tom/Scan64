@@ -31,6 +31,16 @@ from scan64.chess.games.online_import import (
     source_identity,
 )
 from scan64.chess.positions.models import Position
+from scan64.chess.variants import (
+    NOT_COVERED,
+    STANDARD,
+    SUPPORTED_VARIANTS,
+    UnsupportedVariantError,
+    board_variant,
+    display_name,
+    stored_variant,
+    variant_of,
+)
 from scan64.content.models import StudySession
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -51,6 +61,19 @@ class GameRead(BaseModel):
     white: str
     black: str
     result: str
+    # ``chess`` for standard; else the variant's UCI name, or a legacy tag as written.
+    variant: str
+
+    @classmethod
+    def from_game(cls, game: Game) -> "GameRead":
+        return cls(
+            id=game.id,
+            pgn=game.pgn,
+            white=game.white,
+            black=game.black,
+            result=game.result,
+            variant=stored_variant(game.headers),
+        )
 
 
 class AnalysisJobRead(BaseModel):
@@ -108,7 +131,7 @@ def _decode_game_cursor(cursor: str) -> tuple[datetime, UUID]:
 @router.post("/v1/games", response_model=GameRead)
 def create_game(
     game_in: GameCreate, request: Request, session: Session = Depends(get_session)
-) -> Game:
+) -> GameRead:
     import io
 
     import chess.pgn
@@ -120,6 +143,15 @@ def create_game(
 
     if not chess_game:
         raise HTTPException(status_code=400, detail="Invalid PGN")
+    try:
+        variant_of(chess_game.headers)
+        board_variant(chess_game.board())
+    except UnsupportedVariantError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
+    if chess_game.errors:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid PGN: {chess_game.errors[0]}"
+        ) from None
 
     game = Game(
         pgn=game_in.pgn,
@@ -136,7 +168,7 @@ def create_game(
     session.add(game)
     session.commit()
     session.refresh(game)
-    return game
+    return GameRead.from_game(game)
 
 
 @router.post("/v1/games/import-online", response_model=OnlineImportRead)
@@ -221,6 +253,21 @@ async def import_online_games(
     )
 
 
+def _require_standard(game: Game, feature: str) -> None:
+    """409 for a variant game: game analysis, review and diagnosis are standard-only."""
+    variant = stored_variant(game.headers)
+    if variant != STANDARD:
+        name = display_name(variant) if variant in SUPPORTED_VARIANTS else variant
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "variant_not_covered",
+                "variant": variant,
+                "message": NOT_COVERED.format(name=name, feature=feature),
+            },
+        )
+
+
 @router.get("/v1/games", response_model=PaginatedResponse[GameRead])
 def list_games(
     request: Request,
@@ -252,15 +299,13 @@ def list_games(
         )
         games = games[:limit]
 
-    game_reads = [
-        GameRead(id=g.id, pgn=g.pgn, white=g.white, black=g.black, result=g.result) for g in games
-    ]
+    game_reads = [GameRead.from_game(g) for g in games]
     return PaginatedResponse(items=game_reads, next_cursor=next_cursor)
 
 
 @router.get("/v1/games/{game_id}", response_model=GameRead)
-def get_game(game_id: UUID, request: Request, session: Session = Depends(get_session)) -> Game:
-    return _get_owned_game(game_id, request, session)
+def get_game(game_id: UUID, request: Request, session: Session = Depends(get_session)) -> GameRead:
+    return GameRead.from_game(_get_owned_game(game_id, request, session))
 
 
 @router.get("/v1/games/{game_id}/learning-opportunities", response_model=GameLearningSessionRead)
@@ -382,6 +427,7 @@ def create_analysis_job(
         raise HTTPException(
             status_code=409, detail="Cannot analyse a legacy game without owner_color"
         )
+    _require_standard(game, "game analysis")
 
     job = AnalysisJob(game_id=game_id)
     session.add(job)
@@ -577,6 +623,7 @@ async def backfill_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
     game = _get_owned_game(game_id, request, session)
+    _require_standard(game, "game review")
     completed = session.exec(
         select(AnalysisJob.id).where(
             AnalysisJob.game_id == game.id, AnalysisJob.status == "completed"

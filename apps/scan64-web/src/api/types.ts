@@ -462,6 +462,8 @@ export interface GameRead {
   white: string;
   black: string;
   result: string;
+  /** `chess` for standard; else the variant's UCI name, or a legacy tag as written. */
+  variant: string;
 }
 
 export interface PlayerGameRead {
@@ -472,6 +474,7 @@ export interface PlayerGameRead {
   date: string;
   created_at: string;
   diagnosis_count: number;
+  variant: string;
 }
 
 export interface PlayerGamesPage {
