@@ -873,5 +873,5 @@ export interface PositionHealthRead {
   overall: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead };
   groups: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead }[];
   // Set when the game is over; the panel shows the result instead of the meters.
-  outcome: 'checkmate' | 'stalemate' | null;
+  outcome: 'checkmate' | 'stalemate' | 'insufficient_material' | 'seventyfive_moves' | 'fivefold_repetition' | null;
 }

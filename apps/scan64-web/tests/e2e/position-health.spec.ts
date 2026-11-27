@@ -126,20 +126,23 @@ test('the panel keeps its height while the next position loads', async ({ page }
   const review = makeGameReview({ game_id: id, owner_color: 'black' });
   await page.route(`**/v1/games/${id}/review`, route => route.fulfill({ json: review }));
   await page.route(`**/v1/games/${id}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
-  let delay = 0;
+  // The second reply is held until the test has measured the busy panel.
+  let hold: Promise<void> | null = null;
+  let release = () => {};
   await page.route('**/v1/analysis/position/health', async route => {
     const { fen } = route.request().postDataJSON() as { fen: string };
-    await new Promise(resolve => setTimeout(resolve, delay));
+    if (hold) await hold;
     await route.fulfill({ json: healthFor(fen) });
   });
   await page.goto(`/games/${id}/analysis`);
   const panel = page.getByTestId('position-health');
   await expect(panel).toHaveAttribute('aria-busy', 'false');
   const before = (await panel.boundingBox())!.height;
-  delay = 500;
+  hold = new Promise(resolve => { release = resolve; });
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(panel).toHaveAttribute('aria-busy', 'true');
   expect((await panel.boundingBox())!.height).toBe(before);
+  release();
   await expect(panel.getByRole('img', { name: 'You king safety: low, falling' })).toBeVisible();
   await expect(panel).toHaveAttribute('aria-busy', 'false');
 });

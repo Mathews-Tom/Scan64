@@ -13,7 +13,8 @@ against the previous position and each meter's largest terms. A group meter's
 terms are its largest parts, net and from the side's view; all of its parts add
 up to the value it reads. The overall meter's terms are the largest groups; its
 value also holds the material imbalance and the endgame scaling, which are not
-groups. A finished game (checkmate or stalemate) has no meters to read: the
+groups. A finished game (``board.outcome()``: checkmate, stalemate, insufficient
+material, the 75-move rule) has no meters to read: the
 factor evaluation scores the pieces left, not the result, so a mated side can
 read good.
 """
@@ -38,7 +39,11 @@ from scan64.explanations.factors.report import PAWN_VALUE_EG, FactorReport
 Side = Literal["white", "black"]
 Level = Literal["good", "fair", "low"]
 Trend = Literal["rising", "falling", "steady"]
-Outcome = Literal["checkmate", "stalemate"]
+# The game-ending kinds chess.Board.outcome() reports without a claim; a draw
+# that is only claimable (fifty moves, threefold) leaves the game on.
+Outcome = Literal[
+    "checkmate", "stalemate", "insufficient_material", "seventyfive_moves", "fivefold_repetition"
+]
 
 # Health at or above ``good`` reads good, below ``fair`` reads low.
 LEVELS: Mapping[Level, float] = {"good": 2 / 3, "fair": 1 / 3}
@@ -96,10 +101,19 @@ def trend(now: float, before: float | None) -> Trend:
     return "rising" if now > before else "falling"
 
 
+_OUTCOMES: Mapping[chess.Termination, Outcome] = {
+    chess.Termination.CHECKMATE: "checkmate",
+    chess.Termination.STALEMATE: "stalemate",
+    chess.Termination.INSUFFICIENT_MATERIAL: "insufficient_material",
+    chess.Termination.SEVENTYFIVE_MOVES: "seventyfive_moves",
+    chess.Termination.FIVEFOLD_REPETITION: "fivefold_repetition",
+}
+
+
 def outcome(board: chess.Board) -> Outcome | None:
-    if board.is_checkmate():
-        return "checkmate"
-    return "stalemate" if board.is_stalemate() else None
+    """How the game ended, as the rest of the app decides it (``is_game_over``)."""
+    result = board.outcome()
+    return None if result is None else _OUTCOMES[result.termination]
 
 
 def _color(side: Side) -> chess.Color:

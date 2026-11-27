@@ -20,10 +20,13 @@ function Meter({ name, side, meter, large = false }: { name: string; side: strin
 
 type State = { state: 'loading' } | { state: 'ready'; health: PositionHealthRead } | { state: 'error'; message: string };
 
-const OUTCOME_TEXT = {
-  checkmate: 'Checkmate: the game is over, so there is no position health to read.',
-  stalemate: 'Stalemate: the game is over, so there is no position health to read.',
-} as const;
+const OUTCOME_TEXT: Record<NonNullable<PositionHealthRead['outcome']>, string> = {
+  checkmate: 'Checkmate',
+  stalemate: 'Stalemate',
+  insufficient_material: 'Draw by insufficient material',
+  seventyfive_moves: 'Draw by the 75-move rule',
+  fivefold_repetition: 'Draw by fivefold repetition',
+};
 
 // learner: the side the panel speaks for (You / Opponent); without one it reads White / Black.
 export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string; previousFen: string | null; learner?: 'white' | 'black' }) {
@@ -58,7 +61,7 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
     <h3>Position health</h3>
     {view.state === 'error' && <p className="position-health__note" data-testid="position-health-error">{view.message}</p>}
     {view.state === 'ready' && view.health.outcome !== null &&
-      <p className="position-health__note" data-testid="position-health-outcome">{OUTCOME_TEXT[view.health.outcome]}</p>}
+      <p className="position-health__note" data-testid="position-health-outcome">{OUTCOME_TEXT[view.health.outcome]}: the game is over, so there is no position health to read.</p>}
     {view.state === 'ready' && view.health.outcome === null && <>
       <table className="position-health__table">
         <colgroup><col className="position-health__name" /><col /><col /></colgroup>

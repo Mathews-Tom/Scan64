@@ -131,3 +131,9 @@ def test_a_finished_game_reports_its_outcome() -> None:
     assert position_health(mated, "white").outcome == "checkmate"
     assert outcome(chess.Board("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")) == "stalemate"
     assert position_health(chess.Board(), "white").outcome is None
+    # Game over without a claim, as is_game_over() decides it elsewhere in the app.
+    assert outcome(chess.Board("8/8/8/8/8/8/1KB5/7k w - - 0 60")) == "insufficient_material"
+    rook_endgame = "8/5pk1/4p3/8/8/1P6/1P3K2/R6r w - - {} 120"
+    assert outcome(chess.Board(rook_endgame.format(150))) == "seventyfive_moves"
+    # A fifty-move draw is only claimable: the game, and the meters, go on.
+    assert outcome(chess.Board(rook_endgame.format(120))) is None
