@@ -26,7 +26,6 @@ import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
 from scan64.explanations.facts import (
-    SCHEMA_VERSION,
     NarratorFacts,
     NarratorFactsError,
     build_narrator_facts,
@@ -102,42 +101,49 @@ def grounding_context_for(
     return _grounding_context(build_narrator_facts(diagnosis, evidence, fen), evidence, fen)
 
 
+# Prompt budget (#408): the longest narrator prompt stays under this many
+# tokens. The estimate divides characters by PROMPT_CHARS_PER_TOKEN, set below
+# the lowest ratio measured with gemma4-12b, qwen3.5-9b and granite4.2-8b
+# (2.58, prompt_eval_count including the chat template).
+PROMPT_TOKEN_TARGET = 2000
+PROMPT_CHARS_PER_TOKEN = 2.4
+
+
+def estimated_prompt_tokens(request: ExplanationRequest) -> int:
+    """An upper estimate of a request's prompt tokens (characters / PROMPT_CHARS_PER_TOKEN)."""
+    characters = sum(len(message.content) for message in request.messages)
+    return -(-characters * 10 // int(PROMPT_CHARS_PER_TOKEN * 10))
+
+
 def slot_rules(names: str, example: str) -> str:
     """The slot instructions NARRATOR_SYSTEM_PROMPT and BOARD_NARRATOR_SYSTEM_PROMPT share."""
     return (
-        "Write every chess fact only through a slot from the slot list (the last user "
-        f"message): put the slot name in braces, for example {names}, and code puts the "
-        "slot's value in its place. Copy slot names exactly; use only slots listed for the "
-        "evidence item the claim cites. Outside the slots write plain words only: no moves, "
-        "squares, piece names, colour words, numbers or evaluations, and none of the words "
-        "check, mate, capture, take, trade, threat, attack, defend, hang, material, win, lose, "
-        "gain, ahead, behind or a tactic name. A slot value is a whole fact; do not add a "
-        "chess fact around it, and do not say which side gains from it unless a slot says so. "
-        f'Example claim text: "{example}"'
+        "Write every chess fact as a slot from the slot list: the slot name in braces, for "
+        f"example {names}. Code puts the slot's value in its place. Copy slot names exactly. "
+        "A slot value is a whole fact: add no chess fact around it.\n"
+        "- Outside slots write plain words: no moves, squares, piece names, colours, numbers "
+        "or evaluations. Use a chess word only if the slot list allows it as a plain word, "
+        "never in braces.\n"
+        "- Name a cause only through a {factor:...} slot. With no factor slot, name no "
+        "cause.\n"
+        f"- Use only slot names the slot list holds. {example}"
     )
 
 
 NARRATOR_SYSTEM_PROMPT = (
-    "You explain one chess mistake to the learner who made it. The first user message is a "
-    f"JSON document following the Scan64 schema {SCHEMA_VERSION} "
-    "(schemas/narrator-facts.schema.json). The board library and the chess engine computed "
-    "every fact in it; a field left out has its schema default (no capture, no check, "
-    "no threats). Use only those facts: do not work out moves, captures, checks, "
-    "threats, material or evaluations yourself, and state nothing the facts do not state.\n"
-    "- position: the learner is side_to_move; played_move is the mistake; best_move is the "
-    "engine's choice; mistake_class names the mistake.\n"
-    "- lines: engine lines from the position before the mistake. A line with "
-    "begins_with_played_move=true starts with the learner's mistake.\n"
+    "You explain one chess mistake to the learner who made it. Code computed every fact "
+    "with the board library, the chess engine and the factor module; you only choose plain "
+    "words around them.\n"
     "- "
     + slot_rules(
-        "{played} or {line:L1}", "You played {played}, but {best} was stronger: {capture:best}."
+        "{played} or {line:L1}",
+        "The slot list ends with an example claim text.",
     )
     + "\n"
     "Answer with claims. Each claim: text (one or two plain sentences with slots), "
-    "evidence_ref (an evidence_id from evidence), line (a JSON list of UCI move strings "
-    "copied from the start of the uci list of a line whose line_id is in that evidence "
-    'item\'s line_ids, or []; never a line_id), certainty "observed", disclosure_level 1. '
-    'Call the learner "you" and the other side "your opponent".'
+    "evidence_ref (the quoted evidence_ref of an evidence item, never a line id), line [], "
+    'certainty "observed", disclosure_level 1. Call the learner "you" and the other side '
+    '"your opponent".'
 )
 
 
@@ -152,7 +158,6 @@ def _explanation_request(
     return ExplanationRequest(
         messages=(
             LLMMessage(role="system", content=narrator_system_prompt(voice)),
-            LLMMessage(role="user", content=facts.to_prompt_json()),
             LLMMessage(role="user", content=lesson_slot_catalogue(facts).prompt()),
         )
     )

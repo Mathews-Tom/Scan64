@@ -509,7 +509,8 @@
           "ends_in_checkmate": false,
           "ends_in_stalemate": false,
           "first_move_threats": []
-        }
+        },
+        "factors": null
       },
       {
         "line_id": "line-2",
@@ -952,6 +953,36 @@
           "ends_in_checkmate": false,
           "ends_in_stalemate": false,
           "first_move_threats": []
+        },
+        "factors": {
+          "source": "scan64-factors/1, Stockfish Evaluation Guide 63ff375",
+          "points": [
+            {
+              "point": "best",
+              "uci": [
+                "e2e4"
+              ],
+              "quiet": true
+            },
+            {
+              "point": "line",
+              "uci": [
+                "g1f3"
+              ],
+              "quiet": true
+            }
+          ],
+          "engine_swing_cp": -6,
+          "changes": [
+            {
+              "key": "mobility",
+              "name": "mobility",
+              "kind": "group",
+              "guide_name": "Mobility",
+              "compared_with": "best",
+              "change_pawns": -0.4
+            }
+          ]
         }
       },
       {
@@ -1351,6 +1382,27 @@
           "ends_in_checkmate": false,
           "ends_in_stalemate": false,
           "first_move_threats": []
+        },
+        "factors": {
+          "source": "scan64-factors/1, Stockfish Evaluation Guide 63ff375",
+          "points": [
+            {
+              "point": "best",
+              "uci": [
+                "e2e4"
+              ],
+              "quiet": true
+            },
+            {
+              "point": "line",
+              "uci": [
+                "d2d4"
+              ],
+              "quiet": true
+            }
+          ],
+          "engine_swing_cp": -11,
+          "changes": []
         }
       }
     ]

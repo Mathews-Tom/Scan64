@@ -40,6 +40,7 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
     slot_rules,
 )
+from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, line_factor_facts
 from scan64.explanations.facts import (
     UNKNOWN,
     CentipawnEvaluation,
@@ -60,6 +61,7 @@ from scan64.explanations.slots import (
     Slot,
     SlotCatalogue,
     evaluation_value,
+    factor_slots,
     line_slots,
     numbered_san,
     pawn_units,
@@ -204,6 +206,10 @@ class BoardLineFacts(_Facts):
     )
     moves: tuple[MoveFacts, ...] = Field(min_length=1)
     outcome: LineOutcome
+    factors: FactorFacts | None = Field(
+        default=None,
+        description="Factor changes of this line against line 1 (#408); lines 2 and later.",
+    )
 
 
 class BoardPositionFacts(_Facts):
@@ -300,7 +306,21 @@ def _line_facts(
         uci=line.uci,
         moves=tuple(moves),
         outcome=outcome,
+        factors=_line_factors(board, best, line) if rank > 1 else None,
     )
+
+
+def _score_cp(line: ScoredLine) -> int | None:
+    if line.score_mate is not None:
+        return evaluation_cp("mate", line.score_mate)
+    return line.score_cp
+
+
+def _line_factors(board: chess.Board, best: ScoredLine, line: ScoredLine) -> FactorFacts:
+    """Factor changes of ``line`` against line 1; the swing is this line's score minus line 1's."""
+    best_cp, line_cp = _score_cp(best), _score_cp(line)
+    swing = line_cp - best_cp if best_cp is not None and line_cp is not None else None
+    return line_factor_facts(board, best.uci, line.uci, swing)
 
 
 def build_board_lines_facts(board: chess.Board, lines: Sequence[ScoredLine]) -> BoardLinesFacts:
@@ -399,24 +419,24 @@ def _points(value: int) -> str:
 def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
     lid, k = line.line_id, line.rank
     slots = [
-        Slot(f"label:{lid}", f"line {k}", "the line's name", phrase=True),
+        Slot(f"label:{lid}", f"line {k}", "", phrase=True),
         Slot(
             f"first:{lid}",
             numbered_san(board, line.uci[:1]),
-            f"first move of line {k}",
+            "",
             line.uci[:1],
         ),
     ]
     evaluation = evaluation_value(line.evaluation, side=SIDE_TO_MOVE, other=_BOARD_OPPONENT)
     if evaluation is not None:
-        slots.append(Slot(f"eval:{lid}", evaluation, f"engine score of line {k}, side to move"))
+        slots.append(Slot(f"eval:{lid}", evaluation, ""))
     if line.difference_from_best_cp is not None and line.difference_from_best_cp != 0:
         relation = "less" if line.difference_from_best_cp > 0 else "more"
         slots.append(
             Slot(
                 f"diff:{lid}",
                 f"{pawn_units(line.difference_from_best_cp, signed=False)} {relation} than line 1",
-                f"line {k} against line 1, side to move",
+                "",
             )
         )
     outcome = line.outcome
@@ -452,6 +472,15 @@ def _board_line_slots(board: chess.Board, line: BoardLineFacts) -> list[Slot]:
         slots.append(Slot(f"end:{lid}", f"line {k} ends in checkmate", "", line.uci, phrase=True))
     elif outcome.ends_in_stalemate:
         slots.append(Slot(f"end:{lid}", f"line {k} ends in stalemate", "", line.uci, phrase=True))
+    slots += factor_slots(
+        line.factors,
+        side=SIDE_TO_MOVE,
+        references={"best": "in line 1"},
+        suffix=lid,
+        lead=f"in line {k}, ",
+    )
+    # Every slot of the line is listed under the line and links a claim to it.
+    slots = [replace(slot, group=lid, cite=None if slot.moves else line.uci[:1]) for slot in slots]
     slots += line_slots(lid, board, line.uci, line.moves, mover_words=_BOARD_MOVERS)
     return slots
 
@@ -474,7 +503,15 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
             slot.name: slot
             for slot in (*shared, *(slot for slots in per_line.values() for slot in slots))
         }
-    return SlotCatalogue(by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared))
+    names = {name for slots in by_evidence.values() for name in slots}
+    example = "{label:line-1} starts with {first:line-1}."
+    if "diff:line-2" in names:
+        example = "{label:line-2} starts with {first:line-2} and scores {diff:line-2}."
+    return SlotCatalogue(
+        by_evidence=by_evidence,
+        shared=frozenset(slot.name for slot in shared),
+        example=example,
+    )
 
 
 def board_slot_grounding(facts: BoardLinesFacts) -> GroundedExplanationContext:
@@ -620,28 +657,20 @@ def template_board_explanation(facts: BoardLinesFacts) -> Explanation:
 # --- Provider wording ----------------------------------------------------------------
 
 BOARD_NARRATOR_SYSTEM_PROMPT = (
-    "You explain the chess engine's top lines for one position. The first user message is a "
-    f"JSON document following the Scan64 schema {BOARD_SCHEMA_VERSION} "
-    "(schemas/board-lines-facts.schema.json). The board library and the chess engine computed "
-    "every fact in it; a field left out has its schema default (no capture, no check, no "
-    "threats). Use only those facts: do not work out moves, captures, checks, threats, "
-    "material or evaluations yourself, and state nothing the facts do not state.\n"
-    "- position: side_to_move is the side whose options the lines are. In move facts, mover "
-    '"learner" is the side to move and "opponent" the other side.\n'
-    "- lines: engine lines in engine order (rank 1 is best), each from the position.\n"
+    "You explain the chess engine's top lines for one position. Code computed every fact "
+    "with the board library, the chess engine and the factor module; you only choose plain "
+    "words around them. Line 1 is the engine's first choice.\n"
     "- "
     + slot_rules(
         "{first:line-1} or {line:line-1}",
-        "{label:line-2} starts with {first:line-2} and scores {diff:line-2}.",
+        "The slot list ends with an example claim text.",
     )
     + "\n"
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
     "lines. Each claim: text (one or two plain sentences with slots), evidence_ref (the "
-    f'line_id of the line it is about, or "{COMPARISON_EVIDENCE_ID}" for a claim comparing '
-    'lines), line (a JSON list of UCI move strings such as "e2e4", copied in order from the '
-    "start of that line's uci list, never SAN and never empty; for "
-    f'"{COMPARISON_EVIDENCE_ID}" copy from the line being compared), certainty "observed", '
-    'disclosure_level 1. Call the sides "the side to move" and "the opponent".'
+    f'quoted evidence_ref of its line, or "{COMPARISON_EVIDENCE_ID}" to compare lines), '
+    'line [], certainty "observed", disclosure_level 1. Call the sides "the side to move" '
+    'and "the opponent".'
 )
 
 
@@ -656,7 +685,6 @@ def board_lines_request(
     return ExplanationRequest(
         messages=(
             LLMMessage(role="system", content=board_narrator_system_prompt(voice)),
-            LLMMessage(role="user", content=facts.to_prompt_json()),
             LLMMessage(role="user", content=board_slot_catalogue(facts).prompt()),
         )
     )

@@ -28,6 +28,7 @@ import chess
 from chess_lesson_spec import Diagnosis
 from pydantic import BaseModel, ConfigDict, Field
 
+from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, mistake_factor_facts
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.composer import PIECE_VALUES
 from scan64.learning.evidence.models import Evidence
@@ -178,6 +179,10 @@ class NarratorFacts(_Facts):
     position: PositionFacts
     evidence: tuple[EvidenceFacts, ...] = Field(min_length=1)
     lines: tuple[VerifiedLineFacts, ...] = ()
+    factors: FactorFacts | None = Field(
+        default=None,
+        description="Factor changes across the mistake (#408); absent when not measured.",
+    )
 
     def to_prompt_json(self) -> str:
         """Compact JSON; fields equal to their schema default are omitted."""
@@ -649,6 +654,61 @@ def _shared(referenced: Sequence[Evidence], field: str) -> object:
     return referenced[0].payload.get(field)
 
 
+# Engine lines that continue the learner's move, best first: the after-position
+# search's principal variation, then its first MultiPV entry.
+_PLAYED_LINE_ORIGINS = ("focused_line", "focused_multipv[1]")
+_BEST_LINE_ORIGINS = ("fast_line",)
+
+
+def _factor_line(
+    lines: Sequence[VerifiedLineFacts], origins: Sequence[str], first: str
+) -> tuple[str, ...]:
+    for origin in origins:
+        for line in lines:
+            if origin in line.origins and line.uci[0] == first:
+                return line.uci
+    return (first,)
+
+
+def _engine_swing_cp(
+    before: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    after: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    swing_cp: int | None,
+) -> int | None:
+    """Score after the mistake minus before it, learner's view; else ``-swing_cp``."""
+
+    def cp(evaluation: CentipawnEvaluation | MateEvaluation | UnknownEvaluation) -> int | None:
+        if isinstance(evaluation, CentipawnEvaluation):
+            return evaluation.centipawns
+        if isinstance(evaluation, MateEvaluation):
+            return evaluation_cp("mate", evaluation.mate_in)
+        return None
+
+    start, end = cp(before), cp(after)
+    if start is not None and end is not None:
+        return end - start
+    return -swing_cp if swing_cp is not None else None
+
+
+def narrator_factor_facts(
+    before: chess.Board,
+    played: chess.Move,
+    best: chess.Move | None,
+    lines: Sequence[VerifiedLineFacts],
+    evaluations: StoredEvaluations,
+    swing_cp: int | None,
+) -> FactorFacts | None:
+    """Factor facts at the three points of the mistake (``factor_facts``)."""
+    if best == played:
+        return None
+    return mistake_factor_facts(
+        before,
+        _factor_line(lines, _PLAYED_LINE_ORIGINS, played.uci()),
+        _factor_line(lines, _BEST_LINE_ORIGINS, best.uci()) if best is not None else None,
+        _engine_swing_cp(evaluations.before, evaluations.after_played, swing_cp),
+    )
+
+
 def build_narrator_facts(
     diagnosis: Diagnosis, evidence: Sequence[Evidence], fen: str
 ) -> NarratorFacts:
@@ -692,11 +752,13 @@ def build_narrator_facts(
     played_facts, _ = _move_facts(before, played, 1, learner, evaluations)
     fast_line = _string_list(first.get("fast_line"))
     best_facts = None
+    best_move = None
     if fast_line is not None:
         best_move = chess.Move.from_uci(fast_line[0])
         if best_move not in before.legal_moves:
             raise NarratorFactsError(f"Best move {fast_line[0]!r} is illegal")
         best_facts, _ = _move_facts(before, best_move, 1, learner, evaluations)
+    swing_cp = _optional_int(first.get("swing_cp"))
     return NarratorFacts(
         schema_version=SCHEMA_VERSION,
         position=PositionFacts(
@@ -709,11 +771,12 @@ def build_narrator_facts(
             evaluation_after=evaluations.after_played,
             best_move_evaluation=evaluations.before if best_facts is not None else UNKNOWN,
             evaluation_difference_cp=evaluations.difference_cp(),
-            swing_cp=_optional_int(first.get("swing_cp")),
+            swing_cp=swing_cp,
             mistake_class=_mistake_class(diagnosis.primary),
         ),
         evidence=tuple(evidence_facts),
         lines=tuple(lines),
+        factors=narrator_factor_facts(before, played, best_move, lines, evaluations, swing_cp),
     )
 
 

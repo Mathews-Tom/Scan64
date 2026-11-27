@@ -23,6 +23,7 @@ from scan64.explanations.board_lines import (
     COMPARISON_EVIDENCE_ID,
     BoardLinesFacts,
     board_lines_grounding,
+    board_slot_catalogue,
 )
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, OwnerExplanationSettings
 from scan64.explanations.validator import validate_generated_explanation
@@ -179,9 +180,9 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
         ("line-3", ["d2d4"]),
     ]
     [request] = provider.requests
-    assert BoardLinesFacts.model_validate_json(request.messages[1].content) == (
-        BoardLinesFacts.model_validate(data["facts"])
-    )
+    # The model gets the slot list only (#408); the response keeps the facts.
+    facts = BoardLinesFacts.model_validate(data["facts"])
+    assert request.messages[1].content == board_slot_catalogue(facts).prompt()
 
 
 @pytest.mark.parametrize(

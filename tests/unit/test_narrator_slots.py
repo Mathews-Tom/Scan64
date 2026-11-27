@@ -173,12 +173,11 @@ def test_a_slot_of_another_evidence_item_rejects() -> None:
         # Check, mate, capture, tactic, threat and material words.
         "{best} gives check.",
         "{best} is checkmate.",
-        "{best} captures with tempo.",
         "{best} takes everything.",
+        # "captures", "threat" and "attack" are facts of this position (a capture
+        # slot, threat slots, a king attack factor): test_narrator_vocabulary.py.
         "{best} is a fork.",
         "{best} sets up a pin.",
-        "{best} creates a threat.",
-        "{best} attacks two targets.",
         "Your piece was hanging.",
         "{best} wins material.",
         "You lose time after {played}.",

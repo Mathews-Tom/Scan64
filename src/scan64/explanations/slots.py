@@ -26,10 +26,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import chess
 
+from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
     CentipawnEvaluation,
     EvidenceFacts,
@@ -43,16 +44,17 @@ from scan64.explanations.facts import (
 # One slot occurrence: ``{name}``, ``{kind:arg}`` or ``{kind:arg:arg}``.
 SLOT_TOKEN = re.compile(r"\{\s*(?P<name>[a-z_]+(?::[A-Za-z0-9_-]+){0,2})\s*\}")
 
-# The fixed free-prose rule set (see the module docstring). Any match in the
-# prose outside the slots rejects the claim as ``chess_token_outside_slot``.
-CHESS_PROSE = re.compile(
+# The fixed free-prose rule set (see the module docstring), in two parts.
+#
+# NOTATION is always rejected outside a slot: squares, SAN, UCI, move numbers,
+# evaluations and mate counts all contain a digit ("8.5 pawns", "+150 cp"); the
+# others are mate and check suffixes, figurines and castling notation.
+NOTATION = re.compile(r"\d|[#♔-♟]|\b[O0]-[O0]")
+# CHESS_WORDS outside a slot are rejected unless the position's facts contain
+# the word (the vocabulary rule, ``chess_words_outside_slots``).
+CHESS_WORDS = re.compile(
     "|".join(
         (
-            # Squares, SAN, UCI, move numbers, evaluations and mate counts all
-            # contain a digit; so do "8.5 pawns" and "+150 cp".
-            r"\d",
-            # Mate and check suffixes, castling notation, figurine notation.
-            r"[#♔-♟]|\b[O0]-[O0]",
             r"\b(?:king|queen|rook|bishop|knight|pawn)s?\b",
             r"\b(?:white|black)\b",
             r"\b(?:check|checks|checked|checking|checkmat\w*|mate|mates|mated|mating|stalemat\w*)\b",
@@ -68,6 +70,41 @@ CHESS_PROSE = re.compile(
     ),
     re.IGNORECASE,
 )
+# Both parts: any match is chess content (the #386 blanket rule).
+CHESS_PROSE = re.compile(f"{NOTATION.pattern}|{CHESS_WORDS.pattern}", re.IGNORECASE)
+
+_WORD = re.compile(r"[a-z]+")
+
+
+def _word_form(word: str) -> str:
+    """Lower case, a plural ``s`` removed: ``Threats`` -> ``threat``."""
+    word = word.lower()
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
+
+
+def vocabulary(phrases: Iterable[str]) -> frozenset[str]:
+    """The word forms of ``phrases``: fact names and slot names."""
+    return frozenset(_word_form(w) for phrase in phrases for w in _WORD.findall(phrase.lower()))
+
+
+def chess_words_outside_slots(prose: str, words: frozenset[str]) -> str | None:
+    """The first chess token in ``prose`` that the facts do not contain, else ``None``.
+
+    Notation (digits, ``#``, ``O-O``, figurines) is never allowed. A chess word
+    is allowed when each of its words is in ``words`` (``vocabulary``).
+    """
+    if (notation := NOTATION.search(prose)) is not None:
+        return notation[0]
+    for match in CHESS_WORDS.finditer(prose):
+        if not {_word_form(w) for w in _WORD.findall(match[0].lower())} <= words:
+            return match[0]
+    return None
+
+
+# Prompt layout (#408): plies of a line shown in the prompt, and plies whose
+# clause slots ({capture:L:N} ...) the prompt lists. Validation is not limited.
+PROMPT_LINE_PLIES = 6
+PROMPT_CLAUSE_PLIES = 2
 
 
 @dataclass(frozen=True)
@@ -76,7 +113,15 @@ class Slot:
 
     ``moves`` are the UCI moves the value states, in line order; ``phrase``
     marks a value that starts with a word (capitalised at a sentence start),
-    as opposed to SAN, which keeps its case.
+    as opposed to SAN, which keeps its case. ``source`` labels a value that
+    comes from a module other than the engine and the board, such as the
+    factor module version of a factor slot.
+
+    ``group`` (a line ID), ``listed`` and ``preview`` shape the prompt only:
+    the prompt lists a line's slots once under the line, leaves out unlisted
+    slots (every ``{move:L:N}``, clauses of later plies) and shows ``preview``
+    in place of a long value. ``cite`` is the line prefix a claim using this
+    slot is linked to when ``moves`` is empty.
     """
 
     name: str
@@ -84,6 +129,17 @@ class Slot:
     meaning: str
     moves: tuple[str, ...] = ()
     phrase: bool = False
+    source: str | None = None
+    # Prompt layout only; validation accepts every slot of the catalogue.
+    group: str | None = None
+    listed: bool = True
+    preview: str | None = None
+    cite: tuple[str, ...] | None = None
+
+    @property
+    def citation(self) -> tuple[str, ...]:
+        """The line prefix a claim using this slot cites when it names none."""
+        return self.cite if self.cite is not None else self.moves
 
 
 @dataclass(frozen=True)
@@ -92,41 +148,81 @@ class SlotCatalogue:
 
     by_evidence: Mapping[str, Mapping[str, Slot]]
     shared: frozenset[str] = field(default_factory=frozenset)
+    # Fact names per evidence item beyond its slot names: the mistake class,
+    # the evidence tactic and the passed factor changes (vocabulary rule).
+    terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # An example claim text built from this catalogue's own slots (prompt only).
+    example: str | None = None
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})
+
+    def vocabulary(self, evidence_id: str) -> frozenset[str]:
+        """Words a claim citing ``evidence_id`` may use outside slots."""
+        return vocabulary((*self.slots_for(evidence_id), *self.terms.get(evidence_id, ())))
 
     def names(self) -> frozenset[str]:
         return frozenset(name for slots in self.by_evidence.values() for name in slots)
 
     def prompt(self) -> str:
-        """The slot list the narrator receives as its last user message."""
-        lines = [
-            "Slots. Write each chess fact as one of these slots, in braces. Code puts the "
-            "value after = in its place. A claim may use only the slots listed for the "
-            "evidence item it cites."
-        ]
+        """The slot list, the narrator's only user message (#408: no facts JSON).
+
+        Each listed slot appears once: position slots, then each line's slots
+        under the line, then each evidence item with its lines, its own slots
+        and the chess words it allows outside slots.
+        """
+        out = ["Slot list ({name} = the value code writes in its place):"]
         items = list(self.by_evidence.items())
         if not items:
-            return lines[0]
+            return out[0]
+        shown: set[str] = set()
+
+        def emit(slot: Slot) -> None:
+            if slot.listed and slot.value not in shown:
+                shown.add(slot.value)
+                out.append(_prompt_line(slot))
+
         first = items[0][1]
         shared = [first[name] for name in first if name in self.shared]
-        if shared and len(items) > 1:
-            lines.append("For every evidence item:")
-            lines += [_prompt_line(slot) for slot in shared]
+        if shared:
+            out.append("For every evidence item:")
+            for slot in shared:
+                emit(slot)
+        groups: dict[str, list[Slot]] = {}
+        for _, slots in items:
+            for slot in slots.values():
+                if slot.group is not None and slot.name not in self.shared:
+                    members = groups.setdefault(slot.group, [])
+                    if slot not in members:
+                        members.append(slot)
+        for group, members in groups.items():
+            plies = sum(1 for slot in members if slot.name.startswith(f"move:{group}:"))
+            note = f" {{move:{group}:N}} = move N, N from 1 to {plies}." if plies else ""
+            out.append(f"Line {group}:{note}")
+            for slot in members:
+                emit(slot)
+        sources = sorted({s.source for _, slots in items for s in slots.values() if s.source})
         for evidence_id, slots in items:
-            lines.append(f"For evidence {evidence_id}:")
-            lines += [
-                _prompt_line(slot)
-                for name, slot in slots.items()
-                if len(items) == 1 or name not in self.shared
-            ]
-        return "\n".join(lines)
+            used = [g for g in groups if any(s.group == g for s in slots.values())]
+            lines = f"; lines {', '.join(used)}" if used else ""
+            out.append(f'evidence_ref "{evidence_id}"{lines}:')
+            for name, slot in slots.items():
+                if slot.group is None and name not in self.shared:
+                    emit(slot)
+            allowed = sorted(w for w in self.vocabulary(evidence_id) if CHESS_WORDS.fullmatch(w))
+            if allowed:
+                out.append(f"Allowed plain words: {', '.join(allowed)}.")
+        out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
+        if not sources:
+            out.append("No factor slot: no cause was measured, so name no cause.")
+        if self.example:
+            out.append(f'Example claim text with these slots: "{self.example}"')
+        return "\n".join(out)
 
 
 def _prompt_line(slot: Slot) -> str:
     meaning = f" ({slot.meaning})" if slot.meaning else ""
-    return f"{{{slot.name}}} = {slot.value}{meaning}"
+    return f"{{{slot.name}}} = {slot.preview or slot.value}{meaning}"
 
 
 def render(text: str, slots: Mapping[str, Slot]) -> str:
@@ -258,24 +354,78 @@ def line_slots(
     uci: Sequence[str],
     moves: Sequence[MoveFacts],
     *,
-    mover_words: Mapping[str, str],
+    mover_words: Mapping[str, str] | None = None,
 ) -> list[Slot]:
-    """``{line:L}``, ``{move:L:N}`` and the clause slots of every ply of one line."""
+    """``{line:L}``, ``{move:L:N}`` and the clause slots of every ply of one line.
+
+    The prompt shows the first ``PROMPT_LINE_PLIES`` plies of the line and the
+    clause slots of the first ``PROMPT_CLAUSE_PLIES`` plies; every slot is valid.
+    """
     full = tuple(uci)
-    slots = [Slot(f"line:{line_id}", numbered_san(board, full), f"engine line {line_id}", full)]
+    value = numbered_san(board, full)
+    preview = None
+    if len(full) > PROMPT_LINE_PLIES:
+        preview = f"{numbered_san(board, full[:PROMPT_LINE_PLIES])} ... ({len(full)} moves)"
+    slots = [Slot(f"line:{line_id}", value, "", full, group=line_id, preview=preview)]
     for move in moves:
         prefix = full[: move.ply]
-        who = mover_words.get(move.mover, move.mover)
         slots.append(
-            Slot(
-                f"move:{line_id}:{move.ply}",
-                move.san,
-                f"move {move.ply} of {line_id}, {who}",
-                prefix,
-            )
+            Slot(f"move:{line_id}:{move.ply}", move.san, "", prefix, group=line_id, listed=False)
         )
-        slots += move_event_slots(f"{line_id}:{move.ply}", move, prefix)
+        who = (mover_words or {}).get(move.mover, "")
+        slots += [
+            replace(slot, meaning=who, group=line_id, listed=move.ply <= PROMPT_CLAUSE_PLIES)
+            for slot in move_event_slots(f"{line_id}:{move.ply}", move, prefix)
+        ]
     return slots
+
+
+def factor_value(change: FactorChange, side: str, reference: str, lead: str = "") -> str:
+    """A clause stating one change, for example (``reference`` in brackets):
+
+    - ``""``: ``after your move, king safety fell by 0.65 pawns for you``;
+    - ``"after the best move"``: ``after your move, king safety is 0.60 pawns worse for
+      you than after the best move``.
+
+    ``lead`` (``after your move, ``; Analysis Board ``in line 2, ``) names the
+    position the change belongs to, so the value is true wherever it is placed.
+    """
+    amount = f"{abs(change.change_pawns):.2f} pawns"
+    if not reference:
+        direction = "rose" if change.change_pawns > 0 else "fell"
+        return f"{lead}{change.name} {direction} by {amount} for {side}"
+    relation = "better" if change.change_pawns > 0 else "worse"
+    return f"{lead}{change.name} is {amount} {relation} for {side} than {reference}"
+
+
+# The reference point of a lesson factor change, as code words it, and the
+# slot suffix: {factor:KEY:played} is what your move changed (from the
+# position before it), {factor:KEY:best} the gap to the best move.
+FACTOR_REFERENCES = {"before": "", "best": "after the best move"}
+FACTOR_SLOT_SUFFIX = {"before": "played", "best": "best"}
+
+
+def factor_slots(
+    factors: FactorFacts | None,
+    *,
+    side: str,
+    references: Mapping[str, str],
+    suffix: str | None = None,
+    lead: str = "",
+) -> list[Slot]:
+    """``{factor:KEY:REF}`` per passed change; ``suffix`` replaces ``REF`` (Analysis Board)."""
+    if factors is None:
+        return []
+    return [
+        Slot(
+            f"factor:{change.key}:{suffix or FACTOR_SLOT_SUFFIX[change.compared_with]}",
+            factor_value(change, side, references[change.compared_with], lead),
+            "",
+            phrase=True,
+            source=factors.source,
+        )
+        for change in factors.changes
+    ]
 
 
 # --- Lesson catalogue (NarratorFacts) ----------------------------------------------
@@ -333,7 +483,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     shared += move_event_slots("played", played, (played.uci,))
     best = position.best_move
     if best is not None:
-        shared.append(Slot("best", best.san, "the engine's best move", (best.uci,)))
+        shared.append(Slot("best", best.san, "the move you should have played", (best.uci,)))
         shared += move_event_slots("best", best, (best.uci,))
     shared.append(Slot("mistake", position.mistake_class.name, "the mistake class", phrase=True))
     for name, evaluation, meaning in (
@@ -343,6 +493,9 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         value = evaluation_value(evaluation, side=LEARNER, other=OPPONENT)
         if value is not None:
             shared.append(Slot(name, value, meaning, phrase=value.startswith("mate")))
+    shared += factor_slots(
+        facts.factors, side="you", references=FACTOR_REFERENCES, lead="after your move, "
+    )
     difference = position.evaluation_difference_cp
     if difference is not None and difference > 0:
         shared.append(
@@ -359,24 +512,60 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         for line in facts.lines
     }
     by_evidence: dict[str, dict[str, Slot]] = {}
+    terms: dict[str, tuple[str, ...]] = {}
+    factor_names = tuple(change.name for change in facts.factors.changes) if facts.factors else ()
     for item in facts.evidence:
         slots = {slot.name: slot for slot in shared}
         for line_id in item.line_ids:
             slots.update((slot.name, slot) for slot in by_line[line_id])
         slots.update((slot.name, slot) for slot in _evidence_slots(item))
         by_evidence[item.evidence_id] = slots
-    return SlotCatalogue(by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared))
+        tactic = (item.tactic.replace("_", " "),) if item.tactic else ()
+        terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_names)
+    return SlotCatalogue(
+        by_evidence=by_evidence,
+        shared=frozenset(slot.name for slot in shared),
+        terms=terms,
+        example=_lesson_example({slot.name for slot in shared}),
+    )
+
+
+def _lesson_example(names: set[str]) -> str:
+    """``You played {played}, but {best} was stronger: {capture:best}.`` from existing slots."""
+    if "best" not in names:
+        return "You played {played}, a {mistake}."
+    text = "You played {played}, but {best} was stronger"
+    clause = next(
+        (
+            f"{kind}:best"
+            for kind in ("capture", "mate", "check", "threat")
+            if f"{kind}:best" in names
+        ),
+        None,
+    )
+    text += f": {{{clause}}}." if clause else "."
+    factor = next((name for name in sorted(names) if name.startswith("factor:")), None)
+    if factor is not None:
+        text += f" That was a {{mistake}}: {{{factor}}}."
+    return text
 
 
 __all__ = [
     "CHESS_PROSE",
+    "CHESS_WORDS",
+    "NOTATION",
     "LEARNER",
     "OPPONENT",
     "SLOT_TOKEN",
     "TACTIC_NAMES",
     "Slot",
     "SlotCatalogue",
+    "chess_words_outside_slots",
     "evaluation_value",
+    "FACTOR_REFERENCES",
+    "FACTOR_SLOT_SUFFIX",
+    "factor_slots",
+    "factor_value",
     "lesson_slot_catalogue",
     "line_slots",
     "move_event_slots",
@@ -386,4 +575,5 @@ __all__ = [
     "prose_outside_slots",
     "render",
     "slot_names",
+    "vocabulary",
 ]
