@@ -109,6 +109,7 @@
           "type": "array"
         },
         "moves": {
+          "description": "Facts for the moves of uci, in order. The narrator prompt holds the first 8 only; outcome covers the whole line.",
           "items": {
             "$ref": "#/$defs/MoveFacts"
           },

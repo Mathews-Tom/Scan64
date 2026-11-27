@@ -525,7 +525,12 @@ async def run_one(
     transport = _MeteredTransport(config.request_overrides)
     async with httpx.AsyncClient(transport=transport, timeout=config.request_timeout_s) as client:
         adapter = create_llm_provider(
-            LLMProviderConfig(provider="ollama", model=model.served_name, base_url=model.base_url),
+            LLMProviderConfig(
+                provider="ollama",
+                model=model.served_name,
+                base_url=model.base_url,
+                context_tokens=config.num_ctx,
+            ),
             client=client,
             environment={},
         )

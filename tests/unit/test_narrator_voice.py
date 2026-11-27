@@ -106,7 +106,7 @@ def test_each_voice_builds_a_valid_lesson_and_board_prompt(voice: NarratorVoice)
     system, user, slots = board_lines_request(board, voice).messages
     assert system.content == f"{BOARD_NARRATOR_SYSTEM_PROMPT}\n{voice_rules(voice)}"
     assert system.content == board_narrator_system_prompt(voice)
-    assert BoardLinesFacts.model_validate_json(user.content) == board
+    assert BoardLinesFacts.model_validate_json(user.content) == board.for_prompt()
     assert slots.content == board_slot_catalogue(board).prompt()
 
 

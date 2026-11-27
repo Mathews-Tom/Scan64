@@ -59,4 +59,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --dir apps/scan64-web exec playwright install --with-deps chromium
       - name: Run repository quality gate
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
         run: scripts/check.sh

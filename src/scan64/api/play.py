@@ -43,6 +43,7 @@ from scan64.learning.sparring import (
     read_sparring,
 )
 from scan64.persistence.database import get_session
+from scan64.providers.engine import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
 
@@ -138,6 +139,21 @@ class PlayMoveResponse(BaseModel):
     status: str
     critical_interruption: CriticalInterruptionRead | None = None
     clock: PlayClockRead | None = None
+
+
+BOT_PLAY_UNAVAILABLE = "bot_play_unavailable"
+
+
+def bot_play_unavailable(error: EngineCapabilityError) -> HTTPException:
+    """503: the active engine profile cannot play bot moves; play never falls back."""
+    return HTTPException(
+        status_code=503,
+        detail={
+            "code": BOT_PLAY_UNAVAILABLE,
+            "message": "Bot play is unavailable under the active engine profile.",
+            "reason": str(error),
+        },
+    )
 
 
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
@@ -412,7 +428,11 @@ async def create_play_session(
         service.notify_clock()
     else:
         if game is not None and board.turn != colour and not board.is_game_over():
-            first_move = await service.play_opponent_move(play_session, game, board)
+            try:
+                first_move = await service.play_opponent_move(play_session, game, board)
+            except EngineCapabilityError as error:
+                session.rollback()
+                raise bot_play_unavailable(error) from error
             game.pgn = build_pgn(game)
             play_session.opponent_config = {
                 **play_session.opponent_config,
@@ -557,6 +577,8 @@ async def create_move(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -603,6 +625,8 @@ async def resume_play_session(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
@@ -664,6 +688,8 @@ async def resume_opponent_move(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
