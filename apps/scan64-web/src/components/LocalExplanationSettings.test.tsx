@@ -59,8 +59,25 @@ describe('Local explanation settings', () => {
     fireEvent.click(consent);
     fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
     expect(await screen.findByText('Enabled for new explanations using local:b.')).toBeInTheDocument();
-    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:b', consent: true }) });
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:b', consent: true, voice: 'coach' }) });
     expect(consent).not.toBeChecked();
+  });
+
+  it('sends the chosen narrator voice with the grant and shows the saved voice', async () => {
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null, voice: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'] }))
+      .mockResolvedValueOnce(response({ mode: 'local', model: 'local:a', voice: 'terse' }));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    const voice = await screen.findByRole('combobox', { name: 'Narrator voice' });
+    expect(voice).toHaveValue('coach');
+    expect(screen.getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['local:a', 'coach', 'terse', 'playful']);
+    fireEvent.change(voice, { target: { value: 'terse' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
+    expect(await screen.findByText('Enabled for new explanations using local:a with the terse voice.')).toBeInTheDocument();
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:a', consent: true, voice: 'terse' }) });
   });
 
   it('reads persisted enablement on remount and disables without probing', async () => {

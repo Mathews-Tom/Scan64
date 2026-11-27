@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -172,7 +172,7 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 
 `GeneratedExplanation` (`contracts.py:18-23`) is `claims: tuple[ExplanationClaim, ...]` with at least one claim. `ExplanationClaim` (`packages/chess-lesson-spec/src/chess_lesson_spec/claims.py:8-17`) has `text`, `evidence_ref`, `line` (UCI tuple, default empty), `certainty` (default `observed`) and `disclosure_level` (≥ 1).
 
-`LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py:31-109`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`).
+`LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`). The optional `llm.voice` selects the narrator voice (section 14); an unknown name raises `LLMConfigurationError`.
 
 ### Local Ollama limits
 
@@ -205,14 +205,14 @@ A run between these two, with the current prompt before it stated that `line` ho
 
 ## 7. Owner grant (local Ollama)
 
-- Table `OwnerExplanationSettings(player_id, model, revision)` (`explanations/settings.py:23-26`).
+- Table `OwnerExplanationSettings(player_id, model, revision, voice)` (`explanations/settings.py`). `voice` (#387, migration `20261127_26`) is nullable; NULL reads as the default voice (`stored_narrator_voice`).
 - API router `/v1/players/{player_id}/explanation-settings` (`api/explanation_settings.py:18`):
-  - `GET` returns `mode` `disabled` | `local` | `operator` (`get_explanation_settings`).
+  - `GET` returns `mode` `disabled` | `local` | `operator` and, in `local` mode, the saved `voice` (`get_explanation_settings`).
   - `POST /probe` calls `detect_local_ollama` and lists local model names. It sends no evidence (`probe_explanation_settings`).
-  - `PUT` takes `{model, consent}`. `consent` must equal `model is not None`. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under `lock_puzzle_player`, then inserts, updates (new `revision`) or deletes the row (`set_explanation_settings`).
+  - `PUT` takes `{model, consent}` and an optional `voice`. `consent` must equal `model is not None`. A `voice` without a model is rejected (422). An absent `voice` keeps the saved voice; a new grant without one gets the default. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under `lock_puzzle_player`, then inserts, updates (new `revision`) or deletes the row (`set_explanation_settings`).
   - Both write endpoints return 409 while `SCAN64_LLM_CONFIG` is set (`_require_settings_control`).
-- Job fence: `_execute_analysis_job_async` selects `local_explanation_owner_generation` (deletion-audit count) in the same query as the game (`jobs.py:550`). `read_local_explanation_provider` (`settings.py:81-98`) returns a provider only if the committed grant's generation matches. Its `still_authorized` closure requires the same `(model, revision)` at chat dispatch.
-- Client: `LocalExplanationSettings.tsx` in `SettingsScreen.tsx:91`, API calls in `apps/scan64-web/src/api/explanationSettings.ts`.
+- Job fence: `_execute_analysis_job_async` selects `local_explanation_owner_generation` (deletion-audit count) in the same query as the game (`jobs.py:550`). `read_local_explanation_provider` (`settings.py:81-98`) returns a provider only if the committed grant's generation matches. It wraps the provider in `LocalNarratorProvider`, which carries the voice read with the grant. Its `still_authorized` closure requires the same `(model, revision)` at chat dispatch; a voice change does not revoke the grant.
+- Client: `LocalExplanationSettings.tsx` in `SettingsScreen.tsx:91` (model and **Narrator voice** selects), API calls in `apps/scan64-web/src/api/explanationSettings.ts`.
 
 ## 8. Validator (`src/scan64/explanations/validator.py`)
 
@@ -438,3 +438,37 @@ The output contract is unchanged: `GeneratedExplanation` claims with `text`, `ev
 ### Benchmark
 
 `benchmarks/narrator/run_benchmark.py` records, per claim, `slots`: each slot name the text uses, its rendered value (`null` when not listed) and its UCI moves; per run of the slot pipeline, `slots_used` (all claims' slots in order). Coverage (played move, key move, result) of a record with `slots_used` is counted from the listed slots only (`slot_coverage`): a move counts when a used slot's moves or rendered SAN hold it; the result counts when a used slot's value names it. Records without `slots_used` (all runs before #386) keep the claim-text count, so their summaries recompute unchanged. `chess_token_outside_slot` counts as a false chess statement.
+
+## 14. Narrator voice (#387)
+
+A voice sets the tone and sentence style of the plain words around the slots. It adds no chess fact and asks for no reasoning. Module: `src/scan64/explanations/voice.py`.
+
+| Voice | Prompt fragment (start) |
+|---|---|
+| `coach` (default) | a calm, friendly coach; short, encouraging sentences |
+| `terse` | as few plain words as possible; no greetings, praise or filler |
+| `playful` | lively, everyday words; a warm, cheerful tone; short sentences |
+
+**Prompt.** `with_voice` appends one line to the system prompt: the voice fragment, then a fixed sentence that every slot rule applies unchanged and that the voice never adds a chess fact. `narrator_system_prompt(voice)` (lessons) and `board_narrator_system_prompt(voice)` (Analysis Board) build it. `NARRATOR_SYSTEM_PROMPT` and `BOARD_NARRATOR_SYSTEM_PROMPT` are unchanged; the voice line comes after them. The facts JSON and the slot list do not depend on the voice. Because the default voice also adds its line, the default prompt differs from the #386 prompt by that line.
+
+**Checks.** The voice does not reach the validator. Every voice uses the same slot path, the same `CHESS_PROSE` rules and the same reason codes (sections 8 and 13). Tests (`tests/unit/test_narrator_voice.py`) check, for each voice, that the prompt builds, that a raw chess claim outside a slot falls back as `chess_token_outside_slot` for lessons and the Analysis Board, and that no fragment matches `CHESS_PROSE` or names reasoning.
+
+**Selection.** `run_with_explanation_provider` picks the voice in this order:
+
+| Source | Where | Absent |
+|---|---|---|
+| `voice=` argument | `resolve_explanation`, `resolve_board_lines_explanation` (benchmark, tests) | next source |
+| operator | `voice` in the `[llm]` table of `SCAN64_LLM_CONFIG` | `coach` |
+| local grant | `OwnerExplanationSettings.voice`, set in **Settings → Local explanation wording** | `coach` |
+
+Example operator file:
+
+```toml
+[llm]
+provider = "ollama"
+model = "gemma4:12b"
+base_url = "http://127.0.0.1:11434"
+voice = "terse"
+```
+
+**Benchmark.** `voice` in the `[run]` table of `benchmarks/narrator/narrator.toml` (default `"coach"`) is passed to `pipeline_entry` as `voice=` and recorded in the run header and the summary. One runs file holds one voice; resume refuses a different voice. To compare voices, run once per voice and compare the summaries (grounding pass and coverage).

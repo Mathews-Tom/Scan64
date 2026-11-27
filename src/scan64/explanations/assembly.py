@@ -32,7 +32,7 @@ from scan64.explanations.facts import (
     build_narrator_facts,
     verified_lines_by_evidence,
 )
-from scan64.explanations.settings import OPERATOR_LLM_CONFIG
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
@@ -41,6 +41,7 @@ from scan64.explanations.validator import (
     RejectionReason,
     validate_generated_explanation,
 )
+from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm.adapters import LLMExplanationProvider
@@ -140,10 +141,17 @@ NARRATOR_SYSTEM_PROMPT = (
 )
 
 
-def _explanation_request(facts: NarratorFacts) -> ExplanationRequest:
+def narrator_system_prompt(voice: NarratorVoice = DEFAULT_NARRATOR_VOICE) -> str:
+    """NARRATOR_SYSTEM_PROMPT with the voice fragment as its last line (#387)."""
+    return with_voice(NARRATOR_SYSTEM_PROMPT, voice)
+
+
+def _explanation_request(
+    facts: NarratorFacts, voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
+) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
-            LLMMessage(role="system", content=NARRATOR_SYSTEM_PROMPT),
+            LLMMessage(role="system", content=narrator_system_prompt(voice)),
             LLMMessage(role="user", content=facts.to_prompt_json()),
             LLMMessage(role="user", content=lesson_slot_catalogue(facts).prompt()),
         )
@@ -156,6 +164,7 @@ async def _attempt_grounded_generation(
     evidence: Sequence[Evidence],
     fen: str,
     template_explanation: Explanation,
+    voice: NarratorVoice = DEFAULT_NARRATOR_VOICE,
 ) -> Explanation:
     try:
         facts = build_narrator_facts(diagnosis, evidence, fen)
@@ -164,7 +173,7 @@ async def _attempt_grounded_generation(
         record_template_fallback("invalid_evidence")
         return template_explanation
     context = _grounding_context(facts, evidence, fen)
-    request = _explanation_request(facts)
+    request = _explanation_request(facts, voice)
     try:
         generated = await provider.generate(request)
         return validate_generated_explanation(generated, context)
@@ -178,40 +187,51 @@ async def _attempt_grounded_generation(
 
 async def run_with_explanation_provider[T](
     template_result: T,
-    attempt: Callable[[LLMExplanationProvider], Awaitable[T]],
+    attempt: Callable[[LLMExplanationProvider, NarratorVoice], Awaitable[T]],
     *,
     local_provider: LLMExplanationProvider | None,
     environment: Mapping[str, str] | None,
     client: httpx.AsyncClient | None,
+    voice: NarratorVoice | None = None,
 ) -> T:
-    """Run ``attempt`` with the configured provider, else return ``template_result``.
+    """Run ``attempt`` with the configured provider and voice, else return ``template_result``.
 
     Explicit operator configuration (``SCAN64_LLM_CONFIG``) takes precedence over
     the owner's installation-local model; with neither, or a ``template``
     operator config, the template result is returned without any provider call.
+
+    The voice is ``voice`` when given (benchmark, tests), else the operator
+    config's ``llm.voice``, else the voice saved with the local grant
+    (``LocalNarratorProvider``), else ``DEFAULT_NARRATOR_VOICE``.
     """
     environment_values = os.environ if environment is None else environment
     raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
     if raw_path is None:
         if local_provider is not None:
-            return await attempt(local_provider)
+            local_voice = (
+                local_provider.voice
+                if isinstance(local_provider, LocalNarratorProvider)
+                else DEFAULT_NARRATOR_VOICE
+            )
+            return await attempt(local_provider, voice or local_voice)
         return template_result
 
     config = LLMProviderConfig.from_toml(Path(raw_path))
     if config.provider == "template":
         return template_result
+    operator_voice = voice or config.voice
 
     if client is not None:
         provider = create_llm_provider(config, client=client, environment=environment_values)
         if provider is None:
             return template_result
-        return await attempt(provider)
+        return await attempt(provider, operator_voice)
 
     async with httpx.AsyncClient() as owned_client:
         provider = create_llm_provider(config, client=owned_client, environment=environment_values)
         if provider is None:
             return template_result
-        return await attempt(provider)
+        return await attempt(provider, operator_voice)
 
 
 async def resolve_explanation(
@@ -222,6 +242,7 @@ async def resolve_explanation(
     local_provider: LLMExplanationProvider | None = None,
     environment: Mapping[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
+    voice: NarratorVoice | None = None,
 ) -> Explanation:
     """Resolve the client-visible explanation for a diagnosis.
 
@@ -236,9 +257,9 @@ async def resolve_explanation(
     """
     template_explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
 
-    async def attempt(provider: LLMExplanationProvider) -> Explanation:
+    async def attempt(provider: LLMExplanationProvider, chosen: NarratorVoice) -> Explanation:
         return await _attempt_grounded_generation(
-            provider, diagnosis, evidence, fen, template_explanation
+            provider, diagnosis, evidence, fen, template_explanation, chosen
         )
 
     return await run_with_explanation_provider(
@@ -247,4 +268,5 @@ async def resolve_explanation(
         local_provider=local_provider,
         environment=environment,
         client=client,
+        voice=voice,
     )

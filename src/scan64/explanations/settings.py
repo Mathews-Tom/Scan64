@@ -13,6 +13,13 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import Field, Session, SQLModel, col, select
 
 from scan64.api.models import DeletionAudit, Player
+from scan64.explanations.voice import (
+    DEFAULT_NARRATOR_VOICE,
+    NarratorVoice,
+    is_narrator_voice,
+)
+from scan64.providers.llm.adapters import LLMExplanationProvider
+from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 from scan64.providers.llm.local_ollama import LocalOllamaExplanationProvider
 
 OPERATOR_LLM_CONFIG = "SCAN64_LLM_CONFIG"
@@ -24,6 +31,26 @@ class OwnerExplanationSettings(SQLModel, table=True):
     player_id: str = Field(primary_key=True, foreign_key="player.id")
     model: str = Field(min_length=1, max_length=128)
     revision: str = Field(default_factory=lambda: uuid4().hex, max_length=32)
+    # Narrator voice (#387). NULL (rows saved before #387) means the default voice.
+    voice: str | None = Field(default=None, max_length=16)
+
+
+def stored_narrator_voice(row: OwnerExplanationSettings) -> NarratorVoice:
+    """The row's voice; NULL or an unknown name reads as the default voice."""
+    return row.voice if is_narrator_voice(row.voice) else DEFAULT_NARRATOR_VOICE
+
+
+class LocalNarratorProvider:
+    """The owner's local provider and the narrator voice saved with the grant."""
+
+    def __init__(
+        self, provider: LLMExplanationProvider, voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
+    ) -> None:
+        self.provider = provider
+        self.voice: NarratorVoice = voice
+
+    async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        return await self.provider.generate(request)
 
 
 def operator_manages_explanations() -> bool:
@@ -56,7 +83,7 @@ def local_explanation_owner_generation(
 
 def _read_committed_consent(
     engine: Engine, player_id: str, owner_generation: int
-) -> tuple[str, str] | None:
+) -> tuple[str, str, NarratorVoice] | None:
     try:
         with Session(engine) as settings_session:
             row = settings_session.exec(
@@ -64,6 +91,7 @@ def _read_committed_consent(
                     OwnerExplanationSettings.model,
                     OwnerExplanationSettings.revision,
                     local_explanation_owner_generation(player_id),
+                    OwnerExplanationSettings.voice,
                 )
                 .select_from(Player)
                 .join(OwnerExplanationSettings)
@@ -71,7 +99,8 @@ def _read_committed_consent(
             ).first()
             if row is None or row[2] != owner_generation:
                 return None
-            return row[0], row[1]
+            voice = row[3] if is_narrator_voice(row[3]) else DEFAULT_NARRATOR_VOICE
+            return row[0], row[1], voice
     except SQLAlchemyError:
         # Optional wording must not fail analysis or poison its separate transaction.
         logger.warning("Local explanation consent unavailable")
@@ -80,8 +109,11 @@ def _read_committed_consent(
 
 async def read_local_explanation_provider(
     session: Session, player_id: str, owner_generation: int | None
-) -> LocalOllamaExplanationProvider | None:
-    """Read a live grant for the account that started this generation."""
+) -> LocalNarratorProvider | None:
+    """Read a live grant for the account that started this generation.
+
+    The voice is read with the grant; a later voice change does not revoke it.
+    """
     if owner_generation is None or operator_manages_explanations():
         return None
     engine = _engine(session)
@@ -93,6 +125,8 @@ async def read_local_explanation_provider(
         current = await asyncio.to_thread(
             _read_committed_consent, engine, player_id, owner_generation
         )
-        return current == consent
+        return current is not None and current[:2] == consent[:2]
 
-    return LocalOllamaExplanationProvider(consent[0], still_authorized)
+    return LocalNarratorProvider(
+        LocalOllamaExplanationProvider(consent[0], still_authorized), consent[2]
+    )

@@ -49,11 +49,16 @@ foreign_ollama = ["http://127.0.0.1:11434"]
 # builder. grounding_context_for builds NarratorFacts (#367) exactly as
 # resolve_explanation does; tests/unit/test_narrator_benchmark_smoke.py resolves
 # both paths on positions[0] in CI, so a signature change fails a test.
-# pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment) -> Explanation
+# pipeline_entry: async (diagnosis, evidence, fen, *, local_provider, environment, voice)
+#   -> Explanation
 # grounding_context: (diagnosis, evidence, fen) -> GroundedExplanationContext, used to
 # count rejected claims one by one.
 pipeline_entry = "scan64.explanations.assembly:resolve_explanation"
 grounding_context = "scan64.explanations.assembly:grounding_context_for"
+# Narrator voice (#387): coach, terse or playful. The runner passes it to
+# pipeline_entry as `voice=` and records it in the run header; one runs file
+# holds one voice, so run once per voice to compare voices. Default "coach".
+voice = "coach"
 
 [positions]
 file = "benchmarks/narrator/positions.json"

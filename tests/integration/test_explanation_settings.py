@@ -37,8 +37,8 @@ OTHER = "wording-other"
 LOCAL_MODEL = "test-local-model:latest"
 OWNER_PATH = f"/v1/players/{OWNER}/explanation-settings"
 OTHER_PATH = f"/v1/players/{OTHER}/explanation-settings"
-DISABLED = {"mode": "disabled", "model": None}
-ENABLED = {"mode": "local", "model": LOCAL_MODEL}
+DISABLED = {"mode": "disabled", "model": None, "voice": None}
+ENABLED = {"mode": "local", "model": LOCAL_MODEL, "voice": "coach"}
 
 
 def _register(client: TestClient, player: str) -> dict[str, str]:
@@ -271,7 +271,11 @@ def test_missing_or_operator_managed_peer_never_enables_local_wording(
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
 
     monkeypatch.setenv(OPERATOR_LLM_CONFIG, str(tmp_path / "operator.toml"))
-    assert client.get(OWNER_PATH, headers=owner).json() == {"mode": "operator", "model": None}
+    assert client.get(OWNER_PATH, headers=owner).json() == {
+        "mode": "operator",
+        "model": None,
+        "voice": None,
+    }
     assert client.post(f"{OWNER_PATH}/probe", headers=owner).status_code == 409
     assert client.put(OWNER_PATH, json=change, headers=owner).status_code == 409
     assert calls == 2
@@ -360,3 +364,39 @@ def test_consent_survives_learning_reset_but_not_account_archive_restore(
     restored = client.post("/v1/imports", json=archive, headers=owner)
     assert restored.status_code == 200, restored.text
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
+
+
+@pytest.mark.asyncio
+async def test_narrator_voice_is_saved_with_the_grant_and_defaults_when_absent(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+
+    async def models() -> list[str]:
+        return [LOCAL_MODEL]
+
+    monkeypatch.setattr(explanation_settings, "detect_local_ollama", models)
+    owner = _register(client, OWNER)
+    stamp = _owner_generation(db_session, OWNER)
+    change = {"model": LOCAL_MODEL, "consent": True}
+
+    # No voice in the request: the default voice (#387).
+    assert client.put(OWNER_PATH, json=change, headers=owner).json() == ENABLED
+    provider = await read_local_explanation_provider(db_session, OWNER, stamp)
+    assert isinstance(provider, consent_settings.LocalNarratorProvider)
+    assert provider.voice == "coach"
+
+    terse = {**ENABLED, "voice": "terse"}
+    assert client.put(OWNER_PATH, json={**change, "voice": "terse"}, headers=owner).json() == terse
+    assert client.get(OWNER_PATH, headers=owner).json() == terse
+    # A later update without a voice keeps the saved voice.
+    assert client.put(OWNER_PATH, json=change, headers=owner).json() == terse
+    provider = await read_local_explanation_provider(db_session, OWNER, stamp)
+    assert isinstance(provider, consent_settings.LocalNarratorProvider)
+    assert provider.voice == "terse"
+
+    unknown = client.put(OWNER_PATH, json={**change, "voice": "pirate"}, headers=owner)
+    assert unknown.status_code == 422
+    orphan = {"model": None, "consent": False, "voice": "playful"}
+    assert client.put(OWNER_PATH, json=orphan, headers=owner).status_code == 422
+    assert client.get(OWNER_PATH, headers=owner).json() == terse
