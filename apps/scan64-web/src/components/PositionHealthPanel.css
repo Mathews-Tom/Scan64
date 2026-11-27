@@ -4,11 +4,10 @@
    WebKit drops). On --surface each fill is at least 4.5:1 and at least 3:1
    against an unlit segment, in both themes; the unlit track is about 1.5:1 on the
    surface, so an empty meter still shows its length. */
-/* While the next position loads, the last reading stays at full contrast and an
-   "Updating" label appears after 200 ms, so a fast reply shows nothing new and a
-   slow one is not read as current. */
-.position-health__updating { visibility: hidden; margin-inline-start: var(--space-2, 0.5rem); font-size: var(--type-label); font-weight: normal; color: var(--muted); }
-.position-health[aria-busy='true'] .position-health__updating { visibility: visible; transition: visibility 0s 200ms; }
+/* While the next position loads, the last reading stays at full contrast; a reply
+   slower than 200 ms adds "Updating" (a status, so screen readers hear it) in a
+   space the heading always keeps, so nothing moves. */
+.position-health__updating { display: inline-block; min-width: 6em; margin-inline-start: var(--space-2, 0.5rem); font-size: var(--type-label); font-weight: normal; color: var(--muted); }
 .position-health {
   min-width: 0;
   --meter-unlit: #cacaca; --meter-good: #2e7d4f; --meter-fair: #8a6a14; --meter-low: #b23b2e;

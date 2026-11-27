@@ -4,6 +4,9 @@ import type { HealthMeterRead, PositionHealthRead } from '../api/types';
 import { filledSegments, LEVEL_WORDS, meterText, SEGMENTS, TREND_MARKS } from '../healthPanel';
 import './PositionHealthPanel.css';
 
+/** A reply slower than this shows "Updating" beside the heading. */
+const UPDATING_DELAY_MS = 200;
+
 
 function Meter({ name, side, meter, large = false }: { name: string; side: string; meter: HealthMeterRead; large?: boolean }) {
   const filled = filledSegments(meter.health);
@@ -33,6 +36,13 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
   const [view, setView] = useState<State>({ state: 'loading' });
   // The last reading stays on screen while the next one loads, so the panel keeps its height.
   const [busy, setBusy] = useState(true);
+  // "Updating" only for a slow reply: a fast one, or the first mount, shows nothing.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!busy) { setSlow(false); return; }
+    const timer = window.setTimeout(() => setSlow(true), UPDATING_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [busy]);
   const [details, setDetails] = useState(false);
   const detailsId = useId();
 
@@ -57,7 +67,7 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
   }, [fen, previousFen, learner]);
 
   return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={busy}>
-    <h3>Position health<span className="position-health__updating" aria-hidden="true">Updating</span></h3>
+    <h3>Position health<span className="position-health__updating" role="status">{slow ? 'Updating' : ''}</span></h3>
     {view.state === 'error' && <p className="position-health__note" data-testid="position-health-error">{view.message}</p>}
     {view.state === 'ready' && view.health.outcome !== null &&
       <p className="position-health__note" data-testid="position-health-outcome">{OUTCOME_TEXT[view.health.outcome]}: the game is over, so there is no position health to read.</p>}

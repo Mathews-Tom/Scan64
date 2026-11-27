@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from '../api/client';
 import type { HealthMeterRead, PositionHealthRead } from '../api/types';
@@ -44,6 +44,20 @@ describe('position health meters', () => {
     render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
     expect(await screen.findByTestId('position-health-outcome')).toHaveTextContent(`${text}: the game is over`);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('says Updating, as a status, only once a reply has taken 200 ms', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(ApiClient, 'positionHealth').mockReturnValue(new Promise(() => {}));
+      render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
+      await act(() => vi.advanceTimersByTimeAsync(199));
+      expect(screen.getByRole('status').textContent).toBe('');
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(screen.getByRole('status')).toHaveTextContent('Updating');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps the last reading on screen while the next position loads', async () => {
