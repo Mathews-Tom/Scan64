@@ -124,8 +124,9 @@ If an LLM fits both GPUs, it runs on the 5090. If an engine runs on Linux and Wi
 3. **Never push to a ticket that another machine claimed.** To hand over, agree in a comment on the ticket, then run `scan64-coord claim <N> --takeover`. For a share of a ticket another machine owns, `scan64-coord split <N> "<title>"` creates and claims a sub-issue.
 4. **Release when you stop:** `scan64-coord release <N> --review` when your PR is open (the machine keeps the claim, and the ticket's open PRs get its label); `--done` when the work is merged; no flag to give the ticket back.
 5. **Tests on another OS:** add `needs-test:windows` or `needs-test:mac` to the PR. The machine with that OS runs the tests and posts the results as a PR comment. It does not push to the PR.
-6. **Branches and pull requests:** name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Never merge your own pull request; the maintainer reviews every pull request before it reaches the epic branch or `main`.
-7. **No status files in the repository.** Status lives on the board and in the issues. Local campaign notes stay local.
+6. **Requests between machines go through GitHub, not chat.** `scan64-coord ask <N> <machine> "<request>"` comments on issue or PR N and adds `needs:<machine>`. The other machine sees N under "Waiting on this machine" in its status at session start, acts, and replies with `scan64-coord answer <N> "<result>"`, which removes the label. Requests without a ticket go on the coordination issue #404. Requests for a person rather than an agent mention them in the comment as usual.
+7. **Branches and pull requests:** name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Never merge your own pull request; the maintainer reviews every pull request before it reaches the epic branch or `main`.
+8. **No status files in the repository.** Status lives on the board and in the issues. Local campaign notes stay local.
 
 ### Setup on each machine (once)
 
@@ -152,6 +153,8 @@ Other agents and people run `scan64-coord status` at the start of a session and 
 | `scan64-coord claim <N> [--takeover]` | Claim issue or PR N for this machine |
 | `scan64-coord split <N> "<title>"` | Create and claim a sub-issue for this machine's share of N |
 | `scan64-coord release <N> [--review\|--done]` | Change or drop the claim |
+| `scan64-coord ask <N> <machine> "<request>"` | Ask another machine to act on N: comment plus `needs:<machine>` |
+| `scan64-coord answer <N> "<result>"` | Reply on N and remove `needs:<this machine>` |
 | `scan64-coord check [branch]` | Exit 1 if another machine owns the branch's ticket |
 | `scan64-coord setup <machine>` | One-time machine setup |
 | `scan64-coord install-hooks` | Add the Claude Code hooks |

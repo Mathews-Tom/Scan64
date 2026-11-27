@@ -5,13 +5,15 @@ A claim is the `machine:<name>` label on the GitHub issue or PR. The Scan64
 board (Status, Machine) mirrors it. The rules are in CONTRIBUTING.md, section
 "Working across machines". Every machine runs the same commands:
 
-  scan64-coord status              what every machine holds, what needs this OS
+  scan64-coord status              what every machine holds, what waits on this machine
   scan64-coord claim N [--takeover]
                                    claim issue or PR N for this machine
   scan64-coord split N TITLE       new sub-issue for this machine's share of N, claimed here
   scan64-coord release N [--review|--done]
                                    --review keeps the claim and labels the ticket's open PRs;
                                    --done marks it merged; no flag gives the ticket back
+  scan64-coord ask N MACHINE TEXT  ask MACHINE to act on issue/PR N: comment + needs:MACHINE
+  scan64-coord answer N TEXT       reply on N and clear needs:<this machine>
   scan64-coord check [BRANCH]      exit 1 if BRANCH's ticket belongs to another machine
   scan64-coord setup MACHINE       one-time setup: machine name, installed copy, command
   scan64-coord install-hooks       add the Claude Code hooks to ~/.claude/settings.json
@@ -19,7 +21,9 @@ board (Status, Machine) mirrors it. The rules are in CONTRIBUTING.md, section
   scan64-coord hook-pretool        PreToolUse hook: deny git push / gh pr create on a conflict
 
 Machine names are the repository's `machine:<name>` labels. The part of a name
-before the first "-" is its OS, which matches the `needs-test:<os>` labels.
+before the first "-" is its OS, which matches the `needs-test:<os>` labels. A
+`needs:<machine>` label marks an issue or PR that waits on that machine; the
+request is the latest comment that starts with "For **<machine>**".
 This machine's name comes from $SCAN64_MACHINE or ~/.config/scan64/machine.
 Needs the `gh` CLI, logged in.
 """
@@ -308,6 +312,45 @@ def cmd_release(number: str, status: str) -> int:
     return 0
 
 
+def search_open(label: str) -> list[dict[str, Any]]:
+    """Open issues and PRs in REPO with ``label``, straight from GitHub (not the board)."""
+    out = gh(
+        "api",
+        "-X",
+        "GET",
+        "search/issues",
+        "-f",
+        f'q=repo:{REPO} is:open label:"{label}"',
+        "-f",
+        "per_page=100",
+    )
+    items: list[dict[str, Any]] = json.loads(out)["items"]
+    return items
+
+
+def request_comment(sender: str, target: str, text: str) -> str:
+    return f"For **{target}** (from {sender}): {text}"
+
+
+def cmd_ask(number: str, target: str, text: str) -> int:
+    me = machine()
+    if target not in machines():
+        print(f"No machine:{target} label in {REPO}.")
+        return 2
+    gh("issue", "comment", number, "-R", REPO, "--body", request_comment(me, target, text))
+    gh("issue", "edit", number, "-R", REPO, "--add-label", f"needs:{target}")
+    print(f"Asked {target} on #{number}.")
+    return 0
+
+
+def cmd_answer(number: str, text: str) -> int:
+    me = machine()
+    gh("issue", "comment", number, "-R", REPO, "--body", f"From **{me}**: {text}")
+    gh("issue", "edit", number, "-R", REPO, "--remove-label", f"needs:{me}")
+    print(f"Answered #{number}; needs:{me} removed.")
+    return 0
+
+
 def current_branch(workdir: str | None = None) -> str:
     command = ["git", *(["-C", workdir] if workdir else []), "rev-parse", "--abbrev-ref", "HEAD"]
     return subprocess.run(command, capture_output=True, text=True).stdout.strip()
@@ -387,11 +430,18 @@ def status_lines() -> list[str]:
                 or "nothing claimed"
             )
         )
-    need = [i for i in items if f"needs-test:{os_of(me)}" in i.get("labels", [])]
+    waiting = search_open(f"needs:{me}")
+    lines.append(
+        "Waiting on this machine (read the latest 'For **"
+        + me
+        + "**' comment, act, then `scan64-coord answer <N> <text>`): "
+        + (", ".join(f"#{i['number']} {i['title'][:60]}" for i in waiting) or "nothing")
+    )
+    need = search_open(f"needs-test:{os_of(me)}")
     if need:
         lines.append(
             f"Needs a test run on this OS ({os_of(me)}): "
-            + ", ".join(f"#{i['content']['number']} {i['content']['title'][:60]}" for i in need)
+            + ", ".join(f"#{i['number']} {i['title'][:60]}" for i in need)
         )
     free = [
         i
@@ -580,6 +630,10 @@ def main(argv: list[str]) -> int:
         return cmd_split(rest[0], " ".join(r for r in rest[1:] if not r.startswith("--")))
     if command == "release" and rest:
         return cmd_release(rest[0], release_status(rest[1:]))
+    if command == "ask" and len(rest) >= 3:
+        return cmd_ask(rest[0], rest[1], " ".join(rest[2:]))
+    if command == "answer" and len(rest) >= 2:
+        return cmd_answer(rest[0], " ".join(rest[1:]))
     if command == "check":
         return cmd_check(rest[0] if rest else None)
     if command == "hook-session":
