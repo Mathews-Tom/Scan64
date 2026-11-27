@@ -11,6 +11,7 @@ from benchmarks.engines.compat import (
     FEATURES,
     CompatConfig,
     EngineEntry,
+    file_sha256,
     load_config,
     run_engine,
     summarise,
@@ -50,6 +51,10 @@ async def test_xboard_engine_run_records_capability_reasons(
     assert set(records) == set(FEATURES)
     assert records["game_analysis"]["status"] == "works"
     assert records["game_analysis"]["protocol"] == "xboard"
+    provenance = records["game_analysis"]
+    assert len(provenance["commit"]) == 40 and isinstance(provenance["dirty"], bool)
+    assert provenance["binary_sha256"] == file_sha256(launcher)
+    assert provenance["profile_sha256"] == file_sha256(profile)
     for name in FEATURES[1:]:
         assert records[name]["status"] == "unavailable", records[name]
         assert "FakeXBoard 1" in records[name]["reason"]

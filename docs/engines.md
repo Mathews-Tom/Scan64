@@ -261,6 +261,11 @@ Features: `game_analysis` (fast pass, `REVIEW_NODES`), `focused_pass`
 (MultiPV 2/4/8 widening), `analysis_board` (hint search, scored legal lines),
 `bot_ladder`, `skill_level_opponent`.
 
+Every record carries its provenance: the Scan64 `commit`, `dirty` (uncommitted
+changes under `src/` or `benchmarks/`), and the SHA-256 of the profile file and
+of the resolved engine binary. A profile whose binary is missing records `not
+installed`.
+
 Scan64 downloads and bundles none of these engines. Each user installs the
 engine and points a profile at it.
 
