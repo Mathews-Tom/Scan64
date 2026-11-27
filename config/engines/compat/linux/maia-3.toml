@@ -1,0 +1,7 @@
+# Linux compat set (#411): a Python UCI wrapper with rating options (Elo, SelfElo,
+# OppoElo). binary_path takes no arguments, so maia3-uci-5m runs
+# `maia3-uci --model 5m --device cuda`. Maia-3 answers from one policy pass and
+# ignores node limits, so node_scale stays 1.
+[engine]
+name = "maia-3"
+binary_path = "~/.local/opt/engines/maia3/maia3-uci-5m"

@@ -1,0 +1,12 @@
+# Linux compat set (#411): Lc0 0.32.1, CUDA fp16 on an RTX 5090, BT4 net.
+# Option values are passed verbatim (no ~ expansion), so WeightsFile is absolute.
+# BT4 with 2 search threads ~11k nps vs Stockfish 18 ~850k nps -> node_scale 0.013.
+[engine]
+name = "lc0-bt4"
+binary_path = "~/.local/opt/engines/lc0/lc0"
+threads = 2
+node_scale = 0.013
+
+[engine.options]
+Backend = "cuda-fp16"
+WeightsFile = "/home/syd/.local/opt/engines/lc0/nets/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz"

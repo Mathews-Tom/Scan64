@@ -1,0 +1,10 @@
+# Linux compat set (#411): Arasan 26.1, #396 bundle candidate. Arasan ignores
+# `go nodes N` (it stops after ~6k nodes, depth ~6, for any N), so node budgets
+# do not set its search effort. Its own book is off for analysis; the NNUE file
+# resolves next to the binary.
+[engine]
+name = "arasan"
+binary_path = "~/.local/opt/engines/arasan/arasanx-64-avx2-bmi2"
+
+[engine.options]
+OwnBook = false

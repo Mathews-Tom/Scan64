@@ -1,0 +1,6 @@
+# Linux compat set (#411): a large option list and personality files.
+# The wrapper changes to the install directory (a profile cannot set a working
+# directory); personalities/ and books/ are resolved relative to it.
+[engine]
+name = "rodent-v"
+binary_path = "~/.local/opt/engines/rodent-v/rodent_v-cwd"

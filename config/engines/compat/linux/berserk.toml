@@ -1,0 +1,4 @@
+# Linux compat set (#411): Berserk 14, reports WDL by default.
+[engine]
+name = "berserk"
+binary_path = "~/.local/opt/engines/berserk/berserk"

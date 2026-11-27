@@ -1,0 +1,6 @@
+# Linux compat set (#411): Caissa 2.0, #396 bundle candidate; network from an external file.
+# EvalFile keeps its default: Caissa resolves the .pnn next to its binary.
+[engine]
+name = "caissa"
+binary_path = "~/.local/opt/engines/caissa/caissa"
+
