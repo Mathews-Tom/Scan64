@@ -9,7 +9,10 @@ every registered pattern detector -> ``arbitrate_diagnoses`` (trusted codes
 only). The recorded million-node searches in ``tests/fixtures/m48`` replace the
 live engine (``RecordedAdapter``), so no engine runs and the output is
 byte-for-byte reproducible. Composer evidence IDs are random UUIDs; they are
-renamed to ``<position_id>_ev<N>`` so the file is stable.
+renamed to ``<position_id>_ev<N>`` so the file is stable. Engine analysis IDs
+are random UUIDs too; each is replaced by a UUID5 of the position ID and its
+order of first use (as ``build_positions_live`` does), so ``positions_sha256``
+in a runs header is the same after every rebuild.
 
 Selection is deterministic: corpora in config order, games and candidates in
 recorded order, at most ``per_code_cap`` positions per trusted code and ``per_game_cap``
@@ -22,7 +25,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import tomllib
+import uuid
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -44,6 +49,22 @@ from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.learning.plugins.registry import PluginKind, PluginRegistry
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+UUID_PATTERN = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def stable_uuids(record: dict[str, Any], position_id: str) -> dict[str, Any]:
+    """Replace every random UUID in ``record`` with a UUID5 of ``position_id``.
+
+    The N-th distinct UUID becomes ``uuid5(NAMESPACE_URL, f"{position_id}#{N}")``,
+    the same derivation ``build_positions_live`` uses for the Caissa file.
+    """
+    text = json.dumps(record, sort_keys=True)
+    mapping: dict[str, str] = {}
+    for found in UUID_PATTERN.findall(text):
+        if found not in mapping:
+            mapping[found] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{position_id}#{len(mapping)}"))
+    result: dict[str, Any] = json.loads(UUID_PATTERN.sub(lambda m: mapping[m.group(0)], text))
+    return result
 
 
 def _detectors() -> tuple[PatternDetector, ...]:
@@ -108,7 +129,7 @@ async def diagnose_candidate(
     renamed = {
         item.evidence_id: f"{position_id}_ev{number}" for number, item in enumerate(evidence)
     }
-    return {
+    record = {
         "position_id": position_id,
         "corpus": corpus_path.relative_to(REPO_ROOT).as_posix(),
         "game_id": game["id"],
@@ -128,6 +149,7 @@ async def diagnose_candidate(
             if item.evidence_id in best.evidence_ids
         ],
     }
+    return stable_uuids(record, position_id)
 
 
 async def _corpus_positions(
