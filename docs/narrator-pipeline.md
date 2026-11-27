@@ -25,8 +25,8 @@ flowchart TD
     RE --> TP["TemplateExplanationProvider.explain<br/>always computed first"]
     RE --> NF["build_narrator_facts<br/>explanations/facts.py<br/>JSON, schemas/narrator-facts.schema.json"]
     NF -->|"NarratorFactsError"| TP
-    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter / HostedExplanationAdapter"]
-    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 8192"]
+    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter (num_ctx 12288) / HostedExplanationAdapter"]
+    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 12288"]
     GR["OwnerExplanationSettings<br/>explanations/settings.py<br/>api/explanation_settings.py"] --> LO
     OP --> VA["validate_generated_explanation<br/>explanations/validator.py"]
     LO --> VA
@@ -153,9 +153,9 @@ Measured prompt sizes on real Stockfish evidence are in section 6.
 | Validator replay origin | every verified line is replayed from the **before** FEN; after-position lines carry the played move as their first move | `_validate_line`, `validator.py` |
 | Local Ollama request | serialised request body > `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
 | Local Ollama response | body > `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
-| Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s) for model listing plus chat, one `asyncio.timeout`; the evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
+| Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s, maximum 600 s) for model listing plus chat, one `asyncio.timeout`; 180 s covers a cold model load plus the slowest measured request. The evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
 | Coach | 0.25 s for consent read plus generation | `coach_interruption.py:39,139` |
-| Ollama context | local provider sends `options.num_ctx` = `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` (default 8192); a response whose `prompt_eval_count` reaches it raises `LLMProviderError` (Ollama drops the start of a longer prompt). The operator-configured Ollama adapter sends no `options`, so the server default (4096 tokens on Ollama 0.17.5) applies | `OllamaExplanationAdapter.generate`, `adapters.py` |
+| Ollama context | both Ollama paths send `options.num_ctx`: the local provider `SCAN64_LOCAL_LLM_CONTEXT_TOKENS`, the operator adapter `llm.context_tokens`. The default is 12288 (`DEFAULT_OLLAMA_CONTEXT_TOKENS`): the longest NarratorFacts prompt (about 7,400 tokens) plus a 2,048-token answer. Use at least 8192. A response whose `prompt_eval_count` reaches `num_ctx` raises `LLMProviderError` (Ollama drops the start of a longer prompt). `test_llm_context_budget.py` fails if the largest fixture prompt, at 1.75 characters per token, plus 2,048 output tokens exceeds the default | `OllamaExplanationAdapter.generate`, `adapters.py` |
 
 Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_threat`) were replayed from the before FEN, began with an opponent move and were always rejected as illegal. They are now prefixed with the played move, so every trusted code can cite its continuation, for example `["g1f3", "g5g2"]` (the learner's Nf3, then the reply Qxg2). A line from the after-position without the played move is still rejected (`illegal_line_move`).
 
@@ -171,6 +171,18 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 
 `LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py:31-109`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`).
 
+Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
+
+```toml
+[llm]
+provider = "ollama"
+model = "qwen3:8b"
+base_url = "http://127.0.0.1:11434"
+context_tokens = 12288  # optional; sent as options.num_ctx
+```
+
+`llm.context_tokens` defaults to 12288 and accepts integers in [2048, 131072]. Use at least 8192; below that, the longest prompt fills the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below.
+
 ### Local Ollama limits
 
 `LocalOllamaLimits.from_environment` (`local_ollama.py`) reads the bounds of one local explanation when `generate` runs. An invalid value raises `LLMConfigurationError`, which is not converted to a template fallback.
@@ -180,7 +192,7 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | (0, 600] | model listing plus chat, one `asyncio.timeout` and the httpx timeout |
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | serialised chat request, checked before any network I/O |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | each response body, checked while streaming |
-| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `8192` | [2048, 131072] | `options.num_ctx`; a prompt that fills it is rejected |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `12288` | [2048, 131072]; use at least 8192 | `options.num_ctx`; a prompt that fills it is rejected |
 
 The settings probe (`detect_local_ollama`) sends no evidence and keeps a fixed 4 s deadline. The coach path keeps its 0.25 s budget (`coach_interruption.py`), so local narration of a coach interruption only succeeds with a model that answers within it.
 
@@ -281,7 +293,7 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 | ~~Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions~~ Resolved: Analysis Board line explanations (section 12) | `board_lines.py`, `api/analysis_explanation.py` | #368 |
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
 | ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
-| The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error | `create_llm_provider`, `config.py` | — |
+| ~~The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error~~ Resolved: `llm.context_tokens` (default 12288) and the truncation check | `create_llm_provider`, `config.py` | #388 |
 | Coach focused evidence is a 10 000-node MultiPV 1 search | `coach_interruption.py:250` | #360 |
 | The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt | `jobs.py:306`, `assembly.py:115` | #367 |
 | The explanation records no source (fallbacks are logged and counted since #366) | section 9 | — |
