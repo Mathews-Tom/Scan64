@@ -6,17 +6,27 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from scan64.chess.analysis.models import EngineAnalysisConfig
 from scan64.providers.engine.uci import Engine, is_xboard
 
 type ExecutableSignature = tuple[Path, int, int, int, int]
+type NetworkBase = Literal["cwd", "executable"]
 
 # UCI string options that name a network/weights file whose content changes
-# results: Stockfish/Berserk/Ethereal ``EvalFile``, Stockfish ``EvalFileSmall``,
-# Lc0 ``WeightsFile``. The executable digest covers embedded networks.
-NETWORK_OPTIONS = ("EvalFile", "EvalFileSmall", "WeightsFile")
+# results, each with the places its engine looks for a relative path, in the
+# engine's own order. The executable digest covers embedded networks.
+NETWORK_OPTIONS: dict[str, tuple[NetworkBase, ...]] = {
+    # Stockfish/Berserk/Ethereal, Stockfish's small net, Lc0: the working
+    # directory, then the executable's directory.
+    "EvalFile": ("cwd", "executable"),
+    "EvalFileSmall": ("cwd", "executable"),
+    "WeightsFile": ("cwd", "executable"),
+    # Arasan 26.1 (globals.cpp, initGlobals): an absolute path as given,
+    # otherwise only next to the executable (derivePath).
+    "NNUE file": ("executable",),
+}
 
 
 def executable_signature(binary_path: str) -> ExecutableSignature:
@@ -31,12 +41,21 @@ def engine_identity(engine: Engine, binary_path: str) -> dict[str, Any]:
     with executable.open("rb") as stream:
         version = "sha256:" + hashlib.file_digest(stream, "sha256").hexdigest()
     networks = {}
-    for name in NETWORK_OPTIONS:
+    for name, bases in NETWORK_OPTIONS.items():
         value = engine.config.get(name)
-        if isinstance(value, str):
-            # Engines can load external networks relative to their working
-            # directory or executable; built-in networks are covered by the binary.
-            for candidate in (Path(value), executable.parent / value):
+        if isinstance(value, str) and value:
+            # The file the engine itself loads; a name that resolves to no file
+            # is a built-in network, covered by the executable digest.
+            path = Path(value)
+            candidates = (
+                [path]
+                if path.is_absolute()
+                else [
+                    Path.cwd() / path if base == "cwd" else executable.parent / path
+                    for base in bases
+                ]
+            )
+            for candidate in candidates:
                 if candidate.is_file():
                     with candidate.open("rb") as stream:
                         networks[name] = hashlib.file_digest(stream, "sha256").hexdigest()

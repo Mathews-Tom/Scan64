@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,6 +20,7 @@ from benchmarks.engines.ladder_strength import (
     wilson,
     write_or_check_manifest,
 )
+from scan64.providers.stockfish.identity import engine_identity
 
 STRENGTH_TOML = (
     Path(__file__).resolve().parents[2] / "benchmarks" / "engines" / "ladder_strength.toml"
@@ -158,3 +161,55 @@ def test_records_without_a_manifest_are_refused(tmp_path: Path) -> None:
     results.write_text(json.dumps(_game(3, "1-0", "white")) + "\n", "utf-8")
     with pytest.raises(ValueError, match="no manifest"):
         write_or_check_manifest(results, MANIFEST)
+
+
+def _arasan_identity(binary: Path, nnue: str) -> dict[str, object]:
+    engine = SimpleNamespace(id={"name": "Arasan 26.1"}, config={"NNUE file": nnue})
+    return engine_identity(engine, str(binary))  # type: ignore[arg-type]
+
+
+def test_arasan_network_is_hashed_where_arasan_loads_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install = tmp_path / "arasan"
+    install.mkdir()
+    binary = install / "arasanx-64"
+    binary.write_bytes(b"arasan")
+    network = install / "arasan.nnue"
+    network.write_bytes(b"weights one")
+    # A same-named file in the working directory is not the one Arasan loads.
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "arasan.nnue").write_bytes(b"decoy")
+    monkeypatch.chdir(work)
+
+    first = _arasan_identity(binary, "arasan.nnue")
+    assert first["network"] == json.dumps({"NNUE file": hashlib.sha256(b"weights one").hexdigest()})
+    assert _arasan_identity(binary, str(network)) == first
+    network.write_bytes(b"weights two")
+    assert _arasan_identity(binary, "arasan.nnue")["network"] != first["network"]
+
+
+def test_resume_refuses_a_changed_arasan_network(tmp_path: Path) -> None:
+    install = tmp_path / "arasan"
+    install.mkdir()
+    binary = install / "arasanx-64"
+    binary.write_bytes(b"arasan")
+    network = install / "arasan.nnue"
+    network.write_bytes(b"weights one")
+    ladder = {**MANIFEST["ladder"], "engine": _arasan_identity(binary, "arasan.nnue")}
+    results = tmp_path / "games.jsonl"
+    write_or_check_manifest(results, {**MANIFEST, "ladder": ladder})
+    network.write_bytes(b"weights two")
+    changed = {**ladder, "engine": _arasan_identity(binary, "arasan.nnue")}
+    with pytest.raises(ValueError, match="Changed: ladder"):
+        write_or_check_manifest(results, {**MANIFEST, "ladder": changed})
+
+
+@pytest.mark.parametrize("dirty_at", ["recorded", "current"])
+def test_a_run_from_a_dirty_tree_cannot_be_resumed(tmp_path: Path, dirty_at: str) -> None:
+    dirty = {**MANIFEST, "code": {"commit": "a" * 40, "dirty": True}}
+    results = tmp_path / "games.jsonl"
+    write_or_check_manifest(results, dirty if dirty_at == "recorded" else MANIFEST)
+    with pytest.raises(ValueError, match="uncommitted changes"):
+        write_or_check_manifest(results, MANIFEST if dirty_at == "recorded" else dirty)

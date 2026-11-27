@@ -222,6 +222,13 @@ def write_or_check_manifest(results: Path, manifest: dict[str, Any]) -> str:
     run_id = manifest_id(manifest)
     if path.exists():
         recorded = json.loads(path.read_text(encoding="utf-8"))
+        # A commit and a dirty flag cannot tell two uncommitted trees apart.
+        if recorded["manifest"]["code"]["dirty"] or manifest["code"]["dirty"]:
+            raise ValueError(
+                f"{results} cannot be resumed: its run or this one started from a tree with "
+                "uncommitted changes under src/ or benchmarks/. Commit them and start a new "
+                "results file."
+            )
         if recorded["run_id"] != run_id:
             changed = sorted(
                 key for key in manifest if recorded["manifest"].get(key) != manifest[key]
