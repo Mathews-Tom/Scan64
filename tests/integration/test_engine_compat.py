@@ -1,0 +1,58 @@
+"""The compat runner records every feature as works/unavailable, never error."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from benchmarks.engines.compat import (
+    FEATURES,
+    CompatConfig,
+    EngineEntry,
+    load_config,
+    run_engine,
+    summarise,
+)
+from scan64.providers.engine.config import ENGINE_CONFIG_ENV
+from tests.support.engines import fake_xboard_launcher
+
+COMPAT_TOML = Path(__file__).resolve().parents[2] / "benchmarks" / "engines" / "compat.toml"
+
+
+def test_committed_compat_set_loads_and_names_every_profile() -> None:
+    config = load_config(COMPAT_TOML)
+    assert len(config.engines) == 10
+    assert all(entry.profile.is_file() for entry in config.engines)
+
+
+@pytest.mark.asyncio
+async def test_xboard_engine_run_records_capability_reasons(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    launcher, _ = fake_xboard_launcher(tmp_path, monkeypatch)
+    profile = tmp_path / "fake.toml"
+    profile.write_text(
+        f'[engine]\nname = "fake"\nbinary_path = "{launcher.as_posix()}"\nprotocol = "xboard"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, "")
+    entry = EngineEntry("Fake XBoard", profile, "test", "fixture", "XBoard only")
+    base = load_config(COMPAT_TOML)
+    config = CompatConfig(**{**base.__dict__, "results_dir": tmp_path, "engines": (entry,)})
+    results = tmp_path / "compat.jsonl"
+    await run_engine(entry, config, results, set())
+    records = {
+        record["feature"]: record
+        for record in map(json.loads, results.read_text(encoding="utf-8").splitlines())
+    }
+    assert set(records) == set(FEATURES)
+    assert records["game_analysis"]["status"] == "works"
+    assert records["game_analysis"]["protocol"] == "xboard"
+    for name in FEATURES[1:]:
+        assert records[name]["status"] == "unavailable", records[name]
+        assert "FakeXBoard 1" in records[name]["reason"]
+    table = summarise(results, config)
+    assert "| works | unavailable |" in table
+    assert "error" not in table

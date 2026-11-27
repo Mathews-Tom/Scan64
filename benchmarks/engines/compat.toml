@@ -1,0 +1,85 @@
+# Engine compatibility set (#397): which Scan64 features work with each engine.
+# Run: uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml
+# Each engine is selected through its profile (SCAN64_ENGINE_CONFIG), exactly as
+# a user selects it. Profiles are relative to the repository root. Scan64
+# downloads and bundles none of these engines; the user installs each one.
+
+[run]
+results_dir = "benchmarks/engines/results"
+# Fried Liver Attack to 6.Nxf7: a real game with a sacrifice for the fast pass.
+game = ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6", "f3g5", "d7d5", "e4d5", "f6d5", "g5f7"]
+focused_plies = [6, 11]                       # positions after these plies get the focused pass
+position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"   # kiwipete
+lesson_position = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"  # mate in one
+bot_level = 4
+skill_level = 5
+
+[[engines]]
+name = "Alexandria"
+profile = "config/engines/compat/alexandria.toml"
+licence = "GPL-3.0"
+source = "https://github.com/PGG106/Alexandria"
+stresses = "no MultiPV; unusual centipawn scale"
+
+[[engines]]
+name = "Minic"
+profile = "config/engines/compat/minic.toml"
+licence = "GPL-3.0"
+source = "https://github.com/tryingsomestuff/Minic"
+stresses = "MultiPV capped below 8; non-standard WDL option"
+
+[[engines]]
+name = "Obsidian"
+profile = "config/engines/compat/obsidian.toml"
+licence = "GPL-3.0"
+source = "https://github.com/gab8192/Obsidian"
+stresses = "truncated PVs"
+
+[[engines]]
+name = "Triumviratus"
+profile = "config/engines/compat/triumviratus.toml"
+licence = "GPL-3.0"
+source = "https://github.com/Tors3/Triumviratus"
+stresses = "network from an external file"
+
+[[engines]]
+name = "Fairy-Max"
+profile = "config/engines/compat/fairy-max.toml"
+licence = "not stated at source"
+source = "https://packages.debian.org/source/sid/fairymax"
+stresses = "XBoard only; no MultiPV, Hash or Threads"
+
+[[engines]]
+name = "Fairy-Stockfish"
+profile = "config/engines/compat/fairy-stockfish.toml"
+licence = "GPL-3.0"
+source = "https://github.com/fairy-stockfish/Fairy-Stockfish"
+stresses = "several protocols; evaluation-term trace"
+
+[[engines]]
+name = "Rodent V"
+profile = "config/engines/compat/rodent-v.toml"
+licence = "GPL-3.0"
+source = "https://github.com/nescitus/Rodent-V"
+stresses = "large option list; personality files"
+
+[[engines]]
+name = "PZChessBot"
+profile = "config/engines/compat/pzchessbot.toml"
+licence = "AGPL-3.0"
+source = "https://github.com/kevlu8/PZChessBot"
+stresses = "lower-case option names"
+
+[[engines]]
+name = "Lc0"
+profile = "config/engines/compat/lc0.toml"
+licence = "GPL-3.0 (network licence not stated)"
+source = "https://github.com/LeelaChessZero/lc0"
+stresses = "slow neural nodes; no Hash"
+
+[[engines]]
+name = "Maia-3"
+profile = "config/engines/compat/maia-3.toml"
+licence = "AGPL-3.0 (weights licence not stated)"
+source = "https://github.com/CSSLab/maia3"
+stresses = "Python UCI wrapper; rating options"
