@@ -2,8 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { Chess } from 'chess.js';
 import { prepareToday } from './today';
 import type { HealthMeterRead, PositionHealthRead } from '../../src/api/types';
+import { makeGameReview } from '../../src/components/review.test-fixtures';
 
-const GROUPS = ['king safety', 'material', 'threats', 'pieces', 'mobility', 'pawn structure', 'passed pawns', 'space'];
+const GROUPS = ['king safety', 'material', 'threats', 'piece placement', 'mobility', 'pawn structure', 'passed pawns', 'space'];
 const meter = (health: number, level: HealthMeterRead['level'], trend: HealthMeterRead['trend']): HealthMeterRead =>
   ({ health, level, trend, terms: [{ name: 'King danger', pawns: -1.1 }] });
 
@@ -70,3 +71,51 @@ for (const [appearance, width] of [['light', 1280], ['dark', 1280], ['light', 39
     await panel.screenshot({ path: `test-results/position-health-${appearance}-${width}.png` });
   });
 }
+
+test('game review with a Black owner sends each selected position and its parent, and the trend follows', async ({ page }, testInfo) => {
+  const id = '00000000-0000-0000-0000-000000000416';
+  const review = makeGameReview({ game_id: id, owner_color: 'black' });
+  await page.route(`**/v1/games/${id}/review`, route => route.fulfill({ json: review }));
+  await page.route(`**/v1/games/${id}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
+  const requests: { fen: string; previous_fen: string | null; learner: string }[] = [];
+  await page.route('**/v1/analysis/position/health', async route => {
+    const body = route.request().postDataJSON() as { fen: string; previous_fen: string | null; learner: 'white' | 'black' };
+    requests.push(body);
+    const read = healthFor(body.fen);
+    // The learner's king meter falls only when a parent position was sent.
+    read.learner = body.learner;
+    read.groups[0].learner = meter(0.2, 'low', body.previous_fen ? 'falling' : 'steady');
+    await route.fulfill({ json: read });
+  });
+  await page.goto(`/games/${id}/analysis`);
+  const panel = page.getByTestId('position-health');
+  await expect(page.getByRole('button', { name: 'First', exact: true })).toBeDisabled();
+  await expect(panel.getByRole('img', { name: 'You king safety: low' })).toBeVisible();
+
+  const timings: number[] = [];
+  for (const move of review.moves.slice(0, 3)) {
+    // In the page: from the Next click to the panel showing the new reading.
+    await page.evaluate(() => {
+      const w = window as unknown as { healthShown?: Promise<number> };
+      const next = [...document.querySelectorAll('button')].find(b => b.textContent === 'Next')!;
+      w.healthShown = new Promise(resolve => {
+        next.addEventListener('click', () => {
+          const started = performance.now();
+          const panel = document.querySelector('[data-testid="position-health"]')!;
+          let busy = false;
+          new MutationObserver((_, observer) => {
+            if (panel.getAttribute('aria-busy') === 'true') busy = true;
+            else if (busy) { observer.disconnect(); resolve(performance.now() - started); }
+          }).observe(panel, { attributes: true, attributeFilter: ['aria-busy'] });
+        }, { once: true, capture: true });
+      });
+    });
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    timings.push(await page.evaluate(() => (window as unknown as { healthShown: Promise<number> }).healthShown));
+    await expect(panel.getByRole('img', { name: 'You king safety: low, falling' })).toBeVisible();
+    expect(requests.at(-1)).toMatchObject({ fen: move.fen, previous_fen: move.source_fen, learner: 'black' });
+  }
+  await expect(panel.getByRole('columnheader', { name: 'Opponent' })).toBeVisible();
+  // Selection to display with an instant API, for the PR's latency report.
+  await testInfo.attach('selection-to-display-ms', { body: timings.map(t => t.toFixed(1)).join(','), contentType: 'text/plain' });
+});

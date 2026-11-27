@@ -28,18 +28,20 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
   const detailsId = useId();
 
   useEffect(() => {
-    let current = true;
+    // Stepping through moves cancels the request for the position left behind.
+    const request = new AbortController();
     setView({ state: 'loading' });
     void (async () => {
       try {
         const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
-        const health = await ApiClient.positionHealth({ player_id: playerId, fen, learner: learner ?? 'white', previous_fen: previousFen });
-        if (current) setView({ state: 'ready', health });
+        const health = await ApiClient.positionHealth(
+          { player_id: playerId, fen, learner: learner ?? 'white', previous_fen: previousFen }, request.signal);
+        if (!request.signal.aborted) setView({ state: 'ready', health });
       } catch (error) {
-        if (current) setView({ state: 'error', message: error instanceof Error ? error.message : 'Position health is unavailable.' });
+        if (!request.signal.aborted) setView({ state: 'error', message: error instanceof Error ? error.message : 'Position health is unavailable.' });
       }
     })();
-    return () => { current = false; };
+    return () => { request.abort(); };
   }, [fen, previousFen, learner]);
 
   return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={view.state === 'loading'}>
@@ -71,12 +73,12 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
           <dd>{second}: {terms(group.opponent)}</dd>
         </div>)}
       </dl>}
-      <p className="position-health__note">From Scan64's evaluation factors; no engine search or language model. The scale is provisional.</p>
+      <p className="position-health__note">From Scan64's evaluation factors; no engine search or language model.</p>
     </>}
   </section>;
 }
 
 function terms(meter: HealthMeterRead): string {
-  if (!meter.terms.length) return 'no change from the start';
+  if (!meter.terms.length) return 'no nonzero terms';
   return meter.terms.map(term => `${term.name} ${term.pawns > 0 ? '+' : ''}${term.pawns.toFixed(2)}`).join(', ');
 }

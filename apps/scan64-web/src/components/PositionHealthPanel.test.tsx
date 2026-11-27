@@ -33,6 +33,29 @@ describe('position health meters', () => {
     expect(filledSegments(0.5)).toBe(SEGMENTS / 2);
   });
 
+  it('says a meter has no nonzero terms rather than no change from the start', async () => {
+    const empty = { ...meter(0.45, 'fair', 'steady'), terms: [] };
+    vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue({ ...READ, groups: [{ key: 'Pawns', name: 'pawn structure', learner: empty, opponent: empty }] });
+    render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show details' }));
+    expect(screen.getByText('White: no nonzero terms')).toBeInTheDocument();
+    expect(screen.queryByText(/no change from the start/)).not.toBeInTheDocument();
+  });
+
+  it('cancels the request for a position left behind and sends the current and previous FEN', async () => {
+    const signals: AbortSignal[] = [];
+    const call = vi.spyOn(ApiClient, 'positionHealth').mockImplementation(async (_data, signal) => {
+      signals.push(signal!);
+      return READ;
+    });
+    const { rerender } = render(<PositionHealthPanel fen="fen-1" previousFen={null} learner="black" />);
+    rerender(<PositionHealthPanel fen="fen-2" previousFen="fen-1" learner="black" />);
+    await waitFor(() => expect(call).toHaveBeenCalledTimes(2));
+    expect(call).toHaveBeenLastCalledWith(expect.objectContaining({ fen: 'fen-2', previous_fen: 'fen-1', learner: 'black' }), expect.any(AbortSignal));
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+  });
+
   it('renders one meter per side with labels, and details on request', async () => {
     const call = vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue(READ);
     render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
@@ -40,7 +63,7 @@ describe('position health meters', () => {
     expect(screen.getByRole('img', { name: 'Black king safety: good' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'White overall: low, falling' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Black overall: good, rising' })).toBeInTheDocument();
-    expect(call).toHaveBeenCalledWith(expect.objectContaining({ fen: READ.fen, learner: 'white', previous_fen: null }));
+    expect(call).toHaveBeenCalledWith(expect.objectContaining({ fen: READ.fen, learner: 'white', previous_fen: null }), expect.any(AbortSignal));
     fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(screen.getByText('White: King danger -1.20')).toBeInTheDocument();
     expect(screen.getByText('Black: King danger +0.40')).toBeInTheDocument();
@@ -58,7 +81,7 @@ it('speaks for the learner in game review', async () => {
   render(<PositionHealthPanel fen={READ.fen} previousFen={null} learner="black" />);
   expect(await screen.findByRole('img', { name: 'You king safety: low, falling' })).toBeInTheDocument();
   expect(screen.getByRole('columnheader', { name: 'Opponent' })).toBeInTheDocument();
-  expect(call).toHaveBeenCalledWith(expect.objectContaining({ learner: 'black' }));
+  expect(call).toHaveBeenCalledWith(expect.objectContaining({ learner: 'black' }), expect.any(AbortSignal));
 });
 
 describe('health panel setting', () => {
