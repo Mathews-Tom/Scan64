@@ -34,10 +34,15 @@ describe('position health meters', () => {
     expect(filledSegments(0.5)).toBe(SEGMENTS / 2);
   });
 
-  it('shows the result instead of meters when the game is over', async () => {
-    vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue({ ...READ, outcome: 'checkmate' });
+  it.each([
+    ['checkmate', 'Checkmate'],
+    ['stalemate', 'Stalemate'],
+    ['insufficient_material', 'Draw by insufficient material'],
+    ['seventyfive_moves', 'Draw by the 75-move rule'],
+  ] as const)('shows the result instead of meters when the game is over: %s', async (outcome, text) => {
+    vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue({ ...READ, outcome });
     render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
-    expect(await screen.findByTestId('position-health-outcome')).toHaveTextContent('Checkmate: the game is over');
+    expect(await screen.findByTestId('position-health-outcome')).toHaveTextContent(`${text}: the game is over`);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 

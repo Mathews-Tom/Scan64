@@ -25,7 +25,6 @@ const OUTCOME_TEXT: Record<NonNullable<PositionHealthRead['outcome']>, string> =
   stalemate: 'Stalemate',
   insufficient_material: 'Draw by insufficient material',
   seventyfive_moves: 'Draw by the 75-move rule',
-  fivefold_repetition: 'Draw by fivefold repetition',
 };
 
 // learner: the side the panel speaks for (You / Opponent); without one it reads White / Black.
@@ -58,7 +57,7 @@ export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string
   }, [fen, previousFen, learner]);
 
   return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={busy}>
-    <h3>Position health</h3>
+    <h3>Position health<span className="position-health__updating" aria-hidden="true">Updating</span></h3>
     {view.state === 'error' && <p className="position-health__note" data-testid="position-health-error">{view.message}</p>}
     {view.state === 'ready' && view.health.outcome !== null &&
       <p className="position-health__note" data-testid="position-health-outcome">{OUTCOME_TEXT[view.health.outcome]}: the game is over, so there is no position health to read.</p>}

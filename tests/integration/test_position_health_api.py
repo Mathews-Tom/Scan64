@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import chess
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -49,18 +50,26 @@ def test_position_health_reads_every_group_for_both_sides(
     assert body["outcome"] is None
 
 
-def test_position_health_reports_a_finished_game(client: TestClient, db_session: Session) -> None:
+@pytest.mark.parametrize(
+    ("fen", "expected"),
+    [
+        ("rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3", "checkmate"),
+        ("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1", "stalemate"),
+        ("8/8/8/8/8/8/1KB5/7k w - - 0 60", "insufficient_material"),
+        ("8/5pk1/4p3/8/8/1P6/1P3K2/R6r w - - 150 120", "seventyfive_moves"),
+        # Only claimable: the game, and the meters, go on.
+        ("8/5pk1/4p3/8/8/1P6/1P3K2/R6r w - - 100 120", None),
+    ],
+)
+def test_position_health_reports_a_finished_game(
+    client: TestClient, db_session: Session, fen: str, expected: str | None
+) -> None:
     headers = _register(db_session)
-    mated = chess.Board()
-    for san in ("f3", "e5", "g4", "Qh4#"):
-        mated.push_san(san)
     response = client.post(
-        "/v1/analysis/position/health",
-        json={"fen": mated.fen(), "learner": "white"},
-        headers=headers,
+        "/v1/analysis/position/health", json={"fen": fen, "learner": "white"}, headers=headers
     )
     assert response.status_code == 200, response.json()
-    assert response.json()["outcome"] == "checkmate"
+    assert response.json()["outcome"] == expected
 
 
 def test_position_health_refuses_a_bad_fen_and_anonymous_callers(

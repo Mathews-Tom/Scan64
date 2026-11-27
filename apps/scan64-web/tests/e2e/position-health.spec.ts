@@ -142,7 +142,34 @@ test('the panel keeps its height while the next position loads', async ({ page }
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(panel).toHaveAttribute('aria-busy', 'true');
   expect((await panel.boundingBox())!.height).toBe(before);
+  // The last reading keeps full contrast; a held reply shows the Updating label.
+  await expect(panel.locator('.position-health__table')).toHaveCSS('opacity', '1');
+  await expect(panel.getByText('Updating')).toBeVisible();
   release();
   await expect(panel.getByRole('img', { name: 'You king safety: low, falling' })).toBeVisible();
   await expect(panel).toHaveAttribute('aria-busy', 'false');
+  await expect(panel.getByText('Updating')).toBeHidden();
+});
+
+test('a fast reply never shows the Updating label', async ({ page }) => {
+  const id = '00000000-0000-0000-0000-000000000418';
+  const review = makeGameReview({ game_id: id, owner_color: 'black' });
+  await page.route(`**/v1/games/${id}/review`, route => route.fulfill({ json: review }));
+  await page.route(`**/v1/games/${id}/analysis-status`, route => route.fulfill({ json: { status: 'completed' } }));
+  await page.goto(`/games/${id}/analysis`);
+  const panel = page.getByTestId('position-health');
+  await expect(panel).toHaveAttribute('aria-busy', 'false');
+  // Sample the label's visibility on every frame across three steps.
+  await page.evaluate(() => {
+    const w = window as unknown as { shown: boolean };
+    w.shown = false;
+    const label = document.querySelector('.position-health__updating')!;
+    const sample = () => { if (getComputedStyle(label).visibility === 'visible') w.shown = true; requestAnimationFrame(sample); };
+    requestAnimationFrame(sample);
+  });
+  for (let step = 0; step < 3; step++) {
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(panel).toHaveAttribute('aria-busy', 'false');
+  }
+  expect(await page.evaluate(() => (window as unknown as { shown: boolean }).shown)).toBe(false);
 });

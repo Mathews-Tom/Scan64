@@ -40,10 +40,9 @@ Side = Literal["white", "black"]
 Level = Literal["good", "fair", "low"]
 Trend = Literal["rising", "falling", "steady"]
 # The game-ending kinds chess.Board.outcome() reports without a claim; a draw
-# that is only claimable (fifty moves, threefold) leaves the game on.
-Outcome = Literal[
-    "checkmate", "stalemate", "insufficient_material", "seventyfive_moves", "fivefold_repetition"
-]
+# that is only claimable (fifty moves, threefold) leaves the game on. Fivefold
+# repetition needs a move history; the meters read a position from its FEN.
+Outcome = Literal["checkmate", "stalemate", "insufficient_material", "seventyfive_moves"]
 
 # Health at or above ``good`` reads good, below ``fair`` reads low.
 LEVELS: Mapping[Level, float] = {"good": 2 / 3, "fair": 1 / 3}
@@ -106,7 +105,6 @@ _OUTCOMES: Mapping[chess.Termination, Outcome] = {
     chess.Termination.STALEMATE: "stalemate",
     chess.Termination.INSUFFICIENT_MATERIAL: "insufficient_material",
     chess.Termination.SEVENTYFIVE_MOVES: "seventyfive_moves",
-    chess.Termination.FIVEFOLD_REPETITION: "fivefold_repetition",
 }
 
 
