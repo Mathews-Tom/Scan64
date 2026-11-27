@@ -1,6 +1,8 @@
 # Review procedure
 
-Every pull request into an epic branch is reviewed under this procedure before it merges. The review ends by setting the `scan64/review` commit status on the exact head commit it reviewed, and the `epic/*` ruleset requires that status. A pull request that touches a path in [`.github/CODEOWNERS`](../.github/CODEOWNERS) also needs an approval from a listed owner other than its author. Pull requests into `main` need an approval as well. The merge rules are in [CONTRIBUTING.md rule 7](../CONTRIBUTING.md#rules).
+Every pull request is reviewed under this procedure. The review ends by setting the `scan64/review` commit status on the exact head commit it reviewed. The `main` and `epic/*` rulesets require that status, so nothing reaches either branch unreviewed. A pull request that touches a path in [`.github/CODEOWNERS`](../.github/CODEOWNERS) also needs an approval from a listed owner other than its author, and a pull request into `main` needs an approval as well. The merge rules are in [CONTRIBUTING.md rule 7](../CONTRIBUTING.md#rules).
+
+A pull request stacked on a feature branch (its base is another pull request's branch) can merge without a review, because GitHub can't require checks there without also blocking pushes to working branches. Its commits are still reviewed before they land. The parent pull request's head then contains them, and the parent can't merge into the epic until a review sets `scan64/review` on that head. Reviewing the stacked pull request itself, before it merges, is cheaper when its parent will take a while.
 
 This procedure comes from the reviews that found the defects CI passed in #391, #405, #418 and #422. Its required probes are the steps that found them.
 
