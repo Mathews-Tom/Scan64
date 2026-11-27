@@ -2,9 +2,10 @@
 # Run: uv run python -m benchmarks.engines.compat benchmarks/engines/compat-linux.toml
 # Same [run] inputs as compat.toml. Profiles live in config/engines/compat/linux/
 # and point at the engines installed under ~/.local/opt/engines/<name>/ on
-# linux-5090. Rodent V, Triumviratus and Maia-3 start through small wrapper
-# scripts there, because a profile cannot set a working directory, an
-# environment variable or command-line arguments.
+# linux-5090. Rodent V, Triumviratus, Maia-3 and both Lc0 entries start through
+# small wrapper scripts there, because a profile cannot set a working directory,
+# an environment variable or command-line arguments, and option values get no ~
+# expansion (the Lc0 network path).
 
 [run]
 results_dir = "benchmarks/engines/results"

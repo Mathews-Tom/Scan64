@@ -475,4 +475,5 @@ the binary SHA-256 is also in every JSONL record. This table replaces nothing ab
   the compatibility table shows it.
 - Profiles have no working directory, environment variables or command-line
   arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
-  and option values get no `~` expansion.
+  and option values get no `~` expansion (both Lc0 profiles use a wrapper that
+  passes `--weights` from `$HOME`).

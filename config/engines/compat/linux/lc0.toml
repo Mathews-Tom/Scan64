@@ -1,13 +1,13 @@
 # Linux compat set (#411): Lc0 0.32.1, CUDA (sm_120, fp16) on an RTX 5090, T1 net.
-# Option values are passed verbatim (no ~ expansion), so WeightsFile is absolute.
+# Option values get no ~ expansion, so the network is set by the wrapper
+# ~/.local/opt/engines/lc0/lc0-t1 (lc0 --weights=..., built from $HOME), not WeightsFile.
 # Slow neural nodes, no Hash. node_scale = measured nodes/second: T1 with 2 search
 # threads ~100k nps vs Stockfish 18 (1 thread) ~850k nps on kiwipete -> 0.12.
 [engine]
 name = "lc0"
-binary_path = "~/.local/opt/engines/lc0/lc0"
+binary_path = "~/.local/opt/engines/lc0/lc0-t1"
 threads = 2
 node_scale = 0.12
 
 [engine.options]
 Backend = "cuda-fp16"
-WeightsFile = "/home/syd/.local/opt/engines/lc0/nets/t1-256x10-distilled-swa-2432500.pb.gz"

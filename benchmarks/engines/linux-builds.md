@@ -10,9 +10,9 @@ machine's engine manifest and build script. Every path is under
 in `E/<name>`.
 
 The binary SHA-256 below is the one each JSONL record carries as
-`binary_sha256`. For Triumviratus, Rodent V and Maia-3 the profile points at a
-small wrapper script, so the record carries the wrapper's digest; the wrapped
-binary's digest and the wrapper text are listed too. Every build ran with at
+`binary_sha256`. For Triumviratus, Rodent V, Maia-3 and both Lc0 profiles the
+profile points at a small wrapper script, so the record carries the wrapper's
+digest; the wrapped binary's digest and the wrapper text are listed too. Every build ran with at
 most 8 jobs; `taskset -c …` only pinned the build to 8 CPUs.
 
 ## Engines
@@ -207,7 +207,33 @@ most 8 jobs; `taskset -c …` only pinned the build to 8 CPUs.
 - Binary: `E/lc0/lc0`,
   `bc6140f393cdb8a19cda4e90dbaf72875cad659772a821178eb3a4276e0cf5ff` (both
   profiles).
-- Networks (set with `WeightsFile`):
+- Wrappers: engine option values get no `~` expansion, so a `WeightsFile`
+  option would need an absolute home path. Each profile instead starts a
+  wrapper next to the binary that passes `--weights` built from `$HOME`. The
+  Lc0 rows in `results/compat_20261127_150931`, `172455`, `201411` and
+  `202247` ran the binary directly with an absolute `WeightsFile` (same
+  binary, same networks).
+  - `E/lc0/lc0-t1` (`lc0.toml`),
+    `24d7403358d888f70eaf7a698b4385efa37ba1a6ff36d5996a65d593b9e9005b`:
+
+    ```sh
+    #!/bin/sh
+    # Scan64 #411 wrapper: engine option values get no ~ expansion, so the network
+    # path is built from $HOME here instead of a WeightsFile option in the profile.
+    exec "$HOME/.local/opt/engines/lc0/lc0" --weights="$HOME/.local/opt/engines/lc0/nets/t1-256x10-distilled-swa-2432500.pb.gz" "$@"
+    ```
+
+  - `E/lc0/lc0-bt4` (`lc0-bt4.toml`),
+    `6a187d861f2155d6d63b8287de9122588f6cba7ee9f1830f1cdd5b1749f42bed`:
+
+    ```sh
+    #!/bin/sh
+    # Scan64 #411 wrapper: engine option values get no ~ expansion, so the network
+    # path is built from $HOME here instead of a WeightsFile option in the profile.
+    exec "$HOME/.local/opt/engines/lc0/lc0" --weights="$HOME/.local/opt/engines/lc0/nets/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz" "$@"
+    ```
+
+- Networks (in `E/lc0/nets/`, passed by the wrappers with `--weights`):
   - T1 (`lc0.toml`):
     https://storage.lczero.org/files/networks-contrib/t1-256x10-distilled-swa-2432500.pb.gz,
     `bc27a6cae8ad36f2b9a80a6ad9dabb0d6fda25b1e7f481a79bc359e14f563406`
