@@ -109,8 +109,14 @@ threads, hash, options) and the effective hint limits.
 Opponent strength stays Stockfish-only on purpose: the ladder's error budgets,
 `BOT_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
 cohorts (`api/strength.py`) are defined against Stockfish. Opponent moves come
-from the same interactive pool as hints, so a non-Stockfish profile currently
-disables bot play with that error (see follow-ups).
+from the same interactive pool as hints. Bot play is therefore unavailable under
+a non-Stockfish profile. Play never falls back to Stockfish. The play endpoints
+(`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
+`…/opponent-move`) return 503 with
+`detail = {code: "bot_play_unavailable", message, reason}`. `reason` is the
+`EngineCapabilityError` text that names the missing options. The player's move
+stays committed; a bot-first session is not created. The web client shows
+that bot play is unavailable under the active engine profile.
 
 ## Stockfish-specific assumptions outside the engine provider
 
@@ -134,7 +140,7 @@ is now `EngineConfig` and reads the active profile.
 | `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; others fixed. Lc0 nodes cost far more time than alpha-beta nodes. |
 | `learning/exercises/exact_replay.py:42` | `Verification(engine="stockfish")` label | Label only; does not record the actual engine. Follow-up. |
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
-| `cli/serve.py:24` | Requires `stockfish` on `PATH`, even with `SCAN64_STOCKFISH_PATH` or a profile | Follow-up (outside this change's scope). |
+| `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |
 | `cli/main.py:27`, `cli/bots.py` | `calibrate --stockfish` and calibration output | Calibration is Stockfish-only by design. |
 | `Dockerfile`, `scripts/build-server.py`, `scan64-server.spec`, desktop shell | Bundle and pin Stockfish 18 + networks; pass `SCAN64_STOCKFISH_PATH` | Bundling unchanged; other engines are operator-provided. |
 | `SCAN64_ENGINE_POOL_*` | Pool sizes | Engine-neutral. |
@@ -202,7 +208,5 @@ is missing are recorded as "not installed".
 
 - Separate the opponent engine from the analysis engine (app/play wiring) so a
   non-Stockfish analysis profile keeps Stockfish bot play.
-- `cli/serve.py` should check the configured binary instead of `stockfish` on `PATH`.
 - `exact_replay.py` should record the actual engine name in `Verification`.
 - Per-use overrides for review/focused/verification budgets, needed for Lc0.
-- Map `EngineCapabilityError` to a client-visible 4xx/503 in the play API.

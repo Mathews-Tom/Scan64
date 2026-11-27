@@ -1,4 +1,4 @@
-import { ApiClient } from './client';
+import { ApiClient, BotPlayUnavailableError } from './client';
 import type { PlayMoveResponse } from './types';
 
 import { get, set, update } from 'idb-keyval';
@@ -19,6 +19,8 @@ export interface QueuedMove {
 export interface QueuedMoveSyncSuccess {
   queuedMove: QueuedMove;
   response: PlayMoveResponse | null;
+  /** Set when the move committed but the server's engine profile cannot play the bot. */
+  botPlayUnavailable?: string;
 }
 
 export interface QueuedMoveSyncFailure {
@@ -120,6 +122,7 @@ async function drainQueuedMoves(): Promise<void> {
     try {
       const saved = await inspectQueuedMove(queuedMove);
       let response: PlayMoveResponse | null = null;
+      let botPlayUnavailable: string | undefined;
       if (!saved.committed) {
         try {
           response = await ApiClient.makePlaySessionMove(queuedMove.sessionId, {
@@ -130,12 +133,14 @@ async function drainQueuedMoves(): Promise<void> {
           // Bot failure or response loss can follow an accepted human move.
           // Reconcile the replay prefix, never retry the human submission.
           if (!(await inspectQueuedMove(queuedMove)).committed) throw error;
+          if (error instanceof BotPlayUnavailableError) botPlayUnavailable = error.message;
         }
       }
       await removeQueuedMove(queuedMove.sessionId, queuedMove.move, queuedMove.timestamp);
       dispatchSyncEvent<QueuedMoveSyncSuccess>(QUEUED_MOVE_SYNC_SUCCEEDED, {
         queuedMove,
         response,
+        ...(botPlayUnavailable !== undefined ? { botPlayUnavailable } : {}),
       });
     } catch (error: unknown) {
       blockedSessions.add(queuedMove.sessionId);

@@ -72,6 +72,32 @@ export class ApiRequestError extends Error {
   }
 }
 
+export const BOT_PLAY_UNAVAILABLE_MESSAGE =
+  'Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.';
+
+/** The server's engine profile cannot play bot moves (503 bot_play_unavailable). */
+export class BotPlayUnavailableError extends ApiRequestError {
+  readonly reason: string | null;
+
+  constructor(reason: string | null) {
+    super(BOT_PLAY_UNAVAILABLE_MESSAGE, 503);
+    this.reason = reason;
+  }
+}
+
+async function playRequestError(response: Response, fallback: string): Promise<ApiRequestError> {
+  if (response.status === 503) {
+    let body: unknown = null;
+    try { body = await response.json(); } catch { body = null; }
+    const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+    if (detail !== null && typeof detail === 'object' && 'code' in detail && detail.code === 'bot_play_unavailable') {
+      const reason = 'reason' in detail && typeof detail.reason === 'string' ? detail.reason : null;
+      return new BotPlayUnavailableError(reason);
+    }
+  }
+  return new ApiRequestError(`${fallback}: ${response.statusText}`, response.status);
+}
+
 export class LessonAttemptLimitError extends ApiRequestError {
   readonly attemptsUsed: number;
 
@@ -517,6 +543,10 @@ export class ApiClient {
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
       const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+      if (response.status === 503 && detail !== null && typeof detail === 'object' && 'code' in detail &&
+        detail.code === 'bot_play_unavailable') {
+        throw new BotPlayUnavailableError('reason' in detail && typeof detail.reason === 'string' ? detail.reason : null);
+      }
       throw new ApiRequestError(typeof detail === 'string' ? detail : `Failed to create play session: ${response.statusText}`, response.status);
     }
     const json = await response.json();
@@ -562,7 +592,7 @@ export class ApiClient {
       body: JSON.stringify({ expected_clock_version: expectedClockVersion }),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to resume opponent move: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to resume opponent move');
     }
     return await response.json() as PlayMoveResponse;
   }
@@ -577,7 +607,7 @@ export class ApiClient {
       body: JSON.stringify(move),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to make move: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to make move');
     }
     const json = await response.json();
     return json as unknown as PlayMoveResponse;
@@ -590,7 +620,7 @@ export class ApiClient {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to resume bot turn: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to resume bot turn');
     }
     return await response.json() as PlayMoveResponse;
   }
