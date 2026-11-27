@@ -25,8 +25,8 @@ flowchart TD
     RE --> TP["TemplateExplanationProvider.explain<br/>always computed first"]
     RE --> NF["build_narrator_facts<br/>explanations/facts.py<br/>JSON, schemas/narrator-facts.schema.json"]
     NF -->|"NarratorFactsError"| TP
-    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter / HostedExplanationAdapter"]
-    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 8192"]
+    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter (num_ctx 12288) / HostedExplanationAdapter"]
+    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 12288"]
     GR["OwnerExplanationSettings<br/>explanations/settings.py<br/>api/explanation_settings.py"] --> LO
     OP --> VA["validate_generated_explanation<br/>explanations/validator.py"]
     LO --> VA
@@ -153,9 +153,9 @@ Measured prompt sizes on real Stockfish evidence are in section 6.
 | Validator replay origin | every verified line is replayed from the **before** FEN; after-position lines carry the played move as their first move | `_validate_line`, `validator.py` |
 | Local Ollama request | serialised request body > `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
 | Local Ollama response | body > `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
-| Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s) for model listing plus chat, one `asyncio.timeout`; the evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
+| Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s, maximum 600 s) for model listing plus chat, one `asyncio.timeout`; 180 s covers a cold model load plus the slowest measured request. The evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
 | Coach | 0.25 s for consent read plus generation | `coach_interruption.py:39,139` |
-| Ollama context | local provider sends `options.num_ctx` = `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` (default 8192); a response whose `prompt_eval_count` reaches it raises `LLMProviderError` (Ollama drops the start of a longer prompt). The operator-configured Ollama adapter sends no `options`, so the server default (4096 tokens on Ollama 0.17.5) applies | `OllamaExplanationAdapter.generate`, `adapters.py` |
+| Ollama context | both Ollama paths send `options.num_ctx`: the local provider `SCAN64_LOCAL_LLM_CONTEXT_TOKENS`, the operator adapter `llm.context_tokens`. The default is 12288 (`DEFAULT_OLLAMA_CONTEXT_TOKENS`): the longest NarratorFacts prompt (about 7,400 tokens) or Analysis Board prompt (about 6,000 tokens at MultiPV 4, with move facts cut to 8 plies, section 12) plus a 2,048-token answer. Use at least 8192. A response whose `prompt_eval_count` reaches `num_ctx` raises `LLMProviderError` (Ollama drops the start of a longer prompt). `test_llm_context_budget.py` fails if the largest fixture prompt of either kind (every lesson fixture diagnosis; every recorded Analysis Board position at the hint MultiPV), at 1.75 characters per token, plus 2,048 output tokens exceeds the default | `OllamaExplanationAdapter.generate`, `adapters.py` |
 
 Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_threat`) were replayed from the before FEN, began with an opponent move and were always rejected as illegal. They are now prefixed with the played move, so every trusted code can cite its continuation, for example `["g1f3", "g5g2"]` (the learner's Nf3, then the reply Qxg2). A line from the after-position without the played move is still rejected (`illegal_line_move`).
 
@@ -171,6 +171,18 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 
 `LLMProviderConfig.from_toml` and `create_llm_provider` (`config.py:31-109`) accept `template`, `ollama` (HTTPS, or loopback HTTP) and `openai` (HTTPS only, `_validated_base_url`).
 
+Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
+
+```toml
+[llm]
+provider = "ollama"
+model = "qwen3:8b"
+base_url = "http://127.0.0.1:11434"
+context_tokens = 12288  # optional; sent as options.num_ctx
+```
+
+`llm.context_tokens` defaults to 12288 and accepts integers in [2048, 131072]. Use at least 8192; below that, the longest prompt fills the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
+
 ### Local Ollama limits
 
 `LocalOllamaLimits.from_environment` (`local_ollama.py`) reads the bounds of one local explanation when `generate` runs. An invalid value raises `LLMConfigurationError`, which is not converted to a template fallback.
@@ -180,7 +192,14 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | (0, 600] | model listing plus chat, one `asyncio.timeout` and the httpx timeout |
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | serialised chat request, checked before any network I/O |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | each response body, checked while streaming |
-| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `8192` | [2048, 131072] | `options.num_ctx`; a prompt that fills it is rejected |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `12288` | [2048, 131072]; use at least 8192 | `options.num_ctx`; a prompt that fills it is rejected |
+
+Ollama allocates the KV cache for the whole `num_ctx` when it loads the model, so every 4,096 tokens of context cost the memory below whether a prompt uses them or not; on an 8 GB GPU or CPU only, 8192 saves that memory but leaves about 800 tokens for the answer to the longest lesson prompt. Measured 2026-11-27 on an RTX 5090, Ollama 0.40.18, default f16 KV cache, model loaded with a one-token generation, GPU memory used minus the 1,132 MiB baseline (`/api/ps` `size_vram` in brackets; for gemma4-12b it reports about 1.4 GiB, far below the memory in use):
+
+| Model | `num_ctx` 8192 | 12288 | 16384 | per 4,096 tokens |
+|---|---|---|---|---|
+| `scan64-bench-praxis-4b` (Qwen3.5 4B, Q4_K_M) | 3,632 MiB (3,043) | 3,771 MiB (3,179) | 3,904 MiB (3,315) | about 136 MiB |
+| `scan64-bench-gemma4-12b` (Gemma 4 12B, Q4_K_M) | 9,548 MiB | 9,628 MiB | 9,708 MiB | about 80 MiB |
 
 The settings probe (`detect_local_ollama`) sends no evidence and keeps a fixed 4 s deadline. The coach path keeps its 0.25 s budget (`coach_interruption.py`), so local narration of a coach interruption only succeeds with a model that answers within it.
 
@@ -281,7 +300,7 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 | ~~Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions~~ Resolved: Analysis Board line explanations (section 12) | `board_lines.py`, `api/analysis_explanation.py` | #368 |
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
 | ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
-| The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error | `create_llm_provider`, `config.py` | — |
+| ~~The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error~~ Resolved: `llm.context_tokens` (default 12288) and the truncation check | `create_llm_provider`, `config.py` | #388 |
 | Coach focused evidence is a 10 000-node MultiPV 1 search | `coach_interruption.py:250` | #360 |
 | The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt | `jobs.py:306`, `assembly.py:115` | #367 |
 | The explanation records no source (fallbacks are logged and counted since #366) | section 9 | — |
@@ -323,7 +342,7 @@ flowchart TD
 
 **Search.** The endpoint reuses the free-analysis search: the interactive pool, the hint admission (no queue, 250 ms acquisition, 3 s wall deadline, at least two interactive engines) and the hint cache. With no `nodes` or `depth` the call is `analyze_hint(board)` with the default budget, so the explanation covers the lines `POST /v1/analysis/position` returned for that position, from the same cached search. `nodes` may only lower the hint node budget (`[limits.hint]` or 200 000); `depth` adds a depth limit (1 to 245) while the node and time limits still apply; both are part of the cache key. `multipv` (1 up to the hint MultiPV, default 3) selects how many of the ranked lines are explained; it does not change the search. Out-of-range values return 422 before any search; an ended position returns 409; no usable line evicts the cached search and returns 503.
 
-**Lines.** `scored_legal_lines` keeps a MultiPV entry only if it has exactly one of `score_cp`/`score_mate` and its whole PV replays legally; `/v1/analysis/position` uses the same filter. Lines are not cut: the full principal variation the engine reported is in the facts, the verified lines and the response. In 15 positions searched through the real pool (Stockfish 18, 200 000 nodes), line lengths ranged from 1 to 27 plies; the 12 positions recorded in `tests/fixtures/analysis_board_lines.json` produce prompts of 4.8 to 13.7 KB at MultiPV 3.
+**Lines.** `scored_legal_lines` keeps a MultiPV entry only if it has exactly one of `score_cp`/`score_mate` and its whole PV replays legally; `/v1/analysis/position` uses the same filter. Lines are not cut: the full principal variation the engine reported is in the facts, the verified lines and the response. In 15 positions searched through the real pool (Stockfish 18, 200 000 nodes), line lengths ranged from 1 to 27 plies. Only the narrator prompt is shorter: `BoardLinesFacts.for_prompt` keeps each line's full `uci`, scores and `outcome` but its per-move facts (`moves`) for the first `PROMPT_MOVE_PLIES` (8, the lesson prompt's `MAX_LINE_PLIES`) plies only (#388). With every move's facts, the recorded `king_pawn` lines at MultiPV 4 (27, 15, 22 and 17 plies) made a 19,325-character prompt, about 11,000 tokens, which with the answer did not fit the default 12288-token context; cut, the 12 recorded positions produce prompts (system and user message) of 8.7 to 10.4 KB at MultiPV 4 (the largest about 6,000 tokens). A claim can still cite the whole line, and the outcome covers it.
 
 **Facts** (`explanations/board_lines.py`, `schemas/board-lines-facts.schema.json`, regenerate with `uv run python -m scan64.explanations.board_lines`):
 
@@ -339,7 +358,7 @@ Evaluations are the engine's MultiPV scores from the side to move's point of vie
 
 **Template.** `template_board_claims` writes, from the facts only: the side to move and line 1's first move; per line, the line in numbered SAN, its score and depth, the first move's attacks on undefended pieces (up to two), whether it wins or loses material and the material balance at its end, the side to move's checks, and checkmate or stalemate at its end; per line after the first, its difference to line 1, or both scores when a mate is involved. `template_board_explanation` runs these claims through the same validator: the template is grounded by construction, and a rejection is a bug that raises instead of being shown. `tests/unit/test_board_lines.py` validates it for the 12 recorded positions at MultiPV 1 to 4.
 
-**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` plus `BoardLinesFacts.to_prompt_json()` (defaults omitted). The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
+**Provider.** `BOARD_NARRATOR_SYSTEM_PROMPT` plus `BoardLinesFacts.for_prompt().to_prompt_json()` (move facts cut to 8 plies, defaults omitted); the prompt tells the model not to name a move past the cut in a claim's text and to take the rest of the line from `outcome`. The response carries `source` (`template` or `narrator`) and `fallback_reason` (a `TemplateFallbackReason`, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by `record_template_fallback` like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, default 180 s).
 
 **Admission and cancellation.** The latest explanation request from a player wins. `ExplanationCalls` (in-process state on `app.state`) keeps each player's latest request and running model-call task. On arrival, after the request checks, `claim` makes the request the player's latest and cancels the model call the player has running; cancelling it closes the provider's HTTP stream. `run` starts the model call as a task only if the request is still the latest; an older request that is still in its engine search returns 409 `A newer explanation request from this player replaced this one` without calling the model, and so does a request whose running call was cancelled. So each player has at most one model call running; other players are not affected. The engine search is not cancelled: the hint deadline (3 s) bounds it. The endpoint does not rely on client disconnects: behind `IdempotencyMiddleware`, a Starlette `BaseHTTPMiddleware`, `Request.is_disconnected()` never reports one, so an abandoned call keeps running until the same player's next explanation request cancels it, or until it ends. After the provider grant is read (`read_local_explanation_provider` re-checks the grant on its own connection), the endpoint closes the request session, so no DB connection or transaction is held during the search or the generation.
 

@@ -9,6 +9,12 @@ from pydantic import ValidationError
 
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
+# Ollama ``num_ctx`` for narrator calls. The longest NarratorFacts prompt is
+# about 7,400 tokens; 12288 leaves room for a 2,048-token answer (#388).
+DEFAULT_OLLAMA_CONTEXT_TOKENS = 12288
+MIN_OLLAMA_CONTEXT_TOKENS = 2048
+MAX_OLLAMA_CONTEXT_TOKENS = 131072
+
 
 class LLMExplanationProvider(Protocol):
     """Provider boundary for schema-constrained explanation generation."""
