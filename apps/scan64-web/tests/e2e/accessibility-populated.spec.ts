@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { attachScreenshot } from './screenshot';
 import { prepareToday } from './today';
 import { strengthFixture } from '../../src/components/strength.test-fixtures';
 import { checkUserDrawing } from './board';
@@ -28,7 +29,7 @@ async function capture(page: Page, info: TestInfo, state: string) {
   expect(widths.main[0], `${state} main`).toBeLessThanOrEqual(widths.main[1]);
   await info.attach(`${state}-widths`, { body: JSON.stringify(widths), contentType: 'application/json' });
   await info.attach(`${state}-tree`, { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-  await info.attach(`${state}-screen`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await attachScreenshot(page, info, `${state}-screen`, { fullPage: true });
 }
 
 for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }]) {
