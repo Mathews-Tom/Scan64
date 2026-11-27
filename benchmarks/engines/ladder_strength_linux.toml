@@ -1,0 +1,29 @@
+# Measured strength of each bot-ladder level (#396) on linux-5090 (#419): the
+# same run as ladder_strength.toml, with the ladder side on the Linux-only
+# profile config/engines/linux/arasan.toml (Arasan 26.1, AVX2/BMI2 build)
+# against Stockfish 18 limited to an anchor UCI_Elo per level (1320-3190).
+# Run: uv run python -m benchmarks.engines.ladder_strength benchmarks/engines/ladder_strength_linux.toml
+# Profiles are relative to the repository root; both engines are installed by the user.
+
+[run]
+results_dir = "benchmarks/engines/results"
+ladder_profile = "config/engines/linux/arasan.toml"
+reference_profile = "config/engines/stockfish-wdl.toml"
+reference_movetime_ms = 500          # same as the ladder profile's movetime_ms
+# Anchor UCI_Elo for levels 1-8: the level's sent UCI_Elo, raised to Stockfish's minimum.
+anchors = [1320, 1320, 1400, 1600, 1800, 2000, 2200, 2500]
+rounds = 2                           # games per level = 2 colours x openings x rounds
+max_plies = 300
+# Balanced openings, UCI from the start position.
+openings = [
+    "e2e4 e7e5 g1f3 b8c6 f1b5 a7a6",
+    "e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6",
+    "e2e4 e7e6 d2d4 d7d5 b1c3 g8f6",
+    "e2e4 c7c6 d2d4 d7d5 e4e5 c8f5",
+    "d2d4 d7d5 c2c4 e7e6 b1c3 g8f6",
+    "d2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6",
+    "d2d4 g8f6 c2c4 e7e6 g1f3 b7b6",
+    "c2c4 e7e5 b1c3 g8f6 g1f3 b8c6",
+    "g1f3 d7d5 g2g3 g8f6 f1g2 e7e6",
+    "e2e4 e7e5 g1f3 g8f6 f3e5 d7d6 e5f3 f6e4",
+]
