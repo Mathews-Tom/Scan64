@@ -6,7 +6,7 @@
 # Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
 [engine]
 name = "arasan"
-binary_path = "~/.local/opt/engines/arasan/arasanx-64"
+binary_path = "~/.local/opt/engines/arasan/arasanx-64-avx2-bmi2"
 
 [engine.options]
 OwnBook = false
