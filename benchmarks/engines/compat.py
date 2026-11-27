@@ -165,11 +165,19 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
-def code_provenance() -> dict[str, Any]:
-    """The Scan64 code under test; ``dirty`` covers ``src`` and ``benchmarks``."""
+def code_provenance(results_dir: Path) -> dict[str, Any]:
+    """The Scan64 code under test; ``dirty`` covers ``src`` and ``benchmarks``.
+
+    The runner writes its own results under ``results_dir``, often inside
+    ``benchmarks/``; those files are excluded, so a clean tree stays clean.
+    """
+    paths = ["src", "benchmarks"]
+    resolved = results_dir.resolve()
+    if resolved.is_relative_to(REPO_ROOT):
+        paths.append(f":(exclude){resolved.relative_to(REPO_ROOT).as_posix()}")
     return {
         "commit": _git("rev-parse", "HEAD"),
-        "dirty": bool(_git("status", "--porcelain", "--", "src", "benchmarks")),
+        "dirty": bool(_git("status", "--porcelain", "--", *paths)),
     }
 
 
@@ -350,7 +358,7 @@ async def run_engine(
         "profile": profile.name,
         "protocol": profile.protocol,
         "node_scale": profile.node_scale,
-        **code_provenance(),
+        **code_provenance(config.results_dir),
         "profile_sha256": file_sha256(entry.profile),
         "binary_sha256": file_sha256(executable),
     }

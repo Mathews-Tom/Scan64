@@ -61,3 +61,24 @@ async def test_xboard_engine_run_records_capability_reasons(
     table = summarise(results, config)
     assert "| works | unavailable |" in table
     assert "error" not in table
+
+
+def test_results_written_under_benchmarks_do_not_make_the_tree_dirty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import benchmarks.engines.compat as compat
+
+    calls: list[tuple[str, ...]] = []
+
+    def git(*args: str) -> str:
+        calls.append(args)
+        return "" if args[0] == "status" else "0" * 40
+
+    monkeypatch.setattr(compat, "_git", git)
+    results = compat.REPO_ROOT / "benchmarks" / "engines" / "results"
+    assert compat.code_provenance(results) == {"commit": "0" * 40, "dirty": False}
+    status = next(call for call in calls if call[0] == "status")
+    assert status[-1] == ":(exclude)benchmarks/engines/results"
+    calls.clear()
+    compat.code_provenance(Path("/outside/the/repo"))
+    assert not any("exclude" in arg for call in calls for arg in call)
