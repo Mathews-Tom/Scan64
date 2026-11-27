@@ -70,6 +70,8 @@ async def search(
     limit: chess.engine.Limit,
     multipv: int,
     game: object | None = None,
+    *,
+    score_scale: float,
 ) -> list[dict[str, Any]]:
     """Run one search and return every MultiPV line in stored form.
 
@@ -86,14 +88,15 @@ async def search(
                 f"{multipv} analysis lines need MultiPV, which "
                 f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
             )
-        return lines_from_result(await engine.analyse(board, limit, game=game), board.turn)
+        single = await engine.analyse(board, limit, game=game)
+        return lines_from_result(single, board.turn, score_scale=score_scale)
     if multipv > 1 and not declares(engine, "MultiPV"):
         raise EngineCapabilityError(
             f"{multipv} analysis lines need the UCI option MultiPV, which "
             f"{engine.id.get('name', 'the configured engine')} does not declare"
         )
     result = await engine.analyse(board, limit, multipv=multipv, game=game)
-    return lines_from_result(result, board.turn)
+    return lines_from_result(result, board.turn, score_scale=score_scale)
 
 
 class StockfishAdapter:
@@ -133,6 +136,7 @@ class StockfishAdapter:
                     engine_identity(engine, self.config.binary_path),
                     self.config.threads,
                     self.config.node_scale,
+                    self.config.score_scale,
                 )
                 self._identity_signature = signature
             finally:
@@ -155,10 +159,13 @@ class StockfishAdapter:
                 engine_identity(engine, self.config.binary_path),
                 self.config.threads,
                 self.config.node_scale,
+                self.config.score_scale,
             )
             self._identity_signature = signature
             limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
-            raw_result = await search(engine, chess.Board(fen), limit, multipv)
+            raw_result = await search(
+                engine, chess.Board(fen), limit, multipv, score_scale=self.config.score_scale
+            )
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )

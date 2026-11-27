@@ -26,6 +26,7 @@ protocol = "uci"                                   # optional: "uci" (default) o
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
 node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
+score_scale = 1.0                                  # optional, > 0: engine centipawns per Stockfish centipawn
 
 [engine.options]          # extra UCI options; each must be declared by the engine
 UCI_ShowWDL = true
@@ -66,6 +67,14 @@ Rules (all enforced at load or engine start, failing with the file and key):
   rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
   1, so rows from different scales never reuse each other; rows at scale 1 keep
   their pre-existing reuse key.
+- `engine.score_scale` (default 1) is the engine's centipawns per Stockfish
+  centipawn. Scan64's win-probability curve (Lichess logistic) is fitted to
+  Stockfish, so every win probability divides a line's `score_cp` by it
+  first; stored `score_cp` stays the engine's own number. Each stored line and
+  the row's identity record `score_scale` when it is not 1, so rows at
+  different scales never reuse each other and rows at 1 keep their
+  pre-existing reuse key. Other centipawn thresholds (the 150 cp fast-pass
+  swing, narrator facts) still read raw `score_cp`.
 - `engine.protocol = "xboard"` runs an XBoard (protover 2) engine. The engine
   must declare `ping` and `setboard`; one that sends `setboard=0` (Fairy-Max
   5.0b) fails at start with `EngineCapabilityError`, since every Scan64 search

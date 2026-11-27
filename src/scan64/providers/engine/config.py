@@ -27,6 +27,10 @@ DEFAULT_HASH_MB = 16
 # Scan64's node budgets are sized for an alpha-beta engine's nodes/second. An
 # engine with slow nodes (Lc0, Maia-3) sets ``engine.node_scale`` below 1.
 DEFAULT_NODE_SCALE = 1.0
+# Scan64's centipawn policy (the Lichess win-probability curve) is fitted to
+# Stockfish. ``engine.score_scale`` is this engine's centipawns per Stockfish
+# centipawn (Arasan 26.1 about 2.8); win probability divides by it.
+DEFAULT_SCORE_SCALE = 1.0
 # Wire protocol of the engine process. XBoard engines get single-line analysis
 # only: python-chess rejects MultiPV over XBoard.
 type EngineProtocolName = Literal["uci", "xboard"]
@@ -153,6 +157,7 @@ class EngineProfile:
     threads: int
     hash_size: int
     node_scale: float
+    score_scale: float
     options: MappingProxyType[str, UciOptionValue]
     limits: MappingProxyType[str, SearchLimits]
     ladder: LadderSettings
@@ -167,6 +172,7 @@ def _stockfish_profile() -> EngineProfile:
         threads=DEFAULT_THREADS,
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
+        score_scale=DEFAULT_SCORE_SCALE,
         options=MappingProxyType({}),
         limits=MappingProxyType({}),
         ladder=LadderSettings(),
@@ -193,6 +199,13 @@ def _node_scale(table: dict[str, Any], where: str) -> float:
     value = table.get("node_scale", DEFAULT_NODE_SCALE)
     if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1:
         raise EngineConfigurationError(f"{where}.node_scale must be a number in (0, 1]")
+    return float(value)
+
+
+def _score_scale(table: dict[str, Any], where: str) -> float:
+    value = table.get("score_scale", DEFAULT_SCORE_SCALE)
+    if isinstance(value, bool) or not isinstance(value, int | float) or not value > 0:
+        raise EngineConfigurationError(f"{where}.score_scale must be a positive number")
     return float(value)
 
 
@@ -258,7 +271,16 @@ def load_engine_profile(path: Path) -> EngineProfile:
         raise EngineConfigurationError(f"{path}: an [engine] table is required")
     _reject_unknown(
         engine,
-        {"name", "binary_path", "protocol", "threads", "hash_mb", "node_scale", "options"},
+        {
+            "name",
+            "binary_path",
+            "protocol",
+            "threads",
+            "hash_mb",
+            "node_scale",
+            "score_scale",
+            "options",
+        },
         "engine",
     )
     name = engine.get("name")
@@ -284,6 +306,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
         threads=_positive(engine, "threads", DEFAULT_THREADS, "engine"),
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
+        score_scale=_score_scale(engine, f"{path}: engine"),
         options=MappingProxyType(dict(options)),
         limits=_limits(raw.get("limits"), path),
         ladder=_ladder(raw.get("ladder"), path),
@@ -324,6 +347,7 @@ class EngineConfig:
     hash_size: int = field(default_factory=lambda: active_engine_profile().hash_size)
     name: str = field(default_factory=lambda: active_engine_profile().name)
     node_scale: float = field(default_factory=lambda: active_engine_profile().node_scale)
+    score_scale: float = field(default_factory=lambda: active_engine_profile().score_scale)
     protocol: EngineProtocolName = field(default_factory=lambda: active_engine_profile().protocol)
     options: Mapping[str, UciOptionValue] = field(
         default_factory=lambda: active_engine_profile().options
@@ -343,5 +367,6 @@ class EngineConfig:
             self.threads,
             self.hash_size,
             self.node_scale,
+            self.score_scale,
             tuple(sorted(self.options.items())),
         )

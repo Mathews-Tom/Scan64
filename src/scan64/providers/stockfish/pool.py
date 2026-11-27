@@ -103,7 +103,11 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None and self._identity is not None
         return analysis_identity(
-            self._engine, self._identity, self.config.threads, self.config.node_scale
+            self._engine,
+            self._identity,
+            self.config.threads,
+            self.config.node_scale,
+            self.config.score_scale,
         )
 
     async def reset(self) -> None:
@@ -210,7 +214,9 @@ class PooledStockfishAdapter:
         await engine.configure(full_strength_options(engine, self.config.threads))
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
         limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
-        raw_result = await search(engine, board, limit, multipv, game=self.game_token)
+        raw_result = await search(
+            engine, board, limit, multipv, game=self.game_token, score_scale=self.config.score_scale
+        )
 
         config_dict = dict(
             await self.analysis_identity(),
