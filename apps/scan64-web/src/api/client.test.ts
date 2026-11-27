@@ -405,6 +405,29 @@ describe('ApiClient', () => {
     });
   });
 
+  it.each([
+    ['analysis board', () => ApiClient.analyzePosition({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to analyse position'],
+    ['hint', () => ApiClient.getPositionInsight({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to get hint'],
+    ['explanation', () => ApiClient.explainPosition({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to explain engine lines'],
+  ])('shows the engine capability message and reason on a 503 %s response', async (_name, call, prefix) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Service Unavailable',
+      json: async () => ({ detail: {
+        code: 'engine_capability_unavailable',
+        message: 'This feature is unavailable under the active engine profile.',
+        reason: '4 analysis lines need the UCI option MultiPV, which NoMultiPV 1 does not declare',
+      } }),
+    });
+    const error = await call().catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      status: 503,
+      message: `${prefix}: This feature is unavailable under the active engine profile. `
+        + '4 analysis lines need the UCI option MultiPV, which NoMultiPV 1 does not declare.',
+    });
+  });
+
   it('keeps other 503 move responses as plain ApiRequestError', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
