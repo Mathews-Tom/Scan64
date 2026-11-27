@@ -195,3 +195,32 @@ params_b = 11.95
 base_model = "google/gemma-4-12b-it"
 training_data = "general web, code and synthetic data (vendor report)"
 ollama_tag = "gemma4:12b"
+
+# Smaller quantizations of gemma4-e4b (#389): the library tag (Q4_K_M with a vision
+# projector and an MTP draft model) measured 5.28 GiB at num_ctx 12288, over the
+# 4 GiB bar. Text-only GGUFs from one publisher, pinned revision, to compare
+# quality and GPU memory side by side. Not part of the 9-model run (--models).
+
+[[models]]
+name = "gemma4-e4b-q4ks"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.0
+base_model = "google/gemma-4-E4B-it (4.5B effective), Q4_K_S"
+training_data = "general web, code and synthetic data (vendor report)"
+hf_repo = "unsloth/gemma-4-E4B-it-GGUF"
+hf_revision = "bfc15c382204943c3a8fff0c750b94ae2364d7a3"
+hf_file = "gemma-4-E4B-it-Q4_K_S.gguf"
+sha256 = "0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00"
+
+[[models]]
+name = "gemma4-e4b-q3km"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.0
+base_model = "google/gemma-4-E4B-it (4.5B effective), Q3_K_M"
+training_data = "general web, code and synthetic data (vendor report)"
+hf_repo = "unsloth/gemma-4-E4B-it-GGUF"
+hf_revision = "bfc15c382204943c3a8fff0c750b94ae2364d7a3"
+hf_file = "gemma-4-E4B-it-Q3_K_M.gguf"
+sha256 = "0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4"
