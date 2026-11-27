@@ -40,6 +40,8 @@ import type {
   PositionInsightRequest,
   PositionExplanationRead,
   PositionExplanationRequest,
+  PositionHealthRead,
+  PositionHealthRequest,
   PositionAnalysisRead,
   PositionAnalysisRequest,
   PuzzleDailyRead,
@@ -338,6 +340,23 @@ export class ApiClient {
       throw new ApiRequestError(`Failed to analyse position: ${detail}`, response.status);
     }
     return await response.json() as PositionAnalysisRead;
+  }
+
+  static async positionHealth(data: PositionHealthRequest, signal?: AbortSignal): Promise<PositionHealthRead> {
+    const { player_id, ...body } = data;
+    const response = await apiFetch(`${apiBase()}/analysis/position/health`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(player_id) },
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Failed to read position health: ${detail}`, response.status);
+    }
+    return await response.json() as PositionHealthRead;
   }
 
   static async explainPosition(data: PositionExplanationRequest, signal?: AbortSignal): Promise<PositionExplanationRead> {

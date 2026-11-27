@@ -5,6 +5,8 @@ import { DEFAULT_BOT_LEVEL } from '../api/opponent';
 import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead } from '../api/types';
 import { OwnedGameReview } from './OwnedGameReview';
 import { CoachBoard } from './CoachBoard';
+import { PositionHealthPanel } from './PositionHealthPanel';
+import { readHealthPanel } from '../healthPanel';
 import { analysisEntries, analysisMoveLabel, analysisReplay, commitAnalysisMoves, createAnalysisTree, exportAnalysisPgn, type AnalysisTree } from './analysisTree';
 import { Button, Field, Panel } from './Primitives';
 import './WorkingScreens.css';
@@ -285,6 +287,8 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
             }}>Copy FEN</Button>
           </div>
         </section>
+        {readHealthPanel() && <PositionHealthPanel fen={fen}
+          previousFen={tree.nodes[selected].parent === null ? null : tree.nodes[tree.nodes[selected].parent!].fen} />}
         <section className="working-controls__section" data-testid="multipv-lines" aria-label="Engine evaluation" aria-busy={evaluation.state === 'loading'}>
           <h3>Engine evaluation</h3>
           <p>White perspective: positive favours White; negative favours Black. M means mate.</p>
