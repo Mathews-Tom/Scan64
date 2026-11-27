@@ -113,7 +113,8 @@ Each machine has a `machine:<name>` label. The part of the name before the first
 |---|---|---|
 | Linux, RTX 5090 | `machine:linux-5090` | LLM runs and benchmarks, engine runs and builds, long jobs |
 | Windows laptop, RTX 4080 | `machine:windows-4080` | Code that needs no GPU or engine; Windows-only behaviour (paths, process handling, CRLF); Windows test runs |
-| Mac | `machine:mac` | macOS test runs, macOS desktop smoke, Safari and WebKit checks |
+| Mac, current macOS | `machine:mac` | macOS test runs, macOS desktop smoke, current Safari and WebKit checks |
+| Mac, old macOS | `machine:mac-old` | Safari 14–16 and old WebKit checks; desktop smoke on older macOS |
 
 If an LLM fits both GPUs, it runs on the 5090. If an engine runs on Linux and Windows, it runs on Linux. Each OS keeps a small smoke run for its own platform behaviour. Adding a machine means adding its `machine:<name>` label and a row here, plus a `needs-test:<os>` label for a new OS.
 
@@ -123,9 +124,9 @@ If an LLM fits both GPUs, it runs on the 5090. If an engine runs on Linux and Wi
 2. **Claim before you start:** `scan64-coord claim <N>`. It refuses a ticket that another machine has claimed.
 3. **Never push to a ticket that another machine claimed.** To hand over, agree in a comment on the ticket, then run `scan64-coord claim <N> --takeover`. For a share of a ticket another machine owns, `scan64-coord split <N> "<title>"` creates and claims a sub-issue.
 4. **Release when you stop:** `scan64-coord release <N> --review` when your PR is open (the machine keeps the claim, and the ticket's open PRs get its label); `--done` when the work is merged; no flag to give the ticket back.
-5. **Tests on another OS:** add `needs-test:windows` or `needs-test:mac` to the PR. The machine with that OS runs the tests and posts the results as a PR comment. It does not push to the PR.
+5. **Tests on another OS:** add `needs-test:windows` or `needs-test:mac` to the PR. The machine with that OS runs the tests and posts the results as a PR comment. It does not push to the PR. Both Macs see `needs-test:mac`; to reach one of them only, for example for a Safari 14–16 check, use `scan64-coord ask <N> mac-old "<request>"`.
 6. **Requests between machines go through GitHub, not chat.** `scan64-coord ask <N> <machine> "<request>"` comments on issue or PR N and adds `needs:<machine>`. The other machine sees N under "Waiting on this machine" in its status at session start, acts, and replies with `scan64-coord answer <N> "<result>"`, which removes the label. Requests without a ticket go on the coordination issue #404. Requests for a person rather than an agent mention them in the comment as usual.
-7. **Branches and pull requests:** name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Never merge your own pull request; the maintainer reviews every pull request before it reaches the epic branch or `main`.
+7. **Every change goes through a pull request.** This includes one-line fixes and changes to an epic branch. Never push directly to `main` or to an epic branch. Name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Never merge your own pull request; the maintainer reviews every pull request before it reaches the epic branch or `main`.
 8. **No status files in the repository.** Status lives on the board and in the issues. Local campaign notes stay local.
 
 ### Setup on each machine (once)
