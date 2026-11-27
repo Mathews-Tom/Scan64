@@ -16,6 +16,9 @@ class EngineAnalysisConfig(BaseModel):
     depth: int | None = None
     time_ms: int | None = None
     multipv: int = 1
+    # Absent (``None``) at the default scale of 1, so rows written before
+    # ``engine.node_scale`` existed keep the same reuse key.
+    node_scale: float | None = None
 
 
 class EngineLine(BaseModel):

@@ -10,7 +10,7 @@ import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.providers.engine.config import EngineConfig
+from scan64.providers.engine.config import EngineConfig, scaled_nodes
 from scan64.providers.engine.uci import lines_from_result, startup_options
 from scan64.providers.stockfish.identity import (
     ExecutableSignature,
@@ -45,8 +45,15 @@ class IdentifiedEngineAdapter(EngineAdapter, Protocol):
 StockfishConfig = EngineConfig
 
 
-def search_limit(nodes: int | None, depth: int | None, time_ms: int | None) -> chess.engine.Limit:
-    return chess.engine.Limit(nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None)
+def search_limit(
+    nodes: int | None, depth: int | None, time_ms: int | None, *, node_scale: float
+) -> chess.engine.Limit:
+    """``nodes`` is a Scan64 budget; the engine receives it times ``node_scale``."""
+    return chess.engine.Limit(
+        nodes=scaled_nodes(nodes, node_scale),
+        depth=depth,
+        time=time_ms / 1000.0 if time_ms else None,
+    )
 
 
 async def search(
@@ -98,7 +105,10 @@ class StockfishAdapter:
             engine = await self._start()
             try:
                 self._identity = analysis_identity(
-                    engine, engine_identity(engine, self.config.binary_path), self.config.threads
+                    engine,
+                    engine_identity(engine, self.config.binary_path),
+                    self.config.threads,
+                    self.config.node_scale,
                 )
                 self._identity_signature = signature
             finally:
@@ -117,12 +127,14 @@ class StockfishAdapter:
         engine = await self._start()
         try:
             self._identity = analysis_identity(
-                engine, engine_identity(engine, self.config.binary_path), self.config.threads
+                engine,
+                engine_identity(engine, self.config.binary_path),
+                self.config.threads,
+                self.config.node_scale,
             )
             self._identity_signature = signature
-            raw_result = await search(
-                engine, chess.Board(fen), search_limit(nodes, depth, time_ms), multipv
-            )
+            limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
+            raw_result = await search(engine, chess.Board(fen), limit, multipv)
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )
