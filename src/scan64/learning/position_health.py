@@ -9,9 +9,13 @@ both sides have exchanged the same material reads healthy for both: the
 values are net, never measured against the starting position.
 
 This module only adds what the panel shows: names, the level word, the trend
-against the previous position and each meter's largest terms. A term is a
-part of the group, net and from the side's view, so the terms of a meter add
-up to the value it reads; the overall meter's terms are the groups.
+against the previous position and each meter's largest terms. A group meter's
+terms are its largest parts, net and from the side's view; all of its parts add
+up to the value it reads. The overall meter's terms are the largest groups; its
+value also holds the material imbalance and the endgame scaling, which are not
+groups. A finished game (checkmate or stalemate) has no meters to read: the
+factor evaluation scores the pieces left, not the result, so a mated side can
+read good.
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ from scan64.explanations.factors.report import PAWN_VALUE_EG, FactorReport
 Side = Literal["white", "black"]
 Level = Literal["good", "fair", "low"]
 Trend = Literal["rising", "falling", "steady"]
+Outcome = Literal["checkmate", "stalemate"]
 
 # Health at or above ``good`` reads good, below ``fair`` reads low.
 LEVELS: Mapping[Level, float] = {"good": 2 / 3, "fair": 1 / 3}
@@ -69,10 +74,14 @@ class GroupReading:
 
 @dataclass(frozen=True)
 class PositionHealth:
-    """The overall meter and one meter per group, for both sides."""
+    """The overall meter and one meter per group, for both sides.
+
+    ``outcome`` is set when the game is over; the meters are then not shown.
+    """
 
     overall: GroupReading
     groups: tuple[GroupReading, ...]
+    outcome: Outcome | None
 
 
 def level(value: float) -> Level:
@@ -85,6 +94,12 @@ def trend(now: float, before: float | None) -> Trend:
     if before is None or abs(now - before) < TREND_STEP:
         return "steady"
     return "rising" if now > before else "falling"
+
+
+def outcome(board: chess.Board) -> Outcome | None:
+    if board.is_checkmate():
+        return "checkmate"
+    return "stalemate" if board.is_stalemate() else None
 
 
 def _color(side: Side) -> chess.Color:
@@ -140,4 +155,5 @@ def position_health(
     return PositionHealth(
         overall=_reading(report, before, "Overall", learner),
         groups=tuple(_reading(report, before, key, learner) for key in HEALTH_GROUPS),
+        outcome=outcome(board),
     )

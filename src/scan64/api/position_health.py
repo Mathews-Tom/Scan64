@@ -17,6 +17,7 @@ from scan64.learning.position_health import (
     GroupReading,
     Level,
     MeterReading,
+    Outcome,
     Trend,
     position_health,
 )
@@ -77,6 +78,8 @@ class PositionHealthRead(BaseModel):
     # The factor module's total evaluation as one meter per side.
     overall: GroupHealthRead
     groups: list[GroupHealthRead]
+    # Set when the game is over: the panel shows the result, not the meters.
+    outcome: Outcome | None
 
 
 @router.post("/v1/analysis/position/health", response_model=PositionHealthRead)
@@ -92,4 +95,5 @@ def read_position_health(
         learner=body.learner,
         overall=GroupHealthRead.from_reading(readings.overall),
         groups=[GroupHealthRead.from_reading(g) for g in readings.groups],
+        outcome=readings.outcome,
     )

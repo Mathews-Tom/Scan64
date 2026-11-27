@@ -20,34 +20,46 @@ function Meter({ name, side, meter, large = false }: { name: string; side: strin
 
 type State = { state: 'loading' } | { state: 'ready'; health: PositionHealthRead } | { state: 'error'; message: string };
 
+const OUTCOME_TEXT = {
+  checkmate: 'Checkmate: the game is over, so there is no position health to read.',
+  stalemate: 'Stalemate: the game is over, so there is no position health to read.',
+} as const;
+
 // learner: the side the panel speaks for (You / Opponent); without one it reads White / Black.
 export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string; previousFen: string | null; learner?: 'white' | 'black' }) {
   const [first, second] = learner === undefined ? ['White', 'Black'] : ['You', 'Opponent'];
   const [view, setView] = useState<State>({ state: 'loading' });
+  // The last reading stays on screen while the next one loads, so the panel keeps its height.
+  const [busy, setBusy] = useState(true);
   const [details, setDetails] = useState(false);
   const detailsId = useId();
 
   useEffect(() => {
     // Stepping through moves cancels the request for the position left behind.
     const request = new AbortController();
-    setView({ state: 'loading' });
+    setBusy(true);
     void (async () => {
       try {
         const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
         const health = await ApiClient.positionHealth(
           { player_id: playerId, fen, learner: learner ?? 'white', previous_fen: previousFen }, request.signal);
-        if (!request.signal.aborted) setView({ state: 'ready', health });
+        if (!request.signal.aborted) { setView({ state: 'ready', health }); setBusy(false); }
       } catch (error) {
-        if (!request.signal.aborted) setView({ state: 'error', message: error instanceof Error ? error.message : 'Position health is unavailable.' });
+        if (!request.signal.aborted) {
+          setView({ state: 'error', message: error instanceof Error ? error.message : 'Position health is unavailable.' });
+          setBusy(false);
+        }
       }
     })();
     return () => { request.abort(); };
   }, [fen, previousFen, learner]);
 
-  return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={view.state === 'loading'}>
+  return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={busy}>
     <h3>Position health</h3>
     {view.state === 'error' && <p className="position-health__note" data-testid="position-health-error">{view.message}</p>}
-    {view.state === 'ready' && <>
+    {view.state === 'ready' && view.health.outcome !== null &&
+      <p className="position-health__note" data-testid="position-health-outcome">{OUTCOME_TEXT[view.health.outcome]}</p>}
+    {view.state === 'ready' && view.health.outcome === null && <>
       <table className="position-health__table">
         <colgroup><col className="position-health__name" /><col /><col /></colgroup>
         <thead><tr><th scope="col"><span className="visually-hidden">Factor</span></th><th scope="col">{first}</th><th scope="col">{second}</th></tr></thead>

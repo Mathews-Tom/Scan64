@@ -872,4 +872,6 @@ export interface PositionHealthRead {
   learner: 'white' | 'black';
   overall: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead };
   groups: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead }[];
+  // Set when the game is over; the panel shows the result instead of the meters.
+  outcome: 'checkmate' | 'stalemate' | null;
 }

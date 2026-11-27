@@ -46,6 +46,21 @@ def test_position_health_reads_every_group_for_both_sides(
     mobility = next(g for g in body["groups"] if g["key"] == "Mobility")
     assert mobility["learner"]["trend"] == "rising"
     assert 0 <= mobility["learner"]["health"] <= 1
+    assert body["outcome"] is None
+
+
+def test_position_health_reports_a_finished_game(client: TestClient, db_session: Session) -> None:
+    headers = _register(db_session)
+    mated = chess.Board()
+    for san in ("f3", "e5", "g4", "Qh4#"):
+        mated.push_san(san)
+    response = client.post(
+        "/v1/analysis/position/health",
+        json={"fen": mated.fen(), "learner": "white"},
+        headers=headers,
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["outcome"] == "checkmate"
 
 
 def test_position_health_refuses_a_bad_fen_and_anonymous_callers(

@@ -13,6 +13,7 @@ const READ: PositionHealthRead = {
   learner: 'white',
   overall: { key: 'Overall', name: 'overall', learner: meter(0.3, 'low', 'falling', -2.1), opponent: meter(0.95, 'good', 'rising', 2.1) },
   groups: [{ key: 'King', name: 'king safety', learner: meter(0.2, 'low', 'falling'), opponent: meter(0.9, 'good', 'steady', 0.4) }],
+  outcome: null,
 };
 
 beforeEach(() => {
@@ -31,6 +32,29 @@ describe('position health meters', () => {
     expect(filledSegments(0)).toBe(0);
     expect(filledSegments(1)).toBe(SEGMENTS);
     expect(filledSegments(0.5)).toBe(SEGMENTS / 2);
+  });
+
+  it('shows the result instead of meters when the game is over', async () => {
+    vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue({ ...READ, outcome: 'checkmate' });
+    render(<PositionHealthPanel fen={READ.fen} previousFen={null} />);
+    expect(await screen.findByTestId('position-health-outcome')).toHaveTextContent('Checkmate: the game is over');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('keeps the last reading on screen while the next position loads', async () => {
+    let release: (read: PositionHealthRead) => void = () => {};
+    vi.spyOn(ApiClient, 'positionHealth')
+      .mockResolvedValueOnce(READ)
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const { rerender } = render(<PositionHealthPanel fen="fen-1" previousFen={null} />);
+    expect(await screen.findByRole('img', { name: 'White king safety: low, falling' })).toBeInTheDocument();
+    rerender(<PositionHealthPanel fen="fen-2" previousFen="fen-1" />);
+    const panel = screen.getByTestId('position-health');
+    await waitFor(() => expect(panel).toHaveAttribute('aria-busy', 'true'));
+    expect(screen.getByRole('img', { name: 'White king safety: low, falling' })).toBeInTheDocument();
+    release({ ...READ, groups: [{ ...READ.groups[0], learner: meter(0.9, 'good', 'rising') }] });
+    expect(await screen.findByRole('img', { name: 'White king safety: good, rising' })).toBeInTheDocument();
+    expect(panel).toHaveAttribute('aria-busy', 'false');
   });
 
   it('says a meter has no nonzero terms rather than no change from the start', async () => {

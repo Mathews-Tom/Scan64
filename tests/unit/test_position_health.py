@@ -10,7 +10,7 @@ import pytest
 from scan64.explanations.factor_facts import HEALTH_GROUPS, HEALTH_SCALE, health_values
 from scan64.explanations.factors import evaluate_factors
 from scan64.explanations.factors.report import PAWN_VALUE_EG
-from scan64.learning.position_health import LEVELS, level, position_health, trend
+from scan64.learning.position_health import LEVELS, level, outcome, position_health, trend
 
 # White's king is stripped of its pawns; Black's queen and rook bear on it.
 EXPOSED = "r1b1k2r/ppp2ppp/2n5/3q4/8/8/PPP3PP/RNB1K1NR w KQkq - 0 1"
@@ -120,3 +120,14 @@ def test_overall_reads_the_factor_total_without_tempo() -> None:
     assert overall.opponent.level == "good"
     assert overall.learner.terms[0].name == "Material"
     assert overall.learner.terms[0].pawns < 0
+
+
+def test_a_finished_game_reports_its_outcome() -> None:
+    # The factor evaluation scores the pieces left, so a mated side's meters can read good;
+    # the outcome tells the panel to show the result instead.
+    mated = chess.Board()
+    for san in ("f3", "e5", "g4", "Qh4#"):
+        mated.push_san(san)
+    assert position_health(mated, "white").outcome == "checkmate"
+    assert outcome(chess.Board("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")) == "stalemate"
+    assert position_health(chess.Board(), "white").outcome is None
