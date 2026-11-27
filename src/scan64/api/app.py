@@ -35,6 +35,7 @@ from scan64.api.repertoire import router as repertoire_router
 from scan64.api.repertoire_body import RepertoireBodyLimitMiddleware
 from scan64.api.reports import router as reports_router
 from scan64.api.strength import router as strength_router
+from scan64.api.variants import router as variants_router
 from scan64.api.web import mount_web_client, web_dist_directory
 from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.notifications import close_analysis_subscriptions
@@ -137,6 +138,7 @@ app.add_middleware(IdempotencyMiddleware, get_session_callable=get_session)
 app.add_middleware(RepertoireBodyLimitMiddleware)
 app.add_middleware(LessonPackBodyLimitMiddleware)
 app.include_router(games_router)
+app.include_router(variants_router)
 app.include_router(coach_linkage_router)
 app.include_router(coach_router)
 app.include_router(players_router)
