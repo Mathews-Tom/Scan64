@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { PositionHealthPanel } from './PositionHealthPanel';
+import { readHealthPanel } from '../healthPanel';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
@@ -188,6 +190,9 @@ export function OwnedGameReview({ gameId, initialPly = 0, onPlayFromHere, startP
             <button type="button" onClick={() => setSelectedPly(ply => ply + 1)} disabled={selectedPly === lastPly}>Next</button>
             <button type="button" onClick={() => setSelectedPly(lastPly)} disabled={selectedPly === lastPly}>Last</button>
           </nav>
+          {readHealthPanel() && <PositionHealthPanel learner={review.owner_color ?? undefined}
+            fen={selectedPly === 0 ? review.initial_fen : selectedMove?.fen ?? review.initial_fen}
+            previousFen={selectedPly === 0 ? null : selectedMove?.source_fen ?? null} />}
           <div className="review-controls">
             <button className={status?.status === 'not_analysed' || status?.status === 'failed' || retryLessonId !== null ? 'btn btn--secondary' : 'btn btn--primary'} type="button" data-testid="play-from-here" disabled={busy !== null || !onPlayFromHere} onClick={playFromHere}>{busy === 'play' ? 'Starting...' : 'Play from here'}</button>
             <button type="button" onClick={() => navigator.clipboard.writeText(selectedFen!)}>Copy FEN</button>

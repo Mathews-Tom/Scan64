@@ -53,6 +53,14 @@ describe('position health meters', () => {
   });
 });
 
+it('speaks for the learner in game review', async () => {
+  const call = vi.spyOn(ApiClient, 'positionHealth').mockResolvedValue({ ...READ, learner: 'black' });
+  render(<PositionHealthPanel fen={READ.fen} previousFen={null} learner="black" />);
+  expect(await screen.findByRole('img', { name: 'You king safety: low, falling' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Opponent' })).toBeInTheDocument();
+  expect(call).toHaveBeenCalledWith(expect.objectContaining({ learner: 'black' }));
+});
+
 describe('health panel setting', () => {
   it('is on by default and remembers being turned off', () => {
     expect(readHealthPanel()).toBe(true);

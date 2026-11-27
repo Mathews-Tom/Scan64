@@ -713,6 +713,28 @@ Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variat
 
 **Load FEN** validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select **Retry** manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.
 
+#### Position health
+
+The **Position health** panel shows how the selected position stands on eight evaluation factors, one meter each for both sides, with an overall meter above them. It is on by default; turn it off under **Settings → Chessboard → Position health panel**, and the choice persists. On the Analysis Board the columns are White and Black. In game review they are You and Opponent, for the side you played (White and Black when your side is unknown).
+
+| Meter | What it measures |
+|---|---|
+| overall | the factor evaluation's total: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them |
+| king safety | pawn shelter and pawn storm around the king, less the opponent's attack on it |
+| material | piece values and piece placement on their squares |
+| threats | threats the opponent's pieces make against this side (a full meter: no threats) |
+| pieces | outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors |
+| mobility | squares each piece can safely reach |
+| pawn structure | isolated, doubled, backward and connected pawns |
+| passed pawns | passed pawns, their rank, file and blockade |
+| space | safe squares behind the pawn chain in the centre (middlegame only) |
+
+Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". **Show details** lists the largest terms behind each meter in pawns; for the overall meter, the factors that move the total most.
+
+The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.
+
+Each meter maps its value, in pawns from that side's view, to a health between 0 and 1: `1 / (1 + exp(-(2 + (value - start) / scale)))`, where `start` is the value in the starting position. Every meter reads about 0.88 at the start, and 0.5 when the side has lost two scales from there. The scales in `HEALTH_SCALE` and `OVERALL_SCALE` (`src/scan64/learning/position_health.py`) are provisional: the group scales are the change thresholds fitted in `docs/evaluation/factor-calibration.md` (at least 0.25 pawns), and the overall scale is 1 pawn. A fit of these scales on recorded games will replace them. The API is `POST /v1/analysis/position/health` with `fen`, `learner` (`white` or `black`) and optional `previous_fen` for the trend.
+
 #### Explain the engine lines
 
 Below the engine lines, select **Explain lines** to have the current position's top three engine lines explained. The explanation lists, for each line, its full principal variation, the engine's score for the side to move and the depth it reached, what the line wins or loses in material, its checks, whether it ends in checkmate or stalemate, and what its first move attacks; it then compares each line with line 1 (for example "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move"). The engine and the board library decide every one of these facts. The lines shown are replaced by exactly the lines explained.

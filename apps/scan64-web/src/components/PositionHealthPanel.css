@@ -1,12 +1,14 @@
 /* Position health (#416): calm segmented meters. Lit segments take one hue from
    the meter's health (red 25deg to green 145deg); unlit segments stay neutral, so
    the fill length, the word and the colour all carry the reading. */
-.position-health__table { width: 100%; border-collapse: collapse; font-size: var(--type-label); }
+.position-health { min-width: 0; }
+.position-health__table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--type-label); }
+.position-health__table col.position-health__name { width: 7.2em; }
 .position-health__table th, .position-health__table td { padding: 3px 0; text-align: start; font-weight: normal; }
 .position-health__table thead th { color: var(--muted); }
-.position-health__table tbody th { padding-inline-end: var(--space-2); white-space: nowrap; }
-.health-meter { display: grid; grid-template-columns: minmax(48px, 1fr) 3.2em 1em; align-items: center; gap: 4px; padding-inline-end: var(--space-2); }
-.health-meter__track { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 8px; }
+.position-health__table tbody th { padding-inline-end: var(--space-1); overflow-wrap: anywhere; }
+.health-meter { display: grid; grid-template-columns: minmax(0, 1fr) 2.6em 0.8em; align-items: center; gap: 3px; padding-inline-end: var(--space-1); }
+.health-meter__track { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1px; height: 8px; }
 .health-meter__segment { border-radius: 2px; background: color-mix(in srgb, var(--border) 22%, transparent); }
 .health-meter[data-level='good'] { --meter-hue: 150; }
 .health-meter[data-level='fair'] { --meter-hue: 80; }
@@ -23,4 +25,4 @@
 .position-health__details { font-size: var(--type-label); margin: var(--space-2) 0 0; }
 .position-health__details dt { font-weight: 600; margin-top: var(--space-1); }
 .position-health__details dd { margin: 0; color: var(--muted); }
-.position-health__note { font-size: var(--type-label); color: var(--muted); }
+.position-health__note { font-size: var(--type-label); color: var(--muted); overflow-wrap: anywhere; }

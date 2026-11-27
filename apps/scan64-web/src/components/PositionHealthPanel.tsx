@@ -20,7 +20,9 @@ function Meter({ name, side, meter, large = false }: { name: string; side: strin
 
 type State = { state: 'loading' } | { state: 'ready'; health: PositionHealthRead } | { state: 'error'; message: string };
 
-export function PositionHealthPanel({ fen, previousFen }: { fen: string; previousFen: string | null }) {
+// learner: the side the panel speaks for (You / Opponent); without one it reads White / Black.
+export function PositionHealthPanel({ fen, previousFen, learner }: { fen: string; previousFen: string | null; learner?: 'white' | 'black' }) {
+  const [first, second] = learner === undefined ? ['White', 'Black'] : ['You', 'Opponent'];
   const [view, setView] = useState<State>({ state: 'loading' });
   const [details, setDetails] = useState(false);
   const detailsId = useId();
@@ -31,31 +33,32 @@ export function PositionHealthPanel({ fen, previousFen }: { fen: string; previou
     void (async () => {
       try {
         const playerId = await ensurePlayerAuthorization(getOrCreatePlayerId());
-        const health = await ApiClient.positionHealth({ player_id: playerId, fen, learner: 'white', previous_fen: previousFen });
+        const health = await ApiClient.positionHealth({ player_id: playerId, fen, learner: learner ?? 'white', previous_fen: previousFen });
         if (current) setView({ state: 'ready', health });
       } catch (error) {
         if (current) setView({ state: 'error', message: error instanceof Error ? error.message : 'Position health is unavailable.' });
       }
     })();
     return () => { current = false; };
-  }, [fen, previousFen]);
+  }, [fen, previousFen, learner]);
 
   return <section className="working-controls__section position-health" data-testid="position-health" aria-label="Position health" aria-busy={view.state === 'loading'}>
     <h3>Position health</h3>
     {view.state === 'error' && <p className="position-health__note" data-testid="position-health-error">{view.message}</p>}
     {view.state === 'ready' && <>
       <table className="position-health__table">
-        <thead><tr><th scope="col"><span className="visually-hidden">Factor</span></th><th scope="col">White</th><th scope="col">Black</th></tr></thead>
+        <colgroup><col className="position-health__name" /><col /><col /></colgroup>
+        <thead><tr><th scope="col"><span className="visually-hidden">Factor</span></th><th scope="col">{first}</th><th scope="col">{second}</th></tr></thead>
         <tbody>
           <tr className="position-health__overall">
             <th scope="row">overall</th>
-            <td><Meter large name="overall" side="White" meter={view.health.overall.learner} /></td>
-            <td><Meter large name="overall" side="Black" meter={view.health.overall.opponent} /></td>
+            <td><Meter large name="overall" side={first} meter={view.health.overall.learner} /></td>
+            <td><Meter large name="overall" side={second} meter={view.health.overall.opponent} /></td>
           </tr>
           {view.health.groups.map(group => <tr key={group.key}>
             <th scope="row">{group.name}</th>
-            <td><Meter name={group.name} side="White" meter={group.learner} /></td>
-            <td><Meter name={group.name} side="Black" meter={group.opponent} /></td>
+            <td><Meter name={group.name} side={first} meter={group.learner} /></td>
+            <td><Meter name={group.name} side={second} meter={group.opponent} /></td>
           </tr>)}
         </tbody>
       </table>
@@ -64,8 +67,8 @@ export function PositionHealthPanel({ fen, previousFen }: { fen: string; previou
       {details && <dl id={detailsId} className="position-health__details">
         {[view.health.overall, ...view.health.groups].map(group => <div key={group.key}>
           <dt>{group.name}</dt>
-          <dd>White: {terms(group.learner)}</dd>
-          <dd>Black: {terms(group.opponent)}</dd>
+          <dd>{first}: {terms(group.learner)}</dd>
+          <dd>{second}: {terms(group.opponent)}</dd>
         </div>)}
       </dl>}
       <p className="position-health__note">From Scan64's evaluation factors; no engine search or language model. The scale is provisional.</p>
