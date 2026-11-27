@@ -29,6 +29,7 @@ from scan64.api.onboarding import router as onboarding_router
 from scan64.api.play import router as play_router
 from scan64.api.play_assistance import router as play_assistance_router
 from scan64.api.players import router as players_router
+from scan64.api.position_health import router as position_health_router
 from scan64.api.progress import router as progress_router
 from scan64.api.puzzle_mistakes import router as puzzle_mistakes_router
 from scan64.api.puzzles import router as puzzles_router
@@ -128,6 +129,7 @@ app.include_router(play_assistance_router)
 app.include_router(learning_router)
 app.include_router(insights_router)
 app.include_router(analysis_explanation_router)
+app.include_router(position_health_router)
 app.include_router(puzzles_router)
 app.include_router(repertoire_router)
 app.include_router(lesson_packs_router)
