@@ -26,6 +26,7 @@ protocol = "uci"                                   # optional: "uci" (default) o
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
 node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
+search_deadline_s = 120                            # optional, > 0: wall-clock bound on node/depth-only searches
 score_scale = 1.0                                  # optional, > 0: engine centipawns per Stockfish centipawn
 
 [engine.options]          # extra UCI options; each must be declared by the engine
@@ -67,6 +68,15 @@ Rules (all enforced at load or engine start, failing with the file and key):
   rows keep the Scan64 budget in `nodes` and record `node_scale` when it is not
   1, so rows from different scales never reuse each other; rows at scale 1 keep
   their pre-existing reuse key.
+- `engine.search_deadline_s` (default 120) bounds every analysis search that
+  has no time limit of its own (fast pass, focused pass, lesson verification,
+  Analysis Board lines). Past it the search is stopped and the request fails
+  with `EngineCapabilityError` saying the engine did not finish its node or
+  depth limit: an engine that ignores `go nodes` (Rodent V 1.2) reports
+  `unavailable` instead of hanging. It is not part of the cache identity.
+- A pooled engine whose process exits (`EngineTerminatedError`) fails that
+  request and is replaced: the next checkout from the pool starts a new
+  process.
 - `engine.score_scale` (default 1) is the engine's centipawns per Stockfish
   centipawn. Scan64's win-probability curve (Lichess logistic) is fitted to
   Stockfish, so every win probability divides a line's `score_cp` by it
@@ -164,9 +174,15 @@ The `skill` ladder stays Stockfish-only on purpose: its error budgets,
 `SKILL_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
 cohorts (`api/strength.py`) are defined against Stockfish. An engine with
 `UCI_Elo` but no `Skill Level` (Arasan 26.1) plays the ladder through
-`[ladder] strength = "elo"`. Opponent moves come
-from the same interactive pool as hints, so a non-Stockfish profile currently
-disables bot play with that error (see follow-ups).
+`[ladder] strength = "elo"`. Opponent moves come from the same interactive pool
+as hints. A profile that can play neither ladder makes bot play unavailable;
+play never falls back to Stockfish. The play endpoints
+(`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
+`…/opponent-move`) return 503 with
+`detail = {code: "bot_play_unavailable", message, reason}`. `reason` is the
+`EngineCapabilityError` text that names the missing options. The player's move
+stays committed; a bot-first session is not created. The web client shows
+that bot play is unavailable under the active engine profile.
 
 ## Stockfish-specific assumptions outside the engine provider
 
@@ -190,7 +206,7 @@ is now `EngineConfig` and reads the active profile.
 | `chess/analysis/review.py:12` (`REVIEW_NODES = 10_000`), hint 200k nodes / 1.5 s, focused-pass nodes, `learning/evidence/composer.py` (mate source `nodes == 1_000_000`) | Node budgets sized for Stockfish's nodes/second | Hint budget overridable per profile; every budget scales by `engine.node_scale` for engines with slow nodes (Lc0, Maia-3). |
 | `learning/exercises/exact_replay.py:42` | `Verification(engine="stockfish")` label | Label only; does not record the actual engine. Follow-up. |
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
-| `cli/serve.py:24` | Requires `stockfish` on `PATH`, even with `SCAN64_STOCKFISH_PATH` or a profile | Follow-up (outside this change's scope). |
+| `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |
 | `cli/main.py:27`, `cli/bots.py` | `calibrate --stockfish` and calibration output | Calibration is Stockfish-only by design. |
 | `Dockerfile`, `scripts/build-server.py`, `scan64-server.spec`, desktop shell | Bundle and pin Stockfish 18 + networks; pass `SCAN64_STOCKFISH_PATH` | Bundling unchanged; other engines are operator-provided. |
 | `SCAN64_ENGINE_POOL_*` | Pool sizes | Engine-neutral. |
@@ -276,6 +292,11 @@ Features: `game_analysis` (fast pass, `REVIEW_NODES`), `focused_pass`
 (MultiPV 2/4/8 widening), `analysis_board` (hint search, scored legal lines),
 `bot_ladder`, `skill_level_opponent`.
 
+Every record carries its provenance: the Scan64 `commit`, `dirty` (uncommitted
+changes under `src/` or `benchmarks/`), and the SHA-256 of the profile file and
+of the resolved engine binary. A profile whose binary is missing records `not
+installed`.
+
 Scan64 downloads and bundles none of these engines. Each user installs the
 engine and points a profile at it.
 
@@ -305,7 +326,8 @@ the comparison above, and the XBoard test engine
 | XBoard test engine | works | unavailable³ | unavailable³ | unavailable³ | unavailable³ | unavailable⁴ | unavailable² |
 
 1. "The bot ladder requires UCI option(s) Skill Level, UCI_LimitStrength,
-   UCI_Elo, which Ethereal 14.40 (PEXT) does not declare".
+   which Ethereal 14.40 (PEXT) does not declare". The table was recorded before
+   5732be7, when the reset also required `UCI_Elo`.
 2. "Skill Level opponent play requires UCI option(s) Skill Level, which … does
    not declare".
 3. "4 analysis lines need MultiPV, which FakeXBoard 1 cannot provide over
@@ -320,25 +342,19 @@ date and the engine versions.
 
 - Separate the opponent engine from the analysis engine (app/play wiring) so a
   non-Stockfish analysis profile keeps Stockfish bot play.
-- `cli/serve.py` should check the configured binary instead of `stockfish` on `PATH`.
 - `exact_replay.py` should record the actual engine name in `Verification`.
 - The bot ladder fails on engines with MultiPV but no strength controls
   (Ethereal): it requires the Stockfish reset options even where the engine is
   always at full strength.
 - The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
   starts the engine with `popen_uci` and sets `Hash` unconditionally.
-- Map `EngineCapabilityError` to a client-visible 4xx/503 in the play API.
+- The bot ladder's node-limited MultiPV search and Skill Level play do not
+  go through the search deadline yet; `[limits]` accepts only `hint`.
 - The legacy Skill Level opponent (sessions without `bot_level`) has no
   `UCI_Elo` path; it still needs `Skill Level`.
 - A bot session keeps the `bot_policy_version` it was created with, but its
   moves follow the profile the pool runs now: switching `[ladder]` mid-game
   changes the policy of open sessions.
-- Node-only searches (fast pass, focused pass, lesson verification) have no
-  time limit or deadline, so an engine that ignores `go nodes` (Rodent V 1.2)
-  hangs them. `[limits]` accepts only `hint`.
-- The batch pool keeps an engine process that died and does not restart it:
-  after one `EngineTerminatedError`, later searches fail with "engine process
-  dead".
 - An engine that stops far short of `go nodes N` (Arasan 26.1, about 6k nodes
   for any N) reports `works` with much less search than asked for; no state in
   the compatibility table shows it.

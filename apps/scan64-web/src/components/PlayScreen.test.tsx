@@ -121,6 +121,15 @@ vi.mock('../api/client', () => ({
       this.status = status;
     }
   },
+  BotPlayUnavailableError: class BotPlayUnavailableError extends Error {
+    readonly status = 503;
+    readonly reason: string | null;
+
+    constructor(reason: string | null) {
+      super('Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.');
+      this.reason = reason;
+    }
+  },
   ApiClient: {
     getBots: vi.fn().mockResolvedValue([{ level: 1, name: 'Server beginner', description: 'Friendly bot' }]),
     getPlayerOnboarding: vi.fn(),
@@ -2025,6 +2034,40 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(ApiClient.resumePlaySession).toHaveBeenCalledExactlyOnceWith('sess-123', 'test-player'));
     await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e5'));
     expect(ApiClient.makePlaySessionMove).toHaveBeenCalledTimes(1);
+    network.mockRestore();
+  });
+
+  it('keeps the bot-play-unavailable notice through the refresh and on bot recovery', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
+      player_color: 'white', game_id: 'game-123', opponent_config: {},
+      status: 'active', coach_mode: false, assistance_modes: [] };
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(playSession);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({
+      id: 'game-123', pgn: '1. e4 *', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    const { BotPlayUnavailableError } = await import('../api/client');
+    vi.mocked(ApiClient.resumePlaySession).mockRejectedValue(new BotPlayUnavailableError('no Skill Level'));
+    vi.mocked(syncQueuedMoves).mockImplementation(async () => {
+      window.dispatchEvent(new CustomEvent(QUEUED_MOVE_SYNC_SUCCEEDED, { detail: {
+        queuedMove: { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn: '' },
+        response: null,
+        botPlayUnavailable: 'Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.',
+      } }));
+    });
+    render(<PlayScreen initialSession={playSession} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    network.mockReturnValue(true);
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    const resume = await screen.findByRole('button', { name: 'Resume bot turn' });
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Bot play is unavailable under the active engine profile/);
+    fireEvent.click(resume);
+    await waitFor(() => expect(ApiClient.resumePlaySession).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    expect(screen.getByRole('alert')).toHaveTextContent(/active engine profile/);
+    expect(screen.queryByText(/your move was not replayed/)).not.toBeInTheDocument();
     network.mockRestore();
   });
 

@@ -122,6 +122,11 @@ class PooledStockfishAdapter:
         """
         self.game_token = object()
 
+    def discard(self) -> None:
+        """Forget a process that has exited; the next checkout starts a new one."""
+        self._engine = None
+        self._identity = None
+
     async def quit(self) -> None:
         if self._engine is not None:
             await self._engine.quit()
@@ -215,7 +220,13 @@ class PooledStockfishAdapter:
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
         limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
         raw_result = await search(
-            engine, board, limit, multipv, game=self.game_token, score_scale=self.config.score_scale
+            engine,
+            board,
+            limit,
+            multipv,
+            game=self.game_token,
+            deadline_s=self.config.search_deadline_s,
+            score_scale=self.config.score_scale,
         )
 
         config_dict = dict(
@@ -279,6 +290,10 @@ class EnginePool:
         try:
             await adapter.reset()
             yield adapter
+        except chess.engine.EngineTerminatedError:
+            # The caller still gets the error; later checkouts get a live engine.
+            adapter.discard()
+            raise
         finally:
             self._queue.put_nowait(adapter)
 

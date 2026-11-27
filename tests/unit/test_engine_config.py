@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -305,10 +306,12 @@ async def test_uci_engine_without_multipv_refuses_multiple_lines() -> None:
     alexandria = double("Alexandria 9.1.0", ("Hash", "Threads", "Minimal", "UCI_Chess960"))
     limit = chess.engine.Limit(nodes=1000)
     with pytest.raises(EngineCapabilityError, match="3 analysis lines need the UCI option MultiPV"):
-        await search(alexandria, chess.Board(), limit, 3, score_scale=1.0)
+        await search(alexandria, chess.Board(), limit, 3, deadline_s=5, score_scale=1.0)
     alexandria.analyse.assert_not_awaited()
     alexandria.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
-    assert await search(alexandria, chess.Board(), limit, 1, score_scale=1.0) == [{"pv": ["e2e4"]}]
+    assert await search(alexandria, chess.Board(), limit, 1, deadline_s=5, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
 
 
 @pytest.mark.asyncio
@@ -390,6 +393,157 @@ async def test_hint_limits_come_from_profile_and_key_the_cache(
 def test_shipped_profiles_parse(profile: Path) -> None:
     parsed = load_engine_profile(profile.resolve())
     assert parsed.name and parsed.binary_path
+
+
+def test_explicit_binary_ignores_a_non_stockfish_profile_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        """
+[engine]
+name = "ethereal"
+binary_path = "ethereal"
+threads = 2
+hash_mb = 64
+
+[engine.options]
+EvalFile = "net.bin"
+
+[limits.hint]
+nodes = 1000
+""",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    # The calibrate path: an explicit Stockfish binary under an Ethereal profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish", threads=1, hash_size=16)
+    assert (explicit.name, dict(explicit.options), dict(explicit.limits)) == ("stockfish", {}, {})
+    assert (explicit.threads, explicit.hash_size) == (1, 16)
+    # Unset resources still follow the profile; explicit identity fields win.
+    partial = StockfishConfig(binary_path="/opt/sf/stockfish", name="sf", options={"Hash": 8})
+    assert (partial.threads, partial.hash_size, partial.name) == (2, 64, "sf")
+    assert dict(partial.options) == {"Hash": 8}
+    profile = StockfishConfig()
+    assert (profile.binary_path, profile.name, dict(profile.options)) == (
+        "ethereal",
+        "ethereal",
+        {"EvalFile": "net.bin"},
+    )
+    assert "hint" in profile.limits
+    assert StockfishConfig() == StockfishConfig()
+
+
+@pytest.mark.asyncio
+async def test_node_search_past_its_deadline_is_a_capability_error(tmp_path: Path) -> None:
+    from scan64.providers.engine.uci import EngineCapabilityError
+    from scan64.providers.stockfish.adapter import search
+
+    assert (
+        load_engine_profile(
+            write_profile(
+                tmp_path, "[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = 30\n"
+            )
+        ).search_deadline_s
+        == 30.0
+    )
+    for bad in ("0", "inf", "nan", "true"):
+        with pytest.raises(EngineConfigurationError, match="engine.search_deadline_s"):
+            load_engine_profile(
+                write_profile(
+                    tmp_path,
+                    f"[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = {bad}\n",
+                )
+            )
+
+    async def never_finishes(*args: object, **kwargs: object) -> object:
+        await asyncio.sleep(3600)
+        raise AssertionError("unreachable")
+
+    rodent = double("Rodent V 1.2", ("Hash", "Threads", "MultiPV"))
+    rodent.analyse.side_effect = never_finishes
+    with pytest.raises(
+        EngineCapabilityError,
+        match="Rodent V 1.2 did not finish a search limited to 10000 nodes within 0.05 s",
+    ):
+        await search(
+            rodent,
+            chess.Board(),
+            chess.engine.Limit(nodes=10_000),
+            1,
+            deadline_s=0.05,
+            score_scale=1.0,
+        )
+    rodent.analyse.side_effect = None
+    rodent.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+    timed = chess.engine.Limit(nodes=10_000, time=0.1)
+    assert await search(rodent, chess.Board(), timed, 1, deadline_s=0.05, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_pool_replaces_an_engine_that_terminated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scan64.providers.stockfish.pool import EnginePool
+
+    engines: list[AsyncMock] = []
+
+    async def start_engine(path: str) -> tuple[None, AsyncMock]:
+        engine = double(f"Engine {len(engines)}", ("Threads", "Hash", "MultiPV"))
+        if not engines:
+            engine.analyse.side_effect = chess.engine.EngineTerminatedError("engine process died")
+        else:
+            engine.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
+        engines.append(engine)
+        return None, engine
+
+    monkeypatch.setattr(chess.engine, "popen_uci", start_engine)
+    binary = tmp_path / "engine"
+    binary.write_bytes(b"deterministic UCI test double")
+    pool = EnginePool(StockfishConfig(binary_path=str(binary)), concurrency=1)
+    try:
+        with pytest.raises(chess.engine.EngineTerminatedError):
+            async with pool.acquire() as adapter:
+                await adapter.analyze_position(chess.STARTING_FEN, nodes=100)
+        async with pool.acquire() as adapter:
+            analysis = await adapter.analyze_position(chess.STARTING_FEN, nodes=100)
+        assert analysis.raw_result == [{"pv": ["e2e4"]}]
+        assert len(engines) == 2
+    finally:
+        await pool.close()
+
+
+def test_explicit_binary_takes_stockfish_protocol_scale_and_deadline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = write_profile(
+        tmp_path,
+        "[engine]\nname = 'lc0'\nbinary_path = 'lc0'\nprotocol = 'xboard'\n"
+        "node_scale = 0.002\nsearch_deadline_s = 30\nscore_scale = 2.8\n\n"
+        "[ladder]\nstrength = 'elo'\nelo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]\n"
+        "movetime_ms = 500\n",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(path))
+    assert StockfishConfig().score_scale == 2.8
+    assert StockfishConfig().ladder.strength == "elo"
+    stockfish = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (stockfish.score_scale, stockfish.ladder.strength) == (1.0, "skill")
+    # scan64 calibrate --stockfish: an explicit Stockfish binary under this profile.
+    explicit = StockfishConfig(binary_path="/opt/sf/stockfish")
+    assert (explicit.protocol, explicit.node_scale, explicit.search_deadline_s) == (
+        "uci",
+        1.0,
+        120.0,
+    )
+    profile = StockfishConfig()
+    assert (profile.protocol, profile.node_scale, profile.search_deadline_s) == (
+        "xboard",
+        0.002,
+        30.0,
+    )
+    given = StockfishConfig(binary_path="/opt/sf/stockfish", node_scale=0.5, protocol="xboard")
+    assert (given.node_scale, given.protocol) == (0.5, "xboard")
 
 
 def test_ladder_defaults_to_skill_and_parses_elo(tmp_path: Path) -> None:

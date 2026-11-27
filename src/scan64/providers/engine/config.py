@@ -8,10 +8,11 @@ any UCI engine, its extra UCI options and its per-use search limits.
 
 from __future__ import annotations
 
+import math
 import os
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal
@@ -27,6 +28,11 @@ DEFAULT_HASH_MB = 16
 # Scan64's node budgets are sized for an alpha-beta engine's nodes/second. An
 # engine with slow nodes (Lc0, Maia-3) sets ``engine.node_scale`` below 1.
 DEFAULT_NODE_SCALE = 1.0
+# Wall-clock bound on a search limited by nodes or depth only. Such a search
+# has no time limit of its own, so an engine that ignores ``go nodes`` (Rodent
+# V 1.2) would run until killed. Stockfish's largest Scan64 search (1M nodes)
+# takes about a second.
+DEFAULT_SEARCH_DEADLINE_S = 120.0
 # Scan64's centipawn policy (the Lichess win-probability curve) is fitted to
 # Stockfish. ``engine.score_scale`` is this engine's centipawns per Stockfish
 # centipawn (Arasan 26.1 about 2.8); win probability divides by it.
@@ -157,6 +163,7 @@ class EngineProfile:
     threads: int
     hash_size: int
     node_scale: float
+    search_deadline_s: float
     score_scale: float
     options: MappingProxyType[str, UciOptionValue]
     limits: MappingProxyType[str, SearchLimits]
@@ -172,6 +179,7 @@ def _stockfish_profile() -> EngineProfile:
         threads=DEFAULT_THREADS,
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
+        search_deadline_s=DEFAULT_SEARCH_DEADLINE_S,
         score_scale=DEFAULT_SCORE_SCALE,
         options=MappingProxyType({}),
         limits=MappingProxyType({}),
@@ -202,10 +210,30 @@ def _node_scale(table: dict[str, Any], where: str) -> float:
     return float(value)
 
 
+def _search_deadline(table: dict[str, Any], where: str) -> float:
+    value = table.get("search_deadline_s", DEFAULT_SEARCH_DEADLINE_S)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or not value > 0
+    ):
+        # TOML accepts ``inf``, which would remove the bound.
+        raise EngineConfigurationError(
+            f"{where}.search_deadline_s must be a positive finite number"
+        )
+    return float(value)
+
+
 def _score_scale(table: dict[str, Any], where: str) -> float:
     value = table.get("score_scale", DEFAULT_SCORE_SCALE)
-    if isinstance(value, bool) or not isinstance(value, int | float) or not value > 0:
-        raise EngineConfigurationError(f"{where}.score_scale must be a positive number")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or not value > 0
+    ):
+        raise EngineConfigurationError(f"{where}.score_scale must be a positive finite number")
     return float(value)
 
 
@@ -278,6 +306,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
             "threads",
             "hash_mb",
             "node_scale",
+            "search_deadline_s",
             "score_scale",
             "options",
         },
@@ -306,6 +335,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
         threads=_positive(engine, "threads", DEFAULT_THREADS, "engine"),
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
+        search_deadline_s=_search_deadline(engine, f"{path}: engine"),
         score_scale=_score_scale(engine, f"{path}: engine"),
         options=MappingProxyType(dict(options)),
         limits=_limits(raw.get("limits"), path),
@@ -334,29 +364,97 @@ def active_engine_profile() -> EngineProfile:
     return _cache[1]
 
 
-@dataclass
+@dataclass(init=False)
 class EngineConfig:
     """Effective engine inputs. Unset fields come from ``active_engine_profile``.
 
     ``StockfishConfig`` is this class; positional and keyword construction
-    (``binary_path``, ``threads``, ``hash_size``) is unchanged.
+    (``binary_path``, ``threads``, ``hash_size``) is unchanged. An explicit
+    ``binary_path`` names a Stockfish binary: unless given, ``name`` is
+    ``stockfish``, ``options`` and ``limits`` are empty, ``protocol`` is UCI and
+    ``node_scale`` and ``search_deadline_s`` are their defaults, so a
+    non-Stockfish profile does not leak its identity, protocol, node scale or
+    deadline onto that binary (``scan64 calibrate --stockfish``).
     """
 
-    binary_path: str = field(default_factory=lambda: active_engine_profile().binary_path)
-    threads: int = field(default_factory=lambda: active_engine_profile().threads)
-    hash_size: int = field(default_factory=lambda: active_engine_profile().hash_size)
-    name: str = field(default_factory=lambda: active_engine_profile().name)
-    node_scale: float = field(default_factory=lambda: active_engine_profile().node_scale)
-    score_scale: float = field(default_factory=lambda: active_engine_profile().score_scale)
-    protocol: EngineProtocolName = field(default_factory=lambda: active_engine_profile().protocol)
-    options: Mapping[str, UciOptionValue] = field(
-        default_factory=lambda: active_engine_profile().options
-    )
-    limits: Mapping[str, SearchLimits] = field(
-        default_factory=lambda: active_engine_profile().limits
-    )
-    # Bot play only: not part of ``fingerprint``, which keys analysis results.
-    ladder: LadderSettings = field(default_factory=lambda: active_engine_profile().ladder)
+    binary_path: str
+    threads: int
+    hash_size: int
+    name: str
+    node_scale: float
+    protocol: EngineProtocolName
+    search_deadline_s: float
+    ladder: LadderSettings
+    score_scale: float
+    options: Mapping[str, UciOptionValue]
+    limits: Mapping[str, SearchLimits]
+
+    def __init__(
+        self,
+        binary_path: str | None = None,
+        threads: int | None = None,
+        hash_size: int | None = None,
+        name: str | None = None,
+        options: Mapping[str, UciOptionValue] | None = None,
+        limits: Mapping[str, SearchLimits] | None = None,
+        node_scale: float | None = None,
+        protocol: EngineProtocolName | None = None,
+        search_deadline_s: float | None = None,
+        ladder: LadderSettings | None = None,
+        score_scale: float | None = None,
+    ) -> None:
+        explicit_binary = binary_path is not None
+        self.binary_path = (
+            binary_path if binary_path is not None else active_engine_profile().binary_path
+        )
+        self.threads = threads if threads is not None else active_engine_profile().threads
+        self.hash_size = hash_size if hash_size is not None else active_engine_profile().hash_size
+        if name is not None:
+            self.name = name
+        else:
+            self.name = DEFAULT_ENGINE_NAME if explicit_binary else active_engine_profile().name
+        if options is not None:
+            self.options = options
+        else:
+            self.options = (
+                MappingProxyType({}) if explicit_binary else active_engine_profile().options
+            )
+        if limits is not None:
+            self.limits = limits
+        else:
+            self.limits = (
+                MappingProxyType({}) if explicit_binary else active_engine_profile().limits
+            )
+        if node_scale is not None:
+            self.node_scale = node_scale
+        else:
+            self.node_scale = (
+                DEFAULT_NODE_SCALE if explicit_binary else active_engine_profile().node_scale
+            )
+        if protocol is not None:
+            self.protocol = protocol
+        else:
+            self.protocol = (
+                DEFAULT_PROTOCOL if explicit_binary else active_engine_profile().protocol
+            )
+        if search_deadline_s is not None:
+            self.search_deadline_s = search_deadline_s
+        else:
+            self.search_deadline_s = (
+                DEFAULT_SEARCH_DEADLINE_S
+                if explicit_binary
+                else active_engine_profile().search_deadline_s
+            )
+        if ladder is not None:
+            self.ladder = ladder
+        else:
+            self.ladder = LadderSettings() if explicit_binary else active_engine_profile().ladder
+        if score_scale is not None:
+            self.score_scale = score_scale
+        else:
+            self.score_scale = (
+                DEFAULT_SCORE_SCALE if explicit_binary else active_engine_profile().score_scale
+            )
 
     def fingerprint(self) -> tuple[object, ...]:
         """Process-local identity of every input that can change a search result."""

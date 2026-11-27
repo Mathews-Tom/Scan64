@@ -4,6 +4,8 @@
 ``EngineConfig``/``UciEngineAdapter``; see ``scan64.providers.engine``.
 """
 
+import asyncio
+from collections.abc import Coroutine
 from typing import Any, Protocol, runtime_checkable
 
 import chess
@@ -71,6 +73,7 @@ async def search(
     multipv: int,
     game: object | None = None,
     *,
+    deadline_s: float,
     score_scale: float,
 ) -> list[dict[str, Any]]:
     """Run one search and return every MultiPV line in stored form.
@@ -81,6 +84,10 @@ async def search(
     argument. A request for more lines than either engine can give is a
     capability error; no single-line substitute is ever returned for a
     multi-line request.
+
+    A search without a time limit must finish within ``deadline_s`` seconds;
+    otherwise it is stopped and the engine is reported as not honouring its
+    node or depth limit.
     """
     if is_xboard(engine):
         if multipv > 1:
@@ -88,15 +95,34 @@ async def search(
                 f"{multipv} analysis lines need MultiPV, which "
                 f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
             )
-        single = await engine.analyse(board, limit, game=game)
+        single = await bounded(engine, engine.analyse(board, limit, game=game), limit, deadline_s)
         return lines_from_result(single, board.turn, score_scale=score_scale)
     if multipv > 1 and not declares(engine, "MultiPV"):
         raise EngineCapabilityError(
             f"{multipv} analysis lines need the UCI option MultiPV, which "
             f"{engine.id.get('name', 'the configured engine')} does not declare"
         )
-    result = await engine.analyse(board, limit, multipv=multipv, game=game)
+    result = await bounded(
+        engine, engine.analyse(board, limit, multipv=multipv, game=game), limit, deadline_s
+    )
     return lines_from_result(result, board.turn, score_scale=score_scale)
+
+
+async def bounded[T](
+    engine: Engine, search: Coroutine[Any, Any, T], limit: chess.engine.Limit, deadline_s: float
+) -> T:
+    """``search`` under ``deadline_s`` when ``limit`` sets no time of its own."""
+    if limit.time is not None:
+        return await search
+    try:
+        return await asyncio.wait_for(search, deadline_s)
+    except TimeoutError as error:
+        bound = f"{limit.nodes} nodes" if limit.nodes is not None else f"depth {limit.depth}"
+        raise EngineCapabilityError(
+            f"{engine.id.get('name', 'the configured engine')} did not finish a search limited "
+            f"to {bound} within {deadline_s:g} s; Scan64 sizes its searches by node budget, "
+            "so the engine must honour go nodes"
+        ) from error
 
 
 class StockfishAdapter:
@@ -164,7 +190,12 @@ class StockfishAdapter:
             self._identity_signature = signature
             limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
             raw_result = await search(
-                engine, chess.Board(fen), limit, multipv, score_scale=self.config.score_scale
+                engine,
+                chess.Board(fen),
+                limit,
+                multipv,
+                deadline_s=self.config.search_deadline_s,
+                score_scale=self.config.score_scale,
             )
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
