@@ -494,6 +494,12 @@ class StoredEvaluations:
                 _legal_push(before, line.moves[0]),
                 _entry_evaluation(line, root_is_learner=True, source="mate_source_pass"),
             )
+        # Evidence stored before #367 lacks the fast and reply scores; the line
+        # pass scores those positions too.
+        if isinstance(fast, UnknownEvaluation):
+            fast = by_position.get(_position_key(before), UNKNOWN)
+        if isinstance(reply, UnknownEvaluation) and after is not None:
+            reply = by_position.get(_position_key(after), UNKNOWN)
         return cls(before=fast, after_played=reply, by_position=by_position)
 
     def after(self, board: chess.Board) -> CentipawnEvaluation | MateEvaluation | UnknownEvaluation:
@@ -551,13 +557,17 @@ def unscored_line_positions(
 ) -> list[str]:
     """FENs along the verified lines of ``payloads`` that no stored search scored.
 
-    Ordered by ply, then by line, so a caller that stops early has scored the
+    The lines' start (the position before the learner's move) is included when
+    unscored. Ordered by ply, then by line, so a caller that stops early has scored the
     plies nearest each line's start. A position appears once. Game-over
     positions are skipped: the move facts state checkmate or stalemate.
     """
     by_ply: dict[int, dict[str, str]] = {}
     for payload in payloads:
         evaluations = StoredEvaluations.from_payload(before, payload, played)
+        if isinstance(evaluations.before, UnknownEvaluation):
+            # Each line's start: the position before the learner's move.
+            by_ply.setdefault(0, {}).setdefault(_position_key(before), before.fen())
         for _origins, moves, _full in verified_lines(before, payload):
             replay = before.copy(stack=False)
             for ply, uci in enumerate(moves, start=1):
