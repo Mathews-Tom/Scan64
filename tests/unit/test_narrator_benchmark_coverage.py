@@ -2,12 +2,25 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
+import chess
 import pytest
+from chess_lesson_spec import ExplanationClaim
 
-from benchmarks.narrator.run_benchmark import coverage, key_facts
+from benchmarks.narrator.run_benchmark import (
+    _claim_record,
+    coverage,
+    key_facts,
+    load_config,
+    load_positions,
+    run_coverage,
+    slot_coverage,
+)
+from scan64.explanations.assembly import grounding_context_for
 
-POSITIONS = Path(__file__).resolve().parents[2] / "benchmarks/narrator/positions.json"
+ROOT = Path(__file__).resolve().parents[2]
+POSITIONS = ROOT / "benchmarks/narrator/positions.json"
 
 
 def _payload(position_id: str) -> dict[str, object]:
@@ -60,3 +73,52 @@ def test_every_benchmark_position_has_three_key_facts() -> None:
     for item in positions:
         facts = key_facts(item["evidence"][0]["payload"])
         assert facts.played and facts.key_move and facts.result, item["position_id"]
+
+
+# --- Slot pipeline (#386) ----------------------------------------------------------
+
+
+def _position(position_id: str) -> Any:
+    config = load_config(ROOT / "benchmarks/narrator/narrator.toml")
+    return next(p for p in load_positions(config.positions_file) if p.position_id == position_id)
+
+
+def _slot_records(text: str) -> list[dict[str, Any]]:
+    position = _position(MISSED_CAPTURE)
+    context = grounding_context_for(position.diagnosis, list(position.evidence), position.fen)
+    claim = ExplanationClaim(
+        text=text, evidence_ref=position.diagnosis.evidence_refs[0], disclosure_level=1
+    )
+    record = _claim_record(claim, context, chess.Board(context.fen))
+    slots: list[dict[str, Any]] = record["slots"]
+    return slots
+
+
+def test_claim_records_keep_the_slots_and_their_rendered_values() -> None:
+    slots = _slot_records("You played {played}, but {capture:best}. {nope} too.")
+    assert [slot["name"] for slot in slots] == ["played", "capture:best", "nope"]
+    assert slots[0]["value"] == "b5" and slots[0]["moves"] == ["b6b5"]
+    assert slots[1]["value"] == "bxc5 captures the white queen on c5"
+    assert slots[2]["value"] is None
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("You played {played}, but {capture:best}.", 1.0),
+        ("You played {played}; {best} was stronger.", 2 / 3),
+        ("{mistake}: slow down.", 0.0),
+        # An unlisted slot states nothing; prose outside slots counts for nothing.
+        ("{nope} was the queen move bxc5.", 0.0),
+    ],
+)
+def test_slot_coverage_counts_the_facts_the_slots_state(text: str, expected: float) -> None:
+    facts = key_facts(_payload(MISSED_CAPTURE))
+    assert slot_coverage(_slot_records(text), facts) == pytest.approx(expected)
+
+
+def test_records_without_slots_keep_the_claim_text_count() -> None:
+    facts = key_facts(_payload(MISSED_CAPTURE))
+    claims = _claims("bxc5 takes the queen.")
+    assert run_coverage({"claims": claims}, facts) == coverage(claims, facts)
+    assert run_coverage({"claims": claims, "slots_used": []}, facts) == 0.0

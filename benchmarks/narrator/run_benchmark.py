@@ -48,6 +48,7 @@ import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
 from scan64.explanations import assembly
+from scan64.explanations.slots import slot_names
 from scan64.explanations.validator import (
     _SAN_TOKEN,
     GroundedExplanationContext,
@@ -89,6 +90,8 @@ CHESS_FACT_REASONS = frozenset(
         "tactic_not_supported",
         "wrong_side_to_move",
         "unparsed_chess_token",
+        # Slot path (#386): chess content written as prose instead of a slot.
+        "chess_token_outside_slot",
     }
 )
 
@@ -464,6 +467,25 @@ def _parses(board: chess.Board, san: str) -> bool:
 _SAN_TOKEN_RE = re.compile(_SAN_TOKEN)
 
 
+def _claim_slots(claim: Any, context: GroundedExplanationContext) -> list[dict[str, Any]]:
+    """The slots a claim names, with the code-rendered value (``None``: not listed)."""
+    if context.slots is None:
+        return []
+    listed = context.slots.slots_for(claim.evidence_ref)
+    records = []
+    for name in slot_names(claim.text):
+        slot = listed.get(name)
+        records.append(
+            {
+                "evidence_ref": claim.evidence_ref,
+                "name": name,
+                "value": slot.value if slot is not None else None,
+                "moves": list(slot.moves) if slot is not None else [],
+            }
+        )
+    return records
+
+
 def _claim_record(
     claim: Any, context: GroundedExplanationContext, board: chess.Board
 ) -> dict[str, Any]:
@@ -484,6 +506,7 @@ def _claim_record(
         "rejection_reason": reason,
         "rejection_message": message,
         "san_tokens": san,
+        "slots": _claim_slots(claim, context),
     }
 
 
@@ -560,6 +583,13 @@ async def run_one(
         "think_tag_in_content": "<think>" in str((body.get("message") or {}).get("content", "")),
         "explanation_text": explanation.text if explanation is not None else None,
         "claims": claims,
+        # Every slot the generated claims name, in claim order (#386). Present
+        # only in records of the slot pipeline; coverage counts from it.
+        **(
+            {"slots_used": [slot for claim in claims for slot in claim["slots"]]}
+            if context.slots is not None
+            else {}
+        ),
     }
 
 
@@ -706,7 +736,9 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
 # one vague true claim passes. Coverage counts how many of three key engine facts
 # an accepted answer states: the played move, the engine's key move, and the
 # result (piece, check, mate or tactic). A move counts in UCI, in SAN, or in the
-# claim's own line.
+# claim's own line. Records of the slot pipeline (#386) carry ``slots_used`` and
+# are counted from the slots instead (``slot_coverage``); older records keep the
+# claim-text count, so their summaries do not change.
 
 _PIECE_NAMES = {"p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king"}
 _TACTIC_NAMES = {
@@ -794,6 +826,32 @@ def coverage(claims: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
     return sum(stated) / len(stated)
 
 
+def slot_coverage(slots: Sequence[dict[str, Any]], facts: KeyFacts) -> float:
+    """Share of the three key facts stated by the slots an answer uses (#386).
+
+    A move counts when a used slot states it (its UCI moves or its rendered
+    SAN); the result counts when a used slot's rendered value names it. Prose
+    outside the slots holds no chess content, so it adds nothing.
+    """
+    listed = [slot for slot in slots if slot.get("value") is not None]
+    text = " ".join(str(slot["value"]) for slot in listed)
+    moves = [move for slot in listed for move in slot.get("moves", [])]
+    lowered = text.lower()
+    stated = (
+        _states_move(facts.played, text, moves),
+        _states_move(facts.key_move, text, moves),
+        any(re.search(rf"\b{re.escape(word)}", lowered) for word in facts.result),
+    )
+    return sum(stated) / len(stated)
+
+
+def run_coverage(run: dict[str, Any], facts: KeyFacts) -> float:
+    """Slot coverage for slot-pipeline records; claim-text coverage for older records."""
+    if "slots_used" in run:
+        return slot_coverage(run["slots_used"], facts)
+    return coverage(run["claims"], facts)
+
+
 def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
     raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
     return {
@@ -824,7 +882,7 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         san = [token for claim in claims for token in claim["san_tokens"]]
         latencies = [run["latency_s"] for run in runs]
         accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
-        covered = [coverage(run["claims"], facts[run["position_id"]]) for run in accepted_runs]
+        covered = [run_coverage(run, facts[run["position_id"]]) for run in accepted_runs]
         by_code: dict[str, float] = {}
         for code in sorted({run["code"] for run in runs}):
             subset = [run for run in runs if run["code"] == code]
