@@ -1,10 +1,10 @@
 """A second open-source UCI engine runs the full analysis path by configuration only.
 
 The engine binary is not bundled. Build Ethereal (GPL-3.0) as described in
-docs/engines.md, or point ``SCAN64_TEST_SECOND_ENGINE`` at any UCI engine
-binary. Outside CI the tests skip when neither exists. In CI (``CI`` set, as
-on GitHub Actions) a missing engine or Stockfish fails the tests instead: the CI
-job builds Ethereal and sets ``SCAN64_TEST_SECOND_ENGINE``.
+docs/engines.md, or point ``SCAN64_TEST_SECOND_ENGINE`` at any UCI engine.
+Outside CI the tests skip when neither exists. In CI (``CI`` set, as on GitHub
+Actions) a missing engine or Stockfish fails the tests instead. CI points
+``SCAN64_TEST_SECOND_ENGINE`` at ``tests/fixtures/scripted_uci_engine.py``.
 """
 
 from __future__ import annotations
