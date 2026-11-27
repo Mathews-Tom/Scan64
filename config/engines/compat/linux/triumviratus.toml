@@ -1,0 +1,9 @@
+# Linux compat set (#411): the network is loaded from an external file.
+# The wrapper sets TRIUMV_SHM_DIR (a profile cannot set environment variables);
+# without it the engine shares its 267 MB network through /dev/shm.
+# EvalFile keeps its default: the engine resolves nn-consilium-plebis.nnue next
+# to its binary, whatever the working directory.
+[engine]
+name = "triumviratus"
+binary_path = "~/.local/opt/engines/triumviratus/triumviratus-shm"
+
