@@ -207,3 +207,33 @@ async def test_foreign_archive_cannot_seed_same_owner_reuse(
     db_session.refresh(source)
     assert source.model_dump() == snapshot
     assert db_session.exec(select(EngineAnalysis)).all() == [source]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("same_engine", [True, False])
+async def test_prefetched_line_positions_reuse_only_the_same_engine(
+    db_session: Session, same_engine: bool
+) -> None:
+    """#367: a line position is off the game's moves; prefetch loads its saved search."""
+    owner = "line-owner"
+    _, _, _ = await saved_analysis(db_session, owner)
+    line_board = chess.Board()
+    for move in ("e2e4", "e7e5", "g1f3"):
+        line_board.push_uci(move)
+    line_fen = line_board.fen()
+    earlier = Game(pgn="", moves=["d2d4"], owner_player_id=owner, owner_color="white")
+    line_position = ingest_fen(line_fen, earlier.id)
+    saved = await IdentifiedAdapter().analyze_position(line_fen, nodes=10_000)
+    saved.position_id = line_position.id
+    db_session.add_all([earlier, line_position, saved])
+    db_session.commit()
+
+    game = Game(pgn="", moves=["e2e4"], owner_player_id=owner, owner_color="white")
+    adapter = IdentifiedAdapter()
+    if not same_engine:
+        adapter.identity["engine_version"] = "sha256:" + "c" * 64
+    batch = BatchAnalysisAdapter(adapter, game, db_session)
+    batch.prefetch(db_session, [line_fen])
+    result = await batch.analyze_position(line_fen, nodes=10_000)
+    assert adapter.calls == (0 if same_engine else 1)
+    assert result.config["engine_version"] == adapter.identity["engine_version"]

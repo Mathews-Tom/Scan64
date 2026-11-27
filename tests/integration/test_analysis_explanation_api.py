@@ -39,9 +39,46 @@ RECORDING = json.loads(
 POSITIONS: dict[str, dict[str, Any]] = RECORDING["positions"]
 
 
+LINE_RECORDING = json.loads(
+    (Path(__file__).parents[1] / "fixtures/analysis_board_line_evaluations.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+
+def recorded_line_searches(
+    boards: list[chess.Board], *, deadline: float
+) -> list[EngineAnalysis | None]:
+    """The recorded per-move searches along the recorded lines (#367); no engine runs."""
+    by_position = {
+        (chess.Board(POSITIONS[name]["fen"]).fen(), tuple(item["moves"])): item["raw_result"]
+        for name, items in LINE_RECORDING["positions"].items()
+        for item in items
+    }
+    return [
+        EngineAnalysis(
+            config=LINE_RECORDING["config"],
+            raw_result=by_position[
+                (board.root().fen(), tuple(move.uci() for move in board.move_stack))
+            ],
+        )
+        for board in boards
+    ]
+
+
 @pytest.fixture(autouse=True)
 def _no_operator_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _recorded_line_searches(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # After ``client``: the app's lifespan creates the pool manager.
+    monkeypatch.setattr(
+        app.state.engine_pool_manager,
+        "analyze_hint_positions",
+        AsyncMock(side_effect=recorded_line_searches),
+    )
 
 
 def register(session: Session, player_id: str = PLAYER) -> dict[str, str]:
@@ -359,3 +396,39 @@ def test_playwright_fixture_is_the_current_template_response(
     assert response.json() == expected, (
         "regenerate: uv run python tests/fixtures/write_analysis_explanation_e2e.py"
     )
+
+
+def test_every_ply_up_to_the_cut_is_scored_within_the_deadline(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = register(db_session)
+    manager = app.state.engine_pool_manager
+    monkeypatch.setattr(manager, "analyze_hint", recorded("castling_choice"))
+    response = client.post(ENDPOINT, headers=headers, json=body("castling_choice"))
+    assert response.status_code == 200, response.text
+    facts = BoardLinesFacts.model_validate(response.json()["facts"])
+    for line in facts.lines:
+        assert all(
+            (move.evaluation_after.status == "unknown") == (move.ply > 8) for move in line.moves
+        )
+        assert line.evaluation_change is not None
+    (boards,), options = manager.analyze_hint_positions.await_args
+    loop_deadline = options["deadline"]
+    assert boards and isinstance(loop_deadline, float)
+
+
+def test_an_expired_deadline_leaves_later_plies_unknown(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real pool method: with no time left it searches nothing and the request succeeds."""
+    headers = register(db_session)
+    manager = app.state.engine_pool_manager
+    monkeypatch.setattr(manager, "analyze_hint", recorded("start"))
+    monkeypatch.delattr(manager, "analyze_hint_positions")
+    monkeypatch.setattr(endpoint_module, "HINT_DEADLINE_S", 0.0)
+    response = client.post(ENDPOINT, headers=headers, json=body("start"))
+    assert response.status_code == 200, response.text
+    facts = BoardLinesFacts.model_validate(response.json()["facts"])
+    for line in facts.lines:
+        assert line.moves[0].evaluation_after.status != "unknown"
+        assert all(move.evaluation_after.status == "unknown" for move in line.moves[1:])

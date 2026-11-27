@@ -493,10 +493,26 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 40,
+              "source": "line_pass"
             }
           }
         ],
+        "evaluation_change": {
+          "start": {
+            "status": "centipawns",
+            "centipawns": 41,
+            "source": "analysis_board_pass"
+          },
+          "end": {
+            "status": "centipawns",
+            "centipawns": 40,
+            "source": "line_pass"
+          },
+          "end_ply": 2,
+          "change_cp": -1
+        },
         "outcome": {
           "material_change": 0,
           "material_at_end": {
@@ -587,7 +603,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 31,
+              "source": "line_pass"
             }
           },
           {
@@ -609,7 +627,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 29,
+              "source": "line_pass"
             }
           },
           {
@@ -631,7 +651,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 29,
+              "source": "line_pass"
             }
           },
           {
@@ -653,7 +675,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 27,
+              "source": "line_pass"
             }
           },
           {
@@ -675,7 +699,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 39,
+              "source": "line_pass"
             }
           },
           {
@@ -697,7 +723,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 29,
+              "source": "line_pass"
             }
           },
           {
@@ -719,7 +747,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 37,
+              "source": "line_pass"
             }
           },
           {
@@ -941,6 +971,20 @@
             }
           }
         ],
+        "evaluation_change": {
+          "start": {
+            "status": "centipawns",
+            "centipawns": 41,
+            "source": "analysis_board_pass"
+          },
+          "end": {
+            "status": "centipawns",
+            "centipawns": 37,
+            "source": "line_pass"
+          },
+          "end_ply": 8,
+          "change_cp": -4
+        },
         "outcome": {
           "material_change": 0,
           "material_at_end": {
@@ -973,6 +1017,13 @@
             }
           ],
           "engine_swing_cp": -6,
+          "swings": [
+            {
+              "compared_with": "best",
+              "swing_cp": -6,
+              "source": "points"
+            }
+          ],
           "changes": [
             {
               "key": "mobility",
@@ -1058,7 +1109,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 26,
+              "source": "line_pass"
             }
           },
           {
@@ -1080,7 +1133,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 30,
+              "source": "line_pass"
             }
           },
           {
@@ -1102,7 +1157,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 28,
+              "source": "line_pass"
             }
           },
           {
@@ -1124,7 +1181,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 30,
+              "source": "line_pass"
             }
           },
           {
@@ -1152,7 +1211,9 @@
               }
             ],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 33,
+              "source": "line_pass"
             }
           },
           {
@@ -1178,7 +1239,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 25,
+              "source": "line_pass"
             }
           },
           {
@@ -1204,7 +1267,9 @@
             },
             "new_threats": [],
             "evaluation_after": {
-              "status": "unknown"
+              "status": "centipawns",
+              "centipawns": 28,
+              "source": "line_pass"
             }
           },
           {
@@ -1370,6 +1435,20 @@
             }
           }
         ],
+        "evaluation_change": {
+          "start": {
+            "status": "centipawns",
+            "centipawns": 41,
+            "source": "analysis_board_pass"
+          },
+          "end": {
+            "status": "centipawns",
+            "centipawns": 28,
+            "source": "line_pass"
+          },
+          "end_ply": 8,
+          "change_cp": -13
+        },
         "outcome": {
           "material_change": 0,
           "material_at_end": {
@@ -1402,6 +1481,13 @@
             }
           ],
           "engine_swing_cp": -11,
+          "swings": [
+            {
+              "compared_with": "best",
+              "swing_cp": -11,
+              "source": "points"
+            }
+          ],
           "changes": []
         }
       }
