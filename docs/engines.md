@@ -152,7 +152,10 @@ are keyed on the effective engine inputs:
 
 - `engine_version`: SHA-256 of the executable (embedded networks included).
 - `network`: SHA-256 of external network/weights files named by `EvalFile`,
-  `EvalFileSmall` or `WeightsFile` when those files exist.
+  `EvalFileSmall`, `WeightsFile` or Arasan's `NNUE file` when those files
+  exist. A relative path is resolved where its engine loads it: the working
+  directory, then the executable's directory, for the first three; only the
+  executable's directory for `NNUE file` (Arasan 26.1 `globals.cpp`).
 - `options`: every UCI option value the process holds after configuration,
   including profile options, with the full-strength overrides applied.
 - `nodes`, `depth`, `time_ms`, `multipv` and the full FEN.
