@@ -40,6 +40,7 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
 )
 from scan64.explanations.facts import (
+    MAX_LINE_PLIES,
     UNKNOWN,
     CentipawnEvaluation,
     ColourName,
@@ -74,6 +75,12 @@ COMPARISON_EVIDENCE_ID = "comparison"
 # The explanation is requested explicitly and shown at once, as in assembly.py.
 _FULL_DISCLOSURE_HINT_LEVEL = 3
 _MAX_TEMPLATE_THREATS = 2
+# The narrator prompt holds per-move facts for this many plies of each line, as
+# the lesson prompt does (#388). ``uci`` and ``outcome`` still cover the whole
+# line, so a claim can cite it all. Full move facts for four 27-ply lines are
+# about 11,000 tokens and do not fit the default 12288-token Ollama context
+# with the answer; the cut keeps the largest recorded prompt near 6,000.
+PROMPT_MOVE_PLIES = MAX_LINE_PLIES
 
 
 class BoardLinesError(ValueError):
@@ -192,7 +199,11 @@ class BoardLineFacts(_Facts):
     uci: tuple[str, ...] = Field(
         min_length=1, description="The full engine line. Cite it, or a prefix, as a claim line."
     )
-    moves: tuple[MoveFacts, ...] = Field(min_length=1)
+    moves: tuple[MoveFacts, ...] = Field(
+        min_length=1,
+        description=f"Facts for the moves of uci, in order. The narrator prompt holds the first "
+        f"{PROMPT_MOVE_PLIES} only; outcome covers the whole line.",
+    )
     outcome: LineOutcome
 
 
@@ -213,6 +224,21 @@ class BoardLinesFacts(_Facts):
     def to_prompt_json(self) -> str:
         """Compact JSON; fields equal to their schema default are omitted."""
         return self.model_dump_json(exclude_defaults=True)
+
+    def for_prompt(self) -> BoardLinesFacts:
+        """These facts with each line's ``moves`` cut to ``PROMPT_MOVE_PLIES``.
+
+        ``uci``, ``outcome`` and the scores are unchanged; the response, the
+        template and the grounding keep using the full facts.
+        """
+        return self.model_copy(
+            update={
+                "lines": tuple(
+                    line.model_copy(update={"moves": line.moves[:PROMPT_MOVE_PLIES]})
+                    for line in self.lines
+                )
+            }
+        )
 
 
 def board_lines_facts_schema() -> dict[str, Any]:
@@ -544,7 +570,10 @@ BOARD_NARRATOR_SYSTEM_PROMPT = (
     "- lines: engine lines in engine order (rank 1 is best), each from the position. outcome "
     "says what the whole line wins or loses (material_change), the material at its end, its "
     "checks, whether it ends in checkmate or stalemate, and the threats of its first move. "
-    "difference_from_best_cp compares a line with line 1.\n"
+    "difference_from_best_cp compares a line with line 1. moves holds the facts of the first "
+    f"{PROMPT_MOVE_PLIES} plies of uci only: do not name a later move in a claim's text (its "
+    "line may still copy the whole uci list), and take what the rest of the line wins or "
+    "loses from outcome.\n"
     "- Name moves in SAN exactly as given. Name only pieces and squares that appear in the "
     "facts.\n"
     "Answer with claims: explain what each line wins, loses or threatens, then compare the "
@@ -563,7 +592,7 @@ def board_lines_request(facts: BoardLinesFacts) -> ExplanationRequest:
     return ExplanationRequest(
         messages=(
             LLMMessage(role="system", content=BOARD_NARRATOR_SYSTEM_PROMPT),
-            LLMMessage(role="user", content=facts.to_prompt_json()),
+            LLMMessage(role="user", content=facts.for_prompt().to_prompt_json()),
         )
     )
 
@@ -621,6 +650,7 @@ __all__ = [
     "BOARD_SCHEMA_PATH",
     "BOARD_SCHEMA_VERSION",
     "COMPARISON_EVIDENCE_ID",
+    "PROMPT_MOVE_PLIES",
     "BoardLineFacts",
     "BoardLinesError",
     "BoardLinesExplanation",

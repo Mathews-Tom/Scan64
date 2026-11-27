@@ -87,6 +87,14 @@ def test_process_executable_identifies_the_running_interpreter() -> None:
     assert executable is not None
     # On Windows a venv python.exe is a launcher that starts the base interpreter.
     interpreters = {helpers.sys.executable, getattr(helpers.sys, "_base_executable", None)}
+    # A macOS framework build (python.org, Homebrew, actions/setup-python) runs
+    # the Python.app binary inside the framework, so that is the process image.
+    if getattr(helpers.sys, "_framework", None):
+        interpreters.add(
+            packaging.os.path.join(
+                helpers.sys.base_prefix, "Resources", "Python.app", "Contents", "MacOS", "Python"
+            )
+        )
     assert any(executable.samefile(path) for path in interpreters if path)
 
 

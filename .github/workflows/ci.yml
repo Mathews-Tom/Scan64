@@ -59,4 +59,40 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --dir apps/scan64-web exec playwright install --with-deps chromium
       - name: Run repository quality gate
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
         run: scripts/check.sh
+
+  python-macos:
+    # Quality runs the full gate on Linux only. This job runs the Python
+    # suite and strict typing on macOS, so pull requests need no manual Mac
+    # run for platform differences those checks can catch.
+    name: Python (macos-15)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+      - name: Install pinned Stockfish 18
+        run: |
+          stockfish_archive="$RUNNER_TEMP/stockfish-18.tar"
+          stockfish_dir="$RUNNER_TEMP/stockfish"
+          curl --fail --location --retry 3 --output "$stockfish_archive" "https://github.com/official-stockfish/Stockfish/releases/download/sf_18/stockfish-macos-m1-apple-silicon.tar"
+          echo "4d77c4aa3ad9bd1ea8111f2ac5a4620fe7ebf998d6893bf828d49ccd579c8cb0  $stockfish_archive" | shasum -a 256 --check
+          mkdir "$stockfish_dir"
+          tar --extract --file "$stockfish_archive" --directory "$stockfish_dir" --strip-components=1
+          mv "$stockfish_dir/stockfish-macos-m1-apple-silicon" "$stockfish_dir/stockfish"
+          echo "$stockfish_dir" >> "$GITHUB_PATH"
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Sync Python dependencies
+        run: uv sync --frozen --all-groups
+      - name: Run Python tests
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
+        run: uv run pytest -m "not real_model"
+      - name: Run strict typing
+        run: uv run mypy --strict src/

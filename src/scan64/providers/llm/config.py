@@ -10,6 +10,9 @@ from urllib.parse import urlparse
 import httpx
 
 from scan64.providers.llm.adapters import (
+    DEFAULT_OLLAMA_CONTEXT_TOKENS,
+    MAX_OLLAMA_CONTEXT_TOKENS,
+    MIN_OLLAMA_CONTEXT_TOKENS,
     HostedExplanationAdapter,
     LLMExplanationProvider,
     OllamaExplanationAdapter,
@@ -26,6 +29,7 @@ class LLMProviderConfig:
     model: str | None = None
     base_url: str | None = None
     api_key_environment: str | None = None
+    context_tokens: int = DEFAULT_OLLAMA_CONTEXT_TOKENS
 
     @classmethod
     def from_toml(cls, path: Path) -> LLMProviderConfig:
@@ -63,6 +67,8 @@ class LLMProviderConfig:
 
         api_key_environment = raw_llm.get("api_key_environment")
         if provider == "openai":
+            if "context_tokens" in raw_llm:
+                raise LLMConfigurationError("llm.context_tokens applies only to provider ollama")
             if not isinstance(api_key_environment, str) or not api_key_environment:
                 raise LLMConfigurationError(
                     "OpenAI-compatible configuration requires llm.api_key_environment"
@@ -73,7 +79,27 @@ class LLMProviderConfig:
                 base_url=base_url,
                 api_key_environment=api_key_environment,
             )
-        return cls(provider=provider, model=model, base_url=base_url)
+        return cls(
+            provider=provider,
+            model=model,
+            base_url=base_url,
+            context_tokens=_context_tokens(raw_llm.get("context_tokens")),
+        )
+
+
+def _context_tokens(value: object) -> int:
+    if value is None:
+        return DEFAULT_OLLAMA_CONTEXT_TOKENS
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not MIN_OLLAMA_CONTEXT_TOKENS <= value <= MAX_OLLAMA_CONTEXT_TOKENS
+    ):
+        raise LLMConfigurationError(
+            f"llm.context_tokens must be an integer from {MIN_OLLAMA_CONTEXT_TOKENS} "
+            f"to {MAX_OLLAMA_CONTEXT_TOKENS}"
+        )
+    return value
 
 
 def create_llm_provider(
@@ -93,6 +119,7 @@ def create_llm_provider(
             base_url=_validated_base_url(config.base_url, allow_loopback_http=True),
             model=_required_value(config.model, "llm.model"),
             client=client,
+            context_tokens=config.context_tokens,
         )
     if config.provider == "openai":
         environment_values = os.environ if environment is None else environment

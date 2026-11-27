@@ -354,11 +354,12 @@ export class ApiClient {
     return await response.json() as PositionAnalysisRead;
   }
 
-  static async explainPosition(data: PositionExplanationRequest): Promise<PositionExplanationRead> {
+  static async explainPosition(data: PositionExplanationRequest, signal?: AbortSignal): Promise<PositionExplanationRead> {
     const response = await apiFetch(`${apiBase()}/analysis/position/explanation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(data.player_id) },
       body: JSON.stringify(data),
+      ...(signal ? { signal } : {}),
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
