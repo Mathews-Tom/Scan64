@@ -41,8 +41,17 @@ HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
+# Variant, root FEN, moves, Chess960, engine fingerprint, then the narrowed limits.
 HintCacheKey = tuple[
-    str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int, int | None
+    str | None,
+    str,
+    tuple[str, ...],
+    bool,
+    tuple[object, ...],
+    int | None,
+    int | None,
+    int,
+    int | None,
 ]
 
 
@@ -444,6 +453,8 @@ class EnginePoolManager:
         self, board: chess.Board, nodes: int | None = None, depth: int | None = None
     ) -> HintCacheKey:
         return (
+            # The same FEN is a different position under another variant's rules.
+            type(board).uci_variant,
             board.root().fen(en_passant="fen"),
             tuple(move.uci() for move in board.move_stack),
             board.chess960,
