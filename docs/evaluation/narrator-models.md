@@ -103,7 +103,7 @@ Rejection reasons per model (claim counts over 150 calls, from the summary JSON)
 
 ### CPU only
 
-`benchmarks/narrator/results/cpu/summary_20261126_170614.{md,json}`, runs in `runs_20261126_170614.jsonl`, config `benchmarks/narrator/narrator_cpu.toml`. A separate Ollama 0.40.18 server on 127.0.0.1:11436 started with `CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu`; its device discovery listed only `cpu`, and Ollama reported `size_vram` 0 for both models, so no layer ran on the GPU. CPU: Intel Core i9-14900HX, 32 logical cores. First 10 positions x 1 run, same pipeline and module hash as the GPU runs. The summary header names the GPU present in the machine, not one in use.
+`benchmarks/narrator/results/cpu/summary_20261126_170614.{md,json}`, runs in `runs_20261126_170614.jsonl`, config `benchmarks/narrator/narrator_cpu.toml` (removed in `e318b0b`; CPU runs are out of scope, and the file is in the git history). A separate Ollama 0.40.18 server on 127.0.0.1:11436 started with `CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu`; its device discovery listed only `cpu`, and Ollama reported `size_vram` 0 for both models, so no layer ran on the GPU. CPU: Intel Core i9-14900HX, 32 logical cores. First 10 positions x 1 run, same pipeline and module hash as the GPU runs. The summary header names the GPU present in the machine, not one in use.
 
 | Model | Latency p50 / p95 (s) | Within 4 s | Grounding pass (10 calls) |
 |---|---|---|---|
