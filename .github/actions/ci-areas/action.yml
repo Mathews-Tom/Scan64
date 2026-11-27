@@ -1,0 +1,37 @@
+name: CI areas
+description: >-
+  Select the CI areas the changed files can affect, with scripts/ci_areas.py.
+  Pushes, manual runs and pull requests into main select every area. Requires a
+  checkout and the pull-requests read permission.
+outputs:
+  python:
+    description: Backend tests, static checks and the macOS run
+    value: ${{ steps.select.outputs.python }}
+  web:
+    description: Web client build, lint, unit tests and Playwright
+    value: ${{ steps.select.outputs.web }}
+  desktop:
+    description: Desktop shell checks, smoke tests and installer dry runs
+    value: ${{ steps.select.outputs.desktop }}
+runs:
+  using: composite
+  steps:
+    - id: select
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ "$GITHUB_BASE_REF" = main ]; then
+          python3 scripts/ci_areas.py --all | tee -a "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # The files endpoint lists at most 3000 files; select everything above that.
+        count=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .changed_files)
+        if [ "$count" -ge 3000 ]; then
+          python3 scripts/ci_areas.py --all | tee -a "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+          --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed-files"
+        python3 scripts/ci_areas.py < "$RUNNER_TEMP/changed-files" | tee -a "$GITHUB_OUTPUT"

@@ -1,0 +1,32 @@
+# A pull request that changes a path below needs an approval from a listed
+# owner other than its author (CONTRIBUTING.md rule 7). The last matching line
+# decides a path's owners.
+
+# High-risk code: saved data, authentication, data export, import, reset and
+# deletion, the desktop shell, builds and dependencies. The other person approves.
+/src/scan64/persistence/            @Mathews-Tom @sydches
+/src/scan64/api/auth.py             @Mathews-Tom @sydches
+/src/scan64/api/middleware.py       @Mathews-Tom @sydches
+/src/scan64/api/desktop_security.py @Mathews-Tom @sydches
+/src/scan64/api/data_lifecycle.py   @Mathews-Tom @sydches
+/src/scan64/api/progress.py         @Mathews-Tom @sydches
+/src/scan64/desktop_backups.py      @Mathews-Tom @sydches
+/src/scan64/desktop_import.py       @Mathews-Tom @sydches
+/src/scan64/desktop_server.py       @Mathews-Tom @sydches
+/apps/scan64-desktop/               @Mathews-Tom @sydches
+/apps/scan64-web/package.json       @Mathews-Tom @sydches
+/scripts/release/                   @Mathews-Tom @sydches
+/scripts/build-server.py            @Mathews-Tom @sydches
+/scan64-server.spec                 @Mathews-Tom @sydches
+/Dockerfile                         @Mathews-Tom @sydches
+/pyproject.toml                     @Mathews-Tom @sydches
+/uv.lock                            @Mathews-Tom @sydches
+/pnpm-lock.yaml                     @Mathews-Tom @sydches
+
+# The rules: only the owner approves (CONTRIBUTING.md, "Changing the rules").
+/CONTRIBUTING.md                    @Mathews-Tom
+/docs/review-procedure.md           @Mathews-Tom
+/.github/                           @Mathews-Tom
+/scripts/check.sh                   @Mathews-Tom
+/scripts/ci_areas.py                @Mathews-Tom
+/scripts/scan64_coord.py            @Mathews-Tom
