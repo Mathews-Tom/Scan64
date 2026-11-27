@@ -103,12 +103,16 @@ def test_level_policy_legacy_and_maia_cohort_boundaries(
     db_session.commit()
     add_game(db_session, 3, config={"provider": "maia"})
     add_game(db_session, 4, config={"bot_policy_version": "stockfish-error-budget-v2"})
+    arasan = "uci-elo-v1:arasan:1000,1200,1400,1600,1800,2000,2200,2500:500ms"
+    add_game(db_session, 5, config={"bot_policy_version": arasan})
     data = strength(client, auth)
-    assert len(data["bot_cohorts"]) == 4
-    assert {row["bot_policy_version"] for row in data["bot_cohorts"]} == {
-        BOT_POLICY_VERSION,
-        "v1 (unstamped)",
-        "stockfish-error-budget-v2",
+    assert len(data["bot_cohorts"]) == 5
+    # Each cohort is labelled with the engine its recorded policy plays with.
+    assert {(row["bot_policy_version"], row["engine"]) for row in data["bot_cohorts"]} == {
+        (BOT_POLICY_VERSION, "Stockfish"),
+        ("v1 (unstamped)", "Stockfish"),
+        ("stockfish-error-budget-v2", "Stockfish"),
+        (arasan, "Arasan"),
     }
     assert all(row["trend"] == "insufficient_data" for row in data["bot_cohorts"])
     assert next(row for row in data["bot_cohorts"] if row["bot_level"] == 4)["draws"] == 1

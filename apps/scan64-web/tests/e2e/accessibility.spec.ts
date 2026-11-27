@@ -99,7 +99,10 @@ for (const size of [{ width: 320, height: 640 }, { width: 640, height: 320 }]) {
         expect((await board.boundingBox())!.width).toBeLessThanOrEqual(size.width === 320 ? 320 : 400);
       }
       await testInfo.attach('role-name-tree', { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-      await testInfo.attach('reflow', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+      // Viewport capture: a full-page capture asks Chromium to composite beyond the
+      // emulated touch viewport, which fails under load with "Unable to capture
+      // screenshot". Reflow itself is asserted above from scroll widths.
+      await testInfo.attach('reflow', { body: await page.screenshot(), contentType: 'image/png' });
     });
   });
 }
@@ -197,8 +200,19 @@ test('keyboard starts a game, receives opponent reply and opens/closes a hint', 
   await enter(page, input, 'e4');
   await expect(page.getByTestId('chessground-board-san-move-list')).toContainText('e5');
   await tabTo(page, page.getByRole('button', { name: 'Hint', exact: true }));
+  // Record focus at the moment the hint text is committed, before passive effects
+  // run: an Escape pressed as soon as the hint shows must reach the panel.
+  await page.evaluate(() => {
+    const record = window as unknown as { focusAtHint?: string };
+    new MutationObserver((_, observer) => {
+      if (!document.body.textContent?.includes('Develop a piece toward the centre.')) return;
+      record.focusAtHint = document.activeElement?.textContent ?? document.activeElement?.tagName;
+      observer.disconnect();
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
   await page.keyboard.press('Enter');
   await expect(page.getByText('Develop a piece toward the centre.', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { focusAtHint?: string }).focusAtHint)).toBe('Hint');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Hint', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Close hints' })).toHaveCount(0);

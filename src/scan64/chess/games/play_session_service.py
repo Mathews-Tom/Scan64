@@ -38,6 +38,7 @@ from scan64.chess.games.clocks import (
 from scan64.chess.games.models import Game, PlaySession
 from scan64.chess.games.participants import participants, player_color
 from scan64.chess.games.pgn import CorruptGameError, build_pgn
+from scan64.chess.opponents.bot_policy import SKILL_POLICY_VERSION
 from scan64.chess.opponents.protocols import OpponentContext, OpponentPolicy
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
@@ -164,6 +165,12 @@ class PlaySessionService:
             ),
             seed=int(config.get("seed", "0")),
             ply=len(game.moves),
+            # Unstamped ladder sessions predate the Elo path: error budget only.
+            bot_policy_version=(
+                config.get("bot_policy_version", SKILL_POLICY_VERSION)
+                if config.get("provider", "stockfish") == "stockfish" and "bot_level" in config
+                else None
+            ),
         )
         position = Position(
             fen=board.fen(),

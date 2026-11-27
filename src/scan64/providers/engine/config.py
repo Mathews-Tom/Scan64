@@ -17,6 +17,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal
 
+from scan64.chess.opponents.bots import BOT_LEVELS
+
 ENGINE_CONFIG_ENV = "SCAN64_ENGINE_CONFIG"
 STOCKFISH_PATH_ENV = "SCAN64_STOCKFISH_PATH"
 DEFAULT_ENGINE_NAME = "stockfish"
@@ -31,6 +33,10 @@ DEFAULT_NODE_SCALE = 1.0
 # V 1.2) would run until killed. Stockfish's largest Scan64 search (1M nodes)
 # takes about a second.
 DEFAULT_SEARCH_DEADLINE_S = 120.0
+# Scan64's centipawn policy (the Lichess win-probability curve) is fitted to
+# Stockfish. ``engine.score_scale`` is this engine's centipawns per Stockfish
+# centipawn (Arasan 26.1 about 2.8); win probability divides by it.
+DEFAULT_SCORE_SCALE = 1.0
 # Wire protocol of the engine process. XBoard engines get single-line analysis
 # only: python-chess rejects MultiPV over XBoard.
 type EngineProtocolName = Literal["uci", "xboard"]
@@ -83,6 +89,65 @@ class SearchLimits:
             raise EngineConfigurationError("limit multipv must be a positive integer")
 
 
+# How the bot ladder weakens the engine. ``skill``: full-strength MultiPV over
+# every legal move, then Scan64's seeded selection (needs Stockfish's
+# ``Skill Level`` reset and MultiPV). ``elo``: the engine's own
+# ``UCI_LimitStrength``/``UCI_Elo``, one ``UCI_Elo`` per level and a fixed move
+# time, for engines without ``Skill Level`` or that ignore ``go nodes`` (Arasan).
+type LadderStrength = Literal["skill", "elo"]
+LADDER_STRENGTHS: tuple[LadderStrength, ...] = ("skill", "elo")
+DEFAULT_LADDER_STRENGTH: LadderStrength = "skill"
+
+
+@dataclass(frozen=True)
+class LadderSettings:
+    strength: LadderStrength = DEFAULT_LADDER_STRENGTH
+    # ``UCI_Elo`` for levels 1..8, in level order; ``elo`` strength only.
+    elo: tuple[int, ...] = ()
+    movetime_ms: int | None = None
+
+    def elo_for(self, level: int) -> int:
+        if self.strength != "elo":
+            raise EngineConfigurationError("The ladder has no UCI_Elo per level under skill")
+        return self.elo[level - 1]
+
+
+def _ladder(raw: object, config_path: Path) -> LadderSettings:
+    if raw is None:
+        return LadderSettings()
+    if not isinstance(raw, dict):
+        raise EngineConfigurationError(f"{config_path}: [ladder] must be a table")
+    _reject_unknown(raw, {"strength", "elo", "movetime_ms"}, "ladder")
+    strength = raw.get("strength", DEFAULT_LADDER_STRENGTH)
+    if strength == "skill":
+        extra = sorted(set(raw) & {"elo", "movetime_ms"})
+        if extra:
+            raise EngineConfigurationError(
+                f'{config_path}: ladder.{extra[0]} applies only to ladder.strength = "elo"'
+            )
+        return LadderSettings()
+    if strength != "elo":
+        raise EngineConfigurationError(
+            f"{config_path}: ladder.strength must be one of {', '.join(LADDER_STRENGTHS)}"
+        )
+    elo = raw.get("elo")
+    if (
+        not isinstance(elo, list)
+        or len(elo) != len(BOT_LEVELS)
+        or any(isinstance(value, bool) or not isinstance(value, int) for value in elo)
+    ):
+        raise EngineConfigurationError(
+            f"{config_path}: ladder.elo must list {len(BOT_LEVELS)} integers, one per level"
+        )
+    if any(low >= high for low, high in zip(elo, elo[1:], strict=False)):
+        raise EngineConfigurationError(f"{config_path}: ladder.elo must increase with the level")
+    return LadderSettings(
+        strength="elo",
+        elo=tuple(elo),
+        movetime_ms=_positive(raw, "movetime_ms", 0, f"{config_path}: ladder"),
+    )
+
+
 # Uses whose search limits a profile may override. Absent uses keep the
 # caller's built-in budget (for ``hint``: ``scan64.providers.stockfish.pool``).
 KNOWN_USES = frozenset({"hint"})
@@ -99,8 +164,10 @@ class EngineProfile:
     hash_size: int
     node_scale: float
     search_deadline_s: float
+    score_scale: float
     options: MappingProxyType[str, UciOptionValue]
     limits: MappingProxyType[str, SearchLimits]
+    ladder: LadderSettings
     source: Path | None
 
 
@@ -113,8 +180,10 @@ def _stockfish_profile() -> EngineProfile:
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
         search_deadline_s=DEFAULT_SEARCH_DEADLINE_S,
+        score_scale=DEFAULT_SCORE_SCALE,
         options=MappingProxyType({}),
         limits=MappingProxyType({}),
+        ladder=LadderSettings(),
         source=None,
     )
 
@@ -153,6 +222,18 @@ def _search_deadline(table: dict[str, Any], where: str) -> float:
         raise EngineConfigurationError(
             f"{where}.search_deadline_s must be a positive finite number"
         )
+    return float(value)
+
+
+def _score_scale(table: dict[str, Any], where: str) -> float:
+    value = table.get("score_scale", DEFAULT_SCORE_SCALE)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or not value > 0
+    ):
+        raise EngineConfigurationError(f"{where}.score_scale must be a positive finite number")
     return float(value)
 
 
@@ -212,7 +293,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
         raise EngineConfigurationError(f"Engine configuration does not exist: {path}") from error
     except tomllib.TOMLDecodeError as error:
         raise EngineConfigurationError(f"Invalid engine configuration {path}: {error}") from error
-    _reject_unknown(raw, {"engine", "limits"}, "root")
+    _reject_unknown(raw, {"engine", "limits", "ladder"}, "root")
     engine = raw.get("engine")
     if not isinstance(engine, dict):
         raise EngineConfigurationError(f"{path}: an [engine] table is required")
@@ -226,6 +307,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
             "hash_mb",
             "node_scale",
             "search_deadline_s",
+            "score_scale",
             "options",
         },
         "engine",
@@ -254,8 +336,10 @@ def load_engine_profile(path: Path) -> EngineProfile:
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
         search_deadline_s=_search_deadline(engine, f"{path}: engine"),
+        score_scale=_score_scale(engine, f"{path}: engine"),
         options=MappingProxyType(dict(options)),
         limits=_limits(raw.get("limits"), path),
+        ladder=_ladder(raw.get("ladder"), path),
         source=path,
     )
 
@@ -300,6 +384,8 @@ class EngineConfig:
     node_scale: float
     protocol: EngineProtocolName
     search_deadline_s: float
+    ladder: LadderSettings
+    score_scale: float
     options: Mapping[str, UciOptionValue]
     limits: Mapping[str, SearchLimits]
 
@@ -314,6 +400,8 @@ class EngineConfig:
         node_scale: float | None = None,
         protocol: EngineProtocolName | None = None,
         search_deadline_s: float | None = None,
+        ladder: LadderSettings | None = None,
+        score_scale: float | None = None,
     ) -> None:
         explicit_binary = binary_path is not None
         self.binary_path = (
@@ -357,6 +445,16 @@ class EngineConfig:
                 if explicit_binary
                 else active_engine_profile().search_deadline_s
             )
+        if ladder is not None:
+            self.ladder = ladder
+        else:
+            self.ladder = LadderSettings() if explicit_binary else active_engine_profile().ladder
+        if score_scale is not None:
+            self.score_scale = score_scale
+        else:
+            self.score_scale = (
+                DEFAULT_SCORE_SCALE if explicit_binary else active_engine_profile().score_scale
+            )
 
     def fingerprint(self) -> tuple[object, ...]:
         """Process-local identity of every input that can change a search result."""
@@ -367,5 +465,6 @@ class EngineConfig:
             self.threads,
             self.hash_size,
             self.node_scale,
+            self.score_scale,
             tuple(sorted(self.options.items())),
         )

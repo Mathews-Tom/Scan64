@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -7,8 +8,10 @@ import chess
 import chess.engine
 import pytest
 
+from scan64.chess.games.participants import opponent_name
 from scan64.chess.opponents.bot_policy import (
     DEFAULT_BOT_NODES,
+    bot_policy_version,
     choose_ladder_move,
     error_budget,
     sample_candidate,
@@ -17,6 +20,8 @@ from scan64.chess.opponents.bots import BOT_LEVELS, get_bot_level
 from scan64.chess.opponents.protocols import OpponentContext
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.chess.positions.models import Position
+from scan64.providers.engine import EngineCapabilityError
+from scan64.providers.engine.config import LadderSettings
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
 
@@ -259,3 +264,127 @@ async def test_pooled_and_standalone_use_identical_policy(
             assert engine.analyse.await_args.args[1].nodes == DEFAULT_BOT_NODES
     finally:
         await manager.close()
+
+
+ARASAN_ELO = (1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500)
+
+
+def arasan_double(elo_min: int = 1000) -> AsyncMock:
+    """Declared like Arasan 26.1: UCI_Elo strength, no Skill Level."""
+    engine = AsyncMock()
+    engine.id = {"name": "Arasan 26.1"}
+    engine.config = {}
+    engine.options = dict.fromkeys(("Threads", "Hash", "MultiPV", "UCI_LimitStrength"))
+    engine.options["UCI_Elo"] = chess.engine.Option("UCI_Elo", "spin", 3450, elo_min, 3450, [])
+    engine.play.return_value = chess.engine.PlayResult(chess.Move.from_uci("e2e4"), None)
+    return engine
+
+
+def elo_config(tmp_path: Path) -> StockfishConfig:
+    binary = tmp_path / "arasan"
+    binary.write_bytes(b"deterministic UCI test double")
+    return StockfishConfig(
+        binary_path=str(binary),
+        threads=2,
+        name="arasan",
+        ladder=LadderSettings(strength="elo", elo=ARASAN_ELO, movetime_ms=500),
+    )
+
+
+@pytest.mark.asyncio
+async def test_elo_ladder_plays_at_the_level_elo_then_analysis_resets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    engine = arasan_double()
+    engine.analyse.return_value = candidates()[:1]
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    adapter = PooledStockfishAdapter(elo_config(tmp_path))
+    try:
+        await adapter.reset()
+        result = await adapter.play_bot_move(
+            chess.STARTING_FEN, OpponentContext(0, bot_level=3, nodes=5000)
+        )
+        assert result.move == chess.Move.from_uci("e2e4")
+        assert engine.configure.await_args.args[0] == {
+            "Threads": 1,
+            "UCI_LimitStrength": True,
+            "UCI_Elo": 1400,
+        }
+        limit = engine.play.await_args.args[1]
+        assert (limit.time, limit.nodes) == (0.5, None)
+        engine.analyse.assert_not_awaited()
+        await adapter.analyze_position(chess.STARTING_FEN, nodes=123)
+        assert engine.configure.await_args.args[0] == {"Threads": 2, "UCI_LimitStrength": False}
+    finally:
+        await adapter.quit()
+
+
+@pytest.mark.asyncio
+async def test_elo_ladder_fails_on_missing_option_or_out_of_range_elo(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    no_elo = arasan_double()
+    del no_elo.options["UCI_Elo"]
+    narrow = arasan_double(elo_min=1350)
+    for engine, error, message in (
+        (no_elo, EngineCapabilityError, "The Elo bot ladder requires UCI option.s. UCI_Elo"),
+        (narrow, EngineCapabilityError, "level 1 UCI_Elo 1000, outside the 1350-3450"),
+    ):
+        monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+        adapter = PooledStockfishAdapter(elo_config(tmp_path))
+        try:
+            with pytest.raises(error, match=message):
+                await adapter.play_bot_move(chess.STARTING_FEN, OpponentContext(0, bot_level=1))
+            engine.play.assert_not_awaited()
+        finally:
+            await adapter.quit()
+
+
+@pytest.mark.asyncio
+async def test_skill_ladder_on_an_elo_engine_names_the_elo_setting(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    engine = arasan_double()
+    engine.analyse.side_effect = chess.engine.EngineError("No such option: Skill Level")
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    config = dataclasses.replace(elo_config(tmp_path), ladder=LadderSettings())
+    adapter = PooledStockfishAdapter(config)
+    try:
+        with pytest.raises(EngineCapabilityError, match=r'set \[ladder\] strength = "elo"'):
+            await adapter.play_bot_move(chess.STARTING_FEN, OpponentContext(0, bot_level=1))
+    finally:
+        await adapter.quit()
+
+
+def test_policy_version_names_every_elo_ladder_input(tmp_path: Path) -> None:
+    assert bot_policy_version(StockfishConfig(binary_path="x")) == "stockfish-error-budget-v1"
+    assert bot_policy_version(elo_config(tmp_path)) == (
+        "uci-elo-v1:arasan:1000,1200,1400,1600,1800,2000,2200,2500:500ms"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_session_plays_only_under_its_recorded_policy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    engine = arasan_double()
+    monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
+    config = elo_config(tmp_path)
+    adapter = PooledStockfishAdapter(config)
+    try:
+        saved = OpponentContext(0, bot_level=1, bot_policy_version="stockfish-error-budget-v1")
+        with pytest.raises(EngineCapabilityError, match="started under the bot ladder"):
+            await adapter.play_bot_move(chess.STARTING_FEN, saved)
+        engine.play.assert_not_awaited()
+        same = OpponentContext(0, bot_level=1, bot_policy_version=bot_policy_version(config))
+        assert (await adapter.play_bot_move(chess.STARTING_FEN, same)).move is not None
+    finally:
+        await adapter.quit()
+
+
+def test_opponent_name_follows_the_recorded_policy(tmp_path: Path) -> None:
+    elo = {"bot_level": "1", "bot_policy_version": bot_policy_version(elo_config(tmp_path))}
+    assert opponent_name(elo) == "Arasan (level 1: First steps)"
+    skill = {"bot_level": "1", "bot_policy_version": "stockfish-error-budget-v1"}
+    assert opponent_name(skill) == "Stockfish (level 1: First steps)"
+    assert opponent_name({"bot_level": "1"}) == "Stockfish (level 1: First steps)"

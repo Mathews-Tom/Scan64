@@ -1,0 +1,13 @@
+# Qwen3.5-2B fine-tune (joebos/Second-1.0-2B) from a pinned GGUF. Renderer, parser
+# and sampling parameters are copied from the Ollama library qwen3.5:2b Modelfile,
+# so the only difference from the qwen3.5-2b baseline is the weights.
+FROM @GGUF@
+TEMPLATE {{ .Prompt }}
+RENDERER qwen3.5
+PARSER qwen3.5
+PARAMETER top_p 0.95
+PARAMETER presence_penalty 1.5
+PARAMETER temperature 1
+PARAMETER top_k 20
+PARAMETER num_ctx @NUM_CTX@
+PARAMETER num_predict @NUM_PREDICT@
