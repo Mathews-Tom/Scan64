@@ -44,16 +44,17 @@ from scan64.explanations.facts import (
 # One slot occurrence: ``{name}``, ``{kind:arg}`` or ``{kind:arg:arg}``.
 SLOT_TOKEN = re.compile(r"\{\s*(?P<name>[a-z_]+(?::[A-Za-z0-9_-]+){0,2})\s*\}")
 
-# The fixed free-prose rule set (see the module docstring). Any match in the
-# prose outside the slots rejects the claim as ``chess_token_outside_slot``.
-CHESS_PROSE = re.compile(
+# The fixed free-prose rule set (see the module docstring), in two parts.
+#
+# NOTATION is always rejected outside a slot: squares, SAN, UCI, move numbers,
+# evaluations and mate counts all contain a digit ("8.5 pawns", "+150 cp"); the
+# others are mate and check suffixes, figurines and castling notation.
+NOTATION = re.compile(r"\d|[#♔-♟]|\b[O0]-[O0]")
+# CHESS_WORDS outside a slot are rejected unless the position's facts contain
+# the word (the vocabulary rule, ``chess_words_outside_slots``).
+CHESS_WORDS = re.compile(
     "|".join(
         (
-            # Squares, SAN, UCI, move numbers, evaluations and mate counts all
-            # contain a digit; so do "8.5 pawns" and "+150 cp".
-            r"\d",
-            # Mate and check suffixes, castling notation, figurine notation.
-            r"[#♔-♟]|\b[O0]-[O0]",
             r"\b(?:king|queen|rook|bishop|knight|pawn)s?\b",
             r"\b(?:white|black)\b",
             r"\b(?:check|checks|checked|checking|checkmat\w*|mate|mates|mated|mating|stalemat\w*)\b",
@@ -69,6 +70,35 @@ CHESS_PROSE = re.compile(
     ),
     re.IGNORECASE,
 )
+# Both parts: any match is chess content (the #386 blanket rule).
+CHESS_PROSE = re.compile(f"{NOTATION.pattern}|{CHESS_WORDS.pattern}", re.IGNORECASE)
+
+_WORD = re.compile(r"[a-z]+")
+
+
+def _word_form(word: str) -> str:
+    """Lower case, a plural ``s`` removed: ``Threats`` -> ``threat``."""
+    word = word.lower()
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
+
+
+def vocabulary(phrases: Iterable[str]) -> frozenset[str]:
+    """The word forms of ``phrases``: fact names and slot names."""
+    return frozenset(_word_form(w) for phrase in phrases for w in _WORD.findall(phrase.lower()))
+
+
+def chess_words_outside_slots(prose: str, words: frozenset[str]) -> str | None:
+    """The first chess token in ``prose`` that the facts do not contain, else ``None``.
+
+    Notation (digits, ``#``, ``O-O``, figurines) is never allowed. A chess word
+    is allowed when each of its words is in ``words`` (``vocabulary``).
+    """
+    if (notation := NOTATION.search(prose)) is not None:
+        return notation[0]
+    for match in CHESS_WORDS.finditer(prose):
+        if not {_word_form(w) for w in _WORD.findall(match[0].lower())} <= words:
+            return match[0]
+    return None
 
 
 @dataclass(frozen=True)
@@ -96,9 +126,16 @@ class SlotCatalogue:
 
     by_evidence: Mapping[str, Mapping[str, Slot]]
     shared: frozenset[str] = field(default_factory=frozenset)
+    # Fact names per evidence item beyond its slot names: the mistake class,
+    # the evidence tactic and the passed factor changes (vocabulary rule).
+    terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})
+
+    def vocabulary(self, evidence_id: str) -> frozenset[str]:
+        """Words a claim citing ``evidence_id`` may use outside slots."""
+        return vocabulary((*self.slots_for(evidence_id), *self.terms.get(evidence_id, ())))
 
     def names(self) -> frozenset[str]:
         return frozenset(name for slots in self.by_evidence.values() for name in slots)
@@ -309,7 +346,7 @@ def factor_slots(
         Slot(
             f"factor:{change.key}:{suffix or change.compared_with}",
             factor_value(change, side, references[change.compared_with], lead),
-            "",
+            change.name,
             phrase=True,
             source=factors.source,
         )
@@ -399,23 +436,32 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         for line in facts.lines
     }
     by_evidence: dict[str, dict[str, Slot]] = {}
+    terms: dict[str, tuple[str, ...]] = {}
+    factor_names = tuple(change.name for change in facts.factors.changes) if facts.factors else ()
     for item in facts.evidence:
         slots = {slot.name: slot for slot in shared}
         for line_id in item.line_ids:
             slots.update((slot.name, slot) for slot in by_line[line_id])
         slots.update((slot.name, slot) for slot in _evidence_slots(item))
         by_evidence[item.evidence_id] = slots
-    return SlotCatalogue(by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared))
+        tactic = (item.tactic.replace("_", " "),) if item.tactic else ()
+        terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_names)
+    return SlotCatalogue(
+        by_evidence=by_evidence, shared=frozenset(slot.name for slot in shared), terms=terms
+    )
 
 
 __all__ = [
     "CHESS_PROSE",
+    "CHESS_WORDS",
+    "NOTATION",
     "LEARNER",
     "OPPONENT",
     "SLOT_TOKEN",
     "TACTIC_NAMES",
     "Slot",
     "SlotCatalogue",
+    "chess_words_outside_slots",
     "evaluation_value",
     "factor_slots",
     "factor_value",
@@ -428,4 +474,5 @@ __all__ = [
     "prose_outside_slots",
     "render",
     "slot_names",
+    "vocabulary",
 ]

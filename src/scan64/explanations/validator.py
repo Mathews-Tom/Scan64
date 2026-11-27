@@ -6,7 +6,8 @@ checked on one of two paths:
 
 - Slot path (#386, ``context.slots`` set): every slot must name a fact listed
   for the cited evidence item, and the prose outside the slots must hold no
-  chess content (``slots.CHESS_PROSE``). The returned claims hold the rendered
+  chess notation and no chess word the position's facts do not contain
+  (``slots.chess_words_outside_slots``, #408). The returned claims hold the rendered
   text. The claim grammar below is not used.
 - Grammar path (#366, ``context.slots`` unset): claim text is read with a small
   explicit grammar (see ``_validate_claim_text``); any chess token the grammar
@@ -34,9 +35,9 @@ from scan64.explanations.facts import (
     parse_played_move,
 )
 from scan64.explanations.slots import (
-    CHESS_PROSE,
     SLOT_TOKEN,
     SlotCatalogue,
+    chess_words_outside_slots,
     prose_outside_slots,
     render,
 )
@@ -166,11 +167,11 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
-    residue = CHESS_PROSE.search(prose)
+    residue = chess_words_outside_slots(prose, catalogue.vocabulary(evidence_id))
     if residue is not None:
         raise _reject(
             "chess_token_outside_slot",
-            f"states chess content outside a slot: {residue[0]!r}",
+            f"states chess content outside a slot: {residue!r}",
         )
     return render(text, slots)
 
