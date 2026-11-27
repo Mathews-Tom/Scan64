@@ -8,8 +8,9 @@ grounded in the diagnosis's own evidence; a rejected (ungrounded) generation
 falls back to the template rather than surfacing an error or a partial
 explanation. Rejection is expected behaviour, not a failure to suppress: each
 fallback is logged with its reason code (never evidence contents) and counted
-in-process, so the fallback-to-template rate is visible via
-``template_fallback_counts``.
+in-process. Attempts and accepted generations are counted too, per pipeline
+(lessons and Analysis Board lines), so the fallback-to-template rate is visible
+via ``narrator_counts`` and ``GET /v1/diagnostics/narrator``.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ import os
 import threading
 from collections import Counter
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -51,25 +53,92 @@ logger = logging.getLogger(__name__)
 
 TemplateFallbackReason = RejectionReason | Literal["provider_error"]
 
-_template_fallbacks: Counter[str] = Counter()
-_template_fallbacks_lock = threading.Lock()
+NarratorPipeline = Literal["lesson", "board"]
+NARRATOR_PIPELINES: tuple[NarratorPipeline, ...] = ("lesson", "board")
 
 
-def record_template_fallback(reason: TemplateFallbackReason) -> None:
+@dataclass
+class _PipelineTally:
+    attempts: int = 0
+    accepted: int = 0
+    fallbacks: Counter[str] = field(default_factory=Counter)
+
+
+@dataclass(frozen=True)
+class NarratorCounts:
+    """One pipeline's narrator outcomes since process start (counts only, no evidence).
+
+    ``attempts`` counts every provider attempt. Each finished attempt adds one
+    to ``accepted`` or to one fallback reason, so the two sum to ``attempts``
+    except for attempts still in flight or ended by an unexpected exception.
+    """
+
+    attempts: int
+    accepted: int
+    fallbacks: dict[str, int]
+
+    @property
+    def fallback_total(self) -> int:
+        return sum(self.fallbacks.values())
+
+    @property
+    def fallback_rate(self) -> float | None:
+        """Fallbacks per attempt; ``None`` before the first attempt."""
+        return self.fallback_total / self.attempts if self.attempts else None
+
+
+_tallies: dict[NarratorPipeline, _PipelineTally] = {
+    pipeline: _PipelineTally() for pipeline in NARRATOR_PIPELINES
+}
+_tallies_lock = threading.Lock()
+
+
+def record_narrator_attempt(pipeline: NarratorPipeline = "lesson") -> None:
+    """Count one narrator attempt: a configured provider is about to be used."""
+    with _tallies_lock:
+        _tallies[pipeline].attempts += 1
+
+
+def record_narrator_accepted(pipeline: NarratorPipeline = "lesson") -> None:
+    """Count one generation that passed validation and replaced the template."""
+    with _tallies_lock:
+        _tallies[pipeline].accepted += 1
+
+
+def record_template_fallback(
+    reason: TemplateFallbackReason, pipeline: NarratorPipeline = "lesson"
+) -> None:
     """Count and log one template fallback by reason code (never evidence)."""
-    with _template_fallbacks_lock:
-        _template_fallbacks[reason] += 1
+    with _tallies_lock:
+        _tallies[pipeline].fallbacks[reason] += 1
     logger.info(
-        "Explanation generation fell back to the template: reason=%s",
+        "Explanation generation fell back to the template: pipeline=%s reason=%s",
+        pipeline,
         reason,
-        extra={"event": "explanation_template_fallback", "reason": reason},
+        extra={
+            "event": "explanation_template_fallback",
+            "pipeline": pipeline,
+            "reason": reason,
+        },
     )
 
 
 def template_fallback_counts() -> dict[str, int]:
-    """Template fallbacks by reason code since process start."""
-    with _template_fallbacks_lock:
-        return dict(_template_fallbacks)
+    """Template fallbacks by reason code since process start, summed over pipelines."""
+    total: Counter[str] = Counter()
+    with _tallies_lock:
+        for tally in _tallies.values():
+            total.update(tally.fallbacks)
+    return dict(total)
+
+
+def narrator_counts() -> dict[NarratorPipeline, NarratorCounts]:
+    """A consistent snapshot of every pipeline's counts since process start."""
+    with _tallies_lock:
+        return {
+            pipeline: NarratorCounts(tally.attempts, tally.accepted, dict(tally.fallbacks))
+            for pipeline, tally in _tallies.items()
+        }
 
 
 # The explanation is displayed immediately, not gated behind a progressive
@@ -166,6 +235,7 @@ async def _attempt_grounded_generation(
     template_explanation: Explanation,
     voice: NarratorVoice = DEFAULT_NARRATOR_VOICE,
 ) -> Explanation:
+    record_narrator_attempt("lesson")
     try:
         facts = build_narrator_facts(diagnosis, evidence, fen)
     except NarratorFactsError as error:
@@ -176,13 +246,15 @@ async def _attempt_grounded_generation(
     request = _explanation_request(facts, voice)
     try:
         generated = await provider.generate(request)
-        return validate_generated_explanation(generated, context)
+        explanation = validate_generated_explanation(generated, context)
     except GroundedExplanationValidationError as error:
         record_template_fallback(error.reason)
         return template_explanation
     except LLMProviderError:
         record_template_fallback("provider_error")
         return template_explanation
+    record_narrator_accepted("lesson")
+    return explanation
 
 
 async def run_with_explanation_provider[T](

@@ -36,6 +36,8 @@ from pydantic import Field
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.assembly import (
     TemplateFallbackReason,
+    record_narrator_accepted,
+    record_narrator_attempt,
     record_template_fallback,
     run_with_explanation_provider,
     slot_rules,
@@ -700,17 +702,18 @@ async def resolve_board_lines_explanation(
     async def attempt(
         provider: LLMExplanationProvider, chosen: NarratorVoice
     ) -> BoardLinesExplanation:
+        record_narrator_attempt("board")
         try:
             generated = await provider.generate(board_lines_request(facts, chosen))
-            return BoardLinesExplanation(
-                _validated_provider_explanation(generated, facts), "narrator", None
-            )
+            explanation = _validated_provider_explanation(generated, facts)
         except GroundedExplanationValidationError as error:
-            record_template_fallback(error.reason)
+            record_template_fallback(error.reason, "board")
             return BoardLinesExplanation(template.explanation, "template", error.reason)
         except LLMProviderError:
-            record_template_fallback("provider_error")
+            record_template_fallback("provider_error", "board")
             return BoardLinesExplanation(template.explanation, "template", "provider_error")
+        record_narrator_accepted("board")
+        return BoardLinesExplanation(explanation, "narrator", None)
 
     return await run_with_explanation_provider(
         template,
