@@ -25,6 +25,11 @@ DEFAULT_HASH_MB = 16
 # Scan64's node budgets are sized for an alpha-beta engine's nodes/second. An
 # engine with slow nodes (Lc0, Maia-3) sets ``engine.node_scale`` below 1.
 DEFAULT_NODE_SCALE = 1.0
+# Wall-clock bound on a search limited by nodes or depth only. Such a search
+# has no time limit of its own, so an engine that ignores ``go nodes`` (Rodent
+# V 1.2) would run until killed. Stockfish's largest Scan64 search (1M nodes)
+# takes about a second.
+DEFAULT_SEARCH_DEADLINE_S = 120.0
 # Wire protocol of the engine process. XBoard engines get single-line analysis
 # only: python-chess rejects MultiPV over XBoard.
 type EngineProtocolName = Literal["uci", "xboard"]
@@ -92,6 +97,7 @@ class EngineProfile:
     threads: int
     hash_size: int
     node_scale: float
+    search_deadline_s: float
     options: MappingProxyType[str, UciOptionValue]
     limits: MappingProxyType[str, SearchLimits]
     source: Path | None
@@ -105,6 +111,7 @@ def _stockfish_profile() -> EngineProfile:
         threads=DEFAULT_THREADS,
         hash_size=DEFAULT_HASH_MB,
         node_scale=DEFAULT_NODE_SCALE,
+        search_deadline_s=DEFAULT_SEARCH_DEADLINE_S,
         options=MappingProxyType({}),
         limits=MappingProxyType({}),
         source=None,
@@ -130,6 +137,13 @@ def _node_scale(table: dict[str, Any], where: str) -> float:
     value = table.get("node_scale", DEFAULT_NODE_SCALE)
     if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1:
         raise EngineConfigurationError(f"{where}.node_scale must be a number in (0, 1]")
+    return float(value)
+
+
+def _search_deadline(table: dict[str, Any], where: str) -> float:
+    value = table.get("search_deadline_s", DEFAULT_SEARCH_DEADLINE_S)
+    if isinstance(value, bool) or not isinstance(value, int | float) or not value > 0:
+        raise EngineConfigurationError(f"{where}.search_deadline_s must be a positive number")
     return float(value)
 
 
@@ -195,7 +209,16 @@ def load_engine_profile(path: Path) -> EngineProfile:
         raise EngineConfigurationError(f"{path}: an [engine] table is required")
     _reject_unknown(
         engine,
-        {"name", "binary_path", "protocol", "threads", "hash_mb", "node_scale", "options"},
+        {
+            "name",
+            "binary_path",
+            "protocol",
+            "threads",
+            "hash_mb",
+            "node_scale",
+            "search_deadline_s",
+            "options",
+        },
         "engine",
     )
     name = engine.get("name")
@@ -221,6 +244,7 @@ def load_engine_profile(path: Path) -> EngineProfile:
         threads=_positive(engine, "threads", DEFAULT_THREADS, "engine"),
         hash_size=_positive(engine, "hash_mb", DEFAULT_HASH_MB, "engine"),
         node_scale=_node_scale(engine, f"{path}: engine"),
+        search_deadline_s=_search_deadline(engine, f"{path}: engine"),
         options=MappingProxyType(dict(options)),
         limits=_limits(raw.get("limits"), path),
         source=path,
@@ -264,6 +288,7 @@ class EngineConfig:
     name: str
     node_scale: float
     protocol: EngineProtocolName
+    search_deadline_s: float
     options: Mapping[str, UciOptionValue]
     limits: Mapping[str, SearchLimits]
 
@@ -277,6 +302,7 @@ class EngineConfig:
         limits: Mapping[str, SearchLimits] | None = None,
         node_scale: float | None = None,
         protocol: EngineProtocolName | None = None,
+        search_deadline_s: float | None = None,
     ) -> None:
         explicit_binary = binary_path is not None
         self.binary_path = (
@@ -311,6 +337,14 @@ class EngineConfig:
         else:
             self.protocol = (
                 DEFAULT_PROTOCOL if explicit_binary else active_engine_profile().protocol
+            )
+        if search_deadline_s is not None:
+            self.search_deadline_s = search_deadline_s
+        else:
+            self.search_deadline_s = (
+                DEFAULT_SEARCH_DEADLINE_S
+                if explicit_binary
+                else active_engine_profile().search_deadline_s
             )
 
     def fingerprint(self) -> tuple[object, ...]:
