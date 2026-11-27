@@ -35,6 +35,8 @@ XBOARD_RESOURCE_OPTIONS = ("cores", "memory")
 # The bot ladder and the legacy Skill Level opponent need these controls.
 LEGACY_STRENGTH_OPTIONS = ("Skill Level",)
 LADDER_OPTIONS = ("MultiPV",)
+# ``[ladder] strength = "elo"`` weakens the engine through these instead.
+ELO_LADDER_OPTIONS = ("UCI_LimitStrength", "UCI_Elo")
 
 
 class EngineCapabilityError(RuntimeError):

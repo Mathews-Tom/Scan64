@@ -30,6 +30,7 @@ from scan64.chess.games.play_session_service import (
     PlaySessionService,
     TakebackNotAllowed,
 )
+from scan64.chess.opponents.bot_policy import SKILL_POLICY_VERSION, bot_policy_version
 from scan64.chess.opponents.bots import BOT_LEVELS, get_bot_level
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.learning.sparring import (
@@ -49,7 +50,7 @@ from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["play-sessions"])
 
-BOT_POLICY_VERSION = "stockfish-error-budget-v1"
+BOT_POLICY_VERSION = SKILL_POLICY_VERSION
 CLOCK_EXPIRY_WAIT_SECONDS = 15.0
 CLOCK_CHANGE_WAIT_SECONDS = 5.0
 
@@ -286,7 +287,9 @@ async def create_play_session(
                 if initial_fen is None and session_in.game_id is None
                 else 1
             )
-        config["bot_policy_version"] = BOT_POLICY_VERSION
+        pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+        engine_config = pool_manager.config if pool_manager is not None else StockfishConfig()
+        config["bot_policy_version"] = bot_policy_version(engine_config)
     else:
         config.pop("bot_policy_version", None)
     # Client-supplied internal values cannot select another seed or undo boundary.
