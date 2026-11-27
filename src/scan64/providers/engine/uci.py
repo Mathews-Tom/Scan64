@@ -1,4 +1,8 @@
-"""Engine-neutral UCI option handling and search-line extraction."""
+"""Engine-neutral process start, option handling and search-line extraction.
+
+UCI is the default protocol; a profile can select XBoard. Both run through
+``chess.engine.Protocol``.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,8 @@ import chess.engine
 
 from scan64.providers.engine.config import EngineConfig, EngineConfigurationError, UciOptionValue
 
+type Engine = chess.engine.UciProtocol | chess.engine.XBoardProtocol
+
 # Values that leave a Stockfish-style engine at full strength. An engine that
 # does not declare one of these has no such control and is already at full
 # strength, so the reset is skipped for it rather than sent and rejected.
@@ -20,28 +26,31 @@ FULL_STRENGTH: Mapping[str, UciOptionValue] = {
 }
 # Resource options: sized by Scan64, absent on some engines (Lc0 has no Hash).
 RESOURCE_OPTIONS = ("Threads", "Hash")
+# XBoard's equivalents: the ``cores`` and ``memory`` commands, which python-chess
+# exposes as options when the engine sends ``feature smp=1`` / ``memory=1``.
+XBOARD_RESOURCE_OPTIONS = ("cores", "memory")
 # The bot ladder and the legacy Skill Level opponent need these controls.
 LEGACY_STRENGTH_OPTIONS = ("Skill Level",)
 LADDER_OPTIONS = ("MultiPV",)
 
 
 class EngineCapabilityError(RuntimeError):
-    """The configured engine lacks a UCI option a feature requires."""
+    """The configured engine lacks an option or protocol feature a feature requires."""
 
 
-def _engine_label(engine: chess.engine.UciProtocol) -> str:
+def _engine_label(engine: Engine) -> str:
     return str(engine.id.get("name", "the configured engine"))
 
 
-def declares(engine: chess.engine.UciProtocol, name: str) -> bool:
+def declares(engine: Engine, name: str) -> bool:
     return name in engine.options
 
 
-def missing_options(engine: chess.engine.UciProtocol, names: Iterable[str]) -> list[str]:
+def missing_options(engine: Engine, names: Iterable[str]) -> list[str]:
     return [name for name in names if not declares(engine, name)]
 
 
-def require_options(engine: chess.engine.UciProtocol, names: Iterable[str], feature: str) -> None:
+def require_options(engine: Engine, names: Iterable[str], feature: str) -> None:
     missing = missing_options(engine, names)
     if missing:
         raise EngineCapabilityError(
@@ -50,11 +59,25 @@ def require_options(engine: chess.engine.UciProtocol, names: Iterable[str], feat
         )
 
 
-def startup_options(
-    engine: chess.engine.UciProtocol, config: EngineConfig
-) -> dict[str, UciOptionValue]:
-    """Threads/Hash where declared, and every profile option, which must exist."""
-    resources: dict[str, UciOptionValue] = {"Threads": config.threads, "Hash": config.hash_size}
+async def open_engine(config: EngineConfig) -> Engine:
+    """Start the profile's engine process with its protocol."""
+    if config.protocol == "xboard":
+        _, xboard = await chess.engine.popen_xboard(config.binary_path)
+        return xboard
+    _, uci = await chess.engine.popen_uci(config.binary_path)
+    return uci
+
+
+def is_xboard(engine: Engine) -> bool:
+    return isinstance(engine, chess.engine.XBoardProtocol)
+
+
+def startup_options(engine: Engine, config: EngineConfig) -> dict[str, UciOptionValue]:
+    """Threads/Hash (XBoard: cores/memory) where declared, and every profile option."""
+    names = XBOARD_RESOURCE_OPTIONS if is_xboard(engine) else RESOURCE_OPTIONS
+    resources: dict[str, UciOptionValue] = dict(
+        zip(names, (config.threads, config.hash_size), strict=True)
+    )
     options = {name: value for name, value in resources.items() if declares(engine, name)}
     for name, value in config.options.items():
         if not declares(engine, name):
@@ -66,9 +89,7 @@ def startup_options(
     return options
 
 
-def full_strength_options(
-    engine: chess.engine.UciProtocol, threads: int
-) -> dict[str, UciOptionValue]:
+def full_strength_options(engine: Engine, threads: int) -> dict[str, UciOptionValue]:
     """Analysis reset: undo pool play's strength changes on engines that have them."""
     options: dict[str, UciOptionValue] = {}
     if declares(engine, "Threads"):

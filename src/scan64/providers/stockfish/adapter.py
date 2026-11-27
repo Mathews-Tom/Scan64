@@ -11,7 +11,14 @@ import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.providers.engine.config import EngineConfig, scaled_nodes
-from scan64.providers.engine.uci import lines_from_result, startup_options
+from scan64.providers.engine.uci import (
+    Engine,
+    EngineCapabilityError,
+    is_xboard,
+    lines_from_result,
+    open_engine,
+    startup_options,
+)
 from scan64.providers.stockfish.identity import (
     ExecutableSignature,
     analysis_identity,
@@ -57,7 +64,7 @@ def search_limit(
 
 
 async def search(
-    engine: chess.engine.UciProtocol,
+    engine: Engine,
     board: chess.Board,
     limit: chess.engine.Limit,
     multipv: int,
@@ -65,9 +72,19 @@ async def search(
 ) -> list[dict[str, Any]]:
     """Run one search and return every MultiPV line in stored form.
 
-    python-chess raises ``EngineError`` for ``multipv > 1`` on an engine that
-    does not declare ``MultiPV``; no single-line substitute is attempted.
+    python-chess raises ``EngineError`` for ``multipv > 1`` on a UCI engine that
+    does not declare ``MultiPV``, and for any ``multipv`` argument over XBoard.
+    An XBoard engine therefore gets a single-line search with no ``multipv``
+    argument, and a request for more lines is a capability error; no
+    single-line substitute is ever returned for a multi-line request.
     """
+    if is_xboard(engine):
+        if multipv > 1:
+            raise EngineCapabilityError(
+                f"{multipv} analysis lines need MultiPV, which "
+                f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
+            )
+        return lines_from_result(await engine.analyse(board, limit, game=game), board.turn)
     result = await engine.analyse(board, limit, multipv=multipv, game=game)
     return lines_from_result(result, board.turn)
 
@@ -78,8 +95,8 @@ class StockfishAdapter:
         self._identity: dict[str, Any] | None = None
         self._identity_signature: ExecutableSignature | None = None
 
-    async def _start(self) -> chess.engine.UciProtocol:
-        _, engine = await chess.engine.popen_uci(self.config.binary_path)
+    async def _start(self) -> Engine:
+        engine = await open_engine(self.config)
         try:
             await engine.configure(startup_options(engine, self.config))
         except BaseException:

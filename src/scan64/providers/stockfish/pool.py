@@ -17,9 +17,11 @@ from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    Engine,
     EngineCapabilityError,
     full_strength_options,
     missing_options,
+    open_engine,
     require_options,
     startup_options,
 )
@@ -80,13 +82,13 @@ def engine_pool_enabled() -> bool:
 class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
-        self._engine: chess.engine.UciProtocol | None = None
+        self._engine: Engine | None = None
         self._identity: dict[str, Any] | None = None
         self.game_token: object | None = None
 
     async def ensure_started(self) -> None:
         if self._engine is None:
-            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            engine = await open_engine(self.config)
             try:
                 await engine.configure(startup_options(engine, self.config))
                 self._identity = engine_identity(engine, self.config.binary_path)
