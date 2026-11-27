@@ -7,33 +7,64 @@ import time
 import chess
 import pytest
 
-from scan64.learning.position_health import (
-    HEALTH_SCALE,
-    LEVELS,
-    health,
-    level,
-    position_health,
-    trend,
-)
+from scan64.explanations.factor_facts import HEALTH_GROUPS, HEALTH_SCALE, health_values
+from scan64.explanations.factors import evaluate_factors
+from scan64.explanations.factors.report import PAWN_VALUE_EG
+from scan64.learning.position_health import LEVELS, level, position_health, trend
 
 # White's king is stripped of its pawns; Black's queen and rook bear on it.
 EXPOSED = "r1b1k2r/ppp2ppp/2n5/3q4/8/8/PPP3PP/RNB1K1NR w KQkq - 0 1"
 
 
-def test_start_reads_healthy_and_equal_for_both_sides() -> None:
+# Rook and two pawns each: material was exchanged, not lost (#424 review).
+BALANCED_ENDGAME = "8/5pk1/4p3/8/8/1P6/1P3K2/R6r w - - 0 38"
+
+
+def test_start_reads_equal_for_both_sides() -> None:
     readings = position_health(chess.Board(), "white").groups
-    assert [g.key for g in readings] == [g.key for g in HEALTH_SCALE]
+    assert tuple(g.key for g in readings) == HEALTH_GROUPS
     for group in readings:
         assert group.learner == group.opponent
-        assert group.learner.level == "good"
         assert group.learner.trend == "steady"
+
+
+def test_meters_read_the_fitted_scale_of_the_net_value() -> None:
+    board = chess.Board(BALANCED_ENDGAME)
+    report = evaluate_factors(board)
+    reading = position_health(board, "white")
+    for side, values in (
+        ("learner", health_values(report, chess.WHITE)),
+        ("opponent", health_values(report, chess.BLACK)),
+    ):
+        for group in (reading.overall, *reading.groups):
+            expected = round(HEALTH_SCALE[group.key].health(values[group.key]), 3)
+            assert getattr(group, side).health == expected
+
+
+def test_mutual_exchanges_keep_material_healthy_for_both_sides() -> None:
+    material = {g.key: g for g in position_health(chess.Board(BALANCED_ENDGAME), "white").groups}
+    assert material["Material"].learner.level == "good"
+    assert material["Material"].opponent.level == "good"
+
+
+def test_terms_are_the_largest_net_parts_of_the_value() -> None:
+    board = chess.Board(EXPOSED)
+    report = evaluate_factors(board)
+    king = {g.key: g for g in position_health(board, "white").groups}["King"]
+    parts = sorted(
+        (part.tapered / PAWN_VALUE_EG for part in report.contributions if part.group == "King"),
+        key=abs,
+        reverse=True,
+    )
+    # The parts add up to the meter's value; the details show the largest three.
+    assert abs(sum(parts) - health_values(report, chess.WHITE)["King"]) < 0.02
+    assert [t.pawns for t in king.learner.terms] == [round(p, 2) for p in parts[:3]]
 
 
 def test_exposed_king_reads_low_for_its_side_only() -> None:
     king = {g.key: g for g in position_health(chess.Board(EXPOSED), "white").groups}["King"]
     assert king.learner.level == "low"
     assert king.opponent.level == "good"
-    assert king.learner.terms[0].name == "King danger"
     assert king.learner.terms[0].pawns < 0
 
 
@@ -60,10 +91,7 @@ def test_level_boundaries(value: float, expected: str) -> None:
     assert level(value) == expected
 
 
-def test_health_is_monotonic_and_bounded() -> None:
-    values = [health(v, 0.0, 0.5) for v in (-5, -1, 0, 1, 5)]
-    assert values == sorted(values)
-    assert all(0 < v < 1 for v in values)
+def test_trend_step() -> None:
     assert trend(0.5, 0.52) == "steady"
     assert trend(0.5, 0.6) == "falling"
 
@@ -80,6 +108,9 @@ def test_overall_reads_the_factor_total_without_tempo() -> None:
     start = position_health(chess.Board(), "white").overall
     assert start.learner == start.opponent
     assert start.learner.level == "good"
+    # With the fifty-move clock running, tempo is scaled with the rest (#425).
+    late = position_health(chess.Board("8/8/8/8/8/8/1K6/7k w - - 90 50"), "white").overall
+    assert position_health(chess.Board("8/8/8/8/8/8/1K6/7k b - - 90 50"), "white").overall == late
     # The same position with the other side to move: tempo must not move the meter.
     black_to_move = chess.Board(chess.STARTING_FEN.replace(" w ", " b "))
     assert position_health(black_to_move, "white").overall == start

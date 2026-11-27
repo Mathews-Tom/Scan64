@@ -35,7 +35,7 @@ def test_position_health_reads_every_group_for_both_sides(
         "king safety",
         "material",
         "threats",
-        "pieces",
+        "piece placement",
         "mobility",
         "pawn structure",
         "passed pawns",
@@ -45,7 +45,7 @@ def test_position_health_reads_every_group_for_both_sides(
     assert body["overall"]["learner"]["level"] == "good"
     mobility = next(g for g in body["groups"] if g["key"] == "Mobility")
     assert mobility["learner"]["trend"] == "rising"
-    assert 0 < mobility["learner"]["health"] < 1
+    assert 0 <= mobility["learner"]["health"] <= 1
 
 
 def test_position_health_refuses_a_bad_fen_and_anonymous_callers(
