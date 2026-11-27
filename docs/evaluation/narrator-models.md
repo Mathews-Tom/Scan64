@@ -1,5 +1,7 @@
 # Narrator model evaluation (#369)
 
+> **2026-11-26 rerun on the #367 prompt: the recommendation below is out of date.** The rerun ([`summary_20261126_230005`](../../benchmarks/narrator/results/summary_20261126_230005.md), 9 models, RTX 5090) gives `praxis-4b` a 4.0% grounding pass; 56% of its calls hit the output cap, and its 0.00 false chess statements come from answers that never parse. By delivered coverage the leaders are `gemma4-12b` (78.7% grounding pass, 72.7% delivered coverage), `granite4.2-8b` (60.0%, 55.1%) and `gemma4-e4b` (84.0%, 51.1%). The new model decision, and a replacement for the rule in [Decision](#decision), belong to #389. The text below describes the pre-#367 runs.
+
 Question: does an open chess-aware LLM make fewer false chess statements than a general-purpose LLM of the same size when it puts Scan64 engine evidence into words? The engine judges. The model only words engine and board facts, and the #366 validator decides whether its claims replace the template explanation.
 
 Answer: yes for one candidate. `praxis-4b` passes the grounding check in 80.0% of calls on the RTX 5090. Its same-size general baseline `qwen3.5-4b` passes in 27.3%. `qwen3-4b-chess-explain` passes in 33.3% but makes 1.77 false chess statements per explanation against the baseline's 0.24; `chesslm-qwen3-8b` and `chessgpt-base` pass less often than the baseline. See [Recommendation](#recommendation).
