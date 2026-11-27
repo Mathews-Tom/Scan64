@@ -1,0 +1,5 @@
+# Compat set (#397): several protocols (run here over UCI) and an evaluation
+# trace command.
+[engine]
+name = "fairy-stockfish"
+binary_path = "~/.local/opt/engines/fairy-stockfish_x86-64"

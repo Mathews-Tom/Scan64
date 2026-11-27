@@ -122,8 +122,8 @@ threads, hash, options) and the effective hint limits.
 
 | Feature | Requires | Without it |
 | --- | --- | --- |
-| Fast pass, review, backfill | any UCI engine | — |
-| Focused pass, hints, lesson verification (MultiPV 2–8) | `MultiPV` | python-chess raises `EngineError` for MultiPV > 1; the job fails with that error. No single-line substitute. |
+| Fast pass, review, backfill | any UCI or XBoard engine | — |
+| Focused pass, hints, Analysis Board lines, lesson verification (MultiPV 2–8) | `MultiPV` (UCI only) | `EngineCapabilityError` (API: 503 `engine_capability_unavailable`; job: `failed` with the reason). No single-line substitute. |
 | WDL in stored lines | engine reports `wdl` (Berserk by default; Stockfish/Lc0 with `UCI_ShowWDL`) | `wdl` key absent. |
 | Full-strength reset before analysis | `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` where declared | Skipped: an engine without these controls is always at full strength. |
 | Bot ladder opponent (levels 1–8) | `MultiPV` plus Stockfish's `Skill Level`, `UCI_LimitStrength`, `UCI_Elo` | `EngineCapabilityError` naming the missing options. |
@@ -227,9 +227,75 @@ Re-run: `uv run python -m benchmarks.engines.compare_engines benchmarks/engines/
 (`--resume <results.jsonl>` continues an interrupted run). Engines whose binary
 is missing are recorded as "not installed".
 
+## Engine compatibility set
+
+[`benchmarks/engines/compat.py`](../benchmarks/engines/compat.py) runs every
+engine in [`compat.toml`](../benchmarks/engines/compat.toml) through Scan64's
+own features, each at its production entry point and budget, and records one
+of: `works`; `unavailable` (an `EngineCapabilityError`, with its exact reason,
+which the API returns as 503 `engine_capability_unavailable`); `blocked` (the
+focused pass, when game analysis did not work); `error` (any other exception:
+a bug). Each engine is selected through its profile in
+[`config/engines/compat/`](../config/engines/compat/), as a user selects it.
+
+```
+uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml
+uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml --only Lc0
+uv run python -m benchmarks.engines.compat CONFIG --resume RESULTS.jsonl
+```
+
+Features: `game_analysis` (fast pass, `REVIEW_NODES`), `focused_pass`
+(1,000,000 nodes, MultiPV 4), `hints` (play assistance), `lesson_verification`
+(MultiPV 2/4/8 widening), `analysis_board` (hint search, scored legal lines),
+`bot_ladder`, `skill_level_opponent`.
+
+Scan64 downloads and bundles none of these engines. Each user installs the
+engine and points a profile at it.
+
+| Engine | Source | Licence | Behaviour it stresses |
+| --- | --- | --- | --- |
+| Alexandria | https://github.com/PGG106/Alexandria | GPL-3.0 | no MultiPV; unusual centipawn scale |
+| Minic | https://github.com/tryingsomestuff/Minic | GPL-3.0 | MultiPV capped below 8; non-standard WDL option |
+| Obsidian | https://github.com/gab8192/Obsidian | GPL-3.0 | truncated PVs |
+| Triumviratus | https://github.com/Tors3/Triumviratus | GPL-3.0 | network from an external file |
+| Fairy-Max | Debian package `fairymax` | not stated at source | XBoard only; no MultiPV, Hash or Threads |
+| Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace |
+| Rodent V | https://github.com/nescitus/Rodent-V | GPL-3.0 | large option list; personality files |
+| PZChessBot | https://github.com/kevlu8/PZChessBot | AGPL-3.0 | lower-case option names |
+| Lc0 | https://github.com/LeelaChessZero/lc0 | GPL-3.0 (network licence not stated) | slow neural nodes; no Hash |
+| Maia-3 | https://github.com/CSSLab/maia3 | AGPL-3.0 (weights licence not stated) | Python UCI wrapper; rating options |
+
+### Results
+
+Windows smoke (windows-4080, 2026-11-27): Stockfish 18 and Ethereal 14.40 from
+the comparison above, and the XBoard test engine
+`tests/fixtures/engines/fake_xboard.py`.
+
+| Engine | game_analysis | focused_pass | hints | lesson_verification | analysis_board | bot_ladder | skill_level_opponent |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Stockfish 18 | works | works | works | works | works | works | works |
+| Ethereal 14.40 | works | works | works | works | works | unavailable¹ | unavailable² |
+| XBoard test engine | works | unavailable³ | unavailable³ | unavailable³ | unavailable³ | unavailable⁴ | unavailable² |
+
+1. "The bot ladder requires UCI option(s) Skill Level, UCI_LimitStrength,
+   UCI_Elo, which Ethereal 14.40 (PEXT) does not declare".
+2. "Skill Level opponent play requires UCI option(s) Skill Level, which … does
+   not declare".
+3. "4 analysis lines need MultiPV, which FakeXBoard 1 cannot provide over
+   XBoard" (lesson verification: 2 lines).
+4. As 1, plus `MultiPV`.
+
+The ten-engine run is done on the Linux machine, where every engine in the set
+builds and runs. Its table replaces nothing above; it is added here with the
+date and the engine versions.
+
 ## Follow-ups
 
 - Separate the opponent engine from the analysis engine (app/play wiring) so a
   non-Stockfish analysis profile keeps Stockfish bot play.
 - `exact_replay.py` should record the actual engine name in `Verification`.
-- Per-use overrides for review/focused/verification budgets, needed for Lc0.
+- The bot ladder fails on engines with MultiPV but no strength controls
+  (Ethereal): it requires the Stockfish reset options even where the engine is
+  always at full strength.
+- The pool-less legacy Skill Level opponent (`stockfish_opponent.py`) still
+  starts the engine with `popen_uci` and sets `Hash` unconditionally.
