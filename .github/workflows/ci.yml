@@ -32,31 +32,6 @@ jobs:
           tar --extract --file "$stockfish_archive" --directory "$stockfish_dir" --strip-components=1
           mv "$stockfish_dir/stockfish-ubuntu-x86-64" "$stockfish_dir/stockfish"
           echo "$stockfish_dir" >> "$GITHUB_PATH"
-      # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
-      # The cache key holds the pinned commit, the source checksum and the compiler flags.
-      - name: Cache pinned Ethereal build
-        id: ethereal-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ runner.temp }}/ethereal-bin
-          key: ethereal-${{ runner.os }}-${{ runner.arch }}-0e47e9b67f345c75eb965d9fb3e2493b6a11d09a-46ac7496-popcnt-v1
-      - name: Build pinned Ethereal 14.40
-        if: steps.ethereal-cache.outputs.cache-hit != 'true'
-        run: |
-          ethereal_commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
-          ethereal_archive="$RUNNER_TEMP/ethereal-src.tar.gz"
-          ethereal_src="$RUNNER_TEMP/ethereal-src"
-          curl --fail --location --retry 3 --output "$ethereal_archive" "https://github.com/AndyGrant/Ethereal/archive/$ethereal_commit.tar.gz"
-          echo "46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  $ethereal_archive" | sha256sum --check
-          mkdir "$ethereal_src" "$RUNNER_TEMP/ethereal-bin"
-          tar --extract --gzip --file "$ethereal_archive" --directory "$ethereal_src" --strip-components=1
-          cd "$ethereal_src/src"
-          gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o "$RUNNER_TEMP/ethereal-bin/Ethereal"
-      - name: Expose Ethereal to the second-engine test
-        run: |
-          ethereal="$RUNNER_TEMP/ethereal-bin/Ethereal"
-          printf 'uci\nquit\n' | "$ethereal" | grep --quiet '^uciok'
-          echo "SCAN64_TEST_SECOND_ENGINE=$ethereal" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
@@ -83,18 +58,8 @@ jobs:
         run: pnpm --dir apps/scan64-web install --frozen-lockfile
       - name: Install Playwright Chromium
         run: pnpm --dir apps/scan64-web exec playwright install --with-deps chromium
-      - name: Second-engine diagnostics (temporary)
-        timeout-minutes: 8
-        continue-on-error: true
-        run: |
-          sudo apt-get install --no-install-recommends -y gdb >/dev/null
-          input='uci\nisready\nposition startpos\ngo nodes 20000\n'
-          printf "$input" > "$RUNNER_TEMP/eth.cmds"
-          gdb -batch -ex "run < $RUNNER_TEMP/eth.cmds" -ex bt -ex "x/4i \$pc" "$SCAN64_TEST_SECOND_ENGINE" 2>&1 | grep -vE '^option|^id ' | tail -30
-          cd "$RUNNER_TEMP/ethereal-src/src" 2>/dev/null || { curl -fsSL -o /tmp/e.tgz https://github.com/AndyGrant/Ethereal/archive/0e47e9b67f345c75eb965d9fb3e2493b6a11d09a.tar.gz && mkdir /tmp/e && tar -xzf /tmp/e.tgz -C /tmp/e --strip-components=1 && cd /tmp/e/src; }
-          gcc -std=gnu11 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o /tmp/Ethereal-asan
-          (printf "$input"; sleep 5) | ASAN_OPTIONS=detect_leaks=0 /tmp/Ethereal-asan 2>&1 | grep -vE '^option|^id |^info depth' | head -40
-          cd "$GITHUB_WORKSPACE"
-          SCAN64_TEST_SECOND_ENGINE="$GITHUB_WORKSPACE/tests/fixtures/scripted_uci_engine.py" timeout 120 uv run pytest tests/integration/test_second_engine.py -q -p no:cacheprovider || true
       - name: Run repository quality gate
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
         run: scripts/check.sh
