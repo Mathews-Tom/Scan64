@@ -66,6 +66,8 @@ def analysis_identity(
         "Threads": threads,
         "Skill Level": 20,
         "UCI_LimitStrength": False,
+        # Not sent (ignored while UCI_LimitStrength is off); recorded so rows
+        # stored before it was dropped keep their reuse key.
         "UCI_Elo": 1320,
         "Ponder": False,
         "UCI_AnalyseMode": True,

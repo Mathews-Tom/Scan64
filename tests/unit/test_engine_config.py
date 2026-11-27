@@ -275,7 +275,6 @@ def test_strength_reset_stays_inside_the_declared_range() -> None:
         "Threads": 1,
         "Skill Level": 20,
         "UCI_LimitStrength": False,
-        "UCI_Elo": 1350,
     }
     capped = double("Capped", ())
     capped.options["Skill Level"] = spin("Skill Level", 10, 0, 10)
