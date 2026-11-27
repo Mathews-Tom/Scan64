@@ -69,6 +69,10 @@ Rules (all enforced at load or engine start, failing with the file and key):
   Board lines, hints with MultiPV, the bot ladder) raises
   `EngineCapabilityError` naming the engine, never a single-line substitute.
   Stored rows record `protocol = "xboard"`; UCI rows omit the key.
+- Any request the active engine cannot serve answers HTTP 503 with
+  `{"detail": {"code": "engine_capability_unavailable", "message": ..., "reason": ...}}`;
+  `reason` names the missing option and the engine. A background analysis job
+  that hits it ends `failed` with that reason as its `error`.
 - The profile file is re-read when its modification time or size changes; a
   running pool keeps the processes it started with.
 
