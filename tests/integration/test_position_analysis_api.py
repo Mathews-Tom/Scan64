@@ -86,7 +86,8 @@ def test_real_adapter_scores_are_normalized_to_white(
     ]
     engine.id = {"name": "deterministic"}
     engine.config = {}
-    engine.options = {}
+    # Declared like Stockfish: hints ask for several lines.
+    engine.options = dict.fromkeys(("MultiPV",))
     binary = tmp_path / "stockfish"
     binary.write_bytes(b"deterministic UCI test double")
     monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
@@ -218,7 +219,8 @@ def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
     engine = AsyncMock()
     engine.id = {"name": "deterministic"}
     engine.config = {}
-    engine.options = {}
+    # Declared like Stockfish: hints ask for several lines.
+    engine.options = dict.fromkeys(("MultiPV",))
     binary = tmp_path / "stockfish"
     binary.write_bytes(b"deterministic UCI test double")
     monkeypatch.setattr(app.state.engine_pool_manager.config, "binary_path", str(binary))

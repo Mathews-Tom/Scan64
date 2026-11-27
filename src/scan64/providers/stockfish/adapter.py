@@ -14,6 +14,7 @@ from scan64.providers.engine.config import EngineConfig, scaled_nodes
 from scan64.providers.engine.uci import (
     Engine,
     EngineCapabilityError,
+    declares,
     is_xboard,
     lines_from_result,
     open_engine,
@@ -75,8 +76,9 @@ async def search(
     python-chess raises ``EngineError`` for ``multipv > 1`` on a UCI engine that
     does not declare ``MultiPV``, and for any ``multipv`` argument over XBoard.
     An XBoard engine therefore gets a single-line search with no ``multipv``
-    argument, and a request for more lines is a capability error; no
-    single-line substitute is ever returned for a multi-line request.
+    argument. A request for more lines than either engine can give is a
+    capability error; no single-line substitute is ever returned for a
+    multi-line request.
     """
     if is_xboard(engine):
         if multipv > 1:
@@ -85,6 +87,11 @@ async def search(
                 f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
             )
         return lines_from_result(await engine.analyse(board, limit, game=game), board.turn)
+    if multipv > 1 and not declares(engine, "MultiPV"):
+        raise EngineCapabilityError(
+            f"{multipv} analysis lines need the UCI option MultiPV, which "
+            f"{engine.id.get('name', 'the configured engine')} does not declare"
+        )
     result = await engine.analyse(board, limit, multipv=multipv, game=game)
     return lines_from_result(result, board.turn)
 
