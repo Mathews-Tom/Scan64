@@ -103,7 +103,11 @@ class PooledStockfishAdapter:
         await self.ensure_started()
         assert self._engine is not None and self._identity is not None
         return analysis_identity(
-            self._engine, self._identity, self.config.threads, self.config.node_scale
+            self._engine,
+            self._identity,
+            self.config.threads,
+            self.config.node_scale,
+            self.config.score_scale,
         )
 
     async def reset(self) -> None:
@@ -222,6 +226,7 @@ class PooledStockfishAdapter:
             multipv,
             game=self.game_token,
             deadline_s=self.config.search_deadline_s,
+            score_scale=self.config.score_scale,
         )
 
         config_dict = dict(

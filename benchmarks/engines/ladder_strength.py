@@ -129,6 +129,7 @@ def engine_config(profile: EngineProfile) -> EngineConfig:
         hash_size=profile.hash_size,
         name=profile.name,
         node_scale=profile.node_scale,
+        score_scale=profile.score_scale,
         protocol=profile.protocol,
         options=profile.options,
         limits=profile.limits,

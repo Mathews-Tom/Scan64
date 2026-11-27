@@ -10,8 +10,9 @@ import chess
 import chess.engine
 import pytest
 
-from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig
+from scan64.chess.analysis.models import EngineAnalysis, EngineAnalysisConfig, EngineLine
 from scan64.chess.analysis.reuse import _key
+from scan64.learning.tolerance import win_probability
 from scan64.providers.engine import (
     ENGINE_CONFIG_ENV,
     STOCKFISH_PATH_ENV,
@@ -24,7 +25,7 @@ from scan64.providers.engine import (
     load_engine_profile,
 )
 from scan64.providers.engine.config import LadderSettings, scaled_nodes
-from scan64.providers.engine.uci import full_strength_options, startup_options
+from scan64.providers.engine.uci import full_strength_options, lines_from_result, startup_options
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig, search_limit
 from scan64.providers.stockfish.identity import analysis_identity
 from scan64.providers.stockfish.pool import (
@@ -252,8 +253,8 @@ def test_node_scale_parses_validates_and_scales(tmp_path: Path) -> None:
 def test_node_scale_is_part_of_identity_only_when_not_one() -> None:
     engine = double("Lc0", ("Threads", "MultiPV"))
     raw = {"engine_name": "Lc0", "engine_version": "sha256:" + "d" * 64, "network": None}
-    default = analysis_identity(engine, raw, 1, 1.0)
-    scaled = analysis_identity(engine, raw, 1, 0.002)
+    default = analysis_identity(engine, raw, 1, 1.0, 1.0)
+    scaled = analysis_identity(engine, raw, 1, 0.002, 1.0)
     # Rows written before node_scale existed keep their exact reuse key.
     assert "node_scale" not in default
     assert scaled["node_scale"] == 0.002
@@ -305,10 +306,12 @@ async def test_uci_engine_without_multipv_refuses_multiple_lines() -> None:
     alexandria = double("Alexandria 9.1.0", ("Hash", "Threads", "Minimal", "UCI_Chess960"))
     limit = chess.engine.Limit(nodes=1000)
     with pytest.raises(EngineCapabilityError, match="3 analysis lines need the UCI option MultiPV"):
-        await search(alexandria, chess.Board(), limit, 3, deadline_s=5)
+        await search(alexandria, chess.Board(), limit, 3, deadline_s=5, score_scale=1.0)
     alexandria.analyse.assert_not_awaited()
     alexandria.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
-    assert await search(alexandria, chess.Board(), limit, 1, deadline_s=5) == [{"pv": ["e2e4"]}]
+    assert await search(alexandria, chess.Board(), limit, 1, deadline_s=5, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
 
 
 @pytest.mark.asyncio
@@ -462,11 +465,20 @@ async def test_node_search_past_its_deadline_is_a_capability_error(tmp_path: Pat
         EngineCapabilityError,
         match="Rodent V 1.2 did not finish a search limited to 10000 nodes within 0.05 s",
     ):
-        await search(rodent, chess.Board(), chess.engine.Limit(nodes=10_000), 1, deadline_s=0.05)
+        await search(
+            rodent,
+            chess.Board(),
+            chess.engine.Limit(nodes=10_000),
+            1,
+            deadline_s=0.05,
+            score_scale=1.0,
+        )
     rodent.analyse.side_effect = None
     rodent.analyse.return_value = {"pv": [chess.Move.from_uci("e2e4")]}
     timed = chess.engine.Limit(nodes=10_000, time=0.1)
-    assert await search(rodent, chess.Board(), timed, 1, deadline_s=0.05) == [{"pv": ["e2e4"]}]
+    assert await search(rodent, chess.Board(), timed, 1, deadline_s=0.05, score_scale=1.0) == [
+        {"pv": ["e2e4"]}
+    ]
 
 
 @pytest.mark.asyncio
@@ -537,3 +549,35 @@ def test_ladder_defaults_to_skill_and_parses_elo(tmp_path: Path) -> None:
     assert [ladder.elo_for(level) for level in (1, 8)] == [1000, 2500]
     with pytest.raises(EngineConfigurationError, match="under skill"):
         LadderSettings().elo_for(1)
+
+
+def test_score_scale_parses_and_scales_win_probability(tmp_path: Path) -> None:
+    assert load_engine_profile(write_profile(tmp_path, ENGINE)).score_scale == 1.0
+    scaled = load_engine_profile(write_profile(tmp_path, ENGINE + "score_scale = 2.8\n"))
+    assert scaled.score_scale == 2.8
+    for bad in ("0", "-1", "true", "'2'"):
+        with pytest.raises(EngineConfigurationError, match="engine.score_scale"):
+            load_engine_profile(write_profile(tmp_path, f"{ENGINE}score_scale = {bad}\n"))
+    info: chess.engine.InfoDict = {
+        "pv": [chess.Move.from_uci("e2e4")],
+        "score": chess.engine.PovScore(chess.engine.Cp(280), chess.WHITE),
+    }
+    assert lines_from_result(info, chess.WHITE, score_scale=1.0) == [
+        {"pv": ["e2e4"], "score_cp": 280}
+    ]
+    [arasan] = lines_from_result(info, chess.WHITE, score_scale=2.8)
+    assert arasan == {"pv": ["e2e4"], "score_cp": 280, "score_scale": 2.8}
+    assert win_probability(arasan) == pytest.approx(win_probability({"score_cp": 100}))
+    assert EngineLine.model_validate(arasan).score_scale == 2.8
+
+
+def test_score_scale_is_part_of_identity_only_when_not_one() -> None:
+    engine = double("Arasan", ("Threads", "MultiPV"))
+    raw = {"engine_name": "Arasan", "engine_version": "sha256:" + "e" * 64, "network": None}
+    default = analysis_identity(engine, raw, 1, 1.0, 1.0)
+    scaled = analysis_identity(engine, raw, 1, 1.0, 2.8)
+    assert "score_scale" not in default
+    assert scaled["score_scale"] == 2.8
+    assert StockfishConfig(binary_path="x", score_scale=2.8).fingerprint() != (
+        StockfishConfig(binary_path="x", score_scale=1.0).fingerprint()
+    )
