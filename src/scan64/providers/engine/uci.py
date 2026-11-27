@@ -18,7 +18,10 @@ type Engine = chess.engine.UciProtocol | chess.engine.XBoardProtocol
 
 # Values that leave a Stockfish-style engine at full strength. An engine that
 # does not declare one of these has no such control and is already at full
-# strength, so the reset is skipped for it rather than sent and rejected.
+# strength, so the reset is skipped for it rather than sent and rejected. A
+# numeric value outside the engine's declared range is moved to the nearest
+# bound: Stockfish 11 declares ``UCI_Elo`` from 1350, and the Elo is unused once
+# ``UCI_LimitStrength`` is off.
 FULL_STRENGTH: Mapping[str, UciOptionValue] = {
     "Skill Level": 20,
     "UCI_LimitStrength": False,
@@ -60,9 +63,27 @@ def require_options(engine: Engine, names: Iterable[str], feature: str) -> None:
 
 
 async def open_engine(config: EngineConfig) -> Engine:
-    """Start the profile's engine process with its protocol."""
+    """Start the profile's engine process with its protocol.
+
+    Every Scan64 search starts from a FEN, which XBoard sends with ``setboard``;
+    an XBoard engine without that feature can serve no feature at all.
+    """
     if config.protocol == "xboard":
-        _, xboard = await chess.engine.popen_xboard(config.binary_path)
+        # popen_xboard's steps, so the declared features survive a failed start.
+        transport, xboard = await chess.engine.XBoardProtocol.popen(config.binary_path)
+        try:
+            await xboard.initialize()
+        except chess.engine.EngineError as error:
+            transport.close()
+            if not xboard.features.get("setboard", 0):
+                raise EngineCapabilityError(
+                    f"{xboard.features.get('myname', config.name)} does not declare the "
+                    "XBoard setboard feature, so Scan64 cannot set up a position on it"
+                ) from error
+            raise
+        except BaseException:
+            transport.close()
+            raise
         return xboard
     _, uci = await chess.engine.popen_uci(config.binary_path)
     return uci
@@ -94,8 +115,28 @@ def full_strength_options(engine: Engine, threads: int) -> dict[str, UciOptionVa
     options: dict[str, UciOptionValue] = {}
     if declares(engine, "Threads"):
         options["Threads"] = threads
-    options.update({name: value for name, value in FULL_STRENGTH.items() if declares(engine, name)})
+    options.update(
+        {
+            name: within_declared_range(engine, name, value)
+            for name, value in FULL_STRENGTH.items()
+            if declares(engine, name)
+        }
+    )
     return options
+
+
+def within_declared_range(engine: Engine, name: str, value: UciOptionValue) -> UciOptionValue:
+    """``value`` moved into the option's declared min/max, when it has one."""
+    option = engine.options[name]
+    if isinstance(value, bool) or not isinstance(value, int):
+        return value
+    if not isinstance(option, chess.engine.Option):
+        return value
+    if option.min is not None and value < option.min:
+        return option.min
+    if option.max is not None and value > option.max:
+        return option.max
+    return value
 
 
 def line_from_info(info: chess.engine.InfoDict, turn: chess.Color) -> dict[str, Any]:

@@ -1,7 +1,8 @@
 """Minimal XBoard (protover 2) engine for tests: one legal move per analysis.
 
 Logs every command it receives to the path in FAKE_XBOARD_LOG so a test can
-assert what Scan64 sent. Posts one line whose node count exceeds any search
+assert what Scan64 sent. FAKE_XBOARD_SETBOARD=0 declares ``setboard=0``, as
+Fairy-Max 5.0b does. Posts one line whose node count exceeds any search
 budget, so python-chess stops the analysis after the first post.
 """
 
@@ -11,6 +12,7 @@ import sys
 import chess
 
 log_path = os.environ["FAKE_XBOARD_LOG"]
+setboard = os.environ.get("FAKE_XBOARD_SETBOARD", "1")
 board = chess.Board()
 
 
@@ -26,7 +28,10 @@ with open(log_path, "a", encoding="utf-8") as log:
         log.flush()
         command, _, rest = line.partition(" ")
         if command == "protover":
-            send('feature ping=1 setboard=1 sigint=0 myname="FakeXBoard 1" memory=1 smp=1 done=1')
+            send(
+                f"feature ping=1 setboard={setboard} sigint=0 "
+                'myname="FakeXBoard 1" memory=1 smp=1 done=1'
+            )
         elif command == "ping":
             send(f"pong {rest}")
         elif command == "new":

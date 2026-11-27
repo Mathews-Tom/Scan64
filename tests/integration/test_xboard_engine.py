@@ -75,6 +75,24 @@ async def test_xboard_engine_refuses_multiple_lines(xboard_binary: tuple[Path, P
 
 
 @pytest.mark.asyncio
+async def test_xboard_engine_without_setboard_is_a_capability_error(
+    xboard_binary: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, _ = xboard_binary
+    monkeypatch.setenv("FAKE_XBOARD_SETBOARD", "0")
+    with pytest.raises(EngineCapabilityError, match="does not declare the XBoard setboard"):
+        await StockfishAdapter(xboard_config(binary)).analyze_position(
+            chess.STARTING_FEN, nodes=5000
+        )
+    adapter = PooledStockfishAdapter(xboard_config(binary))
+    try:
+        with pytest.raises(EngineCapabilityError, match="setboard"):
+            await adapter.analyze_position(chess.STARTING_FEN, nodes=5000)
+    finally:
+        await adapter.quit()
+
+
+@pytest.mark.asyncio
 async def test_pooled_xboard_engine_analyses_and_names_missing_bot_controls(
     xboard_binary: tuple[Path, Path],
 ) -> None:
