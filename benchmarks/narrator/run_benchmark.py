@@ -866,6 +866,53 @@ def run_coverage(run: dict[str, Any], facts: KeyFacts) -> float:
     return coverage(run["claims"], facts)
 
 
+# --- Factor metric (#410) ------------------------------------------------------------
+#
+# Share of accepted explanations that name at least one measured factor change:
+# a used ``{factor:...}`` slot that the slot list held (its rendered value is
+# set). Only slot-pipeline records (``slots_used``) can name a factor slot; for
+# older records the metric is ``None``. ``factor_named_where_available`` divides
+# by the accepted answers whose position has a factor slot under the configured
+# grounding context, so a position with no measured change does not count
+# against the model.
+
+FACTOR_SLOT_PREFIX = "factor:"
+
+
+def names_factor(run: dict[str, Any]) -> bool | None:
+    """True when the run uses a listed factor slot; ``None`` for pre-slot records."""
+    if "slots_used" not in run:
+        return None
+    return any(
+        str(slot["name"]).startswith(FACTOR_SLOT_PREFIX) and slot.get("value") is not None
+        for slot in run["slots_used"]
+    )
+
+
+def factor_positions(config: BenchConfig) -> frozenset[str]:
+    """Positions whose slot list holds at least one factor slot."""
+    builder = cast(ContextBuilder, _resolve(config.grounding_context))
+    found = set()
+    for position in load_positions(config.positions_file):
+        context = builder(position.diagnosis, list(position.evidence), position.fen)
+        if context.slots is not None and any(
+            name.startswith(FACTOR_SLOT_PREFIX) for name in context.slots.names()
+        ):
+            found.add(position.position_id)
+    return frozenset(found)
+
+
+def factor_metric(
+    accepted_runs: Sequence[dict[str, Any]], with_factor: frozenset[str]
+) -> dict[str, float | None]:
+    named = [(run, flag) for run in accepted_runs if (flag := names_factor(run)) is not None]
+    available = [flag for run, flag in named if run["position_id"] in with_factor]
+    return {
+        "factor_named_accepted": sum(flag for _, flag in named) / len(named) if named else None,
+        "factor_named_where_available": sum(available) / len(available) if available else None,
+    }
+
+
 def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
     raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
     return {
@@ -876,6 +923,7 @@ def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
 def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[str, Any]:
     header = next(record for record in records if record.get("record") == "header")
     facts = _position_facts(config)
+    with_factor = factor_positions(config)
     by_model: dict[str, dict[str, Any]] = {}
     for model in config.models:
         runs = [r for r in records if r.get("record") == "run" and r["model"] == model.name]
@@ -914,6 +962,8 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             "coverage_accepted": statistics.fmean(covered) if covered else None,
             "delivered_coverage": sum(covered) / len(runs),
             "full_coverage_rate": sum(value == 1 for value in covered) / len(runs),
+            # #410: accepted answers that name a measured factor change by slot.
+            **factor_metric(accepted_runs, with_factor),
             "provider_error_rate": sum(r["provider_error"] is not None for r in runs) / len(runs),
             "pipeline_exception_rate": sum(r["outcome"] == "pipeline_exception" for r in runs)
             / len(runs),
@@ -987,21 +1037,27 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         "",
         "Coverage: share of three key engine facts (played move, key move, result) that "
         "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
-        "coverage: share of all calls accepted with all three facts.",
+        "coverage: share of all calls accepted with all three facts. Names a factor: share of "
+        "accepted answers that use at least one listed factor slot (a measured factor "
+        "change), over all accepted answers and over those whose position has a factor slot.",
         "",
         "| Model | Role | Params (B) | Grounding pass | Coverage (accepted) "
-        "| Delivered coverage | Full coverage | Provider errors | Claims / expl. "
+        "| Delivered coverage | Full coverage | Names a factor (accepted / where available) "
+        "| Provider errors | Claims / expl. "
         "| False chess statements / expl. | Rejected claims / expl. | SAN legal | SAN correct "
         "(SAN tokens) | Latency p50 / p95 (s) | First token p50 (s) | Within 4 s "
         "| Hit output cap | Calls that thought | GPU memory (GiB) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, row in summary["models"].items():
         lines.append(
             f"| {name} | {row['role']} | {row['params_b']} "
             f"| {row['grounding_pass_rate']:.1%} "
             f"| {_fmt(row['coverage_accepted'], '.1%')} | {row['delivered_coverage']:.1%} "
-            f"| {row['full_coverage_rate']:.1%} | {row['provider_error_rate']:.1%} "
+            f"| {row['full_coverage_rate']:.1%} "
+            f"| {_fmt(row.get('factor_named_accepted'), '.1%')} / "
+            f"{_fmt(row.get('factor_named_where_available'), '.1%')} "
+            f"| {row['provider_error_rate']:.1%} "
             f"| {_fmt(row['claims_per_explanation'], '.2f')} "
             f"| {_fmt(row['false_chess_statements_per_explanation'], '.2f')} "
             f"| {_fmt(row['rejected_claims_per_explanation'], '.2f')} "
