@@ -23,7 +23,7 @@ from sqlmodel import Session, col, select
 import scan64.persistence.database as db_module
 from scan64.api.app import app
 from scan64.chess.analysis.jobs import execute_analysis_job_async
-from scan64.chess.analysis.models import EngineAnalysis, GameMoveReview
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, GameMoveReview
 from scan64.chess.positions.models import Position
 from scan64.providers.engine import ENGINE_CONFIG_ENV
 
@@ -88,7 +88,7 @@ def app_session(db_session: Session) -> Iterator[Session]:
         app.dependency_overrides.clear()
 
 
-def _analyse_stored_game(client: TestClient, player_id: str) -> UUID:
+def _analyse_stored_game(client: TestClient, session: Session, player_id: str) -> UUID:
     created = client.post(
         "/v1/games", json={"owner_color": "white", "pgn": PGN, "player_id": player_id}
     )
@@ -101,7 +101,10 @@ def _analyse_stored_game(client: TestClient, player_id: str) -> UUID:
     # The production path: the lifespan-bound pool built from the active profile.
     client.portal.call(execute_analysis_job_async, job_id, app.state.engine_pool_manager)
     status = client.get(f"/v1/analysis-jobs/{job_id}")
-    assert status.json()["status"] == "completed", status.json()
+    if status.json()["status"] != "completed":
+        session.expire_all()
+        stored = session.get(AnalysisJob, job_id)
+        pytest.fail(f"analysis job {status.json()}: {stored.error if stored else 'missing'}")
     return game_id
 
 
@@ -131,7 +134,7 @@ def test_second_engine_analyses_stored_game_through_config_only(
     with TestClient(app) as client:
         player_id = _login(client)
         token = client.headers["Authorization"]
-        game_id = _analyse_stored_game(client, player_id)
+        game_id = _analyse_stored_game(client, app_session, player_id)
 
     rows = _rows(app_session, game_id)
     assert rows
@@ -171,7 +174,7 @@ def test_second_engine_never_reuses_stockfish_rows(
     with TestClient(app) as client:
         player_id = _login(client)
         token = client.headers["Authorization"]
-        stockfish_game = _analyse_stored_game(client, player_id)
+        stockfish_game = _analyse_stored_game(client, app_session, player_id)
     stockfish_names = {row.config["engine_name"] for row in _rows(app_session, stockfish_game)}
     assert stockfish_names and all(name.startswith("Stockfish") for name in stockfish_names)
 
@@ -180,7 +183,7 @@ def test_second_engine_never_reuses_stockfish_rows(
     monkeypatch.setenv(ENGINE_CONFIG_ENV, str(ethereal_profile))
     with TestClient(app) as client:
         client.headers["Authorization"] = token
-        second_game = _analyse_stored_game(client, player_id)
+        second_game = _analyse_stored_game(client, app_session, player_id)
     second_rows = _rows(app_session, second_game)
     assert second_rows
     assert not any(row.config["engine_name"].startswith("Stockfish") for row in second_rows)
