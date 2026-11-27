@@ -1,14 +1,12 @@
 """An XBoard engine runs Scan64's single-line analysis through a real process.
 
 The engine is ``tests/fixtures/engines/fake_xboard.py`` behind a platform
-launcher, so the protocol, process start and option mapping are exercised
-end to end without a third-party engine on the machine.
+launcher (``tests.support.engines``), so the protocol, process start and option
+mapping are exercised end to end without a third-party engine on the machine.
 """
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 
 import chess
@@ -23,24 +21,12 @@ from scan64.providers.engine.config import (
 from scan64.providers.engine.uci import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishAdapter
 from scan64.providers.stockfish.pool import PooledStockfishAdapter
-
-FAKE_XBOARD = Path(__file__).resolve().parents[1] / "fixtures" / "engines" / "fake_xboard.py"
+from tests.support.engines import fake_xboard_launcher
 
 
 @pytest.fixture
 def xboard_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
-    log = tmp_path / "xboard.log"
-    monkeypatch.setenv("FAKE_XBOARD_LOG", str(log))
-    if os.name == "nt":
-        launcher = tmp_path / "fake_xboard.cmd"
-        launcher.write_text(f'@"{sys.executable}" "{FAKE_XBOARD}" %*\r\n', encoding="utf-8")
-    else:
-        launcher = tmp_path / "fake_xboard"
-        launcher.write_text(
-            f'#!/bin/sh\nexec "{sys.executable}" "{FAKE_XBOARD}" "$@"\n', encoding="utf-8"
-        )
-        launcher.chmod(0o755)
-    return launcher, log
+    return fake_xboard_launcher(tmp_path, monkeypatch)
 
 
 def xboard_config(binary: Path) -> EngineConfig:
