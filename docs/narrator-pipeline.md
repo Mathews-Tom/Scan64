@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -536,15 +536,17 @@ Factor changes across each mistake are narrator facts, so the narrator can name 
 
 **Rule.** A change is `played` minus a reference point (`before` or `best`), in pawns (internal units / 206), from the learner's point of view. It becomes a fact only when both hold:
 
-1. its size reaches the threshold of its kind;
+1. its size reaches its threshold: the `overrides` value of its group or part, else the value of its kind;
 2. its sign agrees with the engine swing: the score after the learner's move minus the score before it (learner's view; a mate counts as ±(100 000 − distance); `-swing_cp` when a score is unknown). A zero or unknown swing gives no fact.
 
-**Config table** (`FACTOR_CONFIG`; calibrated in #410):
+**Config table** (`FACTOR_CONFIG`; fitted in #410, method and data in `docs/evaluation/factor-calibration.md`):
 
 | Field | Value | Meaning |
 |---|---|---|
-| `thresholds["group"]` | 0.30 pawns | smallest change of an evaluation group |
-| `thresholds["term"]` | 0.15 pawns | smallest change of one named part of a group |
+| `thresholds["group"]` | 0.10 pawns | smallest change of an evaluation group without an override (passed pawns, space) |
+| `thresholds["term"]` | 0.10 pawns | smallest change of one named part of a group without an override |
+| `overrides` (groups) | King 0.75, Threats 0.60, Mobility 0.35, Pieces 0.35, Pawns 0.25 | per-group value, by guide name |
+| `overrides` (parts) | King danger 0.45, Hanging 0.35, Minor threat 0.30, Slider on queen 0.30, Pawn push threat 0.25, Flank attack 0.20, Trapped rook 0.20; 0.15 for Bishop pawns, Connected bonus, King protector, Passed file, Restricted, Rook on file, Rook threat | per-part value, by guide name |
 | `quiet_ply_limit` | 8 plies | longest walk to a quiet position |
 | `excluded_groups` | Material, Imbalance, Winnable | never stated: capture and material slots state material; Imbalance and Winnable are scaling terms |
 | `max_changes` | 3 | facts per comparison, largest first |
@@ -554,7 +556,7 @@ Factor changes across each mistake are narrator facts, so the narrator can name 
 
 **Facts and slots.** `NarratorFacts.factors` (`FactorFacts`, schema `narrator-facts/1`, optional, so earlier documents stay valid) holds `source` (`FACTOR_SOURCE`, `scan64-factors/1, Stockfish Evaluation Guide 63ff375`), the points, the swing and the passed changes. Each change is a slot: `{factor:KEY:played}` (against `before`) and `{factor:KEY:best}` (against `best`), shared by every evidence item and labelled with the source (`Slot.source`). Analysis Board: `BoardLineFacts.factors` for lines 2 and later compares the line's quiet position with line 1's, with the swing this line's score minus line 1's; its slots are `{factor:KEY:line-K}`. Values are rendered by code and name their position, so they stay true wherever the model places them.
 
-**Measured on the 50 benchmark positions.** 37 have at least one passed change (the Stockfish 11 measurement in #406 found 37 with a non-material term moving at least 0.3 pawns). Most frequent: king safety (13 against `before`, 13 against `best`), king attack (12, 10), threats (9, 7), hanging pieces (8, 8). 13 positions have none: in 11 the `played` point is not quiet, in 1 no change passes both rules, and in 1 (`ui2g2idg:59`) the stored best move equals the played move, so nothing is measured (`factors` absent). Facts for all 50 take 0.72 s (linux-5090).
+**Measured on the 50 benchmark positions** (fitted thresholds, #410). 33 of the 49 measured positions have at least one passed change (37 with the #408 starting values 0.30 and 0.15). Most frequent: king attack (18 facts), king safety (13), pawn shelter (10). In 11 the `played` point is not quiet, and in 1 (`ui2g2idg:59`) the stored best move equals the played move, so nothing is measured (`factors` absent). Facts for all 50 take 0.72 s (linux-5090).
 
 **Prompt size.** The model gets the system prompt and the slot list only (section 5). Largest prompt, `prompt_eval_count` from Ollama with think=false (`tests/helpers/narrator/prompt_tokens.py --ollama`), RTX 5090:
 
