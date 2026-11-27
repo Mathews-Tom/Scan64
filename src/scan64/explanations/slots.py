@@ -205,14 +205,16 @@ class SlotCatalogue:
         for evidence_id, slots in items:
             used = [g for g in groups if any(s.group == g for s in slots.values())]
             lines = f"; lines {', '.join(used)}" if used else ""
-            out.append(f'Evidence item, evidence_ref "{evidence_id}"{lines}:')
+            out.append(f'evidence_ref "{evidence_id}"{lines}:')
             for name, slot in slots.items():
                 if slot.group is None and name not in self.shared:
                     emit(slot)
             allowed = sorted(w for w in self.vocabulary(evidence_id) if CHESS_WORDS.fullmatch(w))
             if allowed:
-                out.append(f"Chess words allowed: {', '.join(allowed)}.")
+                out.append(f"Allowed plain words: {', '.join(allowed)}.")
         out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
+        if not sources:
+            out.append("No factor slot: no cause was measured, so name no cause.")
         if self.example:
             out.append(f'Example claim text with these slots: "{self.example}"')
         return "\n".join(out)

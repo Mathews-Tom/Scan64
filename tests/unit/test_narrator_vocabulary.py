@@ -138,3 +138,16 @@ def test_the_rule_is_driven_by_the_facts_only() -> None:
     assert chess_words_outside_slots("threats", vocabulary(["threat"])) is None
     assert chess_words_outside_slots("threatened", vocabulary(["threat"])) == "threatened"
     assert chess_words_outside_slots("on d2", vocabulary(["d"])) == "2"
+
+
+def test_a_quoted_evidence_ref_is_read_without_its_quotes() -> None:
+    context, evidence_id = _context(MISSED_THREAT)
+    claim = ExplanationClaim(
+        text="You played {played}.", evidence_ref=f'"{evidence_id}"', line=(), disclosure_level=1
+    )
+    explanation = validate_generated_explanation(GeneratedExplanation(claims=(claim,)), context)
+    assert explanation.claims[0].evidence_ref == evidence_id
+    unknown = claim.model_copy(update={"evidence_ref": '"ev_missing"'})
+    with pytest.raises(GroundedExplanationValidationError) as raised:
+        validate_generated_explanation(GeneratedExplanation(claims=(unknown,)), context)
+    assert raised.value.reason == "unknown_evidence"

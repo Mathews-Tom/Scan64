@@ -134,6 +134,8 @@ def validate_generated_explanation(
     evidence_by_id = _evidence_by_id(context.evidence)
     claims: list[ExplanationClaim] = []
     for claim in generated.claims:
+        if context.slots is not None:
+            claim = _unquoted_evidence_ref(claim, evidence_by_id)
         _validate_claim_contract(claim, board, context, evidence_by_id)
         if context.slots is None:
             _validate_claim_text(
@@ -158,6 +160,17 @@ def validate_generated_explanation(
             claims.append(claim.model_copy(update=update))
 
     return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
+
+
+def _unquoted_evidence_ref(
+    claim: ExplanationClaim, evidence_by_id: Mapping[str, Evidence]
+) -> ExplanationClaim:
+    """Slot path: the slot list quotes each evidence_ref; drop quotes a model copied."""
+    ref = claim.evidence_ref
+    inner = ref[1:-1] if len(ref) > 2 and ref[0] == ref[-1] and ref[0] in "\"'" else ref
+    if inner != ref and inner in evidence_by_id:
+        return claim.model_copy(update={"evidence_ref": inner})
+    return claim
 
 
 def slot_citation(

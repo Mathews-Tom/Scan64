@@ -259,9 +259,10 @@ def test_the_prompt_lists_the_factor_slots_and_names_causes_only_through_them() 
             slots.content
         )
     assert f"come from {FACTOR_SOURCE}." in slots.content
-    assert "king" in slots.content.split("Chess words allowed: ")[1]
+    assert "king" in slots.content.split("Allowed plain words: ")[1]
     none = _explanation_request(_facts(NO_CAUSE)).messages[1].content
     assert "{factor:" not in none and FACTOR_SOURCE not in none
+    assert "No factor slot: no cause was measured, so name no cause." in none
 
 
 def test_a_slot_claim_without_a_line_cites_the_line_of_its_slots() -> None:
