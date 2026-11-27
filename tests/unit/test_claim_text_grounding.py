@@ -294,7 +294,12 @@ def _diagnosis() -> Diagnosis:
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("text", "reason"),
-    [("Qh5 was the best move.", "move_not_verified"), (None, "provider_error")],
+    # The pipeline checks claim text on the slot path (#386).
+    [
+        ("Qh5 was the best move.", "chess_token_outside_slot"),
+        ("{nonsense} was the best move.", "unknown_slot"),
+        (None, "provider_error"),
+    ],
 )
 async def test_template_fallback_is_logged_and_counted_by_reason(
     text: str | None, reason: str, caplog: pytest.LogCaptureFixture
@@ -329,10 +334,10 @@ async def test_grounded_generation_is_not_counted_as_fallback() -> None:
         _diagnosis(),
         [MISSED_CAPTURE.evidence],
         MISSED_CAPTURE.fen,
-        local_provider=_FixedProvider("You played Nf3, but Bxg5 captures the queen on g5."),
+        local_provider=_FixedProvider("You played {played}, but {capture:best}."),
         environment={},
     )
-    assert explanation.text == "You played Nf3, but Bxg5 captures the queen on g5."
+    assert explanation.text == "You played Nf3, but Bxg5 captures the black queen on g5."
     assert template_fallback_counts() == before
 
 

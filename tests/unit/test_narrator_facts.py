@@ -7,6 +7,7 @@ diagnosis kind those fixtures produce is exercised end to end.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 from pathlib import Path
@@ -36,6 +37,7 @@ from scan64.explanations.facts import (
     narrator_facts_schema,
     verified_lines_by_evidence,
 )
+from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
@@ -208,8 +210,9 @@ async def test_prompt_is_schema_valid_json_for_every_fixture_diagnosis() -> None
         for diagnosis in diagnoses:
             facts = build_narrator_facts(diagnosis, evidence, board.fen())
             request = assembly._explanation_request(facts)
-            system, user = request.messages
+            system, user, slots = request.messages
             assert system.content == NARRATOR_SYSTEM_PROMPT
+            assert slots.content == lesson_slot_catalogue(facts).prompt()
             parsed = NarratorFacts.model_validate_json(user.content, strict=True)
             assert parsed == facts, case_id
             assert user.content == facts.to_prompt_json()
@@ -409,14 +412,12 @@ class _Provider:
 @pytest.mark.asyncio
 async def test_resolve_sends_json_facts_and_accepts_a_continuation_line() -> None:
     diagnosis, evidence = _missed_capture()
-    provider = _Provider(
-        "After Nf3 the queen takes on g2 and attacks the rook on h1.",
-        line=("g1f3", "g5g2"),
-    )
+    provider = _Provider("After {played}, your opponent has a strong reply.", line=("g1f3", "g5g2"))
     explanation = await resolve_explanation(
         diagnosis, evidence, _FEN, local_provider=provider, environment={}
     )
     assert explanation.claims[0].line == ("g1f3", "g5g2")
+    assert explanation.text == "After Nf3, your opponent has a strong reply."
     NarratorFacts.model_validate_json(provider.requests[0].messages[1].content)
 
 
@@ -442,9 +443,10 @@ async def test_illegal_evidence_falls_back_to_the_template_with_a_reason(
 
 
 def _context() -> tuple[GroundedExplanationContext, str]:
+    """The pipeline's context on the grammar path (#366): slots cleared."""
     diagnosis, evidence = _missed_capture()
     facts = build_narrator_facts(diagnosis, evidence, _FEN)
-    context = assembly._grounding_context(facts, evidence, _FEN)
+    context = dataclasses.replace(assembly._grounding_context(facts, evidence, _FEN), slots=None)
     return context, facts.evidence[0].evidence_id
 
 
