@@ -717,13 +717,15 @@ Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variat
 
 The **Position health** panel shows how the selected position stands on eight evaluation factors, one meter each for both sides, with an overall meter above them. It is on by default; turn it off under **Settings → Chessboard → Position health panel**, and the choice persists. On the Analysis Board the columns are White and Black. In game review they are You and Opponent, for the side you played (White and Black when your side is unknown).
 
-| Meter | What it measures |
+Every meter compares the two sides: it reads this side's value of its factor minus the opponent's, so a factor both sides hold equally (for example material after even exchanges) reads the same for both.
+
+| Meter | What it compares |
 |---|---|
-| overall | the factor evaluation's total: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them |
-| king safety | pawn shelter and pawn storm around the king, less the opponent's attack on it |
+| overall | the factor evaluation's total without the side-to-move bonus: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them |
+| king safety | pawn shelter, pawn storm and the attack on each king |
 | material | piece values and piece placement on their squares |
-| threats | threats the opponent's pieces make against this side (a full meter: no threats) |
-| pieces | outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors |
+| threats | threats each side's pieces make against the other's |
+| piece placement | outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors |
 | mobility | squares each piece can safely reach |
 | pawn structure | isolated, doubled, backward and connected pawns |
 | passed pawns | passed pawns, their rank, file and blockade |
@@ -731,11 +733,11 @@ The **Position health** panel shows how the selected position stands on eight ev
 
 ![Position health panel, light theme](images/position-health-light-1280.png) ![Position health panel, dark theme](images/position-health-dark-1280.png)
 
-Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". **Show details** lists the largest terms behind each meter in pawns; for the overall meter, the factors that move the total most.
+Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". **Show details** lists each meter's largest nonzero terms, this side's value minus the opponent's, in pawns; for the overall meter, the factors. A meter with no nonzero term says so.
 
 The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.
 
-Each meter maps its value, in pawns from that side's view, to a health between 0 and 1: `1 / (1 + exp(-(2 + (value - start) / scale)))`, where `start` is the value in the starting position. Every meter reads about 0.88 at the start, and 0.5 when the side has lost two scales from there. The scales in `HEALTH_SCALE` and `OVERALL_SCALE` (`src/scan64/learning/position_health.py`) are provisional: the group scales are the change thresholds fitted in `docs/evaluation/factor-calibration.md` (at least 0.25 pawns), and the overall scale is 1 pawn. A fit of these scales on recorded games will replace them. The API is `POST /v1/analysis/position/health` with `fen`, `learner` (`white` or `black`) and optional `previous_fen` for the trend.
+Each meter maps its value, in pawns from that side's view, to a health between 0 and 1, linear from the value at which it reads empty to the value at which it reads full. Those bounds are fitted on recorded positions (`HEALTH_SCALE` in `src/scan64/explanations/factor_facts.py`; method and table in `docs/evaluation/factor-calibration.md`, section "Health scale"). A health of at least 2/3 reads **good**, below 1/3 **low**. Level positions do not read full on every meter: in the starting position several meters read **fair**, because a side reads full only when it is ahead on that factor. The API is `POST /v1/analysis/position/health` with `fen`, `learner` (`white` or `black`) and optional `previous_fen` for the trend.
 
 #### Explain the engine lines
 
