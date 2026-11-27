@@ -56,6 +56,7 @@ from scan64.explanations.validator import (
     _ClaimEvidence,
     validate_generated_explanation,
 )
+from scan64.explanations.voice import NarratorVoice, parse_narrator_voice
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import (
     ExplanationRequest,
@@ -132,6 +133,8 @@ class BenchConfig:
     foreign_ollama: tuple[str, ...]
     pipeline_entry: str
     grounding_context: str
+    # Narrator voice passed to the pipeline entry (#387); "coach" when unset.
+    voice: NarratorVoice
     positions_file: Path
     models: tuple[ModelEntry, ...]
 
@@ -175,6 +178,7 @@ def load_config(path: Path) -> BenchConfig:
         foreign_ollama=tuple(run["foreign_ollama"]),
         pipeline_entry=run["pipeline_entry"],
         grounding_context=run["grounding_context"],
+        voice=parse_narrator_voice(run.get("voice")),
         positions_file=REPO_ROOT / raw["positions"]["file"],
         models=models,
     )
@@ -540,6 +544,7 @@ async def run_one(
                 position.fen,
                 local_provider=provider,
                 environment={},
+                voice=config.voice,
             )
         except Exception as error:
             pipeline_exception = f"{type(error).__name__}: {error}; cause={error.__cause__!r}"
@@ -965,7 +970,9 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"`{header['pipeline']['commit']}` (module sha256 "
         f"`{header['pipeline']['module_sha256'][:12]}`), {header['positions']} positions x "
         f"{header['runs_per_position']} runs, GPU {header['gpu']}, "
-        f"Ollama {header['ollama_version']}.",
+        f"Ollama {header['ollama_version']}."
+        # Voice (#387); headers before #387 have none and keep their summary text.
+        + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
         "",
         "Coverage: share of three key engine facts (played move, key move, result) that "
         "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
@@ -1031,6 +1038,9 @@ async def run(
                 f"Resume refused: pipeline changed since the run started: "
                 f"{header['pipeline']} != {identity}"
             )
+        # Runs before #387 have no voice field: their prompt had no voice line.
+        if header.get("voice") != config.voice:
+            raise RuntimeError(f"Resume refused: voice {config.voice!r} != {header.get('voice')!r}")
         done = {
             (r["model"], r["position_id"], r["run"]) for r in records if r.get("record") == "run"
         }
@@ -1045,6 +1055,7 @@ async def run(
                 "record": "header",
                 "started": datetime.now(UTC).isoformat(),
                 "pipeline": identity,
+                "voice": config.voice,
                 "positions_file": config.positions_file.relative_to(REPO_ROOT).as_posix(),
                 "positions_sha256": hashlib.sha256(config.positions_file.read_bytes()).hexdigest(),
                 "positions": len(positions),
