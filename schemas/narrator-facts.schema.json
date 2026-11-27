@@ -161,6 +161,139 @@
       "title": "EvidencePiece",
       "type": "object"
     },
+    "FactorChange": {
+      "additionalProperties": false,
+      "description": "A factor change that passed its threshold and agrees with the engine.",
+      "properties": {
+        "key": {
+          "description": "Slot key, for example king_safety.",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "description": "Plain name, for example king safety.",
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "group",
+            "term"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "guide_name": {
+          "description": "Group or part name in the Stockfish Evaluation Guide.",
+          "title": "Guide Name",
+          "type": "string"
+        },
+        "compared_with": {
+          "description": "before: the position before the mistake; best: after the best move's line (Analysis Board: after line 1).",
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "change_pawns": {
+          "description": "Played point minus the reference point, learner's view, pawns.",
+          "title": "Change Pawns",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "kind",
+        "guide_name",
+        "compared_with",
+        "change_pawns"
+      ],
+      "title": "FactorChange",
+      "type": "object"
+    },
+    "FactorFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Factor module version.",
+          "title": "Source",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/FactorPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "engine_swing_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine score after the mistake minus before it, learner's view; mates count as large scores. Absent: no factor fact (the engine gave no direction).",
+          "title": "Engine Swing Cp"
+        },
+        "changes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FactorChange"
+          },
+          "title": "Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "points"
+      ],
+      "title": "FactorFacts",
+      "type": "object"
+    },
+    "FactorPoint": {
+      "additionalProperties": false,
+      "description": "One measured position, reached by ``uci`` from the position before the mistake.\n\nAnalysis Board: ``best`` is line 1 and ``line`` the explained line, both from\nthe board position.",
+      "properties": {
+        "point": {
+          "enum": [
+            "before",
+            "played",
+            "best",
+            "line"
+          ],
+          "title": "Point",
+          "type": "string"
+        },
+        "uci": {
+          "default": [],
+          "description": "Moves from the position before the mistake to this position.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Uci",
+          "type": "array"
+        },
+        "quiet": {
+          "default": true,
+          "description": "False: no quiet position within the ply limit (not measured).",
+          "title": "Quiet",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "point"
+      ],
+      "title": "FactorPoint",
+      "type": "object"
+    },
     "MateEvaluation": {
       "additionalProperties": false,
       "properties": {
@@ -677,6 +810,18 @@
       },
       "title": "Lines",
       "type": "array"
+    },
+    "factors": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FactorFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Factor changes across the mistake (#408); absent when not measured."
     }
   },
   "required": [
