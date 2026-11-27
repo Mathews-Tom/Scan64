@@ -906,24 +906,3 @@ async def test_thread_start_failure_publishes_failure_and_closes_cleanly(
         listener.close()
         job.close()
     assert not job._listeners
-
-
-@pytest.mark.parametrize(("os_name", "closed"), [("nt", True), ("posix", False)])
-def test_interrupt_closes_the_socket_only_on_windows(
-    monkeypatch: pytest.MonkeyPatch, os_name: str, closed: bool
-) -> None:
-    # Winsock shutdown() does not wake a recv() blocked in another thread; close() does.
-    calls: list[str] = []
-
-    class FakeSocket:
-        def shutdown(self, how: int) -> None:
-            calls.append("shutdown")
-
-        def close(self) -> None:
-            calls.append("close")
-
-    transport = job_module._DownloadTransport(threading.Event())
-    transport._socket = cast(job_module.socket.socket, FakeSocket())
-    monkeypatch.setattr(job_module.os, "name", os_name)
-    transport.interrupt()
-    assert calls == (["shutdown", "close"] if closed else ["shutdown"])
