@@ -303,9 +303,53 @@ the comparison above, and the XBoard test engine
    XBoard" (lesson verification: 2 lines).
 4. As 1, plus `MultiPV`.
 
-The ten-engine run is done on the Linux machine, where every engine in the set
-builds and runs. Its table replaces nothing above; it is added here with the
-date and the engine versions.
+Linux run (linux-5090, 2026-11-27, commit `edda2ed`, #411): the ten engines
+above plus Stockfish 11, Lc0 with the BT4 network, Caissa, Arasan, Ethereal,
+Berserk and Koivisto, from `benchmarks/engines/compat-linux.toml` with the
+profiles in `config/engines/compat/linux/`. The states are copied from
+`benchmarks/engines/results/compat_20261127_202247.jsonl`; the generated table
+with the reason for every `unavailable` and `blocked` cell, and the run notes, is
+`compat_20261127_202247.md` next to it. Engine builds and
+commits are recorded in the machine's engine manifest; the binary SHA-256 is in
+every JSONL record. This table replaces nothing above.
+
+| Engine | Version | Protocol | node_scale | game_analysis | focused_pass | hints | lesson_verification | analysis_board | bot_ladder | skill_level_opponent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stockfish 18 | 18 | UCI | 1 | works | works | works | works | works | works | works |
+| Alexandria | 9.1.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Minic | 3.46 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Obsidian | 16.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Triumviratus | 8.1 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Fairy-Max | 5.0b | XBoard | 1 | unavailable | blocked | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Fairy-Stockfish | 14 | UCI | 1 | works | works | works | works | works | works | works |
+| Rodent V | 1.2 | UCI | 1 | unavailable | blocked | works | unavailable | works | unavailable | unavailable |
+| PZChessBot | 8.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Lc0 | 0.32.1 (T1 net) | UCI | 0.12 | works | works | works | works | works | unavailable | unavailable |
+| Lc0 (BT4) | 0.32.1 (BT4 net) | UCI | 0.013 | works | works | works | works | works | unavailable | unavailable |
+| Maia-3 | 0.1.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Caissa | 2.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Arasan | 26.1 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Stockfish 11 | 11 | UCI | 1 | works | works | works | works | works | works | works |
+| Ethereal | 14.40 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Berserk | 14 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Koivisto | 9.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+
+- `unavailable` on the multi-line features (Alexandria, PZChessBot, Koivisto):
+  "N analysis lines need the UCI option MultiPV, which … does not declare".
+- `bot_ladder` and `skill_level_opponent` are `unavailable` on every engine
+  without `Skill Level` (and, for the ladder, `UCI_LimitStrength`); Stockfish 18,
+  Stockfish 11 and Fairy-Stockfish declare them.
+- Fairy-Max: "does not declare the XBoard setboard feature", so no feature runs
+  and `focused_pass` is `blocked`.
+- Rodent V ignores `go nodes N`; with the profile's `search_deadline_s = 30`
+  its node-only searches (`game_analysis`, `lesson_verification`) are
+  `unavailable` after 30 s and `focused_pass` is `blocked`. Hints and the
+  Analysis Board have a time limit and work.
+- Arasan 26.1 stops after about 6k nodes for any N and Maia-3 ignores node
+  limits, so their node-budget features `work` with less search than asked
+  (see Follow-ups).
+- Lc0's `node_scale` is measured nodes per second against Stockfish 18 (T1
+  0.12, BT4 0.013); Maia-3 stays at 1.
 
 ## Follow-ups
 
