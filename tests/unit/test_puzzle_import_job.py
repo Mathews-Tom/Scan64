@@ -5,12 +5,14 @@ import json
 import runpy
 import threading
 import time
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
+import httpcore
 import httpx
 import pytest
 import zstandard
@@ -205,6 +207,84 @@ def test_cancel_interrupts_stalled_http_stream(engine: Engine, tmp_path: Path) -
         assert time.monotonic() - started < 1
     assert not catalog(engine)
     assert list((tmp_path / "imports").iterdir()) == []
+
+
+class StalledStream(httpcore.NetworkStream):
+    """A socket that never sends: each read sleeps for its timeout on a fake clock.
+
+    A cancel that arrives during a read is set at its exact time, but the read
+    still sleeps to the end of its slice, as a blocked socket call would.
+    """
+
+    def __init__(self, cancel: threading.Event, cancel_at: float | None = None) -> None:
+        self.now = 0.0
+        self.timeouts: list[float | None] = []
+        self._cancel = cancel
+        self._cancel_at = cancel_at
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        self.timeouts.append(timeout)
+        assert timeout is not None and timeout > 0
+        end = self.now + timeout
+        if self._cancel_at is not None and self.now < self._cancel_at <= end:
+            self._cancel.set()
+        self.now = end
+        raise httpcore.ReadTimeout("timed out")
+
+
+StalledFactory = Callable[[float | None], tuple[job_module._CancellableStream, StalledStream]]
+
+
+@pytest.fixture
+def stalled(monkeypatch: pytest.MonkeyPatch) -> StalledFactory:
+    """Wrap a stalled socket; slices of 0.25 s keep every time exact in binary."""
+    cancel = threading.Event()
+    monkeypatch.setattr(job_module, "_CANCEL_POLL_SECONDS", 0.25)
+
+    def build(cancel_at: float | None) -> tuple[job_module._CancellableStream, StalledStream]:
+        inner = StalledStream(cancel, cancel_at)
+        monkeypatch.setattr(job_module, "time", SimpleNamespace(monotonic=inner.monotonic))
+        return job_module._CancellableStream(inner, cancel), inner
+
+    return build
+
+
+@pytest.mark.parametrize(("timeout", "slices"), [(0.625, [0.25, 0.25, 0.125]), (0.5, [0.25, 0.25])])
+def test_cancellable_stream_times_out_at_caller_deadline_without_zero_slice(
+    stalled: StalledFactory,
+    timeout: float,
+    slices: list[float],
+) -> None:
+    stream, inner = stalled(None)
+    with pytest.raises(httpcore.ReadTimeout):
+        stream.read(1024, timeout)
+    assert inner.now == timeout
+    # The final slice is the short remainder, and a deadline on a slice boundary
+    # raises instead of passing 0, which would make the socket non-blocking.
+    assert inner.timeouts == slices
+
+
+def test_cancellable_stream_cancel_raises_read_error_within_one_slice(
+    stalled: StalledFactory,
+) -> None:
+    stream, inner = stalled(0.3)
+    with pytest.raises(httpcore.ReadError, match="cancelled"):
+        stream.read(1024, 5.0)
+    assert 0 < inner.now - 0.3 <= 0.25
+    assert inner.timeouts == [0.25, 0.25]
+
+
+def test_cancellable_stream_without_timeout_slices_until_cancel(
+    stalled: StalledFactory,
+) -> None:
+    stream, inner = stalled(0.6)
+    with pytest.raises(httpcore.ReadError, match="cancelled"):
+        stream.read(1024, None)
+    assert inner.now == 0.75
+    assert inner.timeouts == [0.25, 0.25, 0.25]
 
 
 def test_single_job_rule_and_restart_after_cancel(
