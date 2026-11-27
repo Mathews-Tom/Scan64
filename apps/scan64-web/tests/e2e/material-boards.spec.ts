@@ -91,7 +91,11 @@ test('flat palettes keep their untextured checkerboard', async ({ page }) => {
   await page.goto('/analysis');
   const cgBoard = page.getByTestId('free-analysis-board').locator('cg-board');
   await expect(cgBoard).toBeVisible();
-  const background = await cgBoard.evaluate((element) => getComputedStyle(element).backgroundImage);
+  // One page call finds the board and reads its style: a locator evaluate resolves the
+  // element first and runs the function in a second call, and a Chessground redraw
+  // between them leaves a detached node, whose computed style is empty.
+  const background = await page.evaluate(() => getComputedStyle(
+    document.querySelector('[data-testid="free-analysis-board"] cg-board')!).backgroundImage);
   expect(background).toMatch(/^none, conic-gradient/);
   expect(background).not.toContain('/boards/');
 });
