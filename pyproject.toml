@@ -10,7 +10,10 @@ dependencies = [
     "chess-lesson-spec==0.2.0",
     "fastapi>=0.139.0",
     "fsrs==6.3.3",
-    "httpx>=0.28.1",
+    # The download transport in src/scan64/puzzle_import_job.py subclasses httpcore
+    # classes and overrides httpx.HTTPTransport._pool; revisit it before raising these.
+    "httpcore>=1.0.9,<2",
+    "httpx>=0.28.1,<1",
     "pydantic>=2.13.4",
     "sqlmodel>=0.0.39",
     "uvicorn>=0.51.0",
