@@ -7,6 +7,7 @@ import pytest
 
 from benchmarks.factor_calibration.calibrate import (
     HealthSample,
+    _game_quiet,
     choose_quantile,
     fit_health,
     fitted_config,
@@ -18,6 +19,7 @@ from scan64.explanations.factor_facts import (
     FACTOR_CONFIG,
     HEALTH_SCALE,
     HealthScale,
+    evaluation_without_tempo,
     health_values,
 )
 from scan64.explanations.factors import evaluate_factors
@@ -42,6 +44,46 @@ def test_health_scale_is_the_committed_fit() -> None:
     assert labels == {"healthy", "trouble"}
     assert {s.source for s in samples} >= {"game", "null played", "slow played"}
     assert fit_health(samples) == dict(HEALTH_SCALE)
+
+
+def test_health_samples_keep_only_quiet_null_roots() -> None:
+    measured = measure_all(("null",))
+    quiet_roots = [
+        m
+        for m in measured
+        if _game_quiet(chess.Board(m.fen), chess.Move.from_uci(m.points["played"][0]))
+    ]
+    # 7 of the 40 roots: the played move captures or the mover is in check.
+    assert (len(measured), len(quiet_roots)) == (40, 33)
+    samples = health_samples(measured)
+    assert sum(s.source == "null before" for s in samples) == len(quiet_roots)
+
+
+# curated-rule50_high (tests/fixtures/factors/positions.json), each side to move.
+RULE50_HIGH = "8/8/4k3/8/2R5/8/4K3/2r5 {} - - 87 120"
+
+
+def test_overall_does_not_depend_on_the_side_to_move_near_the_fifty_move_limit() -> None:
+    white = evaluate_factors(RULE50_HIGH.format("w"))
+    black = evaluate_factors(RULE50_HIGH.format("b"))
+    assert white.rule50 == black.rule50 == 87
+    # Tempo is added before the fifty-move scaling: subtracting it afterwards
+    # leaves a turn-dependent part.
+    assert white.evaluation - white.tempo != black.evaluation - black.tempo
+    assert evaluation_without_tempo(white) == evaluation_without_tempo(black)
+    for side in (chess.WHITE, chess.BLACK):
+        assert health_values(white, side)["Overall"] == health_values(black, side)["Overall"]
+
+
+def test_evaluation_without_tempo_is_evaluation_minus_tempo_without_the_clock() -> None:
+    for fen in (
+        chess.STARTING_FEN,
+        "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+        "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 4",
+        RULE50_HIGH.replace(" 87 ", " 0 ").format("w"),
+    ):
+        report = evaluate_factors(fen)
+        assert evaluation_without_tempo(report) == report.evaluation - report.tempo, fen
 
 
 def test_health_scale_reads_the_start_between_empty_and_full() -> None:

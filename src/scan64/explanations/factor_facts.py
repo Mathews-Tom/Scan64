@@ -383,15 +383,30 @@ HEALTH_GROUPS: tuple[str, ...] = (
 )
 
 
+def evaluation_without_tempo(report: FactorReport) -> int:
+    """The guide's ``Main evaluation`` of ``report`` without tempo, White's view.
+
+    The guide's steps (``terms.main_evaluation``) with the tempo term left out:
+    taper, round to 16 units, then scale by the fifty-move clock. Tempo is
+    added before that scaling, so ``evaluation - tempo`` is not the tempo-free
+    value once the halfmove clock is above 0.
+    """
+    end_game = report.end_game * report.scale_factor / 64
+    value = int((report.middle_game * report.phase + int(end_game * (128 - report.phase))) / 128)
+    value = int(value / 16) * 16
+    return int(value * (100 - report.rule50) / 100)
+
+
 def health_values(report: FactorReport, side: chess.Color) -> dict[str, float]:
     """The value each health meter reads, pawns, ``side``'s view (``HealthScale``).
 
     A group is its tapered value (``side`` minus the opponent). ``Overall`` is
-    the guide's main evaluation without tempo, which flips sign every move.
+    the guide's main evaluation without tempo, which flips sign every move
+    (``evaluation_without_tempo``).
     """
     sign = 1 if side == chess.WHITE else -1
     values = {name: sign * report.groups[name].tapered / PAWN_VALUE_EG for name in HEALTH_GROUPS}
-    values["Overall"] = sign * (report.evaluation - report.tempo) / PAWN_VALUE_EG
+    values["Overall"] = sign * evaluation_without_tempo(report) / PAWN_VALUE_EG
     return values
 
 

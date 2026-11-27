@@ -32,8 +32,10 @@ per factor group at one position (``health_values``: the group's tapered value
 of a side minus the opponent's, that side's view). Samples are quiet positions,
 labelled from one side's view:
 
-- healthy: every quiet measured point of the ``null`` set (the mover's view),
-  and quiet positions of the slow-loss games (``games.json``, from ply
+- healthy: every quiet measured point of the ``null`` set (the mover's view;
+  the ``before`` root only when it is quiet by the game rule below with the
+  played move as the next move, since the pipeline measures the root
+  unconditionally), and quiet positions of the slow-loss games (``games.json``, from ply
   ``GAME_FROM_PLY``) where that side's Lichess eval is within ``+-LEVEL_CP``;
 - trouble: the ``played`` point of every ``slow`` mistake (the loser's view),
   and quiet game positions where that side's Lichess eval is ``TROUBLE_CP`` or
@@ -522,6 +524,11 @@ def health_samples(measured: Sequence[Measurement]) -> list[HealthSample]:
         root = chess.Board(m.fen)
         for point, uci in sorted(m.points.items()):
             if getattr(m, point) is None or (m.set == "slow" and point != "played"):
+                continue
+            if point == "before" and not _game_quiet(
+                root, chess.Move.from_uci(m.points["played"][0])
+            ):
+                # The pipeline measures the root unconditionally; a sample must be quiet.
                 continue
             board = root.copy(stack=False)
             for token in uci:

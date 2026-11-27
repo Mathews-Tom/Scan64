@@ -249,33 +249,33 @@ Totals: benchmark 39 facts (10 cause, 19 secondary, 10 noise); slow 26 facts (18
 
 The position health panel (#416) shows one meter per factor group at one position. The thresholds above say when a change across a move becomes a fact; they give no scale for a value at a single position. This section fits that scale. `HEALTH_SCALE` in `src/scan64/explanations/factor_facts.py`, next to `FACTOR_CONFIG`, holds it; `calibrate.py` refits it and `--check` fails when the table differs from the fit.
 
-**Value.** A meter reads `health_values(report, side)`: the group's tapered value of the side minus the opponent's, in pawns, from that side's view (the same values the factor facts compare). `Overall` is the guide's main evaluation without tempo, which flips sign every move. The value is antisymmetric: the opponent's value is the learner's value negated, so one row serves both meters.
+**Value.** A meter reads `health_values(report, side)`: the group's tapered value of the side minus the opponent's, in pawns, from that side's view (the same values the factor facts compare). `Overall` is the guide's main evaluation without tempo, which flips sign every move: the guide's steps with the tempo term left out (taper, round to 16 units, then scale by the fifty-move clock; `evaluation_without_tempo`). The guide adds tempo before the fifty-move scaling, so subtracting it afterwards would leave a turn-dependent part when the halfmove clock is above 0. The value is antisymmetric: the opponent's value is the learner's value negated, so one row serves both meters.
 
 **Samples.** Quiet positions, each labelled from one side's view:
 
 | Label | Source | Samples |
 |---|---|---|
-| healthy | `null` set, every quiet measured point (`before`, `played`, `best`), the mover's view | 119 |
+| healthy | `null` set, every quiet measured point (`before` 33, `played` 40, `best` 39), the mover's view | 112 |
 | healthy | slow-loss games (`games.json`), quiet positions from ply 10 where that side's Lichess eval is within ±100 cp; both sides of a level position count | 586 |
 | trouble | `slow` set, the `played` point of each mistake, the loser's view | 50 |
 | trouble | slow-loss games, quiet positions where that side's Lichess eval is -300 cp or less | 402 |
 
-A game position is quiet by the rule of `quiet_ply`, with the game's next move as the line: no check, and the next move is not a capture or a check. The Lichess eval of a position is the eval after the previous ply. The positions before a slow mistake are not used: they lie inside the decline (the loser at -60 to -300 cp), so they are neither level nor lost.
+A game position is quiet by the rule of `quiet_ply`, with the game's next move as the line: no check, and the next move is not a capture or a check. The pipeline measures the `before` point (the root) without a quiet test; a `null` root enters only when it passes the same rule with the played move as the next move. 7 of the 40 do not (6 played moves are captures, one also a check; at `lichess:XCyhM64M:70` the mover is in check) and are left out. The `played` and `best` points are quiet by `quiet_ply` itself. The Lichess eval of a position is the eval after the previous ply. The positions before a slow mistake are not used: they lie inside the decline (the loser at -60 to -300 cp), so they are neither level nor lost.
 
-**Fit.** `full` is the 80th percentile of the healthy values, `empty` the 20th percentile of the values in trouble, each rounded outward to 0.05 and at least 0.10 from 0 (so a group that is mostly zero, passed pawns and space, still has a range).
+**Fit.** `full` is the 80th percentile of the healthy values, `empty` the 20th percentile of the values in trouble, each rounded outward to 0.05 and at least 0.10 from 0 (so a group that is mostly zero, passed pawns and space, still has a range). Leaving out the 7 non-quiet roots and computing `Overall` before the fifty-move scaling leave all nine fitted endpoints unchanged; the percentiles and shares below moved by at most 0.01 and 1 point.
 
 **Curve.** Linear between the two, clamped: `health = (value - empty) / (full - empty)`, 0 at and below `empty`, 1 at and above `full` (`HealthScale.health`). A logistic was not fitted: the healthy and trouble distributions overlap for most groups (AUC below), so a fitted slope would rest on the overlap, and two stated quantiles are easier to refit and to read.
 
 | Meter | Healthy median | Healthy 80th pct | Trouble median | Trouble 20th pct | Full | Empty | Start reads | Healthy reads >= 2/3 | Trouble reads < 1/3 | AUC |
 |---|---|---|---|---|---|---|---|---|---|---|
 | King | +0.00 | +0.28 | -0.12 | -0.54 | +0.30 | -0.55 | 0.65 | 46% | 34% | 0.60 |
-| Material | -0.00 | +0.46 | -1.96 | -5.13 | +0.50 | -5.15 | 0.91 | 100% | 36% | 0.89 |
+| Material | -0.00 | +0.45 | -1.96 | -5.13 | +0.50 | -5.15 | 0.91 | 100% | 36% | 0.89 |
 | Threats | +0.01 | +0.24 | -0.09 | -0.38 | +0.25 | -0.40 | 0.62 | 48% | 38% | 0.58 |
 | Pieces | +0.00 | +0.22 | +0.01 | -0.20 | +0.25 | -0.25 | 0.50 | 35% | 35% | 0.49 |
-| Mobility | +0.00 | +0.40 | -0.31 | -0.61 | +0.45 | -0.65 | 0.59 | 44% | 54% | 0.70 |
+| Mobility | +0.00 | +0.41 | -0.31 | -0.61 | +0.45 | -0.65 | 0.59 | 43% | 54% | 0.70 |
 | Pawns | +0.00 | +0.14 | -0.04 | -0.24 | +0.15 | -0.25 | 0.62 | 44% | 38% | 0.58 |
-| Passed pawns | -0.00 | +0.00 | -0.00 | -0.43 | +0.10 | -0.45 | 0.82 | 98% | 25% | 0.62 |
-| Space | +0.00 | +0.12 | -0.00 | +0.00 | +0.15 | -0.10 | 0.40 | 26% | 12% | 0.54 |
+| Passed pawns | +0.00 | +0.00 | -0.00 | -0.43 | +0.10 | -0.45 | 0.82 | 98% | 25% | 0.62 |
+| Space | +0.00 | +0.12 | -0.00 | +0.00 | +0.15 | -0.10 | 0.40 | 27% | 12% | 0.54 |
 | Overall | +0.00 | +0.84 | -2.80 | -5.64 | +0.85 | -5.65 | 0.87 | 92% | 42% | 0.93 |
 
 Pawns, side's view. "Start reads": the meter at the starting position (value 0). "AUC": the chance that a healthy value is above a value in trouble (0.5: no separation).
@@ -298,7 +298,7 @@ Pawns, side's view. "Start reads": the meter at the starting position (value 0).
 | Mobility | +0.35 | -0.70 | +0.50 | -0.60 |
 | Pawns | +0.15 | -0.30 | +0.20 | -0.25 |
 | Passed pawns | +0.10 | -0.50 | +0.10 | -0.35 |
-| Space | +0.10 | -0.10 | +0.15 | -0.10 |
+| Space | +0.15 | -0.10 | +0.15 | -0.10 |
 | Overall | +0.55 | -6.50 | +1.20 | -4.55 |
 
 In trouble, the side to move reads lower king safety, threats and overall values than the side waiting. One pooled row is kept: a scale that changes with the side to move would move every meter on every ply, as tempo would.
