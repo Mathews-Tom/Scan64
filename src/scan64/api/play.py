@@ -161,8 +161,9 @@ def bot_play_unavailable(error: EngineCapabilityError) -> HTTPException:
 
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+    analysis = StockfishConfig()
     return StockfishOpponentProvider(
-        ladder_engine_config(StockfishConfig()), pool_manager=pool_manager
+        ladder_engine_config(analysis), pool_manager=pool_manager, analysis_config=analysis
     )
 
 

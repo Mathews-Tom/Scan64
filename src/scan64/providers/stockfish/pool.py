@@ -68,11 +68,13 @@ def interactive_concurrency() -> int:
     )
 
 
-def batch_concurrency() -> int:
-    """Batch size reserves the interactive engines and one CPU for the application."""
+def batch_concurrency(ladder_engines: int = 0) -> int:
+    """Batch size reserves the interactive engines, ``ladder_engines`` (a separate
+    ladder pool's engine threads) and one CPU for the application. An Elo ladder
+    plays on a fixed move time, so batch work must not take its CPUs."""
     affinity = getattr(os, "sched_getaffinity", None)
     available_cpus = len(affinity(0)) if affinity is not None else (os.cpu_count() or 1)
-    default = max(2, available_cpus - interactive_concurrency() - 1)
+    default = max(2, available_cpus - interactive_concurrency() - ladder_engines - 1)
     return _positive_int_from_env("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", default)
 
 
@@ -367,11 +369,13 @@ class EnginePoolManager:
         pool from its override or available CPUs minus interactive capacity and
         one application CPU (minimum 2). Direct constructors keep explicit sizes."""
         ladder = ladder_engine_config(config)
+        interactive = interactive_concurrency()
+        separate = ladder is not config
         return cls(
             config,
-            interactive_concurrency=interactive_concurrency(),
-            batch_concurrency=batch_concurrency(),
-            ladder_config=None if ladder is config else ladder,
+            interactive_concurrency=interactive,
+            batch_concurrency=batch_concurrency(interactive * ladder.threads if separate else 0),
+            ladder_config=ladder if separate else None,
         )
 
     @property
@@ -407,7 +411,8 @@ class EnginePoolManager:
     async def play_interactive(
         self, fen: str, skill_level: int, limit: chess.engine.Limit
     ) -> chess.engine.PlayResult:
-        async with self.ladder_pool.acquire() as adapter:
+        # Legacy Skill Level sessions predate the ladder: always the analysis engine.
+        async with self.interactive_pool.acquire() as adapter:
             return await adapter.play_move(fen, skill_level, limit)
 
     async def play_bot_interactive(
@@ -477,6 +482,9 @@ class EnginePoolManager:
         self, board: chess.Board, *, nodes: int | None = None, depth: int | None = None
     ) -> EngineAnalysis:
         """Admit one hint, leaving an interactive slot for opponent moves.
+
+        Opponent moves share the interactive pool unless a ladder profile is
+        set; the gate stays at two engines either way.
 
         No hint queue: reject concurrent hints or a single-engine deployment.
         Acquisition waits at most 250 ms; search is 200k nodes / 1.5 seconds,

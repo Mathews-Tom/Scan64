@@ -284,7 +284,9 @@ class PlayClockRuntime:
                 service = PlaySessionService(
                     session,
                     StockfishOpponentProvider(
-                        ladder_engine_config(StockfishConfig()), self.pool_manager
+                        ladder_engine_config(analysis := StockfishConfig()),
+                        self.pool_manager,
+                        analysis_config=analysis,
                     ),
                     engine_pool_manager=self.pool_manager,
                     clock_runtime=self,

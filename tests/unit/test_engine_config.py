@@ -642,3 +642,61 @@ def test_ladder_profile_errors_name_its_variable(
     monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(tmp_path / "missing.toml"))
     with pytest.raises(EngineConfigurationError, match="does not exist"):
         ladder_engine_profile()
+
+
+def test_ladder_pool_reserves_cpus_and_one_file_needs_no_second_pool(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    analysis_path = tmp_path / "analysis.toml"
+    analysis_path.write_text(
+        "[engine]\nname = 'caissa'\nbinary_path = 'caissa'\n", encoding="utf-8"
+    )
+    ladder_path = tmp_path / "ladder.toml"
+    ladder_path.write_text(
+        "[engine]\nname = 'arasan'\nbinary_path = 'arasan'\nthreads = 2\n", encoding="utf-8"
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis_path))
+    monkeypatch.setenv("SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY", "2")
+    monkeypatch.delenv("SCAN64_ENGINE_POOL_BATCH_CONCURRENCY", raising=False)
+    monkeypatch.setattr("os.cpu_count", lambda: 16)
+    monkeypatch.delattr("os.sched_getaffinity", raising=False)
+    monkeypatch.delenv(LADDER_ENGINE_CONFIG_ENV, raising=False)
+    assert EnginePoolManager.from_env(EngineConfig()).batch_pool.concurrency == 13
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder_path))
+    # Two ladder engines of two threads each come out of the batch default.
+    assert EnginePoolManager.from_env(EngineConfig()).batch_pool.concurrency == 9
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(analysis_path))
+    same = EnginePoolManager.from_env(EngineConfig())
+    assert same.ladder_pool is same.interactive_pool
+    assert same.batch_pool.concurrency == 13
+
+
+@pytest.mark.asyncio
+async def test_legacy_skill_sessions_stay_on_the_analysis_engine() -> None:
+    analysis = EngineConfig(binary_path="stockfish")
+    ladder = EngineConfig(binary_path="arasan", name="arasan")
+    manager = EnginePoolManager(analysis, 1, 1, ladder_config=ladder)
+    used: list[str] = []
+
+    class Lease:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def __aenter__(self) -> AsyncMock:
+            used.append(self.name)
+            adapter = AsyncMock()
+            adapter.play_move.return_value = "legacy"
+            adapter.play_bot_move.return_value = "ladder"
+            return adapter
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+    manager.interactive_pool.acquire = lambda: Lease("interactive")  # type: ignore[method-assign]
+    manager.ladder_pool.acquire = lambda: Lease("ladder")  # type: ignore[method-assign]
+    assert (
+        await manager.play_interactive(chess.STARTING_FEN, 5, chess.engine.Limit(time=0.1))
+        == "legacy"
+    )
+    assert await manager.play_bot_interactive(chess.STARTING_FEN, AsyncMock()) == "ladder"
+    assert used == ["interactive", "ladder"]

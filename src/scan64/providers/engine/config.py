@@ -507,4 +507,11 @@ class EngineConfig:
 def ladder_engine_config(analysis: EngineConfig) -> EngineConfig:
     """The engine that plays bot moves: the ladder profile, else ``analysis``."""
     profile = ladder_engine_profile()
-    return analysis if profile is None else EngineConfig.from_profile(profile)
+    if profile is None:
+        return analysis
+    ladder = EngineConfig.from_profile(profile)
+    # The same engine and ladder as analysis (both variables naming one file)
+    # needs no second pool.
+    if ladder.fingerprint() == analysis.fingerprint() and ladder.ladder == analysis.ladder:
+        return analysis
+    return ladder
