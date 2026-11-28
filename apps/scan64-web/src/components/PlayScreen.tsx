@@ -15,9 +15,10 @@ import { flushSync } from 'react-dom';
 import { ApiClient, ApiRequestError, BotPlayUnavailableError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
-import type { BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlayClockRead, PlaySessionRead, PlayMoveResponse, TimeControl } from '../api/types';
+import type { AssistanceMode, BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlayClockRead, PlaySessionRead, PlayMoveResponse, TimeControl } from '../api/types';
 import { CoachBoard } from './CoachBoard';
 import { HintPanel, type HintPreview } from './HintPanel';
+import { PlayHealth } from './PlayHealth';
 import { Chess } from 'chess.js';
 
 import { Panel } from './Primitives';
@@ -86,6 +87,12 @@ export interface PlayScreenProps {
   initialSession?: PlaySessionRead;
   initialFen?: string;
   onNavigate?: (path: string) => void;
+}
+
+// previousFen: the position before the last move, for the health meters' rise or fall.
+function readBoardPosition(chess: Chess): { fen: string; pgn: string; previousFen: string | null } {
+  const history = chess.history({ verbose: true });
+  return { fen: chess.fen(), pgn: chess.pgn(), previousFen: history.length ? history[history.length - 1].before : null };
 }
 
 export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScreenProps = {}) {
@@ -210,9 +217,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     return chess;
   });
   const chessRef = useRef(initialChess);
-  const [boardPosition, setBoardPosition] = useState(() => ({
-    fen: chessRef.current.fen(), pgn: chessRef.current.pgn(),
-  }));
+  const [boardPosition, setBoardPosition] = useState(() => readBoardPosition(chessRef.current));
   const [movePending, setMovePending] = useState(false);
   const positionRevision = useRef(0);
   const assistanceRequest = useRef(0);
@@ -256,7 +261,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     positionRevision.current += 1;
     clearAssistance();
     setCandidateMoves([]);
-    setBoardPosition({ fen: chessRef.current.fen(), pgn: chessRef.current.pgn() });
+    setBoardPosition(readBoardPosition(chessRef.current));
   }, [clearAssistance]);
   useEffect(() => {
     clearAssistance();
@@ -275,6 +280,15 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       setSession(updated);
     }
   }, [clearAssistance]);
+
+  // A counted health reading (#417) is hint use: show it with the other assistance.
+  const handleHealthAssistance = useCallback((modes: AssistanceMode[]) => {
+    const activeSession = sessionRef.current;
+    if (!activeSession) return;
+    const updated = { ...activeSession, assistance_modes: modes };
+    sessionRef.current = updated;
+    setSession(updated);
+  }, []);
 
   const refreshConversionResult = useCallback(async (sessionId: string) => {
     setConversionRefreshing(true);
@@ -1260,7 +1274,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
       <div className={session ? 'board-workspace' : 'play-setup'}>
       {session && <div className="board-workspace__board">
       <CoachBoard
-        {...boardPosition}
+        fen={boardPosition.fen} pgn={boardPosition.pgn}
         {...(currentHint ? { fen: currentHint.fen, pgn: currentHint.fen === boardPosition.fen ? boardPosition.pgn : undefined, visualizations: currentHint.visualizations } : {})}
         testId="chessground-board"
         preview={currentHint !== null && currentHint.fen !== boardPosition.fen}
@@ -1473,6 +1487,11 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
             onClick={() => void commitProtectedMove(assistance.result.grades[0].move, assistance)}>Play anyway</button>
         </div> : null}
       </Panel>}
+      {session?.status === 'active' && <PlayHealth playerId={session.player_id} sessionId={session.id}
+        fen={boardPosition.fen} previousFen={boardPosition.previousFen} learner={sessionPlayerColor(session)}
+        learnerToMove={sessionPlayerColor(session) !== undefined && chessRef.current.turn() ===
+          (sessionPlayerColor(session) === 'white' ? 'w' : 'b')}
+        onAssistance={handleHealthAssistance} />}
       {session?.status === 'active' && <HintPanel playerId={session.player_id} sessionId={session.id}
         fen={boardPosition.fen} onPreview={handleHintPreview}
         disabled={movePending || opponentPending || resigning || takingBack || assistance !== null || criticalInterruption !== null ||

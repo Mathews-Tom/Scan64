@@ -248,6 +248,14 @@ Use **Preview candidate**, **Next step**, **Previous step**, or **Full line** to
 
 Live hints are recorded on the server before they are revealed. Any hint step excludes good-move credit for that canonical position, including after reload, takeback or revisiting it with different move counters. Closing the panel does not erase assistance. If the position changes while a hint is being prepared, request a new hint; the stale hint is not disclosed. Standalone FEN study hints remain available without claiming live-game assistance history.
 
+### Health meters during play
+
+Below the hint ladder sits a subtler level of help: the **Health meters** panel beside the game board. It shows the same meters as the [position health panel](#position-health), with columns for you and your opponent: king safety, material, threats, piece placement, mobility, pawn structure, passed pawns, space and an overall meter. The meters update after every move, yours and the opponent's, and a ▲ or ▼ marks a meter that rose or fell with the last move. They never show a move, a square to move to or an engine line, and they need no language model or engine search.
+
+The meters are on by default. Clear **Show health meters** in the panel to hide them; the choice persists. This switch is separate from **Settings → Chessboard → Position health panel**, which controls the Analysis Board and game review.
+
+By default, reading the meters does not count as taking a hint: hint statistics and good-move credit are unchanged. Turn on **Count the meters as a hint** to count them. Then every position at which the meters are shown, with you to move, is recorded on the server as the first hint level, like the first **Hint** press: it excludes good-move credit for that position, and **Current game** lists hints as assistance used. A position is counted once, however long the meters stay on screen. The API is `POST /v1/play-sessions/{session_id}/health-hint` with `player_id` and `fen`.
+
 Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactical, principle-only and fallback shares of candidate moves over M48's 40 recorded real games, without launching an engine. Each reached position uses its deepest available recording (deep source, focused reply, or fast search); at most three tolerance-qualified candidates count per position. Tactical takes precedence when a candidate also has a principle. These shares measure explanatory coverage, not correctness or learning outcomes, and have no pass threshold.
 
 ## Import and analyse a PGN

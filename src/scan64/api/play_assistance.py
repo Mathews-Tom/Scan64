@@ -106,3 +106,51 @@ async def assist_play_moves(
         grades=grades,
         assistance_modes=assistance_modes(session, session_id),
     )
+
+
+class HealthHintRequest(BaseModel):
+    player_id: str
+    fen: str
+
+
+class HealthHintRead(BaseModel):
+    fen: str
+    generation: int
+    assistance_modes: list[AssistanceMode]
+
+
+@router.post("/v1/play-sessions/{session_id}/health-hint", response_model=HealthHintRead)
+def record_health_hint(
+    session_id: UUID,
+    body: HealthHintRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HealthHintRead:
+    """Count reading the health meters at this position as the first hint level.
+
+    Only sent when the learner turned on "count the meters as a hint"; the
+    meters themselves name no move, so no engine runs here.
+    """
+    actor = require_authenticated_player(request, session)
+    if actor != body.player_id:
+        raise HTTPException(status_code=404, detail="Player not found")
+    board, snapshot = owned_play_position(session, session_id, body.player_id)
+    try:
+        if len(body.fen.split()) != 6:
+            raise ValueError("Supply a complete FEN")
+        supplied = chess.Board(body.fen)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid FEN") from None
+    if supplied.fen() != board.fen():
+        raise HTTPException(status_code=409, detail="PlaySession position changed")
+    try:
+        generation = persist_assistance(session, snapshot, board, 1)
+    except StalePlaySnapshot:
+        raise HTTPException(
+            status_code=409, detail="PlaySession changed; read the current position again"
+        ) from None
+    return HealthHintRead(
+        fen=board.fen(),
+        generation=generation,
+        assistance_modes=assistance_modes(session, session_id),
+    )
