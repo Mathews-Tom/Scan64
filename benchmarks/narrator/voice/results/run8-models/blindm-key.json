@@ -1,0 +1,2402 @@
+{
+ "m0001": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0002": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0003": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m0004": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0005": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0006": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m0007": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0008": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m0009": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0010": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0011": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m0012": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0013": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0014": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0015": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0016": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0017": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0018": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m0019": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0020": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0021": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m0022": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0023": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m0024": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m0025": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m0026": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0027": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m0028": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m0029": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m0030": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0031": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0032": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0033": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m0034": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0035": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0036": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m0037": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0038": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0039": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m0040": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0041": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m0042": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m0043": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0044": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0045": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0046": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0047": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m0048": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0049": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0050": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0051": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m0052": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0053": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m0054": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m0055": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0056": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m0057": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0058": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0059": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m0060": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m0061": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0062": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m0063": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m0064": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0065": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0066": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m0067": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m0068": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0069": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0070": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0071": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m0072": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0073": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m0074": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0075": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0076": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0077": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0078": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0079": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m0080": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0081": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0082": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m0083": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m0084": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0085": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0086": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m0087": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0088": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0089": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0090": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m0091": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m0092": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m0093": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0094": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m0095": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0096": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0097": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0098": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0099": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m0100": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0101": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0102": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0103": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0104": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0105": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0106": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0107": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0108": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m0109": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m0110": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0111": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0112": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0113": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0114": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0115": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m0116": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m0117": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m0118": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0119": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0120": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0121": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m0122": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0123": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0124": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0125": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m0126": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m0127": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m0128": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0129": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0130": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0131": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m0132": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0133": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0134": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0135": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0136": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0137": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0138": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0139": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m0140": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0141": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0142": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m0143": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0144": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0145": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0146": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0147": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0148": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0149": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m0150": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0151": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0152": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0153": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0154": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m0155": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m0156": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0157": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m0158": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0159": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0160": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0161": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m0162": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m0163": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0164": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0165": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0166": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0167": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m0168": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0169": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m0170": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m0171": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m0172": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0173": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0174": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0175": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0176": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0177": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0178": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m0179": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0180": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0181": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0182": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m0183": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0184": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0185": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0186": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0187": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m0188": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0189": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0190": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0191": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0192": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m0193": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0194": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0195": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0196": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m0197": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m0198": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0199": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m0200": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m0201": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m0202": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0203": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0204": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0205": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m0206": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m0207": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0208": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m0209": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m0210": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m0211": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0212": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0213": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m0214": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0215": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0216": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0217": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0218": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m0219": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0220": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0221": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m0222": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0223": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0224": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m0225": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0226": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0227": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m0228": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m0229": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0230": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m0231": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0232": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0233": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m0234": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0235": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0236": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0237": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0238": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0239": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0240": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m0241": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m0242": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m0243": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0244": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m0245": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0246": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m0247": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0248": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0249": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m0250": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m0251": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0252": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0253": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0254": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m0255": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0256": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0257": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0258": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m0259": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m0260": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m0261": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m0262": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0263": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0264": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0265": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0266": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m0267": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m0268": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0269": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0270": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m0271": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0272": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0273": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m0274": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m0275": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0276": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m0277": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m0278": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m0279": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m0280": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m0281": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m0282": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0283": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m0284": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m0285": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m0286": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m0287": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m0288": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0289": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m0290": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0291": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m0292": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m0293": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0294": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m0295": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m0296": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m0297": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m0298": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m0299": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m0300": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m1001": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m1002": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1003": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1004": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1005": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1006": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1007": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m1008": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1009": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1010": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1011": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1012": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m1013": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m1014": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1015": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1016": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1017": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1018": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m1019": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1020": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1021": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1022": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1023": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1024": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m1025": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1026": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m1027": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1028": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m1029": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1030": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1031": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1032": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1033": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m1034": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m1035": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1036": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1037": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m1038": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1039": {
+  "model": "praxis-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1040": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1041": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1042": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1043": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1044": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m1045": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1046": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1047": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1048": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1049": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1050": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1051": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1052": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m1053": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1054": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1055": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m1056": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1057": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1058": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m1059": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1060": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m1061": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1062": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1063": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1064": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1065": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1066": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1067": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1068": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1069": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m1070": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m1071": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1072": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1073": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1074": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1075": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m1076": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m1077": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1078": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m1079": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1080": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1081": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1082": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1083": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1084": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1085": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1086": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m1087": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1088": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1089": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1090": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m1091": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P5-shut-bishop"
+ },
+ "m1092": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m1093": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1094": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1095": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1096": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1097": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m1098": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1099": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1100": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m1101": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1102": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1103": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m1104": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m1105": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1106": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1107": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m1108": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m1109": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1110": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m1111": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1112": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1113": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m1114": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1115": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m1116": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1117": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1118": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m1119": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1120": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m1121": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1122": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m1123": {
+  "model": "caissa-m1-8b",
+  "test": "P2-boxed-king"
+ },
+ "m1124": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1125": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1126": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1127": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1128": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1129": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m1130": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1131": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m1132": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1133": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1134": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1135": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m1136": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1137": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m1138": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m1139": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1140": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1141": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1142": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1143": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m1144": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1145": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1146": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1147": {
+  "model": "llama3.2-1b",
+  "test": "P4-fork"
+ },
+ "m1148": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1149": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1150": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1151": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1152": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1153": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1154": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1155": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1156": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m1157": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1158": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1159": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m1160": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1161": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m1162": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m1163": {
+  "model": "praxis-2b",
+  "test": "P3-back-rank"
+ },
+ "m1164": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1165": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m1166": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1167": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1168": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m1169": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1170": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m1171": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1172": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1173": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1174": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P1-greedy-knight"
+ },
+ "m1175": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1176": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m1177": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1178": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m1179": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1180": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1181": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m1182": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1183": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1184": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m1185": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1186": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P2-boxed-king"
+ },
+ "m1187": {
+  "model": "llama3.2-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1188": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1189": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m1190": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m1191": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1192": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m1193": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m1194": {
+  "model": "gemma3-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1195": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1196": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1197": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1198": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1199": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1200": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1201": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1202": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1203": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m1204": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1205": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1206": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1207": {
+  "model": "second-2b",
+  "test": "P3-back-rank"
+ },
+ "m1208": {
+  "model": "qwen3.5-4b",
+  "test": "P4-fork"
+ },
+ "m1209": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1210": {
+  "model": "second-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1211": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1212": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1213": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1214": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m1215": {
+  "model": "qwen3-1.7b",
+  "test": "P1-greedy-knight"
+ },
+ "m1216": {
+  "model": "llama3.2-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1217": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1218": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m1219": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1220": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P4-fork"
+ },
+ "m1221": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P3-back-rank"
+ },
+ "m1222": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1223": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m1224": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1225": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1226": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m1227": {
+  "model": "qwen3-1.7b",
+  "test": "P5-shut-bishop"
+ },
+ "m1228": {
+  "model": "caissa-m1-8b",
+  "test": "P1-greedy-knight"
+ },
+ "m1229": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1230": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1231": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1232": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m1233": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1234": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m1235": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1236": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m1237": {
+  "model": "gemma3-270m",
+  "test": "P5-shut-bishop"
+ },
+ "m1238": {
+  "model": "gemma3-1b",
+  "test": "P3-back-rank"
+ },
+ "m1239": {
+  "model": "praxis-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1240": {
+  "model": "caissa-m1-8b",
+  "test": "P3-back-rank"
+ },
+ "m1241": {
+  "model": "praxis-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1242": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m1243": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1244": {
+  "model": "praxis-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1245": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1246": {
+  "model": "qwen3.5-2b",
+  "test": "P5-shut-bishop"
+ },
+ "m1247": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1248": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1249": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1250": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1251": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P5-shut-bishop"
+ },
+ "m1252": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1253": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1254": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1255": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1256": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1257": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1258": {
+  "model": "second-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1259": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ },
+ "m1260": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m1261": {
+  "model": "qwen3.5-2b",
+  "test": "P3-back-rank"
+ },
+ "m1262": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1263": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m1264": {
+  "model": "qwen3.5-2b",
+  "test": "P4-fork"
+ },
+ "m1265": {
+  "model": "qwen3-1.7b",
+  "test": "P2-boxed-king"
+ },
+ "m1266": {
+  "model": "qwen3-1.7b",
+  "test": "P4-fork"
+ },
+ "m1267": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1268": {
+  "model": "qwen3.5-4b",
+  "test": "P3-back-rank"
+ },
+ "m1269": {
+  "model": "qwen3.5-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1270": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P4-fork"
+ },
+ "m1271": {
+  "model": "llama3.2-1b",
+  "test": "P1-greedy-knight"
+ },
+ "m1272": {
+  "model": "second-2b",
+  "test": "P4-fork"
+ },
+ "m1273": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P3-back-rank"
+ },
+ "m1274": {
+  "model": "qwen3.5-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1275": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m1276": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1277": {
+  "model": "gemma3-270m",
+  "test": "P2-boxed-king"
+ },
+ "m1278": {
+  "model": "second-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1279": {
+  "model": "praxis-4b",
+  "test": "P4-fork"
+ },
+ "m1280": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1281": {
+  "model": "gemma3-270m",
+  "test": "P3-back-rank"
+ },
+ "m1282": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1283": {
+  "model": "gemma4-e4b-q3km",
+  "test": "P1-greedy-knight"
+ },
+ "m1284": {
+  "model": "gemma3-1b",
+  "test": "P5-shut-bishop"
+ },
+ "m1285": {
+  "model": "praxis-4b",
+  "test": "P2-boxed-king"
+ },
+ "m1286": {
+  "model": "gemma3-270m",
+  "test": "P4-fork"
+ },
+ "m1287": {
+  "model": "caissa-m1-8b",
+  "test": "P5-shut-bishop"
+ },
+ "m1288": {
+  "model": "gemma3-1b",
+  "test": "P4-fork"
+ },
+ "m1289": {
+  "model": "praxis-2b",
+  "test": "P1-greedy-knight"
+ },
+ "m1290": {
+  "model": "qwen3-1.7b",
+  "test": "P3-back-rank"
+ },
+ "m1291": {
+  "model": "praxis-2b",
+  "test": "P4-fork"
+ },
+ "m1292": {
+  "model": "gemma4-e4b-q4ks",
+  "test": "P2-boxed-king"
+ },
+ "m1293": {
+  "model": "praxis-4b",
+  "test": "P3-back-rank"
+ },
+ "m1294": {
+  "model": "qwen3.5-4b",
+  "test": "P1-greedy-knight"
+ },
+ "m1295": {
+  "model": "qwen3.5-2b",
+  "test": "P2-boxed-king"
+ },
+ "m1296": {
+  "model": "qwen3.5-4b",
+  "test": "P5-shut-bishop"
+ },
+ "m1297": {
+  "model": "llama3.2-1b",
+  "test": "P3-back-rank"
+ },
+ "m1298": {
+  "model": "gemma3-1b",
+  "test": "P2-boxed-king"
+ },
+ "m1299": {
+  "model": "caissa-m1-8b",
+  "test": "P4-fork"
+ },
+ "m1300": {
+  "model": "gemma3-270m",
+  "test": "P1-greedy-knight"
+ }
+}

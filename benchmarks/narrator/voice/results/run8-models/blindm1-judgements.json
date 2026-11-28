@@ -1,0 +1,2402 @@
+[
+ {
+  "id": "m1001",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1002",
+  "faithful": false,
+  "error": "\"snatching the rook on a8\": capture placed at the check; alternative told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1003",
+  "faithful": false,
+  "error": "\"already snags the pawn on g2\": the pawn is only attacked before Qxg2",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1004",
+  "faithful": false,
+  "error": "\"White's knight swings in... giving check on c7\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1005",
+  "faithful": false,
+  "error": "\"its first safe doorway\": h2 called safe; facts only say the king can step there",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1006",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1007",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1008",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1009",
+  "faithful": false,
+  "error": "\"1.Nxf7\": wrong move number; the move is 5.Nxf7",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1010",
+  "faithful": false,
+  "error": "\"A cautious queen's shield\" / \"1.e4 pins the bishop\": wrong piece; nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1011",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1012",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1013",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1014",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1015",
+  "faithful": false,
+  "error": "\"White's rook rides to d8, and ... lands checkmate\": missed mate told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1016",
+  "faithful": false,
+  "error": "\"7.Be2 A cautious queen step\": Be2 is a bishop move",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1017",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1018",
+  "faithful": false,
+  "error": "\"White played 5.Bxf7+ instead of 5.Nxf7\": Bxf7+ was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1019",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1020",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1021",
+  "faithful": false,
+  "error": "\"White's queen on e4 pins the bishop\": the queen on e4 is Black's",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1022",
+  "faithful": false,
+  "error": "\"White's knight would have leaped to f7\": the knight did go there; garbled",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1023",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1024",
+  "faithful": false,
+  "error": "\"Fact (The move): White played 1.d4.\": d4 was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1025",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1026",
+  "faithful": false,
+  "error": "\"The move is 1.Nc7+\": gives the alternative the role of the move played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1027",
+  "faithful": false,
+  "error": "\"forever locking them in a stalemate!\": it is checkmate, not stalemate",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1028",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1029",
+  "faithful": false,
+  "error": "\"a sudden rush of pawns forward!\": one pawn moved one square; wrong description",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1030",
+  "faithful": false,
+  "error": "\"a master of distraction\": it is a pin, not a distraction; garbled",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1031",
+  "faithful": false,
+  "error": "\"1...Rd8, because that move is illegal for Black\": nonsense; denies the mate",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1032",
+  "faithful": false,
+  "error": "\"now stands in check\": the knight is not in check; it gives mate",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1033",
+  "faithful": false,
+  "error": "\"sets the stage for a bold attack\": attack claim not in the facts",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1034",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1035",
+  "faithful": false,
+  "error": "\"1.d4, a bold pawn advance\": never marked as the alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1036",
+  "faithful": false,
+  "error": "\"the king steps out onto h2\": the king did not move; only h3 was played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1037",
+  "faithful": false,
+  "error": "\"where it's safe and unthreatened\": king safety claim not in the facts",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1038",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1039",
+  "faithful": false,
+  "error": "\"lets the queen on e4 keep her check\": Be2 blocks the check",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1040",
+  "faithful": false,
+  "error": "\"1.e3, a trapped beast!\": nonsense; d4 told as played",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1041",
+  "faithful": false,
+  "error": "\"7.Be2, a bold move!\": praises the losing move; \"A queen's defense\" wrong piece",
+  "lively": 2,
+  "clear": 1,
+  "jargon": true
+ },
+ {
+  "id": "m1042",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1043",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1044",
+  "faithful": false,
+  "error": "\"takes the rook on h1, and then attacks the queen on g2\": rook only attacked; nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1045",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1046",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1047",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1048",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1049",
+  "faithful": false,
+  "error": "\"cannot free up the knight on f3\": the pin stops Bxf3, not freeing a knight",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1050",
+  "faithful": false,
+  "error": "\"a dangerous dance begins!\": unsupported; Bxf7+ never marked as the alternative",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1051",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1052",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1053",
+  "faithful": false,
+  "error": "\"White's queen on e4 pins the bishop\": the queen on e4 is Black's",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1054",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1055",
+  "faithful": false,
+  "error": "\"a safer haven on h2\": safety claim not in the facts",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1056",
+  "faithful": false,
+  "error": "\"White played 1.Nc7+ instead of 1.Kd2\": Nc7+ was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1057",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1058",
+  "faithful": false,
+  "error": "\"delivering check\": 5.Nxf7 gives no check",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1059",
+  "faithful": false,
+  "error": "\"5.Bxf7+ \u2013 A bold leap, a pawn's decree!\": nonsense; not marked as alternative",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1060",
+  "faithful": false,
+  "error": "\"Black's queen takes the rook on h1\": only attacked; \"rook ... in check\" nonsense",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1061",
+  "faithful": false,
+  "error": "\"snatches the rook with 5...Qxg2\": Qxg2 takes a pawn, not a rook",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1062",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1063",
+  "faithful": false,
+  "error": "\"your knight is just sitting there, undefended\": unsupported; Bxf7+ told as played",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1064",
+  "faithful": false,
+  "error": "\"1. Nc7+ \u2013 a knight's bold attack!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1065",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1066",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1067",
+  "faithful": false,
+  "error": "\"Black's king sits safely behind a wall of pawns\": the king is shut in, not safe",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1068",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1069",
+  "faithful": false,
+  "error": "\"the knight on c7 makes a pawn push\": nonsense, wrong move",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1070",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1071",
+  "faithful": false,
+  "error": "\"takes the rook out of the game\": Qxg2 only attacks the rook; \"5...Nxf7\" wrong side",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1072",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1073",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1074",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1075",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1076",
+  "faithful": false,
+  "error": "\"White plays a quiet 1.Rd8\": the missed mate told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1077",
+  "faithful": false,
+  "error": "\"7...Nf3 \u2013 checkmate imminent!\": Nf3 is mate itself; \"defending the queen's path\" garbled",
+  "lively": 2,
+  "clear": 1,
+  "jargon": true
+ },
+ {
+  "id": "m1078",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1079",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1080",
+  "faithful": false,
+  "error": "\"White plays 7.Qe2\": told as played; \"rescue the knight\" wrong",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1081",
+  "faithful": false,
+  "error": "\"White's rook rolls out with 1.Rd8 and gives checkmate\": missed mate told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1082",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1083",
+  "faithful": false,
+  "error": "\"unable to defend the knight on f3\": the bishop would take the knight, not defend it",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1084",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1085",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1086",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1087",
+  "faithful": false,
+  "error": "\"1. Nc7+ \u2013 A bold check!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1088",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1089",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1090",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1091",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1092",
+  "faithful": false,
+  "error": "\"The pawn on c7 captures the knight on a8\": nonsense, no such pawn or capture",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1093",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1094",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1095",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1096",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1097",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1098",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1099",
+  "faithful": false,
+  "error": "\"the king takes a step up!\": king did not move; \"in front of its pawns\" wrong",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1100",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1101",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1102",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1103",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1104",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1105",
+  "faithful": false,
+  "error": "\"White's queen on e4 pins the bishop\": the queen on e4 is Black's; \"a checker\" garbled",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1106",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1107",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1108",
+  "faithful": false,
+  "error": "\"preventing it from defending the knight on f3\": the bishop would take, not defend",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1109",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1110",
+  "faithful": false,
+  "error": "\"instead of attacking the rook, he just adds yet another check\": Nc7+ does attack the rook",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1111",
+  "faithful": false,
+  "error": "\"give check while snatching the rook\": capture placed at the same time as check",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1112",
+  "faithful": false,
+  "error": "\"1.d4, a bold pawn advance\": never marked as the alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1113",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1114",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1115",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1116",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1117",
+  "faithful": false,
+  "error": "\"1.d4, a bold pawn advance\": never marked as the alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1118",
+  "faithful": false,
+  "error": "\"knocking down King K and rooks Ra and Rb\": nonsense; no second rook, nothing captured",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1119",
+  "faithful": false,
+  "error": "\"delivers a check against Black's queen\": Qe2 only attacks the queen; \"punishes the knight\" nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1120",
+  "faithful": false,
+  "error": "\"leaving the knight on f3 stranded\": the pin keeps the knight safe",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1121",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1122",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1123",
+  "faithful": false,
+  "error": "\"leaving the knight on f3 vulnerable\": the pin keeps the knight safe",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1124",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1125",
+  "faithful": false,
+  "error": "\"until White finally cracks that door open with 1.e3\": 1.e3 does not free the bishop",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1126",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1127",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1128",
+  "faithful": false,
+  "error": "\"1.Nc7+ \u2013 a daring check!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1129",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1130",
+  "faithful": false,
+  "error": "\"the knight on f3 is completely safe from attack\": overstated; facts only say Bxf3 is impossible",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1131",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1132",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1133",
+  "faithful": false,
+  "error": "\"1.Nc7+ \u2013 A daring knight surge!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1134",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1135",
+  "faithful": false,
+  "error": "\"even snags Black's queen on e4\": Qe2 only attacks the queen",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1136",
+  "faithful": false,
+  "error": "\"5.Bxf7+ \u2013 a bold pawn rush!\": bishop move, not a pawn; nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1137",
+  "faithful": false,
+  "error": "\"1.  g8, a fortress of pawns!\": nonsense; \"a regal king ascends\" but no king moved",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1138",
+  "faithful": false,
+  "error": "\"perfectly safe from attack\": king safety claim not in facts; misframes the miss",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1139",
+  "faithful": false,
+  "error": "\"the knight charges up to take the rook on h8\": it only attacks the rook",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1140",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1141",
+  "faithful": false,
+  "error": "\"leaps from its corner\": the knight came from e5, not a corner",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1142",
+  "faithful": false,
+  "error": "\"The queen on e4 swoops down\": the queen was already on e4; Qe2 unnamed",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1143",
+  "faithful": false,
+  "error": "\"White's bishop swoops in for a check with 5.Bxf7+\": alternative told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1144",
+  "faithful": false,
+  "error": "\"immediately opens a crucial diagonal ... ideal target square\": unsupported; no alternative role",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1145",
+  "faithful": false,
+  "error": "\"1.h3, the king takes a step to h2\": the king did not move",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1146",
+  "faithful": false,
+  "error": "\"delivering a check to the king on d2\": wrong king; Black's king is checked",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1147",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1148",
+  "faithful": false,
+  "error": "\"a quiet king takes a step forward\": h3 is a pawn move; the king did not move",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1149",
+  "faithful": false,
+  "error": "\"simultaneously snips the rook on a8\": capture placed at the same time as the check",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1150",
+  "faithful": false,
+  "error": "\"carves off the rook on h1\": rook only attacked; \"5.Bxf7+ 1.Bxf7+\" garbled",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1151",
+  "faithful": false,
+  "error": "\"Fact (The move): 7...Nf3\": Black's reply given the move role; mate not stated",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1152",
+  "faithful": false,
+  "error": "\"gives up its pin to break the line and accept a gift\": nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1153",
+  "faithful": false,
+  "error": "\"1.Nc7+ \u2013 A curious challenge!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1154",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1155",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1156",
+  "faithful": false,
+  "error": "\"White's rook rushes out to d8 and checks mate\": missed mate told as played; meta nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1157",
+  "faithful": false,
+  "error": "\"sends her own piece, the rook on h1\": rook is White's; queen doesn't leave g2 open",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1158",
+  "faithful": false,
+  "error": "\"1.Bxf7+ a wild bishop on f7, check.\": not marked as alternative; wrong move number",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1159",
+  "faithful": false,
+  "error": "\"capturing the rook and then lunging at the lonely rook on h1\": no rook captured",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1160",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1161",
+  "faithful": false,
+  "error": "\"as the kingside guard grows thin\": unsupported claim; Nc7+ told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1162",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1163",
+  "faithful": false,
+  "error": "\"1.Rd8, a quick checkmate\": never marked as the missed alternative; reads as played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1164",
+  "faithful": false,
+  "error": "\"1. Nc7+ \u2013 A daring knight's leap!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1165",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1166",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1167",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1168",
+  "faithful": false,
+  "error": "\"1.h3, the king's bold step!\": h3 is a pawn move; Rd8 not marked as alternative",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1169",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1170",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1171",
+  "faithful": false,
+  "error": "\"remains permanently confined\": 1.d4 would free it; \"White plays a quiet 1.d4\" not played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1172",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1173",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1174",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1175",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1176",
+  "faithful": false,
+  "error": "\"the king on g1 dances over to h2\": king did not move; Rd8 told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1177",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1178",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1179",
+  "faithful": false,
+  "error": "\"White plays 7.Qe2\": the better move told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1180",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1181",
+  "faithful": false,
+  "error": "\"a fine defensive dance!\": praises 7.Be2, which allows mate",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1182",
+  "faithful": false,
+  "error": "\"White's queen hops out with 7.Qe2\": the better move told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1183",
+  "faithful": false,
+  "error": "\"White plays a bold 1.d4\": not played; c1-h6 is not the long diagonal",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1184",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1185",
+  "faithful": false,
+  "error": "\"a bad queen because it pins\": nonsense; \"1.Qe2\" wrong move number",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1186",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1187",
+  "faithful": false,
+  "error": "\"the pawn on d4 is a solid centre, blocking the bishop\": 1.d4 frees the bishop",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1188",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1189",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1190",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1191",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1192",
+  "faithful": false,
+  "error": "\"White plays 1.Rd8, and the rook delivers a lethal checkmate\": missed mate told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1193",
+  "faithful": false,
+  "error": "\"Fact (The move): White played 1.d4.\": d4 was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1194",
+  "faithful": false,
+  "error": "\"a frustrating stalemate!\": nonsense; \"rook on h1 takes a hit\" implies capture",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1195",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1196",
+  "faithful": false,
+  "error": "\"White plays a bold 1.d4\": d4 told as played, not as the alternative",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1197",
+  "faithful": false,
+  "error": "\"The pawn on d4 stands proudly\": d4 never marked as alternative; not the long diagonal",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1198",
+  "faithful": false,
+  "error": "\"tucks his king under cover with 1.h3\": king safety claim not in the facts",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1199",
+  "faithful": false,
+  "error": "\"White's rook hops to d8 and delivers a swift checkmate\": missed mate told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1200",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1201",
+  "faithful": false,
+  "error": "\"White's queen on e4 pins\": Black's queen; \"a quiet, uneventful game\" unsupported",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1202",
+  "faithful": false,
+  "error": "\"White played 1.Nc7+ instead of 1.Kd2\": Nc7+ was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1203",
+  "faithful": false,
+  "error": "\"The knight on c7 pounces with a check\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1204",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1205",
+  "faithful": false,
+  "error": "\"swiped the rook on a8 at the same time\": capture placed at the same time as check",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1206",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1207",
+  "faithful": false,
+  "error": "\"White can play 1.Rd8\": not marked as the alternative to 1.h3, which goes unmentioned",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1208",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1209",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1210",
+  "faithful": false,
+  "error": "\"along the long diagonal\": c1-h6 is not the long diagonal",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1211",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1212",
+  "faithful": false,
+  "error": "\"White's knight swings to c7+ with a snap\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1213",
+  "faithful": false,
+  "error": "\"The knight on c7, bold and bright, immediately attacks\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1214",
+  "faithful": false,
+  "error": "\"delivers a check to the rook on h8\": no check; Bxf7+ told as played",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1215",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1216",
+  "faithful": false,
+  "error": "\"it's a stalemate!\": 7...Nf3 is checkmate; \"7.Be2 also ... attacks\" wrong move",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1217",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1218",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1219",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1220",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1221",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1222",
+  "faithful": false,
+  "error": "\"White's queen on e4 blocks the bishop\": the queen on e4 is Black's",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1223",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1224",
+  "faithful": false,
+  "error": "\"1.e4 e2!\" / \"7.Be2 is a viable path, too!\": nonsense; Be2 allows mate",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1225",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1226",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1227",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1228",
+  "faithful": false,
+  "error": "\"leaving it undefended\": the queen does not leave g2 undefended; Nxf7 does",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1229",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1230",
+  "faithful": false,
+  "error": "\"White played 1.Nc7+\": Nc7+ was not played, only could have been",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1231",
+  "faithful": false,
+  "error": "\"White's queen accepts an invitation to play the quiet 7.Be2\": wrong piece; garbled",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1232",
+  "faithful": false,
+  "error": "\"the king follows the path to h2, tucking itself away safely\": king did not move",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1233",
+  "faithful": false,
+  "error": "\"1.e3, a stubborn pawn stuck! 1.d4, a bold pawn strike!\": nonsense; no facts conveyed",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1234",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1235",
+  "faithful": false,
+  "error": "\"White plays 1.Rd8, the rook hops out to deliver instant checkmate\": told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1236",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1237",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1238",
+  "faithful": false,
+  "error": "\"1.  g8, a trapped king!\": nonsense; \"1.Rd8, a daring leap\" no mate, no role",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1239",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1240",
+  "faithful": false,
+  "error": "\"a safe haven at h2\": safety claim not in the facts",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1241",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1242",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1243",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1244",
+  "faithful": false,
+  "error": "\"1.d4, a bold pawn advance\": never marked as the alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1245",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1246",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1247",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1248",
+  "faithful": false,
+  "error": "\"takes the rook on h1\": only attacked; Bxf7+ told as played",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1249",
+  "faithful": false,
+  "error": "\"puts White in checkmate\": wrong side; the king did not step forward",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1250",
+  "faithful": false,
+  "error": "\"with a safe skip\": safety claim not in the facts; the king did not move",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1251",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1252",
+  "faithful": false,
+  "error": "\"with a silent 1.Rd8 and checks for mule!\": nonsense; missed mate told as played",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1253",
+  "faithful": false,
+  "error": "\"the safe square of h2\": unsupported; Rd8 told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1254",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": true
+ },
+ {
+  "id": "m1255",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1256",
+  "faithful": false,
+  "error": "\"seeking shelter away from the action\": unsupported; Nc7+ told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1257",
+  "faithful": false,
+  "error": "\"White's knight swings over to c7+\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1258",
+  "faithful": false,
+  "error": "\"chase the pawn to g2\": the pawn is already on g2 and already attacked",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1259",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1260",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1261",
+  "faithful": false,
+  "error": "\"White plays 1.Rd8 and gives instant checkmate!\": missed mate told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1262",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1263",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1264",
+  "faithful": false,
+  "error": "\"so Black's king cannot hunt him\": unsupported, nonsense reason; Nc7+ role missing",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1265",
+  "faithful": false,
+  "error": "\"once a valuable piece, is now a checkmate\": nonsense",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1266",
+  "faithful": false,
+  "error": "\"White's knight moves to c7, giving check\": missed alternative told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1267",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1268",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1269",
+  "faithful": false,
+  "error": "\"immediately locks out the rook on h1\": unsupported; \"5...Nxf7\" wrong side",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1270",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1271",
+  "faithful": false,
+  "error": "\"5.Bxf7+ with 1.Bxf7+ instead of 1.Nxf7\": garbled, wrong move numbers",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1272",
+  "faithful": false,
+  "error": "\"keeps it safe from immediate threats\": unsupported; \"White plays 1.Nc7+\" not played",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1273",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1274",
+  "faithful": false,
+  "error": "\"locking it out of its job guarding the knight\": bishop would take, not guard; Qe2 told as played",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1275",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1276",
+  "faithful": false,
+  "error": "\"the king on g1 steps to h2, a quiet yet strategic move\": the king did not move",
+  "lively": 1,
+  "clear": 2,
+  "jargon": true
+ },
+ {
+  "id": "m1277",
+  "faithful": false,
+  "error": "\"Fact (The move): White played 7.Qe2.\": Qe2 was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1278",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1279",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1280",
+  "faithful": false,
+  "error": "\"a nice little fortress\" / \"After White played 7.Qe2\": Be2 allows mate; Qe2 not played",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1281",
+  "faithful": false,
+  "error": "\"The move: White played 1.Rd8.\": Rd8 was not played",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1282",
+  "faithful": false,
+  "error": "\"the knight on f7 is an orphan\": unsupported claim the knight is undefended",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1283",
+  "faithful": false,
+  "error": "\"Black's queen on g2 swoops in\": the queen starts on g5, not g2",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1284",
+  "faithful": false,
+  "error": "\"White's pawn on d4 dances, a bold start!\": d4 told as played; nonsense",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1285",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1286",
+  "faithful": false,
+  "error": "\"White played 1.c7\": nonsense, no such move",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1287",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1288",
+  "faithful": false,
+  "error": "\"1.Nc7+ \u2013 A bold challenge!\": never marked as missed alternative; reads as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1289",
+  "faithful": false,
+  "error": "\"Black's queen on g2 takes the rook on h1\": the queen only attacks it",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1290",
+  "faithful": false,
+  "error": "\"White's king steps to h2\": the king did not move; \"quiet threat\" unsupported",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1291",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1292",
+  "faithful": false,
+  "error": "\"Black's knight on f3 crashes in with 7...Nf3\": the knight starts on d4",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1293",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1294",
+  "faithful": false,
+  "error": "\"1.Bxf7+\": wrong move number; \"dance right into that check\" garbled",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1295",
+  "faithful": false,
+  "error": "\"simultaneously shooting down Black's queen\": Qe2 only attacks the queen",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1296",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "m1297",
+  "faithful": false,
+  "error": "\"1.Rd8!\": never marked as the missed alternative; mate not stated",
+  "lively": 1,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1298",
+  "faithful": false,
+  "error": "\"a queen's fear subdued!\": nonsense praise of the losing 7.Be2",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "m1299",
+  "faithful": false,
+  "error": "\"sends the rook on a8 packing\": rook does not flee; Nc7+ told as played",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "m1300",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ }
+]
