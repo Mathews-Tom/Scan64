@@ -16,6 +16,30 @@ export type PositionInsightRequest = { player_id: string; step: 1 | 2 | 3 } & (
 /** A variant's UCI name (`scan64.chess.variants.VariantName`); `chess` is standard. */
 export type VariantName = 'chess' | 'crazyhouse' | '3check' | 'atomic' | 'antichess' | 'kingofthehill' | 'horde' | 'racingkings';
 
+/** POST /v1/variants/position: the position after `moves` under the variant's rules. */
+export interface VariantPositionRequest {
+  variant: VariantName;
+  /** The variant's own start position when absent. */
+  fen?: string;
+  /** UCI moves from `fen`; drops are `P@e5`. */
+  moves: string[];
+}
+
+export interface VariantPositionRead {
+  variant: VariantName;
+  fen: string;
+  turn: 'white' | 'black';
+  san: string[];
+  /** Every legal move in UCI, drops included. */
+  legal_moves: string[];
+  check: boolean;
+  /** Crazyhouse only: pieces in hand, by lower-case letter. */
+  pockets: { white: Partial<Record<string, number>>; black: Partial<Record<string, number>> } | null;
+  /** Three-check only: checks each side still has to give. */
+  remaining_checks: { white: number; black: number } | null;
+  outcome: { result: '1-0' | '0-1' | '1/2-1/2'; termination: string } | null;
+}
+
 export interface PositionAnalysisRequest {
   player_id: string;
   fen: string;

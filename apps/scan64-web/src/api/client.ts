@@ -42,6 +42,8 @@ import type {
   PositionExplanationRequest,
   PositionAnalysisRead,
   PositionAnalysisRequest,
+  VariantPositionRead,
+  VariantPositionRequest,
   PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
@@ -356,6 +358,19 @@ export class ApiClient {
       throw new ApiRequestError(`Failed to get hint: ${detail}`, response.status);
     }
     return await response.json() as PositionInsight;
+  }
+
+  static async variantPosition(playerId: string, data: VariantPositionRequest): Promise<VariantPositionRead> {
+    const response = await apiFetch(`${apiBase()}/variants/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(errorDetailText(body, response.statusText), response.status);
+    }
+    return await response.json() as VariantPositionRead;
   }
 
   static async analyzePosition(data: PositionAnalysisRequest): Promise<PositionAnalysisRead> {

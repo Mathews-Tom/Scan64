@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
-import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead } from '../api/types';
+import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead, VariantName } from '../api/types';
+import { VARIANT_NAMES } from '../variants';
+import { VariantAnalysisBoard } from './VariantAnalysisBoard';
 import { OwnedGameReview } from './OwnedGameReview';
 import { CoachBoard } from './CoachBoard';
 import { analysisEntries, analysisMoveLabel, analysisReplay, commitAnalysisMoves, createAnalysisTree, exportAnalysisPgn, type AnalysisTree } from './analysisTree';
@@ -33,7 +35,24 @@ async function startPlayFromPosition(fen: string): Promise<PlaySessionRead> {
 export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisScreenProps) {
   return gameId
     ? <OwnedGameReview key={gameId} gameId={gameId} initialPly={initialPly} onPlayFromHere={onPlayFromHere} startPlayFromPosition={startPlayFromPosition} />
-    : <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} />;
+    : <FreeAnalysis onPlayFromHere={onPlayFromHere} />;
+}
+
+/** Standard chess keeps the variation tree; a variant board takes its rules from the server. */
+function FreeAnalysis({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
+  const [variant, setVariant] = useState<VariantName>('chess');
+  const picker = <div className="working-controls__section">
+    <label htmlFor="analysis-variant">Variant</label>{' '}
+    <select id="analysis-variant" value={variant} onChange={event => setVariant(event.target.value as VariantName)}>
+      {(Object.keys(VARIANT_NAMES) as VariantName[]).map(name => <option key={name} value={name}>{VARIANT_NAMES[name]}</option>)}
+    </select>
+  </div>;
+  if (variant === 'chess') return <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} variantPicker={picker} />;
+  return <div className="analysis-screen working-screen">
+    <h2>Analysis Board</h2>
+    {picker}
+    <VariantAnalysisBoard key={variant} variant={variant} />
+  </div>;
 }
 
 type Evaluation = { state: 'loading' } | { state: 'ready'; lines: PositionAnalysisLine[]; revision: number }
@@ -58,7 +77,7 @@ function evaluationLabel(line: PositionAnalysisLine): string {
   return `${score >= 0 ? '+' : ''}${score.toFixed(2)}`;
 }
 
-function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
+function FreeAnalysisBoard({ onPlayFromHere, variantPicker }: Pick<AnalysisScreenProps, 'onPlayFromHere'> & { variantPicker: ReactNode }) {
   const fenField = useRef<HTMLInputElement>(null);
   const revision = useRef(0);
   const loadGeneration = useRef(0);
@@ -229,6 +248,7 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
 
   return <div className="analysis-screen working-screen">
     <h2>Analysis Board</h2>
+    {variantPicker}
     {error && <p role="alert">{error}</p>}
     <p role="status">{loading ? 'Loading...' : status}</p>
     <div className="board-workspace">
