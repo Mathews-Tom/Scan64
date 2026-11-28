@@ -2,7 +2,7 @@
 
 Question: do explanations name the real reason a game was lost, and do they stay grounded?
 
-Answer: with the current pipeline and gemma4-e4b Q4_K_S, the Tal card states the root cause in 21 of 23 explanations by the code metric (22 of 23 by the judge), and the turning point in 29 of 29. The judge calls 36 of 37 faithful. The same pipeline without the cause and the turning point (before #401) names them in 0 of 23 and 0 of 29.
+Answer: with the pipeline at `4a77bdb` and gemma4-e4b Q4_K_S, the Tal card states the root cause in 21 of 23 explanations by the code metric (22 of 23 by the judge), and the turning point in 29 of 29. The judge calls 36 of 37 faithful. The same pipeline without the cause and the turning point (before #401) names them in 0 of 23 and 0 of 29.
 
 The code is in `benchmarks/narrator/explanation/`. It uses the client, the renderer and the blind rules of the [voice benchmark](narrator-voice.md). The pipeline under test is the product's own `voice_facts`.
 
@@ -56,7 +56,7 @@ The brief is in `results/run1/judge-brief.md`. `judge.join` refuses a missing it
 
 ## Results
 
-Run 1, 2026-11-28, one Claude Sonnet judge for all 185 items. `summarise` rebuilds the tables, and a test checks that they match.
+Run 1, 2026-11-28, pipeline at `4a77bdb`, one Claude Sonnet judge for all 185 items. `summarise` rebuilds the tables, and a test checks that they match.
 
 <!-- summarise:start -->
 
@@ -103,6 +103,7 @@ Run 1, 2026-11-28, one Claude Sonnet judge for all 185 items. `summarise` rebuil
 - **Small set.** 23 themes from 20 games, several from the same game, 1 explanation each. One explanation is 4 points. A difference of one or two explanations between arms is noise.
 - **Themes.** `weak_pawns` and `unsafe_king` cover almost all; `passive_pieces` has one lesson and `lagging_development` none. The metric cannot tell if the stated theme is the true cause: that is #400's hand check.
 - **Scores.** The themes use the Lichess server scores. The product uses its own fast pass (#486).
+- **Run 1 predates `74ee9f5`.** That commit (#401) makes the check of the cause sentence stricter: the sentence must keep its fact's claim. Run 1 does not measure it.
 - **The metric is strict on details and blind to meaning.** It has no synonym list, so a picture can miss; a sentence that holds the details and denies them would pass. It was fixed before the judge ran and not changed after.
 - **Not the delivered rate.** An explanation also has a time budget in the product, and game analysis does not pass the game yet (#482).
 
