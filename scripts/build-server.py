@@ -71,6 +71,27 @@ ENGINE_FILES = {
 CAISSA_NETWORK = "eval-ml-8-152B-spsa.pnn"
 # Inside the Arasan source archive; Arasan loads it from its executable's directory.
 ARASAN_NETWORK = "arasanv8-20261005.nnue"
+# GCC-only parts of Caissa's makefile FLAGS. Clang rejects -flto-partition, and with
+# -fno-exceptions it rejects the throw in the uninstantiated Allocator template
+# (src/backend/Memory.hpp). Caissa's CMake build for clang uses neither flag.
+CAISSA_GCC_ONLY_FLAGS = ("-flto-partition=one", "-fno-exceptions")
+# Arasan 26.1 builds on Windows only with MSVC. Two preprocessor guards let MinGW
+# take the MSVC branches it supports: no POSIX headers (the getrlimit code that
+# needs <sys/resource.h> is already #ifndef _WIN32) and _aligned_malloc with
+# _aligned_free (MinGW has no std::aligned_alloc). The edits apply to the
+# digest-checked archive, must match exactly once, and change nothing else.
+ARASAN_MINGW_EDITS = (
+    (
+        "globals.cpp",
+        "#elif !defined(_MSC_VER)\n// assume POSIX system",
+        "#elif !defined(_WIN32)\n// assume POSIX system",
+    ),
+    (
+        "types.h",
+        '#ifdef _MSC_VER\nextern "C" {\n   #include <malloc.h>',
+        '#if defined(_MSC_VER) || defined(__MINGW32__)\nextern "C" {\n   #include <malloc.h>',
+    ),
+)
 CARGO_ABOUT_VERSION = "0.8.2"
 FONT_LICENSES = ("host-grotesk-OFL.txt", "jetbrains-mono-OFL.txt")
 
@@ -171,6 +192,14 @@ def extract(archive_path: Path, destination: Path) -> Path:
     return destination / roots.pop()
 
 
+def replace_once(path: Path, old: str, new: str) -> None:
+    """Edit pinned upstream source only where the expected text occurs exactly once."""
+    text = path.read_text(encoding="utf-8")
+    if text.count(old) != 1:
+        raise ValueError(f"Expected one match in {path.name}: {old.splitlines()[0]}")
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
 def makefile_list(makefile: str, variable: str) -> list[str]:
     """A plain `NAME = a b \\` list from an upstream makefile, continuation lines included."""
     match = re.search(rf"^{re.escape(variable)} = ((?:.*\\\n)*.*)$", makefile, re.MULTILINE)
@@ -199,6 +228,19 @@ def build_caissa(target: BuildPlatform, engine: Path, source: Path) -> None:
         # The makefile links MinGW builds statically; a GUI subsystem keeps the
         # child windowless while its CRT still receives the UCI pipes.
         command.append("LIBS=-pthread -Wl,--subsystem,windows")
+    if target.cxx == "clang++":
+        makefile = (tree / "src" / "makefile").read_text(encoding="utf-8")
+        match = re.search(r"^FLAGS = (.*)$", makefile, re.MULTILINE)
+        if match is None:
+            raise ValueError("Caissa makefile FLAGS missing")
+        flags = match[1].split()
+        for flag in CAISSA_GCC_ONLY_FLAGS:
+            if flags.count(flag) != 1:
+                raise ValueError(f"Caissa makefile FLAGS changed: {flag}")
+            flags.remove(flag)
+        # A command-line FLAGS also skips the makefile's g++-only `FLAGS +=`
+        # (-fno-peel-loops), which matches "clang++" through findstring g++.
+        command.append("FLAGS=" + " ".join(flags))
     run(*command)
     built = [path for path in (tree / "src").glob("caissa-2.0-*") if path.is_file()]
     if len(built) != 1:
@@ -221,6 +263,9 @@ def build_arasan(target: BuildPlatform, engine: Path, source: Path, dockerfile: 
     if sha256(network) != dockerfile_digest(dockerfile, ARASAN_NETWORK):
         raise ValueError(f"SHA-256 mismatch: {ARASAN_NETWORK}")
     src = tree / "src"
+    if sys.platform == "win32":
+        for name, old, new in ARASAN_MINGW_EDITS:
+            replace_once(src / name, old, new)
     sources = makefile_list((src / "Makefile").read_text(encoding="utf-8"), "ARASANX_SOURCES")
     if sys.platform == "darwin":
         simd = ["-D_MAC", "-DSIMD", "-DNEON"]

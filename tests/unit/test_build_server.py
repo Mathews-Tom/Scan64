@@ -185,7 +185,11 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
     source_archive(
         archives / "caissa-2.0.tar.gz",
         fixture / "Caissa-2.0",
-        {"LICENSE": "Caissa MIT", "src/backend/syzygy/LICENSE": "Fathom MIT in Caissa"},
+        {
+            "LICENSE": "Caissa MIT",
+            "src/backend/syzygy/LICENSE": "Fathom MIT in Caissa",
+            "src/makefile": "FLAGS = $(WFLAGS) -flto -flto-partition=one -O3 -fno-exceptions\n",
+        },
     )
     source_archive(
         archives / "arasan-v26.1.tar.gz",
@@ -193,6 +197,10 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
         {
             "LICENSE": "Arasan MIT",
             "src/Makefile": "ARASANX_SOURCES = arasanx.cpp \\\nsearch.cpp\n",
+            **{
+                f"src/{name}": f"before\n{old}\nafter\n"
+                for name, old, _ in builder.ARASAN_MINGW_EDITS
+            },
             f"network/{builder.ARASAN_NETWORK}": "fixture network",
         },
     )
@@ -236,6 +244,11 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
             assert network.read_text() == "eval-ml-8-152B-spsa.pnn"
             windowless = "LIBS=-pthread -Wl,--subsystem,windows"
             assert (windowless in args) == (system == "win32")
+            flags = [arg for arg in args if arg.startswith("FLAGS=")]
+            if cxx == "clang++":
+                assert flags == ["FLAGS=$(WFLAGS) -flto -O3"]
+            else:
+                assert flags == []
             (source / f"caissa-2.0-built{suffix}").write_text("newly built Caissa")
         elif args[0] == cxx:
             sources = {Path(arg).name for arg in args if arg.endswith((".cpp", ".c"))}
@@ -245,6 +258,12 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
             assert ("-static" in args) == (system == "win32")
             assert ("-mpopcnt" in args) == (system != "darwin")
             assert ("-DNEON" in args) == (system == "darwin")
+            src = Path(args[args.index("-o") - 1]).parents[2]
+            for name, old, new in builder.ARASAN_MINGW_EDITS:
+                text = (src / name).read_text()
+                assert (new in text, old in text) == (
+                    (True, False) if system == "win32" else (False, True)
+                )
             Path(args[args.index("-o") + 1]).write_text("newly built Arasan")
         elif "PyInstaller" in args:
             frozen = root / "dist" / "scan64-server"
@@ -581,3 +600,15 @@ def test_arasan_network_inside_the_archive_must_match_the_dockerfile_pin(
             builder.build_platform(), engine, source, (builder.ROOT / "Dockerfile").read_text()
         )
     assert not (engine / builder.ARASAN_NETWORK).exists()
+
+
+def test_pinned_source_edits_need_exactly_one_match(builder: ModuleType, tmp_path: Path) -> None:
+    source = tmp_path / "types.h"
+    for text in ("no guard here\n", "#ifdef A\n#ifdef A\n"):
+        source.write_text(text)
+        with pytest.raises(ValueError, match="Expected one match in types.h"):
+            builder.replace_once(source, "#ifdef A", "#if defined(A)")
+        assert source.read_text() == text
+    source.write_text("#ifdef A\n")
+    builder.replace_once(source, "#ifdef A", "#if defined(A)")
+    assert source.read_text() == "#if defined(A)\n"

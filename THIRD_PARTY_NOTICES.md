@@ -49,7 +49,7 @@ SOFTWARE.
 - **Source**: https://github.com/Witek902/Caissa/tree/2.0, archive https://codeload.github.com/Witek902/Caissa/tar.gz/refs/tags/2.0, SHA-256 `c3ac41d0b8c2a9c9cd5259c2a50b63bd01fb470ffc85afef7691fe67a5b5e4c7`.
 - **Network**: `eval-ml-8-152B-spsa.pnn` from the Caissa-Nets release https://github.com/Witek902/Caissa-Nets/releases/tag/eval-ml-8-152B-spsa, SHA-256 `ee9f6bbb0ef6cd1f38a13cf095340968c2ad18d0fa1359d493043e61acc829fa`. Licence: MIT, https://github.com/Witek902/Caissa-Nets/blob/8098255ee7b6608d9698ce0c725b743c74ab2f9b/LICENSE (SHA-256 `ae652b1e02d00d2392d416b83ad71397e5ea91117ffd22aa6829ff22b71a71a4`; same text and copyright as below).
 - **Included code**: Fathom Syzygy tablebase probing (`src/backend/syzygy`, MIT; Copyright (c) 2013-2018 Ronald de Man, (c) 2015 basil00, (c) 2016-2020 Jon Dart; licence in `src/backend/syzygy/LICENSE`). `src/backend/incbin.h` is Dale Weiler's incbin, released upstream under the Unlicense (public domain); the copy carries no notice of its own.
-- **Build**: the Dockerfile and `scripts/build-server.py` verify all three SHA-256 values, place the network at `data/neuralNets/eval-ml-8-152B-spsa.pnn` and run `make -C src sse4 CC=g++ VERSION=2.0 EVALFILE=../data/neuralNets/eval-ml-8-152B-spsa.pnn` (x86-64: Linux, and MinGW on Windows). On ARMv8 the target is `neon`; on macOS the compiler is `CC=clang++`.
+- **Build**: the Dockerfile and `scripts/build-server.py` verify all three SHA-256 values, place the network at `data/neuralNets/eval-ml-8-152B-spsa.pnn` and run `make -C src sse4 CC=g++ VERSION=2.0 EVALFILE=../data/neuralNets/eval-ml-8-152B-spsa.pnn` (x86-64: Linux, and MinGW on Windows). On ARMv8 the target is `neon`. On macOS the compiler is `CC=clang++`, and `FLAGS` is the makefile's own without the GCC-only `-flto-partition=one` and `-fno-exceptions`, which clang rejects (Caissa's CMake build for clang uses neither). The source is unmodified on every platform.
 - **Redistribution**: the Docker image has the executable at `/usr/local/bin/caissa` and the source archive, the network, `LICENSE`, `Fathom-LICENSE` and `Caissa-Nets-LICENSE` in `/usr/share/doc/caissa/`. The desktop apps carry the same files in the `caissa/` resource folder.
 
 ```text
@@ -77,13 +77,13 @@ SOFTWARE.
 ```
 
 ## Arasan
-- **Version**: Arasan 26.1, the official `v26.1` tag (commit `0c0bebd04b5e5b99560cfd0998fd1cc48a97f8a9`), unmodified.
+- **Version**: Arasan 26.1, the official `v26.1` tag (commit `0c0bebd04b5e5b99560cfd0998fd1cc48a97f8a9`), unmodified except two preprocessor guards in the Windows build (below).
 - **License**: the Arasan licence, an MIT licence covering the `src`, `book`, `doc`, `prj`, `tests` and `network` directories. Copyright 1994-2026 by Jon Dart.
 - **Usage**: Bundled bot-ladder engine (#396), through `UCI_LimitStrength`/`UCI_Elo`. No opening book is bundled.
 - **Source**: https://github.com/jdart1/arasan-chess/tree/v26.1, archive https://codeload.github.com/jdart1/arasan-chess/tar.gz/refs/tags/v26.1, SHA-256 `7fd33137fc70a5ef27ef9022e941a2139da8a28b2a115657129be4acf9bbd7e1`.
 - **Network**: `network/arasanv8-20261005.nnue` from that archive, SHA-256 `1f98bc6c1ac615646d66d409e138225c56765ad0c1065f1ce20a22a56c631927`, loaded at runtime from the executable's directory.
 - **Included code**: the `src/syzygy` submodule, Fathom (https://github.com/jdart1/Fathom, commit `c9c6fef0dddc05d2e242c183acf5833149ab676d`, MIT; Copyright (c) 2013-2018 Ronald de Man, (c) 2015 basil00, (c) 2016-2025 Jon Dart). The tag archive has no submodules, so the build downloads https://codeload.github.com/jdart1/Fathom/tar.gz/c9c6fef0dddc05d2e242c183acf5833149ab676d (SHA-256 `ba4553045d796f0521a8554ef21bad44b20fd4a7657eb08ff85d17c9f27ff8ac`, shipped as `fathom-c9c6fef0.tar.gz`) and extracts it into `src/syzygy`.
-- **Build**: the Dockerfile runs `make -C src -j2 CC=g++ BUILD_TYPE=modern LDFLAGS="-Ofast -fno-rtti -fno-enforce-eh-specs -DNDEBUG"` (`BUILD_TYPE=neon` on ARMv8); that `LDFLAGS` is the Makefile's own without `-fuse-ld=gold`. `scripts/build-server.py` compiles the Makefile's `ARASANX_SOURCES` with the same flags in one compiler call: g++ (MinGW g++ on Windows, linked statically) at the `modern` SSE4.1/POPCNT level, clang++ with the NEON flags on macOS.
+- **Build**: the Dockerfile runs `make -C src -j2 CC=g++ BUILD_TYPE=modern LDFLAGS="-Ofast -fno-rtti -fno-enforce-eh-specs -DNDEBUG"` (`BUILD_TYPE=neon` on ARMv8); that `LDFLAGS` is the Makefile's own without `-fuse-ld=gold`. `scripts/build-server.py` compiles the Makefile's `ARASANX_SOURCES` with the same flags in one compiler call: g++ (MinGW g++ on Windows, linked statically) at the `modern` SSE4.1/POPCNT level, clang++ with the NEON flags on macOS. Arasan 26.1 supports Windows only with MSVC, so for MinGW the script changes two guards in the extracted source and nothing else: in `src/globals.cpp`, `#elif !defined(_MSC_VER)` before the POSIX headers becomes `#elif !defined(_WIN32)` (the `getrlimit` code that needs `<sys/resource.h>` is already `#ifndef _WIN32`); in `src/types.h`, the `_aligned_malloc`/`_aligned_free` branch is taken for `__MINGW32__` as well as `_MSC_VER`. The shipped `arasan-v26.1.tar.gz` is the unmodified upstream archive; the two edits are `ARASAN_MINGW_EDITS` in `scripts/build-server.py`.
 - **Redistribution**: the Docker image has the executable and network in `/usr/local/lib/arasan/` and both source archives, `LICENSE` and `Fathom-LICENSE` in `/usr/share/doc/arasan/`. The desktop apps carry the same files in the `arasan/` resource folder.
 
 ```text
@@ -139,6 +139,7 @@ SOFTWARE.
 ```
 
 Caissa's copy (`src/backend/syzygy/LICENSE`) has the same text with "Copyright (c) 2016-2020 by Jon Dart". Each copy ships next to its engine as `Fathom-LICENSE`.
+
 ## Stockfish Evaluation Guide
 - **Author**: hxim (with one commit by Martin Bennedik), https://github.com/hxim/Stockfish-Evaluation-Guide.
 - **License**: GPL-3.0 (`Copying.txt` in the guide repository).
