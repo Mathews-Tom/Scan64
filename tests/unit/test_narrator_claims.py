@@ -458,9 +458,9 @@ EDGE_CLAIMS = [
     ("You are up two pawns.", {2}),
     ("You have two extra pawns.", {2}),
     ("You have an extra piece.", {3, 4}),
-    ("You are up in material.", {1, 2, 3, 4, 9}),
-    ("You are materially up.", {1, 2, 3, 4, 9}),
-    ("You have a material edge.", {1, 2, 3, 4, 9}),
+    ("You are up in material.", {1, 2, 3, 4, 5, 6, 9}),
+    ("You are materially up.", {1, 2, 3, 4, 5, 6, 9}),
+    ("You have a material edge.", {1, 2, 3, 4, 5, 6, 9}),
     ("Your opponent is ahead by two pawns.", {-2}),
     ("Your opponent is up in material.", {-1, -2, -3, -4, -9}),
     ("Your opponent has a material lead.", {-1, -2, -3, -4, -9}),
@@ -478,16 +478,29 @@ EDGE_CLAIMS = [
     ("You have two pawns fewer.", {-2}),
     ("Your extra pawn decides.", {1}),
     ("Their extra pawn matters.", {-1}),
+    ("Your extra rook decides.", {5, 6}),
     ("You enjoy a two-pawn lead.", {2}),
     ("Your two-pawn edge counts.", {2}),
 ]
 
 
 @pytest.mark.parametrize(("text", "supporting"), EDGE_CLAIMS)
-@pytest.mark.parametrize("balance", [-9, -4, -3, -2, -1, 0, 1, 2, 3, 4, 9])
+@pytest.mark.parametrize("balance", [-9, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9])
 def test_a_material_edge_claim_checks_its_side_and_size(
     text: str, supporting: set[int], balance: int
 ) -> None:
     """#442 re-review: "your material edge is two pawns" was accepted two pawns down."""
     facts = ClaimFacts(balances=frozenset({balance}))
     assert (unsupported_claim(text, facts) is None) == (balance in supporting)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Your extra pieces are active.",
+        "Your additional pieces help.",
+        "Your extra effort pays off.",
+    ],
+)
+def test_an_uncounted_extra_is_no_material_claim(text: str) -> None:
+    assert unsupported_claim(text, ClaimFacts(balances=frozenset({0}))) is None

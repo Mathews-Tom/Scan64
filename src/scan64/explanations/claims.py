@@ -434,7 +434,12 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
         ),
     ),
     (
-        _Rule(rf"\b{_OWNER}\s+(?:extra|spare|additional)\s+{_UNIT_PIECES}", _I),
+        # Singular only: "your extra pieces are active" names no count.
+        _Rule(
+            rf"\b{_OWNER}\s+(?:extra|spare|additional)\s+(?P<unit>pawn|piece|minor\s+piece"
+            r"|knight|bishop|rook|queen|exchange)\b",
+            _I,
+        ),
         _balance(1),
     ),
     # "a two-pawn lead", "your two-pawn edge".
