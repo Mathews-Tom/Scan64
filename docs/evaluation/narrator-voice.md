@@ -43,13 +43,13 @@ Runs 1–8 use positions P1–P5. These positions were also used to tune the pro
 
 ## Blind-judge protocol
 
-A fresh model session judges the comments. It reads only an items file. Each item has:
+A fresh model session judges the comments. It gets a folder that holds only the items file. Each item has:
 - an id;
 - the position in plain words;
 - the facts with their roles;
 - the comment.
 
-The items are shuffled. They carry no run, model, style or cell label. The key that unblinds them stays in another file, which the judge must not open.
+The items are shuffled. They carry no run, model, style or cell label. The key that unblinds them is written to a separate path outside that folder (`blind --key-out`), so the judge cannot open it.
 
 The judge gives each comment:
 
@@ -91,7 +91,7 @@ Each stored blind set has its own brief next to it (`results/<run>/judge-brief-<
 
 ## Rerun a run
 
-Start a local Ollama with the model, then run from the repository root. A run never overwrites a stored file. The `scan64-bench-*` models are the ones the [narrator model benchmark](narrator-models.md) creates from `benchmarks/narrator/modelfiles/`.
+Start a local Ollama with the model, then run from the repository root. `run` refuses any `--out` under `results/`, even with `--force`, so it cannot overwrite a stored measurement. There is no resume: a run that stops starts again with a new file. The `scan64-bench-*` models are the ones the [narrator model benchmark](narrator-models.md) creates from `benchmarks/narrator/modelfiles/`.
 
 | Stored file | Command |
 |---|---|
@@ -113,14 +113,26 @@ Start a local Ollama with the model, then run from the repository root. A run ne
 
 The Ollama names of the run 8 models are in `results/run8-models/models-vram.txt`. Without `--url`, the client uses `http://127.0.0.1:11434`.
 
-A new record carries `meta`: the git commit, whether the tree had uncommitted changes, the model name and its Ollama digest, the Ollama version, the sampling options and the prompt version.
+A rerun repeats the method, not the text. There is no seed option, so the model samples new comments. Compare a rerun with a stored run by its shares and their 95% intervals, never comment by comment.
 
-Build a blind set for new records, and rebuild a stored one:
+A new record carries `meta`:
+
+| Field | What it records |
+|---|---|
+| `commit` | The git commit the run ran on |
+| `dirty`, `dirty_sha256` | Whether the tree had other changes than the `--out` file, and a SHA-256 of `git diff HEAD` plus the untracked files under `benchmarks/narrator/voice` |
+| `model`, `model_digest` | The Ollama model name and its digest |
+| `ollama_version` | The Ollama server version |
+| `think`, `options` | Thinking (always off) and the sampling options, with `num_ctx` |
+| `prompt_version`, `prompt_sha256` | The run's prompt version and a SHA-256 of all its prompt data: system prompt, style cards, examples, facts and FENs |
+| `config` | The run, samples, styles, positions, "own words" rule, options and server URL |
+
+Build a blind set for new records, and rebuild a stored one. `--out` is the folder for the judge, and `--key-out` must lie outside it. The key fields are the ones each record has (`run`, `test`, `variant`, `style`, `model`, `cell`, `own`, `n`), so stored run 9 records work too:
 
 ```sh
-python -m benchmarks.narrator.voice blind a.jsonl b.jsonl --facts heldout --seed 1 --prefix x --out blind/
-python -m benchmarks.narrator.voice blind a.jsonl b.jsonl --facts heldout --seed 1 --prefix x --halves --out blind/
-python -m benchmarks.narrator.voice blind --stored run9 --out rebuilt/
+python -m benchmarks.narrator.voice blind a.jsonl b.jsonl --facts heldout --seed 1 --prefix x --out judge/ --key-out keys/blind-key.json
+python -m benchmarks.narrator.voice blind a.jsonl b.jsonl --facts heldout --seed 1 --prefix x --halves --out judge/ --key-out keys/blind-key.json
+python -m benchmarks.narrator.voice blind --stored run9 --out judge/ --key-out keys/blind9-key.json
 ```
 
 ## Results
@@ -191,7 +203,7 @@ The tables below are the output of `summarise`. A test checks that this section 
 | llama3.2 1B | 1.41 | 30% ±13 | 36% / 24% | 4% | 1.24 | 1.56 | 21.8% | 69.49 |
 | qwen3 1.7B | 1.59 | 34% ±13 | 24% / 44% | 22% | 1.56 | 2.30 | 2.9% | 0.31 |
 | qwen3.5 2B | 2.20 | 12% ±9 | 12% / 12% | 10% | 2.54 | 1.58 | 10.0% | 1.16 |
-| gemma4-e4b Q3_K_M (current default) | 2.43 | 86% ±10 | 100% / 72% | 86% | 2.14 | 2.86 | 5.6% | 0.74 |
+| gemma4-e4b Q3_K_M | 2.43 | 86% ±10 | 100% / 72% | 86% | 2.14 | 2.86 | 5.6% | 0.74 |
 | praxis-4b (chess LoRA) | 2.76 | 100% | 100% / 100% | 68% | 1.88 | 3.00 | 5.9% | 0.96 |
 | gemma4-e4b Q4_K_S | 2.84 | 98% ±4 | 100% / 96% | 98% | 2.08 | 2.96 | 2.4% | 0.69 |
 | qwen3.5 4B | 2.92 | 58% ±14 | 68% / 48% | 58% | 2.70 | 2.40 | 1.8% | 1.64 |
@@ -208,7 +220,7 @@ The tables below are the output of `summarise`. A test checks that this section 
 | llama3.2 1B | 50 | 87.1% |
 | qwen3 1.7B | 50 | 89.1% |
 | qwen3.5 2B | 50 | 79.4% |
-| gemma4-e4b Q3_K_M (current default) | 100 | 99.1% |
+| gemma4-e4b Q3_K_M | 100 | 99.1% |
 | praxis-4b (chess LoRA) | 50 | 100.0% |
 | gemma4-e4b Q4_K_S | 50 | 98.8% |
 | qwen3.5 4B | 50 | 91.8% |
@@ -234,11 +246,27 @@ The tables below are the output of `summarise`. A test checks that this section 
 | D | 7/10 | 7/10 | 8/10 | 3/10 | 6/10 |
 | E | 8/10 | 5/10 | 7/10 | 1/10 | 4/10 |
 
+### Judgement files
+
+| Blind set | File | Judgements | SHA-256 |
+|---|---|---|---|
+| run2-3 | run2-3-blind/blind-judgements.json | 190 | `f5a627a133ef0e35d9237423f5dd1b2545dbe2e464660ef222fc4400d930475b` |
+| run4 | run4/blind4-judgements.json | 150 | `f89c0b69a959eda6210369b161c7b61a6cecc53d93679e46ceff8b8e1948a2fe` |
+| run5 | run5/blind5-judgements.json | 150 | `ca6fa73ac6dfa22a85b175ed0fcbeece288194c05a69ae643579e54846f5ba02` |
+| run5-12b | run5/blind5b-judgements.json | 150 | `c1bd5245a26ba06290fe7c201d7a8a4561776638526136397e99bfac5f88f3d3` |
+| run6 | run6/blind6-judgements.json | 100 | `122fad829c1242690d6ae6c390bfa49da0c9d78efc6dde9f111a6ac4a91365ad` |
+| run7 | run7/blind7-judgements.json | 100 | `e8f861c5ba3aa2042dd98f14656d334b7f4fec96323d670e189914952333cfa8` |
+| run8 | run8/blind8-judgements.json | 100 | `8a16c4d9f9b5a5ed3b4a8c386206e60700f8dcdd9a993b1f589a11e4e89b7311` |
+| run8-models | run8-models/blindm0-judgements.json | 300 | `1e258f27a467b4c6708010979fc8bd51f922a0cb0f9c8594fc7892d4227019cf` |
+| run8-models | run8-models/blindm1-judgements.json | 300 | `45ca0a9c489652162e7a32479e89384056c5f6b07c5d45996aed556f1f26e3a6` |
+| run9 | run9/blind9-judgements.json | 250 | `1f09f461f6e1069dece4feadca884eb6d2465b6aa0cd50ac468e052c4045af8e` |
+
 <!-- summarise:end -->
 
 ## Limits
 
 - **P1–P5 tuned the prompts.** Only the run 9 positions are held out, and there are 5 of them.
+- **The stored keys sat beside their items.** The judges were told not to open them, and nothing stopped them. New sets write the key outside the judge's folder.
 - **One judge per set, and it is a model.** The judges of runs 2–8 were one session, so its later sets were judged with the rule decisions it made on the earlier ones.
 - **The p95 column of run 9 differs from #462 for two cells.** This page uses the nearest rank (the value at index int(0.95 × n)), as the 12-model table did. The #462 comment used the value one place lower. Cell C reads 0.60 s here and 0.59 s on #462. Cell D reads 0.92 s here and 0.84 s on #462.
 - **The records of runs 1–8 do not name their model.** `summarise.py` names it from #457. Run 9 records name the model and the options; new records carry the full `meta`.

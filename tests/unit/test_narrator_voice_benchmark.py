@@ -3,30 +3,38 @@
 """The narrator voice benchmark (#458): verified facts, checked examples, blind sets, tables."""
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from benchmarks.narrator.voice import data, pipeline, verify
-from benchmarks.narrator.voice.blind import SETS, build, join
+from benchmarks.narrator.voice import data, pipeline, summarise, verify
+from benchmarks.narrator.voice.__main__ import main
+from benchmarks.narrator.voice.blind import RESULTS, SETS, build, join
 from benchmarks.narrator.voice.check import sentence_ok, violations
 from benchmarks.narrator.voice.pipeline import REPO_ROOT
-from benchmarks.narrator.voice.summarise import (
-    doc_tables,
-    heldout_positions,
-    models_table,
-    summarise,
-)
+from benchmarks.narrator.voice.summarise import doc_tables, heldout_positions, models_table
 
 # --- Facts: every fact of every run is checked with python-chess -------------------------------
 
 
-@pytest.mark.parametrize(("test", "fact"), verify.all_facts())
-def test_every_fact_names_its_claims(test: str, fact: str) -> None:
-    claims = verify.FACT_CLAIMS.get(fact)
-    assert claims, f"{test}: no python-chess check for {fact!r}"
+@pytest.mark.parametrize(("test", "fact", "clause"), verify.all_clauses())
+def test_every_clause_of_every_fact_has_a_claim(test: str, fact: str, clause: str) -> None:
+    claims = verify.claims_of(test, clause)
+    assert claims, f"{test}: no python-chess check for {clause!r} in {fact!r}"
     position = test.split("-")[0].lower()
-    assert all(c.startswith(position + ".") for c in claims), (test, claims)
+    assert all(c in verify.CLAIMS and c.startswith(position + ".") for c in claims), claims
+
+
+def test_a_fact_with_an_unchecked_clause_fails() -> None:
+    fact = "White played 1.Kd2, and the king feels safe."
+    assert [verify.claims_of("P4-fork", c) for c in verify.clauses(fact)] == [["p4.kd2-legal"], []]
+
+
+def test_no_clause_key_is_stale() -> None:
+    keys = {(p, c) for p, mapping in verify.CLAUSE_CLAIMS.items() for c in mapping}
+    found = {(t.split("-")[0], c) for t, _, c in verify.all_clauses()}
+    assert keys == found
 
 
 @pytest.mark.parametrize("claim", sorted(verify.CLAIMS))
@@ -35,7 +43,7 @@ def test_every_claim_holds_on_the_board(claim: str) -> None:
 
 
 def test_no_claim_is_left_unused() -> None:
-    used = {c for claims in verify.FACT_CLAIMS.values() for c in claims}
+    used = {c for mapping in verify.CLAUSE_CLAIMS.values() for cs in mapping.values() for c in cs}
     assert used == set(verify.CLAIMS)
 
 
@@ -141,9 +149,74 @@ def test_stored_model_halves_hold_25_comments_per_model() -> None:
         assert counts == [25, 25], model
 
 
-def test_join_refuses_a_missing_judgement() -> None:
-    with pytest.raises(ValueError, match="1 items have no judgement"):
-        join({"x001": {"arm": "a"}, "x002": {"arm": "b"}}, [{"id": "x001", "faithful": True}])
+def verdict(item_id: str, **change: Any) -> dict[str, Any]:
+    good = {"id": item_id, "faithful": True, "error": "", "lively": 2, "clear": 3, "jargon": False}
+    return good | change
+
+
+KEY = {"x001": {"arm": "a"}, "x002": {"arm": "b"}}
+
+
+def test_join_returns_each_item_with_its_key() -> None:
+    joined = join(KEY, [verdict("x002"), verdict("x001")])
+    assert [(r["id"], r["arm"], r["lively"]) for r in joined] == [
+        ("x001", "a", 2),
+        ("x002", "b", 2),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("judgements", "message"),
+    [
+        ([verdict("x001")], "1 items have no judgement"),
+        ([verdict("x001"), verdict("x002"), verdict("x003")], "1 judgements have no item"),
+        ([verdict("x001"), verdict("x001"), verdict("x002")], "duplicate judgement ids"),
+        ([verdict("x001", faithful="yes"), verdict("x002")], "faithful must be true or false"),
+        ([verdict("x001", jargon=0), verdict("x002")], "jargon must be true or false"),
+        ([verdict("x001", lively=4), verdict("x002")], "lively must be 1, 2 or 3"),
+        ([verdict("x001", lively=True), verdict("x002")], "lively must be 1, 2 or 3"),
+        ([verdict("x001", clear="3"), verdict("x002")], "clear must be 1, 2 or 3"),
+        ([verdict("x001", clear=0), verdict("x002")], "clear must be 1, 2 or 3"),
+    ],
+)
+def test_join_refuses_a_bad_judgement_file(judgements: list[dict[str, Any]], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        join(KEY, judgements)
+
+
+def test_cli_blind_writes_the_key_outside_the_judges_folder(tmp_path: Path) -> None:
+    records = [str(RESULTS / "run9" / f"run9-{c}.jsonl") for c in ("A-gemma", "C-praxis-t0")]
+    args = ["blind", *records, "--facts", "heldout", "--seed", "1", "--prefix", "x"]
+    main([*args, "--out", str(tmp_path / "judge"), "--key-out", str(tmp_path / "key.json")])
+    assert [p.name for p in (tmp_path / "judge").iterdir()] == ["blind-items.json"]
+    key = json.loads((tmp_path / "key.json").read_text())
+    assert len(key) == 100
+    assert set(next(iter(key.values()))) == {"run", "test", "model", "own", "n"}
+    with pytest.raises(SystemExit, match="the judge would see the key"):
+        main([*args, "--out", str(tmp_path / "judge"), "--key-out", str(tmp_path / "judge" / "k")])
+
+
+def test_cli_writes_nothing_into_results(tmp_path: Path) -> None:
+    stored = RESULTS / "run8" / "run8-tal.jsonl"
+    before = stored.read_bytes()
+    with pytest.raises(SystemExit, match="stored measurements are immutable"):
+        main(["run", "8", "--out", str(stored), "--force"])
+    with pytest.raises(SystemExit, match="stored measurements are immutable"):
+        main(["run", "8", "--out", str(RESULTS / "run8" / "new.jsonl")])
+    with pytest.raises(SystemExit, match="stored measurements are immutable"):
+        main(
+            [
+                "blind",
+                "--stored",
+                "run8",
+                "--out",
+                str(RESULTS / "x"),
+                "--key-out",
+                str(tmp_path / "k"),
+            ]
+        )
+    assert stored.read_bytes() == before
+    assert not (RESULTS / "run8" / "new.jsonl").exists()
 
 
 # --- Tables are rebuilt from the records, as published ---------------------------------------
@@ -173,7 +246,8 @@ PUBLISHED_HELDOUT_POSITIONS_462 = {
 
 
 def test_model_table_matches_the_published_462_table() -> None:
-    assert models_table() == PUBLISHED_MODELS_462
+    """The one change: the label "(current default)" was dropped after #462 chose Q4_K_S."""
+    assert models_table() == PUBLISHED_MODELS_462.replace(" (current default)", "")
 
 
 def test_heldout_positions_match_the_published_462_table() -> None:
@@ -184,34 +258,99 @@ def test_heldout_positions_match_the_published_462_table() -> None:
 
 def test_the_voice_page_shows_the_summarise_tables() -> None:
     page = (REPO_ROOT / "docs" / "evaluation" / "narrator-voice.md").read_text(encoding="utf-8")
-    assert doc_tables(page) == summarise().strip("\n"), "run: summarise --doc <page>"
+    assert doc_tables(page) == summarise.summarise().strip("\n"), "run: summarise --doc <page>"
+
+
+def test_a_run_9_cell_with_mixed_settings_is_refused() -> None:
+    records = [
+        {"model": "m", "own": False, "options": {"temperature": 1.0}},
+        {"model": "m", "own": True, "options": {"temperature": 1.0}},
+    ]
+    with pytest.raises(ValueError, match="mixes settings"):
+        summarise.cell_settings("A-gemma", records)
+
+
+def test_summary_lists_every_judgement_file_with_its_sha256() -> None:
+    table = summarise.judgement_files()
+    for stored in SETS.values():
+        for path in stored.judgement_paths():
+            assert path.relative_to(RESULTS).as_posix() in table
+    assert table.count("`") == 2 * sum(len(s.judgement_paths()) for s in SETS.values())
 
 
 # --- Records carry their provenance ----------------------------------------------------------
 
 
-def test_meta_names_commit_model_digest_server_and_options(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def fake_server(monkeypatch: pytest.MonkeyPatch, status: str = "", diff: bytes = b"") -> None:
     replies = {
         "/api/tags": {"models": [{"name": "m:latest", "digest": "abc123"}]},
         "/api/version": {"version": "0.40.18"},
     }
     monkeypatch.setattr(pipeline, "_get", lambda url: replies[url.removeprefix("http://s")])
-    monkeypatch.setattr(pipeline, "_git", lambda *a: "deadbeef" if a[0] == "rev-parse" else "")
-    meta = pipeline.Client("http://s", "m", {"temperature": 1.0}).meta("run9")
+    answers = {"rev-parse": b"deadbeef", "status": status.encode(), "diff": diff, "ls-files": b""}
+    monkeypatch.setattr(pipeline, "_git_bytes", lambda *a: answers[a[0]])
+
+
+CONFIG = {
+    "run": 9,
+    "samples": 10,
+    "styles": ["Tal"],
+    "tests": None,
+    "own_words": False,
+    "options": {"temperature": 1.0},
+    "url": "http://s",
+}
+
+
+def test_meta_names_code_prompt_data_model_server_and_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_server(monkeypatch)
+    meta = pipeline.Client("http://s", "m", {"temperature": 1.0}).meta(CONFIG, "f00d")
     assert meta == {
         "commit": "deadbeef",
         "dirty": False,
+        "dirty_sha256": None,
         "model": "m",
         "model_digest": "abc123",
         "ollama_version": "0.40.18",
         "think": False,
         "options": {"num_ctx": 4096, "temperature": 1.0},
         "prompt_version": "run9",
+        "prompt_sha256": "f00d",
+        "config": CONFIG,
     }
     with pytest.raises(SystemExit, match="not on the Ollama server"):
-        pipeline.Client("http://s", "other").meta("run9")
+        pipeline.Client("http://s", "other").meta(CONFIG, "f00d")
+
+
+def test_the_output_file_does_not_make_the_tree_dirty(monkeypatch: pytest.MonkeyPatch) -> None:
+    out = pipeline.REPO_ROOT / "new-run.jsonl"
+    fake_server(monkeypatch, status="?? new-run.jsonl\n")
+    assert pipeline.Client("http://s", "m").meta(CONFIG, "f00d", exclude=out)["dirty"] is False
+    fake_server(
+        monkeypatch, status="?? new-run.jsonl\n M benchmarks/narrator/voice/check.py\n", diff=b"d"
+    )
+    meta = pipeline.Client("http://s", "m").meta(CONFIG, "f00d", exclude=out)
+    assert meta["dirty"] is True and len(meta["dirty_sha256"]) == 64
+
+
+def test_a_modified_file_on_the_first_status_line_counts_as_dirty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_server(monkeypatch, status=" M benchmarks/narrator/voice/check.py\n", diff=b"d")
+    out = pipeline.REPO_ROOT / "benchmarks/narrator/voice/check.py"
+    assert pipeline.Client("http://s", "m").meta(CONFIG, "f00d", exclude=out)["dirty"] is False
+    assert pipeline.Client("http://s", "m").meta(CONFIG, "f00d")["dirty"] is True
+
+
+def test_the_prompt_hash_changes_with_the_prompt_data() -> None:
+    hashes = {
+        pipeline.sha256_json(pipeline.prompt_data(n, own))
+        for n, own in ((8, False), (9, False), (9, True))
+    }
+    assert len(hashes) == 3
+    assert pipeline.sha256_json(pipeline.prompt_data(6)) == pipeline.sha256_json(
+        pipeline.prompt_data(6)
+    )
 
 
 class Scripted(pipeline.Client):

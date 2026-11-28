@@ -50,6 +50,9 @@ def build(
 ) -> tuple[list[list[Row]], dict[str, Row]]:
     """Shuffle rows into blind items; return the item lists (one, or two halves) and the key.
 
+    The key keeps each of ``key_fields`` that a row has, so records of different runs (one with
+    ``style``, another with ``model`` or ``cell``) share one recipe.
+
     With ``halves_by``, each arm (the rows sharing that field) is shuffled and split in two, so
     both halves hold the same number of comments from every arm; then each half is shuffled.
     """
@@ -83,17 +86,36 @@ def build(
                     "comment": row["text"],
                 }
             )
-            key[item_id] = {k: row[k] for k in key_fields}
+            key[item_id] = {k: row[k] for k in key_fields if k in row}
         out.append(items)
     return out, key
 
 
 def join(key: dict[str, Row], judgements: list[Row]) -> list[Row]:
-    """Each judged item with its key; raises when an item of the key has no judgement."""
-    judged = {j["id"]: j for j in judgements}
-    missing = sorted(set(key) - set(judged))
+    """Each judged item with its key.
+
+    Raises ValueError on a duplicate, extra or missing id, or on a field outside the rubric:
+    ``faithful`` and ``jargon`` must be booleans, ``lively`` and ``clear`` integers from 1 to 3.
+    """
+    ids = [j.get("id") for j in judgements]
+    duplicates = sorted({i for i in ids if ids.count(i) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate judgement ids: {duplicates[:3]}")
+    extra = sorted(set(ids) - set(key))
+    if extra:
+        raise ValueError(f"{len(extra)} judgements have no item in the key, e.g. {extra[:3]}")
+    missing = sorted(set(key) - set(ids))
     if missing:
         raise ValueError(f"{len(missing)} items have no judgement, e.g. {missing[:3]}")
+    for j in judgements:
+        for field in ("faithful", "jargon"):
+            if not isinstance(j.get(field), bool):
+                raise ValueError(f"{j['id']}: {field} must be true or false, not {j.get(field)!r}")
+        for field in ("lively", "clear"):
+            value = j.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 3:
+                raise ValueError(f"{j['id']}: {field} must be 1, 2 or 3, not {value!r}")
+    judged = {j["id"]: j for j in judgements}
     return [key[i] | judged[i] | {"id": i} for i in key]
 
 

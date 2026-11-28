@@ -5,6 +5,8 @@ records predate the ``meta`` field) and one GPU size that ``models-vram.txt`` la
 """
 
 import collections
+import hashlib
+import json
 import math
 import re
 from collections.abc import Callable, Iterable
@@ -37,7 +39,7 @@ LABELS = {
     "llama3.2-1b": "llama3.2 1B",
     "qwen3-1.7b": "qwen3 1.7B",
     "qwen3.5-2b": "qwen3.5 2B",
-    "gemma4-e4b-q3km": "gemma4-e4b Q3_K_M (current default)",
+    "gemma4-e4b-q3km": "gemma4-e4b Q3_K_M",
     "praxis-4b": "praxis-4b (chess LoRA)",
     "gemma4-e4b-q4ks": "gemma4-e4b Q4_K_S",
     "qwen3.5-4b": "qwen3.5 4B",
@@ -297,6 +299,15 @@ CELL_MODEL = {
 }
 
 
+def cell_settings(cell: str, records: list[Row]) -> Row:
+    """The model, rule and options of a run 9 cell; every record of the cell must agree."""
+    settings = {(r["model"], r["own"], json.dumps(r["options"], sort_keys=True)) for r in records}
+    if len(settings) != 1:
+        raise ValueError(f"run 9 cell {cell} mixes settings: {sorted(settings)}")
+    first = records[0]
+    return {"model": first["model"], "own": first["own"], "options": first["options"]}
+
+
 def sampling(options: Row) -> str:
     if options == {"temperature": 0}:
         return "T 0 (its model file)"
@@ -309,7 +320,7 @@ def heldout_table() -> str:
     for cell in sorted(by_cell):
         rs = by_cell[cell]
         records = read_jsonl(RESULTS / "run9" / f"run9-{cell}.jsonl")
-        first = records[0]
+        first = cell_settings(cell, records)
         rows.append(
             [
                 cell.split("-")[0],
@@ -358,6 +369,22 @@ def heldout_positions() -> str:
     return table(["Cell"] + list(HELDOUT_NAMES.values()), rows)
 
 
+def judgement_files() -> str:
+    """The judgement files every table above reads, with their size and SHA-256."""
+    rows = []
+    for name, stored in SETS.items():
+        for path in stored.judgement_paths():
+            rows.append(
+                [
+                    name,
+                    path.relative_to(RESULTS).as_posix(),
+                    str(len(json.loads(path.read_text(encoding="utf-8")))),
+                    f"`{hashlib.sha256(path.read_bytes()).hexdigest()}`",
+                ]
+            )
+    return table(["Blind set", "File", "Judgements", "SHA-256"], rows)
+
+
 SECTIONS: list[tuple[str, Callable[[], str]]] = [
     ("Runs 1-3: word check (code), share of comments that pass", word_check),
     ("Runs 2-3: blind judge by style, traits + examples", blind_by_style_v1),
@@ -368,6 +395,7 @@ SECTIONS: list[tuple[str, Callable[[], str]]] = [
     ("Run 8 pipeline, 12 models: coverage", models_coverage),
     ("Run 9, held-out positions (#462)", heldout_table),
     ("Run 9, faithful per held-out position", heldout_positions),
+    ("Judgement files", judgement_files),
 ]
 
 

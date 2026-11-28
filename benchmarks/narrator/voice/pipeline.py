@@ -2,10 +2,11 @@
 
 Runs 1-5 ask for a whole comment in one call. Runs 6-9 ask for one sentence per fact: code checks
 each sentence, retries it twice, falls back to the plain fact, and joins the sentences.
-Each record carries ``meta`` (commit, dirty tree, model digest, Ollama version, options, prompt
-version), so a result can be tied to the code and the model that made it (guardrail 6).
+Each record carries ``meta``, so a result can be tied to the code, the prompt data, the model and
+the run configuration that made it (guardrail 6).
 """
 
+import hashlib
 import json
 import subprocess
 import time
@@ -20,21 +21,98 @@ from benchmarks.narrator.voice.check import colour_words, finish, repair, senten
 from benchmarks.narrator.voice.render import render
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+VOICE_DIR = "benchmarks/narrator/voice"
 DEFAULT_URL = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "scan64-bench-gemma4-e4b-q3km:latest"
 NUM_CTX = 4096
 Record = dict[str, Any]
 
 
+def _git_bytes(*args: str) -> bytes:
+    return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, check=True).stdout
+
+
 def _git(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
-    ).stdout.strip()
+    return _git_bytes(*args).decode().strip()
 
 
 def _get(url: str) -> Any:
     with urllib.request.urlopen(url, timeout=30) as response:
         return json.loads(response.read())
+
+
+def sha256_json(value: Any) -> str:
+    text = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def repo_path(path: Path | None) -> str | None:
+    """``path`` relative to the repository root, or None when it lies outside."""
+    if path is None:
+        return None
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return None
+
+
+def tree_state(exclude: Path | None) -> tuple[bool, str | None]:
+    """Whether the tree has changes other than ``exclude``, and a SHA-256 of those changes.
+
+    The hash covers ``git diff HEAD`` and the untracked files under the benchmark package, so
+    two dirty runs with the same hash ran the same code.
+    """
+    skip = repo_path(exclude)
+    # Not _git: stripping the output would cut the leading space of a " M path" line.
+    status = _git_bytes("status", "--porcelain", "--untracked-files=all").decode().splitlines()
+    changed = [line for line in status if line[3:].strip('"') != skip]
+    if not changed:
+        return False, None
+    excluded = [f":(exclude){skip}"] if skip else []
+    digest = hashlib.sha256(_git_bytes("diff", "--binary", "HEAD", "--", ".", *excluded))
+    untracked = _git("ls-files", "--others", "--exclude-standard", "--", VOICE_DIR)
+    for name in sorted(n for n in untracked.splitlines() if n != skip):
+        digest.update(b"\0" + name.encode() + b"\0" + (REPO_ROOT / name).read_bytes())
+    return True, digest.hexdigest()
+
+
+def prompt_data(number: int, own_words: bool = False) -> Record:
+    """Every piece of data the prompts of a run are built from."""
+    if number <= 3:
+        return {
+            "system": data.SYSTEM_V1,
+            "styles": data.STYLES_V1,
+            "example_facts": data.EXAMPLE_FACTS_V1,
+            "example_roles": data.EXAMPLE_ROLES_V1,
+            "facts": data.TESTS_V1,
+            "roles": data.ROLES_V1,
+            "fens": data.FENS,
+        }
+    if number <= 5:
+        return {
+            "system": data.SYSTEM_RUN4 if number == 4 else data.SYSTEM_RUN5,
+            "styles": data.STYLES_RUN4,
+            "examples": None if number == 4 else data.EXAMPLES_RUN5,
+            "example_facts": data.EXAMPLE_FACTS_RUN4 if number == 4 else data.EXAMPLE_FACTS_RUN5,
+            "facts": data.TESTS_RUN4 if number == 4 else data.TESTS_RUN5,
+            "played": None if number == 4 else data.PLAYED,
+            "fens": data.FENS,
+        }
+    sentences = dict(data.SENTENCES_RUN6)
+    if number == 7:
+        sentences["Chernev"] = data.SENTENCES_CHERNEV_RUN7
+    heldout = number == 9
+    return {
+        "system": (data.SYSTEM_RUN7 if number == 7 else data.SYSTEM_RUN6)
+        + (data.OWN_WORDS_RULE if own_words else ""),
+        "cards": data.CARDS_RUN6,
+        "sentences": sentences,
+        "example_facts": data.EXAMPLE_FACTS_RUN5,
+        "facts": data.TESTS_HELDOUT if heldout else data.TESTS_RUN5,
+        "played": data.PLAYED_HELDOUT if heldout else data.PLAYED,
+        "fens": data.FENS_HELDOUT if heldout else data.FENS,
+        "stop_words": data.STOP_RUN8 if number >= 8 else None,
+    }
 
 
 @dataclass
@@ -72,22 +150,29 @@ class Client:
             reply.get("eval_count", 0),
         )
 
-    def meta(self, prompt_version: str) -> Record:
-        """What a record needs to be reproduced: code, model, server and options."""
+    def meta(self, config: Record, prompt_sha256: str, exclude: Path | None = None) -> Record:
+        """What a record needs to be reproduced: code, prompt data, model, server and the run.
+
+        ``exclude`` is the run's own output file: writing it does not make the tree dirty.
+        """
         tags = _get(self.url + "/api/tags")["models"]
         names = {self.model, self.model + ":latest"}
         digest = next((m["digest"] for m in tags if m["name"] in names), None)
         if digest is None:
             raise SystemExit(f"model {self.model!r} is not on the Ollama server at {self.url}")
+        dirty, dirty_sha256 = tree_state(exclude)
         return {
             "commit": _git("rev-parse", "HEAD"),
-            "dirty": bool(_git("status", "--porcelain")),
+            "dirty": dirty,
+            "dirty_sha256": dirty_sha256,
             "model": self.model,
             "model_digest": digest,
             "ollama_version": _get(self.url + "/api/version")["version"],
             "think": False,
             "options": {"num_ctx": NUM_CTX, **self.options},
-            "prompt_version": prompt_version,
+            "prompt_version": f"run{config['run']}" + ("+own" if config["own_words"] else ""),
+            "prompt_sha256": prompt_sha256,
+            "config": config,
         }
 
 
@@ -329,15 +414,28 @@ def run(
     styles: list[str] | None = None,
     own_words: bool = False,
     tests: list[str] | None = None,
+    out: Path | None = None,
 ) -> Iterator[Record]:
-    """Records of one run; each carries ``meta``. ``tests`` limits the positions (a smoke run)."""
+    """Records of one run; each carries ``meta``. ``tests`` limits the positions (a smoke run).
+
+    ``out`` is the file the records go to; it is left out of the dirty-tree check.
+    """
     known = data.TESTS_HELDOUT if number == 9 else data.FENS
     unknown = sorted(set(tests or []) - set(known))
     if unknown:
         raise SystemExit(f"run {number} has no position {', '.join(unknown)}")
-    meta = client.meta(f"run{number}" + ("+own" if own_words else ""))
     samples = samples or DEFAULT_SAMPLES[number]
     styles = styles or DEFAULT_STYLES[number]
+    config = {
+        "run": number,
+        "samples": samples,
+        "styles": styles,
+        "tests": tests,
+        "own_words": own_words,
+        "options": client.options,
+        "url": client.url,
+    }
+    meta = client.meta(config, sha256_json(prompt_data(number, own_words)), exclude=out)
     if number <= 3:
         records = run_v1(client, number, samples, styles, tests)
     elif number <= 5:

@@ -22,6 +22,7 @@ Each folder with a blind set also holds the judge brief, word for word, as `judg
 Limits of these records:
 
 - They predate the `meta` field. They do not record the git commit, the model digest, the Ollama version or the sampling options. The model behind each file is named in #457 and in `summarise.py`. Run 9 records name the model and the options. New runs record all of it.
+- Each stored key sat in the same folder as its items file. The judges were told not to open it, and nothing stopped them. New sets write the key outside the judge's folder (`blind --key-out`).
 - One judge session (session 1) judged the sets of runs 2–8 one after the other. Each set was blind, but the judge knew the rubric decisions it had made on the earlier sets.
 - Judge session 4 ran on Claude Sonnet. Sessions 1–3 ran on the default model for subagents, and the session log does not name it. The comments themselves come from the local model of each run.
 - `models-vram.txt` lacks gemma4-e4b Q3_K_M. Its 2.43 GiB comes from #457 and is written in `summarise.py`.
