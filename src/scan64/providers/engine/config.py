@@ -510,8 +510,12 @@ def ladder_engine_config(analysis: EngineConfig) -> EngineConfig:
     if profile is None:
         return analysis
     ladder = EngineConfig.from_profile(profile)
-    # The same engine and ladder as analysis (both variables naming one file)
+    # The same engine, ladder and deadline as analysis (both variables naming one file)
     # needs no second pool.
-    if ladder.fingerprint() == analysis.fingerprint() and ladder.ladder == analysis.ladder:
+    if (ladder.fingerprint(), ladder.ladder, ladder.search_deadline_s) == (
+        analysis.fingerprint(),
+        analysis.ladder,
+        analysis.search_deadline_s,
+    ):
         return analysis
     return ladder

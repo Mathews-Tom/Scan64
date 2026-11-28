@@ -700,3 +700,21 @@ async def test_legacy_skill_sessions_stay_on_the_analysis_engine() -> None:
     )
     assert await manager.play_bot_interactive(chess.STARTING_FEN, AsyncMock()) == "ladder"
     assert used == ["interactive", "ladder"]
+
+
+def test_a_ladder_profile_with_its_own_deadline_keeps_its_pool(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    analysis_path = tmp_path / "analysis.toml"
+    analysis_path.write_text(
+        "[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = 5\n", encoding="utf-8"
+    )
+    ladder_path = tmp_path / "ladder.toml"
+    ladder_path.write_text(
+        "[engine]\nname = 'x'\nbinary_path = 'x'\nsearch_deadline_s = 99\n", encoding="utf-8"
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis_path))
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder_path))
+    analysis = EngineConfig()
+    ladder = ladder_engine_config(analysis)
+    assert ladder is not analysis and ladder.search_deadline_s == 99
