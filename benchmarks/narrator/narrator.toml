@@ -59,6 +59,10 @@ grounding_context = "scan64.explanations.assembly:grounding_context_for"
 # pipeline_entry as `voice=` and records it in the run header; one runs file
 # holds one voice, so run once per voice to compare voices. Default "coach".
 voice = "coach"
+# Positions file the runner reads (#389). Unset: [positions].file, the recorded
+# Stockfish positions. Set "benchmarks/narrator/positions-caissa.json" to run the
+# same positions with Caissa 2.0 evidence ([positions.live] below).
+# positions_file = "benchmarks/narrator/positions-caissa.json"
 
 [positions]
 file = "benchmarks/narrator/positions.json"
@@ -71,6 +75,23 @@ corpora = [
   "tests/fixtures/m48/m79_fresh80_recorded.json",
   "tests/fixtures/m48/m93_fresh80_recorded.json",
 ]
+
+# Same games and learner moves with a live engine (#389):
+#   taskset -c 32-39 uv run python -m benchmarks.narrator.build_positions_live benchmarks/narrator/narrator.toml
+# The profile is benchmark-only (not a config/engines/ default). Budgets match the
+# analysis job: review fast pass 10,000 nodes, focused and mate-source searches
+# 1,000,000 nodes MultiPV 4. concurrency = engine processes at once, 1 thread each.
+[positions.live]
+engine_config = "benchmarks/narrator/engines/caissa.toml"
+engine_binary = "~/.local/opt/engines/caissa/caissa"   # hashed into the output
+file = "benchmarks/narrator/positions-caissa.json"
+report = "benchmarks/narrator/results/caissa_positions_report.md"
+fast_nodes = 10000
+focused_nodes = 1000000
+focused_multipv = 4
+deep_nodes = 1000000
+deep_multipv = 4
+concurrency = 8
 
 # Every model is served as an Ollama model named "scan64-bench-<name>" built from
 # modelfiles/<name>.Modelfile. `from` is either an Ollama library tag (pulled)
@@ -174,3 +195,32 @@ params_b = 11.95
 base_model = "google/gemma-4-12b-it"
 training_data = "general web, code and synthetic data (vendor report)"
 ollama_tag = "gemma4:12b"
+
+# Smaller quantizations of gemma4-e4b (#389): the library tag (Q4_K_M with a vision
+# projector and an MTP draft model) measured 5.28 GiB at num_ctx 12288, over the
+# 4 GiB bar. Text-only GGUFs from one publisher, pinned revision, to compare
+# quality and GPU memory side by side. Not part of the 9-model run (--models).
+
+[[models]]
+name = "gemma4-e4b-q4ks"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.0
+base_model = "google/gemma-4-E4B-it (4.5B effective), Q4_K_S"
+training_data = "general web, code and synthetic data (vendor report)"
+hf_repo = "unsloth/gemma-4-E4B-it-GGUF"
+hf_revision = "bfc15c382204943c3a8fff0c750b94ae2364d7a3"
+hf_file = "gemma-4-E4B-it-Q4_K_S.gguf"
+sha256 = "0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00"
+
+[[models]]
+name = "gemma4-e4b-q3km"
+role = "baseline"
+licence = "Apache-2.0"
+params_b = 8.0
+base_model = "google/gemma-4-E4B-it (4.5B effective), Q3_K_M"
+training_data = "general web, code and synthetic data (vendor report)"
+hf_repo = "unsloth/gemma-4-E4B-it-GGUF"
+hf_revision = "bfc15c382204943c3a8fff0c750b94ae2364d7a3"
+hf_file = "gemma-4-E4B-it-Q3_K_M.gguf"
+sha256 = "0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4"

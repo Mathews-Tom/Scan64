@@ -139,6 +139,11 @@ SOFTWARE.
 ```
 
 Caissa's copy (`src/backend/syzygy/LICENSE`) has the same text with "Copyright (c) 2016-2020 by Jon Dart". Each copy ships next to its engine as `Fathom-LICENSE`.
+## Stockfish Evaluation Guide
+- **Author**: hxim (with one commit by Martin Bennedik), https://github.com/hxim/Stockfish-Evaluation-Guide.
+- **License**: GPL-3.0 (`Copying.txt` in the guide repository).
+- **Version ported**: commit `63ff375bb5a8b7b2e4f965c3a3de7698fef7616c` (2024-12-07).
+- **Usage**: `src/scan64/explanations/factors/` is a Python port of the guide's 125 evaluation functions (the Stockfish 12-era classical evaluation, in 13 groups). The port keeps the guide's function names, groups, tables and arithmetic. The parity harness `tests/helpers/factors/seg_harness.cjs` runs the guide's original JavaScript under Node to produce the committed reference values; the guide itself is not redistributed.
 
 ## Chessground
 - **License**: GPL-3.0-or-later

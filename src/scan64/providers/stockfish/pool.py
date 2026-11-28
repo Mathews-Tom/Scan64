@@ -1,8 +1,10 @@
 import asyncio
 import dataclasses
+import json
+import logging
 import os
 from collections import OrderedDict
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -22,6 +24,7 @@ from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    SEARCH_FAILURES,
     BotPolicyMismatchError,
     BotStrengthRangeError,
     Engine,
@@ -30,17 +33,27 @@ from scan64.providers.engine.uci import (
     missing_options,
     open_engine,
     require_options,
+    search_failure_reason,
     startup_options,
     within_declared_range,
 )
 from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
 HINT_NODES = 200_000
 HINT_TIME_MS = 1500
 HINT_MULTIPV = 4
+# Wall deadline of one hint request, including lazy engine startup.
+HINT_DEADLINE_S = 3.0
+# Per-position search along Analysis Board lines (#367); equals
+# ``scan64.explanations.facts.LINE_NODES``.
+LINE_NODES = 10_000
+LINE_CACHE_SIZE = 1024
+LineCacheKey = tuple[str, tuple[str, ...], bool, str, int]
 HintCacheKey = tuple[
     str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int, int | None
 ]
@@ -132,6 +145,24 @@ class PooledStockfishAdapter:
         """Forget a process that has exited; the next checkout starts a new one."""
         self._engine = None
         self._identity = None
+
+    def exited(self) -> bool:
+        """Whether the started process has exited (its search may have timed out instead).
+
+        python-chess resolves ``returncode`` with the process exit code when the
+        connection to the process is lost. Only a resolved future holding an
+        integer exit code counts: anything else (no process, a pending future,
+        an object without a real future) is a process that has not exited.
+        """
+        if self._engine is None:
+            return False
+        returncode: object = getattr(self._engine, "returncode", None)
+        if not isinstance(returncode, asyncio.Future):
+            return False
+        if not returncode.done() or returncode.cancelled():
+            return False
+        code: object = returncode.result()
+        return isinstance(code, int) and not isinstance(code, bool)
 
     async def quit(self) -> None:
         if self._engine is not None:
@@ -301,6 +332,10 @@ class EnginePool:
         await self.initialize()
         adapter = await self._queue.get()
         try:
+            if adapter.exited():
+                # An engine can exit without the search raising EngineTerminatedError
+                # (python-chess may report it as a search timeout): start a new one.
+                adapter.discard()
             await adapter.reset()
             yield adapter
         except chess.engine.EngineTerminatedError:
@@ -348,6 +383,9 @@ class EnginePoolManager:
         # Only public engine inputs/results; never player IDs, hint steps,
         # session snapshots or history-dependent nudge projections.
         self._hint_cache: OrderedDict[HintCacheKey, EngineAnalysis] = OrderedDict()
+        # Keyed by the engine's analysis identity (executable digest, networks,
+        # options): a search is never reused for another engine.
+        self._line_cache: OrderedDict[LineCacheKey, EngineAnalysis] = OrderedDict()
 
     @classmethod
     def from_env(cls, config: StockfishConfig) -> "EnginePoolManager":
@@ -374,6 +412,7 @@ class EnginePoolManager:
         await self.interactive_pool.close()
         await self.batch_pool.close()
         self._hint_cache.clear()
+        self._line_cache.clear()
 
     async def analyze_interactive(
         self,
@@ -479,7 +518,7 @@ class EnginePoolManager:
             raise TimeoutError("Hint capacity is busy")
         self._hint_in_progress = True
         try:
-            async with asyncio.timeout(3):
+            async with asyncio.timeout(HINT_DEADLINE_S):
                 await self.interactive_pool.initialize()
                 lease = self.interactive_pool.acquire()
                 async with asyncio.timeout(0.25):
@@ -509,6 +548,78 @@ class EnginePoolManager:
                     await lease.__aexit__(None, None, None)
         finally:
             self._hint_in_progress = False
+
+    async def analyze_hint_positions(
+        self, boards: Sequence[chess.Board], *, deadline: float, nodes: int = LINE_NODES
+    ) -> list[EngineAnalysis | None]:
+        """Score ``boards`` in order with one hint-admitted engine until ``deadline``.
+
+        ``deadline`` is an event-loop time (``loop.time()``), normally the
+        request's hint deadline. Same admission as ``analyze_hint``: no queue,
+        250 ms acquisition, at least two interactive engines. Each search is
+        ``nodes`` nodes at MultiPV 1. Results keep the input order; a position
+        not searched by the deadline, or when admission or the engine fails (any
+        ``SEARCH_FAILURES`` error, logged by reason code), is ``None``; the
+        request still answers, with those positions unknown. Completed searches
+        are cached by the engine's analysis identity.
+        """
+        results: list[EngineAnalysis | None] = [None] * len(boards)
+        loop = asyncio.get_running_loop()
+        if (
+            not boards
+            or self.interactive_pool.concurrency < 2
+            or self._hint_in_progress
+            or deadline <= loop.time()
+        ):
+            return results
+        self._hint_in_progress = True
+        try:
+            async with asyncio.timeout_at(deadline):
+                await self.interactive_pool.initialize()
+                lease = self.interactive_pool.acquire()
+                async with asyncio.timeout(0.25):
+                    adapter = await lease.__aenter__()
+                try:
+                    identity = json.dumps(
+                        await adapter.analysis_identity(), sort_keys=True, default=str
+                    )
+                    for index, board in enumerate(boards):
+                        key: LineCacheKey = (
+                            board.root().fen(en_passant="fen"),
+                            tuple(move.uci() for move in board.move_stack),
+                            board.chess960,
+                            identity,
+                            nodes,
+                        )
+                        cached = self._line_cache.get(key)
+                        if cached is None:
+                            cached = await adapter.analyze_position(board.copy(), nodes=nodes)
+                            self._line_cache[key] = cached
+                            if len(self._line_cache) > LINE_CACHE_SIZE:
+                                self._line_cache.popitem(last=False)
+                        else:
+                            self._line_cache.move_to_end(key)
+                        results[index] = cached.model_copy(deep=True)
+                except chess.engine.EngineTerminatedError:
+                    # As in ``EnginePool.acquire``: later checkouts get a live engine.
+                    adapter.discard()
+                    raise
+                finally:
+                    await lease.__aexit__(None, None, None)
+        except SEARCH_FAILURES as error:
+            # Best effort: unscored positions stay unknown in the facts.
+            reason = search_failure_reason(error)
+            logger.log(
+                # Reaching the request deadline is routine; other failures are not.
+                logging.INFO if reason == "timeout" else logging.WARNING,
+                "Analysis Board line scoring left %d of %d positions unscored: %s",
+                results.count(None),
+                len(boards),
+                reason,
+            )
+        finally:
+            self._hint_in_progress = False
+        return results
 
 
 PooledUciEngineAdapter = PooledStockfishAdapter

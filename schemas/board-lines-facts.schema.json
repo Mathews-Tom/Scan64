@@ -109,7 +109,6 @@
           "type": "array"
         },
         "moves": {
-          "description": "Facts for the moves of uci, in order. The narrator prompt holds the first 8 only; outcome covers the whole line.",
           "items": {
             "$ref": "#/$defs/MoveFacts"
           },
@@ -117,8 +116,32 @@
           "title": "Moves",
           "type": "array"
         },
+        "evaluation_change": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineEvaluationChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The board position's score (line 1) against this line's last scored move, side to move's view (#368)."
+        },
         "outcome": {
           "$ref": "#/$defs/LineOutcome"
+        },
+        "factors": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactorFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Factor changes of this line against line 1 (#408); lines 2 and later."
         }
       },
       "required": [
@@ -202,7 +225,8 @@
             "reply_pass",
             "focused_pass",
             "mate_source_pass",
-            "analysis_board_pass"
+            "analysis_board_pass",
+            "line_pass"
           ],
           "title": "Source",
           "type": "string"
@@ -214,6 +238,238 @@
         "source"
       ],
       "title": "CentipawnEvaluation",
+      "type": "object"
+    },
+    "FactorChange": {
+      "additionalProperties": false,
+      "description": "A factor change that passed its threshold and agrees with the engine.",
+      "properties": {
+        "key": {
+          "description": "Slot key, for example king_safety.",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "description": "Plain name, for example king safety.",
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "group",
+            "term"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "guide_name": {
+          "description": "Group or part name in the Stockfish Evaluation Guide.",
+          "title": "Guide Name",
+          "type": "string"
+        },
+        "compared_with": {
+          "description": "before: the position before the mistake; best: after the best move's line (Analysis Board: after line 1).",
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "change_pawns": {
+          "description": "Played point minus the reference point, learner's view, pawns.",
+          "title": "Change Pawns",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "kind",
+        "guide_name",
+        "compared_with",
+        "change_pawns"
+      ],
+      "title": "FactorChange",
+      "type": "object"
+    },
+    "FactorFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Factor module version.",
+          "title": "Source",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/FactorPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "engine_swing_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine score after the mistake minus before it, learner's view; mates count as large scores. Absent: no factor fact (the engine gave no direction).",
+          "title": "Engine Swing Cp"
+        },
+        "swings": {
+          "default": [],
+          "description": "The swing each comparison used (#367); absent before #367.",
+          "items": {
+            "$ref": "#/$defs/FactorSwing"
+          },
+          "title": "Swings",
+          "type": "array"
+        },
+        "changes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FactorChange"
+          },
+          "title": "Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "points"
+      ],
+      "title": "FactorFacts",
+      "type": "object"
+    },
+    "FactorPoint": {
+      "additionalProperties": false,
+      "description": "One measured position, reached by ``uci`` from the position before the mistake.\n\nAnalysis Board: ``best`` is line 1 and ``line`` the explained line, both from\nthe board position.",
+      "properties": {
+        "point": {
+          "enum": [
+            "before",
+            "played",
+            "best",
+            "line"
+          ],
+          "title": "Point",
+          "type": "string"
+        },
+        "uci": {
+          "default": [],
+          "description": "Moves from the position before the mistake to this position.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Uci",
+          "type": "array"
+        },
+        "quiet": {
+          "default": true,
+          "description": "False: no quiet position within the ply limit (not measured).",
+          "title": "Quiet",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "point"
+      ],
+      "title": "FactorPoint",
+      "type": "object"
+    },
+    "FactorSwing": {
+      "additionalProperties": false,
+      "description": "The engine swing a comparison's sign rule used.",
+      "properties": {
+        "compared_with": {
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "swing_cp": {
+          "description": "Engine score at the played (board: line) point minus the score at the reference point, learner's view; mates count as large scores.",
+          "title": "Swing Cp",
+          "type": "integer"
+        },
+        "source": {
+          "description": "points: per-move evaluations at both measured positions; mistake: the position scores were unknown, so engine_swing_cp.",
+          "enum": [
+            "points",
+            "mistake"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compared_with",
+        "swing_cp",
+        "source"
+      ],
+      "title": "FactorSwing",
+      "type": "object"
+    },
+    "LineEvaluationChange": {
+      "additionalProperties": false,
+      "description": "What the line wins or loses by engine evaluation, learner's view (#368).",
+      "properties": {
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation of the position before the line's first move.",
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation after ply end_ply, the line's last scored move.",
+          "title": "End"
+        },
+        "end_ply": {
+          "minimum": 1,
+          "title": "End Ply",
+          "type": "integer"
+        },
+        "change_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "end minus start, learner's view; positive: the line gains for the learner. Absent unless both are centipawn scores.",
+          "title": "Change Cp"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "end_ply"
+      ],
+      "title": "LineEvaluationChange",
       "type": "object"
     },
     "LineOutcome": {
@@ -286,7 +542,8 @@
             "reply_pass",
             "focused_pass",
             "mate_source_pass",
-            "analysis_board_pass"
+            "analysis_board_pass",
+            "line_pass"
           ],
           "title": "Source",
           "type": "string"

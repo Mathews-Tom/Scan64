@@ -14,7 +14,6 @@ from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.board_lines import (
     BOARD_SCHEMA_PATH,
     COMPARISON_EVIDENCE_ID,
-    PROMPT_MOVE_PLIES,
     BoardLinesFacts,
     board_lines_facts_schema,
     board_lines_grounding,
@@ -206,8 +205,9 @@ async def test_grounded_provider_wording_replaces_the_template() -> None:
     ]
     assert [claim.line for claim in resolved.explanation.claims] == [("e2e4",), ("g1f3",)]
     [request] = provider.requests
-    assert BoardLinesFacts.model_validate_json(request.messages[1].content) == facts.for_prompt()
-    assert request.messages[2].content == board_slot_catalogue(facts).prompt()
+    # The model gets the slot list only (#408); the facts stay in the pipeline.
+    assert [m.role for m in request.messages] == ["system", "user"]
+    assert request.messages[1].content == board_slot_catalogue(facts).prompt()
 
 
 @pytest.mark.asyncio
@@ -250,18 +250,15 @@ def test_a_line_may_state_how_far_it_trails_line_one() -> None:
 
 
 @pytest.mark.parametrize("name", sorted(POSITIONS))
-def test_prompt_cuts_move_facts_but_keeps_the_full_line(name: str) -> None:
+def test_prompt_is_the_slot_list_but_a_claim_may_cite_the_full_line(name: str) -> None:
     facts = _facts(name, 4)
-    request = board_lines_request(facts)
-    system, user, slots = request.messages
+    system, slots = board_lines_request(facts).messages
     assert system.content == board_narrator_system_prompt()
-    assert slots.content == board_slot_catalogue(facts).prompt()
-    prompt = BoardLinesFacts.model_validate_json(user.content, strict=True)
-    assert prompt == facts.for_prompt()
-    for shown, full in zip(prompt.lines, facts.lines, strict=True):
-        assert shown.uci == full.uci
-        assert shown.outcome == full.outcome
-        assert shown.evaluation == full.evaluation
-        assert shown.moves == full.moves[:PROMPT_MOVE_PLIES]
+    catalogue = board_slot_catalogue(facts)
+    assert slots.content == catalogue.prompt()
+    # No facts JSON reaches the model (#408), so long lines do not grow the prompt (#388).
+    assert '"schema_version"' not in system.content + slots.content
+    for line in facts.lines:
+        assert catalogue.slots_for(line.line_id)[f"line:{line.line_id}"].moves == line.uci
     # The facts the response, template and grounding use are not cut.
     assert [len(line.moves) for line in facts.lines] == [len(line.uci) for line in facts.lines]

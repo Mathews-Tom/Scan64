@@ -12,14 +12,16 @@ after the learner's move is prefixed with the learner's move, so one replay
 origin serves the prompt, ``ExplanationClaim.line`` and the validator.
 
 Evaluations come only from engine searches already stored in the evidence
-payload; no search runs here. A position no stored search scored is
-``unknown``. Scores are from the learner's point of view.
+payload; no search runs here. Game analysis scores every position along each
+verified line with a small search (``line_evaluations``, ``LINE_NODES``); a
+position no stored search scored is ``unknown``. Scores are from the learner's
+point of view.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -28,6 +30,8 @@ import chess
 from chess_lesson_spec import Diagnosis
 from pydantic import BaseModel, ConfigDict, Field
 
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, mistake_factor_facts
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.composer import PIECE_VALUES
 from scan64.learning.evidence.models import Evidence
@@ -39,10 +43,23 @@ SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schemas" / "narrator-facts.
 # is marked with ``full_plies`` and the validator only accepts the cut line.
 MAX_LINE_PLIES = 8
 
+# Node budget of the search that scores each position along a verified line
+# (#367). It equals the fast pass (``REVIEW_NODES``): about 10 ms per position
+# with a warm Stockfish 18 process on linux-5090.
+LINE_NODES = 10_000
+# Payload field holding those searches: ``{"fen", "score_cp", "score_mate",
+# "analysis_id"}``, scores from the side to move of ``fen``.
+LINE_EVALUATIONS_FIELD = "line_evaluations"
+
 PieceName = Literal["pawn", "knight", "bishop", "rook", "queen", "king"]
 ColourName = Literal["white", "black"]
 EvaluationSource = Literal[
-    "fast_pass", "reply_pass", "focused_pass", "mate_source_pass", "analysis_board_pass"
+    "fast_pass",
+    "reply_pass",
+    "focused_pass",
+    "mate_source_pass",
+    "analysis_board_pass",
+    "line_pass",
 ]
 _SQUARE_PATTERN = r"^[a-h][1-8]$"
 _UCI_PATTERN = r"^[a-h][1-8][a-h][1-8][qrbn]?$"
@@ -118,6 +135,43 @@ class MoveFacts(_Facts):
     evaluation_after: Evaluation
 
 
+class LineEvaluationChange(_Facts):
+    """What the line wins or loses by engine evaluation, learner's view (#368)."""
+
+    start: CentipawnEvaluation | MateEvaluation = Field(
+        description="Evaluation of the position before the line's first move."
+    )
+    end: CentipawnEvaluation | MateEvaluation = Field(
+        description="Evaluation after ply end_ply, the line's last scored move."
+    )
+    end_ply: int = Field(ge=1)
+    change_cp: int | None = Field(
+        default=None,
+        description="end minus start, learner's view; positive: the line gains for the learner. "
+        "Absent unless both are centipawn scores.",
+    )
+
+
+def line_evaluation_change(
+    start: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    moves: Sequence[MoveFacts],
+) -> LineEvaluationChange | None:
+    """``start`` against the last scored move of ``moves``; ``None`` if either is unknown."""
+    if isinstance(start, UnknownEvaluation):
+        return None
+    for move in reversed(moves):
+        end = move.evaluation_after
+        if isinstance(end, UnknownEvaluation):
+            continue
+        change = (
+            end.centipawns - start.centipawns
+            if isinstance(end, CentipawnEvaluation) and isinstance(start, CentipawnEvaluation)
+            else None
+        )
+        return LineEvaluationChange(start=start, end=end, end_ply=move.ply, change_cp=change)
+    return None
+
+
 class VerifiedLineFacts(_Facts):
     line_id: str
     origins: tuple[str, ...] = Field(min_length=1, description="Evidence payload fields.")
@@ -130,6 +184,9 @@ class VerifiedLineFacts(_Facts):
         description="Plies in the engine line when it was cut to the plies shown; absent if uncut.",
     )
     moves: tuple[MoveFacts, ...] = Field(min_length=1)
+    evaluation_change: LineEvaluationChange | None = Field(
+        default=None, description="Absent: the start or every move is unscored."
+    )
 
 
 class EvidencePiece(PieceOnSquare):
@@ -178,6 +235,10 @@ class NarratorFacts(_Facts):
     position: PositionFacts
     evidence: tuple[EvidenceFacts, ...] = Field(min_length=1)
     lines: tuple[VerifiedLineFacts, ...] = ()
+    factors: FactorFacts | None = Field(
+        default=None,
+        description="Factor changes across the mistake (#408); absent when not measured.",
+    )
 
     def to_prompt_json(self) -> str:
         """Compact JSON; fields equal to their schema default are omitted."""
@@ -393,6 +454,9 @@ class StoredEvaluations:
     after_played: CentipawnEvaluation | MateEvaluation | UnknownEvaluation
     by_position: Mapping[str, CentipawnEvaluation | MateEvaluation]
 
+    def scored(self, board: chess.Board) -> bool:
+        return _position_key(board) in self.by_position
+
     @classmethod
     def from_payload(
         cls, before: chess.Board, payload: Mapping[str, Any], played: chess.Move | None
@@ -409,6 +473,9 @@ class StoredEvaluations:
             if board is not None and not isinstance(evaluation, UnknownEvaluation):
                 by_position[_position_key(board)] = evaluation
 
+        # The line pass is the shallowest search: every other search overwrites it.
+        for board, score in _line_scores(payload):
+            record(board, _learner_evaluation(score, board.turn == before.turn, "line_pass"))
         fast_line = _string_list(payload.get("fast_line"))
         if fast_line is not None:
             record(_legal_push(before, fast_line[0]), fast)
@@ -427,6 +494,12 @@ class StoredEvaluations:
                 _legal_push(before, line.moves[0]),
                 _entry_evaluation(line, root_is_learner=True, source="mate_source_pass"),
             )
+        # Evidence stored before #367 lacks the fast and reply scores; the line
+        # pass scores those positions too.
+        if isinstance(fast, UnknownEvaluation):
+            fast = by_position.get(_position_key(before), UNKNOWN)
+        if isinstance(reply, UnknownEvaluation) and after is not None:
+            reply = by_position.get(_position_key(after), UNKNOWN)
         return cls(before=fast, after_played=reply, by_position=by_position)
 
     def after(self, board: chess.Board) -> CentipawnEvaluation | MateEvaluation | UnknownEvaluation:
@@ -447,6 +520,69 @@ class StoredEvaluations:
         ):
             return self.before.centipawns - self.after_played.centipawns
         return None
+
+
+def _line_scores(payload: Mapping[str, Any]) -> list[tuple[chess.Board, tuple[str, int]]]:
+    """Positions and side-to-move scores of the payload's ``line_evaluations``."""
+    entries = payload.get(LINE_EVALUATIONS_FIELD)
+    if not isinstance(entries, list):
+        return []
+    scores = []
+    for entry in entries:
+        if not isinstance(entry, Mapping) or not isinstance(entry.get("fen"), str):
+            continue
+        score = _score(entry, "score_cp", "score_mate")
+        try:
+            board = chess.Board(entry["fen"])
+        except ValueError:
+            continue
+        if score is not None:
+            scores.append((board, score))
+    return scores
+
+
+def line_evaluation_entry(fen: str, analysis: EngineAnalysis) -> dict[str, Any]:
+    """One ``line_evaluations`` entry: the best line's score, side to move of ``fen``."""
+    best = analysis.raw_result[0] if analysis.raw_result else {}
+    return {
+        "fen": fen,
+        "score_cp": _optional_int(best.get("score_cp")),
+        "score_mate": _optional_int(best.get("score_mate")),
+        "analysis_id": str(analysis.id),
+    }
+
+
+def unscored_line_positions(
+    before: chess.Board, payloads: Iterable[Mapping[str, Any]], played: chess.Move
+) -> list[str]:
+    """FENs along the verified lines of ``payloads`` that no stored search scored.
+
+    The lines' start (the position before the learner's move) is included when
+    unscored. Ordered by ply, then by line, so a caller that stops early has scored the
+    plies nearest each line's start. A position appears once. Game-over
+    positions are skipped: the move facts state checkmate or stalemate.
+    """
+    by_ply: dict[int, dict[str, str]] = {}
+    for payload in payloads:
+        evaluations = StoredEvaluations.from_payload(before, payload, played)
+        if isinstance(evaluations.before, UnknownEvaluation):
+            # Each line's start: the position before the learner's move.
+            by_ply.setdefault(0, {}).setdefault(_position_key(before), before.fen())
+        for _origins, moves, _full in verified_lines(before, payload):
+            replay = before.copy(stack=False)
+            for ply, uci in enumerate(moves, start=1):
+                replay.push(chess.Move.from_uci(uci))
+                if replay.is_game_over(claim_draw=False) or evaluations.scored(replay):
+                    continue
+                by_ply.setdefault(ply, {}).setdefault(_position_key(replay), replay.fen())
+    seen: set[str] = set()
+    fens = []
+    for ply in sorted(by_ply):
+        for key, fen in by_ply[ply].items():
+            if key not in seen:
+                seen.add(key)
+                fens.append(fen)
+    return fens
 
 
 def _entry_evaluation(
@@ -557,6 +693,7 @@ def _line_facts(
         uci=moves,
         full_plies=full_plies,
         moves=tuple(facts),
+        evaluation_change=line_evaluation_change(evaluations.before, facts),
     )
 
 
@@ -649,6 +786,90 @@ def _shared(referenced: Sequence[Evidence], field: str) -> object:
     return referenced[0].payload.get(field)
 
 
+# Engine lines that continue the learner's move, best first: the after-position
+# search's principal variation, then its first MultiPV entry.
+_PLAYED_LINE_ORIGINS = ("focused_line", "focused_multipv[1]")
+_BEST_LINE_ORIGINS = ("fast_line",)
+
+
+def _factor_line(
+    lines: Sequence[VerifiedLineFacts], origins: Sequence[str], first: str
+) -> tuple[str, ...]:
+    for origin in origins:
+        for line in lines:
+            if origin in line.origins and line.uci[0] == first:
+                return line.uci
+    return (first,)
+
+
+def _engine_swing_cp(
+    before: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    after: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    swing_cp: int | None,
+) -> int | None:
+    """Score after the mistake minus before it, learner's view; else ``-swing_cp``."""
+
+    start, end = evaluation_as_cp(before), evaluation_as_cp(after)
+    if start is not None and end is not None:
+        return end - start
+    return -swing_cp if swing_cp is not None else None
+
+
+def evaluation_as_cp(
+    evaluation: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+) -> int | None:
+    """Centipawns, a mate as +-(100 000 - distance), or ``None`` when unknown."""
+    if isinstance(evaluation, CentipawnEvaluation):
+        return evaluation.centipawns
+    if isinstance(evaluation, MateEvaluation):
+        return evaluation_cp("mate", evaluation.mate_in)
+    return None
+
+
+def line_point_score(
+    root: CentipawnEvaluation | MateEvaluation | UnknownEvaluation,
+    lines: Iterable[tuple[tuple[str, ...], Sequence[MoveFacts]]],
+) -> Callable[[Sequence[str]], int | None]:
+    """Score at the position a move prefix reaches, from the lines' per-move evaluations."""
+    by_prefix: dict[tuple[str, ...], int | None] = {(): evaluation_as_cp(root)}
+    for uci, moves in lines:
+        for ply, move in enumerate(moves, start=1):
+            score = evaluation_as_cp(move.evaluation_after)
+            if score is not None:
+                by_prefix.setdefault(tuple(uci[:ply]), score)
+
+    def lookup(prefix: Sequence[str]) -> int | None:
+        return by_prefix.get(tuple(prefix))
+
+    return lookup
+
+
+def narrator_factor_facts(
+    before: chess.Board,
+    played: chess.Move,
+    best: chess.Move | None,
+    lines: Sequence[VerifiedLineFacts],
+    evaluations: StoredEvaluations,
+    swing_cp: int | None,
+) -> FactorFacts | None:
+    """Factor facts at the three points of the mistake (``factor_facts``).
+
+    The sign rule compares the engine scores at the measured positions, read
+    from the verified lines' per-move evaluations (#367).
+    """
+    if best == played:
+        return None
+    return mistake_factor_facts(
+        before,
+        _factor_line(lines, _PLAYED_LINE_ORIGINS, played.uci()),
+        _factor_line(lines, _BEST_LINE_ORIGINS, best.uci()) if best is not None else None,
+        _engine_swing_cp(evaluations.before, evaluations.after_played, swing_cp),
+        point_score=line_point_score(
+            evaluations.before, ((line.uci, line.moves) for line in lines)
+        ),
+    )
+
+
 def build_narrator_facts(
     diagnosis: Diagnosis, evidence: Sequence[Evidence], fen: str
 ) -> NarratorFacts:
@@ -692,11 +913,13 @@ def build_narrator_facts(
     played_facts, _ = _move_facts(before, played, 1, learner, evaluations)
     fast_line = _string_list(first.get("fast_line"))
     best_facts = None
+    best_move = None
     if fast_line is not None:
         best_move = chess.Move.from_uci(fast_line[0])
         if best_move not in before.legal_moves:
             raise NarratorFactsError(f"Best move {fast_line[0]!r} is illegal")
         best_facts, _ = _move_facts(before, best_move, 1, learner, evaluations)
+    swing_cp = _optional_int(first.get("swing_cp"))
     return NarratorFacts(
         schema_version=SCHEMA_VERSION,
         position=PositionFacts(
@@ -709,11 +932,12 @@ def build_narrator_facts(
             evaluation_after=evaluations.after_played,
             best_move_evaluation=evaluations.before if best_facts is not None else UNKNOWN,
             evaluation_difference_cp=evaluations.difference_cp(),
-            swing_cp=_optional_int(first.get("swing_cp")),
+            swing_cp=swing_cp,
             mistake_class=_mistake_class(diagnosis.primary),
         ),
         evidence=tuple(evidence_facts),
         lines=tuple(lines),
+        factors=narrator_factor_facts(before, played, best_move, lines, evaluations, swing_cp),
     )
 
 
