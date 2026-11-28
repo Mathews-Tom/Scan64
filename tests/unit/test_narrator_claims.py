@@ -487,6 +487,8 @@ EDGE_CLAIMS = [
     ("A material edge of two pawns.", {2, -2}),
     ("A material edge of two pawns for you.", {2}),
     ("A material edge of two pawns for your opponent.", {-2}),
+    ("A material edge of two pawns for them.", {-2}),
+    ("A two pawn lead.", {2, -2}),
     ("You are two pawns to the good.", {2}),
     ("Your opponent is two pawns to the good.", {-2}),
     ("Two pawns to the good.", {2, -2}),

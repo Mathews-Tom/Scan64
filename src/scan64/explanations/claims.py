@@ -267,7 +267,7 @@ def _side(who: str | None) -> int:
     who = " ".join(who.lower().split())
     if who == "the":
         return 0
-    if "opponent" in who or who in ("they", "their", "the other side"):
+    if "opponent" in who or who in ("they", "them", "their", "the other side"):
         return -1
     return 1
 
@@ -433,7 +433,7 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     (
         _Rule(
             r"\bmaterial\s+(?:edge|lead|advantage|plus)\s+of\s+"
-            rf"{_COUNT_REQUIRED}{_UNIT_PIECES}(?:\s+for\s+{_SUBJECT})?",
+            rf"{_COUNT_REQUIRED}{_UNIT_PIECES}(?:\s+for\s+(?P<who>{_OPPONENT}|them|{_LEARNER}))?",
             _I,
         ),
         _balance(1),
@@ -464,7 +464,7 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     (
         _Rule(
             rf"(?:\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+|\b{_OWNER}\s+|\b(?:a|an)\s+)"
-            r"(?P<count>one|two|three|four|five|six|seven|eight|nine)-(?P<unit>pawn|piece|knight"
+            r"(?P<count>one|two|three|four|five|six|seven|eight|nine)[-\s](?P<unit>pawn|piece|knight"
             r"|bishop|rook|queen|point)\s+(?:material\s+)?(?:edge|lead|advantage|plus)\b",
             _I,
         ),
