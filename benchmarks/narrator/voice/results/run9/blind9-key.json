@@ -1,0 +1,1002 @@
+{
+ "h001": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h002": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h003": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h004": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h005": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h006": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h007": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h008": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h009": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h010": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h011": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h012": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h013": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h014": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h015": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h016": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h017": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h018": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h019": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h020": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h021": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h022": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h023": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h024": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h025": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h026": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h027": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h028": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h029": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h030": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h031": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h032": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h033": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h034": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h035": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h036": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h037": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h038": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h039": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h040": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h041": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h042": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h043": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h044": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h045": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h046": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h047": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h048": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h049": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h050": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h051": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h052": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h053": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h054": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h055": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h056": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h057": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h058": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h059": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h060": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h061": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h062": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h063": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h064": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h065": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h066": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h067": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h068": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h069": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h070": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h071": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h072": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h073": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h074": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h075": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h076": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h077": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h078": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h079": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h080": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h081": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h082": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h083": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h084": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h085": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h086": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h087": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h088": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h089": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h090": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h091": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h092": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h093": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h094": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h095": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h096": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h097": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h098": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h099": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h100": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h101": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h102": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h103": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h104": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h105": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h106": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h107": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h108": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h109": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h110": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h111": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h112": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h113": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h114": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h115": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h116": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h117": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h118": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h119": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h120": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h121": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h122": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h123": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h124": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h125": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h126": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h127": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h128": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h129": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h130": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h131": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h132": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h133": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h134": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h135": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h136": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h137": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h138": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h139": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h140": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h141": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h142": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h143": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h144": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h145": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h146": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h147": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h148": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h149": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h150": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h151": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h152": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h153": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h154": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h155": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h156": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h157": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h158": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h159": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h160": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h161": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h162": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h163": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h164": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h165": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h166": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h167": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h168": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h169": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h170": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h171": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h172": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h173": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h174": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h175": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h176": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h177": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h178": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h179": {
+  "cell": "E-praxis-t1-own",
+  "test": "H5-allowed-fork"
+ },
+ "h180": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h181": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h182": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h183": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h184": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h185": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h186": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h187": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h188": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h189": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h190": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h191": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h192": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h193": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h194": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h195": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h196": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h197": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h198": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h199": {
+  "cell": "D-praxis-t1",
+  "test": "H2-skewer"
+ },
+ "h200": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h201": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h202": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h203": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h204": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h205": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h206": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h207": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h208": {
+  "cell": "A-gemma",
+  "test": "H1-missed-mate"
+ },
+ "h209": {
+  "cell": "D-praxis-t1",
+  "test": "H4-pin"
+ },
+ "h210": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h211": {
+  "cell": "C-praxis-t0",
+  "test": "H4-pin"
+ },
+ "h212": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h213": {
+  "cell": "A-gemma",
+  "test": "H4-pin"
+ },
+ "h214": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h215": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h216": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h217": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h218": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h219": {
+  "cell": "E-praxis-t1-own",
+  "test": "H4-pin"
+ },
+ "h220": {
+  "cell": "B-gemma-own",
+  "test": "H2-skewer"
+ },
+ "h221": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h222": {
+  "cell": "A-gemma",
+  "test": "H3-stalemate"
+ },
+ "h223": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h224": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h225": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h226": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h227": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h228": {
+  "cell": "B-gemma-own",
+  "test": "H3-stalemate"
+ },
+ "h229": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h230": {
+  "cell": "B-gemma-own",
+  "test": "H4-pin"
+ },
+ "h231": {
+  "cell": "C-praxis-t0",
+  "test": "H2-skewer"
+ },
+ "h232": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h233": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h234": {
+  "cell": "B-gemma-own",
+  "test": "H5-allowed-fork"
+ },
+ "h235": {
+  "cell": "C-praxis-t0",
+  "test": "H3-stalemate"
+ },
+ "h236": {
+  "cell": "D-praxis-t1",
+  "test": "H5-allowed-fork"
+ },
+ "h237": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h238": {
+  "cell": "E-praxis-t1-own",
+  "test": "H2-skewer"
+ },
+ "h239": {
+  "cell": "D-praxis-t1",
+  "test": "H1-missed-mate"
+ },
+ "h240": {
+  "cell": "D-praxis-t1",
+  "test": "H3-stalemate"
+ },
+ "h241": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h242": {
+  "cell": "E-praxis-t1-own",
+  "test": "H1-missed-mate"
+ },
+ "h243": {
+  "cell": "B-gemma-own",
+  "test": "H1-missed-mate"
+ },
+ "h244": {
+  "cell": "E-praxis-t1-own",
+  "test": "H3-stalemate"
+ },
+ "h245": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h246": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ },
+ "h247": {
+  "cell": "A-gemma",
+  "test": "H2-skewer"
+ },
+ "h248": {
+  "cell": "C-praxis-t0",
+  "test": "H1-missed-mate"
+ },
+ "h249": {
+  "cell": "A-gemma",
+  "test": "H5-allowed-fork"
+ },
+ "h250": {
+  "cell": "C-praxis-t0",
+  "test": "H5-allowed-fork"
+ }
+}
