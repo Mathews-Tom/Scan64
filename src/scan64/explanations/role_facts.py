@@ -239,6 +239,8 @@ def _check_prevents(before: chess.Board, after: chess.Board, threat: chess.Move)
         and piece is not None
         and piece.piece_type != chess.KING
         and after.piece_at(threat.from_square) == piece
+        # A capture still takes the same piece: the better move did not move it away.
+        and after.piece_at(threat.to_square) == before.piece_at(threat.to_square)
         and after.is_check()
         and not after.is_game_over()
         and after.is_pseudo_legal(threat)
@@ -833,7 +835,18 @@ def role_facts(
                         f"After {best_label}, {colour_name(after_best.turn)} must answer "
                         f"the check, so {piece.phrase()} cannot play "
                         f"{numbered_san(after_played, threat)} at once.",
-                        Relation("prevents", best, fen, target=piece, reply=threat.uci()),
+                        Relation(
+                            "prevents",
+                            best,
+                            fen,
+                            target=piece,
+                            through=(
+                                _on(after_best, threat.to_square)
+                                if after_best.piece_at(threat.to_square) is not None
+                                else None
+                            ),
+                            reply=threat.uci(),
+                        ),
                     )
                 )
         add("could_have_played", alternative)

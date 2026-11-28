@@ -137,7 +137,8 @@
         {
           "kind": "prevents",
           "move": "c4f7",
-          "target": "black queen g5"
+          "target": "black queen g5",
+          "through": "white pawn g2"
         }
       ]
     }

@@ -296,6 +296,12 @@ def _holds(relation: Relation) -> None:
             # Pseudo-legal, no pin forbids it, and still illegal: the check stops it.
             assert after.is_pseudo_legal(reply) and reply not in after.legal_moves
             assert reply.to_square in after.pin(target.colour, target.square)
+            # A capturing reply names the piece it takes, still on its square.
+            if through is None:
+                assert after.piece_at(reply.to_square) is None
+            else:
+                on(after, through)
+                assert through.square == reply.to_square and through.colour != target.colour
         case _:
             pytest.fail(f"Unchecked relation {relation.kind}")
 
@@ -490,6 +496,14 @@ def test_a_stalemate_later_in_a_line_is_stated() -> None:
             "f7c4",
             ("f7c4",),
             ("c6c2",),
+        ),
+        # The better move moves the piece the threat would have taken, with check.
+        (
+            "r1b1kbnr/ppp1q1pp/3pp3/5p2/2Bn1P2/P3PN1P/1PPP1KP1/RNBQ3R b kq - 3 7",
+            "e7g5",
+            "e7h4",
+            ("e7h4",),
+            ("f3g5",),
         ),
         # The threat is a king move to an attacked square.
         (
