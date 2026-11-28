@@ -1,3 +1,0 @@
-id name Laser 1.8 beta
-id author Jeffrey An and Michael An
-uciok

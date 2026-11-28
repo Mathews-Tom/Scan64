@@ -1,0 +1,55 @@
+info string hash table allocated, 65536 elements (1MB)
+info string 0 tables found
+reload NNUE parameters
+deserialize
+load
+internal
+done
+destroy
+reload NNUE parameters
+deserialize
+load
+internal
+done
+id name Vajolet2 3.2.0
+id name Vajolet2 3.2.0
+id author Marco Belli
+option name Hash type spin default 1 min 1 max 262144
+option name Threads type spin default 1 min 1 max 256
+option name MultiPV type spin default 1 min 1 max 500
+option name Ponder type check default true
+option name OwnBook type check default true
+option name BestMoveBook type check default false
+option name UCI_EngineAbout type string default Vajolet2 3.2.0 by Marco Belli (build date: Nov 28 2026 18:17:39)
+option name UCI_ShowCurrLine type check default false
+option name SyzygyPath type string default <empty>
+option name SyzygyProbeDepth type spin default 1 min 1 max 100
+option name Syzygy50MoveRule type check default true
+option name ClearHash type button
+option name PerftUseHash type check default false
+option name reduceVerbosity type check default false
+option name UCI_Chess960 type check default false
+option name UCI_LimitStrength type check default false
+option name Skill Level type spin default 20 min 1 max 20
+option name Use NNUE type check default true
+option name EvalFile type string default internal
+uciok
+           Eval term |     White    |     Black    |      Total     
+                     |    MG    EG  |   MG     EG  |   MG      EG   
+---------------------+--------------+--------------+-----------------
+Material, PST, Tempo |   ---    --- |   ---    --- | -0.221 -0.247 
+         imbalancies |   ---    --- |   ---    --- |      0      0 
+               pawns |   ---    --- |   ---    --- | -0.127 -0.0983 
+             knights | 0.206  0.123 | 0.495  0.141 | -0.288 -0.0176 
+             bishops |     0      0 |     0      0 |      0      0 
+               rooks |0.0932  0.587 | 0.378  0.717 | -0.284 -0.131 
+              queens |     0      0 |     0      0 |      0      0 
+        passed pawns |     0      0 |     0      0 |      0      0 
+               space | 0.129 -0.0186 | 0.086 -0.0124 |  0.043 -0.0062 
+              threat |     0      0 |     0      0 |      0      0 
+         king safety | 0.813      0 | 0.813      0 |      0      0 
+---------------------+--------------+--------------+-----------------
+              result |              |              | -0.877   -0.5 
+mulCoeff:100
+Eval:0.545
+gamePhase:88%

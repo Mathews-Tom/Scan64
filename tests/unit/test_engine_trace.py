@@ -32,7 +32,6 @@ from scan64.providers.engine.trace import (
 from tests.support.engines import fake_trace_uci_launcher
 
 TRACES = Path(__file__).resolve().parents[1] / "fixtures" / "engine_traces"
-SOURCE = TRACES / "from-source"
 P1 = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
 P2 = "2r3k1/5ppp/p3p3/1p1n4/3P4/P4N2/1P2RPPP/6K1 b - - 0 25"
 
@@ -44,12 +43,18 @@ CASES: list[tuple[Path, TraceFormatName, int, tuple[str, float, float | None], f
     (TRACES / "fairy-stockfish14-2.txt", "stockfish", 15, ("Winnable", 0.0, 0.04), -0.77),
     (TRACES / "rodent-v1.2-1.txt", "rodent", 9, ("Threats", -0.31, -0.39), -0.28),
     (TRACES / "rodent-v1.2-2.txt", "rodent", 9, ("PST", -0.18, -0.54), -1.09),
-    (SOURCE / "stockfish2.1.txt", "stockfish", 14, ("Material, PST, Tempo", 0.15, 0.04), None),
-    (SOURCE / "stockfish8.txt", "stockfish", 13, ("Mobility", 0.10, 0.12), 0.41),
-    (SOURCE / "stockfish15.1.txt", "stockfish", 14, ("Winnable", 0.0, -0.16), -0.40),
-    (SOURCE / "rubichess.txt", "rubichess", 11, ("King attacks", -0.12, 0.0), None),
-    (SOURCE / "vajolet2.txt", "vajolet", 12, ("result", 0.043, 0.17), None),
-    (SOURCE / "laser.stderr.txt", "laser", 9, ("King Safety", -0.06, None), None),
+    (TRACES / "stockfish2.1-1.txt", "stockfish", 14, ("Material, PST, Tempo", -0.23, -0.16), None),
+    (TRACES / "stockfish2.1-2.txt", "stockfish", 14, ("Pawns", -0.35, -0.20), None),
+    (TRACES / "stockfish8-1.txt", "stockfish", 13, ("Mobility", -0.08, -0.24), -0.35),
+    (TRACES / "stockfish8-2.txt", "stockfish", 13, ("Knights", -0.33, -0.08), -0.77),
+    (TRACES / "stockfish15.1-1.txt", "stockfish", 14, ("Winnable", 0.0, -0.11), -0.40),
+    (TRACES / "stockfish15.1-2.txt", "stockfish", 14, ("Pawns", -0.14, -0.12), -0.37),
+    (TRACES / "rubichess-1.txt", "rubichess", 11, ("King attacks", 0.06, 0.07), None),
+    (TRACES / "rubichess-2.txt", "rubichess", 11, ("Pawns", -0.44, -0.22), None),
+    (TRACES / "vajolet2-1.txt", "vajolet", 12, ("result", -0.249, -0.0308), None),
+    (TRACES / "vajolet2-2.txt", "vajolet", 12, ("rooks", -0.284, -0.131), None),
+    (TRACES / "laser-1.stderr.txt", "laser", 9, ("King Safety", 0.02, None), None),
+    (TRACES / "laser-2.stderr.txt", "laser", 9, ("Pieces", -0.50, -0.32), None),
 ]
 
 
@@ -95,6 +100,17 @@ def test_stockfish11_rows_keep_both_sides_and_map_pieces() -> None:
     assert pieces[0] == pytest.approx(0.05 - 0.04 + 0.0 + 0.0)
     assert pieces[1] == pytest.approx(-0.02 + 0.17 + 0.0 + 0.0)
     assert trace.groups()["Winnable"] == pytest.approx((0.0, -0.16))
+
+
+def test_stockfish8_singular_bishop_row_joins_pieces() -> None:
+    # Stockfish 8 prints "Bishop", not "Bishops".
+    trace = parse_eval_trace(
+        "stockfish", (TRACES / "stockfish8-1.txt").read_text(), source="sf", fen=P1
+    )
+    bishop = next(r for r in trace.rows if r.name == "Bishop")
+    assert (bishop.total_mg, bishop.total_eg) == (-0.06, 0.0)
+    # Knights 0.06 + Bishop -0.06 + Rooks 0 + Queens 0.
+    assert trace.groups()["Pieces"] == pytest.approx((0.0, 0.0))
 
 
 def test_rodent_values_are_converted_to_pawns() -> None:
@@ -227,13 +243,13 @@ def test_runner_reads_laser_from_standard_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     launcher, _ = fake_trace_uci_launcher(
-        tmp_path, monkeypatch, SOURCE / "laser.stdout.txt", SOURCE / "laser.stderr.txt"
+        tmp_path, monkeypatch, TRACES / "laser-1.stdout.txt", TRACES / "laser-1.stderr.txt"
     )
     profile = load_engine_profile(_profile(tmp_path, launcher, "[trace]\nformat = 'laser'\n"))
     trace = asyncio.run(read_eval_trace(profile, chess.Board(P1)))
     assert trace.source == "Laser 1.8 beta"
     assert trace.rows[-1].name == "Total"
-    assert (trace.rows[-1].total_mg, trace.rows[-1].total_eg) == (0.25, -0.01)
+    assert (trace.rows[-1].total_mg, trace.rows[-1].total_eg) == (-0.01, -0.23)
 
 
 def test_runner_reports_an_engine_that_prints_no_table(
