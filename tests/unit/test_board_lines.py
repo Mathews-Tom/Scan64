@@ -34,6 +34,7 @@ from scan64.explanations.validator import (
 )
 from scan64.providers.llm import ExplanationRequest, LLMProviderError
 from scan64.providers.llm.contracts import GeneratedExplanation
+from tests.fixtures.record_analysis_board_lines import engine_key
 
 RECORDING = json.loads(
     (Path(__file__).parents[1] / "fixtures/analysis_board_lines.json").read_text(encoding="utf-8")
@@ -46,6 +47,21 @@ def _facts(name: str, count: int = 3) -> BoardLinesFacts:
     board = chess.Board(entry["fen"])
     analysis = EngineAnalysis(config=entry["config"], raw_result=entry["raw_result"])
     return build_board_lines_facts(board, scored_legal_lines(board, analysis)[:count])
+
+
+def test_the_recording_names_the_engine_that_produced_every_line() -> None:
+    engine = RECORDING["engine"]
+    assert engine == engine_key(entry["config"] for entry in POSITIONS.values())
+    # The UCI ``id name`` carries the engine's name and version.
+    assert engine["engine_name"].startswith("Stockfish ")
+    assert engine["engine_version"].startswith("sha256:")
+
+
+def test_the_recorder_refuses_lines_from_more_than_one_engine() -> None:
+    configs = [entry["config"] for entry in POSITIONS.values()]
+    other = dict(configs[0], engine_version="sha256:" + "0" * 64)
+    with pytest.raises(RuntimeError, match="found 2"):
+        engine_key([*configs, other])
 
 
 def test_stored_schema_matches_the_models() -> None:

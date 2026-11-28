@@ -330,6 +330,12 @@ stored game through the production analysis job and the hint pool with
 Ethereal (or `SCAN64_TEST_SECOND_ENGINE`). Outside CI it skips when no binary
 exists.
 
+Tests never read the developer's engine selection: an autouse fixture in
+`tests/conftest.py` removes `SCAN64_ENGINE_CONFIG`, `SCAN64_LADDER_ENGINE_CONFIG`
+and `SCAN64_STOCKFISH_PATH` before every test, so tests that run Stockfish use the `stockfish` on `PATH`.
+A test that needs a profile or a Stockfish path sets it itself.
+`SCAN64_TEST_SECOND_ENGINE` is a test input and is kept.
+
 ### How CI provides the second engine
 
 CI does not build a second engine. The `Run repository quality gate` step in

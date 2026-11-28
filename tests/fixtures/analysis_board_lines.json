@@ -4,7 +4,9 @@
   "recorded_on": "2026-11-26",
   "regenerate_command": "uv run python tests/fixtures/record_analysis_board_lines.py",
   "engine": {
-    "engine_name": "Stockfish 18"
+    "engine_name": "Stockfish 18",
+    "engine_version": "sha256:c86215fa1977d53b82ed854540a4c7b025be4cd042276c85ba3de53fb9118911",
+    "network": null
   },
   "positions": {
     "start": {

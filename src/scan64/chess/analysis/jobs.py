@@ -329,6 +329,9 @@ async def run_analysis_for_game(
             fen=fen_before,
             lesson_id=f"les_{uuid4()}",
             accepted_moves_san=[board_before.san(move) for move in accepted],
+            # The pool's engine searched the position; without a pool, the
+            # per-call adapter runs the active profile, the default here.
+            engine=pool_manager.config.name if pool_manager is not None else None,
         )
         # Every position along the lesson's verified lines gets an engine score
         # (#367), through the batch pool only: the per-call adapter would start

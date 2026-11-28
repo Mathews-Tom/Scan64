@@ -48,7 +48,8 @@ from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAd
 _ROOT = Path(__file__).parents[2]
 _LESSONS = json.loads((_ROOT / "benchmarks/narrator/positions.json").read_text())["positions"]
 _LESSON_SEARCHES = json.loads((_ROOT / "tests/fixtures/narrator_line_evaluations.json").read_text())
-_BOARD = json.loads((_ROOT / "tests/fixtures/analysis_board_lines.json").read_text())["positions"]
+_BOARD_RECORDING = json.loads((_ROOT / "tests/fixtures/analysis_board_lines.json").read_text())
+_BOARD = _BOARD_RECORDING["positions"]
 _BOARD_SEARCHES = json.loads(
     (_ROOT / "tests/fixtures/analysis_board_line_evaluations.json").read_text()
 )
@@ -270,6 +271,11 @@ async def test_lesson_factor_rule_uses_the_scores_at_the_measured_points() -> No
 
 
 # --- Analysis Board -------------------------------------------------------------------
+
+
+def test_board_line_scores_come_from_the_engine_version_that_found_the_lines() -> None:
+    # Same UCI ``id name``; the executable digest differs between platform builds.
+    assert _BOARD_SEARCHES["config"]["engine_name"] == _BOARD_RECORDING["engine"]["engine_name"]
 
 
 def _board_case(name: str, multipv: int) -> tuple[chess.Board, list[Any]]:
