@@ -313,3 +313,53 @@ def test_no_change_claims_on_the_lesson_path_need_an_unchanged_ply() -> None:
         "the material balance does not change", ClaimFacts(changes=frozenset({3}))
     )
     assert rejected is not None
+
+
+# Pre-PR review (#449): negations and unknown subjects the pattern rules do not
+# read must not be checked as the positive claim. scholar_threat line 1 wins a
+# pawn, line 3 loses one; every promotion line ends ahead.
+PREFIX = "{label:line-1} starts with {first:line-1}, and "
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        "the side to move does not win material.",
+        "the side to move doesn't win material.",
+        "the side to move never wins material.",
+        "the side to move fails to win material.",
+        "the side to move cannot win material.",
+        "the side to move is not winning material.",
+        "the side to move does not gain material.",
+        "nobody wins material.",
+        "neither side wins material.",
+        "the line ends without winning material.",
+    ],
+)
+def test_a_negated_outcome_claim_is_rejected(tail: str) -> None:
+    assert _reason("scholar_threat", "line-1", PREFIX + tail) == "negated_claim"
+
+
+@pytest.mark.parametrize(
+    "subject",
+    ["the other player", "he", "the rival", "the enemy", "the reply", "the second side"],
+)
+def test_an_unknown_subject_is_read_as_no_side(subject: str) -> None:
+    text = f"{PREFIX}{subject} wins material."
+    assert _reason("scholar_threat", "line-1", text) == "unsupported_claim"
+
+
+def test_the_side_to_move_as_subject_across_linking_words() -> None:
+    text = "In {label:line-1}, the side to move ends up winning material."
+    assert _reason("scholar_threat", "line-1", text) is None
+    text = "In {label:line-1}, the side to move ends up losing material."
+    assert _reason("scholar_threat", "line-1", text) == "unsupported_claim"
+
+
+def test_a_negated_comparison_is_rejected() -> None:
+    text = "{label:line-3} leaves the side to move ahead in material, and {label:line-1} does not."
+    assert _reason("promotion", "comparison", text) == "negated_claim"
+    assert (
+        _reason("promotion", "comparison", "All lines leave the side to move ahead in material.")
+        is None
+    )

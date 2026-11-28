@@ -39,8 +39,11 @@ line's outcome facts (``OutcomeFacts``: the material change over the whole line
 and the balance at its end) support, side and size checked, and returns the
 first such claim they do not support. A line item has its own line; the
 ``comparison`` item every line, and its claim must hold for each. A side-free
-claim there is about the side to move; one in a sentence that names the
-opponent is not read as either side. Lessons have no outcome facts.
+claim is about the side to move only when the side to move is its subject just
+before it ("the side to move ends up winning material") or it ends "for the
+side to move"; any other subject is read as no side. A claim in a sentence
+with a negation ("does not", "never", "neither", "without") is rejected as
+negated. Lessons have no outcome facts.
 """
 
 from __future__ import annotations
@@ -873,8 +876,24 @@ OUTCOME_WORDS = re.compile(
 )
 # "wins material for the opponent": the side the claim is about, after it.
 _FOR_SIDE = re.compile(rf"\s+for\s+(?P<who>{_OPPONENT}|them|{_LEARNER})\b", re.IGNORECASE)
-# A sentence that names the opponent: a side-free claim in it is not read as either side.
-_NAMES_OPPONENT = re.compile(r"\b(?:opponent|opponent's|they|them|their|theirs)\b", re.IGNORECASE)
+# A side-free claim right after the side to move as its subject, across a few
+# linking words: "the side to move ends up winning material", "... being up a
+# point of material". Any other subject ("the other player", "he", a move
+# slot) is not read as either side.
+_LEARNER_BEFORE = re.compile(
+    rf"\b(?:{_LEARNER})(?:\s+(?:is|was|being|ends?\s+up|ended\s+up|ending\s+up|gets?|got"
+    r"|getting|then|also|still|now|just|has|have|had|will|would|can|could|keeps?|kept"
+    r"|keeping|stays?|stayed|remains?|remained))*\s*$",
+    re.IGNORECASE,
+)
+# A negation anywhere in the sentence outside the claim: "the side to move does
+# not win material", "neither side wins material", "... and line 1 does not".
+# The pattern rules read no such form, so the claim is not read as either sign.
+_NEGATION = re.compile(
+    r"\b(?:not|no|never|neither|nor|none|nobody|nothing|without|cannot|fails?|failed"
+    r"|failing|hardly|barely)\b|n't\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -891,15 +910,26 @@ class OutcomeFacts:
 
 def _outcome_side(claim: Claim, prose: str, match: re.Match[str]) -> int | None:
     """The side an outcome claim is about: its own side word, a following "for ...",
-    else the side to move; ``None`` when a side-free claim's sentence names the opponent."""
+    or the side to move as the subject just before it; else ``None`` (no side read)."""
     if claim.side != 0:
         return claim.side
     after = _FOR_SIDE.match(prose, match.end())
     if after is not None:
         return _side(after.group("who"))
-    if _NAMES_OPPONENT.search(_sentence_at(prose, match.start())):
-        return None
-    return 1
+    sentence_start = max(prose.rfind(mark, 0, match.start()) for mark in ".!?;") + 1
+    if _LEARNER_BEFORE.search(prose[sentence_start : match.start()]):
+        return 1
+    return None
+
+
+def _negated_around(prose: str, match: re.Match[str]) -> bool:
+    """Whether the sentence of ``match`` holds a negation outside the match itself."""
+    start = max(prose.rfind(mark, 0, match.start()) for mark in ".!?;") + 1
+    end_mark = _SENTENCE_END.search(prose, match.end())
+    end = end_mark.start() if end_mark else len(prose)
+    return bool(
+        _NEGATION.search(prose[start : match.start()]) or _NEGATION.search(prose[match.end() : end])
+    )
 
 
 def outcome_supported(
@@ -958,7 +988,8 @@ def outcome_claims(
             if claim.topic not in ("balance", "change"):
                 continue
             groups = match.groupdict()
-            if rejected is None and (groups.get("neg") or groups.get("neg2")):
+            negated = groups.get("neg") or groups.get("neg2") or _negated_around(prose, match)
+            if rejected is None and negated:
                 rejected = RejectedClaim(match[0].strip(), negated=True)
             elif rejected is None and not all(
                 outcome_supported(
