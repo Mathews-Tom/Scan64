@@ -6,8 +6,10 @@ checked on one of two paths:
 
 - Slot path (#386, ``context.slots`` set): every slot must name a fact listed
   for the cited evidence item, and the prose outside the slots must hold no
-  chess notation and no chess word the position's facts do not contain
-  (``slots.chess_words_outside_slots``, #408). The returned claims hold the rendered
+  chess notation, no chess word the position's facts do not contain
+  (``slots.chess_words_outside_slots``, #408) and no relational claim (material,
+  evaluation, king safety, threats, activity) the facts do not support
+  (``claims.unsupported_claim``, #431). The returned claims hold the rendered
   text. The claim grammar below is not used.
 - Grammar path (#366, ``context.slots`` unset): claim text is read with a small
   explicit grammar (see ``_validate_claim_text``); any chess token the grammar
@@ -24,6 +26,7 @@ from typing import Any, Literal, get_args
 import chess
 from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
+from scan64.explanations.claims import unsupported_claim
 from scan64.explanations.facts import (
     PIECE_LIST_FIELDS,
     PIECE_SQUARE_FIELDS,
@@ -209,7 +212,15 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
-    residue = chess_words_outside_slots(prose, catalogue.vocabulary(evidence_id))
+    claim = unsupported_claim(prose, catalogue.claim_facts(evidence_id))
+    if claim is not None:
+        raise _reject(
+            "chess_token_outside_slot",
+            f"states a chess claim no fact supports outside a slot: {claim!r}",
+        )
+    residue = chess_words_outside_slots(
+        prose, catalogue.vocabulary(evidence_id), catalogue.phrases.get(evidence_id, ())
+    )
     if residue is not None:
         raise _reject(
             "chess_token_outside_slot",

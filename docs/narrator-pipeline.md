@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -277,7 +277,7 @@ The slot path does not run the claim grammar. On the slot path an `evidence_ref`
 |---|---|
 | `unknown_slot` | a `{...}` names no slot of this position, or braces are malformed (`{played`, `{}`, `{Played}`) |
 | `slot_not_in_evidence` | the slot exists for another evidence item of this position, not the cited one |
-| `chess_token_outside_slot` | the prose outside the slots holds chess content (section 13) |
+| `chess_token_outside_slot` | the prose outside the slots holds chess content, or a relational claim no fact supports (section 13) |
 
 It raises `GroundedExplanationValidationError` with a `reason` code (`REJECTION_REASONS`) on the first failure:
 
@@ -443,7 +443,7 @@ The narrator writes prose with named slots; code writes every chess token. For e
 
 `lesson_slot_catalogue(NarratorFacts)` and `board_slot_catalogue(BoardLinesFacts)` (`board_lines.py`) build a `SlotCatalogue`: per evidence item, a map from slot name to `Slot(name, value, meaning, moves, phrase)`. `value` is rendered by code; `moves` are the UCI moves the value states (the benchmark counts coverage from them); `phrase` marks a value that starts with a word, which is capitalised at a sentence start. Since #408: `source` labels a value from another module (the factor module version on factor slots); `group`, `listed` and `preview` shape the prompt only; `cite` is the line prefix a claim using the slot cites when `moves` is empty.
 
-**Prompt layout (#408).** `SlotCatalogue.prompt` lists each slot once: the position slots, then each line's slots under `Line L:` (the line value cut to `PROMPT_LINE_PLIES = 6` plies with its length, the clause slots of the first `PROMPT_CLAUSE_PLIES = 2` plies with the mover, and one note for every `{move:L:N}`), then each evidence item as `evidence_ref "ID"; lines ...:` with its own slots and `Allowed plain words: ...`. It ends with the factor module version (or `No factor slot: no cause was measured, so name no cause.`) and an example claim text built from the position's own slots. Validation accepts every slot of the catalogue, listed or not.
+**Prompt layout (#408).** `SlotCatalogue.prompt` lists each slot once: the position slots, then each line's slots under `Line L:` (the line value cut to `PROMPT_LINE_PLIES = 6` plies with its length, the clause slots of the first `PROMPT_CLAUSE_PLIES = 2` plies with the mover, and one note for every `{move:L:N}`), then each evidence item as `evidence_ref "ID"; lines ...:` with its own slots and `Allowed plain words: ...` (the item's vocabulary words that are chess words, then, since #431, its factor names that hold a chess word). It ends with the factor module version (or `No factor slot: no cause was measured, so name no cause.`) and an example claim text built from the position's own slots. Validation accepts every slot of the catalogue, listed or not.
 
 | Slot | Value (example) | Present when |
 |---|---|---|
@@ -493,14 +493,14 @@ The prose outside the slots (each slot replaced by a placeholder) is checked by 
 | `NOTATION` | always rejected | a digit (squares, SAN, UCI, move numbers, evaluations, mate counts, `+150 cp`); `#`, `O-O`/`0-0`, figurines |
 | `CHESS_WORDS` | rejected unless the facts contain the word | piece names; `white`, `black`; check and mate forms; capture, take, exchange and trade forms; tactic and move-type words (fork, pin, skewer, discovered, back rank, overload, deflect, decoy, sacrifice, zwischenzug, en passant, promote, castle); threat, attack, hang, undefended, defend, en prise; material, centipawn, win, lose, gain, ahead, behind, advantage, equal; `a-file`, `a-pawn`, kingside, queenside, file, rank, diagonal |
 
-**Vocabulary rule (#408).** A `CHESS_WORDS` match passes when each of its words is in the cited evidence item's vocabulary (`SlotCatalogue.vocabulary`). The vocabulary is the words of four kinds of fact names, nothing else:
+**Vocabulary rule (#408).** A `CHESS_WORDS` match passes when each of its words is in the cited evidence item's vocabulary (`SlotCatalogue.vocabulary`), or, since #431, when it lies inside a whole passed factor name (`SlotCatalogue.phrases`). The vocabulary is the words of three kinds of fact names; factor names count only as whole names:
 
 | Source | Example | Words |
 |---|---|---|
-| slot names listed for the item | `{capture:best}`, `{threat:L1:2}`, `{mate_in}`, `{factor:king_safety:best}` | capture, best, threat, mate, king, safety ... |
+| slot names listed for the item, except `{factor:...}` slots | `{capture:best}`, `{threat:L1:2}`, `{mate_in}` | capture, best, threat, mate ... |
 | the mistake class name | `Missed direct threat` | missed, direct, threat |
 | the evidence tactic | `knight_fork` | knight, fork |
-| names of passed factor changes | `king safety`, `pawn shelter` | king, safety, pawn, shelter |
+| names of passed factor changes (lessons and Analysis Board lines, #431) | `king safety`, `rook threats` | the whole name only: "rook threats", never a bare "rook" |
 
 Words compare in lower case with a plural `s` removed (`threats` = `threat`); other forms do not match (`threatened` is not `threat`). The rule is one mechanism over the facts; it has no phrase list. Squares, moves, numbers and evaluations stay rejected because they contain a digit; colour words, `advantage` and `equal` stay rejected because no fact name contains them; a piece-on-square phrase needs a square.
 
@@ -512,6 +512,25 @@ Words compare in lower case with a plural `s` removed (`threats` = `threat`); ot
 | `After {played}, your king safety suffered.` | no king-safety factor | `chess_token_outside_slot` |
 
 Every adversarial text of the claim-grounding suite (#366, #384) is still rejected as free prose on three benchmark positions (`tests/unit/test_narrator_vocabulary.py`). A correct grammar-suite text without notation may now pass when the facts name its words, for example `Check the opponent's captures before moving.` where check and capture slots exist.
+
+### Claim rule (#431)
+
+A relational claim can hold no chess word and no notation: "You are up a piece" passed the vocabulary rule on the starting position. `claims.unsupported_claim` reads the prose outside the slots with a closed table of patterns (`CLAIM_RULES`, `src/scan64/explanations/claims.py`) and rejects the claim as `chess_token_outside_slot` unless a fact of the cited evidence item (`SlotCatalogue.claims`, `ClaimFacts`) supports it, side and sign checked. It runs before the vocabulary rule and only adds rejections: a supported claim still needs its chess words named ("you won the exchange" also needs "won" and "exchange" in the vocabulary).
+
+| Topic | Examples | Supported by |
+|---|---|---|
+| material balance | you are up a piece, you're a pawn down, you have an extra pawn, material is level | a fact position (the root, or after any move of the item's lines, the played move or the best move) with that learner material advantage; units pawn 1, piece 3, exchange 2, rook 5, queen 9, and a piece or rook may be one pawn more ("about a minor piece") |
+| material change | you won the exchange, your opponent wins a piece, this loses a pawn, costs you a pawn | a move of those lines whose material advantage minus the root's is that |
+| evaluation | you are winning, your opponent is better, you have a decisive advantage, the position is equal | an engine score of the root, the best move or a line move: better 50 cp, winning 200 cp, equal within 50 cp (`BETTER_CP`, `WINNING_CP`, `EQUAL_CP`) |
+| king safety | your king is safe, the opponent's king is exposed, your king safety suffered | a passed King factor change with that sign |
+| threats | the opponent has no counterplay, you have the initiative; bare counterplay, initiative, compensation | a passed Threats factor change with that sign (a bare word: any sign) |
+| piece activity | your pieces are passive, you have more space, your mobility improved | a passed Pieces, Mobility or Space factor change with that sign |
+
+Side words: `you`, `your`, `the learner`, `the side to move` are the learner (the Analysis Board's side to move); `your opponent`, `the opponent`, `they`, `their` the other side. A claim with no side word ("{played} wins a piece", "the position is winning") holds when either side has the fact. Plain tone is not read: "you can do better", "you were better off playing {best}", "you are better than this", "you are struggling with this pattern", "you are in control of your learning" pass (`tests/unit/test_narrator_claims.py`).
+
+Measured on the start position of the Analysis Board through the endpoint with an Ollama HTTP double (#431): "You are up a piece." and "Your opponent has no counterplay." were accepted on the base and fall back to the template on the head.
+
+**Looseness (claim rule).** A claim is checked against every fact position of the item, not one moment: "you were winning before {played}" holds when any fact position is winning. Long lines hold many positions: "You are up a piece." is supported for the first evidence item of 26 of the 50 benchmark positions. A side-free claim takes either side's fact. A negated claim ("you are not up a piece") is read as the claim, so it can only be rejected. A claim no pattern reads is left to the vocabulary rule.
 
 **Looseness.** A clause slot of any ply admits its word for the whole item: `threat` is in the vocabulary of 48 of the 50 benchmark positions, because most lines have a `{threat:L:N}` slot. The word then carries no square, move or number, so it cannot state which piece is threatened.
 
@@ -621,7 +640,7 @@ Factor changes across each mistake are narrator facts, so the narrator can name 
 | `max_changes` | 3 | facts per comparison, largest first |
 | `max_board_changes` | 2 | facts per Analysis Board line |
 
-**Names.** Groups: pawn structure, piece placement, mobility, threats, passed pawns, space, king safety. Parts have plain names (`GROUP_NAMES`, `TERM_NAMES`), for example `King danger` is `king attack` and `Shelter strength` is `pawn shelter`. A part that is the only part of its group (Mobility, Space) is stated as the group. Each name gives the slot key (`king safety` → `king_safety`) and the words the vocabulary rule admits (section 13).
+**Names.** Groups: pawn structure, piece placement, mobility, threats, passed pawns, space, king safety. Parts have plain names (`GROUP_NAMES`, `TERM_NAMES`), for example `King danger` is `king attack` and `Shelter strength` is `pawn shelter`. A part that is the only part of its group (Mobility, Space) is stated as the group. Each name gives the slot key (`king safety` → `king_safety`) and the phrase the vocabulary rule admits, as a whole name only (section 13, #431).
 
 **Facts and slots.** `NarratorFacts.factors` (`FactorFacts`, schema `narrator-facts/1`, optional, so earlier documents stay valid) holds `source` (`FACTOR_SOURCE`, `scan64-factors/1, Stockfish Evaluation Guide 63ff375`), the points, the swing and the passed changes. Each change is a slot: `{factor:KEY:played}` (against `before`) and `{factor:KEY:best}` (against `best`), shared by every evidence item and labelled with the source (`Slot.source`). Analysis Board: `BoardLineFacts.factors` for lines 2 and later compares the line's quiet position with line 1's, with the swing the score at this line's quiet position minus the score at line 1's (else this line's score minus line 1's); its slots are `{factor:KEY:line-K}`. Values are rendered by code and name their position, so they stay true wherever the model places them.
 
