@@ -713,6 +713,12 @@ Without a model, Scan64 writes the explanation from a fixed template. If local e
 
 The API is `POST /v1/analysis/position/explanation` with `player_id`, `fen` and optional `multipv` (1 up to the hint MultiPV, default 3), `nodes` (up to the hint node budget) and `depth`; a larger budget is rejected with 422, an ended position with 409. Explanations cover standard chess only: a request with any other `variant` is rejected with 422.
 
+### Chess variants on the Analysis Board
+
+Pick a **Variant** above the Analysis Board: crazyhouse, three-check, atomic, antichess, king of the hill, horde or racing kings. The server applies the variant's rules: the board offers only its legal moves, shows whose move it is, check, and how the game ended. Crazyhouse shows each side's **Pieces in hand**: select a piece, then a square, to drop it, or type the drop as UCI (`N@f3`). Three-check shows how many checks each side still needs. Enter moves on the board or with **Move (UCI)**; a move from an earlier position replaces the moves after it.
+
+Engine lines need an engine that plays the variant, such as Fairy-Stockfish (see `docs/engines.md`, "Chess variants"). With another engine the board still works and the engine panel names the problem. Explanations, diagnosis, lessons, puzzles and bot play cover standard chess only.
+
 ### Move-by-move game review
 
 The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. **Initial position**, **First**, **Previous**, **Next** and **Last** include the starting and final positions, even when they have no lesson. **Play from here** starts a new game from the selected position; **Copy FEN** and **Download PGN** export the selected position or replay. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.
