@@ -274,7 +274,11 @@ def desktop_profile(container_profile: str, binary: str) -> str:
     line = re.compile(r'^binary_path = "[^"\n]+"$', re.MULTILINE)
     if len(line.findall(container_profile)) != 1:
         raise SystemExit("A bundled engine profile needs exactly one binary_path line")
-    return line.sub(f'binary_path = "../{binary}"', container_profile)
+    header = (
+        "# Staged for the desktop app by scripts/build-server.py from the image's\n"
+        "# profile below; only binary_path differs, relative to this file.\n"
+    )
+    return header + line.sub(f'binary_path = "../{binary}"', container_profile)
 
 
 def makefile_list(makefile: str, variable: str) -> list[str]:

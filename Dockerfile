@@ -140,7 +140,8 @@ COPY config/engines/container/caissa.toml config/engines/container/arasan.toml \
 COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/doc/scan64/
 ENV PATH="/app/.venv/bin:$PATH" \
     SCAN64_WEB_DIST=/app/web \
-    SCAN64_DATABASE_URL=sqlite:////data/scan64.db     SCAN64_BUNDLED_ENGINES_DIR=/usr/local/share/scan64/engines \
+    SCAN64_DATABASE_URL=sqlite:////data/scan64.db \
+    SCAN64_BUNDLED_ENGINES_DIR=/usr/local/share/scan64/engines \
     PYTHONDONTWRITEBYTECODE=1
 USER scan64
 VOLUME ["/data"]

@@ -9,6 +9,7 @@ import pytest
 from scan64.providers.engine.config import (
     ENGINE_CONFIG_ENV,
     LADDER_ENGINE_CONFIG_ENV,
+    STOCKFISH_PATH_ENV,
     EngineConfigurationError,
 )
 from scan64.providers.engine.install_defaults import (
@@ -102,3 +103,24 @@ def test_invalid_settings_fail_fast(tmp_path: Path) -> None:
     with pytest.raises(EngineConfigurationError, match="bundled, stockfish"):
         apply_install_engines(_url(database), {BUNDLED_ENGINES_DIR_ENV: str(bundled)})
     assert not database.exists()
+    with pytest.raises(EngineConfigurationError, match="SQLite"):
+        apply_install_engines("postgresql://h/db", {BUNDLED_ENGINES_DIR_ENV: str(bundled)})
+
+
+def test_a_stockfish_path_is_configuration_except_where_the_shell_sets_it(
+    tmp_path: Path,
+) -> None:
+    bundled = _bundled(tmp_path)
+    image = tmp_path / "image.db"
+    # An operator's Stockfish on a fresh image volume is kept, and nothing is recorded.
+    given = {BUNDLED_ENGINES_DIR_ENV: str(bundled), STOCKFISH_PATH_ENV: "/opt/sf/stockfish"}
+    environ = dict(given)
+    assert apply_install_engines(_url(image), environ) is None
+    assert environ == given
+    assert not engines_record(image).exists()
+    # The desktop shell always passes its bundled Stockfish; a fresh desktop install
+    # still selects the bundled engines.
+    desktop = tmp_path / "desktop.db"
+    environ = dict(given)
+    assert apply_install_engines(_url(desktop), environ, honour_stockfish_path=False) == "bundled"
+    assert environ[ENGINE_CONFIG_ENV] == str(bundled / "caissa.toml")

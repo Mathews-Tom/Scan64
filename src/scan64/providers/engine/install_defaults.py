@@ -11,8 +11,10 @@ engines next to its database and keeps them on every later start:
   Stockfish, as before, so its games, bot sessions and analysis keep their
   engine.
 
-``SCAN64_ENGINE_CONFIG`` or ``SCAN64_LADDER_ENGINE_CONFIG`` set explicitly
-always win, and nothing is recorded for that start.
+``SCAN64_ENGINE_CONFIG``, ``SCAN64_LADDER_ENGINE_CONFIG`` or (outside the
+desktop app, whose shell always passes its bundled Stockfish)
+``SCAN64_STOCKFISH_PATH`` set explicitly always win, and nothing is recorded
+for that start.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from sqlalchemy.engine import make_url
 from scan64.providers.engine.config import (
     ENGINE_CONFIG_ENV,
     LADDER_ENGINE_CONFIG_ENV,
+    STOCKFISH_PATH_ENV,
     EngineConfigurationError,
 )
 
@@ -51,7 +54,13 @@ engines = "{engines}"
 
 def database_file(database_url: str) -> Path:
     """The SQLite file of ``database_url``; an in-memory database has none."""
-    database = make_url(database_url).database
+    url = make_url(database_url)
+    if url.get_backend_name() != "sqlite":
+        raise EngineConfigurationError(
+            f"{BUNDLED_ENGINES_DIR_ENV} records the installation's engines next to a "
+            f"SQLite database file; {url.get_backend_name()} has none"
+        )
+    database = url.database
     if database is None or database in ("", ":memory:"):
         raise EngineConfigurationError(
             f"{BUNDLED_ENGINES_DIR_ENV} needs a database file to record the "
@@ -86,14 +95,20 @@ def _write_record(record: Path, engines: InstallEngines) -> None:
 
 
 def apply_install_engines(
-    database_url: str, environ: MutableMapping[str, str] = os.environ
+    database_url: str,
+    environ: MutableMapping[str, str] = os.environ,
+    *,
+    honour_stockfish_path: bool = True,
 ) -> InstallEngines | None:
     """Select this installation's engines in ``environ``; None when not decided here.
 
     None means an engine is configured explicitly or no bundled engines exist
     (a source checkout): the engine settings in ``environ`` stand as they are.
     """
-    if environ.get(ENGINE_CONFIG_ENV) or environ.get(LADDER_ENGINE_CONFIG_ENV):
+    configured = [ENGINE_CONFIG_ENV, LADDER_ENGINE_CONFIG_ENV]
+    if honour_stockfish_path:
+        configured.append(STOCKFISH_PATH_ENV)
+    if any(environ.get(name) for name in configured):
         return None
     raw_directory = environ.get(BUNDLED_ENGINES_DIR_ENV)
     if not raw_directory:

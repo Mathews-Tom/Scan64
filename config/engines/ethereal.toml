@@ -1,7 +1,7 @@
 # Ethereal 14 (GPL-3.0) as the analysis engine.
 # Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
-# Build steps: docs/engines.md. binary_path must be absolute (~ expands) or a
-# bare command name on PATH.
+# Build steps: docs/engines.md. binary_path is absolute (~ expands), relative to
+# this file's folder, or a bare command name on PATH.
 [engine]
 name = "ethereal"
 binary_path = "~/.local/opt/engines/Ethereal.exe"

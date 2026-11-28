@@ -51,7 +51,9 @@ started with) and stored analysis keep the engine they were made with.
 
 To switch an install, stop it and edit the record (`"bundled"` or
 `"stockfish"`). `SCAN64_ENGINE_CONFIG` or `SCAN64_LADDER_ENGINE_CONFIG` set
-explicitly always win, and nothing is recorded on that start. In the image:
+explicitly always win, and so does `SCAN64_STOCKFISH_PATH` in the image (the
+desktop shell always passes its bundled Stockfish there, so it does not count in
+the desktop app). Nothing is recorded on such a start. In the image:
 
 ```sh
 docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml \
@@ -63,7 +65,7 @@ strength options. Switching the ladder engine ends a bot session started under
 the old one with 503 `bot_play_unavailable` on its next move.
 
 Every desktop installer check (`scripts/desktop-package-smoke.py`) requires the
-three folders, checks every pinned file against its Dockerfile digest, and starts
+three engine folders and `engines/` with both profiles, checks every pinned file against its Dockerfile digest, and starts
 each engine outside its own folder: it must report its `id name` and answer `uci`
 and `isready`.
 
@@ -84,7 +86,7 @@ A profile:
 ```toml
 [engine]
 name = "ethereal"                                  # label for logs; not part of cache identity
-binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands) or a bare command on PATH
+binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands), relative to this file, or a bare command on PATH
 protocol = "uci"                                   # optional: "uci" (default) or "xboard"
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
