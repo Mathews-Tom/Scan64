@@ -11,6 +11,7 @@ import pytest
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "engines"
 FAKE_XBOARD = FIXTURES / "fake_xboard.py"
 FAKE_UCI = FIXTURES / "fake_uci.py"
+FAKE_VARIANT_UCI = FIXTURES / "fake_variant_uci.py"
 
 
 def _launcher(script: Path, tmp_path: Path) -> Path:
@@ -38,3 +39,12 @@ def fake_uci_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
     log = tmp_path / "uci.log"
     monkeypatch.setenv("FAKE_UCI_LOG", str(log))
     return _launcher(FAKE_UCI, tmp_path), log
+
+
+def fake_variant_uci_launcher(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, variants: str, *, illegal: bool = False
+) -> Path:
+    """A UCI engine declaring ``variants`` (comma-separated; empty: no UCI_Variant)."""
+    monkeypatch.setenv("FAKE_VARIANTS", variants)
+    monkeypatch.setenv("FAKE_VARIANT_ILLEGAL", "1" if illegal else "0")
+    return _launcher(FAKE_VARIANT_UCI, tmp_path)

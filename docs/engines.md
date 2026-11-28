@@ -479,3 +479,132 @@ the binary SHA-256 is also in every JSONL record. This table replaces nothing ab
   arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
   and option values get no `~` expansion (both Lc0 profiles use a wrapper that
   passes `--weights` from `$HOME`).
+
+## Variants
+
+Scan64 does not analyse chess variants yet; [#398](https://github.com/Mathews-Tom/Scan64/issues/398)
+tracks the work. This section records which engines can serve them and how
+python-chess selects a variant, measured with the variant probe below.
+
+### Engines
+
+| Variant | python-chess board | `UCI_Variant` | Fairy-Stockfish 14 | Standard-chess engines (Stockfish 18 probed) |
+| --- | --- | --- | --- | --- |
+| Crazyhouse | `CrazyhouseBoard` | `crazyhouse` | yes | no |
+| Three-check | `ThreeCheckBoard` | `3check` | yes | no |
+| Atomic | `AtomicBoard` | `atomic` | yes | no |
+| Antichess | `AntichessBoard` | `antichess` | yes | no |
+| King of the hill | `KingOfTheHillBoard` | `kingofthehill` | yes | no |
+| Horde | `HordeBoard` | `horde` | yes | no |
+| Racing kings | `RacingKingsBoard` | `racingkings` | yes | no |
+
+"yes" means the engine lists the value in its `UCI_Variant` option and
+analysed every probe position of that variant. Fairy-Stockfish 14 declares 64
+`UCI_Variant` values in all; the seven above are those python-chess has
+boards for. Stockfish 18 declares no `UCI_Variant` option (probe run below).
+The other standard engines were not probed; they are standard-chess engines
+and are not treated as variant engines.
+
+Fairy-Stockfish (https://github.com/fairy-stockfish/Fairy-Stockfish) is
+GPL-3.0. Scan64 does not download or bundle it: the user installs the release
+binary and points a profile at it, for example
+[`config/engines/linux/fairy-stockfish.toml`](../config/engines/linux/fairy-stockfish.toml)
+(`fairy-stockfish_x86-64` in `~/.local/opt/engines/fairy-stockfish/`). #398
+states that no permissively licensed engine supports crazyhouse and
+three-check (not checked here), so Scan64 has no bundled variant engine.
+
+### How the variant is selected
+
+The board selects the variant. python-chess sends `UCI_Variant` before every
+search from the type of the board it is given (`CrazyhouseBoard` sends
+`crazyhouse`) and raises `EngineError: cannot set UCI_Variant which is
+automatically managed` when a caller sets it. `UCI_Variant` is therefore one
+of the Scan64-managed options a profile may not set (see the rules above);
+a variant engine's profile is an ordinary profile. Before a search, read the
+values the engine declares (`engine.options["UCI_Variant"].var`). Without
+that check python-chess raises `EngineError` ("engine does not support
+UCI_Variant" for an engine without the option, "invalid value for combo option
+'UCI_Variant'" for a value it does not list), not a capability message.
+
+### Probe results
+
+[`benchmarks/engines/variants_probe.py`](../benchmarks/engines/variants_probe.py)
+analyses the start position and two or three fixed positions per variant,
+including crazyhouse positions with pieces in hand and three-check positions
+after checks (one where the side to move has a check left that wins). Each
+search: 300,000 nodes, MultiPV 3, one thread, 16 MB hash, a fresh game per
+position. The probe never sets `UCI_Variant`; a variant the engine does not
+list is recorded as `not declared` and not searched. Every move of each raw
+`pv` the engine sent is replayed on the python-chess variant board; an empty
+`pv` counts as not legal (python-chess itself drops a `pv` it cannot play, so
+its parsed lines cannot show an illegal move).
+
+linux-5090, 2026-11-28, commit `f10d6d6` (clean tree), Fairy-Stockfish 14
+release binary `fairy-stockfish_x86-64` (SHA-256 `ab6b8582…e150f`, no
+network file: `EvalFile` unset), python-chess 1.11.2, CPUs 32-39. Raw records:
+`benchmarks/engines/results/variants_probe_20261128_002851.jsonl`; the
+manifest and the per-position table (scores included) are the `.manifest.json`
+and `.md` files next to it. One run on one machine; PV length and time are
+not playing strength.
+
+| Variant | Positions | Lines per position | PV lengths in plies, per position | All PV moves legal | Time per position |
+| --- | --- | --- | --- | --- | --- |
+| Crazyhouse | start, fried-liver, alekhine, scandinavian | 3 | 14-16-17 / 2-8-12 / 2-11-11 / 13-2-11 | yes | 0.354–0.383 s |
+| Three-check | start, white-two-checks, black-two-checks | 3 | 2-2-13 / 2-2-2 / 1-2-12 | yes | 0.316–0.349 s |
+| Atomic | start, knight-threat, pinned-knight | 3 | 6-2-11 / 1-3-3 / 3-5-2 | yes | 0.037–0.294 s |
+| Antichess | start, forced-capture, middlegame | 3; 1 in forced-capture | 15-2-16 / 12 / 12-14-2 | yes | 0.309–0.357 s |
+| King of the hill | start, king-walk, italian | 3 | 11-13-10 / 10-2-13 / 14-2-14 | yes | 0.354–0.410 s |
+| Horde | start, opening, pawn-wedge | 3 | 15-13-12 / 13-13-2 / 15-14-15 | yes | 0.355–0.401 s |
+| Racing kings | start, race, knights-out | 3 | 13-12-2 / 9-8-13 / 11-12-9 | yes | 0.337–0.352 s |
+
+- The forced-capture antichess position has one legal move, so it returns one
+  line.
+- Mates end the line: black-two-checks (`...Bb4+`, the third check) and
+  knight-threat (`Nxf7`, whose explosion takes the e8 king) are `mate 1` with a
+  one-ply first line, and pinned-knight is `mate 2`. Knight-threat finished in
+  0.037 s.
+- Many lines are 2 plies long. The probe does not show why; standard-chess
+  engines also return short MultiPV lines (Stockfish 18's 1-ply second line in
+  the comparison above).
+
+Stockfish 18 through the same probe (`variants_probe_20261128_002924.jsonl`,
+commit `ee61d81`, profile `config/engines/compat/linux/stockfish-18.toml`):
+every position is `not declared` ("Stockfish 18 declares no UCI_Variant
+option") and no search starts.
+
+Re-run:
+
+```
+taskset -c 32-39 uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux.toml
+uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux_stockfish.toml
+uv run python -m benchmarks.engines.variants_probe --summarise RESULTS.jsonl
+```
+
+A run writes `variants_probe_<UTC stamp>.jsonl`, its `.manifest.json` and a
+`.md` summary under `benchmarks/engines/results/`; there is no resume. The
+manifest records the commit and dirty flag (the whole tree, the results
+directory excluded), the engine's name, executable SHA-256 and option values,
+its declared `UCI_Variant` values, the config and profile SHA-256 and a config
+digest over them and every position, and the python-chess version. Its digest,
+`run_id`, is in every record. `--summarise` rebuilds the summary from the
+manifest and records alone and re-checks every PV's legality from the
+recorded FEN and moves. `tests/unit/test_variants_probe.py` covers the
+`not declared` path and the legality check with a scripted UCI engine
+(`tests/fixtures/engines/fake_variant_uci.py`).
+
+### What Scan64 lacks for variants
+
+Tracked in #398:
+
+- Engine layer: every search gets a standard `chess.Board`, built from a
+  FEN or a standard game replay (`providers/stockfish/pool.py`, `adapter.py`),
+  so no search reaches the engine as a variant; there is no capability message for an engine that does
+  not declare the variant; analysis rows and the cache identity have no
+  variant field.
+- Rules and import: `ingest_fen` accepts standard chess only, and PGN import
+  rejects any `Variant` tag other than `Standard` (`NonStandardVariantError`).
+- Web board: no pockets or drops for crazyhouse, no check count for
+  three-check.
+- Analysis Board engine lines and narration for variants.
+- Diagnosis, lessons and puzzles stay standard chess; variant games are not
+  labelled as not covered there yet.
