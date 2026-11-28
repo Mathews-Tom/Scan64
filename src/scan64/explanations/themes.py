@@ -57,8 +57,9 @@ Turning point: in a game whose last scored position is ``-LOST_CP`` or
 worse for the learner, the learner's move from the last position where the
 learner was level or better (``-LEVEL_CP``); every position after that move is
 worse than level, so the score never came back, and the move itself lost
-``TURNING_STEP_CP`` or more. It may be an earlier move than
-the final blunder. Scores are clamped to ``+-SCORE_CLAMP_CP`` (a mate
+``TURNING_STEP_CP`` or more. The fast pass is noisy near the level line, so a
+caller runs ``check_level_scores`` on the trace first (#486). It may be an
+earlier move than the final blunder. Scores are clamped to ``+-SCORE_CLAMP_CP`` (a mate
 counts as the clamp).
 
 The engine stays the judge: a theme names a lasting feature of the positions
@@ -68,8 +69,8 @@ game.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, replace
 from typing import Literal
 
 import chess
@@ -96,6 +97,8 @@ DEVELOPMENT_GAP = 2  # undeveloped knights and bishops, and the lead over the op
 LEVEL_CP = 50  # level or better: the learner is at most half a pawn worse
 LOST_CP = 300  # the game's last scored position is this much worse or more
 TURNING_STEP_CP = 50  # the turning move itself loses at least this much
+LEVEL_CHECK_CP = 50  # a score this close to the level line gets a deeper search
+LEVEL_CHECK_NODES = 1_000_000  # the budget of that search (the focused pass)
 SCORE_CLAMP_CP = 1000
 # Variant thresholds (#402).
 POCKET_DEFICIT = 3  # crazyhouse: opponent's pieces in hand minus the learner's, pawns
@@ -752,6 +755,54 @@ def _last_scored(trace: GameTrace) -> int | None:
     )
 
 
+async def check_level_scores(
+    trace: GameTrace,
+    learner: chess.Color,
+    search: Callable[[int], Awaitable[EngineAnalysis | None]],
+) -> GameTrace:
+    """The trace with deeper scores where fast-pass noise can move the turning point.
+
+    ``search(index)`` analyses ``trace.boards[index]`` at ``LEVEL_CHECK_NODES``.
+    In a lost game, from the last position back, a score within
+    ``LEVEL_CHECK_CP`` of the level line is searched again. The walk stops at
+    the first level position; the position after it is searched too, for the
+    size of the step. A search without a score keeps the fast-pass score.
+    """
+    end = _last_scored(trace)
+    if end is None:
+        return trace
+    final = _learner_score(trace, end, learner)
+    if final is None or final > -LOST_CP:
+        return trace
+    checked: set[int] = set()
+
+    async def check(index: int) -> None:
+        nonlocal trace
+        if index in checked:
+            return
+        checked.add(index)
+        board = trace.boards[index]
+        if board.is_game_over():
+            return
+        score = _white_score(await search(index), board.turn == chess.WHITE)
+        if score is not None:
+            scores = (*trace.scores[:index], score, *trace.scores[index + 1 :])
+            trace = replace(trace, scores=scores)
+
+    for index in reversed(range(end + 1)):
+        score = _learner_score(trace, index, learner)
+        if score is None:
+            continue
+        if abs(score + LEVEL_CP) <= LEVEL_CHECK_CP:
+            await check(index)
+            score = _learner_score(trace, index, learner)
+        if score is not None and score >= -LEVEL_CP:
+            if index < end:
+                await check(index + 1)
+            break
+    return trace
+
+
 def turning_point(
     trace: GameTrace, mistake_index: int, learner: chess.Color
 ) -> TurningPointFacts | None:
@@ -978,6 +1029,7 @@ __all__ = [
     "VARIANT_THEME_ORDER",
     "free_squares",
     "game_theme_facts",
+    "check_level_scores",
     "game_trace",
     "king_exposure",
     "measure_themes",

@@ -776,9 +776,35 @@ Board terms: isolated, no own pawn on a next file; doubled, another own pawn ahe
 
 Before the half-pawn step rule, the rule found 19 turning points and 15 agreed (79%). The 4 that did not were threshold crossings where the move lost a quarter pawn or less, and in one game the first move (1.d4 c5). The step rule removed all 4 and 1 that agreed (ezWiqlCs: 19...Rac8, -0.24 against the best move's -0.82 at depth 20, -0.40 to -0.78 in the Lichess evaluations). In 3 games the turning point comes late because the opponent gave back a lost position: in ZzASDeMz the learner was 5 pawns down, the opponent let the game back to level, and 33...Kf5 then lost it. The rule names that move, because the score never came back after it. No theme fired on 55 of the 60 candidates. These are slow losses by 2100-2300 players, where the weaknesses are small; the hand check measures the stated themes, not how many causes are missed.
 
+**Fast-pass scores (#486).** Measured on 2026-11-28 with Stockfish 18 (1 thread, 16 MB hash, the pooled batch adapter that game analysis uses). On the 20 slow-loss games the fast pass agrees with the Lichess scores in 16: 11 of 15 turning points are the same move, and 5 games have none in both. Scores at 1 000 000 nodes agree with Lichess in all 20.
+
+| Game | Lichess and 1 000 000 nodes | Fast pass |
+|---|---|---|
+| RlcvuHHH | 12.Qd2 (ply 23) | 13.Nxe4 (ply 25) |
+| Vetlg2yk | 44...Be4 (ply 88) | 25...Qxb6 (ply 50) |
+| Xj37BrJe | 13.Ba2 (ply 25) | 14.Rac1 (ply 27) |
+| hFKp2oGC | 10.Nc3 (ply 19) | none (the move lost 49 centipawns) |
+
+Smoothing does not help. On the same games, the moving median of 3 or 5 scores agrees in 12 of 20 and the mean of 3 in 5 of 20.
+
+The rule is a deeper search of the positions near the level line, `check_level_scores`. In a lost game it walks from the last position back, and searches each position within half a pawn of the level line (`LEVEL_CHECK_CP = 50`) again at 1 000 000 nodes (`LEVEL_CHECK_NODES`). It stops at the first level position, and searches the position after it too, for the size of the step. A search without a score keeps the fast-pass score.
+
+| Scores | Slow-loss games (15 turning points) | 80 other games (72 sides with a turning point in some pass) |
+|---|---|---|
+| Fast pass | 11 | 60 |
+| Every position at 100 000 nodes | 14 | 66 |
+| Check within 25 centipawns, 100 000 nodes | 14 | 63 |
+| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 |
+| Check within 50 centipawns, 100 000 nodes | 14 | 65 |
+| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 |
+
+The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The four check variants were fixed before these games were searched, and the rule is the best of the four on them, so 70 of 72 is a selected result. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 5.6 searches per lost side on the slow-loss games and 1.8 on the others. The last row was recomputed with `check_level_scores` on the recorded scores. The raw scores are not in the repository.
+
+Nothing calls `check_level_scores` yet. Game analysis passes it when it passes the trace (#482).
+
 **Limits.**
 
-- The scores are the 10 000-node fast pass. A noisy score near the level line can move the turning point by a move or two.
+- The scores are the 10 000-node fast pass, but the hand check above used the Lichess server scores. The fast pass can pick a different move (#486, measured below).
 - The factor values are measured at game positions, not at quiet positions (section 16): a position in the middle of an exchange can pass or fail a signal for one move. Three of four positions must pass, which limits this.
 - The board parts are simple counts: a piece "with no free square" can still be useful, and an open file next to the king can be harmless when the opponent has no rook or queen to use it.
 - The four themes above are standard chess only: the factor module and the board parts use standard rules. Variant games have their own themes (section 19).
