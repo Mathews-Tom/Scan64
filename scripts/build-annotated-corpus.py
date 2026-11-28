@@ -162,6 +162,11 @@ def main() -> None:
             games = read_games(
                 target.read_text(encoding=source["encoding"]), _layout(source["layout"])
             )
+            expected = source["layout"]["expected_games"]
+            if len(games) != expected:
+                raise RuntimeError(
+                    f"{source_id}: read {len(games)} games, the book has {expected} headers"
+                )
             results = [replay(source_id, game) for game in games]
             for result in results:
                 out = games_out if isinstance(result, Game) else rejections_out

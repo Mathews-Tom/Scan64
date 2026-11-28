@@ -27,15 +27,16 @@
       "url": "https://mirror.csclub.uwaterloo.ca/gutenberg/5/6/1/5614/5614-0.txt",
       "sha256": "85d9e3ea5175bc1abc8f1bd51652abe58c23e5d3e78ef6f28e866bf2674265c8",
       "licence": "Public domain in the United States: published 1915; Project Gutenberg eBook #5614.",
-      "games_found": 34,
-      "games_replayed": 23,
-      "comments": 362,
-      "sentences": 709,
+      "games_found": 48,
+      "games_replayed": 30,
+      "comments": 470,
+      "sentences": 878,
       "rejected": {
-        "ambiguous": 2,
-        "move number": 4,
+        "ambiguous": 5,
+        "layout": 1,
+        "move number": 6,
         "no legal move fits": 3,
-        "not a descriptive move": 2
+        "not a descriptive move": 3
       }
     },
     "em_lasker_manual": {

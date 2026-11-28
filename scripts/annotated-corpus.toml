@@ -10,6 +10,8 @@ report = "docs/evaluation/annotated-corpus.md"
 
 # A source with a [sources.<id>.layout] table is read; one without is listed
 # in the manifest as pending, with the reason.
+# expected_games is the number of game headers counted in the book by hand; the
+# build fails when the reader finds a different number.
 
 [sources.capablanca_chess_fundamentals]
 title = "Chess Fundamentals"
@@ -27,6 +29,7 @@ until 2030. Open question for the owner before any training use."""
 [sources.capablanca_chess_fundamentals.layout]
 header = '^GAME (?P<number>\d+)\. '
 separator = '^\s*\*\s+\*\s+\*'
+expected_games = 14
 stop_at_result = false
 skip = ['^\s*\[Illustration\]\s*$']
 
@@ -41,7 +44,9 @@ encoding = "utf-8-sig"
 licence = "Public domain in the United States: published 1915; Project Gutenberg eBook #5614."
 
 [sources.lasker_chess_strategy.layout]
-header = '^\s+GAME No\. (?P<number>\d+)\.?\s*$'
+# The book prints both "GAME No." and "GAME NO.", some without indent.
+header = '(?i)^\s*GAME No\. (?P<number>\d+)\.?\s*$'
+expected_games = 48
 stop_at_result = true
 skip = []
 

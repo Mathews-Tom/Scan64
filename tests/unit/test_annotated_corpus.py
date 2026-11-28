@@ -129,6 +129,16 @@ def test_sentences_rebuild_the_comment() -> None:
     assert " ".join(sentences) == comment
 
 
+def test_a_move_placeholder_does_not_end_a_sentence() -> None:
+    comment = (
+        "Black loses a tempo by playing 6. ... Kt-B3 at once. Better was KtxKt; 7. ... KtPxKt."
+    )
+    assert split_sentences(comment) == [
+        "Black loses a tempo by playing 6. ... Kt-B3 at once.",
+        "Better was KtxKt; 7. ... KtPxKt.",
+    ]
+
+
 def test_the_fixture_game_replays_and_each_comment_sits_after_its_move() -> None:
     games = read_games(FIXTURE.read_text(encoding="utf-8"), CHESS_STRATEGY)
     assert len(games) == 1

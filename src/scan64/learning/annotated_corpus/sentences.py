@@ -38,6 +38,9 @@ def _ends_sentence(before: str) -> bool:
     word = before.rsplit(" ", 1)[-1].rstrip("\"')]")
     if not word.endswith((".", "!", "?")):
         return False
+    # "6. ..." or "QxP ...": a move placeholder or an ellipsis, not an end.
+    if word.endswith(".."):
+        return False
     stem = word.rstrip(".!?")
     if word.endswith(".") and (stem in _ABBREVIATIONS or stem.lstrip("(") in _ABBREVIATIONS):
         return False
