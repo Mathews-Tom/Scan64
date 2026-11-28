@@ -21,10 +21,13 @@ from scan64.chess.analysis.models import (
 from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG
+from scan64.explanations.themes import GameTrace, game_theme_facts
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.providers.llm import LLMProviderError
 
 HANGING_PIECE_FEN = "4r1k1/8/8/8/8/8/4Q3/K7 b - - 1 1"
 
@@ -496,3 +499,72 @@ async def test_kept_lesson_uses_source_multipv_and_persists_all_sound_answers(
     assert verification is not None
     assert verification.position_id == lesson.source_position_id
     assert verification.raw_result == recorded["searches"]["4"]["raw_result"]
+
+
+class _LostGameOrchestrator(_ReplayableCandidateOrchestrator):
+    """Qe2?? loses the queen to Rxe2: the game's turning point is the mistake."""
+
+    async def run_fast_pass(
+        self, moves: list[str], initial_fen: str | None = None
+    ) -> FastPassResult:
+        result = await super().run_fast_pass(moves, initial_fen)
+        result.candidates[0].after_analysis.raw_result = [{"pv": ["e8e2"], "score_cp": 900}]
+        result.candidates[0].swing_cp = 920
+        return result
+
+
+class _PromptRecorder:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    async def generate(self, request: Any) -> Any:
+        self.prompts.append("\n".join(message.content for message in request.messages))
+        raise LLMProviderError("recorded only")
+
+
+@pytest.mark.asyncio
+async def test_game_analysis_gives_the_lesson_the_turning_point(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#482: the lesson's narrator facts hold the game's trace (themes, turning point)."""
+    recorder = _PromptRecorder()
+
+    async def grant(*_: object) -> _PromptRecorder:
+        return recorder
+
+    traces: list[GameTrace | None] = []
+    resolve = jobs.resolve_explanation
+
+    async def recording_resolve(*args: Any, **kwargs: Any) -> Any:
+        traces.append(kwargs.get("game"))
+        return await resolve(*args, **kwargs)
+
+    monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
+    monkeypatch.setattr(jobs, "FastPassOrchestrator", _LostGameOrchestrator)
+    monkeypatch.setattr(jobs, "FocusedPassOrchestrator", _FocusedOrchestrator)
+    monkeypatch.setattr(jobs, "read_local_explanation_provider", grant)
+    monkeypatch.setattr(jobs, "resolve_explanation", recording_resolve)
+    game = Game(
+        pgn="",
+        headers={"FEN": "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"},
+        moves=["e4e2"],
+        owner_color="white",
+        owner_player_id="trace-player",
+    )
+    db_session.add(game)
+    db_session.commit()
+
+    await jobs.run_analysis_for_game(game, db_session, _seeded_detector_registry())
+
+    assert db_session.exec(select(PersistedLessonOpportunity)).one()
+    (trace,) = traces
+    assert trace is not None
+    assert trace.scores == (20, -900)
+    # The facts the narrator words carry the game, with the mistake as its turning point.
+    lesson_board = chess.Board("4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1")
+    theme_facts = game_theme_facts(trace, lesson_board, chess.Move.from_uci("e4e2"))
+    assert theme_facts is not None and theme_facts.turning_point is not None
+    assert theme_facts.turning_point.is_mistake
+    assert recorder.prompts
+    slot = "{turning_point} = the game began to turn against you with your move 1.Qe2"
+    assert all(slot in prompt for prompt in recorder.prompts)

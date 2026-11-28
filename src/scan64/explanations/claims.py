@@ -67,6 +67,15 @@ FACTOR_TOPICS = {
     "Mobility": "activity",
     "Space": "activity",
 }
+# Root-cause themes (#400) that state a learner weakness of a claim topic.
+THEME_TOPICS = {
+    "unsafe_king": "king",
+    "passive_pieces": "activity",
+    # Variant themes (#402) that state a weak learner king.
+    "king_drop_squares": "king",
+    "check_exposure": "king",
+    "explosion_threats": "king",
+}
 _GROUP_OF_PART = dict(PARTS)
 
 
@@ -94,8 +103,11 @@ class ClaimFacts:
         evaluations: Iterable[CentipawnEvaluation | MateEvaluation | UnknownEvaluation],
         lines: Iterable[Sequence[MoveFacts]],
         factors: Iterable[FactorChange] = (),
+        themes: Iterable[str] = (),
     ) -> ClaimFacts:
-        """Facts of a root position, its scores, the move lines from it and factor changes."""
+        """Facts of a root position, its scores, the move lines from it, factor changes
+        and root-cause theme keys (#400: an unsafe king or passive pieces before the
+        mistake support "your king was exposed" and "your pieces were passive")."""
         balances = {root.learner_advantage}
         changes: set[int] = set()
         scores = {cp for e in evaluations if (cp := evaluation_as_cp(e)) is not None}
@@ -112,6 +124,9 @@ class ClaimFacts:
             if group in FACTOR_TOPICS and change.change_pawns != 0:
                 sign = 1 if change.change_pawns > 0 else -1
                 topics.add((FACTOR_TOPICS[group], sign, change.compared_with))
+        for theme in themes:
+            if theme in THEME_TOPICS:
+                topics.add((THEME_TOPICS[theme], -1, "before"))
         return cls(frozenset(balances), frozenset(changes), frozenset(scores), frozenset(topics))
 
 
@@ -833,6 +848,7 @@ __all__ = [
     "CLAIM_RULES",
     "EQUAL_CP",
     "FACTOR_TOPICS",
+    "THEME_TOPICS",
     "WINNING_CP",
     "Claim",
     "ClaimFacts",

@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096); sections 5 and 13 and the new section 18 were updated for #400 (root-cause themes and the turning point); sections 5 and 18 and the new section 19 were updated for #402 (variant themes). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -135,6 +135,7 @@ The schema is generated from the pydantic models in `explanations/facts.py` (`uv
 
 | Object | Fields | Computed by |
 |---|---|---|
+| `game` (#400) | `source`, `mistake_ply`, `window`, `evaluation_trend_cp`, `themes[]` (`key`, `signal`, `threshold`, `measured`, `held`, `move_from`, `move_to`, `pieces`, `squares`, `files`, `weaknesses`, and for variants `targets`, `pockets`, `checks`), `turning_point` (`ply`, `move_number`, `side`, `san`, `uci`, scores before, after and at the end, `is_mistake`) | game positions, fast-pass scores, factor module, python-chess (variant boards for variants); sections 18 and 19 |
 | `factors` (#408) | `source` (factor module version), `points` (`before`, `played`, `best`: moves from the before-position, `quiet`), `engine_swing_cp`, `changes[]` (`key`, `name`, `kind`, `guide_name`, `compared_with`, `change_pawns`) | factor module at quiet positions; section 16 |
 | `position` | `fen`, `side_to_move` (the learner), `material`, `played_move` and `best_move` (move facts), `evaluation_before`, `evaluation_after` (after the played move), `best_move_evaluation`, `evaluation_difference_cp` (best minus played, both centipawn scores only), `swing_cp`, `mistake_class` (`code` = `diagnosis.primary`, `name` from the taxonomy seeds) | python-chess; evaluations from stored searches |
 | `evidence[]` | `evidence_id`, `kind`, `claim`, `line_ids`, `pieces` (square, piece, colour, payload role), `squares`, `tactic`, `mate_in`, `material_gain` | payload fields |
@@ -484,6 +485,8 @@ The narrator writes prose with named slots; code writes every chess token. For e
 | `{factor:KEY:played}` | `after your move, king safety fell by 0.65 pawns for you` | a factor change from the position before the move passed (section 16) |
 | `{factor:KEY:best}` | `after your move, king safety is 0.60 pawns worse for you than after the best move` | a factor change against the best move's line passed |
 | `{square:N}` | `e7` | Nth entry of the evidence item's `squares` |
+| `{theme:KEY}` (#400) | `from move 16 to move 19, your king on f8 had little cover: your opponent's bishop on e5 and knight on d6 attacked the squares around it` | the theme held before the mistake (section 18) |
+| `{turning_point}` (#400) | `the game began to turn against you with your move 10...g5: before it the position was level, and after it the engine never again rated it level` | the game has a turning point at or before this mistake |
 
 `K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
 
@@ -732,3 +735,104 @@ The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanatio
 ```bash
 curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
 ```
+
+## 18. Root-cause themes and the turning point (#400)
+
+A lesson explains one mistake. Often the game was lost before it: the king had no cover for several moves, or the pieces had no squares. Code computes these root causes, and the move where the game turned, from the game's moves, the engine scores of the game's positions and the factor module (section 15). The narrator only words them. Module: `src/scan64/explanations/themes.py`.
+
+**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) builds the trace once from the fast pass and passes it for each lesson (#482). Explanations outside game analysis, such as the analysis board, have no game and get no themes.
+
+**Window.** The positions where the learner was to move in their last 4 moves, up to and including the mistake (`THEME_WINDOW`). A theme holds when:
+
+1. its signal passes its threshold at 3 or more of these positions (`THEME_MIN_POSITIONS`), one of them the position before the mistake;
+2. the engine score fell by half a pawn or more across the window: from the first window position to the position after the mistake, learner's view (`THEME_TREND_CP = 50`).
+
+So a mistake in the learner's first two moves has no theme.
+
+**Themes.** The factor signals use the group value of the learner minus the opponent, in pawns (`health_values`, section 16). Each threshold is the "in trouble" end of that group's health scale, fitted in #410 on lost-game positions (`HEALTH_SCALE[...].empty`). The board part names the pieces and squares the text states; a theme without them is not stated.
+
+| Theme | Signal | Threshold | Board part (all needed) | Example text |
+|---|---|---|---|---|
+| `unsafe_king` | King group value | -0.55 pawns or less | the opponent has a queen; an open file next to the king (no learner pawn on it) or an opponent piece (not a pawn or king) attacking the king's square or a square next to it | `from move 9 to move 11, your king on e8 had little cover: the d-file and e-file next to it were open, with none of your pawns on them` |
+| `weak_pawns` | Pawns group value | -0.25 pawns or less | an isolated, doubled or backward learner pawn | `from move 18 to move 21, your pawns were weak: an isolated pawn on d6` |
+| `passive_pieces` | Mobility group value | -0.65 pawns or less | a learner knight, bishop, rook or queen with at most 1 square to go to that no opponent pawn attacks; up to move 20, pieces on their starting squares are left out | `on move 25, your pieces had little room: your rook on a8 could go only to b8 and your bishop on c8 had no square that your opponent's pawns did not cover` (test position, the same at each window position) |
+| `lagging_development` | learner's knights and bishops on their starting squares, minus the opponent's | 2 or more, with 2 or more at home, up to move 20 | the pieces at home | `on move 5, your knight on b8, bishop on f8 and knight on g8 were still on their starting squares, while your opponent had only the bishop on c1 at home` (test position) |
+
+Board terms: isolated, no own pawn on a next file; doubled, another own pawn ahead on the same file (the rear pawn is named); backward, not isolated, no own pawn on a next file level with it or behind it, and an enemy pawn attacks the square in front of it.
+
+**Turning point.** Defined for a lost game: the game's last scored position is 3 pawns or more worse for the learner (`LOST_CP`). The turning point is the learner's move from the last position where the learner was level or better (at most half a pawn worse, `LEVEL_CP`). Every scored position after that move is worse than level, so the score never came back. The move itself must lose half a pawn or more (`TURNING_STEP_CP`). If the last level position has the opponent to move, or the move lost less, there is no turning point. Scores are clamped to ±10 pawns; a mate counts as 10 pawns. The turning point is a game fact: it can be an earlier move than the lesson's mistake, the mistake itself (`is_mistake`) or a later move. The `{turning_point}` slot exists only when it is the mistake or an earlier move.
+
+**Facts and slots.** `NarratorFacts.game` (`GameThemeFacts`) holds the window, the trend, each theme with its signal, threshold, the value at each window position and the positions where it held, and the turning point with its scores. Slots (section 13): `{theme:KEY}` per theme and `{turning_point}`, shared by every evidence item. Their values are plain chess words with the pieces and squares; they hold no factor name and no factor number. The slot names admit their words to the vocabulary rule, as other slot names do: `{theme:unsafe_king}` admits "king". The claim rule (#431) reads an `unsafe_king` theme as a fact that the learner's king was unsafe and a `passive_pieces` theme as a fact that the learner's pieces were passive (`THEME_TOPICS` in `claims.py`), so "your king was exposed" is supported.
+
+**Hand check.** `uv run python -m tests.helpers.themes.hand_check --engine <stockfish>` prints the themes and turning points of the 20 slow-loss games of the factor calibration (`benchmarks/factor_calibration/games.json`: public Lichess games, CC0, Lichess server evaluations, the loser as the learner). Each game has up to 3 candidate mistakes (60 in total). The author of #400 checked each result on 2026-11-28:
+
+- a turning point agrees when, at depth 20 with Stockfish 18, a better move kept the position level (half a pawn or less worse) and the played move did not;
+- a theme agrees when the board shows the stated weakness and a strong player would name it as a lasting problem of those moves.
+
+| Result | Found | Agree |
+|---|---|---|
+| Turning points (one per game) | 15 of 20 games | 15 of 15 (100%) |
+| Themes (on 60 candidate mistakes) | 5: 2 `unsafe_king`, 3 `weak_pawns` (2 of them the same pawn on consecutive mistakes) | 5 of 5 (100%) |
+
+Before the half-pawn step rule, the rule found 19 turning points and 15 agreed (79%). The 4 that did not were threshold crossings where the move lost a quarter pawn or less, and in one game the first move (1.d4 c5). The step rule removed all 4 and 1 that agreed (ezWiqlCs: 19...Rac8, -0.24 against the best move's -0.82 at depth 20, -0.40 to -0.78 in the Lichess evaluations). In 3 games the turning point comes late because the opponent gave back a lost position: in ZzASDeMz the learner was 5 pawns down, the opponent let the game back to level, and 33...Kf5 then lost it. The rule names that move, because the score never came back after it. No theme fired on 55 of the 60 candidates. These are slow losses by 2100-2300 players, where the weaknesses are small; the hand check measures the stated themes, not how many causes are missed.
+
+**Fast-pass scores (#486).** Measured on 2026-11-28 with Stockfish 18 (1 thread, 16 MB hash, the pooled batch adapter that game analysis uses). On the 20 slow-loss games the fast pass agrees with the Lichess scores in 16: 11 of 15 turning points are the same move, and 5 games have none in both. Scores at 1 000 000 nodes agree with Lichess in all 20.
+
+| Game | Lichess and 1 000 000 nodes | Fast pass |
+|---|---|---|
+| RlcvuHHH | 12.Qd2 (ply 23) | 13.Nxe4 (ply 25) |
+| Vetlg2yk | 44...Be4 (ply 88) | 25...Qxb6 (ply 50) |
+| Xj37BrJe | 13.Ba2 (ply 25) | 14.Rac1 (ply 27) |
+| hFKp2oGC | 10.Nc3 (ply 19) | none (the move lost 49 centipawns) |
+
+Smoothing does not help. On the same games, the moving median of 3 or 5 scores agrees in 12 of 20 and the mean of 3 in 5 of 20.
+
+The rule is a deeper search of the positions near the level line, `check_level_scores`. In a lost game it walks from the last position back, and searches each position within half a pawn of the level line (`LEVEL_CHECK_CP = 50`) again at 1 000 000 nodes (`LEVEL_CHECK_NODES`). It stops at the first level position, and searches the position after it too, for the size of the step. A search without a score keeps the fast-pass score.
+
+| Scores | Slow-loss games (15 turning points) | 80 other games (72 sides with a turning point in some pass) |
+|---|---|---|
+| Fast pass | 11 | 60 |
+| Every position at 100 000 nodes | 14 | 66 |
+| Check within 25 centipawns, 100 000 nodes | 14 | 63 |
+| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 |
+| Check within 50 centipawns, 100 000 nodes | 14 | 65 |
+| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 |
+
+The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The four check variants were fixed before these games were searched, and the rule is the best of the four on them, so 70 of 72 is a selected result. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 5.6 searches per lost side on the slow-loss games and 1.8 on the others. The last row was recomputed with `check_level_scores` on the recorded scores. The raw scores are not in the repository.
+
+Nothing calls `check_level_scores` yet. Game analysis passes it when it passes the trace (#482).
+
+**Limits.**
+
+- The scores are the 10 000-node fast pass, but the hand check above used the Lichess server scores. The fast pass can pick a different move (#486, measured below).
+- The factor values are measured at game positions, not at quiet positions (section 16): a position in the middle of an exchange can pass or fail a signal for one move. Three of four positions must pass, which limits this.
+- The board parts are simple counts: a piece "with no free square" can still be useful, and an open file next to the king can be harmless when the opponent has no rook or queen to use it.
+- The four themes above are standard chess only: the factor module and the board parts use standard rules. Variant games have their own themes (section 19).
+- Material, the initiative and space are not themes: the material and evaluation slots already state material, and the threats and space factors are left to the factor facts.
+
+## 19. Variant themes (#402)
+
+Crazyhouse, three-check and atomic games have their own root-cause themes. The window, the persistence rule (3 of the last 4 learner positions, the last one included) and the engine fall of half a pawn are the same as in section 18. The turning point is the same too; a drop is named the PGN way (`P@b4`).
+
+**Variant rules only.** `GameTrace.variant` is the variant of the trace's python-chess boards. `game_trace(..., variant=...)` and `trace_from_scores(..., variant=...)` build the boards of that variant, so drops, check counts and explosions follow its rules. The scores must come from an engine that plays the variant (Fairy-Stockfish, `docs/engines.md`). `VARIANT_THEME_ORDER` lists the themes of each variant: a variant trace measures only its own themes and never the standard ones, and a standard trace measures no variant theme. Antichess, king of the hill, horde and racing kings have no theme yet. Board measures: `src/scan64/explanations/variant_themes.py`.
+
+"The opponent could" below means: the same position with the opponent to move. Every window position has the learner to move, so this is what the opponent threatens if the learner does nothing about it.
+
+| Variant | Theme | Signal | Threshold | Other conditions | Example text (test position) |
+|---|---|---|---|---|---|
+| Crazyhouse | `pocket_deficit` | the opponent's pieces in hand minus the learner's, in pawns (1, 3, 3, 5, 9) | 3 or more (`POCKET_DEFICIT`) | none | `on move 6, your opponent held a knight and a pawn in hand to drop, and you held nothing` |
+| Crazyhouse | `king_drop_squares` | empty squares next to the learner's king that no other learner piece guards | 2 or more (`KING_DROP_SQUARES`) | more such squares than next to the opponent's king; the opponent has a piece in hand | `on move 7, your king on g1 had empty squares next to it that none of your other pieces guarded, where your opponent could drop a piece: h1 and g2` |
+| Crazyhouse | `drop_threats` | the opponent's drops on safe squares that give check, or attack a learner knight, bishop, rook or queen that is worth more than the dropped piece or has no guard | 2 or more (`DROP_THREATS`) | safe: no learner piece can take the dropped piece; the king only when no opponent piece guards the square | `on move 7, your opponent had strong drops ready: a knight on h3 with check and a bishop on h3 attacking your rook on f1` |
+| Three-check | `checks_behind` | the opponent's checks given minus the learner's | 1 or more (`CHECKS_BEHIND`) | none; the text states the checks the opponent still needs | `on move 3, your opponent had given two checks and you none: one more check would win them the game` |
+| Three-check | `check_exposure` | the opponent's legal moves that would give check | 2 or more (`CHECK_EXPOSURE`) | a check already on the board counts only when its piece moves and checks again | `on move 3, your king on e1 was open to checks: your opponent's queen on h4 could give check on f2, g3 or e4` |
+| Atomic | `explosion_threats` | the opponent's legal captures whose explosion would destroy the learner's king | 1 or more (`EXPLOSION_THREATS`) | the learner has no such capture against the opponent's king (with it, the learner wins first) | `on move 3, one capture could blow up your king on e1: your opponent's knight on c3 could capture on d1 or e2` |
+
+The text names at most 3 pieces or drops (`DETAIL_LIMIT`). `drop_threats` names one drop per attacked piece and every check. The claim rule (section 8) treats `king_drop_squares`, `check_exposure` and `explosion_threats` like `unsafe_king`: they support a claim that the learner's king was exposed.
+
+**Thresholds.** These are stated rules, not fitted values: no slow-loss corpus of variant games with engine scores exists yet. Each theme has a test position where it holds and one where it does not (`tests/unit/test_narrator_variant_themes.py`).
+
+**Limits.**
+
+- Explanations still cover standard chess only (`docs/user-guide.md`, "Chess variants on the Analysis Board"). The variant themes are ready in the facts, but no variant game reaches the narrator yet.
+- The piece values are the standard ones. In crazyhouse a pawn in hand is worth more than on the board; the pocket rule can under-count pawns.
+- The drop and check counts read one move ahead. They do not check that the threat survives the learner's best reply.

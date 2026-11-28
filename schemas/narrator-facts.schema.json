@@ -339,6 +339,69 @@
       "title": "FactorSwing",
       "type": "object"
     },
+    "GameThemeFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Theme rules and factor module version.",
+          "title": "Source",
+          "type": "string"
+        },
+        "mistake_ply": {
+          "description": "Game ply of the lesson's mistake.",
+          "minimum": 1,
+          "title": "Mistake Ply",
+          "type": "integer"
+        },
+        "window": {
+          "description": "Game plies of the window positions.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Window",
+          "type": "array"
+        },
+        "evaluation_trend_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine score after the mistake minus at the window start, learner's view.",
+          "title": "Evaluation Trend Cp"
+        },
+        "themes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ThemeFacts"
+          },
+          "title": "Themes",
+          "type": "array"
+        },
+        "turning_point": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurningPointFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "source",
+        "mistake_ply",
+        "window"
+      ],
+      "title": "GameThemeFacts",
+      "type": "object"
+    },
     "LineEvaluationChange": {
       "additionalProperties": false,
       "description": "What the line wins or loses by engine evaluation, learner's view (#368).",
@@ -807,6 +870,330 @@
       "title": "PositionFacts",
       "type": "object"
     },
+    "ThemeChecks": {
+      "additionalProperties": false,
+      "description": "Three-check: the checks each side has given; three checks win.",
+      "properties": {
+        "learner_given": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Learner Given",
+          "type": "integer"
+        },
+        "opponent_given": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Opponent Given",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "learner_given",
+        "opponent_given"
+      ],
+      "title": "ThemeChecks",
+      "type": "object"
+    },
+    "ThemeFacts": {
+      "additionalProperties": false,
+      "description": "A theme whose signal passed its threshold over the window.",
+      "properties": {
+        "key": {
+          "enum": [
+            "unsafe_king",
+            "weak_pawns",
+            "passive_pieces",
+            "lagging_development",
+            "pocket_deficit",
+            "king_drop_squares",
+            "drop_threats",
+            "checks_behind",
+            "check_exposure",
+            "explosion_threats"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "signal": {
+          "description": "What is measured, for example the King group value.",
+          "title": "Signal",
+          "type": "string"
+        },
+        "threshold": {
+          "description": "Signal at or below (pawns) / at or above (counts).",
+          "title": "Threshold",
+          "type": "number"
+        },
+        "measured": {
+          "description": "The signal at each window position, oldest first; None: not measured.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Measured",
+          "type": "array"
+        },
+        "held": {
+          "description": "Game plies (positions, 0 = start) of the window where the theme held.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Held",
+          "type": "array"
+        },
+        "move_from": {
+          "description": "Move number of the first position where it held.",
+          "title": "Move From",
+          "type": "integer"
+        },
+        "move_to": {
+          "description": "Move number of the last position (before the mistake).",
+          "title": "Move To",
+          "type": "integer"
+        },
+        "pieces": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ThemePiece"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "squares": {
+          "default": [],
+          "description": "weak_pawns: the weak pawns' squares, isolated first.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        },
+        "files": {
+          "default": [],
+          "description": "unsafe_king: open files next to the king (no learner pawn).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "weaknesses": {
+          "default": [],
+          "description": "weak_pawns: the weakness of each square in squares.",
+          "items": {
+            "enum": [
+              "isolated",
+              "doubled",
+              "backward"
+            ],
+            "type": "string"
+          },
+          "title": "Weaknesses",
+          "type": "array"
+        },
+        "targets": {
+          "default": [],
+          "description": "drop_threats: the learner piece each drop in pieces checks or attacks.",
+          "items": {
+            "$ref": "#/$defs/ThemePiece"
+          },
+          "title": "Targets",
+          "type": "array"
+        },
+        "pockets": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemePockets"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "pocket_deficit."
+        },
+        "checks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeChecks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "checks_behind."
+        }
+      },
+      "required": [
+        "key",
+        "signal",
+        "threshold",
+        "measured",
+        "held",
+        "move_from",
+        "move_to"
+      ],
+      "title": "ThemeFacts",
+      "type": "object"
+    },
+    "ThemePiece": {
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "enum": [
+            "learner",
+            "opponent"
+          ],
+          "title": "Owner",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "square": {
+          "title": "Square",
+          "type": "string"
+        },
+        "squares": {
+          "default": [],
+          "description": "passive_pieces: the squares free of enemy pawns the piece can go to; check_exposure: the squares where the piece would give check; explosion_threats: the squares where its capture would destroy the king.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        }
+      },
+      "required": [
+        "owner",
+        "piece",
+        "square"
+      ],
+      "title": "ThemePiece",
+      "type": "object"
+    },
+    "ThemePockets": {
+      "additionalProperties": false,
+      "description": "Crazyhouse: the pieces each side holds in hand, highest value first.",
+      "properties": {
+        "learner": {
+          "items": {
+            "enum": [
+              "pawn",
+              "knight",
+              "bishop",
+              "rook",
+              "queen",
+              "king"
+            ],
+            "type": "string"
+          },
+          "title": "Learner",
+          "type": "array"
+        },
+        "opponent": {
+          "items": {
+            "enum": [
+              "pawn",
+              "knight",
+              "bishop",
+              "rook",
+              "queen",
+              "king"
+            ],
+            "type": "string"
+          },
+          "title": "Opponent",
+          "type": "array"
+        }
+      },
+      "required": [
+        "learner",
+        "opponent"
+      ],
+      "title": "ThemePockets",
+      "type": "object"
+    },
+    "TurningPointFacts": {
+      "additionalProperties": false,
+      "description": "The learner's move where the engine score began its lasting fall.",
+      "properties": {
+        "ply": {
+          "description": "Game ply of the move (1 = the first move).",
+          "minimum": 1,
+          "title": "Ply",
+          "type": "integer"
+        },
+        "move_number": {
+          "title": "Move Number",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "san": {
+          "title": "San",
+          "type": "string"
+        },
+        "uci": {
+          "title": "Uci",
+          "type": "string"
+        },
+        "evaluation_before_cp": {
+          "description": "Learner's view, clamped.",
+          "title": "Evaluation Before Cp",
+          "type": "integer"
+        },
+        "evaluation_after_cp": {
+          "title": "Evaluation After Cp",
+          "type": "integer"
+        },
+        "evaluation_end_cp": {
+          "description": "The game's last scored position, clamped.",
+          "title": "Evaluation End Cp",
+          "type": "integer"
+        },
+        "is_mistake": {
+          "description": "True: the turning point is the lesson's mistake.",
+          "title": "Is Mistake",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ply",
+        "move_number",
+        "side",
+        "san",
+        "uci",
+        "evaluation_before_cp",
+        "evaluation_after_cp",
+        "evaluation_end_cp",
+        "is_mistake"
+      ],
+      "title": "TurningPointFacts",
+      "type": "object"
+    },
     "UnknownEvaluation": {
       "additionalProperties": false,
       "properties": {
@@ -935,6 +1322,18 @@
       ],
       "default": null,
       "description": "Factor changes across the mistake (#408); absent when not measured."
+    },
+    "game": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GameThemeFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Root-cause themes before the mistake and the game's turning point (#400); absent without the game's moves and scores."
     }
   },
   "required": [
