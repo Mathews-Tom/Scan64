@@ -26,6 +26,7 @@ from typing import Any, Literal, get_args
 import chess
 from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
+from scan64.chess.variants import STANDARD, VariantName, board_class
 from scan64.explanations.claims import unsupported_claim
 from scan64.explanations.facts import (
     PIECE_LIST_FIELDS,
@@ -115,6 +116,7 @@ class GroundedExplanationContext:
     requested_hint_level: int
     maximum_certainty: Literal["observed", "likely", "certain"] = "observed"
     slots: SlotCatalogue | None = None
+    variant: VariantName = STANDARD
 
 
 _CERTAINTY_RANK = {"observed": 0, "likely": 1, "certain": 2}
@@ -131,7 +133,7 @@ def validate_generated_explanation(
             "Requested hint level must be at least one", reason="invalid_hint_level"
         )
     try:
-        board = chess.Board(context.fen)
+        board = board_class(context.variant)(context.fen)
     except ValueError as error:
         raise GroundedExplanationValidationError(
             "Grounding context contains an invalid FEN", reason="invalid_fen"
@@ -395,7 +397,7 @@ class _ClaimEvidence:
     ) -> _ClaimEvidence:
         payload: Mapping[str, Any] = evidence.payload
         facts = cls(learner=board.turn, boards=[board])
-        after = _payload_board(payload)
+        after = _payload_board(payload, type(board))
         lines: list[tuple[chess.Board, list[str]]] = [
             (board, list(line)) for line in verified_lines
         ]
@@ -519,7 +521,7 @@ class _ClaimEvidence:
         return self.gain_flag or any(gain >= 1 for gain in self.gains)
 
 
-def _payload_board(payload: Mapping[str, Any]) -> chess.Board | None:
+def _payload_board(payload: Mapping[str, Any], cls: type[chess.Board]) -> chess.Board | None:
     fen = payload.get("after_fen")
     if fen is None:
         return None
@@ -528,7 +530,7 @@ def _payload_board(payload: Mapping[str, Any]) -> chess.Board | None:
             "Evidence after_fen is not a FEN string", reason="invalid_evidence"
         )
     try:
-        return chess.Board(fen)
+        return cls(fen)
     except ValueError as error:
         raise GroundedExplanationValidationError(
             "Evidence contains an invalid after_fen", reason="invalid_evidence"

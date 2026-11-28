@@ -1,16 +1,19 @@
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import chess
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.boards import board_from
-from scan64.providers.stockfish.adapter import EngineAdapter
+from scan64.chess.variants import STANDARD, VariantName
+from scan64.providers.stockfish.adapter import BoardEngineAdapter, EngineAdapter
 
 
 async def _analyze_positions(
     adapter: EngineAdapter,
-    fens: list[str],
+    fens: Sequence[str | chess.Board],
     *,
     nodes: int,
     multipv: int = 1,
@@ -18,12 +21,14 @@ async def _analyze_positions(
 ) -> list[EngineAnalysis]:
     if concurrency < 1:
         raise ValueError("Analysis concurrency must be at least 1")
+    # Only a variant game passes boards; a standard game passes FENs to any adapter.
+    boards = cast(BoardEngineAdapter, adapter)
     pending = iter(enumerate(fens))
     results: dict[int, EngineAnalysis] = {}
 
     async def worker() -> None:
         for index, fen in pending:
-            results[index] = await adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
+            results[index] = await boards.analyze_position(fen, nodes=nodes, multipv=multipv)
 
     workers = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(fens)))]
     try:
@@ -65,23 +70,32 @@ class FastPassOrchestrator:
         self.config = config
 
     async def run_fast_pass(
-        self, pgn_moves: list[str], initial_fen: str | None = None
+        self,
+        pgn_moves: list[str],
+        initial_fen: str | None = None,
+        variant: VariantName = STANDARD,
     ) -> FastPassResult:
         """
         Runs a fast pass over a sequence of moves to flag candidate critical positions.
-        """
-        board = board_from(initial_fen)
 
-        fens = [board.fen()]
+        A variant game is searched as boards of its variant, so the engine plays
+        that variant's rules (#506).
+        """
+        board = board_from(initial_fen, variant)
+
+        def target() -> str | chess.Board:
+            return board.fen() if variant == STANDARD else board.copy(stack=False)
+
+        fens = [target()]
         for move_str in pgn_moves:
             board.push_san(move_str)
-            fens.append(board.fen())
+            fens.append(target())
         evaluations = await _analyze_positions(
             self.adapter, fens, nodes=self.config.nodes, concurrency=self.config.concurrency
         )
 
         candidates = []
-        board = board_from(initial_fen)
+        board = board_from(initial_fen, variant)
 
         for i, move_str in enumerate(pgn_moves):
             before_eval = evaluations[i]

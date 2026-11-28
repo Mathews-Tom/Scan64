@@ -78,7 +78,8 @@ import chess.variant
 from pydantic import BaseModel, ConfigDict, Field
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.variants import STANDARD, VariantName, board_class, board_variant, pgn_san
+from scan64.chess.boards import board_from
+from scan64.chess.variants import STANDARD, VariantName, board_variant, pgn_san
 from scan64.explanations import variant_themes
 from scan64.explanations.factor_facts import FACTOR_SOURCE, HEALTH_SCALE, health_values
 from scan64.explanations.factors import evaluate_factors
@@ -269,11 +270,6 @@ def _white_score(analysis: EngineAnalysis | None, white_to_move: bool) -> int | 
     return value if white_to_move else -value
 
 
-def _start(initial_fen: str | None, variant: VariantName) -> chess.Board:
-    cls = board_class(variant)
-    return cls(initial_fen) if initial_fen else cls()
-
-
 def game_trace(
     initial_fen: str | None,
     moves: Sequence[str],
@@ -282,10 +278,16 @@ def game_trace(
 ) -> GameTrace:
     """The trace of a game from its UCI moves and one search per reached position.
 
-    ``variant`` picks the board rules; the evaluations must come from an engine
-    that plays that variant.
+    ``variant`` picks the board rules. Raises ``ValueError`` when an evaluation
+    comes from a search of another variant (its config's ``variant`` key, #506).
     """
-    board = _start(initial_fen, variant)
+    for analysis in evaluations:
+        if analysis is None or not analysis.raw_result:
+            continue
+        searched = analysis.config.get("variant", STANDARD)
+        if searched != variant:
+            raise ValueError(f"A {variant} trace cannot use the scores of a {searched} search")
+    board = board_from(initial_fen, variant)
     boards = [board.copy(stack=False)]
     parsed = []
     for uci in moves:
@@ -307,7 +309,7 @@ def trace_from_scores(
     variant: VariantName = STANDARD,
 ) -> GameTrace:
     """A trace from UCI or SAN moves and White-view scores (fixtures, hand check)."""
-    board = _start(initial_fen, variant)
+    board = board_from(initial_fen, variant)
     boards = [board.copy(stack=False)]
     parsed = []
     for text in moves:

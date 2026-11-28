@@ -156,6 +156,7 @@ def _grounding_context(
         verified_lines=verified_lines_by_evidence(facts),
         requested_hint_level=_FULL_DISCLOSURE_HINT_LEVEL,
         slots=lesson_slot_catalogue(facts),
+        variant=facts.position.variant,
     )
 
 

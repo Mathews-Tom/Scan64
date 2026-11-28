@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -12,14 +14,16 @@ from sqlmodel import Session, select
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.jobs import _resolve_pattern_detectors
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.boards import board_from
 from scan64.chess.games.ingestion import resolve_position
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
 from scan64.content.puzzle_practice import lock_puzzle_player
 from scan64.explanations.assembly import resolve_explanation
-from scan64.explanations.settings import read_local_explanation_provider
+from scan64.explanations.settings import OPERATOR_LLM_CONFIG, read_local_explanation_provider
 from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.themes import THEME_MIN_POSITIONS, GameTrace, game_trace, window_plies
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.composer import compose_candidate_evidence, needs_mate_source
@@ -31,7 +35,10 @@ from scan64.learning.profiling.profile_update import apply_analysis_observation
 from scan64.learning.progress import game_counts_for_progress
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
 from scan64.learning.verification.verifier import LessonVerificationError, verify_lesson
+from scan64.providers.engine.uci import SEARCH_FAILURES
 from scan64.providers.stockfish.pool import EnginePoolManager
+
+logger = logging.getLogger(__name__)
 
 COACH_DIAGNOSTIC_NODES = 10_000
 COACH_DIAGNOSTIC_SWING_CP = 200
@@ -127,6 +134,34 @@ def _principal_variation_move(analysis: EngineAnalysis, board: chess.Board) -> c
     return move if move in board.legal_moves else None
 
 
+async def _coach_trace(
+    prepared: PreparedCoachInterruption, game: Game, pool_manager: EnginePoolManager
+) -> GameTrace:
+    """The game so far, scored where the root-cause themes read the score (#492).
+
+    The coach searches the positions before and after the last move only; the
+    themes also need the score at the start of their window. The other positions
+    stay unscored.
+    """
+    initial_fen = game.headers.get("FEN")
+    evaluations: list[EngineAnalysis | None] = [None] * (len(game.moves) + 1)
+    mistake = len(game.moves) - 1
+    evaluations[mistake] = prepared.before_analysis
+    evaluations[mistake + 1] = prepared.after_analysis
+    window = window_plies(mistake)
+    if len(window) >= THEME_MIN_POSITIONS:
+        board = board_from(initial_fen)
+        for uci in game.moves[: window[0]]:
+            board.push_uci(uci)
+        try:
+            evaluations[window[0]] = await pool_manager.analyze_interactive(
+                board.fen(), nodes=COACH_DIAGNOSTIC_NODES
+            )
+        except SEARCH_FAILURES:
+            logger.warning("Coach explanation has no themes: the window search failed")
+    return game_trace(initial_fen, game.moves, evaluations)
+
+
 async def _resolve_coach_explanation(
     diagnosis: Diagnosis,
     evidence: list[Evidence],
@@ -134,11 +169,19 @@ async def _resolve_coach_explanation(
     session: Session,
     player_id: str,
     owner_generation: int | None,
+    prepared: PreparedCoachInterruption,
+    game: Game,
+    pool_manager: EnginePoolManager,
 ) -> Explanation:
     try:
         async with asyncio.timeout(COACH_EXPLANATION_TIMEOUT_SECONDS):
             provider = await read_local_explanation_provider(session, player_id, owner_generation)
-            return await resolve_explanation(diagnosis, evidence, fen, local_provider=provider)
+            trace = None
+            if provider is not None or OPERATOR_LLM_CONFIG in os.environ:
+                trace = await _coach_trace(prepared, game, pool_manager)
+            return await resolve_explanation(
+                diagnosis, evidence, fen, local_provider=provider, game=trace
+            )
     except TimeoutError:
         return await TemplateExplanationProvider().explain(diagnosis, evidence)
 
@@ -185,6 +228,9 @@ async def prepare_coach_interruption(
         session,
         player_id,
         owner_generation,
+        prepared,
+        game,
+        pool_manager,
     )
     prepared.opportunity.lesson_spec = lesson.model_dump(mode="json")
     return prepared

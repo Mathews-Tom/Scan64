@@ -66,7 +66,7 @@ Dropped by both adapters (not copied into `raw_result`): `depth`, `seldepth`, `n
 |---|---|---|---|---|---|
 | `run_analysis_for_game` (`jobs.py:91`) | `FastPassConfig(nodes=REVIEW_NODES)`; `REVIEW_NODES = 10_000` (`review.py:12`), MultiPV 1 | `FocusedPassConfig(nodes=1_000_000, multipv=4)` on the **after** position (`jobs.py:150-158`) | 1 000 000 nodes, MultiPV 4, before position (`jobs.py:195-198`) | operator config, else `read_local_explanation_provider` (`jobs.py:332-337`) | Local Ollama 4 s; hosted: httpx default 5 s per request (the `httpx.AsyncClient()` that `resolve_explanation` opens at `assembly.py:162`) |
 | `analyse_command` (`cli/analyse.py:26`) | `FastPassConfig(nodes=10000)` (`analyse.py:48`), MultiPV 1 | `analyze_position(candidate.fen, nodes=1_000_000, multipv=4)` (`analyse.py:84`) | same as above (`analyse.py:86-90`) | operator config only; no `local_provider` (`analyse.py:153`) | as above |
-| `prepare_coach_interruption` (`coach_interruption.py:146`), called from `play_session_service.py:449,686` | `analyze_interactive(nodes=COACH_DIAGNOSTIC_NODES)`, 10 000 nodes, MultiPV 1 (`coach_interruption.py:205-210`) | **`after_analysis` reused**: 10 000 nodes, MultiPV 1 (`coach_interruption.py:250`) | as above (`coach_interruption.py:237-241`) | operator config, else local grant (`_resolve_coach_explanation`, `coach_interruption.py:130-143`) | `COACH_EXPLANATION_TIMEOUT_SECONDS = 0.25` for consent read plus generation; on `TimeoutError`, template |
+| `prepare_coach_interruption` (`coach_interruption.py:146`), called from `play_session_service.py:449,686` | `analyze_interactive(nodes=COACH_DIAGNOSTIC_NODES)`, 10 000 nodes, MultiPV 1 (`coach_interruption.py:205-210`) | **`after_analysis` reused**: 10 000 nodes, MultiPV 1 (`coach_interruption.py:250`) | as above (`coach_interruption.py:237-241`) | operator config, else local grant (`_resolve_coach_explanation`, `coach_interruption.py:130-143`) | `COACH_EXPLANATION_TIMEOUT_SECONDS = 0.25` for consent read, the window-start search (#492) and generation; on `TimeoutError`, template |
 
 `run_analysis_for_game` with the batch pool also scores every position along each prepared lesson's verified lines (10 000 nodes, MultiPV 1) before resolving its explanation (section 5, "Evaluations along lines").
 
@@ -740,7 +740,7 @@ curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default po
 
 A lesson explains one mistake. Often the game was lost before it: the king had no cover for several moves, or the pieces had no squares. Code computes these root causes, and the move where the game turned, from the game's moves, the engine scores of the game's positions and the factor module (section 15). The narrator only words them. Module: `src/scan64/explanations/themes.py`.
 
-**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) builds the trace once from the fast pass and passes it for each lesson (#482). Explanations outside game analysis, such as the analysis board, have no game and get no themes.
+**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) and the CLI (`scan64 analyse`) build the trace once from the fast pass and pass it for each lesson (#482, #492). The coach interruption passes the game so far: it scores the positions before and after the last move and, when a narrator is configured, the start of the theme window with one more search of 10 000 nodes. The other positions have no score, so the only turning point it can find is the last move. If that search fails, the lesson has no themes. The analysis board has no game and gets no themes.
 
 **Window.** The positions where the learner was to move in their last 4 moves, up to and including the mistake (`THEME_WINDOW`). A theme holds when:
 
@@ -789,22 +789,24 @@ Smoothing does not help. On the same games, the moving median of 3 or 5 scores a
 
 The rule is a deeper search of the positions near the level line, `check_level_scores`. In a lost game it walks from the last position back, and searches each position within half a pawn of the level line (`LEVEL_CHECK_CP = 50`) again at 1 000 000 nodes (`LEVEL_CHECK_NODES`). It stops at the first level position, and searches the position after it too, for the size of the step. A search without a score keeps the fast-pass score.
 
-| Scores | Slow-loss games (15 turning points) | 80 other games (72 sides with a turning point in some pass) |
-|---|---|---|
-| Fast pass | 11 | 60 |
-| Every position at 100 000 nodes | 14 | 66 |
-| Check within 25 centipawns, 100 000 nodes | 14 | 63 |
-| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 |
-| Check within 50 centipawns, 100 000 nodes | 14 | 65 |
-| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 |
+| Scores | Slow-loss games (15 sides) | 80 games that selected the rule (72 sides) | 160 other games (141 sides) |
+|---|---|---|---|
+| Fast pass | 11 | 60 | 114 (81%) |
+| Every position at 100 000 nodes | 14 | 66 | 123 (87%) |
+| Check within 25 centipawns, 100 000 nodes | 14 | 63 | 121 (86%) |
+| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 | 130 (92%) |
+| Check within 50 centipawns, 100 000 nodes | 14 | 65 | 122 (87%) |
+| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 | 135 (96%) |
 
-The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The four check variants were fixed before these games were searched, and the rule is the best of the four on them, so 70 of 72 is a selected result. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 5.6 searches per lost side on the slow-loss games and 1.8 on the others. The last row was recomputed with `check_level_scores` on the recorded scores. The raw scores are not in the repository.
+The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The sides are those with a turning point on the fast pass or at 1 000 000 nodes. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The rule is the best of four variants on them, so 70 of 72 is a selected result. The 160 other games did not select the rule: `m93_fresh80_recorded.json` (68 of 71) and `m94_v2_fresh80_recorded.json` (67 of 70), both sides. All their sides and games were recorded once, and all are counted. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 6.4 searches per lost side on the slow-loss games and 1.9 on the others.
 
-Nothing calls `check_level_scores` yet. Game analysis passes it when it passes the trace (#482).
+**Raw scores (#513).** `tests/fixtures/themes/turning_point_scores.json` holds the score of every position at 10 000, 100 000 and 1 000 000 nodes, with the commit, the uncommitted changes (none), and the digests of the script, the games and the engine. `tests/helpers/themes/record_turning_points.py` recorded it. `uv run python -m tests.helpers.themes.summarize_turning_points` recomputes every figure above without an engine; the check rows run `check_level_scores` on the recorded scores. The new recording gives the same counts as #486, whose raw scores were not kept. #486 did not define its sides exactly: the definition above was chosen after the recording because it gives the 72 sides of #486. With a side counted for a point in any pass of the table, the rule gives 71 of 73 and, on the 160 other games, 137 of 143. #486 stated 5.6 and 1.8 searches; the recording gives 6.4 and 1.9.
+
+Nothing calls `check_level_scores` yet: game analysis passes the trace with its fast-pass scores (#482).
 
 **Limits.**
 
-- The scores are the 10 000-node fast pass, but the hand check above used the Lichess server scores. The fast pass can pick a different move (#486, measured below).
+- The scores are the 10 000-node fast pass, but the hand check above used the Lichess server scores. The fast pass can pick a different move (#486, measured above).
 - The factor values are measured at game positions, not at quiet positions (section 16): a position in the middle of an exchange can pass or fail a signal for one move. Three of four positions must pass, which limits this.
 - The board parts are simple counts: a piece "with no free square" can still be useful, and an open file next to the king can be harmless when the opponent has no rook or queen to use it.
 - The four themes above are standard chess only: the factor module and the board parts use standard rules. Variant games have their own themes (section 19).
@@ -814,7 +816,7 @@ Nothing calls `check_level_scores` yet. Game analysis passes it when it passes t
 
 Crazyhouse, three-check and atomic games have their own root-cause themes. The window, the persistence rule (3 of the last 4 learner positions, the last one included) and the engine fall of half a pawn are the same as in section 18. The turning point is the same too; a drop is named the PGN way (`P@b4`).
 
-**Variant rules only.** `GameTrace.variant` is the variant of the trace's python-chess boards. `game_trace(..., variant=...)` and `trace_from_scores(..., variant=...)` build the boards of that variant, so drops, check counts and explosions follow its rules. The scores must come from an engine that plays the variant (Fairy-Stockfish, `docs/engines.md`). `VARIANT_THEME_ORDER` lists the themes of each variant: a variant trace measures only its own themes and never the standard ones, and a standard trace measures no variant theme. Antichess, king of the hill, horde and racing kings have no theme yet. Board measures: `src/scan64/explanations/variant_themes.py`.
+**Variant rules only.** `GameTrace.variant` is the variant of the trace's python-chess boards. `game_trace(..., variant=...)` and `trace_from_scores(..., variant=...)` build the boards of that variant, so drops, check counts and explosions follow its rules. The scores come from a search of the variant (#506): `FastPassOrchestrator.run_fast_pass(..., variant=...)` gives the engine the variant's boards (Fairy-Stockfish, `docs/engines.md`), and each analysis of a variant board stores its name in the config key `variant`. `game_trace` raises `ValueError` for scores of another variant, standard chess included. `VARIANT_THEME_ORDER` lists the themes of each variant: a variant trace measures only its own themes and never the standard ones, and a standard trace measures no variant theme. Antichess, king of the hill, horde and racing kings have no theme yet. Board measures: `src/scan64/explanations/variant_themes.py`.
 
 "The opponent could" below means: the same position with the opponent to move. Every window position has the learner to move, so this is what the opponent threatens if the learner does nothing about it.
 
@@ -829,10 +831,23 @@ Crazyhouse, three-check and atomic games have their own root-cause themes. The w
 
 The text names at most 3 pieces or drops (`DETAIL_LIMIT`). `drop_threats` names one drop per attacked piece and every check. The claim rule (section 8) treats `king_drop_squares`, `check_exposure` and `explosion_threats` like `unsafe_king`: they support a claim that the learner's king was exposed.
 
-**Thresholds.** These are stated rules, not fitted values: no slow-loss corpus of variant games with engine scores exists yet. Each theme has a test position where it holds and one where it does not (`tests/unit/test_narrator_variant_themes.py`).
+**Facts.** `build_narrator_facts(..., game=trace)` reads the position, the moves and the lines with the rules of the trace's variant and stores it in `position.variant`. The slot list and the validator use the same rules. A drop is a move fact (`P@b4`), and crazyhouse material counts the pieces in hand, so a drop changes no material. A variant position has no factor facts.
+
+**Thresholds.** These are stated rules, checked on real games on 2026-11-28 (#506). The games: the first 200 Lichess games per variant in one monthly dump (CC0; both players 1600 or more, 20 plies or more), each position scored by Fairy-Stockfish 14 at 10 000 nodes. An ordinary window is a theme window with every score within 1.5 pawns of equal and no half-pawn fall. The rule was fixed before the searches: if a signal passes its threshold in more than 10% of the ordinary windows of the first 100 games, the threshold rises. No threshold rose. A mistake here is a move that loses 1.5 pawns or more, with the half-pawn fall.
+
+| Theme | Threshold | Ordinary windows, games 1-100 | Ordinary windows, games 101-200 | Mistakes, all 200 games |
+|---|---|---|---|---|
+| `pocket_deficit` | 3 | 1 of 151 | 0 of 150 | 318 of 2275 (14%) |
+| `king_drop_squares` | 2 | 1 of 151 | 0 of 150 | 52 of 2275 (2%) |
+| `drop_threats` | 2 | 1 of 151 | 2 of 150 | 486 of 2275 (21%) |
+| `checks_behind` | 1 | 3 of 98 | 5 of 160 | 235 of 1840 (13%) |
+| `check_exposure` | 2 | 3 of 98 | 0 of 160 | 65 of 1840 (4%) |
+| `explosion_threats` | 1 | 5 of 101 | 9 of 75 (12%) | 28 of 1946 (1%) |
+
+`check_exposure` does not fire often on ordinary positions. `explosion_threats` does in the second half (12%), and it fires more often there than at mistakes. Its threshold is 1, so it can only become stricter; #534 covers it. The counts measure how often a signal passes, not whether the theme is the cause. Raw scores: `tests/fixtures/themes/variant_game_scores.json`; `uv run python -m tests.helpers.themes.summarize_variant_games` recomputes the table without an engine. Each theme has a test position where it holds and one where it does not (`tests/unit/test_narrator_variant_themes.py`).
 
 **Limits.**
 
-- Explanations still cover standard chess only (`docs/user-guide.md`, "Chess variants on the Analysis Board"). The variant themes are ready in the facts, but no variant game reaches the narrator yet.
+- Explanations still cover standard chess only (`docs/user-guide.md`, "Chess variants on the Analysis Board"). The facts and the fast pass accept a variant game, but game analysis still refuses one: the detectors, the template texts, the lessons and the review use standard rules (#533).
 - The piece values are the standard ones. In crazyhouse a pawn in hand is worth more than on the board; the pocket rule can under-count pawns.
 - The drop and check counts read one move ahead. They do not check that the threat survives the learner's best reply.

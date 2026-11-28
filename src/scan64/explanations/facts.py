@@ -27,10 +27,12 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import chess
+import chess.variant
 from chess_lesson_spec import Diagnosis
 from pydantic import BaseModel, ConfigDict, Field
 
 from scan64.chess.analysis.models import EngineAnalysis
+from scan64.chess.variants import STANDARD, VariantName, board_class, pgn_san
 from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, mistake_factor_facts
 from scan64.explanations.themes import GameThemeFacts, GameTrace, game_theme_facts
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
@@ -63,7 +65,8 @@ EvaluationSource = Literal[
     "line_pass",
 ]
 _SQUARE_PATTERN = r"^[a-h][1-8]$"
-_UCI_PATTERN = r"^[a-h][1-8][a-h][1-8][qrbn]?$"
+# A move, or a crazyhouse drop (``P@b4``).
+_UCI_PATTERN = r"^([a-h][1-8][a-h][1-8][qrbn]?|[PNBRQ]@[a-h][1-8])$"
 
 
 class NarratorFactsError(ValueError):
@@ -213,6 +216,7 @@ class MistakeClass(_Facts):
 
 class PositionFacts(_Facts):
     fen: str
+    variant: VariantName = Field(default=STANDARD, description="The rules the position uses.")
     side_to_move: ColourName = Field(description="The learner, who made the mistake.")
     material: Material
     played_move: MoveFacts
@@ -367,6 +371,10 @@ def material(board: chess.Board, learner: chess.Color) -> Material:
     totals = {chess.WHITE: 0, chess.BLACK: 0}
     for piece in board.piece_map().values():
         totals[piece.color] += PIECE_VALUES.get(piece.piece_type, 0)
+    if isinstance(board, chess.variant.CrazyhouseBoard):  # a drop changes no material
+        for side in chess.COLORS:
+            for piece_type, value in PIECE_VALUES.items():
+                totals[side] += value * board.pockets[side].count(piece_type)
     return Material(
         white=totals[chess.WHITE],
         black=totals[chess.BLACK],
@@ -480,7 +488,7 @@ class StoredEvaluations:
                 by_position[_position_key(board)] = evaluation
 
         # The line pass is the shallowest search: every other search overwrites it.
-        for board, score in _line_scores(payload):
+        for board, score in _line_scores(payload, type(before)):
             record(board, _learner_evaluation(score, board.turn == before.turn, "line_pass"))
         fast_line = _string_list(payload.get("fast_line"))
         if fast_line is not None:
@@ -528,7 +536,9 @@ class StoredEvaluations:
         return None
 
 
-def _line_scores(payload: Mapping[str, Any]) -> list[tuple[chess.Board, tuple[str, int]]]:
+def _line_scores(
+    payload: Mapping[str, Any], cls: type[chess.Board]
+) -> list[tuple[chess.Board, tuple[str, int]]]:
     """Positions and side-to-move scores of the payload's ``line_evaluations``."""
     entries = payload.get(LINE_EVALUATIONS_FIELD)
     if not isinstance(entries, list):
@@ -539,7 +549,7 @@ def _line_scores(payload: Mapping[str, Any]) -> list[tuple[chess.Board, tuple[st
             continue
         score = _score(entry, "score_cp", "score_mate")
         try:
-            board = chess.Board(entry["fen"])
+            board = cls(entry["fen"])
         except ValueError:
             continue
         if score is not None:
@@ -608,7 +618,11 @@ def _move_facts(
     learner: chess.Color,
     evaluations: StoredEvaluations,
 ) -> tuple[MoveFacts, chess.Board]:
-    piece = board.piece_at(move.from_square)
+    piece = (
+        chess.Piece(move.drop, board.turn)
+        if move.drop is not None
+        else board.piece_at(move.from_square)
+    )
     if piece is None:
         raise NarratorFactsError(f"No piece on {chess.square_name(move.from_square)}")
     mover = board.turn
@@ -623,7 +637,7 @@ def _move_facts(
     elif board.is_queenside_castling(move):
         castling = "queenside"
     threats_before = _undefended_attacked(board, mover)
-    san = board.san(move)
+    san = pgn_san(board, move)
     after = board.copy(stack=False)
     after.push(move)
     threats = sorted(_undefended_attacked(after, mover) - threats_before)
@@ -885,19 +899,21 @@ def build_narrator_facts(
     """Compute the narrator's facts for ``diagnosis`` from ``fen`` (before the mistake).
 
     ``game`` (the game's positions and fast-pass scores) adds the root-cause
-    themes and the turning point (#400).
+    themes and the turning point (#400). A variant game's position, moves and
+    lines use the rules of its variant (#506); the factor module reads standard
+    chess only, so a variant position has no factor facts.
     """
+    variant = game.variant if game is not None else STANDARD
+    cls = board_class(variant)
     referenced = [item for item in evidence if item.evidence_id in diagnosis.evidence_refs]
     if not referenced:
         raise NarratorFactsError("Diagnosis references no evidence")
     try:
-        before = chess.Board(fen)
+        before = cls(fen)
     except ValueError as error:
         raise NarratorFactsError("Grounding FEN does not parse") from error
     payload_fen = _shared(referenced, "before_fen")
-    if payload_fen is not None and _position_key(chess.Board(str(payload_fen))) != _position_key(
-        before
-    ):
+    if payload_fen is not None and _position_key(cls(str(payload_fen))) != _position_key(before):
         raise NarratorFactsError("Evidence before_fen differs from the grounding FEN")
     played = parse_played_move(before, _shared(referenced, "played_move"))
     first = referenced[0].payload
@@ -937,6 +953,7 @@ def build_narrator_facts(
         schema_version=SCHEMA_VERSION,
         position=PositionFacts(
             fen=before.fen(),
+            variant=variant,
             side_to_move=_colour_name(learner),
             material=material(before, learner),
             played_move=played_facts,
@@ -950,7 +967,9 @@ def build_narrator_facts(
         ),
         evidence=tuple(evidence_facts),
         lines=tuple(lines),
-        factors=narrator_factor_facts(before, played, best_move, lines, evaluations, swing_cp),
+        factors=narrator_factor_facts(before, played, best_move, lines, evaluations, swing_cp)
+        if variant == STANDARD
+        else None,
         game=game_theme_facts(game, before, played) if game is not None else None,
     )
 

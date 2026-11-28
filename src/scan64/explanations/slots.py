@@ -31,6 +31,7 @@ from dataclasses import dataclass, field, replace
 
 import chess
 
+from scan64.chess.variants import board_class, pgn_san
 from scan64.explanations.claims import ClaimFacts, factor_group
 from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
@@ -353,7 +354,7 @@ def numbered_san(board: chess.Board, uci: Sequence[str]) -> str:
     parts = []
     for index, token in enumerate(uci):
         move = chess.Move.from_uci(token)
-        san = replay.san(move)
+        san = pgn_san(replay, move)
         if replay.turn == chess.WHITE:
             parts.append(f"{replay.fullmove_number}.{san}")
         elif index == 0:
@@ -546,7 +547,7 @@ def _evidence_slots(item: EvidenceFacts) -> list[Slot]:
 def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     """Every slot a lesson narration may use, per evidence item."""
     position = facts.position
-    board = chess.Board(position.fen)
+    board = board_class(position.variant)(position.fen)
     shared: list[Slot] = []
     played = position.played_move
     shared.append(Slot("played", played.san, "your move, the mistake", (played.uci,)))

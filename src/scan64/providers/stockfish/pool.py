@@ -37,7 +37,13 @@ from scan64.providers.engine.uci import (
     startup_options,
     within_declared_range,
 )
-from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
+from scan64.providers.stockfish.adapter import (
+    StockfishConfig,
+    search,
+    search_board,
+    search_limit,
+    variant_config,
+)
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
 
 logger = logging.getLogger(__name__)
@@ -273,7 +279,7 @@ class PooledStockfishAdapter:
         assert self._engine is not None
         engine = self._engine
         await engine.configure(full_strength_options(engine, self.config.threads))
-        board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
+        board = search_board(fen)
         limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
         raw_result = await search(
             engine,
@@ -291,6 +297,7 @@ class PooledStockfishAdapter:
             depth=depth,
             time_ms=time_ms,
             multipv=multipv,
+            **variant_config(board),
         )
 
         return EngineAnalysis(position_id=None, config=config_dict, raw_result=raw_result)
@@ -373,7 +380,7 @@ class PoolBoundAdapter:
 
     async def analyze_position(
         self,
-        fen: str,
+        fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
         time_ms: int | None = None,
