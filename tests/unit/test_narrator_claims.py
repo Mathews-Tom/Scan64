@@ -462,8 +462,8 @@ EDGE_CLAIMS = [
     ("You are materially up.", {1, 2, 3, 4, 5, 6, 9}),
     ("You have a material edge.", {1, 2, 3, 4, 5, 6, 9}),
     ("Your opponent is ahead by two pawns.", {-2}),
-    ("Your opponent is up in material.", {-1, -2, -3, -4, -9}),
-    ("Your opponent has a material lead.", {-1, -2, -3, -4, -9}),
+    ("Your opponent is up in material.", {-1, -2, -3, -4, -5, -6, -9}),
+    ("Your opponent has a material lead.", {-1, -2, -3, -4, -5, -6, -9}),
     ("Your opponent has two extra pawns.", {-2}),
     ("They are a piece up.", {-3, -4}),
     # Pre-PR check: owner subjects, "lead by", "N pawns more", "extra pawn", "two-pawn".
@@ -479,13 +479,24 @@ EDGE_CLAIMS = [
     ("Your extra pawn decides.", {1}),
     ("Their extra pawn matters.", {-1}),
     ("Your extra rook decides.", {5, 6}),
+    # Review of #443: no side named (either side, size checked), and "to the good".
+    ("A two-pawn lead.", {2, -2}),
+    ("With a two-pawn lead, play simply.", {2, -2}),
+    ("A pawn more.", {1, -1}),
+    ("Two pawns more.", {2, -2}),
+    ("A material edge of two pawns.", {2, -2}),
+    ("A material edge of two pawns for you.", {2}),
+    ("A material edge of two pawns for your opponent.", {-2}),
+    ("You are two pawns to the good.", {2}),
+    ("Your opponent is two pawns to the good.", {-2}),
+    ("Two pawns to the good.", {2, -2}),
     ("You enjoy a two-pawn lead.", {2}),
     ("Your two-pawn edge counts.", {2}),
 ]
 
 
 @pytest.mark.parametrize(("text", "supporting"), EDGE_CLAIMS)
-@pytest.mark.parametrize("balance", [-9, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9])
+@pytest.mark.parametrize("balance", [-9, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9])
 def test_a_material_edge_claim_checks_its_side_and_size(
     text: str, supporting: set[int], balance: int
 ) -> None:
@@ -500,6 +511,8 @@ def test_a_material_edge_claim_checks_its_side_and_size(
         "Your extra pieces are active.",
         "Your additional pieces help.",
         "Your extra effort pays off.",
+        "You have two options more.",
+        "That is all to the good.",
     ],
 )
 def test_an_uncounted_extra_is_no_material_claim(text: str) -> None:

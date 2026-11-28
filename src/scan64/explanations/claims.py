@@ -421,9 +421,27 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
         _Rule(rf"\b{_SUBJECT}\s+(?:lead|leads|led)\s+by\s+{_COUNT_REQUIRED}{_UNIT_PIECES}", _I),
         _balance(1),
     ),
+    # "You are two pawns to the good", "two pawns to the good".
     (
         _Rule(
-            rf"\b{_SUBJECT}{_HAVE}\s+{_COUNT_REQUIRED}{_UNIT_PIECES}\s+(?:more|(?P<dir>fewer|less))\b",
+            rf"(?:\b{_SUBJECT}{_BE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+to\s+the\s+good\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    # "A material edge of two pawns (for you)".
+    (
+        _Rule(
+            r"\bmaterial\s+(?:edge|lead|advantage|plus)\s+of\s+"
+            rf"{_COUNT_REQUIRED}{_UNIT_PIECES}(?:\s+for\s+{_SUBJECT})?",
+            _I,
+        ),
+        _balance(1),
+    ),
+    (
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_HAVE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+"
+            r"(?:more|(?P<dir>fewer|less))\b",
             _I,
         ),
         lambda match: Claim(
@@ -445,7 +463,7 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     # "a two-pawn lead", "your two-pawn edge".
     (
         _Rule(
-            rf"(?:\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+|\b{_OWNER}\s+)"
+            rf"(?:\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+|\b{_OWNER}\s+|\b(?:a|an)\s+)"
             r"(?P<count>one|two|three|four|five|six|seven|eight|nine)-(?P<unit>pawn|piece|knight"
             r"|bishop|rook|queen|point)\s+(?:material\s+)?(?:edge|lead|advantage|plus)\b",
             _I,
