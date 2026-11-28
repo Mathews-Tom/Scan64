@@ -6,8 +6,10 @@ at a time and never decides chess. Each fact carries:
 - its role in the story: the move, what it misses, what follows, and what the
   mover could have played instead;
 - one sentence that states one relation per clause, with explicit timing
-  ("gives check; after the king moves, the knight takes the rook on a8") and
-  the square every piece stands on after it moves;
+  ("gives check; after the king moves, the knight takes the rook on a8"). A
+  move's own clause names the piece on the square it moves from ("the knight
+  on e5 takes the pawn on f7"); every later clause names it on the square it
+  stands on after the move ("the knight on f7 attacks the rook on h8");
 - its relations as data (takes, attacks, defends, gives check, mates,
   stalemates, blocks, pins, shuts in, frees, opens, prevents, leaves
   undefended, moves), for the check in the voice pipeline.
@@ -100,6 +102,8 @@ class Relation:
     direction: Direction | None = None
     # The square an ``opens`` relation makes reachable.
     square: chess.Square | None = None
+    # The opponent's move a ``prevents`` relation says cannot be played at once.
+    reply: str | None = None
 
 
 @dataclass(frozen=True)
@@ -213,6 +217,34 @@ def _pinner(board: chess.Board, square: chess.Square) -> PieceOnSquare | None:
 
 def _sign(value: int) -> int:
     return (value > 0) - (value < 0)
+
+
+def _pin_allows(board: chess.Board, move: chess.Move) -> bool:
+    """A pin, if any, lets the piece make ``move``."""
+    colour = board.color_at(move.from_square)
+    if colour is None:
+        return False
+    return move.to_square in board.pin(colour, move.from_square)
+
+
+def _check_prevents(before: chess.Board, after: chess.Board, threat: chess.Move) -> bool:
+    """Only the check in ``after`` stops ``threat``, which was legal in ``before``.
+
+    The same non-king piece still stands on its square, the move is still
+    pseudo-legal and no pin forbids it, so the check is what makes it illegal.
+    """
+    piece = before.piece_at(threat.from_square)
+    return (
+        threat in before.legal_moves
+        and piece is not None
+        and piece.piece_type != chess.KING
+        and after.piece_at(threat.from_square) == piece
+        and after.is_check()
+        and not after.is_game_over()
+        and after.is_pseudo_legal(threat)
+        and threat not in after.legal_moves
+        and _pin_allows(after, threat)
+    )
 
 
 def _blocks_check(board: chess.Board, move: chess.Move) -> bool:
@@ -755,6 +787,7 @@ def role_facts(
                 holder is not None
                 and after_reply.piece_at(pinned.square) == after_played.piece_at(pinned.square)
                 and reply.to_square in after_reply.attacks(pinned.square)
+                and reply.to_square not in after_reply.pin(pinned.colour, pinned.square)
                 and not captures
             ):
                 king = _king(after_reply, pinned.colour)
@@ -793,18 +826,14 @@ def role_facts(
         )
         if follow_moves:
             threat = follow_moves[0]
-            if (
-                after_best.is_check()
-                and not after_best.is_checkmate()
-                and threat not in after_best.legal_moves
-            ):
+            if _check_prevents(after_played, after_best, threat):
                 piece = _on(after_played, threat.from_square)
                 alternative.append(
                     _Said(
                         f"After {best_label}, {colour_name(after_best.turn)} must answer "
                         f"the check, so {piece.phrase()} cannot play "
                         f"{numbered_san(after_played, threat)} at once.",
-                        Relation("prevents", best, fen, target=piece),
+                        Relation("prevents", best, fen, target=piece, reply=threat.uci()),
                     )
                 )
         add("could_have_played", alternative)

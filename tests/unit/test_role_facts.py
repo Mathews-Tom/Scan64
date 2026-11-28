@@ -199,6 +199,7 @@ def _holds(relation: Relation) -> None:
                 )
             )
             assert target.square == taken
+            assert subject is not None and subject.square == move.to_square
             on(after, subject)
         case "attacks":
             on(after, subject)
@@ -213,10 +214,14 @@ def _holds(relation: Relation) -> None:
             assert target is not None and after.king(not before.turn) == target.square
         case "mates":
             assert after.is_checkmate()
+            on(after, subject)
+            assert subject is not None and subject.square == move.to_square
             on(after, target)
             assert target is not None and after.king(not before.turn) == target.square
         case "stalemates":
             assert after.is_stalemate()
+            on(after, subject)
+            assert subject is not None and subject.square == move.to_square
         case "blocks":
             assert before.is_check() and through is not None
             assert through.square in before.checkers()
@@ -282,8 +287,15 @@ def _holds(relation: Relation) -> None:
         case "prevents":
             assert after.is_check() and not after.is_game_over()
             on(before, target)
+            on(after, target)
             assert target is not None and target.colour != before.turn
             assert target.piece != chess.KING
+            assert relation.reply is not None
+            reply = chess.Move.from_uci(relation.reply)
+            assert reply.from_square == target.square
+            # Pseudo-legal, no pin forbids it, and still illegal: the check stops it.
+            assert after.is_pseudo_legal(reply) and reply not in after.legal_moves
+            assert reply.to_square in after.pin(target.colour, target.square)
         case _:
             pytest.fail(f"Unchecked relation {relation.kind}")
 
@@ -464,6 +476,44 @@ def test_a_stalemate_later_in_a_line_is_stated() -> None:
     for fact in facts:
         for relation in fact.relations:
             _holds(relation)
+
+
+@pytest.mark.parametrize(
+    ("fen", "played", "best", "best_line", "played_line"),
+    [
+        # The better move takes the piece that would have played the threat.
+        ("8/5K1b/8/b3R3/k4rR1/8/4p3/2n2b2 w - - 0 1", "f7e8", "g4f4", ("g4f4",), ("f4g4",)),
+        # The better move's own piece blocks the threat's path.
+        (
+            "5b2/1q3Q2/2r2n2/5b2/k3Pnr1/8/8/K7 w - - 0 1",
+            "f7f6",
+            "f7c4",
+            ("f7c4",),
+            ("c6c2",),
+        ),
+        # The threat is a king move to an attacked square.
+        (
+            "8/N1n5/8/8/7B/2k3N1/8/1K6 w - - 0 1",
+            "g3e2",
+            "g3e4",
+            ("g3e4", "c3c4"),
+            ("c3d2",),
+        ),
+    ],
+)
+def test_must_answer_the_check_only_when_the_check_stops_the_threat(
+    fen: str, played: str, best: str, best_line: tuple[str, ...], played_line: tuple[str, ...]
+) -> None:
+    facts = role_facts(fen, played, best, best_line=best_line, played_line=played_line)
+    assert not any("must answer the check" in fact.text for fact in facts)
+    for fact in facts:
+        for relation in fact.relations:
+            _holds(relation)
+
+
+def test_cannot_take_is_not_blamed_on_the_pin_when_a_check_stops_it() -> None:
+    facts = role_facts("4r1k1/8/8/8/7b/6r1/R7/4K3 w - - 0 1", "a2e2", "e1d1", played_line=("g3e3",))
+    assert not any("cannot take" in fact.text for fact in facts)
 
 
 def test_illegal_input_fails_fast() -> None:
