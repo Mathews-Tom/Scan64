@@ -1,0 +1,11 @@
+# Variant engine probe (#435) on linux-5090 with a standard engine: Stockfish 18
+# declares no UCI_Variant option, so every variant position is recorded as
+# "not declared" and nothing is searched. Same settings as
+# variants_probe_linux.toml.
+# Run: uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux_stockfish.toml
+
+[run]
+results_dir = "benchmarks/engines/results"
+profile = "config/engines/compat/linux/stockfish-18.toml"
+nodes = 300000
+multipv = 3
