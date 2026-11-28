@@ -291,6 +291,30 @@ play never falls back to Stockfish. The play endpoints
 stays committed; a bot-first session is not created. The web client shows
 that bot play is unavailable under the active engine profile.
 
+### Measured strength of the Arasan ladder
+
+Each level was played against Stockfish 18 limited to the level's `UCI_Elo`
+(the anchor): 10 openings, both colours, 2 rounds, 500 ms a move, so 40 games a
+level. Draws count half a point; the interval is a 95% Wilson score interval.
+Run 3c32f49e7444, commit 2b640f76e914, profile
+`config/engines/linux/arasan.toml`; the full record is
+`benchmarks/engines/results/ladder_strength_20261127_231952.md`.
+
+| Level | `UCI_Elo` sent | Anchor | W-D-L | Score | Measured Elo (95%) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 1000 | 1320 | 0-0-40 | 0.000 | below what anchor 1320 can measure |
+| 2 | 1200 | 1320 | 0-0-40 | 0.000 | below what anchor 1320 can measure |
+| 3 | 1400 | 1400 | 0-0-40 | 0.000 | below what anchor 1400 can measure |
+| 4 | 1600 | 1600 | 0-2-38 | 0.025 | 964 (659 to 1268) |
+| 5 | 1800 | 1800 | 0-4-36 | 0.050 | 1288 (1059 to 1518) |
+| 6 | 2000 | 2000 | 10-4-26 | 0.300 | 1853 (1737 to 1968) |
+| 7 | 2200 | 2200 | 27-3-10 | 0.713 | 2358 (2241 to 2474) |
+| 8 | 2500 | 2500 | 31-5-4 | 0.838 | 2785 (2643 to 2927) |
+
+Levels 4 and 5 play well below the `UCI_Elo` they are sent, and levels 7 and 8
+above it. Levels 1 to 3 lost every game: Stockfish's lowest `UCI_Elo` is 1320,
+so their strength needs a weaker reference and is not measured yet (#396).
+
 ## Chess variants (#398)
 
 Scan64 reads variant positions with python-chess's variant boards: crazyhouse,

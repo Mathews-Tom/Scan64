@@ -407,6 +407,94 @@ play never falls back to Stockfish. The play endpoints
 <code>EngineCapabilityError</code> text that names the missing options. The player's move
 stays committed; a bot-first session is not created. The web client shows
 that bot play is unavailable under the active engine profile.</p>
+<h3 id="measured-strength-of-the-arasan-ladder">Measured strength of the Arasan ladder</h3>
+<p>Each level was played against Stockfish 18 limited to the level's <code>UCI_Elo</code>
+(the anchor): 10 openings, both colours, 2 rounds, 500 ms a move, so 40 games a
+level. Draws count half a point; the interval is a 95% Wilson score interval.
+Run 3c32f49e7444, commit 2b640f76e914, profile
+<code>config/engines/linux/arasan.toml</code>; the full record is
+<code>benchmarks/engines/results/ladder_strength_20261127_231952.md</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th><code>UCI_Elo</code> sent</th>
+<th>Anchor</th>
+<th>W-D-L</th>
+<th>Score</th>
+<th>Measured Elo (95%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>1000</td>
+<td>1320</td>
+<td>0-0-40</td>
+<td>0.000</td>
+<td>below what anchor 1320 can measure</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1200</td>
+<td>1320</td>
+<td>0-0-40</td>
+<td>0.000</td>
+<td>below what anchor 1320 can measure</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1400</td>
+<td>1400</td>
+<td>0-0-40</td>
+<td>0.000</td>
+<td>below what anchor 1400 can measure</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1600</td>
+<td>1600</td>
+<td>0-2-38</td>
+<td>0.025</td>
+<td>964 (659 to 1268)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1800</td>
+<td>1800</td>
+<td>0-4-36</td>
+<td>0.050</td>
+<td>1288 (1059 to 1518)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2000</td>
+<td>2000</td>
+<td>10-4-26</td>
+<td>0.300</td>
+<td>1853 (1737 to 1968)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>2200</td>
+<td>2200</td>
+<td>27-3-10</td>
+<td>0.713</td>
+<td>2358 (2241 to 2474)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>2500</td>
+<td>2500</td>
+<td>31-5-4</td>
+<td>0.838</td>
+<td>2785 (2643 to 2927)</td>
+</tr>
+</tbody>
+</table>
+<p>Levels 4 and 5 play well below the <code>UCI_Elo</code> they are sent, and levels 7 and 8
+above it. Levels 1 to 3 lost every game: Stockfish's lowest <code>UCI_Elo</code> is 1320,
+so their strength needs a weaker reference and is not measured yet (#396).</p>
 <h2 id="chess-variants-398">Chess variants (#398)</h2>
 <p>Scan64 reads variant positions with python-chess's variant boards: crazyhouse,
 three-check (<code>3check</code>), atomic, antichess, king of the hill, horde and racing
