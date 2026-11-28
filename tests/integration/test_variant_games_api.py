@@ -61,6 +61,10 @@ def test_crazyhouse_game_imports_with_its_variant_and_is_not_analysed(
         assert refused.json()["detail"]["message"].startswith(
             "Crazyhouse games are not covered by game review"
         )
+    # Never analysed, so no positions; replaying a drop as standard was a 500.
+    positions = client.get(f"/v1/games/{body['id']}/positions", headers=headers)
+    assert positions.status_code == 200, positions.json()
+    assert positions.json() == []
 
 
 def test_player_pages_skip_a_variant_game_and_bot_play_refuses_it(

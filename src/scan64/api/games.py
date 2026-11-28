@@ -15,7 +15,7 @@ from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.game_review import GameReviewRead, build_game_review
 from scan64.api.learning import _reverify_persisted_lesson
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
-from scan64.api.variant_games import require_standard
+from scan64.api.variant_games import is_standard, require_standard
 from scan64.chess.analysis.jobs import backfill_game_review, submit_analysis_job
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -552,6 +552,10 @@ def get_game_positions(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> list[PositionRead]:
     game = _get_owned_game(game_id, request, session)
+    if not is_standard(game):
+        # A variant game is never analysed (``require_standard``), so it has no
+        # positions; its moves need not replay on a standard board.
+        return []
     # Only the positions the game passed through. Searches along a lesson's
     # verified lines (#367) are stored as positions of the game too, so the
     # evidence can name them, but they are not moves of this game.
