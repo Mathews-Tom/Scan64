@@ -163,15 +163,29 @@ def summarise(results: Path, config: RunConfig) -> str:
     ]
     for entry in config.engines:
         mine = [record for record in records if record["engine"] == entry.name]
-        if not mine or mine[0]["status"] != "ok":
+        # Every searched record, whatever its order: a resumed file can start
+        # with a "not installed" record from before the engine was installed.
+        searched = [record for record in mine if record["status"] == "ok"]
+        if not searched:
+            status = ", ".join(sorted({record["status"] for record in mine})) or "not run"
             rows.append(
-                f"| {entry.name} | {entry.licence} | not installed |"
+                f"| {entry.name} | {entry.licence} | {status} |"
                 + " |" * (4 + len(config.positions))
             )
             continue
-        by_position = {record["position"]: record for record in mine}
-        capabilities = mine[0]["capabilities"]
-        all_lines = [line for record in mine for line in record["lines"]]
+        identities = {json.dumps(record["capabilities"], sort_keys=True) for record in searched}
+        if len(identities) != 1:
+            raise ValueError(
+                f"{entry.name}: the results record {len(identities)} different engine "
+                "capabilities (was the binary replaced between runs?)"
+            )
+        by_position: dict[str, dict[str, Any]] = {}
+        for record in searched:
+            if record["position"] in by_position:
+                raise ValueError(f"{entry.name}: position {record['position']} is recorded twice")
+            by_position[record["position"]] = record
+        capabilities = searched[0]["capabilities"]
+        all_lines = [line for record in searched for line in record["lines"]]
         pv_lengths = [len(line.get("pv", [])) for line in all_lines]
         depths = [line["depth"] for line in all_lines if "depth" in line]
         seldepths = [line["seldepth"] for line in all_lines if "seldepth" in line]
