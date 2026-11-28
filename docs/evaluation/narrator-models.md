@@ -248,10 +248,10 @@ The rule for a later change stays: rerun this benchmark when the prompt builder,
 ## Follow-ups
 
 - Coverage bar: answers miss the key move most often (the opponent's capture for a hanging piece). A prompt line or example that asks for the key-move slot can close the 2.5-point gap.
-- `num_ctx` default: 4096 fits every lesson and Analysis Board prompt (above). Lower `DEFAULT_OLLAMA_CONTEXT_TOKENS` to 4096.
-- Bundling: the chosen model is a GGUF with a Modelfile, not a library tag. The app needs a setup step that downloads the pinned file and runs `ollama create`, or a published Ollama tag.
+- ~~`num_ctx` default: 4096 fits every lesson and Analysis Board prompt (above). Lower `DEFAULT_OLLAMA_CONTEXT_TOKENS` to 4096.~~ Done in #429.
+- ~~Bundling: the chosen model is a GGUF with a Modelfile, not a library tag. The app needs a setup step that downloads the pinned file and runs `ollama create`, or a published Ollama tag.~~ Done in #429: `scan64-cli narrator install`.
 - Engine comparison on the same positions: Caissa diagnoses 32 of 50 positions. A comparison on the same 32 positions on both engines removes the position-set difference.
-- `think = false` in production: the app adapters send no `think` field. The benchmark numbers assume it.
+- ~~`think = false` in production: the app adapters send no `think` field. The benchmark numbers assume it.~~ Done in #429: both Ollama paths send `think: false`.
 - `praxis-4b` loops to the output cap in 18 of 96 calls (p95 7.06 s) and writes malformed line moves in 27.
 - `benchmarks/narrator/HANDOFF-5090.md` is a machine handoff note, not a benchmark file. It should leave the repository; it stays on this branch because file deletion is outside this terminal's policy.
 
@@ -262,7 +262,7 @@ The narrator model is chosen by configuration with no code change:
 1. Owner setting (desktop, local Ollama at `http://127.0.0.1:11434`). Settings stores `model` in `OwnerExplanationSettings` (`PUT /v1/players/{player_id}/explanation-settings`). The name must be listed by `/api/tags`.
 2. Operator file. `SCAN64_LLM_CONFIG` names a TOML file read by `LLMProviderConfig.from_toml`. It takes precedence over the owner setting.
 
-For the chosen model:
+For the chosen model, `scan64-cli narrator install` (#429) does steps 1 to 3 after checking Ollama and 4 GiB of free GPU memory ([user guide](../user-guide.md#the-recommended-narrator-model)). By hand:
 
 1. Download `gemma-4-E4B-it-Q3_K_M.gguf` from `unsloth/gemma-4-E4B-it-GGUF` at revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`. Check its sha256 `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`. `--setup --models gemma4-e4b-q3km` does both steps.
 2. Render `benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile`: substitute `@GGUF@`, `@NUM_CTX@` (4096) and `@NUM_PREDICT@` (2048).
@@ -278,7 +278,7 @@ base_url = "http://127.0.0.1:11434"
 context_tokens = 4096
 ```
 
-Set `SCAN64_LOCAL_LLM_CONTEXT_TOKENS=4096` for the local provider, so it does not reserve the 12288-token default.
+Since #429, 4096 is the default `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` and `llm.context_tokens`, so neither needs setting.
 
 ## Limits
 
@@ -286,9 +286,11 @@ Set `SCAN64_LOCAL_LLM_CONTEXT_TOKENS=4096` for the local provider, so it does no
 - Position sets: the Caissa set has 32 positions, the Stockfish set 50, so the engine columns compare different positions.
 - Coverage counts slots: a fact counts only when the answer uses a slot that states it. Free-prose coverage counts claim text. The two are close but not the same measure.
 - Timeout: the app's local-Ollama timeout defaults to 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, up to 600 s). The benchmark client allowed 120 s; the largest p95 was 7.06 s.
-- Thinking: every benchmark call sent `think = false`. The app adapters send no `think` field, so production calls of a thinking-capable model can differ from these numbers.
+- Thinking: every benchmark call sent `think = false`. Before #429 the app adapters sent no `think` field, so production calls of a thinking-capable model could differ from these numbers; since #429 both Ollama paths send `think: false`.
 - One GPU class: all factor, slot and free-prose runs are on an RTX 5090. Latency on smaller GPUs is higher (see the RTX 4080 Laptop run below). CPU latency is measured only for `praxis-4b` and `qwen3.5-4b`, on the pre-#367 prompt.
 - Provenance of the five runs above (`runs_20261127_213350`, `_220133`, `_221105`, `_222432`, `_223247`): their headers predate `config_sha256` and `narrator_sha256`, so they cannot be resumed and the header alone does not name the `narrator.toml` or the narrator modules that ran. Both follow from git, because every header has `dirty: false`: `benchmarks/narrator/narrator.toml` has not changed since `29f0424` (`git log -- benchmarks/narrator/narrator.toml`; sha256 `7f109df11a1a` at all three header commits), and `src/scan64/explanations` is identical at `29f0424`, `ecfc8de` and `937353f` (`narrator_sha256` as the runner now computes it: `792cd8a8b563`, 15 files).
+- Model identity: in the five runs above, the warm-up record of the `gemma4-e4b-q3km` block records `ollama_digest` `ad97a99ee9b6546cc60b596070d6b4c2bee8e71f142b1123293d47dbb9dcbec6`, the Ollama model digest, not the GGUF SHA-256. On linux-5090, Ollama 0.40.18, `ollama create` from the benchmark's rendered Modelfile (`<gguf_cache>/modelfiles/gemma4-e4b-q3km.Modelfile`: the GGUF `0980898d…55f4`, `PARAMETER num_ctx 12288`) gives that digest again, so it names this GGUF. The benchmark requests set `num_ctx` 4096 in their options. The same Modelfile with `num_ctx 4096` gives `74b9b3a8b3e02db38ea0c1fb7e08ecf5b2af35a761095a42346608d126740a03`, the digest of the model `scan64-cli narrator install` creates.
+- Positions: every benchmark position is a game move with a played move (50 in `positions.json`, 32 in `positions-caissa.json`). The Analysis Board path (`POST /v1/analysis/position/explanation`, the board-lines prompt) is not measured. In the #429 GPU smoke it fell back to the template on 16 of 16 requests, each with `chess_token_outside_slot`. In the 13 logged answers, 37 of 48 claims have a chess word outside a slot, `material` in 28 of them: the model states the outcome in plain words, instead of or as well as the `{outcome:…}` and `{balance:…}` slots. Game-move answers through the app were accepted (2 of 2).
 - This measures narrator wording, not chess improvement for players.
 
 ## Interim slot run (superseded)

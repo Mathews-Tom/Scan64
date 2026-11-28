@@ -8,7 +8,7 @@ configurable through the environment (documented in docs/narrator-pipeline.md):
 | ``SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`` | 180 | model listing plus chat, one deadline |
 | ``SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES`` | 262144 (256 KiB) | serialised chat request |
 | ``SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES`` | 262144 (256 KiB) | each response body |
-| ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 12288 | ``num_ctx``; a prompt filling it is rejected |
+| ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 4096 | ``num_ctx``; a prompt filling it is rejected |
 
 The installation probe (``detect_local_ollama``) sends no evidence and keeps
 its fixed 4 s deadline. An invalid value raises ``LLMConfigurationError``.

@@ -259,6 +259,36 @@ describe('Local explanation settings', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('preselects the recommended narrator model but keeps a saved model (#429)', async () => {
+    const recommended = 'scan64-narrator-gemma4-e4b-q3km:latest';
+    const probe = { available: true, models: ['local:a', recommended, 'local:b'], recommended_model: recommended };
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null })).mockResolvedValueOnce(response(probe));
+    const view = render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue(recommended);
+    expect(screen.getByRole('option', { name: `${recommended} (recommended)` })).toBeInTheDocument();
+    expect(screen.queryByText(/is not installed/)).not.toBeInTheDocument();
+    view.unmount();
+
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'local', model: 'local:b', voice: 'coach' })).mockResolvedValueOnce(response(probe));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue('local:b');
+  });
+
+  it('names the install step when the recommended model is missing (#429)', async () => {
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'], recommended_model: 'scan64-narrator-gemma4-e4b-q3km:latest' }));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue('local:a');
+    expect(screen.getByText(/is not installed/)).toHaveTextContent('scan64-cli narrator install');
+    expect(screen.getByText(/is not installed/)).toHaveTextContent('built-in templates');
+  });
+
   it('keeps operator configuration read-only', async () => {
     owner();
     fetchMock.mockResolvedValue(response({ mode: 'operator', model: 'managed' }));

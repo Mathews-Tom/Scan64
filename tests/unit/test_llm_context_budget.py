@@ -1,20 +1,21 @@
-"""The default Ollama context fits the longest narrator prompt plus an answer (#388).
+"""The default Ollama context fits the longest narrator prompt plus an answer (#388, #429).
 
 Ollama silently drops the start of a prompt that fills ``num_ctx``, so the
 default window must hold the largest prompt of either kind plus the output
-budget: the lesson NarratorFacts prompt for every fixture diagnosis, and the
-Analysis Board prompt for every recorded position at the largest MultiPV the
-endpoint allows (the hint MultiPV). The test needs no tokenizer: it bounds tokens from
-characters. Narrator prompts are JSON with many short keys, SAN and UCI
-tokens; the measured runs in docs/narrator-pipeline.md and the #367
-benchmark give about 1.8-2.1 characters per token. 1.75 characters per token
-over-counts tokens, so the estimate is conservative.
+budget: the lesson prompt for every fixture diagnosis, and the Analysis Board
+prompt for every recorded position at the largest MultiPV the endpoint allows
+(the hint MultiPV). The test needs no tokenizer: it bounds tokens from
+characters with ``assembly.estimated_prompt_tokens`` (2.4 characters per
+token). Since #408 the prompt is the system prompt and slot list, not the facts
+JSON; the lowest ratio the #428 benchmark measured is 2.63 characters per token
+(gemma4-12b; 2.64 for the default model gemma4-e4b-q3km, 534 calls each), so
+the estimate over-counts tokens. The 1.75 used before #429 was set for the
+facts JSON prompt.
 """
 
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import chess
@@ -31,23 +32,23 @@ from scan64.explanations.facts import build_narrator_facts
 from scan64.providers.llm import local_ollama
 from scan64.providers.llm.adapters import DEFAULT_OLLAMA_CONTEXT_TOKENS
 from scan64.providers.llm.config import LLMProviderConfig
-from scan64.providers.llm.contracts import ExplanationRequest
+from scan64.providers.llm.contracts import ExplanationRequest, LLMMessage
 from scan64.providers.stockfish.pool import HINT_MULTIPV
 from tests.unit.test_narrator_facts import _CASES, _diagnoses
 
-CHARS_PER_TOKEN = 1.75
 OUTPUT_TOKEN_BUDGET = 2048
 BOARD_RECORDING = json.loads(
     (Path(__file__).parents[1] / "fixtures/analysis_board_lines.json").read_text(encoding="utf-8")
 )
 
 
-def _estimated_tokens(characters: int) -> int:
-    return math.ceil(characters / CHARS_PER_TOKEN)
-
-
 def _characters(request: ExplanationRequest) -> int:
     return sum(len(message.content) for message in request.messages)
+
+
+def _estimated_tokens(characters: int) -> int:
+    message = LLMMessage(role="user", content="x" * characters)
+    return assembly.estimated_prompt_tokens(ExplanationRequest(messages=(message,)))
 
 
 async def _longest_lesson_prompt() -> tuple[int, str]:
@@ -91,3 +92,8 @@ async def test_default_context_fits_the_longest_prompt_and_the_output_budget(kin
             f"{case_id}: {characters} chars is about {_estimated_tokens(characters)} tokens; "
             f"plus {OUTPUT_TOKEN_BUDGET} output tokens exceeds num_ctx {window}"
         )
+
+
+def test_the_prompt_size_target_plus_the_answer_fits_the_default_context() -> None:
+    """test_narrator_prompt_size keeps every prompt, in every voice, under the target."""
+    assert assembly.PROMPT_TOKEN_TARGET + OUTPUT_TOKEN_BUDGET <= DEFAULT_OLLAMA_CONTEXT_TOKENS

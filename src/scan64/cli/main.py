@@ -5,6 +5,7 @@ import sys
 from scan64.chess.opponents.bot_policy import DEFAULT_BOT_NODES
 from scan64.cli.analyse import analyse_command
 from scan64.cli.bots import calibrate_command
+from scan64.cli.narrator import add_narrator_parser, narrator_command
 from scan64.cli.puzzles import add_puzzle_parser, puzzles_command
 from scan64.cli.serve import serve_command
 
@@ -36,6 +37,10 @@ def main() -> None:
         subparsers.add_parser("puzzles", help="Import the CC0 Lichess puzzle catalog.")
     )
 
+    add_narrator_parser(
+        subparsers.add_parser("narrator", help="Install the default local narrator model.")
+    )
+
     serve_parser = subparsers.add_parser(
         "serve", help="Serve the built web client and API together."
     )
@@ -55,6 +60,8 @@ def main() -> None:
         sys.exit(asyncio.run(calibrate_command(args.stockfish, nodes=args.nodes)))
     elif args.command == "puzzles":
         sys.exit(puzzles_command(args))
+    elif args.command == "narrator":
+        sys.exit(narrator_command(args))
     elif args.command == "serve":
         if not 1 <= args.port <= 65535:
             parser.error("--port must be between 1 and 65535")

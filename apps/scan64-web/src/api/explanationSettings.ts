@@ -16,6 +16,15 @@ export interface ExplanationSettings {
 export interface LocalExplanationProbe {
   available: boolean;
   models: string[];
+  /** The default narrator model (#429); servers before #429 omit it. */
+  recommended_model?: string;
+}
+
+/** Choose the saved model, else the recommended one, else the first listed (#429). */
+export function initialModel(probe: LocalExplanationProbe, saved: string | null | undefined): string {
+  if (saved && probe.models.includes(saved)) return saved;
+  if (probe.recommended_model && probe.models.includes(probe.recommended_model)) return probe.recommended_model;
+  return probe.models[0] ?? '';
 }
 
 export function storedExplanationOwner(): string | null {

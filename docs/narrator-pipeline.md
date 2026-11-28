@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -25,8 +25,8 @@ flowchart TD
     RE --> TP["TemplateExplanationProvider.explain<br/>always computed first"]
     RE --> NF["build_narrator_facts<br/>explanations/facts.py<br/>JSON, schemas/narrator-facts.schema.json"]
     NF -->|"NarratorFactsError"| TP
-    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter (num_ctx 12288) / HostedExplanationAdapter"]
-    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, num_ctx 12288"]
+    NF -->|"SCAN64_LLM_CONFIG set"| OP["create_llm_provider<br/>OllamaExplanationAdapter (think false, num_ctx 4096) / HostedExplanationAdapter"]
+    NF -->|"unset + owner grant"| LO["LocalOllamaExplanationProvider<br/>127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits<br/>default 180 s, 256 KiB / 256 KiB, think false, num_ctx 4096"]
     GR["OwnerExplanationSettings<br/>explanations/settings.py<br/>api/explanation_settings.py"] --> LO
     OP --> VA["validate_generated_explanation<br/>explanations/validator.py"]
     LO --> VA
@@ -187,7 +187,7 @@ Measured prompt sizes on real Stockfish evidence are in section 6.
 | Local Ollama response | body > `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` (default 256 KiB) raises `LLMProviderError` | `LocalOllamaLimits`, `local_ollama.py` |
 | Local Ollama time | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` (default 180 s, maximum 600 s) for model listing plus chat, one `asyncio.timeout`; 180 s covers a cold model load plus the slowest measured request. The evidence-free settings probe keeps 4 s | `LocalOllamaLimits`, `_PROBE_SECONDS`, `local_ollama.py` |
 | Coach | 0.25 s for consent read plus generation | `coach_interruption.py:39,139` |
-| Ollama context | both Ollama paths send `options.num_ctx`: the local provider `SCAN64_LOCAL_LLM_CONTEXT_TOKENS`, the operator adapter `llm.context_tokens`. The default is 12288 (`DEFAULT_OLLAMA_CONTEXT_TOKENS`): the longest prompt plus a 2,048-token answer, with room to spare since #408 (system prompt and slot list only: largest measured 1,410 tokens for a lesson and 1,608 for the Analysis Board at MultiPV 4, section 16; with the facts JSON, before #408, about 7,400 and 6,000). Use at least 8192. A response whose `prompt_eval_count` reaches `num_ctx` raises `LLMProviderError` (Ollama drops the start of a longer prompt). `test_llm_context_budget.py` fails if the largest fixture prompt of either kind (every lesson fixture diagnosis; every recorded Analysis Board position at the hint MultiPV), at 1.75 characters per token, plus 2,048 output tokens exceeds the default | `OllamaExplanationAdapter.generate`, `adapters.py` |
+| Ollama context | both Ollama paths send `options.num_ctx`: the local provider `SCAN64_LOCAL_LLM_CONTEXT_TOKENS`, the operator adapter `llm.context_tokens`. The default is 4096 (`DEFAULT_OLLAMA_CONTEXT_TOKENS`, #429): the longest prompt plus a 2,048-token answer (system prompt and slot list only since #408: largest measured 1,565 tokens for a lesson in the #428 benchmark and 1,608 for the Analysis Board at MultiPV 4, section 16; with the facts JSON, before #408, about 7,400 and 6,000). The default was 12288 before #429. Use at least 4096. A response whose `prompt_eval_count` reaches `num_ctx` raises `LLMProviderError` (Ollama drops the start of a longer prompt). `test_llm_context_budget.py` fails if the largest fixture prompt of either kind (every lesson fixture diagnosis; every recorded Analysis Board position at the hint MultiPV), at `estimated_prompt_tokens` (2.4 characters per token; the #428 benchmark's lowest measured ratio is 2.63), plus 2,048 output tokens exceeds the default, or if `PROMPT_TOKEN_TARGET` plus 2,048 does | `OllamaExplanationAdapter.generate`, `adapters.py` |
 
 Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_threat`) were replayed from the before FEN, began with an opponent move and were always rejected as illegal. They are now prefixed with the played move, so every trusted code can cite its continuation, for example `["g1f3", "g5g2"]` (the learner's Nf3, then the reply Qxg2). A line from the after-position without the played move is still rejected (`illegal_line_move`).
 
@@ -195,7 +195,7 @@ Before #367 the after-position lines (`focused_line`, `threat_move`, `incoming_t
 
 | Provider | Transport | Output contract | Reference |
 |---|---|---|---|
-| `OllamaExplanationAdapter` | `POST {base_url}/api/chat`, `stream: false`, `format` = `GeneratedExplanation` JSON schema; with `context_tokens`, also `options.num_ctx` | `message.content` parsed by `GeneratedExplanation.model_validate_json`; with `context_tokens`, `prompt_eval_count >= context_tokens` raises `LLMProviderError` (truncated prompt) | `adapters.py` |
+| `OllamaExplanationAdapter` | `POST {base_url}/api/chat`, `stream: false`, `think: false` (#429: the narrator must not reason; the benchmark measured every model with it), `format` = `GeneratedExplanation` JSON schema; with `context_tokens`, also `options.num_ctx` | `message.content` parsed by `GeneratedExplanation.model_validate_json`; with `context_tokens`, `prompt_eval_count >= context_tokens` raises `LLMProviderError` (truncated prompt) | `adapters.py` |
 | `HostedExplanationAdapter` | `POST {base_url}/v1/chat/completions`, bearer key from `llm.api_key_environment`, one forced strict function `submit_grounded_explanation` | `tool_calls[0].function.arguments` parsed the same way; `_strict_schema` marks every property required and removes defaults | `adapters.py:110-172` |
 | `LocalOllamaExplanationProvider` | fixed `LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"`; `_BoundedTransport` (no proxy env, no retries, no redirects, identity encoding only) | lists `/api/tags`, requires the granted model to be installed and not a `*cloud` name or remote entry (`_permitted_name`, `_models`), rechecks consent in a request hook (`_authorize_dispatch`), then delegates to `OllamaExplanationAdapter` with `context_tokens` | `local_ollama.py` |
 
@@ -208,12 +208,29 @@ Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
 ```toml
 [llm]
 provider = "ollama"
-model = "qwen3:8b"
+model = "scan64-narrator-gemma4-e4b-q3km:latest"
 base_url = "http://127.0.0.1:11434"
-context_tokens = 12288  # optional; sent as options.num_ctx
+context_tokens = 4096  # optional; sent as options.num_ctx
 ```
 
-`llm.context_tokens` defaults to 12288 and accepts integers in [2048, 131072]. Use at least 8192; below that, the longest prompt fills the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
+`llm.context_tokens` defaults to 4096 and accepts integers in [2048, 131072]. Use at least 4096; below that, the longest prompt plus its answer can fill the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
+
+### Default local model (#429)
+
+The default narrator model is gemma-4-E4B-it at Q3_K_M, chosen in #389 from the #428 benchmark ([narrator model evaluation](evaluation/narrator-models.md#decision)). `providers/llm/narrator_model.py` pins it:
+
+| Field | Value |
+|---|---|
+| Ollama name | `scan64-narrator-gemma4-e4b-q3km:latest` (`DEFAULT_NARRATOR_MODEL`) |
+| Source | `unsloth/gemma-4-E4B-it-GGUF`, revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, file `gemma-4-E4B-it-Q3_K_M.gguf` (4,058,137,728 bytes) |
+| SHA-256 | `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
+| Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
+| Licence | Apache-2.0 (GGUF `general.license`), [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship the weights |
+| GPU memory | 2.96–3.13 GiB measured at `num_ctx` 4096 (RTX 5090, `runs_20261127_213350`); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
+
+`scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q3km` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
+
+Selection stays with the owner grant (section 7): nothing is enabled without consent. The probe returns `recommended_model`, and Settings preselects it when it is listed, unless the owner's saved grant names another listed model. A saved grant is never rewritten. Without a grant, without Ollama, or without the granted model in `/api/tags`, the template explanation is used and no evidence is sent (`test_without_a_local_model_the_template_explains`). The hosted (OpenAI-compatible) adapter sends no `think` field: it is not part of that API.
 
 ### Local Ollama limits
 
@@ -224,9 +241,9 @@ context_tokens = 12288  # optional; sent as options.num_ctx
 | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | (0, 600] | model listing plus chat, one `asyncio.timeout` and the httpx timeout |
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | serialised chat request, checked before any network I/O |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` (256 KiB) | [1024, 16 MiB] | each response body, checked while streaming |
-| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `12288` | [2048, 131072]; use at least 8192 | `options.num_ctx`; a prompt that fills it is rejected |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `4096` | [2048, 131072]; use at least 4096 | `options.num_ctx`; a prompt that fills it is rejected |
 
-Ollama allocates the KV cache for the whole `num_ctx` when it loads the model, so every 4,096 tokens of context cost the memory below whether a prompt uses them or not; on an 8 GB GPU or CPU only, 8192 saves that memory (with the facts JSON prompt before #408 it left about 800 tokens for the answer to the longest lesson prompt; the slot-list prompt leaves over 6,000). Measured 2026-11-27 on an RTX 5090, Ollama 0.40.18, default f16 KV cache, model loaded with a one-token generation, GPU memory used minus the 1,132 MiB baseline (`/api/ps` `size_vram` in brackets; for gemma4-12b it reports about 1.4 GiB, far below the memory in use):
+Ollama allocates the KV cache for the whole `num_ctx` when it loads the model, so every 4,096 tokens of context cost the memory below whether a prompt uses them or not. The 4096 default reserves the least that still fits the longest prompt and its answer. Measured 2026-11-27 on an RTX 5090, Ollama 0.40.18, default f16 KV cache, model loaded with a one-token generation, GPU memory used minus the 1,132 MiB baseline (`/api/ps` `size_vram` in brackets; for gemma4-12b it reports about 1.4 GiB, far below the memory in use):
 
 | Model | `num_ctx` 8192 | 12288 | 16384 | per 4,096 tokens |
 |---|---|---|---|---|
@@ -256,7 +273,7 @@ A run between these two, with the current prompt before it stated that `line` ho
 - Table `OwnerExplanationSettings(player_id, model, revision, voice)` (`explanations/settings.py`). `voice` (#387, migration `20261127_26`) is nullable; NULL reads as the default voice (`stored_narrator_voice`).
 - API router `/v1/players/{player_id}/explanation-settings` (`api/explanation_settings.py:18`):
   - `GET` returns `mode` `disabled` | `local` | `operator` and, in `local` mode, the saved `voice` (`get_explanation_settings`).
-  - `POST /probe` calls `detect_local_ollama` and lists local model names. It sends no evidence (`probe_explanation_settings`).
+  - `POST /probe` calls `detect_local_ollama` and lists local model names, with `recommended_model` (#429, section 6). It sends no evidence (`probe_explanation_settings`).
   - `PUT` takes `{model, consent}` and an optional `voice`. `consent` must equal `model is not None`. A `voice` without a model is rejected (422). An absent `voice` keeps the saved voice; a new grant without one gets the default. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under `lock_puzzle_player`, then inserts, updates (new `revision`) or deletes the row (`set_explanation_settings`).
   - Both write endpoints return 409 while `SCAN64_LLM_CONFIG` is set (`_require_settings_control`).
 - Job fence: `_execute_analysis_job_async` selects `local_explanation_owner_generation` (deletion-audit count) in the same query as the game (`jobs.py:550`). `read_local_explanation_provider` (`settings.py:81-98`) returns a provider only if the committed grant's generation matches. It wraps the provider in `LocalNarratorProvider`, which carries the voice read with the grant. Its `still_authorized` closure requires the same `(model, revision)` at chat dispatch; a voice change does not revoke the grant.
@@ -352,7 +369,7 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 | No evaluation of which open model words chess lines with the fewest false statements | — | #369 |
 | ~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies | `facts.py` | #367 |
 | ~~Only the position after a line's first move has an engine score; later plies are `unknown`~~ Resolved: every ply up to 8 is scored (section 5, "Evaluations along lines"; section 12, "Per-move scoring") | `line_scoring.py`, `pool.py` | #367, #368 |
-| ~~The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error~~ Resolved: `llm.context_tokens` (default 12288) and the truncation check | `create_llm_provider`, `config.py` | #388 |
+| ~~The operator-configured Ollama adapter sends no `num_ctx`; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error~~ Resolved: `llm.context_tokens` (default 12288, 4096 since #429) and the truncation check | `create_llm_provider`, `config.py` | #388 |
 | Coach focused evidence is a 10 000-node MultiPV 1 search | `coach_interruption.py:250` | #360 |
 | The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt | `jobs.py:306`, `assembly.py:115` | #367 |
 | The explanation records no source (fallbacks are logged and counted since #366) | section 9 | — |
@@ -470,7 +487,7 @@ The narrator writes prose with named slots; code writes every chess token. For e
 
 `K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
 
-Analysis Board slots, per line evidence item `line-K`. The `comparison` item may use the slots of every line; the slot list names those lines (`SlotCatalogue.combined`: `evidence_ref "comparison"; lines line-1, line-2, ...:`) instead of repeating their slots (#415), so each line's slots appear once and the board prompt stays inside the 12288-token default with a 2,048-token answer (`tests/unit/test_llm_context_budget.py`) and under the #408 target (`tests/unit/test_narrator_prompt_size.py`):
+Analysis Board slots, per line evidence item `line-K`. The `comparison` item may use the slots of every line; the slot list names those lines (`SlotCatalogue.combined`: `evidence_ref "comparison"; lines line-1, line-2, ...:`) instead of repeating their slots (#415), so each line's slots appear once and the board prompt stays inside the 4096-token default (12288 before #429) with a 2,048-token answer (`tests/unit/test_llm_context_budget.py`) and under the #408 target (`tests/unit/test_narrator_prompt_size.py`):
 
 | Slot | Value (example) |
 |---|---|

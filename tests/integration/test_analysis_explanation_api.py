@@ -36,7 +36,9 @@ from scan64.explanations.board_lines import (
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, OwnerExplanationSettings
 from scan64.explanations.validator import validate_generated_explanation
 from scan64.providers.llm import ExplanationRequest, LLMProviderError
+from scan64.providers.llm import local_ollama as local_ollama_module
 from scan64.providers.llm.contracts import GeneratedExplanation
+from scan64.providers.llm.narrator_model import DEFAULT_NARRATOR_MODEL
 from scan64.providers.stockfish.pool import HINT_MULTIPV, HINT_NODES
 
 ENDPOINT = "/v1/analysis/position/explanation"
@@ -316,6 +318,109 @@ def test_the_owner_grant_selects_the_local_provider(
     assert models == ["granted-model"]
     assert data["source"] == "template"
     assert data["fallback_reason"] == "provider_error"
+
+
+class _OllamaDouble:
+    """The local Ollama daemon behind the app's real local provider (#429)."""
+
+    def __init__(self, installed: list[str], *, running: bool = True) -> None:
+        self.installed = installed
+        self.running = running
+        self.paths: list[str] = []
+        self.chats: list[dict[str, Any]] = []
+
+    def __call__(self, **_kwargs: object) -> httpx.MockTransport:
+        return httpx.MockTransport(self.handle)
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "127.0.0.1" and request.url.port == 11434
+        self.paths.append(request.url.path)
+        if not self.running:
+            raise httpx.ConnectError("refused", request=request)
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": n} for n in self.installed]})
+        assert request.url.path == "/api/chat"
+        self.chats.append(json.loads(request.content))
+        claim = {
+            "text": "The engine's first choice is {first:line-1}, scored {eval:line-1}.",
+            "evidence_ref": "line-1",
+            "line": ["e2e4"],
+            "certainty": "observed",
+            "disclosure_level": 1,
+        }
+        content = json.dumps({"claims": [claim]})
+        return httpx.Response(200, json={"prompt_eval_count": 900, "message": {"content": content}})
+
+
+def test_the_default_narrator_request_through_the_real_app(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Settings grant, then one explanation: model tag, think false, num_ctx 4096 (#429)."""
+    monkeypatch.delenv(local_ollama_module.CONTEXT_TOKENS_ENV, raising=False)
+    daemon = _OllamaDouble(["other-model:latest", DEFAULT_NARRATOR_MODEL])
+    monkeypatch.setattr(local_ollama_module.httpx, "AsyncHTTPTransport", daemon)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", recorded("start"))
+    headers = register(db_session)
+    settings = f"/v1/players/{PLAYER}/explanation-settings"
+    probe = client.post(f"{settings}/probe", headers=headers).json()
+    assert probe["recommended_model"] == DEFAULT_NARRATOR_MODEL
+    assert DEFAULT_NARRATOR_MODEL in probe["models"]
+    grant = {"model": probe["recommended_model"], "consent": True}
+    assert client.put(settings, headers=headers, json=grant).json()["model"] == (
+        DEFAULT_NARRATOR_MODEL
+    )
+    daemon.paths.clear()
+
+    data = client.post(ENDPOINT, headers=headers, json=body("start")).json()
+    assert data["source"] == "narrator", data
+    assert daemon.paths == ["/api/tags", "/api/chat"]
+    [chat] = daemon.chats
+    assert chat["model"] == DEFAULT_NARRATOR_MODEL
+    assert chat["think"] is False
+    assert chat["options"] == {"num_ctx": 4096}
+    assert chat["stream"] is False
+
+
+@pytest.mark.parametrize("player", ["no-grant", "model-not-installed", "ollama-stopped"])
+def test_without_a_local_model_the_template_explains(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, player: str
+) -> None:
+    """Players without the model or Ollama keep the template; no evidence leaves (#429)."""
+    daemon = _OllamaDouble(
+        ["other-model:latest"] if player == "model-not-installed" else [],
+        running=player != "ollama-stopped",
+    )
+    monkeypatch.setattr(local_ollama_module.httpx, "AsyncHTTPTransport", daemon)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", recorded("start"))
+    headers = register(db_session)
+    template = client.post(ENDPOINT, headers=headers, json=body("start")).json()
+    assert daemon.paths == []
+    if player != "no-grant":
+        db_session.add(OwnerExplanationSettings(player_id=PLAYER, model=DEFAULT_NARRATOR_MODEL))
+        db_session.commit()
+    data = client.post(ENDPOINT, headers=headers, json=body("start")).json()
+    assert data["source"] == "template"
+    assert data["claims"] == template["claims"]
+    assert data["fallback_reason"] == (None if player == "no-grant" else "provider_error")
+    assert daemon.chats == []
+    assert daemon.paths == ([] if player == "no-grant" else ["/api/tags"])
+
+
+def test_a_saved_grant_for_another_model_is_kept(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default model does not replace a model the player chose (#429)."""
+    daemon = _OllamaDouble(["other-model:latest", DEFAULT_NARRATOR_MODEL])
+    monkeypatch.setattr(local_ollama_module.httpx, "AsyncHTTPTransport", daemon)
+    monkeypatch.setattr(app.state.engine_pool_manager, "analyze_hint", recorded("start"))
+    headers = register(db_session)
+    db_session.add(OwnerExplanationSettings(player_id=PLAYER, model="other-model:latest"))
+    db_session.commit()
+    settings = f"/v1/players/{PLAYER}/explanation-settings"
+    assert client.get(settings, headers=headers).json()["model"] == "other-model:latest"
+    client.post(ENDPOINT, headers=headers, json=body("start"))
+    assert [chat["model"] for chat in daemon.chats] == ["other-model:latest"]
+    assert client.get(settings, headers=headers).json()["model"] == "other-model:latest"
 
 
 @pytest.mark.parametrize("multipv", [1, 2, 4])
