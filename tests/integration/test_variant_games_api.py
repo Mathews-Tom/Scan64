@@ -139,7 +139,7 @@ def test_variant_position_reports_drops_pockets_and_san(
     assert "P@e5" in body["legal_moves"]
     assert body["san"][-1] == "Qa5"
     dropped = _position(client, headers, variant="crazyhouse", moves=[*moves, "P@e5"]).json()
-    assert dropped["san"][-1] == "@e5"
+    assert dropped["san"][-1] == "P@e5"
     assert dropped["pockets"] == {"white": {}, "black": {"p": 1}}
     assert body["remaining_checks"] is None
 

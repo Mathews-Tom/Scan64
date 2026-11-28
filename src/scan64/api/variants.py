@@ -81,7 +81,7 @@ def variant_position(request: VariantPositionRequest) -> VariantPositionRead:
             raise ValueError(f"Move {index + 1} {uci!r} is not UCI") from None
         if not board.is_legal(move):
             raise ValueError(f"Move {index + 1} {uci} is illegal in {board.fen()}")
-        sans.append(board.san(move))
+        sans.append(_san(board, move))
         board.push(move)
     outcome = board.outcome()
     return VariantPositionRead(
@@ -115,6 +115,12 @@ def _pockets(board: chess.Board) -> Pockets | None:
         }
 
     return Pockets(white=hand(chess.WHITE), black=hand(chess.BLACK))
+
+
+def _san(board: chess.Board, move: chess.Move) -> str:
+    """SAN as PGN and Lichess write it: python-chess leaves the P off a pawn drop."""
+    san = board.san(move)
+    return f"P{san}" if move.drop == chess.PAWN else san
 
 
 def _remaining_checks(board: chess.Board) -> RemainingChecks | None:

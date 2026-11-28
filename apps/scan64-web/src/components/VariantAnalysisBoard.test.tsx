@@ -39,8 +39,7 @@ describe('VariantAnalysisBoard', () => {
     await waitFor(() => expect(whiteHand).toHaveTextContent('pawn ×1'));
     expect(screen.getByRole('group', { name: 'Black pieces in hand' }).querySelector('button')).toBeDisabled();
     enter('p@e6');
-    // python-chess writes a pawn drop without its letter.
-    await screen.findByRole('button', { name: '3. @e6' });
+    await screen.findByRole('button', { name: '3. P@e6' });
     expect(ApiClient.analyzePosition).toHaveBeenLastCalledWith(expect.objectContaining({ variant: 'crazyhouse' }));
     expect(screen.getByRole('group', { name: 'White pieces in hand' })).toHaveTextContent('none');
   });
