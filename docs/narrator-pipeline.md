@@ -208,27 +208,27 @@ Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
 ```toml
 [llm]
 provider = "ollama"
-model = "scan64-narrator-gemma4-e4b-q3km:latest"
+model = "scan64-narrator-gemma4-e4b-q4ks:latest"
 base_url = "http://127.0.0.1:11434"
 context_tokens = 4096  # optional; sent as options.num_ctx
 ```
 
 `llm.context_tokens` defaults to 4096 and accepts integers in [2048, 131072]. Use at least 4096; below that, the longest prompt plus its answer can fill the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
 
-### Default local model (#429)
+### Default local model (#429, #462)
 
-The default narrator model is gemma-4-E4B-it at Q3_K_M, chosen in #389 from the #428 benchmark ([narrator model evaluation](evaluation/narrator-models.md#decision)). `providers/llm/narrator_model.py` pins it:
+The default narrator model is gemma-4-E4B-it at Q4_K_S, chosen in #462 for the voice pipeline ([narrator model evaluation](evaluation/narrator-models.md#voice-pipeline-decision-462)). It replaces Q3_K_M, chosen in #389 for the slot prompt. `providers/llm/narrator_model.py` pins it:
 
 | Field | Value |
 |---|---|
-| Ollama name | `scan64-narrator-gemma4-e4b-q3km:latest` (`DEFAULT_NARRATOR_MODEL`) |
-| Source | `unsloth/gemma-4-E4B-it-GGUF`, revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, file `gemma-4-E4B-it-Q3_K_M.gguf` (4,058,137,728 bytes) |
-| SHA-256 | `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
-| Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
+| Ollama name | `scan64-narrator-gemma4-e4b-q4ks:latest` (`DEFAULT_NARRATOR_MODEL`) |
+| Source | `unsloth/gemma-4-E4B-it-GGUF`, revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, file `gemma-4-E4B-it-Q4_K_S.gguf` (4,844,850,304 bytes) |
+| SHA-256 | `0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
+| Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q4ks.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
 | Licence | Apache-2.0 (GGUF `general.license`), [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship the weights |
-| GPU memory | 2.96–3.13 GiB measured at `num_ctx` 4096 (RTX 5090, `runs_20261127_213350`); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
+| GPU memory | 2.84 GiB measured at `num_ctx` 4096 (RTX 5090, #462); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
 
-`scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q3km` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
+`scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q4ks` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
 
 Selection stays with the owner grant (section 7): nothing is enabled without consent. The probe returns `recommended_model`, and Settings preselects it when it is listed, unless the owner's saved grant names another listed model. A saved grant is never rewritten. Without a grant, without Ollama, or without the granted model in `/api/tags`, the template explanation is used and no evidence is sent (`test_without_a_local_model_the_template_explains`). The hosted (OpenAI-compatible) adapter sends no `think` field: it is not part of that API.
 

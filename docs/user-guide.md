@@ -516,7 +516,7 @@ Without a local model, or without a GPU that can run one, Scan64 uses its built-
 
 #### The recommended narrator model
 
-The recommended model is **gemma-4-E4B-it at Q3_K_M** (`scan64-narrator-gemma4-e4b-q3km:latest` in Ollama), chosen by the [narrator benchmark](evaluation/narrator-models.md#decision). It needs about 3 GB of GPU memory (2.96–3.13 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 3.8 GiB. Its weights are licensed Apache-2.0 under the [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship them.
+The recommended model is **gemma-4-E4B-it at Q4_K_S** (`scan64-narrator-gemma4-e4b-q4ks:latest` in Ollama), chosen by the [narrator benchmark](evaluation/narrator-models.md#voice-pipeline-decision-462). It needs about 3 GB of GPU memory (2.84 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 4.5 GiB. Its weights are licensed Apache-2.0 under the [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship them.
 
 Install it once, with [Ollama](https://ollama.com/download) installed and running. From a source checkout:
 
@@ -528,10 +528,10 @@ The command checks that Ollama is installed and answers at `127.0.0.1:11434`, an
 
 Without a source checkout (the desktop app), do the same steps by hand:
 
-1. Download `gemma-4-E4B-it-Q3_K_M.gguf` from <https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q3_K_M.gguf>.
-2. Check that its SHA-256 is `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`: `sha256sum` on Linux, `shasum -a 256` on macOS, `Get-FileHash` in Windows PowerShell. Delete the file if it differs.
-3. In the same folder, save the [Modelfile](../benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile) as `narrator.Modelfile`, with `@GGUF@` replaced by `./gemma-4-E4B-it-Q3_K_M.gguf`, `@NUM_CTX@` by `4096` and `@NUM_PREDICT@` by `2048`.
-4. Run `ollama create scan64-narrator-gemma4-e4b-q3km -f narrator.Modelfile` in that folder.
+1. Download `gemma-4-E4B-it-Q4_K_S.gguf` from <https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q4_K_S.gguf>.
+2. Check that its SHA-256 is `0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00`: `sha256sum` on Linux, `shasum -a 256` on macOS, `Get-FileHash` in Windows PowerShell. Delete the file if it differs.
+3. In the same folder, save the [Modelfile](../benchmarks/narrator/modelfiles/gemma4-e4b-q4ks.Modelfile) as `narrator.Modelfile`, with `@GGUF@` replaced by `./gemma-4-E4B-it-Q4_K_S.gguf`, `@NUM_CTX@` by `4096` and `@NUM_PREDICT@` by `2048`.
+4. Run `ollama create scan64-narrator-gemma4-e4b-q4ks -f narrator.Modelfile` in that folder.
 
 Then choose **Detect local Ollama**. Settings preselects the recommended model when it is installed, unless you already enabled another model; your saved choice stays until you change it. The model words engine facts only: Scan64 turns its thinking mode off (`think: false`) on every request. The model was measured with Ollama 0.40.18. If `ollama create` fails on an older Ollama, update Ollama and try again.
 
