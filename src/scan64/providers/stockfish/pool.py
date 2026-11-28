@@ -1,5 +1,7 @@
 import asyncio
+import dataclasses
 import json
+import logging
 import os
 from collections import OrderedDict
 from collections.abc import AsyncGenerator, Sequence
@@ -10,21 +12,35 @@ import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.opponents.bot_policy import choose_ladder_move
+from scan64.chess.opponents.bot_policy import (
+    bot_policy_version,
+    choose_elo_move,
+    choose_ladder_move,
+)
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import UciOptionValue
+from scan64.providers.engine.config import UciOptionValue, scaled_nodes
 from scan64.providers.engine.uci import (
+    ELO_LADDER_OPTIONS,
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    SEARCH_FAILURES,
+    BotPolicyMismatchError,
+    BotStrengthRangeError,
+    Engine,
     EngineCapabilityError,
     full_strength_options,
     missing_options,
+    open_engine,
     require_options,
+    search_failure_reason,
     startup_options,
+    within_declared_range,
 )
 from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
@@ -87,13 +103,13 @@ def engine_pool_enabled() -> bool:
 class PooledStockfishAdapter:
     def __init__(self, config: StockfishConfig):
         self.config = config
-        self._engine: chess.engine.UciProtocol | None = None
+        self._engine: Engine | None = None
         self._identity: dict[str, Any] | None = None
         self.game_token: object | None = None
 
     async def ensure_started(self) -> None:
         if self._engine is None:
-            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            engine = await open_engine(self.config)
             try:
                 await engine.configure(startup_options(engine, self.config))
                 self._identity = engine_identity(engine, self.config.binary_path)
@@ -105,7 +121,13 @@ class PooledStockfishAdapter:
     async def analysis_identity(self) -> dict[str, Any]:
         await self.ensure_started()
         assert self._engine is not None and self._identity is not None
-        return analysis_identity(self._engine, self._identity, self.config.threads)
+        return analysis_identity(
+            self._engine,
+            self._identity,
+            self.config.threads,
+            self.config.node_scale,
+            self.config.score_scale,
+        )
 
     async def reset(self) -> None:
         """Force the next UCI call to present a fresh game identity.
@@ -118,6 +140,29 @@ class PooledStockfishAdapter:
         search-history state between them.
         """
         self.game_token = object()
+
+    def discard(self) -> None:
+        """Forget a process that has exited; the next checkout starts a new one."""
+        self._engine = None
+        self._identity = None
+
+    def exited(self) -> bool:
+        """Whether the started process has exited (its search may have timed out instead).
+
+        python-chess resolves ``returncode`` with the process exit code when the
+        connection to the process is lost. Only a resolved future holding an
+        integer exit code counts: anything else (no process, a pending future,
+        an object without a real future) is a process that has not exited.
+        """
+        if self._engine is None:
+            return False
+        returncode: object = getattr(self._engine, "returncode", None)
+        if not isinstance(returncode, asyncio.Future):
+            return False
+        if not returncode.done() or returncode.cancelled():
+            return False
+        code: object = returncode.result()
+        return isinstance(code, int) and not isinstance(code, bool)
 
     async def quit(self) -> None:
         if self._engine is not None:
@@ -136,26 +181,72 @@ class PooledStockfishAdapter:
         options["Skill Level"] = skill_level
         await engine.configure(options)
         board = chess.Board(fen)
+        scaled = dataclasses.replace(limit, nodes=scaled_nodes(limit.nodes, self.config.node_scale))
         return await self._engine.play(
-            board, limit, info=chess.engine.INFO_SCORE, game=self.game_token
+            board, scaled, info=chess.engine.INFO_SCORE, game=self.game_token
         )
 
     async def play_bot_move(self, fen: str, context: OpponentContext) -> chess.engine.PlayResult:
         await self.ensure_started()
         assert self._engine is not None
         engine = self._engine
+        current = bot_policy_version(self.config)
+        saved = context.bot_policy_version
+        if saved is not None and saved != current:
+            raise BotPolicyMismatchError(
+                f"This game was started under the bot ladder {saved!r}; the server now "
+                f"plays {current!r}. Start a new game to play this level."
+            )
+        if self.config.ladder.strength == "elo":
+            return await self._play_elo_bot_move(engine, fen, context)
         try:
-            return await choose_ladder_move(engine, chess.Board(fen), context, self.game_token)
+            return await choose_ladder_move(
+                engine,
+                chess.Board(fen),
+                context,
+                self.game_token,
+                node_scale=self.config.node_scale,
+            )
         except chess.engine.EngineError as error:
             # The ladder resets Stockfish's strength controls and searches every
             # legal move; name the missing option instead of a raw UCI error.
             missing = missing_options(engine, (*FULL_STRENGTH, *LADDER_OPTIONS))
             if missing:
+                elo_hint = (
+                    ""
+                    if missing_options(engine, ELO_LADDER_OPTIONS)
+                    else '; it declares UCI_Elo, so set [ladder] strength = "elo" in its profile'
+                )
                 raise EngineCapabilityError(
                     f"The bot ladder requires UCI option(s) {', '.join(missing)}, which "
                     f"{engine.id.get('name', 'the configured engine')} does not declare"
+                    f"{elo_hint}"
                 ) from error
             raise
+
+    async def _play_elo_bot_move(
+        self, engine: Engine, fen: str, context: OpponentContext
+    ) -> chess.engine.PlayResult:
+        require_options(engine, ELO_LADDER_OPTIONS, "The Elo bot ladder")
+        assert context.bot_level is not None
+        ladder = self.config.ladder
+        assert ladder.movetime_ms is not None
+        elo = ladder.elo_for(context.bot_level)
+        if within_declared_range(engine, "UCI_Elo", elo) != elo:
+            declared = engine.options["UCI_Elo"]
+            raise BotStrengthRangeError(
+                f"Engine profile {self.config.name!r} gives bot level {context.bot_level} "
+                f"UCI_Elo {elo}, outside the {declared.min}-{declared.max} that "
+                f"{engine.id.get('name', 'the configured engine')} declares"
+            )
+        return await choose_elo_move(
+            engine,
+            chess.Board(fen),
+            context,
+            self.game_token,
+            elo=elo,
+            movetime_ms=ladder.movetime_ms,
+        )
 
     async def analyze_position(
         self,
@@ -171,8 +262,15 @@ class PooledStockfishAdapter:
         engine = self._engine
         await engine.configure(full_strength_options(engine, self.config.threads))
         board = fen if isinstance(fen, chess.Board) else chess.Board(fen)
+        limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
         raw_result = await search(
-            engine, board, search_limit(nodes, depth, time_ms), multipv, game=self.game_token
+            engine,
+            board,
+            limit,
+            multipv,
+            game=self.game_token,
+            deadline_s=self.config.search_deadline_s,
+            score_scale=self.config.score_scale,
         )
 
         config_dict = dict(
@@ -234,8 +332,16 @@ class EnginePool:
         await self.initialize()
         adapter = await self._queue.get()
         try:
+            if adapter.exited():
+                # An engine can exit without the search raising EngineTerminatedError
+                # (python-chess may report it as a search timeout): start a new one.
+                adapter.discard()
             await adapter.reset()
             yield adapter
+        except chess.engine.EngineTerminatedError:
+            # The caller still gets the error; later checkouts get a live engine.
+            adapter.discard()
+            raise
         finally:
             self._queue.put_nowait(adapter)
 
@@ -452,8 +558,10 @@ class EnginePoolManager:
         request's hint deadline. Same admission as ``analyze_hint``: no queue,
         250 ms acquisition, at least two interactive engines. Each search is
         ``nodes`` nodes at MultiPV 1. Results keep the input order; a position
-        not searched by the deadline, or when admission or the engine fails, is
-        ``None``. Completed searches are cached by the engine's analysis identity.
+        not searched by the deadline, or when admission or the engine fails (any
+        ``SEARCH_FAILURES`` error, logged by reason code), is ``None``; the
+        request still answers, with those positions unknown. Completed searches
+        are cached by the engine's analysis identity.
         """
         results: list[EngineAnalysis | None] = [None] * len(boards)
         loop = asyncio.get_running_loop()
@@ -492,11 +600,23 @@ class EnginePoolManager:
                         else:
                             self._line_cache.move_to_end(key)
                         results[index] = cached.model_copy(deep=True)
+                except chess.engine.EngineTerminatedError:
+                    # As in ``EnginePool.acquire``: later checkouts get a live engine.
+                    adapter.discard()
+                    raise
                 finally:
                     await lease.__aexit__(None, None, None)
-        except (TimeoutError, chess.engine.EngineError, OSError):
+        except SEARCH_FAILURES as error:
             # Best effort: unscored positions stay unknown in the facts.
-            pass
+            reason = search_failure_reason(error)
+            logger.log(
+                # Reaching the request deadline is routine; other failures are not.
+                logging.INFO if reason == "timeout" else logging.WARNING,
+                "Analysis Board line scoring left %d of %d positions unscored: %s",
+                results.count(None),
+                len(boards),
+                reason,
+            )
         finally:
             self._hint_in_progress = False
         return results

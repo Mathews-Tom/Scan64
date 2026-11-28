@@ -120,7 +120,9 @@ def test_daily_quota_env_var_is_validated_loudly(monkeypatch: pytest.MonkeyPatch
 
 
 def _wait_for_terminal_status(client: TestClient, job_id: str, headers: dict[str, str]) -> str:
-    deadline = time.monotonic() + 5.0
+    # A real Stockfish analysis: under parallel workers on a 3-core CI runner
+    # it can take several seconds. The loop returns as soon as the job ends.
+    deadline = time.monotonic() + 30.0
     status = "pending"
     while status not in {"completed", "failed"} and time.monotonic() < deadline:
         response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)

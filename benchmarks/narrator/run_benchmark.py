@@ -5,6 +5,8 @@ Usage (repository root, Ollama serving at each model's ``base_url``):
     uv run python -m benchmarks.narrator.run_benchmark CONFIG --models praxis-4b qwen3.5-4b
     uv run python -m benchmarks.narrator.run_benchmark CONFIG --resume RUNS.jsonl
     uv run python -m benchmarks.narrator.run_benchmark CONFIG --summarize RUNS.jsonl
+    uv run python -m benchmarks.narrator.run_benchmark CONFIG --voice terse \
+        --positions-file benchmarks/narrator/positions-caissa.json --num-ctx 4096
 
 Every generation goes through the production path: the configured
 ``pipeline_entry`` (default ``resolve_explanation``) with an
@@ -16,7 +18,9 @@ Each claim is then validated on its own against the same grounding context to
 count rejected claims per explanation and their reasons.
 
 One JSON line per (model, position, run) is appended to ``runs_<stamp>.jsonl``
-as soon as it finishes; ``--resume`` skips lines already present. The summary
+as soon as it finishes; ``--resume`` skips lines already present and refuses a
+run whose commit, GPU, Ollama version, positions file, voice or ``num_ctx``
+differs from the run header. The summary
 is written to ``summary_<stamp>.json`` and ``summary_<stamp>.md``.
 """
 
@@ -38,7 +42,7 @@ import time
 import tomllib
 from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -137,6 +141,8 @@ class BenchConfig:
     voice: NarratorVoice
     positions_file: Path
     models: tuple[ModelEntry, ...]
+    # The TOML file this config was read from; its digest is in the run header.
+    config_file: Path
 
 
 def load_config(path: Path) -> BenchConfig:
@@ -181,6 +187,7 @@ def load_config(path: Path) -> BenchConfig:
         voice=parse_narrator_voice(run.get("voice")),
         positions_file=REPO_ROOT / run.get("positions_file", raw["positions"]["file"]),
         models=models,
+        config_file=path.resolve(),
     )
 
 
@@ -197,15 +204,55 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
+def _config_label(path: Path) -> str:
+    """Repository-relative path of a config file, or its name outside the repository."""
+    return path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else path.name
+
+
+def narrator_package_files(source_file: Path) -> list[Path]:
+    """Every file of the package that holds the pipeline entry, sorted by path.
+
+    For ``scan64.explanations.assembly`` that is ``src/scan64/explanations``:
+    assembly, slots, facts, factor_facts, validator, board_lines, voice, the
+    factor port and the templates. Compiled caches are left out.
+    """
+    package = source_file.parent
+    return sorted(
+        path
+        for path in package.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    )
+
+
+def narrator_digest(source_file: Path) -> tuple[str, dict[str, str]]:
+    """sha256 over the package's files (path and content digest per line), and the per-file map."""
+    # Repository-relative names; a package outside the repository is named from its parent.
+    base = REPO_ROOT if source_file.is_relative_to(REPO_ROOT) else source_file.parent.parent
+    modules = {
+        path.relative_to(base).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in narrator_package_files(source_file)
+    }
+    combined = hashlib.sha256(
+        "".join(f"{name}\0{digest}\n" for name, digest in modules.items()).encode("utf-8")
+    ).hexdigest()
+    return combined, modules
+
+
 def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
-    """Pin the code under test: commit, whole-tree dirty flag, module and runner hashes.
+    """Pin the code under test: commit, whole-tree dirty flag, module, runner and config hashes.
 
     ``dirty`` covers the whole tree except the results directory, so uncommitted
-    runner or config changes are flagged, not only changes under ``src``.
+    runner or config changes are flagged, not only changes under ``src``. The
+    config digest also covers a ``--config`` file outside the repository, which
+    ``dirty`` cannot see. ``module_sha256`` covers the entry's own file only;
+    ``narrator_sha256`` covers every file of its package (``narrator_modules``
+    lists them), so a change to slots, facts, factor_facts or the validator
+    changes the header too.
     """
     entry = _resolve(config.pipeline_entry)
     source_file = Path(inspect.getfile(entry))
     results = config.results_dir.relative_to(REPO_ROOT).as_posix()
+    narrator_sha256, narrator_modules = narrator_digest(source_file)
     return {
         "pipeline_entry": config.pipeline_entry,
         "grounding_context": config.grounding_context,
@@ -214,8 +261,44 @@ def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
         "dirty": bool(_git("status", "--porcelain", "--", ".", f":(exclude){results}")),
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
+        "narrator_sha256": narrator_sha256,
+        "narrator_modules": narrator_modules,
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "config_file": _config_label(config.config_file),
+        "config_sha256": hashlib.sha256(config.config_file.read_bytes()).hexdigest(),
     }
+
+
+RESUME_PINNED = (
+    "pipeline_entry",
+    "grounding_context",
+    "commit",
+    "module_file",
+    "module_sha256",
+    "narrator_sha256",
+    "runner_sha256",
+    "config_sha256",
+)
+
+
+def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
+    """Refuse to append to a run whose header no longer describes the code (rule 6).
+
+    New records sit under the existing header, so the run must have started from a
+    clean tree, the tree must be clean now, and the commit, module, narrator package, runner and
+    config file digest must equal the header's. A header without one of these keys
+    (written by an older runner) cannot be resumed.
+    """
+    if identity["dirty"]:
+        raise RuntimeError("Resume refused: the working tree has uncommitted changes")
+    if header["pipeline"].get("dirty") is not False:
+        raise RuntimeError("Resume refused: the run started from a dirty or unrecorded tree")
+    changed = [key for key in RESUME_PINNED if header["pipeline"].get(key) != identity[key]]
+    if changed:
+        raise RuntimeError(
+            f"Resume refused: {', '.join(changed)} changed since the run started: "
+            f"{header['pipeline']} != {identity}"
+        )
 
 
 # --- Setup ---------------------------------------------------------------------
@@ -255,11 +338,16 @@ def _download_gguf(model: ModelEntry, cache: Path) -> Path:
     return target
 
 
-def setup_models(config: BenchConfig, ollama_binary: str) -> None:
-    """Create one Ollama model per entry from its Modelfile (idempotent)."""
+def setup_models(
+    config: BenchConfig, ollama_binary: str, models: Sequence[ModelEntry] | None = None
+) -> None:
+    """Create one Ollama model per entry from its Modelfile (idempotent).
+
+    ``models`` limits setup to a subset (``--models``); default every entry.
+    """
     build_dir = config.gguf_cache / "modelfiles"
     build_dir.mkdir(parents=True, exist_ok=True)
-    for model in config.models:
+    for model in config.models if models is None else models:
         text = (MODELFILES / f"{model.name}.Modelfile").read_text(encoding="utf-8")
         text = text.replace("@NUM_CTX@", str(config.num_ctx))
         text = text.replace("@NUM_PREDICT@", str(config.num_predict))
@@ -948,6 +1036,7 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         rejected = [sum(1 for c in run["claims"] if c["rejection_reason"]) for run in generated]
         san = [token for claim in claims for token in claim["san_tokens"]]
         latencies = [run["latency_s"] for run in runs]
+        prompt_tokens = [r["prompt_eval_count"] for r in runs if r["prompt_eval_count"] is not None]
         accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
         covered = [run_coverage(run, facts[run["position_id"]]) for run in accepted_runs]
         by_code: dict[str, float] = {}
@@ -1016,6 +1105,9 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             )
             if any(r["prompt_eval_count"] is not None for r in runs)
             else None,
+            # Prompt tokens per call: the num_ctx a model needs is max + num_predict.
+            "median_prompt_tokens": statistics.median(prompt_tokens) if prompt_tokens else None,
+            "max_prompt_tokens": max(prompt_tokens) if prompt_tokens else None,
             "mean_output_tokens": statistics.fmean(
                 r["eval_count"] for r in runs if r["eval_count"] is not None
             )
@@ -1036,7 +1128,23 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         f"`{header['pipeline']['commit']}` (module sha256 "
         f"`{header['pipeline']['module_sha256'][:12]}`), {header['positions']} positions x "
         f"{header['runs_per_position']} runs, GPU {header['gpu'] or 'none (no nvidia-smi)'}, "
-        f"Ollama {header['ollama_version']}."
+        f"Ollama {header['ollama_version']}"
+        + (f", `num_ctx` {header['num_ctx']}." if "num_ctx" in header else ".")
+        + (f" Positions `{header['positions_file']}`." if "positions_file" in header else "")
+        # Config digest; headers before it have none and keep their summary text.
+        + (
+            f" Config `{header['pipeline']['config_file']}` (sha256 "
+            f"`{header['pipeline']['config_sha256'][:12]}`)."
+            if "config_sha256" in header["pipeline"]
+            else ""
+        )
+        # Narrator package digest; headers before it have none and keep their summary text.
+        + (
+            f" Narrator package sha256 `{header['pipeline']['narrator_sha256'][:12]}` "
+            f"({len(header['pipeline'].get('narrator_modules', {}))} files)."
+            if "narrator_sha256" in header["pipeline"]
+            else ""
+        )
         # Voice (#387); headers before #387 have none and keep their summary text.
         + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
         "",
@@ -1051,8 +1159,8 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         "| Provider errors | Claims / expl. "
         "| False chess statements / expl. | Rejected claims / expl. | SAN legal | SAN correct "
         "(SAN tokens) | Latency p50 / p95 (s) | First token p50 (s) | Within 4 s "
-        "| Hit output cap | Calls that thought | GPU memory (GiB) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Hit output cap | Calls that thought | Prompt tokens median / max | GPU memory (GiB) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name, row in summary["models"].items():
         lines.append(
@@ -1072,13 +1180,20 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f"| {_fmt(row.get('first_token_p50_s'), '.2f')} "
             f"| {row['within_production_limit_rate']:.1%} "
             f"| {row.get('length_stop_rate', 0):.1%} | {row.get('thinking_calls', 0)} "
+            f"| {_fmt(row.get('median_prompt_tokens'), '.0f')} / "
+            f"{_fmt(row.get('max_prompt_tokens'), '.0f')} "
             f"| {_fmt(row['vram_model_gib'], '.2f')} |"
         )
     return "\n".join(lines) + "\n"
 
 
 def write_summary(sink: Path, config: BenchConfig) -> tuple[Path, Path]:
-    summary = summarize(_read(sink), config)
+    records = _read(sink)
+    header = next(record for record in records if record.get("record") == "header")
+    # The run's own positions file decides the key facts, whatever the config says.
+    if "positions_file" in header:
+        config = replace(config, positions_file=REPO_ROOT / header["positions_file"])
+    summary = summarize(records, config)
     stamp = sink.stem.removeprefix("runs_")
     json_path = sink.with_name(f"summary_{stamp}.json")
     md_path = sink.with_name(f"summary_{stamp}.md")
@@ -1091,6 +1206,14 @@ def _gpu_name() -> str | None:
     return _nvidia_smi("--query-gpu=name,memory.total", "--format=csv,noheader")
 
 
+def _ollama_versions(config: BenchConfig) -> str:
+    versions = {
+        httpx.get(f"{url}/api/version", timeout=30).json()["version"]
+        for url in {model.base_url for model in config.models}
+    }
+    return ",".join(sorted(versions))
+
+
 async def run(
     config: BenchConfig, sink: Path, selected: Sequence[ModelEntry], limit: int | None
 ) -> None:
@@ -1099,23 +1222,34 @@ async def run(
     if sink.exists():
         records = _read(sink)
         header = next(r for r in records if r.get("record") == "header")
-        pinned = ("pipeline_entry", "grounding_context", "module_file", "module_sha256")
-        if any(header["pipeline"][key] != identity[key] for key in pinned):
-            raise RuntimeError(
-                f"Resume refused: pipeline changed since the run started: "
-                f"{header['pipeline']} != {identity}"
-            )
+        refuse_resume(header, identity)
         # Runs before #387 have no voice field: their prompt had no voice line.
         if header.get("voice") != config.voice:
             raise RuntimeError(f"Resume refused: voice {config.voice!r} != {header.get('voice')!r}")
+        # #380 review: a resumed run must measure the same code on the same
+        # hardware and server, or its rows are not one measurement.
+        current = {
+            "commit": identity["commit"],
+            "gpu": _gpu_name(),
+            "ollama_version": _ollama_versions(config),
+            "positions_sha256": hashlib.sha256(config.positions_file.read_bytes()).hexdigest(),
+            "num_ctx": config.num_ctx,
+        }
+        recorded = {
+            "commit": header["pipeline"]["commit"],
+            **{key: header.get(key) for key in current if key != "commit"},
+        }
+        changed = {
+            key: (recorded[key], current[key]) for key in current if recorded[key] != current[key]
+        }
+        if changed:
+            raise RuntimeError(
+                f"Resume refused: changed since the run started (header, now): {changed}"
+            )
         done = {
             (r["model"], r["position_id"], r["run"]) for r in records if r.get("record") == "run"
         }
     else:
-        versions = {
-            httpx.get(f"{url}/api/version", timeout=30).json()["version"]
-            for url in {model.base_url for model in config.models}
-        }
         _append(
             sink,
             {
@@ -1132,7 +1266,7 @@ async def run(
                 "request_overrides": config.request_overrides,
                 "request_timeout_s": config.request_timeout_s,
                 "gpu": _gpu_name(),
-                "ollama_version": ",".join(sorted(versions)),
+                "ollama_version": _ollama_versions(config),
                 "python": sys.version.split()[0],
             },
         )
@@ -1152,10 +1286,19 @@ def main() -> None:
     parser.add_argument("--models", nargs="*", help="subset of model names (default: all)")
     parser.add_argument("--resume", type=Path, help="append to an existing runs_<stamp>.jsonl")
     parser.add_argument("--summarize", type=Path, help="only rewrite the summary of a runs file")
+    parser.add_argument("--voice", help="override [run].voice (coach, terse, playful)")
+    parser.add_argument("--positions-file", type=Path, help="override [run].positions_file")
+    parser.add_argument("--num-ctx", type=int, help="override [run].num_ctx (sent per request)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     config = load_config(args.config)
+    if args.voice is not None:
+        config = replace(config, voice=parse_narrator_voice(args.voice))
+    if args.positions_file is not None:
+        config = replace(config, positions_file=(REPO_ROOT / args.positions_file).resolve())
+    if args.num_ctx is not None:
+        config = replace(config, num_ctx=args.num_ctx)
     if args.summarize is not None:
         for path in write_summary(args.summarize, config):
             print(f"wrote {path}")
@@ -1166,7 +1309,7 @@ def main() -> None:
     if args.models and len(selected) != len(set(args.models)):
         raise SystemExit(f"Unknown model in {args.models}")
     if args.setup or args.setup_only:
-        setup_models(config, args.ollama_binary)
+        setup_models(config, args.ollama_binary, selected)
         if args.setup_only:
             return
     config.results_dir.mkdir(parents=True, exist_ok=True)

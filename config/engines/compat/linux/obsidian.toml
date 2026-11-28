@@ -1,0 +1,4 @@
+# Linux compat set (#411): truncated PVs.
+[engine]
+name = "obsidian"
+binary_path = "~/.local/opt/engines/obsidian/Obsidian"

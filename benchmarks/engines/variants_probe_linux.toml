@@ -1,0 +1,12 @@
+# Variant engine probe (#435, part of #398) on linux-5090: every python-chess
+# variant board Scan64 plans to support, analysed by Fairy-Stockfish 14 through
+# config/engines/linux/fairy-stockfish.toml. The positions are fixed in
+# benchmarks/engines/variants_probe.py.
+# Run: uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux.toml
+# Paths are relative to the repository root; the engine is installed by the user.
+
+[run]
+results_dir = "benchmarks/engines/results"
+profile = "config/engines/linux/fairy-stockfish.toml"
+nodes = 300000        # fixed node budget per position
+multipv = 3

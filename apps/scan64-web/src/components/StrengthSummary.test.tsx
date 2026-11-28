@@ -53,4 +53,11 @@ describe('StrengthSummary', () => {
     expect(screen.getByText('No rated puzzle events yet.')).toBeInTheDocument();
     expect(screen.getByText('No eligible bot results yet.')).toBeInTheDocument();
   });
+  it('labels each cohort with the engine its recorded policy plays with', () => {
+    const arasan = { ...strengthFixture.bot_cohorts[0], bot_policy_version: 'uci-elo-v1:arasan:1000:500ms', engine: 'Arasan' };
+    render(<StrengthSummary strength={{ ...strengthFixture, bot_cohorts: [strengthFixture.bot_cohorts[0], arasan] }} />);
+    expect(screen.getByRole('heading', { name: 'Bot results by level, policy and time control' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Arasan level 3 · policy uci-elo-v1:arasan:1000:500ms · Untimed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Stockfish level 3 · policy v1 · Untimed' })).toBeInTheDocument();
+  });
 });

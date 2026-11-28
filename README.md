@@ -242,10 +242,11 @@ The internal HTTP API, CLI flags and UI layout are not stable interfaces. Untest
 
 | Use Scan64 | Understand it | Build on it |
 | --- | --- | --- |
-| [User guide](docs/user-guide.md) | [System overview](docs/system-overview.md) | [Contributing](CONTRIBUTING.md) |
-| [Maia opponents](docs/maia.md) | [System design](docs/system-design.md) | [Web client guide](apps/scan64-web/README.md) |
-| [Opening families](docs/content/opening-families.md) | [LessonSpec package](packages/chess-lesson-spec/README.md) | [Changelog](CHANGELOG.md) |
-| Local API reference: `http://127.0.0.1:8001/docs` (while running) | [Project brief](docs/pitch.md) | [Security policy](SECURITY.md) |
+| [User guide](docs/user-guide.md) | [System overview](docs/system-overview.md) | [Roadmap](docs/roadmap.md) |
+| [Maia opponents](docs/maia.md) | [System design](docs/system-design.md) | [Contributing](CONTRIBUTING.md) |
+| [Opening families](docs/content/opening-families.md) | [LessonSpec package](packages/chess-lesson-spec/README.md) | [Web client guide](apps/scan64-web/README.md) |
+| Local API reference: `http://127.0.0.1:8001/docs` (while running) | [Project brief](docs/pitch.md) | [Changelog](CHANGELOG.md) |
+| | | [Security policy](SECURITY.md) |
 
 ### Development
 
@@ -258,7 +259,7 @@ The internal HTTP API, CLI flags and UI layout are not stable interfaces. Untest
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) to set up and run the checks. Report security issues privately as described in [SECURITY.md](SECURITY.md).
+Bug reports, ideas and pull requests are welcome. The [roadmap](docs/roadmap.md) lists features open for contributors, with items ready to start marked **Ready**. Read [CONTRIBUTING.md](CONTRIBUTING.md) to set up and run the checks. Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## License and credits
 

@@ -1,32 +1,35 @@
 name: Desktop
 
 on:
+  # Every pull request starts this workflow; the areas job decides whether the
+  # desktop jobs run (scripts/ci_areas.py). Pull requests into main run them.
   pull_request:
-    paths:
-      - 'apps/scan64-desktop/**'
-      - 'apps/scan64-web/**'
-      - 'src/scan64/**'
-      - 'scripts/build-server.py'
-      - 'scripts/desktop-smoke.py'
-      - 'scripts/desktop-package-smoke.py'
-      - 'scripts/desktop-update-e2e.py'
-      - 'scan64-server.spec'
-      - 'Dockerfile'
-      - 'pnpm-lock.yaml'
-      - 'uv.lock'
-      - '.github/workflows/desktop.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: desktop-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  areas:
+    name: Select areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.areas.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - id: areas
+        uses: ./.github/actions/ci-areas
+
   smoke:
     name: Smoke (${{ matrix.os }})
+    needs: areas
+    if: needs.areas.outputs.desktop == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -92,6 +95,8 @@ jobs:
 
   build:
     name: Dry-run build (${{ matrix.os }})
+    needs: areas
+    if: needs.areas.outputs.desktop == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:

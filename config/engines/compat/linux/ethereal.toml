@@ -1,0 +1,5 @@
+# Linux compat set (#411): Ethereal 14.40 (0e47e9b, USE_NNUE=0), no strength controls.
+# Built with gcc 15 plus -mmove-max=128 -mstore-max=128 (see #390).
+[engine]
+name = "ethereal"
+binary_path = "~/.local/opt/engines/ethereal/Ethereal"

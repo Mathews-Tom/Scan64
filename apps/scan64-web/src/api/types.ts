@@ -143,6 +143,8 @@ export interface StrengthRead {
     provider: 'stockfish';
     bot_level: number;
     bot_policy_version: string;
+    /** The engine the recorded policy plays with; unstamped cohorts are Stockfish. */
+    engine: string;
     time_control: TimeControl | null;
     latest: BotResultsSample;
     previous: BotResultsSample;

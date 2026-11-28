@@ -1,0 +1,22 @@
+# Arasan 26.1 for the linux-5090 ladder measurement (#419). Linux x86-64 only:
+# the binary is the AVX2/BMI2 build, which needs a CPU with those instructions.
+# Everything else is config/engines/arasan.toml, the shared profile; keep the
+# two [ladder] tables identical so the measurement describes the shared ladder.
+# Arasan loads its network (NNUE file) from the executable's directory, so no
+# wrapper is needed. BookPath and Learning file default to absolute paths in
+# the user's home directory; they are unused here (OwnBook = false, Position
+# learning off) and are set to bare names so run manifests carry no home path.
+# Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
+[engine]
+name = "arasan"
+binary_path = "~/.local/opt/engines/arasan/arasanx-64-avx2-bmi2"
+
+[engine.options]
+OwnBook = false
+BookPath = "book.bin"
+"Learning file" = "arasan.lrn"
+
+[ladder]
+strength = "elo"
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]
+movetime_ms = 500

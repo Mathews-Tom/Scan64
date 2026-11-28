@@ -1,0 +1,4 @@
+# Compat set (#397): lower-case option names.
+[engine]
+name = "pzchessbot"
+binary_path = "~/.local/opt/engines/pzchessbot"

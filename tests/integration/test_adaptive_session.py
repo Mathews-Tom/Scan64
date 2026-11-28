@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import NoReturn
 
 import pytest
@@ -17,6 +18,8 @@ from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import SkillState
 from scan64.learning.scheduling.session_state import load_player_session_state
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.providers.engine import ENGINE_CONFIG_ENV, STOCKFISH_PATH_ENV
+from tests.support.engines import fake_uci_launcher
 
 
 def lesson_spec() -> dict[str, object]:
@@ -437,3 +440,40 @@ def test_session_marks_empty_pinned_analysis_as_unavailable(
     assert served.json()["lessons"] == []
     db_session.refresh(opportunity)
     assert opportunity.verification_status == "unavailable"
+
+
+def test_session_skips_lesson_when_the_engine_has_no_multipv(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A real engine process without MultiPV: the lesson is unavailable, not a 503."""
+    launcher, log = fake_uci_launcher(tmp_path, monkeypatch)
+    monkeypatch.delenv(ENGINE_CONFIG_ENV, raising=False)
+    monkeypatch.setenv(STOCKFISH_PATH_ENV, str(launcher))
+    player_id = "no-multipv-player"
+    authorize_new_player(client, db_session, player_id)
+    opportunity = create_persisted_lesson(db_session, player_id)
+    analysis = db_session.get(EngineAnalysis, opportunity.verification_analysis_id)
+    assert analysis is not None
+    analysis.raw_result = []
+    db_session.add(analysis)
+    db_session.commit()
+
+    served = client.get(f"/v1/learning/session?player_id={player_id}")
+
+    assert served.status_code == 200, served.json()
+    assert served.json()["lessons"] == []
+    db_session.refresh(opportunity)
+    assert opportunity.verification_status == "unavailable"
+    assert "uci" in log.read_text(encoding="utf-8").split()
+    attempt = client.post(
+        "/v1/learning/lesson-attempts",
+        json={
+            "session_id": served.json()["session_id"],
+            "lesson_id": str(opportunity.id),
+            "source_kind": "persisted_opportunity",
+            "submitted_move": "e2e4",
+            "elapsed_ms": 1,
+            "hints_used": 0,
+        },
+    )
+    assert attempt.status_code == 409

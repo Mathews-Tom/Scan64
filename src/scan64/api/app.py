@@ -17,6 +17,7 @@ from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.desktop_security import add_desktop_security
 from scan64.api.diagnostics import router as diagnostics_router
+from scan64.api.engine_errors import add_engine_capability_handler
 from scan64.api.explanation_settings import router as explanation_settings_router
 from scan64.api.games import router as games_router
 from scan64.api.habit import router as habit_router
@@ -123,6 +124,7 @@ app = FastAPI(
     version="v1",
     lifespan=lifespan,
 )
+add_engine_capability_handler(app)
 app.include_router(content_router)
 app.include_router(play_router)
 app.include_router(play_assistance_router)

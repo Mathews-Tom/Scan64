@@ -131,7 +131,8 @@ def test_delimiter_player_ids_always_reach_live_lifecycle_routes(
     "route,limit",
     [
         ("/v1/repertoires", MAX_IMPORT_BODY_BYTES),
-        (f"/v1/repertoires/{uuid4()}/attempts", MAX_ATTEMPT_BODY_BYTES),
+        # A fixed id: pytest-xdist workers must collect identical test ids.
+        ("/v1/repertoires/00000000-0000-4000-8000-000000000001/attempts", MAX_ATTEMPT_BODY_BYTES),
     ],
 )
 def test_mounted_repertoire_routes_bound_receive_before_json_decode(

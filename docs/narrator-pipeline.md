@@ -151,7 +151,7 @@ The schema is generated from the pydantic models in `explanations/facts.py` (`uv
 
 1. `unscored_line_positions` lists the positions after each ply of each verified line of the referenced evidence (cut at `MAX_LINE_PLIES = 8`), and the line start when `evaluation_before` is unknown. It skips positions a stored search already scored and game-over positions (the move facts state checkmate or stalemate). Each position appears once, ordered by ply.
 2. `BatchAnalysisAdapter.prefetch` loads the owner's saved searches of those FENs. A saved row is reused only at the exact key: FEN, engine identity (executable SHA-256, networks, every UCI option) and limits. Rows are never reused across engines.
-3. The rest are searched through the job's batch adapter (the batch pool; no new pool, rule 14), `LINE_NODES = 10 000` nodes, MultiPV 1, up to the batch pool's concurrency at once. Every search is staged as an `EngineAnalysis` row with the job's other searches.
+3. The rest are searched through the job's batch adapter (the batch pool; no new pool, rule 14), `LINE_NODES = 10 000` nodes, MultiPV 1, up to the batch pool's concurrency at once. Every search is staged as an `EngineAnalysis` row with the job's other searches, on a `Position` row of the game. `GET /v1/games/{game_id}/positions` lists only the positions the game's moves reach, so line positions are not shown as moves of the game.
 4. The scores are written to each item's payload as `line_evaluations`.
 
 The per-call adapter (no pool, `SCAN64_ENGINE_POOL_ENABLED=0`) and `scan64 analyse` do not score lines: they would start one engine process per position (about 0.4 s each). Their lines keep only the stored scores.

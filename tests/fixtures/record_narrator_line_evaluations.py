@@ -39,6 +39,8 @@ class _Recorder:
         self.adapter = adapter
         self.searched: dict[str, list[dict[str, Any]]] = {}
         self.configs: list[dict[str, Any]] = []
+        # ``score_verified_lines`` leaves a failed search unscored; a fixture must not.
+        self.failed: list[str] = []
 
     async def analyze_position(
         self,
@@ -48,8 +50,12 @@ class _Recorder:
         time_ms: int | None = None,
         multipv: int = 1,
     ) -> EngineAnalysis:
-        await self.adapter.reset()
-        analysis = await self.adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
+        try:
+            await self.adapter.reset()
+            analysis = await self.adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
+        except Exception:
+            self.failed.append(fen)
+            raise
         # Only the scores are read back; the PV and search statistics are dropped.
         self.searched[fen] = [
             {key: entry.get(key) for key in _KEPT} for entry in analysis.raw_result[:1]
@@ -75,6 +81,8 @@ async def main() -> None:
             counts.append(count)
     finally:
         await adapter.quit()
+    if recorder.failed:
+        raise RuntimeError(f"{len(recorder.failed)} searches failed; nothing was written")
     if any(config != recorder.configs[0] for config in recorder.configs):
         raise RuntimeError("Searches ran with different engine identities")
     print(

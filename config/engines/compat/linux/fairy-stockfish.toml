@@ -1,0 +1,4 @@
+# Linux compat set (#411): several protocols (run here over UCI), classical eval.
+[engine]
+name = "fairy-stockfish"
+binary_path = "~/.local/opt/engines/fairy-stockfish/fairy-stockfish_x86-64"

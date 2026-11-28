@@ -3,20 +3,56 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'epic/**']
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Quality
+  areas:
+    # Pull requests into an epic run only the jobs their files can affect
+    # (scripts/ci_areas.py). Pull requests into main and every push to main or
+    # an epic branch run all of them.
+    name: Select areas
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.areas.outputs.python }}
+      web: ${{ steps.areas.outputs.web }}
+      desktop: ${{ steps.areas.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - id: areas
+        uses: ./.github/actions/ci-areas
+
+  python-static:
+    name: Python static checks
+    needs: areas
+    if: needs.areas.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Sync Python dependencies
+        run: uv sync --frozen --all-groups
+      - name: Ruff, strict typing, diagnosis precision and licences
+        run: scripts/check.sh python-static
+
+  python-tests:
+    name: Python tests (ubuntu)
+    needs: areas
+    if: needs.areas.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -33,6 +69,77 @@ jobs:
           mv "$stockfish_dir/stockfish-ubuntu-x86-64" "$stockfish_dir/stockfish"
           echo "$stockfish_dir" >> "$GITHUB_PATH"
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Sync Python dependencies
+        run: uv sync --frozen --all-groups
+      - name: Run Python tests
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
+        run: scripts/check.sh python-tests
+
+  python-macos:
+    # The Python suite and static checks on macOS, so pull requests need no
+    # manual Mac run for platform differences those checks can catch.
+    name: Python (macos-15)
+    needs: areas
+    if: needs.areas.outputs.python == 'true'
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+      - name: Install pinned Stockfish 18
+        run: |
+          stockfish_archive="$RUNNER_TEMP/stockfish-18.tar"
+          stockfish_dir="$RUNNER_TEMP/stockfish"
+          curl --fail --location --retry 3 --output "$stockfish_archive" "https://github.com/official-stockfish/Stockfish/releases/download/sf_18/stockfish-macos-m1-apple-silicon.tar"
+          echo "4d77c4aa3ad9bd1ea8111f2ac5a4620fe7ebf998d6893bf828d49ccd579c8cb0  $stockfish_archive" | shasum -a 256 --check
+          mkdir "$stockfish_dir"
+          tar --extract --file "$stockfish_archive" --directory "$stockfish_dir" --strip-components=1
+          mv "$stockfish_dir/stockfish-macos-m1-apple-silicon" "$stockfish_dir/stockfish"
+          echo "$stockfish_dir" >> "$GITHUB_PATH"
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Sync Python dependencies
+        run: uv sync --frozen --all-groups
+      - name: Run Python tests and static checks
+        env:
+          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
+          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
+        run: scripts/check.sh python-tests python-static
+
+  web:
+    name: Web client
+    needs: areas
+    if: needs.areas.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install frontend dependencies
+        run: pnpm --dir apps/scan64-web install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm --dir apps/scan64-web exec playwright install --with-deps chromium
+      - name: Build, lint, unit tests and Playwright
+        run: scripts/check.sh web
+
+  desktop:
+    name: Desktop shell checks
+    needs: areas
+    if: needs.areas.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.33.3
@@ -52,14 +159,34 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: apps/scan64-desktop/src-tauri
-      - name: Sync Python dependencies
-        run: uv sync --frozen --all-groups
-      - name: Install frontend dependencies
-        run: pnpm --dir apps/scan64-web install --frozen-lockfile
-      - name: Install Playwright Chromium
-        run: pnpm --dir apps/scan64-web exec playwright install --with-deps chromium
-      - name: Run repository quality gate
+      - name: Cargo format, Clippy and tests
+        run: scripts/check.sh desktop
+
+  gate:
+    # The one required check. It passes when every selected job passed and
+    # every other job was skipped by area selection.
+    name: Gate
+    if: always()
+    needs: [areas, python-static, python-tests, python-macos, web, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every selected job to pass
         env:
-          # Second UCI engine for tests/integration/test_second_engine.py (docs/engines.md).
-          SCAN64_TEST_SECOND_ENGINE: ${{ github.workspace }}/tests/fixtures/scripted_uci_engine.py
-        run: scripts/check.sh
+          AREAS_RESULT: ${{ needs.areas.result }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Select areas: $AREAS_RESULT; all jobs: $RESULTS"
+          if [ "$AREAS_RESULT" != success ]; then
+            echo "::error::Area selection ended '$AREAS_RESULT', so skipped jobs prove nothing."
+            exit 1
+          fi
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::A gate job ended '$result'."
+                exit 1
+                ;;
+            esac
+          done
