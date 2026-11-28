@@ -8,13 +8,17 @@ the same game reuses the rows of the same engine instead of searching again.
 
 from __future__ import annotations
 
+import chess
 import pytest
 from chess_lesson_spec import Diagnosis, LessonSpec
+from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
+from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
+from scan64.chess.positions.models import Position
 from scan64.explanations.facts import LINE_EVALUATIONS_FIELD, LINE_NODES, build_narrator_facts
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
@@ -28,7 +32,7 @@ MOVES = ["e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6", "h5f7"]
 
 @pytest.mark.asyncio
 async def test_lesson_lines_are_scored_stored_and_reused(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls: list[int] = []
     original = jobs.score_verified_lines
@@ -39,6 +43,9 @@ async def test_lesson_lines_are_scored_stored_and_reused(
         return count
 
     monkeypatch.setattr(jobs, "score_verified_lines", counted)
+    token, token_hash = issue_player_token()
+    db_session.add(Player(id="line-player"))
+    db_session.add(PlayerCredential(player_id="line-player", token_hash=token_hash))
     game = Game(pgn="", moves=MOVES, owner_color="black", owner_player_id="line-player")
     db_session.add(game)
     db_session.commit()
@@ -71,6 +78,21 @@ async def test_lesson_lines_are_scored_stored_and_reused(
                 for entry in e.payload[LINE_EVALUATIONS_FIELD]
             }
             assert stored_ids <= {str(row.id) for row in line_rows}
+
+        # The line searches are positions of the game in storage, but the
+        # game's positions endpoint lists only the positions the game reached.
+        board = chess.Board()
+        game_fens = [board.fen()]
+        for move in MOVES:
+            board.push_uci(move)
+            game_fens.append(board.fen())
+        stored = db_session.exec(select(Position).where(Position.game_id == game.id)).all()
+        assert {row.fen for row in stored} - set(game_fens), "line positions are stored"
+        response = client.get(
+            f"/v1/games/{game.id}/positions", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+        assert [row["fen"] for row in response.json()] == game_fens
 
         # Second analysis of the same game (a new game row, same owner and moves):
         # every line search is a same-engine reuse.
