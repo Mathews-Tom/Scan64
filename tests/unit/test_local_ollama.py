@@ -78,6 +78,7 @@ async def test_generation_fresh_probe_then_only_local_chat(peer: Callable) -> No
         assert body["messages"] == [{"role": "user", "content": "private evidence"}]
         assert body["format"]["additionalProperties"] is False
         assert body["options"] == {"num_ctx": local.DEFAULT_CONTEXT_TOKENS}
+        assert body["think"] is False
         return httpx.Response(
             200,
             json={
@@ -308,7 +309,7 @@ async def test_stream_is_bounded_before_buffering(peer: Callable) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("context", "prompt_tokens"), [(None, 12288), ("4096", 4096)])
+@pytest.mark.parametrize(("context", "prompt_tokens"), [(None, 4096), ("8192", 8192)])
 async def test_prompt_that_fills_the_context_is_rejected(
     peer: Callable, monkeypatch: pytest.MonkeyPatch, context: str | None, prompt_tokens: int
 ) -> None:

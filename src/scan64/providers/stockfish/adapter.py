@@ -20,6 +20,7 @@ from scan64.providers.engine.uci import (
     is_xboard,
     lines_from_result,
     open_engine,
+    require_variant,
     startup_options,
 )
 from scan64.providers.stockfish.identity import (
@@ -89,6 +90,7 @@ async def search(
     otherwise it is stopped and the engine is reported as not honouring its
     node or depth limit.
     """
+    require_variant(engine, board)
     if is_xboard(engine):
         if multipv > 1:
             raise EngineCapabilityError(

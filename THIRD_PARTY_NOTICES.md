@@ -229,6 +229,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 - **Usage**: Offline WDL/DTZ verification of the initial curated endgame catalog.
 - **Files**: `KQvK.rtbw` (`517667dff787162dbb1ed9d5d6484d30ee854e686ee0675c08d99ecf045d2d50`), `KQvK.rtbz` (`71ea9444fa5bd42897d781a0c356975ea6f23e0f65a4254e470897031c161c8c`), `KPvK.rtbw` (`02fd2bdcd92821c869458f019f63524def1c9e7a2862ca8d2b16dc7712b16183`), and `KPvK.rtbz` (`ad01af2076183c90ccee662ca6c5d74da3222ff1fee47c01b5d4e56ed01938de`).
 
+## Gemma 4 E4B narrator model (downloaded by the user, not bundled)
+- **License**: Apache-2.0, as recorded in the file's GGUF metadata (`general.license`), which links Google's [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license).
+- **Source**: `gemma-4-E4B-it-Q3_K_M.gguf` from https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF at revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, SHA-256 `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`. A Q3_K_M quantisation by Unsloth of [google/gemma-4-E4B-it](https://huggingface.co/google/gemma-4-E4B-it).
+- **Usage**: the default local narrator model (#429). The player downloads it with `scan64-cli narrator install` or by hand ([user guide](docs/user-guide.md#the-recommended-narrator-model)) and registers it with their own Ollama. No Scan64 image, app or repository contains the weights.
+
 ## Other software in the local Docker image
 
 - **Scan64**: GPL-3.0-or-later; license and these notices are in `/usr/share/doc/scan64/`.

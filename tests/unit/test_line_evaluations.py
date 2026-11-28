@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock
 
 import chess
 import chess.engine
+import chess.variant
 import pytest
 from chess_lesson_spec import Diagnosis
 
@@ -430,6 +431,21 @@ async def test_line_cache_is_keyed_by_engine_identity(
     monkeypatch.setattr(PooledStockfishAdapter, "analysis_identity", _identity("sha256:b"))
     await manager.analyze_hint_positions(boards, deadline=loop.time() + 1)
     assert analyze.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_line_cache_is_keyed_by_variant(
+    manager: EnginePoolManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analyze = AsyncMock(return_value=EngineAnalysis(raw_result=[{"pv": ["e2e4"], "score_cp": 5}]))
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    monkeypatch.setattr(PooledStockfishAdapter, "analysis_identity", _identity("sha256:a"))
+    loop = asyncio.get_running_loop()
+    # The same starting FEN, standard then atomic: the second is not the first's cache entry.
+    await manager.analyze_hint_positions([chess.Board()], deadline=loop.time() + 1)
+    await manager.analyze_hint_positions([chess.variant.AtomicBoard()], deadline=loop.time() + 1)
+    assert analyze.await_count == 2
+    assert isinstance(analyze.await_args_list[1].args[0], chess.variant.AtomicBoard)
 
 
 @pytest.mark.asyncio

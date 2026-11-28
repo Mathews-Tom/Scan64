@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from scan64.api.models import Player, PlayerCredential, issue_player_token
 from scan64.chess.games.models import Game, PlaySession
-from scan64.providers.engine.config import ENGINE_CONFIG_ENV
+from scan64.providers.engine.config import ENGINE_CONFIG_ENV, LADDER_ENGINE_CONFIG_ENV
 
 ETHEREAL_OPTIONS = ("Hash", "Threads", "EvalFile", "MultiPV", "Ponder", "UCI_Chess960")
 
@@ -183,3 +183,62 @@ def test_a_session_from_another_ladder_cannot_continue_or_change_cohort(
     db_session.expire_all()
     stored = db_session.exec(select(PlaySession)).one()
     assert stored.opponent_config["bot_policy_version"] == "stockfish-error-budget-v1"
+
+
+@pytest.fixture(name="split_profiles")
+def split_profiles_fixture(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> tuple[AsyncMock, AsyncMock]:
+    """Analysis under an engine without a ladder, bot moves under an Elo-ladder engine."""
+    analysis_binary = tmp_path / "caissa"
+    ladder_binary = tmp_path / "arasan"
+    for binary in (analysis_binary, ladder_binary):
+        binary.write_bytes(b"test double")
+    analysis_profile = tmp_path / "analysis.toml"
+    analysis_profile.write_text(
+        f"[engine]\nname = \"caissa\"\nbinary_path = '{analysis_binary}'\n", encoding="utf-8"
+    )
+    ladder_profile = tmp_path / "ladder.toml"
+    ladder_profile.write_text(
+        f"[engine]\nname = \"arasan\"\nbinary_path = '{ladder_binary}'\n"
+        '[ladder]\nstrength = "elo"\nelo = [1350, 1500, 1700, 1900, 2100, 2300, 2600, 3000]\n'
+        "movetime_ms = 100\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis_profile))
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder_profile))
+    analysis = AsyncMock()
+    analysis.id = {"name": "Caissa 2.0"}
+    analysis.config = {}
+    analysis.options = dict.fromkeys(ETHEREAL_OPTIONS)
+    ladder = AsyncMock()
+    ladder.id = {"name": "Arasan 26.1"}
+    ladder.config = {}
+    ladder.options = dict.fromkeys(("Threads", "Hash", "MultiPV", "UCI_LimitStrength"))
+    ladder.options["UCI_Elo"] = chess.engine.Option("UCI_Elo", "spin", 3450, 1000, 3450, [])
+    ladder.play.return_value = chess.engine.PlayResult(chess.Move.from_uci("e7e5"), None)
+    engines = {str(analysis_binary): analysis, str(ladder_binary): ladder}
+
+    async def popen(command: str) -> tuple[None, AsyncMock]:
+        return None, engines[command]
+
+    monkeypatch.setattr(chess.engine, "popen_uci", popen)
+    return analysis, ladder
+
+
+def test_bot_moves_come_from_the_ladder_engine_profile(
+    split_profiles: tuple[AsyncMock, AsyncMock], client: TestClient, db_session: Session
+) -> None:
+    analysis, ladder = split_profiles
+    authorize(client, db_session)
+    session_id, body = _move_detail(client, "3")
+    assert body["status"] == 200, body
+    ladder.play.assert_awaited_once()
+    assert ladder.play.await_args is not None
+    assert ladder.play.await_args.args[1] == chess.engine.Limit(time=0.1)
+    analysis.play.assert_not_awaited()
+    play_session = db_session.exec(select(PlaySession)).one()
+    assert str(play_session.id) == session_id
+    assert play_session.opponent_config["bot_policy_version"] == (
+        "uci-elo-v1:arasan:1350,1500,1700,1900,2100,2300,2600,3000:100ms"
+    )

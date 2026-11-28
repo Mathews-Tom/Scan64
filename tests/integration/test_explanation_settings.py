@@ -31,6 +31,7 @@ from scan64.learning.evidence.models import Evidence
 from scan64.persistence.database import get_session
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm import local_ollama as local
+from scan64.providers.llm.narrator_model import DEFAULT_NARRATOR_MODEL
 
 OWNER = "wording-owner"
 OTHER = "wording-other"
@@ -86,6 +87,7 @@ async def test_local_wording_requires_owner_consent_and_reads_current_committed_
     assert client.post(f"{OWNER_PATH}/probe", headers=owner).json() == {
         "available": True,
         "models": [LOCAL_MODEL],
+        "recommended_model": DEFAULT_NARRATOR_MODEL,
     }
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
     assert client.put(OWNER_PATH, json=change, headers=owner).json() == ENABLED
@@ -266,6 +268,7 @@ def test_missing_or_operator_managed_peer_never_enables_local_wording(
     assert client.post(f"{OWNER_PATH}/probe", headers=owner).json() == {
         "available": False,
         "models": [],
+        "recommended_model": DEFAULT_NARRATOR_MODEL,
     }
     assert client.put(OWNER_PATH, json=change, headers=owner).status_code == 503
     assert client.get(OWNER_PATH, headers=owner).json() == DISABLED
@@ -306,7 +309,11 @@ def test_desktop_probe_requires_both_shell_and_owner_authorization(
         assert native.post(f"{OWNER_PATH}/probe", headers={**shell, **other}).status_code == 403
         assert calls == 0
         allowed = native.post(f"{OWNER_PATH}/probe", headers={**shell, **owner})
-        assert allowed.json() == {"available": True, "models": [LOCAL_MODEL]}
+        assert allowed.json() == {
+            "available": True,
+            "models": [LOCAL_MODEL],
+            "recommended_model": DEFAULT_NARRATOR_MODEL,
+        }
         assert calls == 1
 
 

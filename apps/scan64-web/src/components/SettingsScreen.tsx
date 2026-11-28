@@ -8,6 +8,7 @@ import { ListRow, Panel, SegmentedControl, StatusLine } from './Primitives';
 import { applyBoardAppearance, BOARD_THEME_OPTIONS, PIECE_SET_OPTIONS, readBoardAppearance, saveBoardChoice } from '../boardAppearance';
 import type { BoardTheme, PieceSet } from '../boardAppearance';
 import { readBoardSounds, saveBoardSounds } from '../boardSounds';
+import { readHealthPanel, saveHealthPanel } from '../healthPanel';
 
 import { APPEARANCE_STORAGE_KEY, applyAppearance, readAppearance } from '../appearance';
 import type { Appearance } from '../appearance';
@@ -33,6 +34,8 @@ export function SettingsScreen() {
   const [boardSaveError, setBoardSaveError] = useState(false);
   const [sounds, setSounds] = useState(readBoardSounds);
   const [soundSaveError, setSoundSaveError] = useState(false);
+  const [healthPanel, setHealthPanel] = useState(readHealthPanel);
+  const [healthSaveError, setHealthSaveError] = useState(false);
   const pieceSetName = useId();
   const boardThemeName = useId();
 
@@ -104,6 +107,12 @@ export function SettingsScreen() {
         }} /> Move sounds</label>
         <p>Synthesised move, capture, check and game-end sounds start after your first interaction. No audio is downloaded.</p>
         {soundSaveError ? <StatusLine kind="error">Sounds changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
+        <label><input type="checkbox" checked={healthPanel} onChange={event => {
+          setHealthPanel(event.target.checked);
+          setHealthSaveError(!saveHealthPanel(event.target.checked));
+        }} data-testid="health-panel-setting" /> Position health panel</label>
+        <p>Meters for king safety, material, threats, pieces, mobility, pawn structure, passed pawns and space, from Scan64's evaluation factors. No engine search or language model.</p>
+        {healthSaveError ? <StatusLine kind="error">Position health changed for this session. Your browser did not allow saving the preference.</StatusLine> : null}
       </Panel>
       <UpdatesPanel />
       <LocalExplanationSettings />

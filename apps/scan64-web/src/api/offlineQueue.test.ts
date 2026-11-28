@@ -46,7 +46,7 @@ describe('syncQueuedMoves', () => {
       id: 'sess-123', player_id: 'player', game_id: 'game-123', status: 'active',
       opponent_config: { assistance_generation: '7' }, coach_mode: false, assistance_modes: [],
     });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'player', black: 'Stockfish', result: '*',
     });
   });
@@ -74,7 +74,7 @@ describe('syncQueuedMoves', () => {
 
   it.each(['1. e4 *', '1. e4 e5 *', '1. e4 e5 2. Nf3 *'])(
     'acknowledges an already saved human move without replaying it (%s)', async pgn => {
-      vi.mocked(ApiClient.getGame).mockResolvedValue({
+      vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
         id: 'game-123', pgn, white: 'player', black: 'Stockfish', result: '*',
       });
       const acknowledged = vi.fn();
@@ -91,9 +91,9 @@ describe('syncQueuedMoves', () => {
   );
 
   it('reconciles a human commit after bot failure without a second submission', async () => {
-    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({
+    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'player', black: 'Stockfish', result: '*',
-    }).mockResolvedValueOnce({
+    }).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 *', white: 'player', black: 'Stockfish', result: '*',
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new Error('bot unavailable'));
@@ -105,9 +105,9 @@ describe('syncQueuedMoves', () => {
   });
 
   it('reports bot play unavailable after the human move commits', async () => {
-    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({
+    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'player', black: 'Stockfish', result: '*',
-    }).mockResolvedValueOnce({
+    }).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 *', white: 'player', black: 'Stockfish', result: '*',
     });
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new BotPlayUnavailableError('no Skill Level'));
@@ -141,7 +141,7 @@ describe('syncQueuedMoves', () => {
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn },
     ];
     storage.queue = queuedMoves;
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: canonical, white: 'player', black: 'Stockfish', result: '*',
     });
     const failed = vi.fn();
@@ -184,7 +184,7 @@ describe('syncQueuedMoves', () => {
       { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn },
     ];
     storage.queue = queuedMoves;
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: canonical, white: 'player', black: 'Stockfish', result: '*',
     });
     await syncQueuedMoves();

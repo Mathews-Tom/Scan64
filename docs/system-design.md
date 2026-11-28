@@ -117,7 +117,8 @@ comparison are in [Analysis engines](engines.md).
 | Extra UCI options | profile `[engine.options]` | none | validated against the engine's declared options at start |
 | Hint search | profile `[limits.hint]` | 200,000 nodes, 1.5 s, MultiPV 4 | interactive hints |
 | Review / focused / verification search | callers | 10,000-node review; fixed focused and verification budgets | batch analysis |
-| Interactive pool size | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | 2 | opponents and hints |
+| Interactive pool size | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | 2 | hints, and opponents unless a ladder profile is set |
+| Ladder pool | `SCAN64_LADDER_ENGINE_CONFIG` | none: opponents use the interactive pool | opponent moves; sized like the interactive pool |
 | Batch pool size | `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, CPUs − interactive − 1)` | analysis jobs and backfill |
 
 Each stored line records the full PV, the cp or mate score and, when reported,
@@ -159,6 +160,7 @@ Runtime controls:
 | `SCAN64_ANALYSIS_DAILY_QUOTA` | `50` | Immediately admitted analysis games per player per day; `0` queues every job. |
 | `SCAN64_ENGINE_CONFIG` | unset | Absolute path of an engine profile TOML; selects the analysis engine. See [Analysis engines](engines.md). |
 | `SCAN64_STOCKFISH_PATH` | `stockfish` on `PATH` | Stockfish binary when no engine profile is set. |
+| `SCAN64_LADDER_ENGINE_CONFIG` | unset | Absolute path of an engine profile TOML for bot moves only; unset, bot moves use the analysis engine. See [Analysis engines](engines.md). |
 | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | `2` | Interactive engine pool size. |
 | `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, available CPUs − interactive pool size − 1)` | Batch engine pool size; uses process affinity where supported, otherwise the system CPU count. An unknown CPU count uses the minimum of 2. |
 | `SCAN64_ENGINE_POOL_ENABLED` | enabled | Set `0`, `false`, `no`, or `off` to construct engines per call. |
@@ -167,7 +169,7 @@ Runtime controls:
 | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | Deadline for one local Ollama explanation (model listing plus chat), (0, 600]. |
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` | Largest serialised local explanation request, [1024, 16 MiB]. |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` | Largest local Ollama response body, [1024, 16 MiB]. |
-| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `8192` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `4096` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
 
 ## Optional providers
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button, Panel, StatusLine } from './Primitives';
-import { DEFAULT_NARRATOR_VOICE, NARRATOR_VOICES, probeLocalExplanations, readExplanationSettings, saveExplanationSettings, storedExplanationOwner } from '../api/explanationSettings';
+import { DEFAULT_NARRATOR_VOICE, NARRATOR_VOICES, initialModel, probeLocalExplanations, readExplanationSettings, saveExplanationSettings, storedExplanationOwner } from '../api/explanationSettings';
 import type { ExplanationSettings, LocalExplanationProbe, NarratorVoice } from '../api/explanationSettings';
 
 const VOICE_LABELS: Record<NarratorVoice, string> = {
@@ -94,7 +94,7 @@ function OwnerSettings({ playerId, refreshGeneration }: { playerId: string; refr
         setProbe(null);
         setModel('');
         const detected = await probeLocalExplanations(playerId, request.signal);
-        if (request.current()) { setProbe(detected); setModel(detected.models[0] ?? ''); }
+        if (request.current()) { setProbe(detected); setModel(initialModel(detected, settings?.mode === 'local' ? settings.model : null)); }
       } else {
         const saved = await saveExplanationSettings(playerId, action === 'disable' ? null : model, request.signal, voice);
         if (request.current()) { setSettings(saved); setUncertain(false); }
@@ -121,10 +121,11 @@ function OwnerSettings({ playerId, refreshGeneration }: { playerId: string; refr
       <Button disabled={busy} onClick={() => { void act('probe'); }}>Detect local Ollama</Button>
       {probe && !probe.available ? <StatusLine>Local Ollama is unavailable. Start Ollama on this device, then detect again.</StatusLine> : null}
       {probe?.available && probe.models.length === 0 ? <StatusLine>No compatible local models found. Install a local model in Ollama, then detect again.</StatusLine> : null}
+      {probe?.available && probe.recommended_model && !probe.models.includes(probe.recommended_model) ? <p>The recommended narrator model, {probe.recommended_model}, is not installed. It needs a GPU with 4 GiB free. To install it, run <code>scan64-cli narrator install</code> (see the user guide), then detect again. Without a local model, explanations use the built-in templates.</p> : null}
       {probe?.available && probe.models.length > 0 ? <>
         <label htmlFor={selectId}>Local model</label>
         <select id={selectId} value={model} disabled={busy} onChange={event => { setModel(event.target.value); setConsent(false); }}>
-          {probe.models.map(name => <option key={name} value={name}>{name}</option>)}
+          {probe.models.map(name => <option key={name} value={name}>{name === probe.recommended_model ? `${name} (recommended)` : name}</option>)}
         </select>
         <label htmlFor={voiceId}>Narrator voice</label>
         <select id={voiceId} value={voice} disabled={busy} onChange={event => setVoice(event.target.value as NarratorVoice)}>

@@ -135,7 +135,7 @@ def _ollama_reply(prompt_tokens: int) -> httpx.Response:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("extra", "context"), [("", 12288), ("context_tokens = 16384\n", 16384)])
+@pytest.mark.parametrize(("extra", "context"), [("", 4096), ("context_tokens = 16384\n", 16384)])
 async def test_llm_config_ollama_sends_num_ctx_and_rejects_a_filled_context(
     tmp_path: Path, extra: str, context: int
 ) -> None:
@@ -144,7 +144,9 @@ async def test_llm_config_ollama_sends_num_ctx_and_rejects_a_filled_context(
     prompt_tokens = [context - 1, context]
 
     def handler(req: httpx.Request) -> httpx.Response:
-        sent.append(json.loads(req.content)["options"])
+        body = json.loads(req.content)
+        assert body["think"] is False  # #429: the narrator must not reason
+        sent.append(body["options"])
         return _ollama_reply(prompt_tokens.pop(0))
 
     environment = {"SCAN64_LLM_CONFIG": str(_ollama_toml(tmp_path, extra))}

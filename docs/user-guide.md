@@ -512,6 +512,29 @@ An arbitrary mistake does not guarantee an interruption. Ordinary play, independ
 
 In **Settings → Local explanation wording**, choose **Detect local Ollama**, select an installed local model, and confirm before enabling it. Scan64 does not download models or connect to a cloud provider from this setting. Detection lists the models at `127.0.0.1:11434` without sending chess evidence.
 
+Without a local model, or without a GPU that can run one, Scan64 uses its built-in template explanations. Nothing else changes.
+
+#### The recommended narrator model
+
+The recommended model is **gemma-4-E4B-it at Q3_K_M** (`scan64-narrator-gemma4-e4b-q3km:latest` in Ollama), chosen by the [narrator benchmark](evaluation/narrator-models.md#decision). It needs about 3 GB of GPU memory (2.96–3.13 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 3.8 GiB. Its weights are licensed Apache-2.0 under the [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship them.
+
+Install it once, with [Ollama](https://ollama.com/download) installed and running. From a source checkout:
+
+```sh
+uv run scan64-cli narrator install
+```
+
+The command checks that Ollama is installed and answers at `127.0.0.1:11434`, and that an NVIDIA GPU has 4 GiB free (it reads `nvidia-smi`). It then downloads the pinned file, checks its SHA-256, and registers it with `ollama create`. If a check fails, it says what to do and installs nothing. On a GPU that `nvidia-smi` can't read (Apple silicon, AMD), add `--skip-gpu-check` once you have checked that 4 GiB is free. `--dir` chooses the download folder (default `$SCAN64_DATA_DIR/narrator`, else `data/narrator`); `--keep-gguf` keeps the file after Ollama has copied it.
+
+Without a source checkout (the desktop app), do the same steps by hand:
+
+1. Download `gemma-4-E4B-it-Q3_K_M.gguf` from <https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q3_K_M.gguf>.
+2. Check that its SHA-256 is `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`: `sha256sum` on Linux, `shasum -a 256` on macOS, `Get-FileHash` in Windows PowerShell. Delete the file if it differs.
+3. In the same folder, save the [Modelfile](../benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile) as `narrator.Modelfile`, with `@GGUF@` replaced by `./gemma-4-E4B-it-Q3_K_M.gguf`, `@NUM_CTX@` by `4096` and `@NUM_PREDICT@` by `2048`.
+4. Run `ollama create scan64-narrator-gemma4-e4b-q3km -f narrator.Modelfile` in that folder.
+
+Then choose **Detect local Ollama**. Settings preselects the recommended model when it is installed, unless you already enabled another model; your saved choice stays until you change it. The model words engine facts only: Scan64 turns its thinking mode off (`think: false`) on every request. The model was measured with Ollama 0.40.18. If `ollama create` fails on an older Ollama, update Ollama and try again.
+
 When enabled, Scan64 sends evidence for new analysis and Coach explanations to the selected local service. Ollama is a separate process and can log or forward that evidence. Enable this setting only if you trust the service. Scan64 checks generated claims against their evidence references and verified lines, and checks every move, square, piece, evaluation and material statement in the wording against the engine evidence and the board; one unsupported statement rejects the whole generation. Missing, slow or rejected results use the built-in wording. Coach mode keeps its short response budget, so a cold or slow model falls back without delaying the move beyond that budget.
 
 Before you enable local wording, you can choose a **Narrator voice**:
@@ -713,6 +736,32 @@ Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variat
 
 **Load FEN** validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select **Retry** manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.
 
+#### Position health
+
+The **Position health** panel shows how the selected position stands on eight evaluation factors, one meter each for both sides, with an overall meter above them. It is on by default; turn it off under **Settings → Chessboard → Position health panel**, and the choice persists. On the Analysis Board the columns are White and Black. In game review they are You and Opponent, for the side you played (White and Black when your side is unknown).
+
+Every meter compares the two sides: it reads this side's value of its factor minus the opponent's, so a factor both sides hold equally (for example material after even exchanges) reads the same for both.
+
+| Meter | What it compares |
+|---|---|
+| overall | the factor evaluation's total without the side-to-move bonus: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them |
+| king safety | pawn shelter, pawn storm and the attack on each king |
+| material | piece values and piece placement on their squares |
+| threats | threats each side's pieces make against the other's |
+| piece placement | outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors |
+| mobility | squares each piece can safely reach |
+| pawn structure | isolated, doubled, backward and connected pawns |
+| passed pawns | passed pawns, their rank, file and blockade |
+| space | safe squares behind the pawn chain in the centre (middlegame only) |
+
+![Position health panel, light theme](images/position-health-light-1280.png) ![Position health panel, dark theme](images/position-health-dark-1280.png)
+
+Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". While the next position loads, the last reading stays on screen, and "Updating" appears beside the heading if the reply takes longer than 200 ms. When the game is over (checkmate, stalemate, insufficient material or the 75-move rule) the panel says so instead of showing meters: the factors score the pieces left, not the result. A draw that is only claimable (fifty moves, threefold repetition) leaves the meters on, and so does a game that ended by fivefold repetition: repetition is not visible from a single position. **Show details** lists each meter's largest nonzero terms, this side's value minus the opponent's, in pawns; for the overall meter, the factors. A meter with no nonzero term says so.
+
+The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.
+
+Each meter maps its value, in pawns from that side's view, to a health between 0 and 1, linear from the value at which it reads empty to the value at which it reads full. Those bounds are fitted on recorded positions (`HEALTH_SCALE` in `src/scan64/explanations/factor_facts.py`; method and table in `docs/evaluation/factor-calibration.md`, section "Health scale"). A health of at least 2/3 reads **good**, below 1/3 **low**. Level positions do not read full on every meter: in the starting position several meters read **fair**, because a side reads full only when it is ahead on that factor. The API is `POST /v1/analysis/position/health` with `fen`, `learner` (`white` or `black`) and optional `previous_fen` for the trend.
+
 #### Explain the engine lines
 
 Below the engine lines, select **Explain lines** to have the current position's top three engine lines explained. The explanation lists, for each line, its full principal variation, the engine's score for the side to move and the depth it reached, what the line wins or loses in material, its checks, whether it ends in checkmate or stalemate, and what its first move attacks; it then compares each line with line 1 (for example "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move"). The engine and the board library decide every one of these facts. The lines shown are replaced by exactly the lines explained.
@@ -721,7 +770,13 @@ Each claim names its line. Hover over or focus a claim to highlight the moves of
 
 Without a model, Scan64 writes the explanation from a fixed template. If local explanation wording is enabled (see **Optional local explanation wording**) or an operator configured a model, the model words the same facts, and its wording is shown only when every claim passes the same checks as lesson explanations and is linked to a line; otherwise the template is shown. The panel states which wording you see. A model explanation can take tens of seconds; the board stays usable while it runs. Moving to another position discards the running explanation, and the new position shows no explanation until you select **Explain lines** again. Scan64 runs one model explanation at a time for each player: selecting **Explain lines** again stops the model's work on the previous request, and that request, for example in another tab, returns an error saying a newer request replaced it. The explanation uses the same bounded search as the engine lines, so a busy engine returns an error and **Explain lines** can be selected again.
 
-The API is `POST /v1/analysis/position/explanation` with `player_id`, `fen` and optional `multipv` (1 up to the hint MultiPV, default 3), `nodes` (up to the hint node budget) and `depth`; a larger budget is rejected with 422, an ended position with 409.
+The API is `POST /v1/analysis/position/explanation` with `player_id`, `fen` and optional `multipv` (1 up to the hint MultiPV, default 3), `nodes` (up to the hint node budget) and `depth`; a larger budget is rejected with 422, an ended position with 409. Explanations cover standard chess only: a request with any other `variant` is rejected with 422.
+
+### Chess variants on the Analysis Board
+
+Pick a **Variant** above the Analysis Board (crazyhouse, three-check, atomic, antichess, king of the hill, horde or racing kings) and select **Open … board**. The Standard board keeps its moves while a variant board is open; a variant board starts from the variant's start position each time it is opened. The server applies the variant's rules: the board offers only its legal moves, shows whose move it is, check, and how the game ended. Crazyhouse shows each side's **Pieces in hand**: select a piece, then a square, to drop it, or type the drop as UCI (`N@f3`). Three-check shows how many checks each side still needs. Enter moves on the board or with **Move (UCI)**; a move from an earlier position replaces the moves after it. While the next position loads, the board takes no move. **Read board position** lists every occupied square and **Legal moves and notation help** lists the legal moves in UCI, drops included, so the board can be used without seeing it.
+
+Engine lines need an engine that plays the variant, such as Fairy-Stockfish (see `docs/engines.md`, "Chess variants"). With another engine the board still works and the engine panel names the problem. Explanations, diagnosis, lessons, puzzles and bot play cover standard chess only. An imported variant game is saved to Your Games, labelled with its variant and "not analysed".
 
 ### Move-by-move game review
 

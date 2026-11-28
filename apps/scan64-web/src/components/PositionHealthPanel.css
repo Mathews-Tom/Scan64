@@ -1,0 +1,46 @@
+/* Position health (#416): calm segmented meters. Lit segments take the level's
+   colour; unlit segments stay neutral, so the fill length, the word and the colour
+   all carry the reading. Plain hex only (no oklch() or color-mix(), which older
+   WebKit drops). On --surface each fill is at least 4.5:1 and at least 3:1
+   against an unlit segment, in both themes; the unlit track is about 1.5:1 on the
+   surface, so an empty meter still shows its length. */
+/* While the next position loads, the last reading stays at full contrast; a reply
+   slower than 200 ms adds "Updating" (a status, so screen readers hear it) in a
+   space the heading always keeps, so nothing moves. */
+.position-health__updating { display: inline-block; min-width: 6em; margin-inline-start: var(--space-2, 0.5rem); font-size: var(--type-label); font-weight: normal; color: var(--muted); }
+.position-health {
+  min-width: 0;
+  --meter-unlit: #cacaca; --meter-good: #2e7d4f; --meter-fair: #8a6a14; --meter-low: #b23b2e;
+}
+:root[data-appearance='dark'] .position-health {
+  --meter-unlit: #4a4a4a; --meter-good: #6fd39a; --meter-fair: #e0b84f; --meter-low: #ff8a7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']):not([data-appearance='dark']) .position-health {
+    --meter-unlit: #4a4a4a; --meter-good: #6fd39a; --meter-fair: #e0b84f; --meter-low: #ff8a7a;
+  }
+}
+.position-health__table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--type-label); }
+.position-health__table col.position-health__name { width: 7.2em; }
+.position-health__table th, .position-health__table td { padding: 3px 0; text-align: start; font-weight: normal; }
+.position-health__table thead th { color: var(--muted); }
+.position-health__table tbody th { padding-inline-end: var(--space-1); overflow-wrap: anywhere; }
+.health-meter { display: grid; grid-template-columns: minmax(0, 1fr) 2.6em 0.8em; align-items: center; gap: 3px; padding-inline-end: var(--space-1); }
+.health-meter__track { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1px; height: 8px; }
+.health-meter__segment { border-radius: 2px; background: var(--meter-unlit); }
+.health-meter[data-level='good'] { --meter-fill: var(--meter-good); }
+.health-meter[data-level='fair'] { --meter-fill: var(--meter-fair); }
+.health-meter[data-level='low'] { --meter-fill: var(--meter-low); }
+.health-meter__segment[data-on] { background: var(--meter-fill); }
+.health-meter__word { color: var(--muted); }
+/* The overall meter: the factor module's total, taller and set apart from the groups. */
+.health-meter--overall .health-meter__track { height: 12px; }
+.health-meter--overall .health-meter__word { color: var(--ink); font-weight: 600; }
+.position-health__overall th, .position-health__overall td { padding-bottom: var(--space-2); border-bottom: 1px solid var(--meter-unlit); font-weight: 600; }
+.position-health__overall + tr th, .position-health__overall + tr td { padding-top: var(--space-2); }
+.health-meter__trend { font-size: 9px; color: var(--muted); }
+.position-health__details-toggle { margin-top: var(--space-2); background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--type-label); }
+.position-health__details { font-size: var(--type-label); margin: var(--space-2) 0 0; }
+.position-health__details dt { font-weight: 600; margin-top: var(--space-1); }
+.position-health__details dd { margin: 0; color: var(--muted); }
+.position-health__note { font-size: var(--type-label); color: var(--muted); overflow-wrap: anywhere; }

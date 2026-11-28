@@ -47,6 +47,7 @@ and `isready`.
 | --- | --- | --- |
 | `SCAN64_ENGINE_CONFIG` | unset | Absolute path of an engine profile (TOML). When set, it fully defines the engine. |
 | `SCAN64_STOCKFISH_PATH` | `stockfish` on `PATH` | Stockfish binary used when no profile is selected. Ignored when `SCAN64_ENGINE_CONFIG` is set. |
+| `SCAN64_LADDER_ENGINE_CONFIG` | unset | Absolute path of a second profile that plays the bot ladder's moves. Unset, they use the analysis engine. |
 
 Without a profile the engine is Stockfish from `SCAN64_STOCKFISH_PATH`, one
 thread, 16 MB hash, no extra options: the same identity as before profiles
@@ -220,8 +221,25 @@ The `skill` ladder stays Stockfish-only on purpose: its error budgets,
 `SKILL_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
 cohorts (`api/strength.py`) are defined against Stockfish. An engine with
 `UCI_Elo` but no `Skill Level` (Arasan 26.1) plays the ladder through
-`[ladder] strength = "elo"`. Opponent moves come from the same interactive pool
-as hints. A profile that can play neither ladder makes bot play unavailable;
+`[ladder] strength = "elo"`. Without `SCAN64_LADDER_ENGINE_CONFIG`, opponent
+moves come from the same interactive pool as hints, under the analysis
+profile's `[ladder]`. With it, ladder moves come from a pool of the ladder
+profile's engine (sized like the interactive pool) under that profile's
+`[ladder]`; the analysis profile's `[ladder]` is then unused, `scan64 serve`
+checks the ladder profile's binary too, and the default batch pool shrinks by
+the ladder pool's engine threads. Analysis, hints, review and legacy Skill Level
+sessions (no `bot_level`) never use the ladder profile. A ladder profile with
+the same engine and `[ladder]` as the analysis profile adds no pool. Setting or
+changing it changes the server's ladder policy, so bot games started before
+cannot continue (the policy check above). Example: Caissa for analysis, Arasan
+for the ladder:
+
+```sh
+SCAN64_ENGINE_CONFIG=/path/to/caissa.toml SCAN64_LADDER_ENGINE_CONFIG=/path/to/arasan-ladder.toml scan64 serve
+```
+
+When the engine that plays bot moves (the ladder profile's, else the analysis
+profile's) can play neither ladder, bot play is unavailable;
 play never falls back to Stockfish. The play endpoints
 (`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
 `…/opponent-move`) return 503 with
@@ -229,6 +247,41 @@ play never falls back to Stockfish. The play endpoints
 `EngineCapabilityError` text that names the missing options. The player's move
 stays committed; a bot-first session is not created. The web client shows
 that bot play is unavailable under the active engine profile.
+
+## Chess variants (#398)
+
+Scan64 reads variant positions with python-chess's variant boards: crazyhouse,
+three-check (`3check`), atomic, antichess, king of the hill, horde and racing
+kings. Searching one needs an engine that declares the variant. Which engines
+do, how python-chess selects the variant, installing Fairy-Stockfish and its
+probe results are in "Variants" below; this section is what Scan64 does with
+them.
+
+- **API.** `POST /v1/analysis/position` takes an optional `variant` (the names
+  above; default `chess`). The FEN is parsed under that variant's rules: a FEN
+  that is not a position of the variant is a 422 before any engine access. The
+  reply names the variant it was searched under. The explanation endpoint
+  covers standard chess only and rejects any other `variant` with 422.
+- **Engine check.** Before any search (see "How the variant is selected"),
+  Scan64 compares the board's variant with the engine's declared variants:
+  the `UCI_Variant` choices over UCI, or the `variants` feature over XBoard,
+  where antichess is `giveaway`. An undeclared variant is an
+  `EngineCapabilityError`, answered as 503 `engine_capability_unavailable`
+  whose `reason` names the variant and Fairy-Stockfish. Without the check
+  python-chess raises a plain `EngineError`, which the endpoint reports as a
+  generic analysis failure.
+- **Hint cache.** The cache key includes the variant: the same FEN is a
+  different position under another variant's rules.
+- **Not covered.** Diagnosis, lessons, puzzles, the narrator's explanations,
+  bot play and position health read standard chess only.
+- **Tests.** The tests use the fake UCI engine
+  (`tests/fixtures/engines/fake_uci.py`, `FAKE_UCI_VARIANTS`), which plays by
+  python-chess; no test runs Fairy-Stockfish. The probe in "Variants" runs it
+  directly, not through Scan64's endpoints.
+- **Variant games.** A PGN with a supported `Variant` tag is stored with its
+  variant. Game analysis, review and backfill refuse it with 409
+  `variant_not_covered`; the web import says the game is saved and not
+  analysed, and Your Games labels it "<variant>, not analysed".
 
 ## Stockfish-specific assumptions outside the engine provider
 
@@ -518,9 +571,9 @@ the binary SHA-256 is also in every JSONL record. This table replaces nothing ab
 
 ## Variants
 
-Scan64 does not analyse chess variants yet; [#398](https://github.com/Mathews-Tom/Scan64/issues/398)
-tracks the work. This section records which engines can serve them and how
-python-chess selects a variant, measured with the variant probe below.
+What Scan64 does with variants is in "Chess variants (#398)" above. This
+section records which engines can serve them and how python-chess selects a
+variant, measured with the variant probe below.
 
 ### Engines
 
@@ -632,15 +685,10 @@ recorded FEN and moves. `tests/unit/test_variants_probe.py` covers the
 
 Tracked in #398:
 
-- Engine layer: every search gets a standard `chess.Board`, built from a
-  FEN or a standard game replay (`providers/stockfish/pool.py`, `adapter.py`),
-  so no search reaches the engine as a variant; there is no capability message for an engine that does
-  not declare the variant; analysis rows and the cache identity have no
-  variant field.
-- Rules and import: `ingest_fen` accepts standard chess only, and PGN import
-  rejects any `Variant` tag other than `Standard` (`NonStandardVariantError`).
-- Web board: no pockets or drops for crazyhouse, no check count for
-  three-check.
-- Analysis Board engine lines and narration for variants.
-- Diagnosis, lessons and puzzles stay standard chess; variant games are not
-  labelled as not covered there yet.
+- Narration: the explanation endpoint refuses a variant with 422.
+- The variant Analysis Board cannot load a FEN or an imported variant game;
+  it starts from the variant's start position.
+- Game analysis (`ingest_pgn` raises `NonStandardVariantError`), review,
+  diagnosis, lessons, puzzles, bot play and position health stay standard
+  chess; variant games are stored, labelled and refused with 409
+  `variant_not_covered`.

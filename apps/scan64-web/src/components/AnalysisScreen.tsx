@@ -2,9 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
-import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead } from '../api/types';
+import type { PlaySessionRead, PositionAnalysisLine, PositionExplanationClaim, PositionExplanationRead, VariantName } from '../api/types';
+import { VARIANT_NAMES } from '../variants';
+import { VariantAnalysisBoard } from './VariantAnalysisBoard';
 import { OwnedGameReview } from './OwnedGameReview';
 import { CoachBoard } from './CoachBoard';
+import { PositionHealthPanel } from './PositionHealthPanel';
+import { readHealthPanel } from '../healthPanel';
 import { analysisEntries, analysisMoveLabel, analysisReplay, commitAnalysisMoves, createAnalysisTree, exportAnalysisPgn, type AnalysisTree } from './analysisTree';
 import { Button, Field, Panel } from './Primitives';
 import './WorkingScreens.css';
@@ -33,7 +37,38 @@ async function startPlayFromPosition(fen: string): Promise<PlaySessionRead> {
 export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisScreenProps) {
   return gameId
     ? <OwnedGameReview key={gameId} gameId={gameId} initialPly={initialPly} onPlayFromHere={onPlayFromHere} startPlayFromPosition={startPlayFromPosition} />
-    : <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} />;
+    : <FreeAnalysis onPlayFromHere={onPlayFromHere} />;
+}
+
+/**
+ * Standard chess keeps the variation tree, and keeps it while a variant board
+ * is open; a variant board takes its rules from the server and starts from the
+ * variant's start position each time it is opened.
+ */
+function FreeAnalysis({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
+  const [variant, setVariant] = useState<VariantName>('chess');
+  const [pending, setPending] = useState<VariantName>('chess');
+  // Opening a board disables its button; focus goes to the board opened, not the page.
+  const boardHeading = useRef<HTMLHeadingElement>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) boardHeading.current?.focus();
+    opened.current = true;
+  }, [variant]);
+  return <div className="analysis-screen working-screen">
+    <h2>Analysis Board</h2>
+    <form className="working-actions" aria-label="Choose a variant" onSubmit={event => { event.preventDefault(); setVariant(pending); }}>
+      <label htmlFor="analysis-variant">Variant</label>
+      <select id="analysis-variant" value={pending} onChange={event => setPending(event.target.value as VariantName)}>
+        {(Object.keys(VARIANT_NAMES) as VariantName[]).map(name => <option key={name} value={name}>{VARIANT_NAMES[name]}</option>)}
+      </select>
+      <Button type="submit" disabled={pending === variant}>Open {VARIANT_NAMES[pending]} board</Button>
+    </form>
+    <p>The Standard board keeps its moves while another variant is open; a variant board starts from its start position each time it is opened.</p>
+    <h3 ref={boardHeading} tabIndex={-1}>{VARIANT_NAMES[variant]} board</h3>
+    <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} hidden={variant !== 'chess'} />
+    {variant !== 'chess' && <VariantAnalysisBoard key={variant} variant={variant} />}
+  </div>;
 }
 
 type Evaluation = { state: 'loading' } | { state: 'ready'; lines: PositionAnalysisLine[]; revision: number }
@@ -58,7 +93,7 @@ function evaluationLabel(line: PositionAnalysisLine): string {
   return `${score >= 0 ? '+' : ''}${score.toFixed(2)}`;
 }
 
-function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
+function FreeAnalysisBoard({ onPlayFromHere, hidden }: Pick<AnalysisScreenProps, 'onPlayFromHere'> & { hidden: boolean }) {
   const fenField = useRef<HTMLInputElement>(null);
   const revision = useRef(0);
   const loadGeneration = useRef(0);
@@ -227,8 +262,8 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
     } finally { setLoading(false); }
   };
 
-  return <div className="analysis-screen working-screen">
-    <h2>Analysis Board</h2>
+  // `display: contents` keeps the board's parts direct children of the screen's grid.
+  return <div data-testid="standard-analysis" style={{ display: hidden ? 'none' : 'contents' }}>
     {error && <p role="alert">{error}</p>}
     <p role="status">{loading ? 'Loading...' : status}</p>
     <div className="board-workspace">
@@ -285,6 +320,8 @@ function FreeAnalysisBoard({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlay
             }}>Copy FEN</Button>
           </div>
         </section>
+        {readHealthPanel() && <PositionHealthPanel fen={fen}
+          previousFen={tree.nodes[selected].parent === null ? null : tree.nodes[tree.nodes[selected].parent!].fen} />}
         <section className="working-controls__section" data-testid="multipv-lines" aria-label="Engine evaluation" aria-busy={evaluation.state === 'loading'}>
           <h3>Engine evaluation</h3>
           <p>White perspective: positive favours White; negative favours Black. M means mate.</p>
