@@ -1,13 +1,14 @@
 import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import chess
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.boards import board_from
 from scan64.chess.variants import STANDARD, VariantName
-from scan64.providers.stockfish.adapter import EngineAdapter
+from scan64.providers.stockfish.adapter import BoardEngineAdapter, EngineAdapter
 
 
 async def _analyze_positions(
@@ -20,12 +21,14 @@ async def _analyze_positions(
 ) -> list[EngineAnalysis]:
     if concurrency < 1:
         raise ValueError("Analysis concurrency must be at least 1")
+    # Only a variant game passes boards; a standard game passes FENs to any adapter.
+    boards = cast(BoardEngineAdapter, adapter)
     pending = iter(enumerate(fens))
     results: dict[int, EngineAnalysis] = {}
 
     async def worker() -> None:
         for index, fen in pending:
-            results[index] = await adapter.analyze_position(fen, nodes=nodes, multipv=multipv)
+            results[index] = await boards.analyze_position(fen, nodes=nodes, multipv=multipv)
 
     workers = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(fens)))]
     try:

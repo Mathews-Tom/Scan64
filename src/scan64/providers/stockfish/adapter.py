@@ -40,6 +40,19 @@ class EngineAdapter(Protocol):
 
     async def analyze_position(
         self,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis: ...
+
+
+class BoardEngineAdapter(Protocol):
+    """An engine adapter that also searches a board, so a variant board keeps its rules."""
+
+    async def analyze_position(
+        self,
         fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
@@ -232,6 +245,7 @@ class StockfishAdapter:
 UciEngineAdapter = StockfishAdapter
 
 __all__ = [
+    "BoardEngineAdapter",
     "EngineAdapter",
     "IdentifiedEngineAdapter",
     "StockfishAdapter",
