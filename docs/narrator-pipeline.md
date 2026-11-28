@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). The new section 18 and section 17's counters were added for #454 (voice pipeline: one fact per call, every sentence checked). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). The new section 18 and section 17's counters were added for #454 (voice pipeline: one fact per call, every sentence checked); sections 5 and 13 and the new section 19 were updated for #400 (root-cause themes and the turning point); sections 9, 18 and 19 were updated for #401 (cause, effect, then the line). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -135,6 +135,7 @@ The schema is generated from the pydantic models in `explanations/facts.py` (`uv
 
 | Object | Fields | Computed by |
 |---|---|---|
+| `game` (#400) | `source`, `mistake_ply`, `window`, `evaluation_trend_cp`, `themes[]` (`key`, `signal`, `threshold`, `measured`, `held`, `move_from`, `move_to`, `pieces`, `squares`, `files`, `weaknesses`), `turning_point` (`ply`, `move_number`, `side`, `san`, `uci`, scores before, after and at the end, `is_mistake`) | game positions, fast-pass scores, factor module, python-chess; section 19 |
 | `factors` (#408) | `source` (factor module version), `points` (`before`, `played`, `best`: moves from the before-position, `quiet`), `engine_swing_cp`, `changes[]` (`key`, `name`, `kind`, `guide_name`, `compared_with`, `change_pawns`) | factor module at quiet positions; section 16 |
 | `position` | `fen`, `side_to_move` (the learner), `material`, `played_move` and `best_move` (move facts), `evaluation_before`, `evaluation_after` (after the played move), `best_move_evaluation`, `evaluation_difference_cp` (best minus played, both centipawn scores only), `swing_cp`, `mistake_class` (`code` = `diagnosis.primary`, `name` from the taxonomy seeds) | python-chess; evaluations from stored searches |
 | `evidence[]` | `evidence_id`, `kind`, `claim`, `line_ids`, `pieces` (square, piece, colour, payload role), `squares`, `tactic`, `mate_in`, `material_gain` | payload fields |
@@ -333,6 +334,8 @@ On success the validator returns `Explanation(text=" ".join(claim.text …), cla
 
 `TemplateExplanationProvider.explain` (`templates/provider.py:236-257`) renders one template per code from the first evidence item in `diagnosis.evidence_refs` (`_matched_payload`). It returns `Explanation(text, visualizations=[])` with `claims` empty. Allowed mate prints the full mating line in SAN (`_allowed_mate_text`). The other trusted codes print `played_move` and one move or square.
 
+Since #401, when `resolve_explanation` gets the game (`game=trace`) and the game has a root-cause theme or a turning point at or before the mistake, the template starts with them (`voice_pipeline.cause_text`): first the theme, then the turning point, then the template's own text. So a fallback also reads cause, effect, then the line. The words are #400's phrases ("your king on g1 had little cover: ..."). Without them the template is unchanged.
+
 Paths that return the template instead of LLM output:
 
 | # | Condition | Reference |
@@ -484,6 +487,8 @@ The narrator writes prose with named slots; code writes every chess token. For e
 | `{factor:KEY:played}` | `after your move, king safety fell by 0.65 pawns for you` | a factor change from the position before the move passed (section 16) |
 | `{factor:KEY:best}` | `after your move, king safety is 0.60 pawns worse for you than after the best move` | a factor change against the best move's line passed |
 | `{square:N}` | `e7` | Nth entry of the evidence item's `squares` |
+| `{theme:KEY}` (#400) | `from move 16 to move 19, your king on f8 had little cover: your opponent's bishop on e5 and knight on d6 attacked the squares around it` | the theme held before the mistake (section 19) |
+| `{turning_point}` (#400) | `the game began to turn against you with your move 10...g5: before it the position was level, and after it the engine never again rated it level` | the game has a turning point at or before this mistake |
 
 `K` is `played`, `best` or `L:N` (ply N of line L). Position slots (`played`, `best`, their clause slots, `mistake`, evaluations) are listed for every evidence item; line and evidence slots only for their own item. `{material_gain}` does not say which side gains, because the payload field does not.
 
@@ -740,9 +745,14 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
 1. **Facts.** Code writes the facts (`explanations/role_facts.py`, #460). Each fact has a role (the move, what it misses, what follows, what the mover could have played) and the relations it states (takes, attacks, pins, gives check and others).
    - Lesson: the facts of the played move against the engine's best move and line (`lesson_role_facts` in `assembly.py`).
    - Analysis Board: for each engine line, the facts of its first move and of the moves that follow. The template's first sentence (the side to move and the engine's first choice) opens the explanation.
-2. **At most four facts.** Each role becomes one fact, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). A role's fact starts with its framing fact when it has one ("White could have played 7.Qe2 instead of 7.Be2."). Then it adds up to two of the role's other facts, chosen in this order: a mate, a check, a capture, the rest. The chosen facts keep the order of the moves. The other facts are left out and counted. The model may write two sentences for a fact with several parts. A pin fact names the pinned piece instead of "it" ("the queen on e4 pins the bishop on e2 to the king on e1").
-3. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
-4. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
+2. **Cause and effect first (#401).** When the lesson has the game's facts (section 19), the story starts with two more facts before the move. Both are in White and Black words, not "you" and "your":
+   - **The cause:** the first root-cause theme ("From move 12 to move 15, White's king on g1 had little cover: ..."). Only one theme is told. The other themes are left out and counted in `facts_dropped`.
+   - **The turning point:** the move where the game began to turn ("The game began to turn against White with 14.Qd2: before it the position was level, and after it the engine never again rated it level."). A turning point after the mistake is not told, as in the `{turning_point}` slot.
+
+   Then the line's facts follow (the move, what it misses, what follows, what the mover could have played), so the tactic is the proof, not the headline. Without a theme or a turning point the story starts with the move, as before. The prompts of these two facts add two examples (`CAUSE_EXAMPLES`); the prompts of the line's facts are unchanged. Each of the two passes the checks of step 5 and one more (`cause_problems`): the sentence keeps the fact's claim word for word ("White's king on g1 had little cover", "began to turn against White with 14.Qd2"). A sentence that leaves the claim out is retried; after that the plain fact text is used. The Analysis Board has no game facts, so its story is unchanged. The slot path of section 13 does not set this order.
+3. **At most four line facts.** Each role becomes one fact, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). A role's fact starts with its framing fact when it has one ("White could have played 7.Qe2 instead of 7.Be2."). Then it adds up to two of the role's other facts, chosen in this order: a mate, a check, a capture, the rest. The chosen facts keep the order of the moves. The other facts are left out and counted. The model may write two sentences for a fact with several parts. A pin fact names the pinned piece instead of "it" ("the queen on e4 pins the bishop on e2 to the king on e1").
+4. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
+5. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
    - names a move, square, piece or chess term that its fact does not contain;
    - keeps none of the fact's moves or squares;
    - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing", "strong", "elegant", "risky" and the like, "more" or "less" with an adjective, or "a safer path";
@@ -753,9 +763,9 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
    - names the wrong piece as pinned: after "pins" the first piece named must be the pinned piece, and before "is pinned" the last one;
    - has more sentences than allowed: one, or two for a fact with several parts.
    Code removes a "!" written directly after the played move before the check.
-5. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
-6. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
-7. **Joining.** A comment keeps at most one "!": code turns a later one at the end of a sentence into a full stop and removes one inside a sentence. Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
+6. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
+7. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
+8. **Joining.** A comment keeps at most one "!": code turns a later one at the end of a sentence into a full stop and removes one inside a sentence. Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
    On the Analysis Board each claim cites only the moves of its own fact: its line up to the last move the fact names (`board_lines.fact_moves`). The board highlights those moves for that sentence. A sentence about the first move highlights the first move only.
 
 When the pipeline applies:
@@ -775,3 +785,53 @@ The local provider checks the model list once per explanation and rechecks conse
 **Limits.**
 - One explanation sends one request per voiced fact, plus retries. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
 - The check reads words, not meaning. A sentence that stays inside its fact's moves, squares and pieces but states a wrong relation can still pass. One fact per call keeps that rare: each call has only one fact to get wrong.
+
+## 19. Root-cause themes and the turning point (#400)
+
+A lesson explains one mistake. Often the game was lost before it: the king had no cover for several moves, or the pieces had no squares. Code computes these root causes, and the move where the game turned, from the game's moves, the engine scores of the game's positions and the factor module (section 15). The narrator only words them. Module: `src/scan64/explanations/themes.py`.
+
+**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) does not pass it yet (#482); until then the themes reach no player.
+
+**Window.** The positions where the learner was to move in their last 4 moves, up to and including the mistake (`THEME_WINDOW`). A theme holds when:
+
+1. its signal passes its threshold at 3 or more of these positions (`THEME_MIN_POSITIONS`), one of them the position before the mistake;
+2. the engine score fell by half a pawn or more across the window: from the first window position to the position after the mistake, learner's view (`THEME_TREND_CP = 50`).
+
+So a mistake in the learner's first two moves has no theme.
+
+**Themes.** The factor signals use the group value of the learner minus the opponent, in pawns (`health_values`, section 16). Each threshold is the "in trouble" end of that group's health scale, fitted in #410 on lost-game positions (`HEALTH_SCALE[...].empty`). The board part names the pieces and squares the text states; a theme without them is not stated.
+
+| Theme | Signal | Threshold | Board part (all needed) | Example text |
+|---|---|---|---|---|
+| `unsafe_king` | King group value | -0.55 pawns or less | the opponent has a queen; an open file next to the king (no learner pawn on it) or an opponent piece (not a pawn or king) attacking the king's square or a square next to it | `from move 9 to move 11, your king on e8 had little cover: the d-file and e-file next to it were open, with none of your pawns on them` |
+| `weak_pawns` | Pawns group value | -0.25 pawns or less | an isolated, doubled or backward learner pawn | `from move 18 to move 21, your pawns were weak: an isolated pawn on d6` |
+| `passive_pieces` | Mobility group value | -0.65 pawns or less | a learner knight, bishop, rook or queen with at most 1 square to go to that no opponent pawn attacks; up to move 20, pieces on their starting squares are left out | `on move 25, your pieces had little room: your rook on a8 could go only to b8 and your bishop on c8 had no square that your opponent's pawns did not cover` (test position, the same at each window position) |
+| `lagging_development` | learner's knights and bishops on their starting squares, minus the opponent's | 2 or more, with 2 or more at home, up to move 20 | the pieces at home | `on move 5, your knight on b8, bishop on f8 and knight on g8 were still on their starting squares, while your opponent had only the bishop on c1 at home` (test position) |
+
+Board terms: isolated, no own pawn on a next file; doubled, another own pawn ahead on the same file (the rear pawn is named); backward, not isolated, no own pawn on a next file level with it or behind it, and an enemy pawn attacks the square in front of it.
+
+**Turning point.** Defined for a lost game: the game's last scored position is 3 pawns or more worse for the learner (`LOST_CP`). The turning point is the learner's move from the last position where the learner was level or better (at most half a pawn worse, `LEVEL_CP`). Every scored position after that move is worse than level, so the score never came back. The move itself must lose half a pawn or more (`TURNING_STEP_CP`). If the last level position has the opponent to move, or the move lost less, there is no turning point. Scores are clamped to ±10 pawns; a mate counts as 10 pawns. The turning point is a game fact: it can be an earlier move than the lesson's mistake, the mistake itself (`is_mistake`) or a later move. The `{turning_point}` slot exists only when it is the mistake or an earlier move.
+
+**Facts and slots.** `NarratorFacts.game` (`GameThemeFacts`) holds the window, the trend, each theme with its signal, threshold, the value at each window position and the positions where it held, and the turning point with its scores. Slots (section 13): `{theme:KEY}` per theme and `{turning_point}`, shared by every evidence item. Their values are plain chess words with the pieces and squares; they hold no factor name and no factor number. The slot names admit their words to the vocabulary rule, as other slot names do: `{theme:unsafe_king}` admits "king". The claim rule (#431) reads an `unsafe_king` theme as a fact that the learner's king was unsafe and a `passive_pieces` theme as a fact that the learner's pieces were passive (`THEME_TOPICS` in `claims.py`), so "your king was exposed" is supported.
+
+**Story order (#401).** The voice pipeline tells the first theme and the turning point before the move and its engine line (section 18, step 2). The template does the same (section 9). The explanation then reads like a coach: the cause, its effect, then the concrete line as proof. This needs `game=trace`, so it reaches players with #482.
+
+**Hand check.** `uv run python -m tests.helpers.themes.hand_check --engine <stockfish>` prints the themes and turning points of the 20 slow-loss games of the factor calibration (`benchmarks/factor_calibration/games.json`: public Lichess games, CC0, Lichess server evaluations, the loser as the learner). Each game has up to 3 candidate mistakes (60 in total). The author of #400 checked each result on 2026-11-28:
+
+- a turning point agrees when, at depth 20 with Stockfish 18, a better move kept the position level (half a pawn or less worse) and the played move did not;
+- a theme agrees when the board shows the stated weakness and a strong player would name it as a lasting problem of those moves.
+
+| Result | Found | Agree |
+|---|---|---|
+| Turning points (one per game) | 15 of 20 games | 15 of 15 (100%) |
+| Themes (on 60 candidate mistakes) | 5: 2 `unsafe_king`, 3 `weak_pawns` (2 of them the same pawn on consecutive mistakes) | 5 of 5 (100%) |
+
+Before the half-pawn step rule, the rule found 19 turning points and 15 agreed (79%). The 4 that did not were threshold crossings where the move lost a quarter pawn or less, and in one game the first move (1.d4 c5). The step rule removed all 4 and 1 that agreed (ezWiqlCs: 19...Rac8, -0.24 against the best move's -0.82 at depth 20, -0.40 to -0.78 in the Lichess evaluations). In 3 games the turning point comes late because the opponent gave back a lost position: in ZzASDeMz the learner was 5 pawns down, the opponent let the game back to level, and 33...Kf5 then lost it. The rule names that move, because the score never came back after it. No theme fired on 55 of the 60 candidates. These are slow losses by 2100-2300 players, where the weaknesses are small; the hand check measures the stated themes, not how many causes are missed.
+
+**Limits.**
+
+- The scores are the 10 000-node fast pass. A noisy score near the level line can move the turning point by a move or two.
+- The factor values are measured at game positions, not at quiet positions (section 16): a position in the middle of an exchange can pass or fail a signal for one move. Three of four positions must pass, which limits this.
+- The board parts are simple counts: a piece "with no free square" can still be useful, and an open file next to the king can be harmless when the opponent has no rook or queen to use it.
+- Standard chess only: the factor module needs one king per side; a variant position measures no factor theme.
+- Material, the initiative and space are not themes: the material and evaluation slots already state material, and the threats and space factors are left to the factor facts.

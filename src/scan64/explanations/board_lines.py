@@ -74,7 +74,7 @@ from scan64.explanations.facts import (
     line_evaluation_change,
     material,
 )
-from scan64.explanations.role_facts import RoleFact, RoleFactsError, role_facts
+from scan64.explanations.role_facts import RoleFactsError, role_facts
 from scan64.explanations.role_facts import numbered_san as move_label
 from scan64.explanations.slots import (
     Slot,
@@ -92,7 +92,7 @@ from scan64.explanations.validator import (
     validate_generated_explanation,
 )
 from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
-from scan64.explanations.voice_pipeline import SentenceWriter, voice_facts
+from scan64.explanations.voice_pipeline import SentenceWriter, StoryFact, voice_facts
 from scan64.learning.evidence.composer import line_material_gain
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
@@ -862,13 +862,14 @@ def _validated_provider_explanation(
     return explanation
 
 
-def fact_moves(fen: str, line: Sequence[str], fact: RoleFact) -> tuple[str, ...]:
+def fact_moves(fen: str, line: Sequence[str], fact: StoryFact) -> tuple[str, ...]:
     """The moves of ``line`` that one voiced sentence cites (#485).
 
     The Analysis Board highlights a claim's moves as a prefix of its line, so
     the claim cites the line up to the last move its fact's relations name.
     A relation names a move of the line when it has the move and the position
-    it is played from. A fact that names no move of the line cites the first move.
+    it is played from. A fact that names no move of the line, such as a cause
+    fact (#401), which states no relations, cites the first move.
     """
     board = chess.Board(fen)
     played_from: dict[tuple[str, str], int] = {}

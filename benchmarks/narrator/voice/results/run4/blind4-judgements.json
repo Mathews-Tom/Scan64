@@ -1,0 +1,1202 @@
+[
+ {
+  "id": "d001",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d002",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d003",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d004",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d005",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d006",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d007",
+  "faithful": false,
+  "error": "\"A checkmate invitation is overlooked\": no checkmate in the facts.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d008",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d009",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d010",
+  "faithful": false,
+  "error": "\"opens a diagonal ... right in the centre\": the c1 diagonal does not run through the centre.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d011",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d012",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d013",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d014",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d015",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d016",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d017",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d018",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d019",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d020",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d021",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d022",
+  "faithful": false,
+  "error": "\"1.Kd2 lets 1.Nc7+\": Nc7+ was White's alternative, not a reply allowed by Kd2.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d023",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d024",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d025",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d026",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d027",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d028",
+  "faithful": false,
+  "error": "\"the knight on d5 is a watchful guard\": the knight attacks; it guards nothing.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d029",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d030",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d031",
+  "faithful": false,
+  "error": "\"1.Kd2 allows 1.Nc7+\": Nc7+ was White's alternative, not something Kd2 allows.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d032",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d033",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d034",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d035",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d036",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d037",
+  "faithful": false,
+  "error": "\"1.Kd2 allows 1.Nc7+\": Nc7+ was White's alternative, not something Kd2 allows.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d038",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d039",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d040",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d041",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d042",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d043",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d044",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d045",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d046",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d047",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d048",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d049",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d050",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d051",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d052",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d053",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d054",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d055",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d056",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d057",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d058",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d059",
+  "faithful": false,
+  "error": "\"made Black's queen react\": the check is on the king; the king must answer.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d060",
+  "faithful": false,
+  "error": "\"leaving the attack on the rook of a8 unaddressed\": there was no attack to address.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d061",
+  "faithful": false,
+  "error": "\"queen on g5 already covers the pawn on g2\": \"covers\" means guards; it attacks it.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d062",
+  "faithful": false,
+  "error": "\"the king on h2 gets a free square\": the king is on g1; h2 is the free square.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d063",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d064",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d065",
+  "faithful": false,
+  "error": "\"1.h3!\": marks the miss as a good move; facts say 1.Rd8 mates at once.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d066",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d067",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d068",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d069",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d070",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d071",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d072",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d073",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d074",
+  "faithful": false,
+  "error": "\"1.Kd2! ... now poses a double threat\": praises the miss; \"safer ride\" is nonsense.",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "d075",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d076",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d077",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d078",
+  "faithful": false,
+  "error": "\"overlooks a sharp discovery\": 1.Nc7+ is a fork, not a discovered attack.",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d079",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d080",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d081",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d082",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d083",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d084",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d085",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d086",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d087",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d088",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d089",
+  "faithful": false,
+  "error": "\"1.h3!\": marks the miss as a good move; facts say 1.Rd8 mates at once.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d090",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d091",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d092",
+  "faithful": false,
+  "error": "\"1.e3 gets the bishop on c1 trapped\": it was already shut in before 1.e3.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d093",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d094",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d095",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d096",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d097",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d098",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d099",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d100",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d101",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d102",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d103",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "d104",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d105",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d106",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d107",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d108",
+  "faithful": false,
+  "error": "\"1.Kd2!\": marks the missed chance as a good move; facts say it misses 1.Nc7+.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d109",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d110",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d111",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d112",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d113",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d114",
+  "faithful": false,
+  "error": "\"the knight on d5 takes the rook\": after 1.Nc7+ the knight is on c7.",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d115",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d116",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d117",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d118",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d119",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d120",
+  "faithful": false,
+  "error": "\"1.h3!\": marks the miss as a good move; facts say 1.Rd8 mates at once.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d121",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d122",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d123",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d124",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d125",
+  "faithful": false,
+  "error": "\"5.Nxf7!\" praises the mistake; Qxg2 after 5.Bxf7+ is not in the facts.",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "d126",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d127",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d128",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d129",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d130",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d131",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d132",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d133",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d134",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d135",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d136",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d137",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d138",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d139",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d140",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d141",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d142",
+  "faithful": false,
+  "error": "\"watches over the pawn on g2\": means guards it; the queen attacks it.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d143",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d144",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d145",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d146",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d147",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "d148",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d149",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "d150",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ }
+]

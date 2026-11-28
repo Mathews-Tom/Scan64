@@ -32,6 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations.factor_facts import FactorFacts, evaluation_cp, mistake_factor_facts
+from scan64.explanations.themes import GameThemeFacts, GameTrace, game_theme_facts
 from scan64.learning.diagnosis.taxonomy.seeds import SEED_CODES
 from scan64.learning.evidence.composer import PIECE_VALUES
 from scan64.learning.evidence.models import Evidence
@@ -238,6 +239,11 @@ class NarratorFacts(_Facts):
     factors: FactorFacts | None = Field(
         default=None,
         description="Factor changes across the mistake (#408); absent when not measured.",
+    )
+    game: GameThemeFacts | None = Field(
+        default=None,
+        description="Root-cause themes before the mistake and the game's turning point "
+        "(#400); absent without the game's moves and scores.",
     )
 
     def to_prompt_json(self) -> str:
@@ -871,9 +877,16 @@ def narrator_factor_facts(
 
 
 def build_narrator_facts(
-    diagnosis: Diagnosis, evidence: Sequence[Evidence], fen: str
+    diagnosis: Diagnosis,
+    evidence: Sequence[Evidence],
+    fen: str,
+    game: GameTrace | None = None,
 ) -> NarratorFacts:
-    """Compute the narrator's facts for ``diagnosis`` from ``fen`` (before the mistake)."""
+    """Compute the narrator's facts for ``diagnosis`` from ``fen`` (before the mistake).
+
+    ``game`` (the game's positions and fast-pass scores) adds the root-cause
+    themes and the turning point (#400).
+    """
     referenced = [item for item in evidence if item.evidence_id in diagnosis.evidence_refs]
     if not referenced:
         raise NarratorFactsError("Diagnosis references no evidence")
@@ -938,6 +951,7 @@ def build_narrator_facts(
         evidence=tuple(evidence_facts),
         lines=tuple(lines),
         factors=narrator_factor_facts(before, played, best_move, lines, evaluations, swing_cp),
+        game=game_theme_facts(game, before, played) if game is not None else None,
     )
 
 
