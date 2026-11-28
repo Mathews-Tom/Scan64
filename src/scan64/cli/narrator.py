@@ -101,6 +101,9 @@ def install_narrator_model(
     out: Callable[[str], None] = print,
 ) -> None:
     run = run or subprocess.run
+    # ``ollama create`` runs inside the directory; resolve it once so the
+    # Modelfile path does not resolve a second time from there.
+    directory = directory.resolve()
     ollama = (which or shutil.which)("ollama")
     if ollama is None:
         raise NarratorInstallError(
@@ -131,7 +134,8 @@ def install_narrator_model(
             raise NarratorInstallError(
                 f"ollama create failed with exit status {created.returncode} (its output is "
                 f"above). The narrator was measured with Ollama 0.40.18; update Ollama if it is "
-                f"older (this one is {version}). {_FALLBACK}"
+                f"older (this one is {version}). The checked GGUF stays in {directory} for a "
+                f"retry. {_FALLBACK}"
             )
         if DEFAULT_NARRATOR_MODEL not in _installed(local):
             raise NarratorInstallError(

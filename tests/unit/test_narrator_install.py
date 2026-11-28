@@ -130,6 +130,29 @@ def test_install_downloads_checks_the_digest_and_registers_the_model(tmp_path: P
     assert lines[-1].startswith(f"Installed {DEFAULT_NARRATOR_MODEL}.")
 
 
+def test_a_relative_directory_names_the_modelfile_from_inside_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default ``data/narrator`` is relative; ``ollama create`` runs inside it."""
+    monkeypatch.chdir(tmp_path)
+    ollama = Ollama()
+    commands = Commands(ollama, gpus=ONE_GPU)
+    transport, _ = download()
+    install_narrator_model(
+        Path("data/narrator"),
+        pin=PIN,
+        which=lambda _name: "/usr/bin/ollama",
+        run=commands,
+        local_transport=ollama.transport(),
+        download_transport=transport,
+        out=lambda _line: None,
+    )
+    argv, kwargs = commands.calls[-1]
+    assert (Path(kwargs["cwd"]) / argv[4]) == tmp_path / "data/narrator" / Path(argv[4]).name
+    assert "FROM ./narrator.gguf\n" in commands.modelfile
+    assert DEFAULT_NARRATOR_MODEL in ollama.models
+
+
 def test_a_kept_gguf_is_reused_without_a_second_download(tmp_path: Path) -> None:
     ollama = Ollama()
     install(tmp_path, ollama, Commands(ollama, gpus=ONE_GPU), keep_gguf=True)
