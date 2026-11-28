@@ -296,7 +296,8 @@ To roll the desktop app back from 1.2.0 to 1.1.0: 1.2.0 adds the `20261127_26_na
 1. Quit Scan64.
 2. In the data directory listed under [Start the application](#start-the-application), move `scan64.db`, and `scan64.db-wal` and `scan64.db-shm` if they exist, to a folder outside the data directory. Keep them: they hold everything you did in 1.2.0. Don't leave the `-wal` or `-shm` file next to the restored database, because SQLite would apply it to the wrong file.
 3. Copy the newest `backups/scan64-<number>-before-1.2.0-<suffix>.db` to `scan64.db` in the data directory.
-4. Install 1.1.0 from its GitHub release page and start it.
+4. Replace the contents of `desktop-app-version` in the data directory with `1.1.0`. The app records the highest version that ran and takes its pre-upgrade backup only when that version advances. Without this step, updating to 1.2.0 again would migrate your 1.1.0 work without a new backup.
+5. Install 1.1.0 from its GitHub release page and start it.
 
 The restored database has none of the games, practice or settings changes made in 1.2.0.
 
