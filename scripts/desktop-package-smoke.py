@@ -389,7 +389,9 @@ def main() -> None:
     if summary:
         with Path(summary).open("a") as output:
             output.write("### Installable dry-run artifacts\n\n```text\n" + text + "```\n")
-    print("All installed bundles passed content, Stockfish and app lifetime checks", flush=True)
+    print(
+        "All installed bundles passed content, bundled engine and app lifetime checks", flush=True
+    )
 
 
 if __name__ == "__main__":

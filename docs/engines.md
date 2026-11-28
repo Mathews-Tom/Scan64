@@ -29,8 +29,16 @@ Each package carries one profile for each permissive engine (sources in
 `config/engines/arasan.toml`). The image has them in
 `/usr/local/share/scan64/engines/`. The desktop build stages them in
 `engines/` among its resources, with `binary_path` rewritten to the engine
-beside them (`../caissa/caissa[.exe]`). Caissa's `score_scale` is not set: its
-fit is open on #396.
+beside them (`../caissa/caissa[.exe]`).
+
+**Provisional score scale.** `caissa.toml` sets no `score_scale`, so a fresh
+install reads Caissa's centipawns as Stockfish's. The committed measurement
+([`caissa_positions_report.md`](../benchmarks/narrator/results/caissa_positions_report.md),
+Evaluation) puts them at 0.71–0.75 of Stockfish's (1M-node searches pooled,
+n = 37): win percentages and the 150 cp mistake threshold run on an
+uncalibrated scale, and won positions read near 600–700 cp where Stockfish
+reports 1,000 or more. The fit on the 50 narrator positions is open on #396.
+Installs that keep Stockfish are unaffected.
 
 ### Which engines an install uses
 
