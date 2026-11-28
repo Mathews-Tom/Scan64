@@ -8,9 +8,9 @@ The normal source entry point, `uv run scan64-cli serve`, serves the built React
 
 The React shell loads screens on demand. In browsers, the service worker caches requested scripts so visited screens can reload offline. Analysis and desktop puzzle-import progress use authenticated streaming HTTP; the desktop updater pushes status through native events. Browsers do not run the updater.
 
-The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume.
+The Dockerfile builds the client and pinned Stockfish 18, Caissa 2.0 and Arasan 26.1, runs as a non-root user, and starts the same command on `0.0.0.0:8001` with `--no-browser`. Its database is `/data/scan64.db`; preserve the `/data` volume.
 
-The desktop app (macOS arm64, Windows x64, Linux x64) uses a Tauri 2 system-webview window containing that same React client. `scripts/build-server.py` freezes `scan64.desktop_server` through the one-folder `scan64-server.spec`, compiles the Dockerfile's SHA-256-pinned Stockfish 18 for the target and verifies both pinned networks. Tauri packages the server folder, engine/networks, corresponding GPL source archive, `Copying.txt`, Scan64 licence and notices as app resources. No Tk or browser process is required. Installers are not code-signed (macOS ad-hoc, not notarized; Windows not Authenticode-signed); update bundles are signed with the updater key and verified by the app.
+The desktop app (macOS arm64, Windows x64, Linux x64) uses a Tauri 2 system-webview window containing that same React client. `scripts/build-server.py` freezes `scan64.desktop_server` through the one-folder `scan64-server.spec`, builds the three pinned engines for the target and verifies their supplied networks. Tauri packages the server folder, engines, networks, corresponding source archives and licences, Scan64 licence and notices as app resources. No Tk or browser process is required. Installers are not code-signed (macOS ad-hoc, not notarized; Windows not Authenticode-signed); update bundles are signed with the updater key and verified by the app.
 
 The shell selects a free loopback port, creates a per-launch shell token, starts the resource-directory server with a cleared, allowlisted environment, and waits up to 30 seconds with three retries. It passes the absolute bundled Stockfish path through `SCAN64_STOCKFISH_PATH` and the bundled Caissa and Arasan profiles' folder through `SCAN64_BUNDLED_ENGINES_DIR`, without modifying PATH, so application folders containing colons work too. The server records on first start which engines the install keeps ([which engines an install uses](engines.md#which-engines-an-install-uses)). Only debug builds accept `SCAN64_SERVER_COMMAND` and `SCAN64_DEBUG_PUZZLE_URL` for development/CI. Startup failure shows the log path and Restart. The server serves no client files, permits only shell origins through CORS and requires the shell token for every request except minimal `/health`; player bearer authorization remains underneath.
 
@@ -23,7 +23,7 @@ FastAPI API:  http://127.0.0.1:8001
 React client: http://127.0.0.1:5173
 ```
 
-The FastAPI lifespan migrates the local schema, initializes learning plugins, idempotently seeds the transfer catalog, creates Stockfish engine pools when pooling is enabled, and recovers pending/running analysis jobs. Shutdown stops admission work, closes the pools and clears the plugin registry.
+The FastAPI lifespan migrates the local schema, initializes learning plugins, idempotently seeds the transfer catalog, creates engine pools when pooling is enabled, and recovers pending/running analysis jobs. Shutdown stops admission work, closes the pools and clears the plugin registry.
 
 The API exposes `GET /health`, generated interactive documentation at `/docs`, and its machine-readable contract at `/openapi.json`.
 
@@ -33,7 +33,7 @@ The API exposes `GET /health`, generated interactive documentation at `/docs`, a
 | --- | --- |
 | `apps/scan64-web` | React client for Today, onboarding, play, PGN import, game history, per-move review, Daily Training, puzzles, profile, opening explorer, famous-game study, and coach dashboard. |
 | `src/scan64/api` | FastAPI routers, bearer-token ownership boundaries, idempotency middleware, lifecycle endpoints, reports, and application orchestration. |
-| `src/scan64/chess` | Game/play-session state, Stockfish opponents, analysis jobs, diagnosis candidates, and admission control. |
+| `src/scan64/chess` | Game/play-session state, engine opponents, analysis jobs, diagnosis candidates, and admission control. |
 | `src/scan64/learning` | Evidence, diagnostics, profile updates, spaced review, lesson attempts, transfer measurement, verification, and plugins. |
 | `packages/chess-lesson-spec` | Versioned, renderer-independent Pydantic models for `LessonSpec`. |
 | SQLite | Default local persistence for players, games, analysis artifacts, evidence, lessons, schedules, study sessions, attempts, transfer measurements, puzzle runs/ratings/daily sets, onboarding, habit evidence, and lifecycle records. |
@@ -104,11 +104,12 @@ Player-derived records participate in export, import, and deletion. Deletion is 
 
 ## Engine capacity
 
-The analysis engine is any UCI engine selected by an engine profile
-(`SCAN64_ENGINE_CONFIG`); without one it is Stockfish from
-`SCAN64_STOCKFISH_PATH`, unchanged from earlier releases. Configuration, stored
-line fields, cache identity, per-feature UCI requirements and a measured engine
-comparison are in [Analysis engines](engines.md).
+The analysis engine is any compatible UCI or XBoard engine selected by an engine profile
+(`SCAN64_ENGINE_CONFIG`); source installations without one use Stockfish from
+`SCAN64_STOCKFISH_PATH`. Fresh desktop and Docker installations use Caissa for
+analysis and Arasan for the bot ladder; existing installations retain their
+engine choice. Configuration, stored line fields, cache identity, per-feature
+engine requirements and a measured engine comparison are in [Analysis engines](engines.md).
 
 | Setting | Source | Default | Applies to |
 | --- | --- | --- | --- |
@@ -123,9 +124,10 @@ comparison are in [Analysis engines](engines.md).
 
 Each stored line records the full PV, the cp or mate score and, when reported,
 WDL, depth, seldepth, nodes, nps and the MultiPV index; older rows without
-those fields load unchanged. Bot-ladder and Skill Level opponents need
-Stockfish's strength options and fail with a named `EngineCapabilityError` on
-engines without them.
+those fields load unchanged. Bot-ladder opponents require the configured profile's
+strength controls (Skill Level or UCI Elo limits); legacy Skill Level opponents
+need the corresponding controls. Engines without required capabilities fail with a
+named `EngineCapabilityError`.
 
 Engine work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests. A job first waits on its game's lock and only then takes a run slot, so duplicate jobs for one game cannot occupy slots that other games need.
 
@@ -173,9 +175,9 @@ Runtime controls:
 
 ## Optional providers
 
-Stockfish is required for the local application with the default engine profile (`scan64 serve` checks for `stockfish` on `PATH`, or the `SCAN64_STOCKFISH_PATH` binary). An engine profile can select another UCI engine for analysis; `scan64 serve` then checks that profile's binary and does not need Stockfish. Bot play is unavailable under a non-Stockfish profile: play never falls back to Stockfish, and bot-move requests return 503 with code `bot_play_unavailable`. The player's committed move stays saved, and the web client shows that bot play is unavailable under the active engine profile. Maia is optional and requires operator-provided assets; follow [Maia operator provisioning](maia.md). Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.
+Source installations without a profile require Stockfish (`scan64 serve` checks for `stockfish` on `PATH`, or the `SCAN64_STOCKFISH_PATH` binary). With explicit analysis or ladder profiles, `scan64 serve` checks the configured binaries. Bot play never silently falls back to Stockfish: when the selected ladder engine lacks the required capabilities, bot-move requests return a capability error. The player's committed move stays saved, and the web client shows the reason. Maia is optional and requires operator-provided assets; follow [Maia operator provisioning](maia.md). Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.
 
-The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. Missing or rejected output falls back to templates. Claim text is grounded as well as its cited line: `explanations/validator.py` reads each claim with a fixed grammar (SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns within 25 cp, mate-in-N, material, check, side to move, castling, promotion, en passant and named tactics) and checks every fact against the cited evidence payload and the boards it proves. A move must be one of that evidence's verified or payload moves at the point it is legal; a chess token outside the grammar rejects the claim. Each fallback is logged with a reason code, never evidence contents, and counted in-process (`template_fallback_counts()` in `explanations/assembly.py`). The model never receives raw engine payloads: `explanations/facts.py` builds a JSON document (`schemas/narrator-facts.schema.json`) with, for every move of every verified line, SAN, UCI, piece, capture, check, mate, promotion, castling, material after the move, new undefended threats and the stored engine evaluation after the move (or `unknown`; no search runs in the explanation path), plus side to move, evaluations before and after the played move, the best move and its evaluation, their difference and the mistake class. Every line starts at the position before the mistake and is cut after 8 plies. The validator admits evaluations, material balances and attacks only where those facts or the cited evidence's boards prove them. Evidence whose lines do not replay legally falls back to the template. See [Narrator pipeline](narrator-pipeline.md). Disabling changes only future generation, never stored explanations. Operator-supplied `SCAN64_LLM_CONFIG` retains precedence where explicitly configured.
+The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. The model writes prose around named fact slots, which Scan64 fills from computed engine and board evidence. The chosen narrator voice affects only that prose. Verified lines carry an evaluation for each successfully scored ply; unavailable scores remain unknown. Factor changes and supported textual claims are checked against the evidence, and missing or rejected output falls back to templates. Each fallback is recorded by reason; the fallback rate includes the number of generation attempts. The model never replaces chess analysis or lesson verification. See [Narrator pipeline](narrator-pipeline.md) for details and remaining grounding limits. Disabling changes only future generation, never stored explanations. Operator-supplied `SCAN64_LLM_CONFIG` retains precedence where explicitly configured.
 
 ## Deliberate limits
 

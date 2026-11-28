@@ -6,6 +6,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-28
+
+### Added
+
+- **Settings → Chessboard → Piece set** now includes mpchess and Sophia (GNOME Chess). Choose among **Staunton pattern** sets, following the FIDE tournament-piece style, and **Other designs**. Your existing choice and the default Staunton (cburnett) set remain unchanged.
+- Choose separate analysis and bot-ladder engines through engine profiles. Desktop installers and the local Docker image now bundle Caissa 2.0 and Arasan 26.1 alongside Stockfish. Fresh desktop and Docker installations analyse with Caissa and play the ladder with Arasan; existing installations retain their engine choice.
+- **Position health** on the Analysis Board and in game review shows an overall meter and eight factors for both sides, with trends and **Show details**. Turn it off in **Settings → Chessboard → Position health panel**. It needs neither a running chess engine nor a narrator model.
+- On the standard Analysis Board, **Explain lines** describes the top engine lines with verified moves, scores and board facts. Each ply of a verified line is scored, up to eight plies on the Analysis Board. Built-in explanations work without a model.
+- **Settings → Local explanation wording → Narrator voice** offers Coach (default), Terse and Playful. The optional model writes around fact slots that Scan64 fills from computed evidence. The recommended local model is gemma4-e4b Q3_K_M, requiring about 3 GiB of GPU memory in the benchmark; install it via `scan64-cli narrator install` or follow the desktop manual instructions. Local wording remains opt-in.
+- The Analysis Board supports crazyhouse, three-check, atomic, antichess, king of the hill, horde and racing kings. Use the **Variant** picker and a compatible user-installed engine for engine lines; variant game review, lessons, bot play and narration are not supported.
+
+### Changed
+
+- Bot levels can use an engine's UCI Elo limits rather than Stockfish-specific strength controls. Arasan runs the eight-level ladder with time limits; these remain relative bot levels, not calibrated human Elo ratings.
+- New narrated explanations use computed factor changes and fact slots, with checks on supported material, evaluation and other chess claims. If wording is unavailable or rejected, Scan64 uses the built-in template.
+- Wood and stone board materials use matte textures with varied grain and veining across squares, alongside the FIDE-inspired traditional board palettes.
+- Back up your database and export player data before upgrading. This release adds the narrator-voice schema revision (`20261127_26_narrator_voice`); 1.1.0 cannot open an upgraded database. The desktop app's automatic pre-upgrade backup is the rollback path. See [back up before upgrading or rolling back](docs/user-guide.md#back-up-before-upgrading-or-rolling-back).
+
+### Fixed
+
+- Material boards use a plain WebP texture fallback to retain the checkerboard on Safari 14–16 and corresponding macOS webviews; newer browsers can use AVIF where supported.
+- A displayed hint now restores keyboard focus before you see the hint, so Escape can close it even immediately after loading.
+- Standard PGN imports reject illegal moves instead of silently saving a game cut short at the illegal move.
+- You can now cancel a stalled puzzle download on Windows, as on macOS and Linux, without waiting for the normal read timeout.
+- Missing web-client assets on Windows now return not found instead of the main application page.
+
+### Known issues
+
+- [#431](https://github.com/Mathews-Tom/Scan64/issues/431): a narrator sentence denying a fact without a recognised chess word can still evade the claim check.
+- [#449](https://github.com/Mathews-Tom/Scan64/issues/449): with the default local model, Analysis Board explanations fall back to the built-in template; game-move explanations can use the model.
+- [#396](https://github.com/Mathews-Tom/Scan64/issues/396): Caissa's score scale is provisional; its win-probability estimates are not yet calibrated for that engine.
+
 ## [1.1.0] - 2026-11-25
 
 ### Added

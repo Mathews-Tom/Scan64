@@ -291,6 +291,16 @@ For the positive-move credit migration, the copy-tested downgrade keeps already 
 
 For the 0.12.0 changes, a schema downgrade refuses to discard saved repertoire data or active local wording consent. Roll back with a copy of the matching pre-upgrade database and application rather than deleting live data to force a downgrade. Keep the newer database and player export separately to preserve later progress. Account exports do not carry local wording consent.
 
+To roll the desktop app back from 1.2.0 to 1.1.0: 1.2.0 adds the `20261127_26_narrator_voice` schema revision, and 1.1.0 refuses a database that has it. Restore the snapshot the app took before upgrading:
+
+1. Quit Scan64.
+2. In the data directory listed under [Start the application](#start-the-application), move `scan64.db`, and `scan64.db-wal` and `scan64.db-shm` if they exist, to a folder outside the data directory. Keep them: they hold everything you did in 1.2.0. Don't leave the `-wal` or `-shm` file next to the restored database, because SQLite would apply it to the wrong file.
+3. Copy the newest `backups/scan64-<number>-before-1.2.0-<suffix>.db` to `scan64.db` in the data directory.
+4. Replace the contents of `desktop-app-version` in the data directory with `1.1.0`. The app records the highest version that ran and takes its pre-upgrade backup only when that version advances. Without this step, updating to 1.2.0 again would migrate your 1.1.0 work without a new backup.
+5. Install 1.1.0 from its GitHub release page and start it.
+
+The restored database has none of the games, practice or settings changes made in 1.2.0.
+
 ### Measure diagnosis precision offline
 
 Run `uv run python -m scan64.learning.evaluation.real_games` from the repository root. It prints precision, prediction support (TP + FP), true/false positives and missed reference labels for every skill code, without launching Stockfish. `--check`, also run by `scripts/check.sh`, rejects regressions of the frozen trusted-code allowlist: precision must be at least 0.80 with support of at least 10.
