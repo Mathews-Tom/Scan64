@@ -332,3 +332,51 @@ async def test_prompt_that_fills_the_context_is_rejected(
     peer(handler)
     with pytest.raises(LLMProviderError, match="truncated"):
         await local.LocalOllamaExplanationProvider("local", authorized).generate(request())
+
+
+def test_concurrent_call_limit_parses_from_the_environment() -> None:
+    assert local.LocalOllamaLimits.from_environment({}).max_concurrent_calls == 2
+    limits = local.LocalOllamaLimits.from_environment({local.MAX_CONCURRENT_CALLS_ENV: "1"})
+    assert limits.max_concurrent_calls == 1
+    for value in ("0", "9", "two"):
+        with pytest.raises(LLMConfigurationError):
+            local.LocalOllamaLimits.from_environment({local.MAX_CONCURRENT_CALLS_ENV: value})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("capacity", [1, 2])
+async def test_call_over_the_process_limit_fails_at_once(
+    peer: Callable, monkeypatch: pytest.MonkeyPatch, capacity: int
+) -> None:
+    monkeypatch.setenv(local.MAX_CONCURRENT_CALLS_ENV, str(capacity))
+    entered = asyncio.Semaphore(0)
+    release = asyncio.Event()
+    chats = 0
+
+    async def handler(req: httpx.Request) -> httpx.Response:
+        nonlocal chats
+        if req.url.path == "/api/tags":
+            return tags({"name": "local"})
+        chats += 1
+        entered.release()
+        await release.wait()
+        claim = {"text": "t", "evidence_ref": "ev_1", "disclosure_level": 1}
+        return httpx.Response(200, json={"message": {"content": json.dumps({"claims": [claim]})}})
+
+    peer(handler)
+
+    def provider() -> local.LocalOllamaExplanationProvider:
+        return local.LocalOllamaExplanationProvider("local", authorized)
+
+    holders = [asyncio.create_task(provider().generate(request())) for _ in range(capacity)]
+    for _ in range(capacity):
+        await entered.acquire()
+    # Every slot is held at the chat: the next call fails without reaching the peer.
+    with pytest.raises(LLMProviderError, match="busy"):
+        await provider().generate(request())
+    assert chats == capacity
+    release.set()
+    for generated in await asyncio.gather(*holders):
+        assert generated.claims[0].text == "t"
+    # The slots are free again once the calls end.
+    assert (await provider().generate(request())).claims[0].text == "t"
