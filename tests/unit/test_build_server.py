@@ -48,6 +48,27 @@ def test_engine_pins_cover_every_source_network_and_licence(builder: ModuleType)
         builder.dockerfile_digest(dockerfile + line, builder.ARASAN_NETWORK)
 
 
+def test_engine_pins_bind_to_the_actual_download_and_check(builder: ModuleType) -> None:
+    dockerfile = (builder.ROOT / "Dockerfile").read_text()
+    url = "https://codeload.github.com/Witek902/Caissa/tar.gz/refs/tags/2.0"
+    # A comment never pins a URL: the real download now fetches something else.
+    moved = dockerfile.replace(url, "https://example.com/caissa.tar.gz") + f"# {url}\n"
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(moved)
+    # A comment never pins a digest either.
+    check = "echo 'c3ac41d0b8c2a9c9cd5259c2a50b63bd01fb470ffc85afef7691fe67a5b5e4c7  "
+    commented = dockerfile.replace(check, "# " + check, 1)
+    assert commented != dockerfile
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(commented)
+    # The check must cover the downloaded path, not another file of the same name.
+    elsewhere = dockerfile.replace(
+        "--output /out/caissa-2.0.tar.gz", "--output /tmp/caissa-2.0.tar.gz", 1
+    )
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(elsewhere)
+
+
 def test_makefile_list_reads_continuation_lines(builder: ModuleType) -> None:
     makefile = "A = x.cpp \\\ny.cpp \\\nz.cpp\n\nARASANX_SOURCES = a.cpp b.cpp \\\nc.cpp\nB = d\n"
     assert builder.makefile_list(makefile, "ARASANX_SOURCES") == ["a.cpp", "b.cpp", "c.cpp"]

@@ -127,8 +127,8 @@ def test_bundled_engine_files_must_match_the_dockerfile_digest(
         packaging.check_contents(resources)
 
 
-def uci_script(tmp_path: Path, name: str, *, ready: bool) -> Path:
-    script = tmp_path / "engine"
+def uci_script(tmp_path: Path, name: str, *, ready: bool, exit_code: int = 0) -> Path:
+    script = tmp_path / f"engine-{len(list(tmp_path.iterdir()))}"
     reply = "readyok" if ready else "info string failed to load network, terminating"
     script.write_text(
         f"#!{packaging.sys.executable}\n"
@@ -142,6 +142,7 @@ def uci_script(tmp_path: Path, name: str, *, ready: bool) -> Path:
         f"        {'' if ready else 'sys.exit(1)'}\n"
         "    elif line.strip() == 'quit':\n"
         "        break\n"
+        f"sys.exit({exit_code})\n"
     )
     script.chmod(0o755)
     return script
@@ -156,6 +157,15 @@ def test_engine_handshake_requires_identity_uciok_and_readyok(tmp_path: Path) ->
     missing_network = uci_script(tmp_path, "Arasan 26.1", ready=False)
     with pytest.raises(AssertionError, match="did not answer isready"):
         packaging.check_engine_handshake(missing_network, "Arasan 26.1", tmp_path)
+    # The name matches up to a word boundary: an architecture suffix, not a later version.
+    neon = uci_script(tmp_path, "Caissa 2.0 ARM NEON", ready=True)
+    assert packaging.check_engine_handshake(neon, "Caissa 2.0", tmp_path) == "Caissa 2.0 ARM NEON"
+    later = uci_script(tmp_path, "Caissa 2.00", ready=True)
+    with pytest.raises(AssertionError, match="not Caissa 2.0"):
+        packaging.check_engine_handshake(later, "Caissa 2.0", tmp_path)
+    failed = uci_script(tmp_path, "Caissa 2.0 ARM NEON", ready=True, exit_code=7)
+    with pytest.raises(AssertionError, match="exited 7"):
+        packaging.check_engine_handshake(failed, "Caissa 2.0", tmp_path)
 
 
 @pytest.mark.parametrize("subsystem", [2, 3])

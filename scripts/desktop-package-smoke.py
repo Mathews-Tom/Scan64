@@ -94,7 +94,12 @@ def check_contents(resources: Path) -> list[str]:
     if os.name == "nt":
         for relative in binaries:
             check_windowless(resources / relative)
-    dockerfile = (ROOT / "Dockerfile").read_text()
+    # A comment line never pins a digest, as in scripts/build-server.py.
+    dockerfile = "\n".join(
+        line
+        for line in (ROOT / "Dockerfile").read_text().splitlines()
+        if not line.lstrip().startswith("#")
+    )
     for directory, _, _ in ENGINES:
         for path in (resources / directory).iterdir():
             if path.name.endswith(PINNED_SUFFIXES):
@@ -114,7 +119,11 @@ def check_contents(resources: Path) -> list[str]:
 
 
 def check_engine_handshake(binary: Path, name: str, directory: Path) -> str:
-    """The bundled engine starts outside its own directory and answers uci and isready."""
+    """The bundled engine starts outside its own directory, answers uci and isready, and exits 0.
+
+    The name must match up to a word boundary: "Caissa 2.0 ARM NEON" names
+    Caissa 2.0, "Caissa 2.00" does not.
+    """
     result = subprocess.run(
         [str(binary)],
         cwd=directory,
@@ -126,10 +135,15 @@ def check_engine_handshake(binary: Path, name: str, directory: Path) -> str:
     )
     lines = [line.strip() for line in result.stdout.splitlines()]
     ids = [line.removeprefix("id name ") for line in lines if line.startswith("id name ")]
-    assert ids and ids[0].startswith(name), f"{binary.name} reported {ids}, not {name}"
+    assert ids and (ids[0] == name or ids[0].startswith(name + " ")), (
+        f"{binary.name} reported {ids}, not {name}"
+    )
     assert "uciok" in lines, f"{binary.name} did not answer uci: {result.stdout[-500:]}"
     assert "readyok" in lines[lines.index("uciok") :], (
         f"{binary.name} did not answer isready: {(result.stdout + result.stderr)[-500:]}"
+    )
+    assert result.returncode == 0, (
+        f"{binary.name} exited {result.returncode}: {(result.stdout + result.stderr)[-500:]}"
     )
     print(f"Engine handshake PASS: {ids[0]} ({binary.name})", flush=True)
     return ids[0]

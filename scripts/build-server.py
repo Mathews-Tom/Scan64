@@ -154,26 +154,56 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
 
 
+def dockerfile_instructions(dockerfile: str) -> str:
+    """The Dockerfile without comment lines; a comment never pins an input."""
+    return "\n".join(line for line in dockerfile.splitlines() if not line.lstrip().startswith("#"))
+
+
+def dockerfile_checks(dockerfile: str, path: str) -> list[str]:
+    """Every SHA-256 the Dockerfile checks for exactly this path."""
+    return re.findall(
+        r"echo '([0-9a-f]{64})  " + re.escape(path) + r"' \| sha256sum --check",
+        dockerfile_instructions(dockerfile),
+    )
+
+
 def dockerfile_digest(dockerfile: str, name: str) -> str:
     """The one SHA-256 the Dockerfile checks for a file of this name."""
     matches = re.findall(
         r"echo '([0-9a-f]{64})  (?:\S*/)?" + re.escape(name) + r"' \| sha256sum --check",
-        dockerfile,
+        dockerfile_instructions(dockerfile),
     )
     if len(matches) != 1:
         raise ValueError(f"Dockerfile pin missing: {name}")
     return matches[0]
 
 
+def dockerfile_downloads(dockerfile: str) -> list[tuple[str, str]]:
+    """The (URL, output path) of every curl download the Dockerfile runs."""
+    return re.findall(
+        r"curl --fail --location --retry 3[\s\\]+(https://\S+)[\s\\]+--output (\S+)",
+        dockerfile_instructions(dockerfile),
+    )
+
+
 def pinned_engine_files(dockerfile: str) -> dict[str, list[tuple[str, str, str]]]:
-    """Use the container's authoritative pins; never accept an unchecked input."""
+    """Use the container's authoritative pins; never accept an unchecked input.
+
+    Each input needs one actual download of its URL to a file of its name, and
+    one SHA-256 check of that same output path.
+    """
+    downloads = dockerfile_downloads(dockerfile)
     pins = {}
     for engine, files in ENGINE_FILES.items():
         pins[engine] = []
         for name, url in files:
-            if url not in dockerfile:
+            named = [item for item in downloads if Path(item[1]).name == name]
+            if len(named) != 1 or named[0][0] != url:
                 raise ValueError(f"Dockerfile pin missing: {name}")
-            pins[engine].append((name, url, dockerfile_digest(dockerfile, name)))
+            digests = dockerfile_checks(dockerfile, named[0][1])
+            if len(digests) != 1:
+                raise ValueError(f"Dockerfile pin missing: {name}")
+            pins[engine].append((name, url, digests[0]))
     return pins
 
 
