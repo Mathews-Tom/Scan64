@@ -102,3 +102,9 @@ def stored_variant(headers: Mapping[str, str]) -> str:
     except UnsupportedVariantError:
         assert tag is not None
         return tag
+
+
+def pgn_san(board: chess.Board, move: chess.Move) -> str:
+    """SAN as PGN and Lichess write it: python-chess leaves the P off a pawn drop."""
+    san = board.san(move)
+    return f"P{san}" if move.drop == chess.PAWN else san

@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import Session
 
 from scan64.api.auth import require_authenticated_player
-from scan64.chess.variants import VariantName, board_class
+from scan64.chess.variants import VariantName, board_class, pgn_san
 from scan64.persistence.database import get_session
 
 router = APIRouter()
@@ -81,7 +81,7 @@ def variant_position(request: VariantPositionRequest) -> VariantPositionRead:
             raise ValueError(f"Move {index + 1} {uci!r} is not UCI") from None
         if not board.is_legal(move):
             raise ValueError(f"Move {index + 1} {uci} is illegal in {board.fen()}")
-        sans.append(_san(board, move))
+        sans.append(pgn_san(board, move))
         board.push(move)
     outcome = board.outcome()
     return VariantPositionRead(
@@ -115,12 +115,6 @@ def _pockets(board: chess.Board) -> Pockets | None:
         }
 
     return Pockets(white=hand(chess.WHITE), black=hand(chess.BLACK))
-
-
-def _san(board: chess.Board, move: chess.Move) -> str:
-    """SAN as PGN and Lichess write it: python-chess leaves the P off a pawn drop."""
-    san = board.san(move)
-    return f"P{san}" if move.drop == chess.PAWN else san
 
 
 def _remaining_checks(board: chess.Board) -> RemainingChecks | None:

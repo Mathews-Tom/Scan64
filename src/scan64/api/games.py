@@ -143,13 +143,17 @@ def create_game(
         raise HTTPException(status_code=400, detail="Invalid PGN")
     try:
         variant_of(chess_game.headers)
-        board_variant(chess_game.board())
     except UnsupportedVariantError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None
+    # The reader records a malformed starting FEN here; ``board()`` would raise it.
     if chess_game.errors:
         raise HTTPException(
             status_code=400, detail=f"Invalid PGN: {chess_game.errors[0]}"
         ) from None
+    try:
+        board_variant(chess_game.board())
+    except UnsupportedVariantError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
 
     game = Game(
         pgn=game_in.pgn,

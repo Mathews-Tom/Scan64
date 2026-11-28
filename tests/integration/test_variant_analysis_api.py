@@ -71,6 +71,18 @@ def test_a_variant_engine_gives_lines_under_the_variants_rules(
     assert "setoption name UCI_Variant value crazyhouse" in log.read_text(encoding="utf-8")
 
 
+def test_an_engine_line_writes_a_pawn_drop_as_the_variant_board_does(
+    app_session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The fake engine plays the first legal move, here the pawn drop P@e2.
+    _profile(tmp_path, monkeypatch, "chess,crazyhouse")
+    with TestClient(app) as client:
+        status, body = _analyse(client, "k3r3/8/8/8/8/8/3P1P2/3RKR2[P] w - - 0 1", "crazyhouse")
+    assert status == 200, body
+    first = body["lines"][0]["moves"][0]  # type: ignore[index]
+    assert first == {"uci": "P@e2", "san": "P@e2"}
+
+
 def test_an_engine_without_the_variant_answers_503_with_the_reason(
     app_session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

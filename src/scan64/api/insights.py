@@ -19,7 +19,7 @@ from scan64.chess.games.assistance import (
     StalePlaySnapshot,
     persist_assistance,
 )
-from scan64.chess.variants import STANDARD, VariantName, board_class
+from scan64.chess.variants import STANDARD, VariantName, board_class, pgn_san
 from scan64.explanations.board_lines import ScoredLine, scored_legal_lines
 from scan64.learning.insights import InsightStep, insight_step, position_insight
 from scan64.persistence.database import get_session
@@ -138,7 +138,7 @@ def position_analysis_line(board: chess.Board, line: ScoredLine) -> PositionAnal
     replay = board.copy(stack=False)
     moves: list[PositionAnalysisMove] = []
     for move in line.moves:
-        moves.append(PositionAnalysisMove(uci=move.uci(), san=replay.san(move)))
+        moves.append(PositionAnalysisMove(uci=move.uci(), san=pgn_san(replay, move)))
         replay.push(move)
     return PositionAnalysisLine(
         score_cp=line.score_cp * sign if line.score_cp is not None else None,

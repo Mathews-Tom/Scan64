@@ -104,6 +104,12 @@ def test_unsupported_variant_and_illegal_variant_moves_are_refused(
     cut_short = _import(client, headers, "1. e4 e5 2. Ke3 *\n")
     assert cut_short.status_code == 400
     assert cut_short.json()["detail"].startswith("Invalid PGN:")
+    # A malformed starting FEN, standard or variant, is refused and nothing is saved.
+    for tags in ('[SetUp "1"]', '[Variant "Crazyhouse"]\n[SetUp "1"]'):
+        bad_fen = _import(client, headers, f'{tags}\n[FEN "not a fen"]\n\n1. e4 *\n')
+        assert bad_fen.status_code == 400, bad_fen.json()
+        assert bad_fen.json()["detail"].startswith("Invalid PGN:")
+    assert client.get("/v1/games", headers=headers).json()["items"] == []
     standard = _import(client, headers, "1. e4 e5 *\n")
     assert standard.status_code == 200 and standard.json()["variant"] == "chess"
 

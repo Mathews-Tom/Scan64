@@ -12,6 +12,7 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_player_token
 from scan64.api.models import Player
 from scan64.api.profile_insights import ProfileInsightsRead, read_profile_insights
+from scan64.api.variant_games import is_standard
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -407,6 +408,9 @@ def read_openings_report(player_id: str, session: Session) -> OpeningsReport:
     }
     grouped: dict[str, list[Game]] = defaultdict(list)
     for game in games:
+        # Opening families are standard chess; a variant game's moves are not them.
+        if not is_standard(game):
+            continue
         family_id = classify_opening_family(game.moves, families)
         if family_id is not None:
             grouped[family_id].append(game)
