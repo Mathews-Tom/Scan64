@@ -424,8 +424,13 @@ async def run_with_explanation_provider[T](
     environment: Mapping[str, str] | None,
     client: httpx.AsyncClient | None,
     voice: NarratorVoice | None = None,
+    without_model: Callable[[], T] | None = None,
 ) -> T:
     """Run ``attempt`` with the configured provider and voice, else return ``template_result``.
+
+    ``without_model``, when given, makes the result used when no provider runs
+    in place of ``template_result``; it is called only then. A provider that
+    runs and is rejected still returns what ``attempt`` returns.
 
     Explicit operator configuration (``SCAN64_LLM_CONFIG``) takes precedence over
     the owner's installation-local model; with neither, or a ``template``
@@ -435,6 +440,10 @@ async def run_with_explanation_provider[T](
     config's ``llm.voice``, else the voice saved with the local grant
     (``LocalNarratorProvider``), else ``DEFAULT_NARRATOR_VOICE``.
     """
+
+    def no_model() -> T:
+        return template_result if without_model is None else without_model()
+
     environment_values = os.environ if environment is None else environment
     raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
     if raw_path is None:
@@ -445,23 +454,23 @@ async def run_with_explanation_provider[T](
                 else DEFAULT_NARRATOR_VOICE
             )
             return await attempt(local_provider, voice or local_voice)
-        return template_result
+        return no_model()
 
     config = LLMProviderConfig.from_toml(Path(raw_path))
     if config.provider == "template":
-        return template_result
+        return no_model()
     operator_voice = voice or config.voice
 
     if client is not None:
         provider = create_llm_provider(config, client=client, environment=environment_values)
         if provider is None:
-            return template_result
+            return no_model()
         return await attempt(provider, operator_voice)
 
     async with httpx.AsyncClient() as owned_client:
         provider = create_llm_provider(config, client=owned_client, environment=environment_values)
         if provider is None:
-            return template_result
+            return no_model()
         return await attempt(provider, operator_voice)
 
 
@@ -495,10 +504,13 @@ async def resolve_explanation(
         )
 
     return await run_with_explanation_provider(
-        phrase_bank_explanation(diagnosis, evidence, fen, template_explanation),
+        template_explanation,
         attempt,
         local_provider=local_provider,
         environment=environment,
         client=client,
         voice=voice,
+        without_model=lambda: phrase_bank_explanation(
+            diagnosis, evidence, fen, template_explanation
+        ),
     )

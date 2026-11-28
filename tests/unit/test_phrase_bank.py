@@ -12,6 +12,7 @@ import chess
 import pytest
 from chess_lesson_spec import Diagnosis
 
+from scan64.explanations import assembly
 from scan64.explanations.assembly import phrase_bank_explanation, resolve_explanation
 from scan64.explanations.phrase_bank import (
     SHAPES,
@@ -25,7 +26,7 @@ from scan64.explanations.role_facts import RoleFact, role_facts
 from scan64.explanations.sentence_check import framing_problems, pin_problems, sentence_problems
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.voice_pipeline import fact_sides, pinned_pieces, sentence_parts
-from tests.unit.test_claim_text_grounding import MISSED_CAPTURE
+from tests.unit.test_claim_text_grounding import MISSED_CAPTURE, _FixedProvider
 from tests.unit.test_role_facts import FIXTURES, NAMES
 
 
@@ -140,3 +141,29 @@ async def test_without_a_model_the_phrase_bank_replaces_the_template() -> None:
     evidence_id = MISSED_CAPTURE.evidence.evidence_id
     assert {claim.evidence_ref for claim in explanation.claims} == {evidence_id}
     assert explanation.text == " ".join(claim.text for claim in explanation.claims)
+
+
+@pytest.mark.asyncio
+async def test_with_a_model_the_phrase_bank_is_never_built(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model that runs and is rejected falls back to the template; no phrase bank is made."""
+
+    def never(*_: object) -> None:
+        raise AssertionError("phrase bank built while a model runs")
+
+    monkeypatch.setattr(assembly, "phrase_bank_explanation", never)
+    diagnosis = Diagnosis(
+        primary="threat_processing.missed_capture",
+        confidence=0.9,
+        evidence_refs=[MISSED_CAPTURE.evidence.evidence_id],
+    )
+    template = await TemplateExplanationProvider().explain(diagnosis, [MISSED_CAPTURE.evidence])
+    explanation = await resolve_explanation(
+        diagnosis,
+        [MISSED_CAPTURE.evidence],
+        MISSED_CAPTURE.fen,
+        local_provider=_FixedProvider("Qh5 was the best move."),
+        environment={},
+    )
+    assert explanation == template
