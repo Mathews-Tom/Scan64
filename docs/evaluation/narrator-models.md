@@ -231,7 +231,7 @@ The bar (#462): the smallest model with at least 95% faithful and at least 80% f
 
 ### Method
 
-- Pipeline: the voice pipeline of #454. Code writes each fact, the model rewrites one fact per call, and code checks every sentence ([narrator pipeline, section 18](../narrator-pipeline.md#18-voice-pipeline-454)). Thinking is off.
+- Pipeline: the voice pipeline of #454. Code writes each fact, the model rewrites one fact per call, and code checks every sentence ([narrator pipeline, section 19](../narrator-pipeline.md#19-voice-pipeline-454)). Thinking is off.
 - Sampling: each model's own Modelfile. For gemma4-e4b: temperature 1, top_p 0.95, top_k 64.
 - Judges: fresh blind sessions. A judge sees only the position, the facts and the comment, shuffled, with no labels. The rubric is the #458 rubric ([narrator voice benchmark](narrator-voice.md), "Blind-judge protocol").
 - Intervals: 95% normal intervals on each faithful share. They treat comments as independent, but each set has only 4 or 5 positions.

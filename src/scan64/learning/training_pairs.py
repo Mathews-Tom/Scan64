@@ -74,6 +74,7 @@ REASONS: tuple[str, ...] = (
     "more than one sentence",
     "played move is not the game move",
     "name or date",
+    "negation",
 )
 
 # A descriptive move in prose: "P-K4", "Kt - R 4", "KtxP ch", "B(Q2)-K3", "Castles",
@@ -115,6 +116,13 @@ _NOT_A_NAME = frozenset(
     {"White", "Black", "King", "Queen", "Rook", "Bishop", "Knight", "Pawn", "Kt"}
 )
 _YEAR = re.compile(r"\b1[5-9]\d\d\b")
+# A denial ("is not attacked", "nothing defends", "did not play"): the facts state what
+# is, so a negated claim is never backed.
+_NEGATION = re.compile(
+    r"\b(?:not|no|nothing|nobody|none|never|neither|nor|without|cannot)\b|n't\b", re.IGNORECASE
+)
+# A side the sentence names: an unnumbered move is that side's move.
+_SIDE = re.compile(r"\b(White|Black)(?:'s)?\b")
 _SENTENCE_END = re.compile(r"[.!?](?:\s|$)")
 _NUMBER = re.compile(r"^(\d+)\s?(\.\s?\.\.\.?|\.\.\.)?")
 _MATE = re.compile(r"\b(?:check)?mate[sd]?\b", re.IGNORECASE)
@@ -151,6 +159,11 @@ CLAIM_WORDS: tuple[str, ...] = (
     "resign",
     "recapture",
     "fall",
+    "wary",
+    "careful",
+    "beware",
+    "must",
+    "should",
 )
 # A score this close to level contradicts "winning"; one this far from level, "a draw".
 LEVEL_CP = 150
@@ -283,12 +296,15 @@ def position_facts(sans: Sequence[str], ply: int, view: EngineView) -> PositionF
     return PositionFacts(board.fen(), played.uci(), role, tuple(concepts), positions)
 
 
-def _resolve(token: str, facts: PositionFacts) -> set[str]:
+def _resolve(token: str, sentence: str, facts: PositionFacts) -> set[str]:
     """The numbered SAN of every fact move ``token`` names."""
     number = _NUMBER.match(token)
     text = token[number.end() :].lstrip(" .") if number else token
+    sides = {chess.WHITE if side == "White" else chess.BLACK for side in _SIDE.findall(sentence)}
     named: set[str] = set()
     for board, origins, move in facts.positions:
+        if number is None and len(sides) == 1 and board.turn not in sides:
+            continue
         if number is not None:
             # "21. PxP" names White's 21st move, "21...PxP" Black's.
             if board.fullmove_number != int(number.group(1)):
@@ -323,7 +339,13 @@ def _check(text: str, facts: PositionFacts, view: EngineView) -> str | None:
     """The first reason ``text`` (already in SAN) fails, or ``None`` when it passes."""
     if any(name not in _NOT_A_NAME for name in _NAME.findall(text)) or _YEAR.search(text):
         return "name or date"
-    if _PLAY_VERB.search(text) and not _COUNTERFACTUAL.search(text):
+    if _NEGATION.search(text):
+        return "negation"
+    plays = len(_PLAY_VERB.findall(text))
+    if plays and len(_COUNTERFACTUAL.findall(text)) not in (0, plays):
+        # "played X but could have played Y": the game move and an alternative in one.
+        return "played move is not the game move"
+    if plays and not _COUNTERFACTUAL.search(text):
         game = _game_move(facts).rstrip("+#")
         if any(move.rstrip("+#") != game for move in _NUMBERED_SAN.findall(text)):
             return "played move is not the game move"
@@ -365,7 +387,7 @@ def to_san(sentence: str, facts: PositionFacts) -> tuple[str | None, str | None]
     out: list[str] = []
     last = 0
     for match in DESCRIPTIVE_MOVE.finditer(sentence):
-        named = _resolve(match.group(0).strip(), facts)
+        named = _resolve(match.group(0).strip(), sentence, facts)
         if not named:
             return None, "move not in the facts"
         if len(named) > 1:

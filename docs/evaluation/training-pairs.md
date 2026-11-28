@@ -16,17 +16,18 @@ Audit sample for the blind judge: 1 pairs (target 200, seed 464).
 |---|---:|---:|
 | no move before the comment | 0 | 29 |
 | no chess content | 80 | 193 |
-| descriptive square or piece | 20 | 195 |
-| move not in the facts | 63 | 257 |
-| move ambiguous | 17 | 69 |
+| descriptive square or piece | 19 | 193 |
+| move not in the facts | 73 | 278 |
+| move ambiguous | 11 | 53 |
 | engine: level | 1 | 0 |
-| unsupported term | 14 | 70 |
-| unsupported judgement | 4 | 6 |
-| unsupported piece or square | 3 | 13 |
-| no move or square of the facts | 7 | 12 |
-| more than one sentence | 2 | 3 |
-| played move is not the game move | 5 | 5 |
-| name or date | 18 | 25 |
+| unsupported term | 13 | 53 |
+| unsupported judgement | 2 | 4 |
+| unsupported piece or square | 1 | 10 |
+| no move or square of the facts | 7 | 9 |
+| more than one sentence | 1 | 3 |
+| played move is not the game move | 4 | 2 |
+| name or date | 17 | 25 |
+| negation | 5 | 25 |
 
 A trimmed sentence is counted under the reason its cut part failed.
 
@@ -45,7 +46,9 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | advantage | 43 |
 | cannot | 42 |
 | castl | 42 |
+| should | 40 |
 | defen | 37 |
+| must | 34 |
 | better | 32 |
 | chance | 31 |
 | centre | 30 |
@@ -80,6 +83,7 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | simple | 5 |
 | forced | 5 |
 | promising | 4 |
+| careful | 4 |
 | material | 4 |
 | brilliant | 4 |
 | beautiful | 4 |
@@ -107,4 +111,5 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | only move | 1 |
 | transpos | 1 |
 | footing | 1 |
+| wary | 1 |
 | deadly | 1 |

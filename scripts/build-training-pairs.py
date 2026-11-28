@@ -237,9 +237,20 @@ def main() -> None:
             for comment in game["comments"]:
                 ply = comment["ply"]
                 if ply == 0:
-                    for sentence in comment["sentences"]:
+                    for index, sentence in enumerate(comment["sentences"]):
                         counts[source]["dropped"] += 1
                         reasons[source]["no move before the comment"] += 1
+                        record = {
+                            "source": source,
+                            "game": number,
+                            "ply": ply,
+                            "sentence_index": index,
+                            "outcome": "dropped",
+                            "reason": "no move before the comment",
+                            "original": sentence,
+                            "text": None,
+                        }
+                        verdicts_out.write(json.dumps(record, ensure_ascii=False) + "\n")
                     continue
                 board = chess.Board()
                 for san in game["sans"][: ply - 1]:
