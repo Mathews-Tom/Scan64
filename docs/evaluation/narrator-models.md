@@ -226,39 +226,45 @@ Accepted answers lose coverage mostly on the key move. For a hanging piece the k
 
 The runs above score lesson explanations only. Measured on 2026-11-28 with the default narrator, the Analysis Board (`POST /v1/analysis/position/explanation`) fell back to the template in every call, so #449 added a board-lines position set and fixed the cause.
 
-Method: `positions-board.json`, the 12 recorded Analysis Board positions of the tests (Stockfish 18, 200,000 nodes) at the endpoint's default MultiPV 3, with their recorded per-move searches; the runner rebuilds the facts as the endpoint does and calls `resolve_board_lines_explanation` ([narrator pipeline](../narrator-pipeline.md), section 13, Benchmark). `gemma4-e4b-q3km`, 5 runs per position (60 calls per run), `num_ctx` 4096, `think = false`, RTX 5090, Ollama 0.40.18, every header `dirty: false`. Before: commit `02f11fa` (benchmark only, the shipped prompt and validator). After: commit `9b06e04` (outcome words grounded by the line's facts, prompt wording), two runs. The same commits ran the Caissa game-move set (96 calls) to check the lesson path. Coverage on the board is the share of the three explained lines that the answer's slots name.
+Method: `positions-board.json`, the 12 recorded Analysis Board positions of the tests (Stockfish 18, 200,000 nodes) at the endpoint's default MultiPV 3, with their recorded per-move searches; the runner rebuilds the facts as the endpoint does and calls `resolve_board_lines_explanation` ([narrator pipeline](../narrator-pipeline.md), section 13, Benchmark). `gemma4-e4b-q3km`, 5 runs per position (60 calls per run), `num_ctx` 4096, `think = false`, RTX 5090, Ollama 0.40.18, every header `dirty: false`. Commits: before, `02f11fa` (benchmark only, the shipped prompt and validator); first fix, `9b06e04` (outcome words grounded by the line's facts, prompt wording); final, `a9a86fa` (the pre-PR review fix: negated claims and unknown subjects rejected, merged with `epic/371` after #429, whose adapter changes the benchmark already matched). Each commit also ran the Caissa game-move set (96 calls) to check the lesson path. Coverage on the board is the share of the three explained lines that the answer's slots name.
 
 | Run | Path | Calls | Narrated (grounding pass) | Coverage (accepted) | Delivered coverage | False chess statements / expl. | Latency p50 / p95 (s) | Prompt tokens median / max | Calls that thought |
 |---|---|---|---|---|---|---|---|---|---|
 | `runs_20261128_102734`, before | Analysis Board | 60 | **5.0%** | 100.0% | 5.0% | **2.90** | 1.29 / 1.87 | 1086 / 1294 | 0 |
-| `runs_20261128_110840`, after | Analysis Board | 60 | 50.0% | 95.6% | 47.8% | 0.75 | 1.34 / 1.70 | 1127 / 1335 | 0 |
-| `runs_20261128_111239`, after | Analysis Board | 60 | 46.7% | 92.9% | 43.3% | 0.60 | 1.42 / 1.83 | 1127 / 1335 | 0 |
-| after, pooled | Analysis Board | 120 | **48.3%** | | | **0.68** | | | 0 |
+| `runs_20261128_110840`, first fix | Analysis Board | 60 | 50.0% | 95.6% | 47.8% | 0.75 | 1.34 / 1.70 | 1127 / 1335 | 0 |
+| `runs_20261128_111239`, first fix | Analysis Board | 60 | 46.7% | 92.9% | 43.3% | 0.60 | 1.42 / 1.83 | 1127 / 1335 | 0 |
+| `runs_20261128_112611`, final | Analysis Board | 60 | 50.0% | 97.8% | 48.9% | 0.87 | 1.39 / 1.80 | 1127 / 1335 | 0 |
+| `runs_20261128_112745`, final | Analysis Board | 60 | 40.0% | 94.4% | 37.8% | 0.70 | 1.43 / 1.78 | 1127 / 1335 | 0 |
+| final, pooled | Analysis Board | 120 | **45.0%** | | | **0.78** | | | 0 |
 | `runs_20261128_102903`, before | game moves (Caissa) | 96 | 96.9% | 61.3% | 59.4% | 0.06 | 0.61 / 1.08 | 1254 / 1561 | 0 |
-| `runs_20261128_111012`, after | game moves (Caissa) | 96 | 99.0% | 63.9% | 63.2% | 0.01 | 0.61 / 1.31 | 1254 / 1561 | 0 |
+| `runs_20261128_111012`, first fix | game moves (Caissa) | 96 | 99.0% | 63.9% | 63.2% | 0.01 | 0.61 / 1.31 | 1254 / 1561 | 0 |
+| `runs_20261128_112918`, final | game moves (Caissa) | 96 | 100.0% | 62.5% | 62.5% | 0.00 | 0.60 / 1.05 | 1254 / 1561 | 0 |
 
 GPU memory 3.13 GiB in every run. Fallback reasons, Analysis Board:
 
-| Run | `chess_token_outside_slot` | `missing_line` | `unknown_slot` | `unsupported_claim` |
-|---|---|---|---|---|
-| before (60 calls) | 55 | 1 | 1 | 0 |
-| after, run 1 (60 calls) | 20 | 3 | 4 | 3 |
-| after, run 2 (60 calls) | 22 | 5 | 5 | 0 |
+| Run | `chess_token_outside_slot` | `missing_line` | `unknown_slot` | `unsupported_claim` | `slot_not_in_evidence` |
+|---|---|---|---|---|---|
+| before (60 calls) | 55 | 1 | 1 | 0 | 0 |
+| first fix, run 1 (60 calls) | 20 | 3 | 4 | 3 | 0 |
+| first fix, run 2 (60 calls) | 22 | 5 | 5 | 0 | 0 |
+| final, run 1 (60 calls) | 24 | 2 | 3 | 1 | 0 |
+| final, run 2 (60 calls) | 17 | 10 | 5 | 2 | 2 |
 
 What the rejected claims say, per fallback (a fallback can have several):
 
-| Cause | Before (57 fallbacks) | After (62 fallbacks, two runs) |
+| Cause | Before (57 fallbacks) | Final (66 fallbacks, two runs) |
 |---|---|---|
-| an outcome word (material, wins, loses, equal, advantage ...) outside a slot | 42 | 16: outside a material claim ("an advantage for the side to move") or in a comparison claim that does not hold for every line |
-| a line named as text: "Line 2", "line-1", `{line-1}` (a digit, or an unknown slot) | 16 | 26 |
-| a comparison claim linked to no line ("the first line is better than the second") | 5 | 10 |
-| "checkmate" outside a slot | 6 | 7 |
-| a material claim its line does not support (`unsupported_claim`) | 0 | 4 |
-| other (another digit or chess word, another unknown slot, a slot of another line) | 8 | 3 |
+| an outcome word (material, wins, loses, equal, advantage ...) outside a slot | 42 | 20: outside a material claim ("an advantage for the side to move"), or with no side read |
+| a line named as text: "Line 2", "line-1", `{line-1}` (a digit, or an unknown slot) | 16 | 24 |
+| a comparison claim linked to no line ("the first line is better than the second") | 5 | 18 |
+| "checkmate" outside a slot | 6 | 8 |
+| a material claim its line does not support (`unsupported_claim`) | 0 | 5 |
+| other (another digit or chess word, another unknown slot, a slot of another line) | 8 | 5 |
 
-- The outcome-word fix works: outcome words cause 16 of 62 fallbacks after, against 42 of 57 before, and narrated calls rise from 5.0% to 48.3%. False chess statements per explanation fall from 2.90 to 0.68; on game moves they do not rise (0.06 to 0.01, narrated 96.9% to 99.0%).
-- The 70% target of #449 is **not met**. Most remaining fallbacks name a line as text instead of by its `{label:line-K}` slot. The digit rule rejects "line 2" as notation, and one rejected claim rejects the whole answer. Prompt variants tried during development (60 or 120 calls each, uncommitted code, not committed results) narrated 27% to 58%; the variant that wrote "line 2" in the prompt as a bad example measured 27%.
-- The 4 `unsupported_claim` rejections are true statements about one line inside a comparison claim ("line one results in the material balance not changing"). The comparison item checks a material claim against every line, because code cannot tell which line the prose means.
+- The outcome-word fix works: outcome words cause 20 of 66 fallbacks in the final runs, against 42 of 57 before, and narrated calls rise from 5.0% to 45.0% (48.3% at the first fix, before the review's stricter side and negation rules). False chess statements per explanation fall from 2.90 to 0.78; on game moves they do not rise (0.06 before, 0.00 final; narrated 96.9% to 100.0%).
+- The 70% target of #449 is **not met**. Most remaining fallbacks name a line as text instead of by its `{label:line-K}` slot, or make a comparison claim that names no line. The digit rule rejects "line 2" as notation, `missing_line` rejects an unlinked comparison, and one rejected claim rejects the whole answer. Prompt variants tried during development (60 or 120 calls each, uncommitted code, results not committed) narrated 27% to 58%; the variant that wrote "line 2" in the prompt as a bad example measured 27%.
+- The 5 `unsupported_claim` rejections in the final runs are comparison claims about one line ("compared to the first line, the third line ... the side to move loses material"). Several are true for the line they mean. The comparison item checks a material claim against every line, because code cannot tell which line the prose means.
+- Two runs of the same code differ by up to 10 points narrated (final runs: 50.0% and 40.0%).
 
 ## Decision
 
@@ -292,7 +298,7 @@ The rule for a later change stays: rerun this benchmark when the prompt builder,
 - Engine comparison on the same positions: Caissa diagnoses 32 of 50 positions. A comparison on the same 32 positions on both engines removes the position-set difference.
 - ~~`think = false` in production: the app adapters send no `think` field. The benchmark numbers assume it.~~ Done in #429: both Ollama paths send `think: false`.
 - `praxis-4b` loops to the output cap in 18 of 96 calls (p95 7.06 s) and writes malformed line moves in 27.
-- Analysis Board (#449): narrated 48.3% after the outcome-word fix, under the 70% target. Most remaining fallbacks write a line's name as text ("Line 2", "line-1") instead of `{label:line-2}`. Reading such a name as the label slot, when that line's label is in the cited evidence item, would remove them, but it changes the digit rule, so it needs its own decision. Unlinked comparison claims are the next cause.
+- Analysis Board (#449): narrated 45.0% after the outcome-word fix, under the 70% target. Most remaining fallbacks write a line's name as text ("Line 2", "line-1") instead of `{label:line-2}`. Reading such a name as the label slot, when that line's label is in the cited evidence item, would remove them, but it changes the digit rule, so it needs its own decision. Unlinked comparison claims are the next cause.
 - `benchmarks/narrator/HANDOFF-5090.md` is a machine handoff note, not a benchmark file. It should leave the repository; it stays on this branch because file deletion is outside this terminal's policy.
 
 ## Configuration
@@ -331,7 +337,7 @@ Since #429, 4096 is the default `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` and `llm.conte
 - Provenance of the five runs above (`runs_20261127_213350`, `_220133`, `_221105`, `_222432`, `_223247`): their headers predate `config_sha256` and `narrator_sha256`, so they cannot be resumed and the header alone does not name the `narrator.toml` or the narrator modules that ran. Both follow from git, because every header has `dirty: false`: `benchmarks/narrator/narrator.toml` has not changed since `29f0424` (`git log -- benchmarks/narrator/narrator.toml`; sha256 `7f109df11a1a` at all three header commits), and `src/scan64/explanations` is identical at `29f0424`, `ecfc8de` and `937353f` (`narrator_sha256` as the runner now computes it: `792cd8a8b563`, 15 files).
 - Model identity: in the five runs above, the warm-up record of the `gemma4-e4b-q3km` block records `ollama_digest` `ad97a99ee9b6546cc60b596070d6b4c2bee8e71f142b1123293d47dbb9dcbec6`, the Ollama model digest, not the GGUF SHA-256. On linux-5090, Ollama 0.40.18, `ollama create` from the benchmark's rendered Modelfile (`<gguf_cache>/modelfiles/gemma4-e4b-q3km.Modelfile`: the GGUF `0980898d…55f4`, `PARAMETER num_ctx 12288`) gives that digest again, so it names this GGUF. The benchmark requests set `num_ctx` 4096 in their options. The same Modelfile with `num_ctx 4096` gives `74b9b3a8b3e02db38ea0c1fb7e08ecf5b2af35a761095a42346608d126740a03`, the digest of the model `scan64-cli narrator install` creates.
 - Positions: every lesson benchmark position is a game move with a played move (50 in `positions.json`, 32 in `positions-caissa.json`). Before #449 the Analysis Board path (`POST /v1/analysis/position/explanation`, the board-lines prompt) was not measured; since #449 `positions-board.json` measures it ([Analysis Board lines](#analysis-board-lines-449)). In the #429 GPU smoke it fell back to the template on 16 of 16 requests, each with `chess_token_outside_slot`. In the 13 logged answers, 37 of 48 claims have a chess word outside a slot, `material` in 28 of them: the model states the outcome in plain words, instead of or as well as the `{outcome:…}` and `{balance:…}` slots. Game-move answers through the app were accepted (2 of 2).
-- Analysis Board set (#449): 12 positions, all from the recorded test positions, 60 calls per run. The two runs after the fix differ by 3.3 points narrated.
+- Analysis Board set (#449): 12 positions, all from the recorded test positions, 60 calls per run. Two runs of the final code differ by 10 points narrated.
 - This measures narrator wording, not chess improvement for players.
 
 ## Interim slot run (superseded)
