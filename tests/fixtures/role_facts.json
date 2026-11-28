@@ -1,0 +1,464 @@
+{
+  "P1": [
+    {
+      "role": "The move",
+      "fact": "5.Nxf7: the knight on e5 takes the pawn on f7.",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "The knight on f7 attacks the queen on g5.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "The knight on f7 attacks the rook on h8.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "5.Bxf7+: White's bishop on c4 takes the pawn on f7.",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The bishop on f7 gives check to the king on e8.",
+      "relations": [
+        "gives_check"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The bishop on f7 attacks the knight on g8.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "After 5.Bxf7+, Black must answer the check, so the queen on g5 cannot play 5...Qxg2 at once.",
+      "relations": [
+        "prevents"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "5...Qxg2: Black's queen on g5 takes the pawn on g2.",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "The queen on g2 attacks the rook on h1.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 5.Bxf7+ instead of 5.Nxf7.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "P2": [
+    {
+      "role": "The move",
+      "fact": "7.Be2: the bishop on c4 goes back from c4 to e2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "The bishop on e2 blocks the check from the queen on e4.",
+      "relations": [
+        "blocks"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "7.Be2 was not the only way to block the check: 7.Qe2 also blocks it.",
+      "relations": [
+        "blocks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "7.Qe2: White's queen on d1 goes forward from d1 to e2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The queen on e2 blocks the check from the queen on e4.",
+      "relations": [
+        "blocks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The queen on e2 attacks the queen on e4.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The queen on e2 pins the queen on e4 to the king on e8.",
+      "relations": [
+        "pins"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "7...Nf3#: Black's knight on d4 goes forward from d4 to f3.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "7...Nf3# gives check to the king on e1, and it is mate: the game ends, and Black wins.",
+      "relations": [
+        "mates"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 7.Qe2 instead of 7.Be2.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "P3": [
+    {
+      "role": "The move",
+      "fact": "1.h3: the pawn on h2 goes forward from h2 to h3.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Rd8#: White's rook on d1 goes forward from d1 to d8.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Rd8# gives check to the king on g8, and it is mate: the game ends, and White wins.",
+      "relations": [
+        "mates"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.Rd8# instead of 1.h3.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "P4": [
+    {
+      "role": "The move",
+      "fact": "1.Kd2: the king on e1 steps forward from e1 to d2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Nc7+: White's knight on d5 goes forward from d5 to c7.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The knight on c7 gives check to the king on e8.",
+      "relations": [
+        "gives_check"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The knight on c7 attacks the rook on a8.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Nc7+ gives check; after the king moves, the knight on c7 takes the rook on a8 (2.Nxa8).",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.Nc7+ instead of 1.Kd2.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "P5": [
+    {
+      "role": "The move",
+      "fact": "1.e3: the pawn on e2 goes forward from e2 to e3.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "1.e3 frees the queen on d1: it could not move before.",
+      "relations": [
+        "frees"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "1.e3 frees the bishop on f1: it could not move before.",
+      "relations": [
+        "frees"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.d4: White's pawn on d2 goes forward from d2 to d4.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The bishop on c1 could not move before 1.e3, and it still cannot; 1.d4 frees it.",
+      "relations": [
+        "frees"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.d4 instead of 1.e3.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "H1": [
+    {
+      "role": "The move",
+      "fact": "4.d3: the pawn on d2 goes forward from d2 to d3.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "4.d3 frees the bishop on c1: it could not move before.",
+      "relations": [
+        "frees"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "4.Qxf7#: White's queen on h5 takes the pawn on f7.",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+      "relations": [
+        "mates"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 4.Qxf7# instead of 4.d3.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "H2": [
+    {
+      "role": "The move",
+      "fact": "1.Kf2+: the king on g1 steps forward from g1 to f2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "The bishop on g2 gives check to the king on d5.",
+      "relations": [
+        "gives_check"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Bf3+: White's bishop on g2 goes forward from g2 to f3.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The bishop on f3 gives check to the king on d5.",
+      "relations": [
+        "gives_check"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Bf3+ gives check; after the king moves, the bishop on f3 takes the rook on b7 (2.Bxb7).",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.Bf3+ instead of 1.Kf2+.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "H3": [
+    {
+      "role": "The move",
+      "fact": "1.Qf7: the queen on f1 goes forward from f1 to f7.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "The move",
+      "fact": "1.Qf7 is stalemate: Black has no legal move and is not in check, so the game ends at once as a draw.",
+      "relations": [
+        "stalemates"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Qf8#: White's queen on f1 goes forward from f1 to f8.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+      "relations": [
+        "mates"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.Qf8# instead of 1.Qf7.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "H4": [
+    {
+      "role": "The move",
+      "fact": "1.Kg2: the king on g1 steps forward from g1 to g2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.f4: White's pawn on f2 goes forward from f2 to f4.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "The pawn on f4 attacks the knight on e5; the knight on e5 is pinned to the king on e8 by the rook on e1, so it cannot move away.",
+      "relations": [
+        "attacks",
+        "pins"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.f4 instead of 1.Kg2.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ],
+  "H5": [
+    {
+      "role": "The move",
+      "fact": "1.Qc1: the queen on d1 goes sideways from d1 to c1.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What it misses",
+      "fact": "1.Qxd4: White's queen on d1 takes the knight on d4.",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "1...Ne2+: Black's knight on d4 goes forward from d4 to e2.",
+      "relations": [
+        "moves"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "The knight on e2 gives check to the king on g1.",
+      "relations": [
+        "gives_check"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "The knight on e2 attacks the queen on c1.",
+      "relations": [
+        "attacks"
+      ]
+    },
+    {
+      "role": "What follows",
+      "fact": "1...Ne2+ gives check; after the king moves, the knight on e2 takes the queen on c1 (2...Nxc1).",
+      "relations": [
+        "takes"
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "White could have played 1.Qxd4 instead of 1.Qc1.",
+      "relations": [
+        "moves"
+      ]
+    }
+  ]
+}
