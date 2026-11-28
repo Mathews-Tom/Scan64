@@ -1,0 +1,39 @@
+
+   ___          __         __   _   __
+  / _ \___  ___/ /__ ___  / /_ | | / /
+ / , _/ _ \/ _  / -_) _ \/ __/ | |/ /
+/_/|_|\___/\_,_/\__/_//_/\__/  |___/
+
+         Rodent V 1.2
+      Type 'uci' or 'help'
+id name Rodent V 1.2 AVX2
+id author Naman Thanki, Pawel Koziol, based on Sungorus by Pablo Vazquez
+option name Hash type spin default 16 min 1 max 4096
+option name Clear Hash type button
+option name UCI_Chess960 type check default false
+option name UCI_LimitStrength type check default false
+option name UCI_Elo type spin default 3000 min 800 max 3000
+option name OwnBook type check default false
+option name Threads type spin default 1 min 1 max 256
+option name MultiPV type spin default 1 min 1 max 500
+option name PersonalityFile type string default personalities/rodent.txt
+info string Loaded NNUE network: nets/rodent_4kb_768hl_8ob_v2.bin
+uciok
+Evaluation breakdown (phase = 6/24)
+---------------------------------------------------------------
+Term           MG W     MG B  MG diff     EG W     EG B  EG diff    Blend
+---------------------------------------------------------------
+Material       1325     1325        0     2044     2044        0        0
+PST              34       52      -18      -61       -7      -54      -45
+Mobility          9       30      -21        7       30      -23      -22
+Safety            0        0        0        0        0        0        0
+Pawns           -66      -42      -24     -117      -82      -35      -32
+Passers           0        0        0        0        0        0        0
+Threats         -10        0      -10       10        0       10        5
+Other            18       38      -20       -3       10      -13      -14
+---------------------------------------------------------------
+TOTAL                             -93                       -115     -109
+---------------------------------------------------------------
+From White's point of view: -109 cp
+From side-to-move point of view: 109 cp
+

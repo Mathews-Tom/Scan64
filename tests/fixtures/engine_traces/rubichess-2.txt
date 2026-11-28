@@ -1,0 +1,50 @@
+info string Reading network nn-843a8e0936-20261017.nnue successful. Using NNUE (V13-1024).
+========================================================================================
+RubiChess 20261103 NN-843a8 (avx512) 64Bit (Build commit 263f15 GCC 15)
+UCI compatible chess engine by Andreas Matthies
+----------------------------------------------------------------------------------------
+System: AMD Ryzen Threadripper 9960X 24-Cores  Family: 26  Model: 8  
+CPU-Features of system: sse2 ssse3 popcnt lzcnt bmi1 avx2 bmi2 avx512
+CPU-Features of binary: sse2 ssse3 popcnt lzcnt bmi1 avx2 bmi2 avx512
+========================================================================================
+id name RubiChess 20261103 (avx512)
+id author Andreas Matthies
+option name BookBestMove type check default true
+option name BookDepth type spin default 255 min 0 max 255
+option name BookFile type string default <empty>
+option name Clear Hash type button
+option name Contempt type spin default 0 min -100 max 100
+option name ContemptRatio type spin default 0 min 0 max 16
+option name Hash type spin default 16 min 1 max 1048576
+option name LimitNps type spin default 0 min 0 max 2147483647
+option name LogFile type string default 
+option name Move_Overhead type spin default 100 min 0 max 5000
+option name MultiPV type spin default 1 min 1 max 64
+option name NNUENetpath type string default <Default>
+option name Ponder type check default false
+option name Syzygy50MoveRule type check default true
+option name SyzygyPath type string default <empty>
+option name SyzygyProbeLimit type spin default 7 min 0 max 7
+option name Threads type spin default 1 min 1 max 1024
+option name UCI_Chess960 type check default false
+option name UCI_RatingAdv type spin default 0 min -10000 max 10000
+option name Use_NNUE type check default true
+uciok
+info string NNUE evaluation is disabled.
+              |    White    |    Black    |    Total   
+              |   MG    EG  |   MG    EG  |   MG    EG 
+ -------------+-------------+-------------+------------
+     Material | 13.76 15.75 | 13.84 16.23 | -0.08 -0.48
+       Minors |  0.00  0.00 |  0.15  0.15 | -0.15 -0.15
+        Rooks |  0.21  0.07 |  0.43  0.01 | -0.22  0.06
+        Pawns |  0.14 -0.08 |  0.58  0.14 | -0.44 -0.22
+      Passers |  0.00  0.00 |  0.00  0.00 |  0.00  0.00
+     Mobility |  1.17  1.28 |  1.25  1.46 | -0.08 -0.18
+      Threats |  0.00  0.00 |  0.00  0.00 |  0.00  0.00
+ King attacks | -0.45  0.06 | -0.42  0.11 | -0.03 -0.05
+   Complexity |  0.00  0.00 |  0.00  0.14 |  0.00 -0.14
+ -------------+-------------+-------------+------------
+        Total |  Ph=191/256 |  Sc=128/128 | -1.00 -1.16 => -1.11
+        Tempo |  0.00  0.00 |  0.00  0.20 |  0.00 -0.20
+      Endgame |  0.00
+    Resulting | -1.31
