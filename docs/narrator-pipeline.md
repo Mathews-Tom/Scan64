@@ -844,10 +844,10 @@ The text names at most 3 pieces or drops (`DETAIL_LIMIT`). `drop_threats` names 
 | `check_exposure` | 2 | 3 of 98 | 0 of 160 | 65 of 1840 (4%) |
 | `explosion_threats` | 1 | 5 of 101 | 9 of 75 (12%) | 28 of 1946 (1%) |
 
-`check_exposure` does not fire often on ordinary positions. `explosion_threats` does in the second half (12%), and it fires more often there than at mistakes. Its threshold is 1, so it can only become stricter; that is a follow-up of #506. The counts measure how often a signal passes, not whether the theme is the cause. Raw scores: `tests/fixtures/themes/variant_game_scores.json`; `uv run python -m tests.helpers.themes.summarize_variant_games` recomputes the table without an engine. Each theme has a test position where it holds and one where it does not (`tests/unit/test_narrator_variant_themes.py`).
+`check_exposure` does not fire often on ordinary positions. `explosion_threats` does in the second half (12%), and it fires more often there than at mistakes. Its threshold is 1, so it can only become stricter; #534 covers it. The counts measure how often a signal passes, not whether the theme is the cause. Raw scores: `tests/fixtures/themes/variant_game_scores.json`; `uv run python -m tests.helpers.themes.summarize_variant_games` recomputes the table without an engine. Each theme has a test position where it holds and one where it does not (`tests/unit/test_narrator_variant_themes.py`).
 
 **Limits.**
 
-- Explanations still cover standard chess only (`docs/user-guide.md`, "Chess variants on the Analysis Board"). The facts and the fast pass accept a variant game, but game analysis still refuses one: the detectors, the template texts, the lessons and the review use standard rules.
+- Explanations still cover standard chess only (`docs/user-guide.md`, "Chess variants on the Analysis Board"). The facts and the fast pass accept a variant game, but game analysis still refuses one: the detectors, the template texts, the lessons and the review use standard rules (#533).
 - The piece values are the standard ones. In crazyhouse a pawn in hand is worth more than on the board; the pocket rule can under-count pawns.
 - The drop and check counts read one move ahead. They do not check that the threat survives the learner's best reply.
