@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
 
 import chess
+import httpx
 import pytest
 from chess_lesson_spec import ExplanationClaim
 
@@ -32,7 +34,7 @@ from scan64.explanations.validator import (
     GroundedExplanationValidationError,
     validate_generated_explanation,
 )
-from scan64.providers.llm import ExplanationRequest, LLMProviderError
+from scan64.providers.llm import ExplanationRequest, LLMProviderError, local_ollama
 from scan64.providers.llm.contracts import GeneratedExplanation
 from tests.fixtures.record_analysis_board_lines import engine_key
 
@@ -278,3 +280,44 @@ def test_prompt_is_the_slot_list_but_a_claim_may_cite_the_full_line(name: str) -
         assert catalogue.slots_for(line.line_id)[f"line:{line.line_id}"].moves == line.uci
     # The facts the response, template and grounding use are not cut.
     assert [len(line.moves) for line in facts.lines] == [len(line.uci) for line in facts.lines]
+
+
+@pytest.mark.asyncio
+async def test_explanation_over_the_local_model_limit_gets_the_template(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two explanations at a limit of one: the second gets the template at once (#472)."""
+    monkeypatch.setenv(local_ollama.MAX_CONCURRENT_CALLS_ENV, "1")
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": "local"}]})
+        entered.set()
+        await release.wait()
+        return httpx.Response(503)
+
+    def transport(**_kwargs: object) -> httpx.MockTransport:
+        return httpx.MockTransport(handler)
+
+    monkeypatch.setattr(local_ollama.httpx, "AsyncHTTPTransport", transport)
+
+    async def authorized() -> bool:
+        return True
+
+    facts = _facts("start", 3)
+
+    async def explain() -> Any:
+        provider = local_ollama.LocalOllamaExplanationProvider("local", authorized)
+        return await resolve_board_lines_explanation(facts, local_provider=provider, environment={})
+
+    holder = asyncio.create_task(explain())
+    await entered.wait()
+    over = await explain()
+    assert over.source == "template"
+    assert over.fallback_reason == "provider_error"
+    assert over.explanation == template_board_explanation(facts)
+    assert not holder.done()
+    release.set()
+    await holder
