@@ -209,17 +209,50 @@ def _config_label(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else path.name
 
 
+def narrator_package_files(source_file: Path) -> list[Path]:
+    """Every file of the package that holds the pipeline entry, sorted by path.
+
+    For ``scan64.explanations.assembly`` that is ``src/scan64/explanations``:
+    assembly, slots, facts, factor_facts, validator, board_lines, voice, the
+    factor port and the templates. Compiled caches are left out.
+    """
+    package = source_file.parent
+    return sorted(
+        path
+        for path in package.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    )
+
+
+def narrator_digest(source_file: Path) -> tuple[str, dict[str, str]]:
+    """sha256 over the package's files (path and content digest per line), and the per-file map."""
+    # Repository-relative names; a package outside the repository is named from its parent.
+    base = REPO_ROOT if source_file.is_relative_to(REPO_ROOT) else source_file.parent.parent
+    modules = {
+        path.relative_to(base).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in narrator_package_files(source_file)
+    }
+    combined = hashlib.sha256(
+        "".join(f"{name}\0{digest}\n" for name, digest in modules.items()).encode("utf-8")
+    ).hexdigest()
+    return combined, modules
+
+
 def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
     """Pin the code under test: commit, whole-tree dirty flag, module, runner and config hashes.
 
     ``dirty`` covers the whole tree except the results directory, so uncommitted
     runner or config changes are flagged, not only changes under ``src``. The
     config digest also covers a ``--config`` file outside the repository, which
-    ``dirty`` cannot see.
+    ``dirty`` cannot see. ``module_sha256`` covers the entry's own file only;
+    ``narrator_sha256`` covers every file of its package (``narrator_modules``
+    lists them), so a change to slots, facts, factor_facts or the validator
+    changes the header too.
     """
     entry = _resolve(config.pipeline_entry)
     source_file = Path(inspect.getfile(entry))
     results = config.results_dir.relative_to(REPO_ROOT).as_posix()
+    narrator_sha256, narrator_modules = narrator_digest(source_file)
     return {
         "pipeline_entry": config.pipeline_entry,
         "grounding_context": config.grounding_context,
@@ -228,6 +261,8 @@ def pipeline_identity(config: BenchConfig) -> dict[str, Any]:
         "dirty": bool(_git("status", "--porcelain", "--", ".", f":(exclude){results}")),
         "module_file": source_file.relative_to(REPO_ROOT).as_posix(),
         "module_sha256": hashlib.sha256(source_file.read_bytes()).hexdigest(),
+        "narrator_sha256": narrator_sha256,
+        "narrator_modules": narrator_modules,
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "config_file": _config_label(config.config_file),
         "config_sha256": hashlib.sha256(config.config_file.read_bytes()).hexdigest(),
@@ -240,6 +275,7 @@ RESUME_PINNED = (
     "commit",
     "module_file",
     "module_sha256",
+    "narrator_sha256",
     "runner_sha256",
     "config_sha256",
 )
@@ -249,7 +285,7 @@ def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
     """Refuse to append to a run whose header no longer describes the code (rule 6).
 
     New records sit under the existing header, so the run must have started from a
-    clean tree, the tree must be clean now, and the commit, module, runner and
+    clean tree, the tree must be clean now, and the commit, module, narrator package, runner and
     config file digest must equal the header's. A header without one of these keys
     (written by an older runner) cannot be resumed.
     """
@@ -1100,6 +1136,13 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f" Config `{header['pipeline']['config_file']}` (sha256 "
             f"`{header['pipeline']['config_sha256'][:12]}`)."
             if "config_sha256" in header["pipeline"]
+            else ""
+        )
+        # Narrator package digest; headers before it have none and keep their summary text.
+        + (
+            f" Narrator package sha256 `{header['pipeline']['narrator_sha256'][:12]}` "
+            f"({len(header['pipeline'].get('narrator_modules', {}))} files)."
+            if "narrator_sha256" in header["pipeline"]
             else ""
         )
         # Voice (#387); headers before #387 have none and keep their summary text.

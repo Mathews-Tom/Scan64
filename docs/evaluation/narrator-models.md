@@ -53,7 +53,7 @@ Procedure: rank the models that pass by GPU memory, smallest first, and choose t
 - Request: `think = false` and `stream = true` in every `/api/chat` body. `num_ctx` 4096 in every request, `num_predict` 2048. Client timeout 120 s.
 - Hardware: NVIDIA GeForce RTX 5090 32 GB. No other Ollama server held a model during any call.
 - Every runs header: `assembly.py` sha256 `79c006f90a10`, runner sha256 `3649f46a330a`, `dirty: false`. The header commits (`29f0424`, `ecfc8de`, `937353f`) differ only in committed result files.
-- Later runs: the header's `pipeline` also records `config_file` and `config_sha256`, the SHA-256 of the config file (`narrator.toml` or the file given on the command line), and `--resume` refuses a run whose config file has changed. The runs below predate this field.
+- Later runs: the header's `pipeline` also records `config_file` and `config_sha256`, the SHA-256 of the config file (`narrator.toml` or the file given on the command line), and `--resume` refuses a run whose config file has changed. It also records `narrator_sha256`, one SHA-256 over every file of the narrator package `src/scan64/explanations` (assembly, slots, facts, factor_facts, validator, board_lines, voice, the factor port and the templates; `narrator_modules` lists each file's SHA-256), and `--resume` refuses a run whose narrator package has changed. `module_sha256` covers `assembly.py` only. The runs below predate both fields.
 
 | Runs file | Positions | Voice | Models |
 |---|---|---|---|
@@ -288,6 +288,7 @@ Set `SCAN64_LOCAL_LLM_CONTEXT_TOKENS=4096` for the local provider, so it does no
 - Timeout: the app's local-Ollama timeout defaults to 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`, up to 600 s). The benchmark client allowed 120 s; the largest p95 was 7.06 s.
 - Thinking: every benchmark call sent `think = false`. The app adapters send no `think` field, so production calls of a thinking-capable model can differ from these numbers.
 - One GPU class: all factor, slot and free-prose runs are on an RTX 5090. Latency on smaller GPUs is higher (see the RTX 4080 Laptop run below). CPU latency is measured only for `praxis-4b` and `qwen3.5-4b`, on the pre-#367 prompt.
+- Provenance of the five runs above (`runs_20261127_213350`, `_220133`, `_221105`, `_222432`, `_223247`): their headers predate `config_sha256` and `narrator_sha256`, so they cannot be resumed and the header alone does not name the `narrator.toml` or the narrator modules that ran. Both follow from git, because every header has `dirty: false`: `benchmarks/narrator/narrator.toml` has not changed since `29f0424` (`git log -- benchmarks/narrator/narrator.toml`; sha256 `7f109df11a1a` at all three header commits), and `src/scan64/explanations` is identical at `29f0424`, `ecfc8de` and `937353f` (`narrator_sha256` as the runner now computes it: `792cd8a8b563`, 15 files).
 - This measures narrator wording, not chess improvement for players.
 
 ## Interim slot run (superseded)
