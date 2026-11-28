@@ -10,7 +10,8 @@ units and the other fact clauses below.
 Grounding a slot claim (``validator.py``) has two fixed checks:
 
 1. every slot names a fact listed for the claim's evidence item, and
-2. the prose outside the slots holds no chess content (``CHESS_PROSE``).
+2. the prose outside the slots holds no chess content (``CHESS_PROSE``) and
+   no relational claim the item's facts do not support (``claims.py``, #431).
 
 ``CHESS_PROSE`` is one closed rule set. It must not grow with each phrasing: a
 chess fact that a model wants to state and no slot covers is a missing slot,
@@ -30,6 +31,7 @@ from dataclasses import dataclass, field, replace
 
 import chess
 
+from scan64.explanations.claims import ClaimFacts, factor_group
 from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
     CentipawnEvaluation,
@@ -87,15 +89,58 @@ def vocabulary(phrases: Iterable[str]) -> frozenset[str]:
     return frozenset(_word_form(w) for phrase in phrases for w in _WORD.findall(phrase.lower()))
 
 
-def chess_words_outside_slots(prose: str, words: frozenset[str]) -> str | None:
+def blank_phrases(prose: str, phrases: Iterable[str]) -> str:
+    """``prose`` with every occurrence of a phrase blanked (word forms compared).
+
+    A threats factor name admits its words only with its head noun (#431): a
+    name ending in "threats" admits its endings (``safe pawn threats``: "safe
+    pawn threats", "pawn threats", "threats", never a bare "pawn"); any other
+    name only as a whole ("slider on the queen", never a bare "queen").
+    """
+    tokens = list(_WORD.finditer(prose.lower()))
+    forms = [_word_form(token[0]) for token in tokens]
+    chars = list(prose)
+    for phrase in phrases:
+        words = [_word_form(w) for w in _WORD.findall(phrase.lower())]
+        cuts = range(len(words)) if words[-1:] == ["threat"] else range(1 if words else 0)
+        for target in (words[cut:] for cut in cuts):
+            for start in range(len(forms) - len(target) + 1):
+                if forms[start : start + len(target)] == target:
+                    begin, end = tokens[start].start(), tokens[start + len(target) - 1].end()
+                    chars[begin:end] = " " * (end - begin)
+    return "".join(chars)
+
+
+def factor_names(changes: Iterable[FactorChange]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Passed factor names as (vocabulary terms, phrases), first occurrence order.
+
+    A Threats-group name ("rook threats", "minor piece threats") names the
+    attacking piece type, not a piece of the position, so it is a phrase
+    (``blank_phrases``). Every other name ("king safety", "weak queen",
+    "connected pawns") names the side's own king, pieces or pawns, and its
+    words are vocabulary words; claims about them are read by the claim rule.
+    """
+    names = list(
+        dict.fromkeys((change.name, factor_group(change) == "Threats") for change in changes)
+    )
+    return (
+        tuple(name for name, threats in names if not threats),
+        tuple(name for name, threats in names if threats),
+    )
+
+
+def chess_words_outside_slots(
+    prose: str, words: frozenset[str], phrases: Iterable[str] = ()
+) -> str | None:
     """The first chess token in ``prose`` that the facts do not contain, else ``None``.
 
     Notation (digits, ``#``, ``O-O``, figurines) is never allowed. A chess word
-    is allowed when each of its words is in ``words`` (``vocabulary``).
+    is allowed when each of its words is in ``words`` (``vocabulary``) or it
+    lies inside one of ``phrases`` (the passed factor names).
     """
     if (notation := NOTATION.search(prose)) is not None:
         return notation[0]
-    for match in CHESS_WORDS.finditer(prose):
+    for match in CHESS_WORDS.finditer(blank_phrases(prose, phrases)):
         if not {_word_form(w) for w in _WORD.findall(match[0].lower())} <= words:
             return match[0]
     return None
@@ -153,9 +198,15 @@ class SlotCatalogue:
 
     by_evidence: Mapping[str, Mapping[str, Slot]]
     shared: frozenset[str] = field(default_factory=frozenset)
-    # Fact names per evidence item beyond its slot names: the mistake class,
-    # the evidence tactic and the passed factor changes (vocabulary rule).
+    # Fact names per evidence item beyond its slot names: the mistake class
+    # and the evidence tactic (vocabulary rule).
     terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # Names of the passed Threats-group factor changes per evidence item,
+    # admitted only with their head noun (#431, ``factor_names``).
+    phrases: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # Relational facts per evidence item (``claims.py``); an item without an
+    # entry supports no claim.
+    claims: Mapping[str, ClaimFacts] = field(default_factory=dict)
     # An example claim text built from this catalogue's own slots (prompt only).
     example: str | None = None
     combined: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
@@ -164,8 +215,16 @@ class SlotCatalogue:
         return self.by_evidence.get(evidence_id, {})
 
     def vocabulary(self, evidence_id: str) -> frozenset[str]:
-        """Words a claim citing ``evidence_id`` may use outside slots."""
-        return vocabulary((*self.slots_for(evidence_id), *self.terms.get(evidence_id, ())))
+        """Words a claim citing ``evidence_id`` may use outside slots.
+
+        Factor slot names add no word: the passed factor names come in
+        ``terms`` or, for threats, ``phrases`` (``factor_names``).
+        """
+        names = (name for name in self.slots_for(evidence_id) if not name.startswith("factor:"))
+        return vocabulary((*names, *self.terms.get(evidence_id, ())))
+
+    def claim_facts(self, evidence_id: str) -> ClaimFacts:
+        return self.claims.get(evidence_id, ClaimFacts())
 
     def names(self) -> frozenset[str]:
         return frozenset(name for slots in self.by_evidence.values() for name in slots)
@@ -219,6 +278,7 @@ class SlotCatalogue:
                 if slot.group is None and name not in self.shared:
                     emit(slot)
             allowed = sorted(w for w in self.vocabulary(evidence_id) if CHESS_WORDS.fullmatch(w))
+            allowed += sorted(p for p in self.phrases.get(evidence_id, ()) if CHESS_WORDS.search(p))
             if allowed:
                 out.append(f"Allowed plain words: {', '.join(allowed)}.")
         out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
@@ -522,7 +582,10 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     }
     by_evidence: dict[str, dict[str, Slot]] = {}
     terms: dict[str, tuple[str, ...]] = {}
-    factor_names = tuple(change.name for change in facts.factors.changes) if facts.factors else ()
+    changes = facts.factors.changes if facts.factors else ()
+    factor_terms, factor_phrases = factor_names(changes)
+    lines = {line.line_id: line.moves for line in facts.lines}
+    claims: dict[str, ClaimFacts] = {}
     for item in facts.evidence:
         slots = {slot.name: slot for slot in shared}
         for line_id in item.line_ids:
@@ -530,11 +593,20 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         slots.update((slot.name, slot) for slot in _evidence_slots(item))
         by_evidence[item.evidence_id] = slots
         tactic = (item.tactic.replace("_", " "),) if item.tactic else ()
-        terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_names)
+        terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_terms)
+        moves = [(played,), *([(best,)] if best is not None else [])]
+        claims[item.evidence_id] = ClaimFacts.collect(
+            position.material,
+            (position.evaluation_before, position.evaluation_after, position.best_move_evaluation),
+            [*moves, *(lines[line_id] for line_id in item.line_ids)],
+            changes,
+        )
     return SlotCatalogue(
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
         terms=terms,
+        phrases={item.evidence_id: factor_phrases for item in facts.evidence},
+        claims=claims,
         example=_lesson_example({slot.name for slot in shared}),
     )
 
@@ -573,6 +645,7 @@ __all__ = [
     "evaluation_value",
     "FACTOR_REFERENCES",
     "FACTOR_SLOT_SUFFIX",
+    "factor_names",
     "factor_slots",
     "factor_value",
     "lesson_slot_catalogue",

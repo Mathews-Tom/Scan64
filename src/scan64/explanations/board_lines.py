@@ -45,6 +45,7 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
     slot_rules,
 )
+from scan64.explanations.claims import ClaimFacts
 from scan64.explanations.factor_facts import (
     FactorFacts,
     PointScore,
@@ -75,6 +76,7 @@ from scan64.explanations.slots import (
     Slot,
     SlotCatalogue,
     evaluation_value,
+    factor_names,
     factor_slots,
     line_slots,
     numbered_san,
@@ -623,6 +625,21 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
             slot.name: slot
             for slot in (*shared, *(slot for slots in per_line.values() for slot in slots))
         }
+    items: dict[str, tuple[BoardLineFacts, ...]] = {line.line_id: (line,) for line in facts.lines}
+    if len(facts.lines) > 1:
+        items[COMPARISON_EVIDENCE_ID] = facts.lines
+    terms: dict[str, tuple[str, ...]] = {}
+    phrases: dict[str, tuple[str, ...]] = {}
+    claims: dict[str, ClaimFacts] = {}
+    for evidence_id, lines in items.items():
+        changes = [c for line in lines if line.factors for c in line.factors.changes]
+        terms[evidence_id], phrases[evidence_id] = factor_names(changes)
+        claims[evidence_id] = ClaimFacts.collect(
+            facts.position.material,
+            (facts.position.evaluation, *(line.evaluation for line in lines)),
+            [line.moves for line in lines],
+            changes,
+        )
     names = {name for slots in by_evidence.values() for name in slots}
     example = "{label:line-1} starts with {first:line-1}."
     if "diff:line-2" in names:
@@ -635,6 +652,9 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
     return SlotCatalogue(
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
+        terms=terms,
+        phrases=phrases,
+        claims=claims,
         example=example,
         combined=combined,
     )

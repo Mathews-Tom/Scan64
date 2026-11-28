@@ -245,6 +245,17 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
             "chess_token_outside_slot",
         ),
         (
+            # #431: no chess word, but material is level on the starting position.
+            (
+                ExplanationClaim(
+                    text="You are up a piece.",
+                    evidence_ref="line-1",
+                    disclosure_level=1,
+                ),
+            ),
+            "unsupported_claim",
+        ),
+        (
             (
                 ExplanationClaim(
                     text="The second line drops a knight.",
