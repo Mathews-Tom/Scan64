@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { Chess } from 'chess.js';
+import { attachScreenshot } from './screenshot';
 import { prepareToday } from './today';
 import { makeGameReview } from '../../src/components/review.test-fixtures';
 
@@ -77,7 +78,7 @@ test('keyboard-only analysis entry, errors, all promotions and direct board posi
     await expect(input).toBeFocused();
   }
   await testInfo.attach('keyboard-analysis-tree', { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-  await testInfo.attach('keyboard-analysis', { body: await page.screenshot(), contentType: 'image/png' });
+  await attachScreenshot(page, testInfo, 'keyboard-analysis');
 });
 
 const routes = ['/', '/play', '/games', '/analysis', '/training', '/puzzles', '/profile', '/coach', '/library', '/import', '/famous', '/explorer', '/not-found'];
@@ -99,10 +100,8 @@ for (const size of [{ width: 320, height: 640 }, { width: 640, height: 320 }]) {
         expect((await board.boundingBox())!.width).toBeLessThanOrEqual(size.width === 320 ? 320 : 400);
       }
       await testInfo.attach('role-name-tree', { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-      // Viewport capture: a full-page capture asks Chromium to composite beyond the
-      // emulated touch viewport, which fails under load with "Unable to capture
-      // screenshot". Reflow itself is asserted above from scroll widths.
-      await testInfo.attach('reflow', { body: await page.screenshot(), contentType: 'image/png' });
+      // Evidence only: reflow is asserted above from scroll widths.
+      await attachScreenshot(page, testInfo, 'reflow');
     });
   });
 }
@@ -172,7 +171,7 @@ test(`Black puzzle local validation, hint and solve at ${size.width}x${size.heig
   expect(calls).toBe(1);
   await reflow(page);
   await testInfo.attach('puzzle-tree', { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-  await testInfo.attach('black-puzzle', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await attachScreenshot(page, testInfo, 'black-puzzle', { fullPage: true });
 });
 
 test('keyboard starts a game, receives opponent reply and opens/closes a hint', async ({ page }, testInfo) => {
@@ -231,7 +230,7 @@ test.describe('touch move entry without dragging', () => {
     await page.touchscreen.tap(box.x + box.width * 4.5 / 8, box.y + box.height * 4.5 / 8);
     await expect(page.getByPlaceholder('Paste FEN here')).toHaveValue(/4P3/);
     await reflow(page);
-    await testInfo.attach('white-touch-landscape', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+    await attachScreenshot(page, testInfo, 'white-touch-landscape', { fullPage: true });
   });
 });
 
