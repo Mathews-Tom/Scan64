@@ -15,6 +15,7 @@ from scan64.providers.engine import (
     EngineConfig,
     active_engine_profile,
 )
+from scan64.providers.engine.config import LADDER_ENGINE_CONFIG_ENV, ladder_engine_profile
 
 ROOT = Path(__file__).parents[2]
 
@@ -23,6 +24,8 @@ def test_every_test_starts_from_the_default_engine_profile() -> None:
     # ``get``, not ``in os.environ``: a failure must not print the environment.
     assert os.environ.get(ENGINE_CONFIG_ENV) is None
     assert os.environ.get(STOCKFISH_PATH_ENV) is None
+    assert os.environ.get(LADDER_ENGINE_CONFIG_ENV) is None
+    assert ladder_engine_profile() is None
     profile = active_engine_profile()
     assert (profile.name, profile.binary_path, profile.source) == ("stockfish", "stockfish", None)
     assert EngineConfig().binary_path == "stockfish"
@@ -40,6 +43,7 @@ def test_the_developer_engine_variables_do_not_reach_a_test(tmp_path: Path) -> N
     # profile does not exist, so any test that read it would fail.
     environment = os.environ | {
         ENGINE_CONFIG_ENV: str(tmp_path / "developer-engine.toml"),
+        LADDER_ENGINE_CONFIG_ENV: str(tmp_path / "developer-ladder.toml"),
         STOCKFISH_PATH_ENV: str(tmp_path / "developer-stockfish"),
     }
     result = subprocess.run(

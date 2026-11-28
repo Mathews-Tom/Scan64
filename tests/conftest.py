@@ -6,13 +6,17 @@ from collections.abc import Iterator
 
 import pytest
 
-from scan64.providers.engine.config import ENGINE_CONFIG_ENV, STOCKFISH_PATH_ENV
+from scan64.providers.engine.config import (
+    ENGINE_CONFIG_ENV,
+    LADDER_ENGINE_CONFIG_ENV,
+    STOCKFISH_PATH_ENV,
+)
 
 # The developer's engine selection. Without it every test starts from the
-# default engine profile: Stockfish on PATH. A test that needs a profile or a
-# Stockfish path sets it with monkeypatch. SCAN64_TEST_SECOND_ENGINE is a test
-# input, not engine configuration, and stays.
-DEVELOPER_ENGINE_ENV = (ENGINE_CONFIG_ENV, STOCKFISH_PATH_ENV)
+# default engine profile (Stockfish on PATH), and bot moves use that engine. A
+# test that needs a profile or a Stockfish path sets it with monkeypatch.
+# SCAN64_TEST_SECOND_ENGINE is a test input, not engine configuration, and stays.
+DEVELOPER_ENGINE_ENV = (ENGINE_CONFIG_ENV, LADDER_ENGINE_CONFIG_ENV, STOCKFISH_PATH_ENV)
 
 
 @pytest.fixture(autouse=True)
