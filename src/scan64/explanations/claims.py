@@ -37,6 +37,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
+from functools import cache
 
 from scan64.explanations.factor_facts import FactorChange
 from scan64.explanations.factors import PARTS
@@ -48,6 +49,10 @@ from scan64.explanations.facts import (
     UnknownEvaluation,
     evaluation_as_cp,
 )
+
+# A slot as a material count ("you are {eval_diff} pawns up in material"):
+# the slot states an evaluation, not material, so no material fact has that size.
+SLOT_AMOUNT = -1
 
 # Engine-score thresholds, centipawns, learner's view.
 BETTER_CP = 50  # "better", "an advantage", "the edge"
@@ -133,8 +138,9 @@ _HAVE = (
     r"|retained|gain|gains|gained|enjoy|enjoys|keep|still\s+have|still\s+has|now\s+have"
     r"|now\s+has))"
 )
+# "~" is a slot used as the count ("{eval_diff} pawns up"): ``SLOT_AMOUNT``.
 _COUNT = (
-    r"(?:(?P<count>a|an|one|two|three|four|five|six|seven|eight|nine|the)\s+)?"
+    r"(?:(?P<count>a|an|one|two|three|four|five|six|seven|eight|nine|the|~)\s+)?"
     r"(?:(?:full|whole|clean|extra|entire|additional)\s+)?"
 )
 _UNIT = (
@@ -145,7 +151,7 @@ _UP = r"(?P<dir>up|down|ahead|behind)"
 # A required count: "a pawn", "two pawns", "the exchange"; bare "pawns" is no claim
 # ("minor pieces behind pawns" is a factor name).
 _COUNT_REQUIRED = (
-    r"(?P<count>a|an|one|two|three|four|five|six|seven|eight|nine|the)\s+"
+    r"(?P<count>a|an|one|two|three|four|five|six|seven|eight|nine|the|~)\s+"
     r"(?:(?:full|whole|clean|extra|entire|additional)\s+)?"
 )
 _UNIT_PIECES = (
@@ -271,7 +277,10 @@ _Reader = Callable[[re.Match[str]], Claim]
 
 def _amount(match: re.Match[str]) -> int | None:
     """Points of material the match names; ``None`` for bare "material"."""
-    raw = match.groupdict().get("unit")
+    groups = match.groupdict()
+    if "~" in (groups.get("count"), groups.get("count2")):
+        return SLOT_AMOUNT
+    raw = groups.get("unit")
     if raw is None:
         return None
     unit = " ".join(raw.lower().split()).removesuffix(" of material")
@@ -344,12 +353,30 @@ _POSITION_BE = (
     r"\b(?:the\s+)?(?:position|game|evaluation|score)(?:\s+(?:is|was|stays|remains|looks"
     r"|stayed|remained|seems))(?:\s+(?:now|still|roughly|about|dead|completely|clearly))*\s+"
 )
+
+
+@dataclass(frozen=True)
+class _Rule:
+    """One claim pattern, compiled on first use: importing the module stays cheap."""
+
+    source: str
+    flags: int = 0
+
+    def compiled(self) -> re.Pattern[str]:
+        return _compile(self.source, self.flags)
+
+
+@cache
+def _compile(source: str, flags: int) -> re.Pattern[str]:
+    return re.compile(source, flags)
+
+
 # Rules run in order; each match is checked, then blanked so a later rule does
 # not read it again.
-CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
+CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     # Material change: "you won the exchange", "this loses a pawn", "costs you a piece".
     (
-        re.compile(
+        _Rule(
             rf"(?:\b{_SUBJECT}(?:\s+(?:will|would|can|could|have|has|had|just|then|now|also"
             r"|might|may|soon))*\s+)?"
             rf"\b(?P<verb>{_GAIN}|{_LOSS})\s+(?:back\s+)?"
@@ -361,7 +388,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # Material balance: "material is level", "you are up a piece", "you're a pawn down".
     (
-        re.compile(
+        _Rule(
             r"\bmaterial(?:\s+balance)?(?:\s+(?:is|was|stays|remains|stayed|remained))"
             rf"(?:\s+(?:now|still|roughly|about))*\s+(?:{_EQUAL})\b"
             rf"|\b(?:{_EQUAL})\s+material\b",
@@ -370,18 +397,22 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         lambda match: Claim("balance", 0, 0, 0),
     ),
     (
-        re.compile(
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_BE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+{_UP}\b"
+            r"|(?:\b|(?=~))(?P<count2>~)\s+pawns?\s+(?:of|in)\s+material\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    (
+        _Rule(
             rf"(?:\b{_SUBJECT}{_BE}\s+)?\b{_UP}\s+(?:by\s+)?(?:in\s+|on\s+)?{_COUNTED}\b",
             _I,
         ),
         _balance(1),
     ),
     (
-        re.compile(rf"(?:\b{_SUBJECT}{_BE}\s+)?\b{_COUNT_REQUIRED}{_UNIT_PIECES}\s+{_UP}\b", _I),
-        _balance(1),
-    ),
-    (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:(?:a|an|one|two|three|the)\s+)?(?:extra|additional|spare)"
             rf"\s+{_UNIT}\b",
             _I,
@@ -389,7 +420,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _balance(1),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a\s+lot\s+|much\s+|far\s+)?(?:more|(?P<minus>less|fewer))"
             r"\s+(?:material|pieces)\b",
             _I,
@@ -397,7 +428,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _signed("balance"),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a|the)\s+material\s+(?:advantage|edge|lead|plus"
             r"|(?P<minus>deficit|disadvantage))\b",
             _I,
@@ -406,20 +437,18 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # Evaluation: "you are winning", "the opponent is better", "the position is equal".
     (
-        re.compile(
-            rf"\b{_SUBJECT}{_BE}\s+(?:{_WINNING}|(?P<minus>{_LOSING}))\b{_NOT_A_POSITION}", _I
-        ),
+        _Rule(rf"\b{_SUBJECT}{_BE}\s+(?:{_WINNING}|(?P<minus>{_LOSING}))\b{_NOT_A_POSITION}", _I),
         _signed("evaluation", level=WINNING_CP),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_BE}\s+(?:{_BETTER}|(?P<minus>{_WORSE}))\b{_NOT_A_POSITION}",
             _I,
         ),
         _signed("evaluation", level=BETTER_CP),
     ),
     (
-        re.compile(
+        _Rule(
             rf"{_POSITION_BE}(?:{_EQUAL})\b|\b(?:an?\s+)?(?:{_EQUAL})\s+(?:position|game"
             r"|ending|endgame)\b",
             _I,
@@ -427,14 +456,14 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         lambda match: Claim("evaluation", 0, 0, level=EQUAL_CP),
     ),
     (
-        re.compile(
+        _Rule(
             rf"{_POSITION_BE}(?:{_WINNING}|(?P<minus>{_LOSING}))(?:\s+for\s+{_SUBJECT})?\b",
             _I,
         ),
         _signed("evaluation", level=WINNING_CP),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_OWNER}\s+(?:position|game){_BE}\s+(?:(?P<big>winning|won)|{_POSITION_GOOD}"
             rf"|(?P<minus>(?P<big2>losing|lost)|{_POSITION_BAD}))\b"
             # "worse for you in terms of {factor:...}" compares a factor, not the score.
@@ -449,7 +478,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         ),
     ),
     (
-        re.compile(
+        _Rule(
             r"\bfavou?r(?:s|ed|ing)?\s+(?P<who>your\s+opponent|the\s+opponent|them|you"
             r"|the\s+side\s+to\s+move)\b",
             _I,
@@ -457,11 +486,11 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _signed("evaluation", level=BETTER_CP),
     ),
     (
-        re.compile(rf"\b{_SUBJECT}{_BE}\s+materially\s+{_UP}\b", _I),
+        _Rule(rf"\b{_SUBJECT}{_BE}\s+materially\s+{_UP}\b", _I),
         _balance(1),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+(?:(?P<size>{_ADVANTAGE_BIG}"
             rf"|{_ADVANTAGE_SMALL})\s+)?(?:(?P<minus>disadvantage)|advantage|edge|upper\s+hand"
             r"|lead|plus|better\s+(?:position|game))\b",
@@ -470,7 +499,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _advantage,
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+(?:winning|won|(?P<minus>losing|lost))"
             r"\s+(?:position|game)\b",
             _I,
@@ -479,7 +508,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # King safety: "your king is safe", "the opponent's king is exposed".
     (
-        re.compile(
+        _Rule(
             rf"\b{_OWNER}\s+king(?:'s)?(?:\s+(?:position|shelter|cover|safety))?"
             rf"(?:{_BE})?(?:\s+(?:became|becomes|become|got|gets|feels|felt|seems"
             r"|has\s+become))?(?:\s+(?:now|still|very|more|less|quite|completely|so|too"
@@ -491,7 +520,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # A factor topic with a direction: "your king safety suffered", "your mobility improved".
     (
-        re.compile(
+        _Rule(
             rf"(?:\b{_OWNER}\s+)?\b(?P<topic>{_FACTOR_TOPIC})"
             rf"(?:\s+(?:has|have|had|really|also|clearly))*\s+(?:{_UP_WORDS}"
             rf"|(?P<minus>{_DOWN_WORDS}))\b",
@@ -501,7 +530,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # A factor topic with a judgement: "your king safety is poor", "... is stronger".
     (
-        re.compile(
+        _Rule(
             rf"(?:\b{_OWNER}\s+)?\b(?P<topic>{_FACTOR_TOPIC}){_BE}\s+(?:{_GOOD}"
             rf"|(?P<minus>{_BAD}))\b",
             _I,
@@ -510,7 +539,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # Threats: "the opponent has no counterplay", "you have the initiative".
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:(?P<minus>{_FEW})\s+)?(?:(?:real|serious|strong"
             r"|dangerous|some|many|lots\s+of|a\s+lot\s+of|good|nasty)\s+)?"
             rf"(?:{_THREATS})\b(?!\s+to\b)",
@@ -519,12 +548,12 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _signed("threats"),
     ),
     (
-        re.compile(rf"\bthere(?:'s|\s+(?:is|are|was|were))\s+(?:{_FEW})\s+(?:{_THREATS})\b", _I),
+        _Rule(rf"\bthere(?:'s|\s+(?:is|are|was|were))\s+(?:{_FEW})\s+(?:{_THREATS})\b", _I),
         _signed("threats", sign=-1),
     ),
     # Piece activity: "your pieces are passive", "you have more space".
     (
-        re.compile(
+        _Rule(
             rf"\b{_OWNER}\s+(?:pieces|army|forces){_BE}\s+(?:{_ACTIVE}|better|stronger"
             rf"|(?P<minus>{_PASSIVE}|worse|weaker))\b",
             _I,
@@ -532,14 +561,14 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         _signed("activity"),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_BE}\s+(?:more\s+active|(?P<minus>passive|cramped|tied\s+up))\b",
             _I,
         ),
         _signed("activity"),
     ),
     (
-        re.compile(
+        _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a\s+lot\s+|much\s+|far\s+)?(?:more|better|extra"
             rf"|(?P<minus>less|worse|no|little|poor))\s+(?:{_ACTIVITY})\b",
             _I,
@@ -549,7 +578,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     # Bare threat words name a threats fact: "no counterplay". ("Initiative" is
     # also tone: "that shows real initiative".)
     (
-        re.compile(r"\b(?:counterplay|counter-play|compensation)\b", _I),
+        _Rule(r"\b(?:counterplay|counter-play|compensation)\b", _I),
         lambda match: Claim("threats", 0, 0),
     ),
 )
@@ -573,6 +602,8 @@ def supported(claim: Claim, facts: ClaimFacts, *, about_best: bool = False) -> b
             target = side * claim.sign
             for value in values:
                 gained = target * value
+                if claim.amount == SLOT_AMOUNT:
+                    return False
                 if claim.amount is None:
                     if gained > 0:
                         return True
@@ -638,7 +669,8 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
     a matched claim is blanked so a later rule does not read it again.
     """
     remaining = prose
-    for pattern, read in CLAIM_RULES:
+    for rule, read in CLAIM_RULES:
+        pattern = rule.compiled()
         for match in pattern.finditer(remaining):
             groups = match.groupdict()
             # A negated claim states an absence, which no fact records.

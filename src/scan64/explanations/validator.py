@@ -205,7 +205,9 @@ def slot_citation(
 # dropped, so it is neither checked as a chess word nor rendered twice (#431).
 _PAWN_UNIT_AFTER_SLOT = re.compile(
     r"(\{\s*(?:eval(?:_before|_after|_diff)?(?::[A-Za-z0-9_-]+)?|diff:[A-Za-z0-9_-]+"
-    r"|factor:[A-Za-z0-9_:-]+)\s*\})\s+pawns?\b",
+    r"|factor:[A-Za-z0-9_:-]+)\s*\})\s+pawns?\b"
+    # Material wording keeps the word: "{eval_diff} pawns up", "... in material".
+    r"(?!\s+(?:of|in)\s+material\b|\s+(?:up|down|ahead|behind)\b)",
     re.IGNORECASE,
 )
 
@@ -213,6 +215,8 @@ _PAWN_UNIT_AFTER_SLOT = re.compile(
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
     """Check one slot claim's text (slot path) and return it with every slot filled."""
     slots = catalogue.slots_for(evidence_id)
+    # The claim rule reads the text as written ("{eval_diff} pawns up in material").
+    written = text.replace("’", "'").replace("‘", "'")
     text = _PAWN_UNIT_AFTER_SLOT.sub(r"\1", text)
     for match in SLOT_TOKEN.finditer(text):
         name = match.group("name")
@@ -239,7 +243,7 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     # The claim rule reads {best} as "the best move" (``claims._about_best``).
     claim_prose = SLOT_TOKEN.sub(
         lambda match: " the best move " if match.group("name") == "best" else " ~ ",
-        text.replace("’", "'").replace("‘", "'"),
+        written,
     )
     claim = unsupported_claim(claim_prose, catalogue.claim_facts(evidence_id))
     if claim is not None:

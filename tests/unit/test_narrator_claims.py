@@ -348,3 +348,57 @@ def test_the_pawn_unit_after_an_evaluation_slot_is_not_a_chess_word() -> None:
     assert text.count("pawns") == 1
     bare = SlotCatalogue(by_evidence={"ev": {}})
     assert chess_words_outside_slots("you are two pawns short", bare.vocabulary("ev")) == "pawns"
+
+
+RICH_MATERIAL = ClaimFacts(
+    balances=frozenset({-4, -1, 0, 1, 2, 3, 4, 9}),
+    changes=frozenset({-3, -1, 1, 2, 3, 9}),
+    evaluations=frozenset({-300, 20, 400}),
+)
+SLOT_AS_MATERIAL = [
+    "You are {eval_diff} pawns up in material.",
+    "You are {eval_diff} pawns ahead.",
+    "You are {eval_diff} pawns behind in material.",
+    "You are {eval_diff} pawns down.",
+    "You are up {eval_diff} pawns.",
+    "You are down {eval_diff} pawns in material.",
+    "You are ahead by {eval_diff} pawns.",
+    "You win {eval_diff} pawns.",
+    "That is {eval_diff} pawns of material.",
+    "{eval_diff} pawns in material for you.",
+]
+
+
+@pytest.mark.parametrize("text", SLOT_AS_MATERIAL)
+def test_an_evaluation_slot_is_never_a_material_amount(text: str) -> None:
+    """#442 re-review: the pawn unit after a slot covers evaluation wording only."""
+    prose = text.replace("{eval_diff}", "~")
+    assert unsupported_claim(prose, RICH_MATERIAL) is not None
+    context, evidence_id = _board("start")
+    board_text = text.replace("{eval_diff}", "{eval}")
+    reason = None
+    try:
+        _validate(board_text, context, evidence_id)
+    except GroundedExplanationValidationError as error:
+        reason = error.reason
+    assert reason in ("chess_token_outside_slot", "unsupported_claim")
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["You are a pawn up.", "The side to move wins a pawn.", "You are a pawn ahead in material."],
+)
+def test_material_wording_on_level_material_is_rejected(text: str) -> None:
+    context, evidence_id = _board("start")
+    assert _facts(context, evidence_id).balances == {0}
+    try:
+        _validate(text, context, evidence_id)
+    except GroundedExplanationValidationError:
+        return
+    raise AssertionError(f"accepted on level material: {text!r}")
+
+
+def test_material_wording_with_a_count_still_follows_the_facts() -> None:
+    assert unsupported_claim("You are a pawn up in material.", RICH_MATERIAL) is None
+    assert unsupported_claim("You are up in material.", RICH_MATERIAL) is None
+    assert unsupported_claim("~ scores ~ pawns.", RICH_MATERIAL) is None
