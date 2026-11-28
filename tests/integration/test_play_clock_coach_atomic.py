@@ -60,6 +60,12 @@ async def test_coach_uses_only_the_move_snapshot_owners_consent(
     db_session.commit()
     monkeypatch.delenv(OPERATOR_LLM_CONFIG, raising=False)
     _install_deterministic_diagnostic(monkeypatch)
+    # This test checks whose consent the coach uses, not its latency budgets. On a loaded
+    # runner the 0.25 s explanation budget can run out before the provider probes
+    # /api/tags, which falls back to the template (covered by
+    # test_coach_diagnostic_uses_template_when_explanation_times_out).
+    monkeypatch.setattr(coach_interruption, "COACH_EXPLANATION_TIMEOUT_SECONDS", 30.0)
+    monkeypatch.setattr(coach_interruption, "COACH_PREPARATION_TIMEOUT_SECONDS", 30.0)
     prepare = coach_interruption.prepare_coach_interruption
     bind = db_session.get_bind()
 
