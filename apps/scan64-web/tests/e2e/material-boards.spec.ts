@@ -6,8 +6,26 @@ interface MaterialBoard { id: string; label: string; files: Record<'webp' | 'avi
 interface Manifest { budget_bytes_per_board: number; min_luminance_ratio: number; boards: MaterialBoard[] }
 
 const manifest = JSON.parse(readFileSync(new URL('../../src/boardMaterials.generated.json', import.meta.url), 'utf8')) as Manifest;
-/** Navigation start to the second frame after the texture has decoded, on the Analysis board. */
+/**
+ * Navigation start to the second frame after the texture has decoded, on the Analysis
+ * board. A wall-clock time that holds only on an idle machine with a production bundle
+ * (SCAN64_BOARD_BASE_URL), so only that run checks it. Under load the dev server's
+ * module work and the decode stretch it (#434: 2.8 s at load 19-27 on 48 cores); the
+ * gate checks instead what load cannot change: the bytes, one fetch, and that the board
+ * asks for its texture by the time it is first drawn, not after.
+ */
 const FIRST_TEXTURED_PAINT_BUDGET_MS = 1500;
+
+/** Records, in the page, the time of the first frame that shows the board. */
+function recordBoardFrame(): void {
+  const state = window as unknown as { boardFrameAt: number };
+  state.boardFrameAt = -1;
+  const watch = () => requestAnimationFrame(() => {
+    if (document.querySelector('[data-testid="free-analysis-board"] cg-board')) state.boardFrameAt = performance.now();
+    else watch();
+  });
+  watch();
+}
 
 // SCAN64_BOARD_BASE_URL measures a production bundle (`pnpm build && pnpm preview`) instead of the dev server.
 if (process.env.SCAN64_BOARD_BASE_URL) test.use({ baseURL: process.env.SCAN64_BOARD_BASE_URL });
@@ -16,6 +34,7 @@ for (const board of manifest.boards) {
   test(`${board.label} board renders its matte texture within budget`, async ({ page }, testInfo) => {
     await prepareToday(page);
     await page.addInitScript((id) => localStorage.setItem('scan64-board-theme', id), board.id);
+    await page.addInitScript(recordBoardFrame);
     await page.goto('/analysis');
     const wrapper = page.getByTestId('free-analysis-board');
     const cgBoard = wrapper.locator('cg-board');
@@ -28,15 +47,29 @@ for (const board of manifest.boards) {
       await image.decode();
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const paintedAt = performance.now();
-      const entry = performance.getEntriesByType('resource').find((item) => item.name.endsWith(url)) as PerformanceResourceTiming | undefined;
-      return { paintedAt, bytes: entry?.encodedBodySize ?? null, responseEnd: entry?.responseEnd ?? null };
+      // The board's own fetch is the stylesheet's; this check's decode adds an 'img' entry.
+      const entries = (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
+        .filter((item) => item.name.endsWith(url) && item.initiatorType === 'css');
+      return {
+        paintedAt, fetches: entries.length, bytes: entries[0]?.encodedBodySize ?? null,
+        requestedAt: entries[0]?.startTime ?? null, responseEnd: entries[0]?.responseEnd ?? null,
+        boardFrameAt: (window as unknown as { boardFrameAt: number }).boardFrameAt,
+      };
     }, board.files.avif.url);
-    expect(timing.bytes, 'the AVIF texture was fetched once by the board CSS').toBe(board.files.avif.bytes);
+    expect(timing.fetches, 'the AVIF texture was fetched once, by the board CSS').toBe(1);
+    expect(timing.bytes).toBe(board.files.avif.bytes);
     expect(timing.bytes).toBeLessThanOrEqual(manifest.budget_bytes_per_board);
-    expect(timing.paintedAt).toBeLessThanOrEqual(FIRST_TEXTURED_PAINT_BUDGET_MS);
+    // No waterfall: the texture is requested by the time the board is first drawn.
+    expect(timing.boardFrameAt).toBeGreaterThan(0);
+    expect(timing.requestedAt).toBeLessThanOrEqual(timing.boardFrameAt);
+    if (process.env.SCAN64_BOARD_BASE_URL) expect(timing.paintedAt).toBeLessThanOrEqual(FIRST_TEXTURED_PAINT_BUDGET_MS);
     await testInfo.attach(`${board.id}-timing`, { body: JSON.stringify(timing), contentType: 'application/json' });
 
-    const screenshot = await cgBoard.screenshot();
+    // Chessground may replace cg-board while a locator screenshot runs; the box stays put.
+    await wrapper.scrollIntoViewIfNeeded();
+    const box = await cgBoard.boundingBox();
+    if (!box) throw new Error('The board has no box');
+    const screenshot = await page.screenshot({ clip: box });
     await testInfo.attach(`material-board-${board.id}`, { body: screenshot, contentType: 'image/png' });
 
     // Measure the rendered pixels of the empty squares b3-g6, away from coordinates and pieces.
