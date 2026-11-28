@@ -17,6 +17,10 @@
 !apps/
 !apps/scan64-web/
 !apps/scan64-web/**
+!config/
+!config/engines/
+!config/engines/container/
+!config/engines/container/*.toml
 **/__pycache__/
 **/node_modules/
 **/dist/
