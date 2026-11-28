@@ -133,7 +133,7 @@ def voice_prompt(role: str, fact: str, avoid: Sequence[str] = ()) -> str:
         for example_role, example_fact, sentence in VOICE_EXAMPLES
     )
     ask = "Now rewrite this fact."
-    if _parts(fact) > 1:
+    if sentence_parts(fact) > 1:
         ask = "Now rewrite this fact in one or two sentences."
     if avoid:
         ask += f" Do not use: {', '.join(sorted(avoid))}."
@@ -141,7 +141,7 @@ def voice_prompt(role: str, fact: str, avoid: Sequence[str] = ()) -> str:
     return "\n\n".join(parts)
 
 
-SentenceSource = Literal["model", "fact"]
+SentenceSource = Literal["model", "phrase", "fact"]
 
 
 @dataclass(frozen=True)
@@ -209,7 +209,7 @@ def _named_pins(fact: RoleFact) -> str:
     return text
 
 
-def _pinned(fact: RoleFact) -> set[tuple[str, str]]:
+def pinned_pieces(fact: RoleFact) -> set[tuple[str, str]]:
     return {
         (chess.piece_name(relation.target.piece), chess.square_name(relation.target.square))
         for relation in fact.relations
@@ -217,8 +217,35 @@ def _pinned(fact: RoleFact) -> set[tuple[str, str]]:
     }
 
 
-def _parts(text: str) -> int:
+def sentence_parts(text: str) -> int:
     return max(1, len(re.findall(r"[.!?](\s|$)", text.strip())))
+
+
+def select_fact_parts(
+    facts: Sequence[RoleFact],
+) -> tuple[tuple[tuple[RoleFact, tuple[RoleFact, ...]], ...], int]:
+    """Each role's merged fact with the facts it is merged from, and the facts left out.
+
+    The rule is ``select_facts``'s; the phrase bank (#461) words each part on its own.
+    """
+    chosen: list[tuple[RoleFact, tuple[RoleFact, ...]]] = []
+    used = 0
+    for role in ROLES:
+        of_role = [fact for fact in facts if fact.role == role]
+        if not of_role:
+            continue
+        framing = next((fact for fact in of_role if _is_framing(fact)), None)
+        others = [fact for fact in of_role if fact is not framing]
+        picked = sorted(others, key=_weight, reverse=True)[:MAX_RELATION_FACTS]
+        parts = tuple(fact for fact in of_role if fact is framing or fact in picked)
+        used += len(parts)
+        merged = RoleFact(
+            role,
+            " ".join(_named_pins(fact) for fact in parts),
+            tuple(relation for fact in parts for relation in fact.relations),
+        )
+        chosen.append((merged, parts))
+    return tuple(chosen), len(facts) - used
 
 
 def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
@@ -231,28 +258,11 @@ def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
     story order is the move, what it misses, what follows, and what the mover
     could have played.
     """
-    chosen: list[RoleFact] = []
-    used = 0
-    for role in ROLES:
-        of_role = [fact for fact in facts if fact.role == role]
-        if not of_role:
-            continue
-        framing = next((fact for fact in of_role if _is_framing(fact)), None)
-        others = [fact for fact in of_role if fact is not framing]
-        picked = sorted(others, key=_weight, reverse=True)[:MAX_RELATION_FACTS]
-        parts = [fact for fact in of_role if fact is framing or fact in picked]
-        used += len(parts)
-        chosen.append(
-            RoleFact(
-                role,
-                " ".join(_named_pins(fact) for fact in parts),
-                tuple(relation for fact in parts for relation in fact.relations),
-            )
-        )
-    return tuple(chosen), len(facts) - used
+    parts, dropped = select_fact_parts(facts)
+    return tuple(merged for merged, _ in parts), dropped
 
 
-def _sides(fact: RoleFact) -> dict[str, str]:
+def fact_sides(fact: RoleFact) -> dict[str, str]:
     """The side of each piece the fact's relations name, by square."""
     sides: dict[str, str] = {}
     for relation in fact.relations:
@@ -287,9 +297,9 @@ async def voice_facts(
     for fact in selected:
         role = role_label(fact.role, mover)
         kinds = [relation.kind for relation in fact.relations]
-        sides = _sides(fact)
-        allowed = min(2, _parts(fact.text))
-        pinned = _pinned(fact)
+        sides = fact_sides(fact)
+        allowed = min(2, sentence_parts(fact.text))
+        pinned = pinned_pieces(fact)
         avoid: set[str] = set()
         chosen: str | None = None
         calls = 0
@@ -335,7 +345,11 @@ __all__ = [
     "SentenceWriter",
     "VoicedExplanation",
     "VoicedSentence",
+    "fact_sides",
+    "pinned_pieces",
+    "select_fact_parts",
     "select_facts",
+    "sentence_parts",
     "voice_facts",
     "voice_prompt",
     "voice_system_prompt",

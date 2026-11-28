@@ -34,6 +34,7 @@ from scan64.explanations.facts import (
     build_narrator_facts,
     verified_lines_by_evidence,
 )
+from scan64.explanations.phrase_bank import phrase_facts
 from scan64.explanations.role_facts import RoleFact, RoleFactsError, numbered_san, role_facts
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import lesson_slot_catalogue
@@ -351,6 +352,35 @@ async def _attempt_voiced_generation(
     return voiced_explanation(voiced, evidence_ref)
 
 
+def phrase_bank_explanation(
+    diagnosis: Diagnosis,
+    evidence: Sequence[Evidence],
+    fen: str,
+    template_explanation: Explanation,
+) -> Explanation:
+    """The explanation without a model: the phrase bank over the role facts (#461).
+
+    The template stays the floor when the facts cannot be built or there is no
+    better move to compare.
+    """
+    try:
+        facts = build_narrator_facts(diagnosis, evidence, fen)
+    except NarratorFactsError as error:
+        logger.warning("Narrator facts unavailable: %s", error)
+        return template_explanation
+    story = lesson_role_facts(facts)
+    if not story:
+        return template_explanation
+    voiced = phrase_facts(story)
+    record_voiced_sentences(voiced, "lesson")
+    evidence_ref = (
+        template_explanation.claims[0].evidence_ref
+        if template_explanation.claims
+        else facts.evidence[0].evidence_id
+    )
+    return voiced_explanation(voiced, evidence_ref)
+
+
 async def _attempt_grounded_generation(
     provider: LLMExplanationProvider,
     diagnosis: Diagnosis,
@@ -448,7 +478,8 @@ async def resolve_explanation(
     """Resolve the client-visible explanation for a diagnosis.
 
     Always computes the deterministic template explanation first -- it is the
-    floor every diagnosis falls back to. Explicit operator configuration takes
+    floor every diagnosis falls back to. Without a model, the phrase bank words
+    the role facts instead (#461). Explicit operator configuration takes
     precedence over the owner's installation-local model. Both are subject to
     the same grounding check; only a grounded response replaces the template.
 
@@ -464,7 +495,7 @@ async def resolve_explanation(
         )
 
     return await run_with_explanation_provider(
-        template_explanation,
+        phrase_bank_explanation(diagnosis, evidence, fen, template_explanation),
         attempt,
         local_provider=local_provider,
         environment=environment,
