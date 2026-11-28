@@ -6,11 +6,17 @@ searched once with ``LINE_NODES`` nodes at MultiPV 1 through the job's batch
 adapter (the batch pool, with its same-owner, same-engine reuse). The scores
 are stored in the evidence payload as ``line_evaluations``, so the facts read
 them like every other stored search and no search runs in the explanation path.
+
+Scoring is best effort: a search that fails (``SEARCH_FAILURES``: timeout,
+engine error, engine exit, missing capability) leaves its position unscored, so
+the facts state its ``evaluation_after`` as ``unknown``, and the analysis goes
+on. The failure is logged by reason code only, never with the evidence.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Collection, Sequence
 
 import chess
@@ -24,7 +30,10 @@ from scan64.explanations.facts import (
     unscored_line_positions,
 )
 from scan64.learning.evidence.models import Evidence
+from scan64.providers.engine.uci import SEARCH_FAILURES, search_failure_reason
 from scan64.providers.stockfish.adapter import EngineAdapter
+
+logger = logging.getLogger(__name__)
 
 
 async def score_verified_lines(
@@ -38,6 +47,8 @@ async def score_verified_lines(
     prefetch: Callable[[Sequence[str]], None] | None = None,
 ) -> int:
     """Add ``line_evaluations`` to each referenced evidence payload; return the searches run.
+
+    A failed search is counted as run; its position gets no entry (unknown).
 
     Positions are deduplicated across the referenced items; each item stores
     the scores of the positions on its own lines. Evidence whose lines do not
@@ -62,15 +73,28 @@ async def score_verified_lines(
     if prefetch is not None:
         prefetch(fens)
     gate = asyncio.Semaphore(max(1, concurrency))
+    failures: list[str] = []
 
-    async def search(fen: str) -> dict[str, object]:
+    async def search(fen: str) -> dict[str, object] | None:
         async with gate:
-            analysis = await adapter.analyze_position(fen, nodes=nodes, multipv=1)
+            try:
+                analysis = await adapter.analyze_position(fen, nodes=nodes, multipv=1)
+            except SEARCH_FAILURES as error:
+                # The pool has already discarded an engine that exited.
+                failures.append(search_failure_reason(error))
+                return None
         return line_evaluation_entry(fen, analysis)
 
     entries = dict(zip(fens, await asyncio.gather(*(search(fen) for fen in fens)), strict=True))
+    if failures:
+        logger.warning(
+            "Line scoring left %d of %d positions unscored: %s",
+            len(failures),
+            len(fens),
+            ",".join(sorted(set(failures))),
+        )
     for item in referenced:
-        own = [entries[fen] for fen in per_item[item.evidence_id]]
+        own = [entry for fen in per_item[item.evidence_id] if (entry := entries[fen]) is not None]
         if own:
             # A new dict, so the JSON column records the change.
             item.payload = {**item.payload, LINE_EVALUATIONS_FIELD: own}

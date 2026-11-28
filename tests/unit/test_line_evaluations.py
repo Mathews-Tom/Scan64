@@ -40,6 +40,7 @@ from scan64.explanations.facts import (
 )
 from scan64.explanations.validator import validate_generated_explanation
 from scan64.learning.evidence.models import Evidence
+from scan64.providers.engine.uci import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
 
@@ -158,6 +159,93 @@ async def test_scoring_twice_searches_nothing_new() -> None:
         again, evidence, lesson["diagnosis"]["evidence_refs"], lesson["fen"]
     )
     assert first.calls and count == 0 and again.calls == []
+
+
+def _timed_out_capability() -> EngineCapabilityError:
+    # ``bounded`` reports a search that overran its deadline this way.
+    error = EngineCapabilityError("did not finish")
+    error.__cause__ = TimeoutError()
+    return error
+
+
+_SEARCH_FAILURES = [
+    (chess.engine.EngineTerminatedError("engine exited"), "engine_exited"),
+    (chess.engine.EngineError("bad info"), "engine_error"),
+    (EngineCapabilityError("no MultiPV"), "missing_capability"),
+    (TimeoutError(), "timeout"),
+    (_timed_out_capability(), "timeout"),
+    (BrokenPipeError(), "os_error"),
+]
+
+
+class _FailingAdapter(_RecordedAdapter):
+    """Fails every other search with ``error``; answers the rest from the recording."""
+
+    def __init__(self, error: Exception) -> None:
+        super().__init__()
+        self.error = error
+        self.failed: set[str] = set()
+
+    async def analyze_position(
+        self,
+        fen: str,
+        nodes: int | None = None,
+        depth: int | None = None,
+        time_ms: int | None = None,
+        multipv: int = 1,
+    ) -> EngineAnalysis:
+        if len(self.calls) % 2 == 0:
+            self.calls.append((fen, nodes, multipv))
+            self.failed.add(fen)
+            raise self.error
+        return await super().analyze_position(fen, nodes, depth, time_ms, multipv)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("error", "reason"), _SEARCH_FAILURES, ids=lambda value: str(value))
+async def test_a_failed_line_search_leaves_its_plies_unknown(
+    error: Exception, reason: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    lesson = _LESSONS[0]
+    evidence = [Evidence.model_validate(item) for item in lesson["evidence"]]
+    adapter = _FailingAdapter(error)
+    with caplog.at_level("WARNING", logger="scan64.chess.analysis.line_scoring"):
+        count = await score_verified_lines(
+            adapter, evidence, lesson["diagnosis"]["evidence_refs"], lesson["fen"], concurrency=2
+        )
+    assert count == len(adapter.calls) > len(adapter.failed) > 0
+    facts = build_narrator_facts(
+        Diagnosis.model_validate(lesson["diagnosis"]), evidence, lesson["fen"]
+    )
+    unknown = scored = 0
+    for line in facts.lines:
+        board = chess.Board(lesson["fen"])
+        for move in line.moves:
+            board.push_uci(move.uci)
+            if board.fen() in adapter.failed:
+                assert isinstance(move.evaluation_after, UnknownEvaluation)
+                unknown += 1
+            elif not isinstance(move.evaluation_after, UnknownEvaluation):
+                scored += 1
+    assert unknown and scored
+    [record] = caplog.records
+    assert record.getMessage().endswith(f": {reason}")
+    # A reason code only: no position, move or engine message reaches the log.
+    assert not any(fen.split()[0] in record.getMessage() for fen in adapter.failed)
+    assert str(error) == "" or str(error) not in record.getMessage()
+
+
+@pytest.mark.asyncio
+async def test_a_programming_error_in_line_scoring_is_not_hidden() -> None:
+    lesson = _LESSONS[0]
+    evidence = [Evidence.model_validate(item) for item in lesson["evidence"]]
+    with pytest.raises(KeyError):
+        await score_verified_lines(
+            _FailingAdapter(KeyError("bug")),
+            evidence,
+            lesson["diagnosis"]["evidence_refs"],
+            lesson["fen"],
+        )
 
 
 @pytest.mark.asyncio
@@ -359,3 +447,54 @@ async def test_an_engine_that_exits_during_line_scoring_is_discarded(
     assert len(discard) == 1
     assert manager.interactive_pool._queue.qsize() == 2
     assert not manager._hint_in_progress
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("error", "reason"), _SEARCH_FAILURES, ids=lambda value: str(value))
+async def test_a_failed_board_line_search_answers_with_the_scores_it_has(
+    manager: EnginePoolManager,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    error: Exception,
+    reason: str,
+) -> None:
+    scored = EngineAnalysis(raw_result=[{"pv": ["e7e5"], "score_cp": 5}])
+    analyze = AsyncMock(side_effect=[scored, error])
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", analyze)
+    monkeypatch.setattr(PooledStockfishAdapter, "analysis_identity", _identity("sha256:a"))
+    monkeypatch.setattr(PooledStockfishAdapter, "discard", lambda self: None)
+    loop = asyncio.get_running_loop()
+    with caplog.at_level("INFO", logger="scan64.providers.stockfish.pool"):
+        results = await manager.analyze_hint_positions(_boards(3), deadline=loop.time() + 1)
+    assert results[0] is not None and results[1:] == [None, None]
+    assert manager.interactive_pool._queue.qsize() == 2
+    assert not manager._hint_in_progress
+    [record] = caplog.records
+    assert record.getMessage() == (
+        f"Analysis Board line scoring left 2 of 3 positions unscored: {reason}"
+    )
+
+
+class _ExitedEngine:
+    def __init__(self, exited: bool) -> None:
+        self.returncode: asyncio.Future[int] = asyncio.get_running_loop().create_future()
+        if exited:
+            self.returncode.set_result(-9)
+
+
+@pytest.mark.asyncio
+async def test_an_engine_that_exited_unnoticed_is_replaced_at_checkout(
+    manager: EnginePoolManager,
+) -> None:
+    # python-chess can leave a search to time out on a dead engine instead of
+    # raising EngineTerminatedError; the next checkout must not get that engine.
+    pool = manager.batch_pool
+    await pool.initialize()
+    dead, alive = pool._adapters
+    dead._engine = _ExitedEngine(exited=True)  # type: ignore[assignment]
+    alive._engine = _ExitedEngine(exited=False)  # type: ignore[assignment]
+    for _ in range(2):
+        async with pool.acquire():
+            pass
+    assert dead._engine is None
+    assert alive._engine is not None

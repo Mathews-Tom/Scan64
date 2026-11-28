@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import json
+import logging
 import os
 from collections import OrderedDict
 from collections.abc import AsyncGenerator, Sequence
@@ -23,6 +24,7 @@ from scan64.providers.engine.uci import (
     FULL_STRENGTH,
     LADDER_OPTIONS,
     LEGACY_STRENGTH_OPTIONS,
+    SEARCH_FAILURES,
     BotPolicyMismatchError,
     BotStrengthRangeError,
     Engine,
@@ -31,11 +33,14 @@ from scan64.providers.engine.uci import (
     missing_options,
     open_engine,
     require_options,
+    search_failure_reason,
     startup_options,
     within_declared_range,
 )
 from scan64.providers.stockfish.adapter import StockfishConfig, search, search_limit
 from scan64.providers.stockfish.identity import analysis_identity, engine_identity
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_INTERACTIVE_CONCURRENCY = 2
 HINT_CACHE_SIZE = 128
@@ -140,6 +145,10 @@ class PooledStockfishAdapter:
         """Forget a process that has exited; the next checkout starts a new one."""
         self._engine = None
         self._identity = None
+
+    def exited(self) -> bool:
+        """Whether the started process has exited (its search may have timed out instead)."""
+        return self._engine is not None and self._engine.returncode.done()
 
     async def quit(self) -> None:
         if self._engine is not None:
@@ -309,6 +318,10 @@ class EnginePool:
         await self.initialize()
         adapter = await self._queue.get()
         try:
+            if adapter.exited():
+                # An engine can exit without the search raising EngineTerminatedError
+                # (python-chess may report it as a search timeout): start a new one.
+                adapter.discard()
             await adapter.reset()
             yield adapter
         except chess.engine.EngineTerminatedError:
@@ -531,8 +544,10 @@ class EnginePoolManager:
         request's hint deadline. Same admission as ``analyze_hint``: no queue,
         250 ms acquisition, at least two interactive engines. Each search is
         ``nodes`` nodes at MultiPV 1. Results keep the input order; a position
-        not searched by the deadline, or when admission or the engine fails, is
-        ``None``. Completed searches are cached by the engine's analysis identity.
+        not searched by the deadline, or when admission or the engine fails (any
+        ``SEARCH_FAILURES`` error, logged by reason code), is ``None``; the
+        request still answers, with those positions unknown. Completed searches
+        are cached by the engine's analysis identity.
         """
         results: list[EngineAnalysis | None] = [None] * len(boards)
         loop = asyncio.get_running_loop()
@@ -577,9 +592,17 @@ class EnginePoolManager:
                     raise
                 finally:
                     await lease.__aexit__(None, None, None)
-        except (TimeoutError, chess.engine.EngineError, OSError):
+        except SEARCH_FAILURES as error:
             # Best effort: unscored positions stay unknown in the facts.
-            pass
+            reason = search_failure_reason(error)
+            logger.log(
+                # Reaching the request deadline is routine; other failures are not.
+                logging.INFO if reason == "timeout" else logging.WARNING,
+                "Analysis Board line scoring left %d of %d positions unscored: %s",
+                results.count(None),
+                len(boards),
+                reason,
+            )
         finally:
             self._hint_in_progress = False
         return results

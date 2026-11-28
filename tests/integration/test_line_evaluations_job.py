@@ -4,11 +4,18 @@ Real Stockfish through the batch pool (rule 25): the job stores the line
 searches as engine rows and in the evidence payload, the narrator facts built
 from the persisted evidence have every ply scored, and a second analysis of
 the same game reuses the rows of the same engine instead of searching again.
+A line search that fails (the engine exits, overruns, lacks a capability or
+errs) leaves its plies unknown; the job still completes with its lessons.
 """
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 import chess
+import chess.engine
 import pytest
 from chess_lesson_spec import Diagnosis, LessonSpec
 from fastapi.testclient import TestClient
@@ -16,15 +23,16 @@ from sqlmodel import Session, select
 
 import scan64.chess.analysis.jobs as jobs
 from scan64.api.models import Player, PlayerCredential, issue_player_token
-from scan64.chess.analysis.models import EngineAnalysis, PersistedLessonOpportunity
+from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis, PersistedLessonOpportunity
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.explanations.facts import LINE_EVALUATIONS_FIELD, LINE_NODES, build_narrator_facts
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
+from scan64.providers.engine.uci import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishConfig
-from scan64.providers.stockfish.pool import EnginePoolManager
+from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
 
 # Scholar's-mate pattern with a missed defence: 3...Nf6?? allows Qxf7#.
 MOVES = ["e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6", "h5f7"]
@@ -115,5 +123,147 @@ async def test_lesson_lines_are_scored_stored_and_reused(
         }
         assert len(calls) > first_run_calls
         assert line_fens and not line_fens & set(searched)
+    finally:
+        await manager.close()
+
+
+async def _exit(self: PooledStockfishAdapter) -> None:
+    """The real Stockfish process exits before the search: EngineTerminatedError."""
+    assert self._engine is not None
+    self._engine.transport.kill()
+    await self._engine.returncode
+
+
+async def _exit_unnoticed(self: PooledStockfishAdapter) -> None:
+    """The process dies as the search starts: python-chess may raise
+    EngineTerminatedError or leave the search to time out on a dead engine."""
+    assert self._engine is not None
+    self._engine.transport.kill()
+
+
+type Fault = Callable[[PooledStockfishAdapter], Awaitable[None]]
+
+
+async def _raise(error: Exception) -> None:
+    raise error
+
+
+def _timed_out() -> EngineCapabilityError:
+    # The adapter's ``bounded`` reports an overrun search this way.
+    error = EngineCapabilityError("did not finish")
+    error.__cause__ = TimeoutError()
+    return error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("fault", "reasons"),
+    [
+        (_exit, {"engine_exited"}),
+        # Each such search waits for the deadline: fail only the first two.
+        ((_exit_unnoticed, 2), {"engine_exited", "timeout"}),
+        (lambda self: _raise(_timed_out()), {"timeout"}),
+        (lambda self: _raise(TimeoutError()), {"timeout"}),
+        (lambda self: _raise(EngineCapabilityError("no MultiPV")), {"missing_capability"}),
+        (lambda self: _raise(chess.engine.EngineError("bad info")), {"engine_error"}),
+    ],
+    ids=[
+        "engine-exits",
+        "engine-exits-unnoticed",
+        "search-overruns",
+        "timeout",
+        "capability",
+        "engine-error",
+    ],
+)
+async def test_a_failed_line_search_does_not_fail_the_analysis_job(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    fault: Fault | tuple[Fault, int],
+    reasons: set[str],
+) -> None:
+    """The job path with real Stockfish; only the line-scoring searches fail."""
+    fault, limit = fault if isinstance(fault, tuple) else (fault, 1_000_000)
+    checked = 0
+    registry = PluginRegistry()
+    register_seeded_detectors(registry)
+    monkeypatch.setattr(jobs, "get_host_registry", lambda: registry)
+    scoring = False
+    failed: list[str] = []
+    original_scoring = jobs.score_verified_lines
+
+    async def flagged(*args: Any, **kwargs: Any) -> int:
+        nonlocal scoring
+        scoring = True
+        try:
+            return await original_scoring(*args, **kwargs)
+        finally:
+            scoring = False
+
+    search = PooledStockfishAdapter.analyze_position
+
+    async def faulty(self: PooledStockfishAdapter, fen: str, **limits: Any) -> EngineAnalysis:
+        if scoring and len(failed) < limit:
+            failed.append(fen)
+            await self.ensure_started()
+            await fault(self)
+        return await search(self, fen, **limits)
+
+    monkeypatch.setattr(jobs, "score_verified_lines", flagged)
+    monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", faulty)
+    db_session.add(Player(id="fault-player"))
+    game = Game(pgn="", moves=MOVES, owner_color="black", owner_player_id="fault-player")
+    db_session.add(game)
+    db_session.commit()
+    job = AnalysisJob(game_id=game.id, status="pending")
+    db_session.add(job)
+    db_session.commit()
+    # A search on an engine that died unnoticed ends at the search deadline.
+    config = StockfishConfig(search_deadline_s=5)
+    manager = EnginePoolManager(config, interactive_concurrency=1, batch_concurrency=2)
+    try:
+        with caplog.at_level("WARNING", logger="scan64.chess.analysis.line_scoring"):
+            await jobs.execute_analysis_job_async(job.id, pool_manager=manager)
+        db_session.expire_all()
+        finished = db_session.get(AnalysisJob, job.id)
+        assert finished is not None and (finished.status, finished.error) == ("completed", None)
+        lessons = db_session.exec(select(PersistedLessonOpportunity)).all()
+        assert lessons and failed, "the fixture game must produce a lesson with line searches"
+        evidence = db_session.exec(select(Evidence)).all()
+        for lesson in lessons:
+            spec = LessonSpec.model_validate(lesson.lesson_spec)
+            diagnosis = Diagnosis.model_validate(spec.diagnosis.model_dump())
+            referenced = [e for e in evidence if e.evidence_id in diagnosis.evidence_refs]
+            stored = {
+                entry["fen"]
+                for e in referenced
+                for entry in e.payload.get(LINE_EVALUATIONS_FIELD, [])
+            }
+            assert not stored & set(failed)
+            facts = build_narrator_facts(diagnosis, referenced, spec.source.fen)
+            for line in facts.lines:
+                board = chess.Board(spec.source.fen)
+                for move in line.moves:
+                    board.push_uci(move.uci)
+                    if board.fen() in failed:
+                        assert move.evaluation_after.status == "unknown"
+                        checked += 1
+        assert checked
+        messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "scan64.chess.analysis.line_scoring"
+        ]
+        assert messages
+        for message in messages:
+            assert set(message.rsplit(": ", 1)[1].split(",")) <= reasons, message
+        assert not any(fen.split()[0] in message for fen in failed for message in messages)
+        # An engine that exited was discarded: the pool still searches on both engines.
+        monkeypatch.setattr(PooledStockfishAdapter, "analyze_position", search)
+        after = await asyncio.gather(
+            *(manager.analyze_batch(chess.STARTING_FEN, nodes=1_000) for _ in range(2))
+        )
+        assert all(analysis.raw_result for analysis in after)
     finally:
         await manager.close()
