@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096); the new section 18 was written for #459 (concept library). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -732,3 +732,57 @@ The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanatio
 ```bash
 curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
 ```
+
+## 18. Concept library (#459)
+
+Code decides every chess term the narrator may name. The concept library finds each concept on the board, in a move or in the engine line. It returns a plain fact that names the pieces and squares. A fact never holds a score, a count or a factor name. Module: `src/scan64/explanations/concepts.py`. Each fact is a `ConceptFact`: the concept, the sentence, and the squares the sentence names.
+
+Check, interposition, pin, checkmate and stalemate are in the role-labelled fact generator (#460). The library does not repeat them.
+
+**Entry points.**
+
+| Function | Input | Concepts |
+|---|---|---|
+| `position_concepts(board)` | a position | hanging and trapped pieces, back-rank weakness, overloading, pawn structure, blockade, outpost, weak square, bad bishop, files, space |
+| `move_concepts(board, move)` | a position and a legal move | fork, skewer, discovered attack or check |
+| `intent_concepts(board, move, line, move_score_cp=, best_score_cp=, threat_line=)` | the move, the engine's best line after it, the move's and the best move's scores (mover's view) and, for prophylaxis, the opponent's best line if the mover passed | sacrifice, compensation, initiative, prophylaxis |
+
+Scores only decide a concept; they never reach the text.
+
+**Definitions** (approved by Sydney, 2026-11-28). Piece values are 1, 3, 3, 5 and 9. A move "loses material" when its static exchange loses at least one pawn. In the static exchange (`static_exchange`), each side recaptures with its least valuable piece and stops when recapturing loses.
+
+| Concept | Rule |
+|---|---|
+| Fork | After the move, the piece attacks two or more enemy pieces (the king counts, pawns do not). After every legal reply, it can take one of them with gain. |
+| Skewer | After the move, a bishop, rook or queen attacks the king, or a piece worth more than the piece behind it. After every legal reply, it can take the piece behind. The piece behind is never a pawn. |
+| Discovered attack or check | A queen, rook or bishop that did not move attacks a new piece (not a pawn) after the move. A new attack on the king is a discovered check. |
+| Hanging piece | A piece (not a pawn or king, as in the lesson diagnosis rule) is attacked and not defended, or attacked by a less valuable piece. |
+| Trapped piece | The piece is attacked, staying loses material, and every move it can make loses material. |
+| Back-rank weakness | The king is on its first rank. Each square in front of it holds its own piece or is attacked. An enemy rook or queen can give mate on that rank. |
+| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures, and the other is then unguarded and taken, with a gain of material. |
+| Passed, isolated, doubled, backward pawn | Passed: no enemy pawn ahead on its file or the files next to it. Doubled: two pawns of one side on a file. Isolated and backward: the factor module's terms. |
+| Blockade | A piece stands on the square in front of an enemy passed pawn. |
+| Outpost, weak square | The factor module's outpost square: on the fourth to sixth rank, guarded by a pawn, and no enemy pawn can ever attack it. A knight or bishop on it stands on an outpost. Empty, it is a weak square for the opponent. |
+| Bad bishop | Most of the bishop's own pawns stand on its colour, and at least two of them are fixed by enemy pawns. |
+| Open and half-open file | Open: no pawns on the file. A rook on an open or half-open file: the factor module's rook-on-file term. |
+| Space | One side scores higher on the factor module's space term, and its space area is at least `SPACE_MARGIN` (3) greater. The fact names its advanced central pawns. |
+| Sacrifice | After the engine's best line from the move, the mover is at least two pawns down. The move's score is within half a pawn of the best move's score. |
+| Compensation | Only after a sacrifice. Each fact names one gain along the line: checks on the enemy king, the enemy king drawn off its first rank, a new passed pawn, or a rook or queen on a newly opened file. The text never uses the word "compensation". |
+| Initiative | The move and the mover's next moves in the line make a run of at least three forcing moves. Forcing: a check, a capture, or a threat (a new winning capture, or mate in one). |
+| Prophylaxis | Before the move, the opponent's best line after a pass wins at least a pawn. After the move, the engine's best line wins less than a pawn. The move is not a check, a capture or a threat. |
+
+**Example facts.**
+
+- "Nc7+ is a fork: the white knight on c7 attacks the black rook on a8 and the black king on e8, and one of them is lost."
+- "the black knight on d6 blockades the passed pawn on d5."
+- "d3 is prophylaxis: it stops Black's Nxe4, which would have won the white pawn on e4."
+
+**Tests.** `tests/unit/test_concepts.py` has one positive and one negative position for each concept, checked with python-chess. It also checks that no fact text holds a number outside a square or move, or the word "compensation".
+
+**Measured.** Over 2876 legal positions from `tests/fixtures` (position concepts and the first ten legal moves of each), no detector fails, and the slowest position takes 13 ms (linux-5090).
+
+**Limits.**
+
+- A skewer must be made by the piece that moved. A skewer opened by another piece's move is not found.
+- The intent concepts trust the engine line they are given. A line cut in the middle of an exchange can show material that the next move wins back.
+- The library is not yet wired into the narrator facts. The voice pipeline (#454) states its facts one at a time.
