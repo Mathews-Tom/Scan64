@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from chess.engine import EngineError
 from chess_lesson_spec import Explanation
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -18,6 +19,7 @@ from scan64.chess.games.play_session_service import PlaySessionService
 from scan64.chess.opponents.protocols import MoveDecision, OpponentContext
 from scan64.chess.positions.models import Position
 from scan64.content.models import StudySession
+from scan64.explanations.themes import GameTrace
 from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import ProfileObservation, SkillState
@@ -341,6 +343,69 @@ def test_coach_diagnostic_persists_the_resolved_explanation(
     db_session.rollback()
     opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
     assert opportunity.lesson_spec["explanation"]["text"] == "Resolved explanation"
+
+
+@pytest.mark.parametrize("window_search_fails", [False, True])
+def test_coach_explanation_gets_the_game_trace(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    window_search_fails: bool,
+) -> None:
+    """#492: with a narrator, the trace holds the scores the themes read."""
+    auth = _register(db_session)
+    play_session = _coach_session(db_session, coach_mode=True)
+    _install_deterministic_diagnostic(monkeypatch)
+    game = db_session.get(Game, play_session.game_id)
+    assert game is not None
+    # Eight quiet plies from COACH_FEN; the player's fifth move is the mistake.
+    quiet = ["e1d1", "e8d8", "d1e1", "d8e8", "e1d1", "e8d8", "d1e1", "d8e8"]
+    game.moves = quiet
+    db_session.add(game)
+    db_session.commit()
+    traces: list[GameTrace | None] = []
+
+    async def grant(*_: object) -> object:
+        return object()
+
+    async def recorded(*_: object, game: GameTrace | None = None, **__: object) -> Explanation:
+        traces.append(game)
+        return Explanation(text="Resolved explanation")
+
+    async def analyze_interactive(
+        _: EnginePoolManager, fen: str, *, nodes: int | None = None, **__: object
+    ) -> EngineAnalysis:
+        if fen.endswith(" 2"):  # the window start, before move 2
+            if window_search_fails:
+                raise EngineError("window search failed")
+            score, move = 50, "e1d1"
+        elif fen.split()[0] == COACH_FEN.split()[0]:
+            score, move = 0, "e1d1"
+        else:
+            score, move = 300, "c5e3"
+        return EngineAnalysis(
+            id=uuid4(),
+            position_id=uuid4(),
+            config={},
+            raw_result=[{"pv": [move], "score_cp": score}],
+        )
+
+    monkeypatch.setattr(EnginePoolManager, "analyze_interactive", analyze_interactive)
+    monkeypatch.setattr(coach_interruption, "read_local_explanation_provider", grant)
+    monkeypatch.setattr(coach_interruption, "resolve_explanation", recorded)
+    monkeypatch.setattr(coach_interruption, "COACH_EXPLANATION_TIMEOUT_SECONDS", 30.0)
+    monkeypatch.setattr(coach_interruption, "COACH_PREPARATION_TIMEOUT_SECONDS", 30.0)
+
+    response = client.post(
+        f"/v1/play-sessions/{play_session.id}/moves", json={"move": "e2e3"}, headers=auth
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["critical_interruption"] is not None
+    (trace,) = traces
+    assert trace is not None
+    start = None if window_search_fails else 50
+    assert trace.scores == (None, None, start, *[None] * 5, 0, -300)
 
 
 def test_play_session_create_persists_explicit_coach_opt_in(

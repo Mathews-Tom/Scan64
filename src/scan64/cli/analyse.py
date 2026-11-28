@@ -10,6 +10,7 @@ from scan64.chess.analysis.orchestration import FastPassConfig, FastPassOrchestr
 from scan64.chess.boards import board_from, uci_moves_to_san
 from scan64.chess.games.ingestion import InvalidGameError, ingest_pgn
 from scan64.explanations.assembly import resolve_explanation
+from scan64.explanations.themes import game_trace
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
@@ -73,6 +74,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
             continue
 
         fast_pass = await orchestrator.run_fast_pass(san_moves, initial_fen)
+        trace = game_trace(initial_fen, game.moves, fast_pass.evaluations)
 
         # FEN before each move index, needed for the exact-replay decision point.
         board = board_from(initial_fen)
@@ -152,7 +154,9 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 accepted_moves_san=[board_before.san(move) for move in accepted],
                 engine=engine_config.name,
             )
-            lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
+            lesson.explanation = await resolve_explanation(
+                diagnosis, evidence, fen_before, game=trace
+            )
 
             try:
                 fill_lesson_hints(lesson, source_analysis)

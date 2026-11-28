@@ -9,6 +9,7 @@ from chess_lesson_spec import Explanation
 import scan64.cli.analyse as analyse
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
+from scan64.explanations.facts import build_narrator_facts
 from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.providers.engine import ENGINE_CONFIG_ENV
 
@@ -90,3 +91,36 @@ async def test_rejected_candidate_does_not_abort_later_cli_lessons(
     assert generated.call_args.kwargs["accepted_moves_san"] == ["c5"]
     # The lesson names the engine the CLI's adapter was configured with.
     assert generated.call_args.kwargs["engine"] == "second"
+
+
+@pytest.mark.asyncio
+async def test_a_cli_lesson_has_the_games_trace_in_its_facts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#492: the narrator facts of a CLI lesson hold the game's themes and turning point."""
+    fen = "4r1k1/8/8/8/4Q3/8/8/K7 w - - 0 1"
+    pgn = tmp_path / "game.pgn"
+    pgn.write_text(f'[SetUp "1"]\n[FEN "{fen}"]\n\n1. Qe2 *')
+    board = chess.Board(fen)
+    before = EngineAnalysis(config={}, raw_result=[{"pv": ["e4e8"], "score_cp": 20}])
+    board.push_uci("e4e2")
+    after = EngineAnalysis(config={}, raw_result=[{"pv": ["e8e2"], "score_cp": 900}])
+    candidate = CandidatePosition(board.fen(), 0, before, after, 920)
+    monkeypatch.setattr(
+        analyse.FastPassOrchestrator,
+        "run_fast_pass",
+        AsyncMock(return_value=FastPassResult([candidate], [before, after])),
+    )
+    adapter = Mock(analyze_position=AsyncMock(return_value=after))
+    monkeypatch.setattr(analyse, "StockfishAdapter", Mock(return_value=adapter))
+    monkeypatch.setattr(analyse, "analyze_lesson_source", AsyncMock(return_value=_analysis("e4e8")))
+    resolve = AsyncMock(return_value=Explanation(text="Unit lesson"))
+    monkeypatch.setattr(analyse, "resolve_explanation", resolve)
+
+    await analyse.analyse_command([str(pgn)])
+
+    call = resolve.await_args
+    assert call is not None
+    facts = build_narrator_facts(*call.args, call.kwargs["game"])
+    assert facts.game is not None and facts.game.turning_point is not None
+    assert facts.game.turning_point.is_mistake
