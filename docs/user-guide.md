@@ -715,9 +715,9 @@ The API is `POST /v1/analysis/position/explanation` with `player_id`, `fen` and 
 
 ### Chess variants on the Analysis Board
 
-Pick a **Variant** above the Analysis Board: crazyhouse, three-check, atomic, antichess, king of the hill, horde or racing kings. The server applies the variant's rules: the board offers only its legal moves, shows whose move it is, check, and how the game ended. Crazyhouse shows each side's **Pieces in hand**: select a piece, then a square, to drop it, or type the drop as UCI (`N@f3`). Three-check shows how many checks each side still needs. Enter moves on the board or with **Move (UCI)**; a move from an earlier position replaces the moves after it.
+Pick a **Variant** above the Analysis Board (crazyhouse, three-check, atomic, antichess, king of the hill, horde or racing kings) and select **Open … board**. The Standard board keeps its moves while a variant board is open; a variant board starts from the variant's start position each time it is opened. The server applies the variant's rules: the board offers only its legal moves, shows whose move it is, check, and how the game ended. Crazyhouse shows each side's **Pieces in hand**: select a piece, then a square, to drop it, or type the drop as UCI (`N@f3`). Three-check shows how many checks each side still needs. Enter moves on the board or with **Move (UCI)**; a move from an earlier position replaces the moves after it.
 
-Engine lines need an engine that plays the variant, such as Fairy-Stockfish (see `docs/engines.md`, "Chess variants"). With another engine the board still works and the engine panel names the problem. Explanations, diagnosis, lessons, puzzles and bot play cover standard chess only.
+Engine lines need an engine that plays the variant, such as Fairy-Stockfish (see `docs/engines.md`, "Chess variants"). With another engine the board still works and the engine panel names the problem. Explanations, diagnosis, lessons, puzzles and bot play cover standard chess only. An imported variant game is saved to Your Games, labelled with its variant and "not analysed".
 
 ### Move-by-move game review
 

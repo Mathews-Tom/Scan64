@@ -15,6 +15,10 @@ vi.mock('../api/client', () => ({
     createPlaySession: vi.fn(),
     analyzePosition: vi.fn(),
     explainPosition: vi.fn(),
+    variantPosition: vi.fn(async () => ({
+      variant: 'crazyhouse', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1', turn: 'white', san: [],
+      legal_moves: ['e2e4'], check: false, pockets: { white: {}, black: {} }, remaining_checks: null, outcome: null,
+    })),
   },
   ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
@@ -38,6 +42,28 @@ describe('AnalysisScreen', () => {
     });
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('opens a variant board only on request and keeps the standard moves for the way back', async () => {
+    render(<AnalysisScreen />);
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    await waitFor(() => expect(screen.getByLabelText('Move (UCI or SAN)')).toHaveValue(''));
+    const picker = screen.getByLabelText('Variant');
+    picker.focus();
+    fireEvent.change(picker, { target: { value: 'crazyhouse' } });
+    // Browsing the options changes nothing until the board is opened.
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(ApiClient.variantPosition).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Crazyhouse board' }));
+    expect(await screen.findByTestId('variant-position-status')).toHaveTextContent('White to move.');
+    expect(screen.getByTestId('standard-analysis')).not.toBeVisible();
+    expect(screen.getByLabelText('Variant')).toBe(picker);
+    fireEvent.change(picker, { target: { value: 'chess' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Standard board' }));
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(screen.getByTestId('standard-analysis')).toBeVisible();
+    expect(within(screen.getByTestId('standard-analysis')).getAllByRole('button', { name: /e4/ }).length).toBeGreaterThan(0);
+  });
 
   it('preserves prior branches and exported PGN when the backend rejects a parseable illegal FEN', async () => {
     render(<AnalysisScreen />);

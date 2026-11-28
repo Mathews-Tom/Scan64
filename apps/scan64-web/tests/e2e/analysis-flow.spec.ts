@@ -28,7 +28,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
   await page.route('**/v1/games', async route => {
     const request = route.request().postDataJSON() as { owner_color: string; pgn: string };
     expect(request.owner_color).toBe('black');
-    createdGame = { id: 'test-game', pgn: request.pgn, white: 'White', black: 'Black', result: '*' };
+    createdGame = { id: 'test-game', pgn: request.pgn, white: 'White', black: 'Black', result: '*', variant: 'chess' };
     await route.fulfill({ json: createdGame });
   });
   await page.route('**/v1/games/test-game', async route => {

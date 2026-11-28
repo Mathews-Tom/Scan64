@@ -225,10 +225,14 @@ chess only. Fairy-Stockfish (GPL-3.0, not bundled) declares all of them.
   (see "Selecting an engine").
 - **Not covered.** Diagnosis, lessons, puzzles, the narrator's explanations,
   bot play and position health read standard chess only.
-- **Not verified with Fairy-Stockfish itself.** The tests use the fake UCI
-  engine (`tests/fixtures/engines/fake_uci.py`, `FAKE_UCI_VARIANTS`), which
-  plays by python-chess. No run has checked Fairy-Stockfish's FEN, pocket and
-  drop formats against python-chess's.
+- **Checked with Fairy-Stockfish.** The owner's run with Fairy-Stockfish on
+  linux-5090 (2026-11-28) found variant analysis working. The tests use the
+  fake UCI engine (`tests/fixtures/engines/fake_uci.py`, `FAKE_UCI_VARIANTS`),
+  which plays by python-chess; no test runs Fairy-Stockfish.
+- **Variant games.** A PGN with a supported `Variant` tag is stored with its
+  variant. Game analysis, review and backfill refuse it with 409
+  `variant_not_covered`; the web import says the game is saved and not
+  analysed, and Your Games labels it "<variant>, not analysed".
 
 ## Stockfish-specific assumptions outside the engine provider
 

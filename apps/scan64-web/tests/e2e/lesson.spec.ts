@@ -27,7 +27,7 @@ test.describe('Lesson Review Flow', () => {
 
     // Intercept API calls
     await page.route('/v1/games', async route => {
-      await route.fulfill({ json: { id: 'test-game-id', pgn: '1. e4', white: 'w', black: 'b', result: '*' } });
+      await route.fulfill({ json: { id: 'test-game-id', pgn: '1. e4', white: 'w', black: 'b', result: '*', variant: 'chess' } });
     });
 
     await page.route('/v1/games/test-game-id/analysis-jobs', async route => {

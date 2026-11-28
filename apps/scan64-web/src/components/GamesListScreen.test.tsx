@@ -32,6 +32,20 @@ describe('GamesListScreen', () => {
     expect(onOpenGame).toHaveBeenCalledWith('game-1');
   });
 
+  it('labels a variant game as not analysed instead of counting diagnoses', async () => {
+    vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
+      items: [
+        { variant: 'crazyhouse', id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 0 },
+        { variant: 'Bughouse', id: 'game-2', white: 'Carol', black: 'Dan', result: '0-1', date: '2026.07.29', created_at: '2026-07-29T12:00:00Z', diagnosis_count: 0 },
+      ],
+      next_cursor: null,
+    });
+    render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: /Alice vs Bob/ })).toHaveTextContent('Crazyhouse, not analysed');
+    expect(screen.getByRole('button', { name: /Alice vs Bob/ })).not.toHaveTextContent('diagnoses');
+    expect(screen.getByRole('button', { name: /Carol vs Dan/ })).toHaveTextContent('Bughouse, not analysed');
+  });
+
   it('offers username import when there are no games yet', async () => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({ items: [], next_cursor: null });
     const onImportGames = vi.fn();

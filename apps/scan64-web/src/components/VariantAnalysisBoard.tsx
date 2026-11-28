@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
-import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
+import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { PositionAnalysisLine, VariantName, VariantPositionRead } from '../api/types';
 import { VARIANT_NAMES } from '../variants';
 import { Button, Field, Panel } from './Primitives';
@@ -62,17 +62,24 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
   const [promotions, setPromotions] = useState<string[] | null>(null);
   const [moveInput, setMoveInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const read = position.state === 'ready' ? position.read : null;
   useBoardFit(element, board);
 
-  const play = useCallback((uci: string[]) => {
-    setMoves(current => [...current.slice(0, selected), ...uci]);
-    setSelected(selected + uci.length);
+  // A pocket selection or a promotion choice belongs to the position it was made in.
+  const goTo = useCallback((ply: number) => {
+    setSelected(ply);
     setPocketPiece(null);
     setPromotions(null);
     setError(null);
-  }, [selected]);
+  }, []);
+
+  const play = useCallback((uci: string[]) => {
+    setMoves(current => [...current.slice(0, selected), ...uci]);
+    setSans(current => current.slice(0, selected));
+    goTo(selected + uci.length);
+  }, [selected, goTo]);
 
   // Position, then engine lines, for the selected ply; a newer request wins.
   useEffect(() => {
@@ -102,14 +109,13 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
         if (!current()) return;
         const message = caught instanceof Error ? caught.message : 'Could not read this position.';
         if (positioned) {
-          const busy = caught instanceof ApiRequestError && caught.status === 503;
-          setEvaluation({ state: 'error', message: busy ? `Engine unavailable. ${message}` : message });
+          setEvaluation({ state: 'error', message });
         } else {
           setPosition({ state: 'error', message });
         }
       }
     })();
-  }, [variant, moves, selected]);
+  }, [variant, moves, selected, attempt]);
 
   useEffect(() => {
     if (!element.current) return;
@@ -186,7 +192,10 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
     </div>
     <Panel className="board-workspace__side working-controls" aria-label="Variant analysis controls">
       {error && <p role="alert">{error}</p>}
-      {position.state === 'error' && <p role="alert">{position.message}</p>}
+      {position.state === 'error' && <>
+        <p role="alert">{position.message}</p>
+        <Button onClick={() => setAttempt(value => value + 1)}>Retry</Button>
+      </>}
       {read?.remaining_checks && <section className="working-controls__section" aria-label="Checks to win">
         <h3>Checks to win</h3>
         <p data-testid="remaining-checks">White needs {read.remaining_checks.white}, Black needs {read.remaining_checks.black}.</p>
@@ -227,16 +236,16 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
       <section className="working-controls__section" aria-label="Moves">
         <h3>Moves</h3>
         <div className="working-actions" role="group" aria-label="Replay navigation">
-          <Button disabled={selected === 0} onClick={() => setSelected(0)}>First</Button>
-          <Button disabled={selected === 0} onClick={() => setSelected(selected - 1)}>Previous</Button>
-          <Button disabled={selected >= moves.length} onClick={() => setSelected(selected + 1)}>Next</Button>
-          <Button disabled={selected >= moves.length} onClick={() => setSelected(moves.length)}>Last</Button>
+          <Button disabled={selected === 0} onClick={() => goTo(0)}>First</Button>
+          <Button disabled={selected === 0} onClick={() => goTo(selected - 1)}>Previous</Button>
+          <Button disabled={selected >= moves.length} onClick={() => goTo(selected + 1)}>Next</Button>
+          <Button disabled={selected >= moves.length} onClick={() => goTo(moves.length)}>Last</Button>
         </div>
         <p>A move from an earlier position replaces the moves after it.</p>
         <ol className="analysis-variations" aria-label="Move list">
-          {sans.map((san, index) => <li key={index}>
+          {moves.map((uci, index) => <li key={index}>
             <Button aria-current={selected === index + 1 ? 'step' : undefined}
-              onClick={() => setSelected(index + 1)}>{index % 2 === 0 ? `${index / 2 + 1}. ` : ''}{san}</Button>
+              onClick={() => goTo(index + 1)}>{index % 2 === 0 ? `${index / 2 + 1}. ` : ''}{sans[index] ?? uci}</Button>
           </li>)}
         </ol>
       </section>
@@ -245,7 +254,10 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
         <h3>Engine evaluation</h3>
         <p>White perspective: positive favours White. Needs an engine that plays {VARIANT_NAMES[variant]}, such as Fairy-Stockfish.</p>
         {evaluation.state === 'loading' && <p role="status">Analysing current position… You can keep moving.</p>}
-        {evaluation.state === 'error' && <p role="alert">{evaluation.message}</p>}
+        {evaluation.state === 'error' && <>
+          <p role="alert">{evaluation.message}</p>
+          <Button onClick={() => setAttempt(value => value + 1)}>Retry</Button>
+        </>}
         {read?.outcome && <p>The game has ended; there is nothing to analyse.</p>}
         {evaluation.state === 'ready' && <ol className="analysis-engine-lines">
           {evaluation.lines.map((line, index) => <li key={index}>

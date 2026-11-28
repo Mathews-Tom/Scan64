@@ -11,3 +11,8 @@ export const VARIANT_NAMES: Record<VariantName, string> = {
   horde: 'Horde',
   racingkings: 'Racing Kings',
 };
+
+/** A stored game's variant as shown: a known variant's name, else the PGN tag as written. */
+export function variantLabel(variant: string): string {
+  return variant in VARIANT_NAMES ? VARIANT_NAMES[variant as VariantName] : variant;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
 import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL } from '../api/opponent';
@@ -38,20 +38,26 @@ export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisS
     : <FreeAnalysis onPlayFromHere={onPlayFromHere} />;
 }
 
-/** Standard chess keeps the variation tree; a variant board takes its rules from the server. */
+/**
+ * Standard chess keeps the variation tree, and keeps it while a variant board
+ * is open; a variant board takes its rules from the server and starts from the
+ * variant's start position each time it is opened.
+ */
 function FreeAnalysis({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
   const [variant, setVariant] = useState<VariantName>('chess');
-  const picker = <div className="working-controls__section">
-    <label htmlFor="analysis-variant">Variant</label>{' '}
-    <select id="analysis-variant" value={variant} onChange={event => setVariant(event.target.value as VariantName)}>
-      {(Object.keys(VARIANT_NAMES) as VariantName[]).map(name => <option key={name} value={name}>{VARIANT_NAMES[name]}</option>)}
-    </select>
-  </div>;
-  if (variant === 'chess') return <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} variantPicker={picker} />;
+  const [pending, setPending] = useState<VariantName>('chess');
   return <div className="analysis-screen working-screen">
     <h2>Analysis Board</h2>
-    {picker}
-    <VariantAnalysisBoard key={variant} variant={variant} />
+    <form className="working-actions" aria-label="Choose a variant" onSubmit={event => { event.preventDefault(); setVariant(pending); }}>
+      <label htmlFor="analysis-variant">Variant</label>
+      <select id="analysis-variant" value={pending} onChange={event => setPending(event.target.value as VariantName)}>
+        {(Object.keys(VARIANT_NAMES) as VariantName[]).map(name => <option key={name} value={name}>{VARIANT_NAMES[name]}</option>)}
+      </select>
+      <Button type="submit" disabled={pending === variant}>Open {VARIANT_NAMES[pending]} board</Button>
+    </form>
+    <p>The Standard board keeps its moves while another variant is open; a variant board starts from its start position each time it is opened.</p>
+    <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} hidden={variant !== 'chess'} />
+    {variant !== 'chess' && <VariantAnalysisBoard key={variant} variant={variant} />}
   </div>;
 }
 
@@ -77,7 +83,7 @@ function evaluationLabel(line: PositionAnalysisLine): string {
   return `${score >= 0 ? '+' : ''}${score.toFixed(2)}`;
 }
 
-function FreeAnalysisBoard({ onPlayFromHere, variantPicker }: Pick<AnalysisScreenProps, 'onPlayFromHere'> & { variantPicker: ReactNode }) {
+function FreeAnalysisBoard({ onPlayFromHere, hidden }: Pick<AnalysisScreenProps, 'onPlayFromHere'> & { hidden: boolean }) {
   const fenField = useRef<HTMLInputElement>(null);
   const revision = useRef(0);
   const loadGeneration = useRef(0);
@@ -246,9 +252,8 @@ function FreeAnalysisBoard({ onPlayFromHere, variantPicker }: Pick<AnalysisScree
     } finally { setLoading(false); }
   };
 
-  return <div className="analysis-screen working-screen">
-    <h2>Analysis Board</h2>
-    {variantPicker}
+  // `display: contents` keeps the board's parts direct children of the screen's grid.
+  return <div data-testid="standard-analysis" style={{ display: hidden ? 'none' : 'contents' }}>
     {error && <p role="alert">{error}</p>}
     <p role="status">{loading ? 'Loading...' : status}</p>
     <div className="board-workspace">

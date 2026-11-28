@@ -52,6 +52,15 @@ def test_crazyhouse_game_imports_with_its_variant_and_is_not_analysed(
         "message": "Crazyhouse games are not covered by game analysis yet; "
         "Scan64 covers standard chess there.",
     }
+    # A drop is illegal in standard chess: reading it as standard was a 500.
+    for path in ("review", "review/backfill"):
+        refused = client.request(
+            "GET" if path == "review" else "POST", f"/v1/games/{body['id']}/{path}", headers=headers
+        )
+        assert refused.status_code == 409, refused.json()
+        assert refused.json()["detail"]["message"].startswith(
+            "Crazyhouse games are not covered by game review"
+        )
 
 
 def test_unsupported_variant_and_illegal_variant_moves_are_refused(

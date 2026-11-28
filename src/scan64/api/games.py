@@ -615,7 +615,9 @@ def get_game_positions(
 def get_game_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
-    return build_game_review(_get_owned_game(game_id, request, session), session)
+    game = _get_owned_game(game_id, request, session)
+    _require_standard(game, "game review")
+    return build_game_review(game, session)
 
 
 @router.post("/v1/games/{game_id}/review/backfill", response_model=GameReviewRead)
