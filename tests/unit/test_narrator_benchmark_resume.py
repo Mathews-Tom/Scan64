@@ -148,5 +148,7 @@ def test_resume_refuses_other_hardware_server_positions_or_context(key: str, now
 
 def test_resume_refuses_a_header_without_the_setup_fields() -> None:
     header = {"pipeline": {"commit": "abc"}}
-    with pytest.raises(RuntimeError, match="gpu"):
+    with pytest.raises(RuntimeError) as refused:
         refuse_changed_setup(header, dict(SETUP))
+    for key in ("gpu", "ollama_version", "positions_sha256", "num_ctx"):
+        assert key in str(refused.value)
