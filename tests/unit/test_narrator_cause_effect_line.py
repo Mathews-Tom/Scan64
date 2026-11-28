@@ -11,12 +11,14 @@ import re
 
 import chess
 import pytest
+from chess_lesson_spec import Diagnosis, ExplanationClaim
 
 from scan64.explanations import assembly
 from scan64.explanations.assembly import lesson_role_facts, resolve_explanation
 from scan64.explanations.facts import NarratorFacts, build_narrator_facts
 from scan64.explanations.role_facts import RoleFact
 from scan64.explanations.sentence_check import sentence_problems
+from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.themes import (
     THEME_SOURCE,
@@ -36,6 +38,8 @@ from scan64.explanations.voice_pipeline import (
     select_facts,
     voice_facts,
 )
+from scan64.learning.evidence.models import Evidence
+from scan64.providers.llm import ExplanationRequest, GeneratedExplanation
 from tests.unit.test_narrator_facts import _FEN, _missed_capture
 from tests.unit.test_narrator_voice_pipeline import _Writer
 
@@ -306,3 +310,100 @@ async def test_a_real_game_trace_reaches_the_voice_pipeline() -> None:
     )
     assert explanation.claims[0].text.startswith("The game began to turn against White with 3.Nf3")
     assert explanation.claims[1].text.startswith("3.Nf3: the knight on g1")
+
+
+# --- The slot path (#507) ------------------------------------------------------------
+
+
+class _Claims:
+    """A provider that can only return claims, so the slot path runs."""
+
+    def __init__(self, texts: tuple[str, ...], evidence_id: str) -> None:
+        self.texts, self.evidence_id = texts, evidence_id
+        self.requests: list[ExplanationRequest] = []
+
+    async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        self.requests.append(request)
+        return GeneratedExplanation(
+            claims=tuple(
+                ExplanationClaim(
+                    text=text, evidence_ref=self.evidence_id, line=(), disclosure_level=1
+                )
+                for text in self.texts
+            )
+        )
+
+
+_THEME = "{theme:unsafe_king}."
+_TURNED = "{turning_point}."
+_BEST = "{capture:best}."
+
+
+@pytest.mark.parametrize(
+    ("texts", "accepted"),
+    [
+        ((_THEME, _TURNED, _BEST), True),
+        ((f"{_THEME} {_TURNED} {_BEST}",), True),
+        # A slot that is not part of the line may come first.
+        (("Before you played {played}, " + _THEME, _BEST), True),
+        (("A {mistake}: " + _THEME, _BEST), True),
+        # A theme told first may be named again, and a story without one is not ordered.
+        ((_THEME, _BEST, _THEME), True),
+        ((_BEST, "You played {played}."), True),
+        # The turning point alone is still the effect before the line.
+        ((_TURNED, _BEST), True),
+        ((_BEST, _THEME), False),
+        ((f"{_BEST} {_THEME}",), False),
+        (("Look at {best}. " + _THEME,), False),
+        (("{piece:1} was there. " + _THEME,), False),
+        ((_THEME, _BEST, _TURNED), False),
+        ((_TURNED, _THEME, _BEST), False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_the_slot_path_tells_the_cause_before_the_line_or_falls_back(
+    monkeypatch: pytest.MonkeyPatch, texts: tuple[str, ...], accepted: bool
+) -> None:
+    real = build_narrator_facts
+
+    def with_theme(
+        diagnosis: Diagnosis, evidence: list[Evidence], fen: str, game: object = None
+    ) -> NarratorFacts:
+        facts = real(diagnosis, evidence, fen)
+        return facts.model_copy(update={"game": _game(_UNSAFE_KING)})
+
+    monkeypatch.setattr(assembly, "build_narrator_facts", with_theme)
+    reasons: list[str] = []
+    monkeypatch.setattr(assembly, "record_template_fallback", reasons.append)
+    diagnosis, evidence = _missed_capture()
+    provider = _Claims(texts, real(diagnosis, evidence, _FEN).evidence[0].evidence_id)
+    explanation = await resolve_explanation(
+        diagnosis,
+        evidence,
+        _FEN,
+        local_provider=provider,
+        environment={},
+        game=trace_from_scores(None, _GAME, [20, 20, 10, 0, 20, -850]),
+    )
+    assert len(provider.requests) == 1
+    template = await TemplateExplanationProvider().explain(diagnosis, evidence)
+    fallback = f"{cause_text(_game(_UNSAFE_KING))} {template.text}"
+    assert reasons == ([] if accepted else ["cause_after_line"])
+    assert (explanation.text != fallback) is accepted
+
+
+def test_the_slot_prompt_states_the_order_only_with_a_cause() -> None:
+    diagnosis, evidence = _missed_capture()
+    plain = build_narrator_facts(diagnosis, evidence, _FEN)
+    assert "Story order" not in lesson_slot_catalogue(plain).prompt()
+    prompt = lesson_slot_catalogue(plain.model_copy(update={"game": _game(_UNSAFE_KING)})).prompt()
+    assert "Story order: {theme:unsafe_king}, then {turning_point}, then the moves." in prompt
+    assert 'slots: "{theme:unsafe_king}. {turning_point}. You played {played}' in prompt
+    assert "so name no cause" not in prompt
+    two = plain.model_copy(update={"game": _game(_UNSAFE_KING, _LAGGING)})
+    both = lesson_slot_catalogue(two).prompt()
+    # The example starts with the first theme, as the order line and the template do.
+    assert "Start the first claim with {theme:unsafe_king}." in both
+    assert 'slots: "{theme:unsafe_king}. {turning_point}. You played' in both
+    turn_only = lesson_slot_catalogue(plain.model_copy(update={"game": _game()})).prompt()
+    assert "Story order: {turning_point}, then the moves." in turn_only
