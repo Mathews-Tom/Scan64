@@ -17,6 +17,7 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
+from scan64.api.variant_games import require_standard
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.assistance import AssistanceMode, StalePlaySnapshot, assistance_modes
 from scan64.chess.games.clock_models import PlayClock, PlayClockRead, TimeControl
@@ -306,6 +307,7 @@ async def create_play_session(
         game = session.get(Game, session_in.game_id)
         if game is None or game.owner_player_id != authenticated_player_id:
             raise HTTPException(status_code=404, detail="Game not found")
+        require_standard(game, "bot play")
         board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
         for move in game.moves:
             board.push_uci(move)

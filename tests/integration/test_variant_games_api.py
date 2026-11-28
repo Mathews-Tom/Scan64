@@ -63,6 +63,29 @@ def test_crazyhouse_game_imports_with_its_variant_and_is_not_analysed(
         )
 
 
+def test_player_pages_skip_a_variant_game_and_bot_play_refuses_it(
+    client: TestClient, db_session: Session
+) -> None:
+    """A drop replayed on a standard board was a 500 on insights and on play-from-game."""
+    headers = _register(db_session, "variant-player")
+    game = _import(client, headers, CRAZYHOUSE).json()
+    insights = client.get("/v1/players/variant-player/insights", headers=headers)
+    assert insights.status_code == 200, insights.json()
+    play = client.post(
+        "/v1/play-sessions",
+        json={
+            "player_id": "variant-player",
+            "game_id": game["id"],
+            "opponent_config": {"bot_level": "1"},
+        },
+        headers=headers,
+    )
+    assert play.status_code == 409, play.json()
+    assert play.json()["detail"]["message"].startswith(
+        "Crazyhouse games are not covered by bot play"
+    )
+
+
 def test_unsupported_variant_and_illegal_variant_moves_are_refused(
     client: TestClient, db_session: Session
 ) -> None:
@@ -73,6 +96,10 @@ def test_unsupported_variant_and_illegal_variant_moves_are_refused(
     illegal = _import(client, headers, '[Variant "Crazyhouse"]\n\n1. e4 d5 2. N@e5 *\n')
     assert illegal.status_code == 400
     assert illegal.json()["detail"].startswith("Invalid PGN:")
+    # A standard PGN with an illegal move is refused, not stored cut short at that move.
+    cut_short = _import(client, headers, "1. e4 e5 2. Ke3 *\n")
+    assert cut_short.status_code == 400
+    assert cut_short.json()["detail"].startswith("Invalid PGN:")
     standard = _import(client, headers, "1. e4 e5 *\n")
     assert standard.status_code == 200 and standard.json()["variant"] == "chess"
 

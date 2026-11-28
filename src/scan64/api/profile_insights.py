@@ -10,6 +10,7 @@ import chess.pgn
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
+from scan64.api.variant_games import is_standard
 from scan64.chess.analysis.models import GameMoveReview
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
@@ -91,9 +92,16 @@ def _clocks(game: Game) -> tuple[bool, dict[int, float]]:
 def read_profile_insights(player_id: str, session: Session) -> ProfileInsightsRead:
     families = [OpeningFamilyPayload.model_validate(item.payload) for item in OPENING_FAMILIES]
     family_names = {family.family_id: family.name for family in families}
-    games = session.exec(
-        select(Game).where(Game.owner_player_id == player_id, col(Game.owner_color).is_not(None))
-    ).all()
+    # Insights replay each game on a standard board; variant games are not read.
+    games = [
+        game
+        for game in session.exec(
+            select(Game).where(
+                Game.owner_player_id == player_id, col(Game.owner_color).is_not(None)
+            )
+        ).all()
+        if is_standard(game)
+    ]
     rows = {
         (row.game_id, row.ply): row
         for row in session.exec(

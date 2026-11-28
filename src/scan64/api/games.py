@@ -15,6 +15,7 @@ from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.game_review import GameReviewRead, build_game_review
 from scan64.api.learning import _reverify_persisted_lesson
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
+from scan64.api.variant_games import require_standard
 from scan64.chess.analysis.jobs import backfill_game_review, submit_analysis_job
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -32,12 +33,8 @@ from scan64.chess.games.online_import import (
 )
 from scan64.chess.positions.models import Position
 from scan64.chess.variants import (
-    NOT_COVERED,
-    STANDARD,
-    SUPPORTED_VARIANTS,
     UnsupportedVariantError,
     board_variant,
-    display_name,
     stored_variant,
     variant_of,
 )
@@ -253,21 +250,6 @@ async def import_online_games(
     )
 
 
-def _require_standard(game: Game, feature: str) -> None:
-    """409 for a variant game: game analysis, review and diagnosis are standard-only."""
-    variant = stored_variant(game.headers)
-    if variant != STANDARD:
-        name = display_name(variant) if variant in SUPPORTED_VARIANTS else variant
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "variant_not_covered",
-                "variant": variant,
-                "message": NOT_COVERED.format(name=name, feature=feature),
-            },
-        )
-
-
 @router.get("/v1/games", response_model=PaginatedResponse[GameRead])
 def list_games(
     request: Request,
@@ -427,7 +409,7 @@ def create_analysis_job(
         raise HTTPException(
             status_code=409, detail="Cannot analyse a legacy game without owner_color"
         )
-    _require_standard(game, "game analysis")
+    require_standard(game, "game analysis")
 
     job = AnalysisJob(game_id=game_id)
     session.add(job)
@@ -616,7 +598,7 @@ def get_game_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
     game = _get_owned_game(game_id, request, session)
-    _require_standard(game, "game review")
+    require_standard(game, "game review")
     return build_game_review(game, session)
 
 
@@ -625,7 +607,7 @@ async def backfill_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
     game = _get_owned_game(game_id, request, session)
-    _require_standard(game, "game review")
+    require_standard(game, "game review")
     completed = session.exec(
         select(AnalysisJob.id).where(
             AnalysisJob.game_id == game.id, AnalysisJob.status == "completed"
