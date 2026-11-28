@@ -18,11 +18,17 @@ from scan64.explanations.board_lines import (
 )
 from scan64.explanations.facts import build_narrator_facts
 from scan64.explanations.role_facts import RoleFact, role_facts
-from scan64.explanations.sentence_check import colour_words, repair, sentence_problems
+from scan64.explanations.sentence_check import (
+    colour_words,
+    limit_exclamations,
+    repair,
+    sentence_problems,
+)
 from scan64.explanations.settings import LocalNarratorProvider
 from scan64.explanations.voice_pipeline import (
     MAX_RETRIES,
     VOICE_EXAMPLES,
+    select_facts,
     voice_facts,
     voice_prompt,
     voice_system_prompt,
@@ -128,13 +134,14 @@ async def test_a_good_sentence_is_kept_repaired_and_finished() -> None:
 
 @pytest.mark.asyncio
 async def test_a_repeated_picture_word_is_written_once_more() -> None:
-    facts = _p1_facts()
+    facts, _ = select_facts(_p1_facts())
     first = facts[0]
     second = facts[1]
+    assert first.role != second.role
     picture = "hungry"
     assert picture not in first.text.lower() and picture not in second.text.lower()
     writer = _Writer([f"A {picture} 5.Nxf7 takes the pawn on f7.", None, None])
-    writer.answers.insert(1, f"The {picture} " + second.text[0].lower() + second.text[1:])
+    writer.answers.insert(1, f"So {picture}: " + second.text)
     voiced = await voice_facts(writer, facts[:2], mover=chess.WHITE, played="5.Nxf7")
     second_calls = writer.calls[1:]
     assert len(second_calls) == 2
@@ -177,9 +184,11 @@ async def test_a_provider_error_keeps_the_board_template() -> None:
 async def test_a_lesson_is_voiced_from_its_role_facts() -> None:
     diagnosis, evidence = _missed_capture()
     facts = build_narrator_facts(diagnosis, evidence, _FEN)
-    story = lesson_role_facts(facts)
-    assert story
-    assert {fact.role for fact in story} >= {"the_move", "could_have_played"}
+    all_facts = lesson_role_facts(facts)
+    assert all_facts
+    assert {fact.role for fact in all_facts} >= {"the_move", "could_have_played"}
+    story, dropped = select_facts(all_facts)
+    assert dropped == len(all_facts) - len(story)
     writer = _Writer()
     explanation = await resolve_explanation(diagnosis, evidence, _FEN, local_provider=writer)
     assert len(writer.calls) == len(story)
@@ -198,3 +207,119 @@ def test_only_a_provider_that_writes_plain_text_takes_the_voice_path() -> None:
     writer = LocalNarratorProvider(_Writer())  # type: ignore[arg-type]
     assert sentence_writer(writer) is writer
     assert assembly.sentence_writer(_Writer()) is not None  # type: ignore[arg-type]
+
+
+def test_one_fact_per_role_in_story_order_a_capture_or_check_first() -> None:
+    facts = _p1_facts()
+    chosen, dropped = select_facts(facts)
+    assert 1 <= len(chosen) <= 4
+    assert dropped == len(facts) - len(chosen) > 0
+    order = ("the_move", "what_it_misses", "what_follows", "could_have_played")
+    roles = [fact.role for fact in chosen]
+    assert roles == sorted(roles, key=order.index) and len(set(roles)) == len(roles)
+    move = next(fact for fact in chosen if fact.role == "the_move")
+    assert {"takes", "gives_check"} & {relation.kind for relation in move.relations}
+
+
+ALT = "White could have played 5.Bxf7+ instead of 5.Nxf7."
+
+
+@pytest.mark.parametrize(
+    ("sentence", "fact", "flagged"),
+    [
+        (
+            "5.Bxf7+ would have been a more spirited move.",
+            "White could have played 5.Bxf7+ instead of 5.Nxf7.",
+            True,
+        ),
+        ("5.Bxf7+ was far better.", "White could have played 5.Bxf7+ instead of 5.Nxf7.", True),
+        (
+            "5.Bxf7+ was the stronger path.",
+            "White could have played 5.Bxf7+ instead of 5.Nxf7.",
+            True,
+        ),
+        ("5.Bxf7+ took a safer road.", "White could have played 5.Bxf7+ instead of 5.Nxf7.", True),
+        ("5.Bxf7+ was better, as the fact says.", "5.Bxf7+ was better than 5.Nxf7.", False),
+        (
+            "5.Bxf7+ would have hit harder.",
+            "White could have played 5.Bxf7+ instead of 5.Nxf7.",
+            False,
+        ),
+    ],
+)
+def test_judgement_words_need_their_fact(sentence: str, fact: str, flagged: bool) -> None:
+    problems = [item for item in sentence_problems(sentence, fact) if item.startswith("judgement")]
+    assert bool(problems) is flagged, problems
+
+
+@pytest.mark.parametrize(
+    ("sentence", "fact", "sides", "problem"),
+    [
+        (
+            "White's queen on g5 eyes the pawn on g2.",
+            "Black's queen on g5 already attacks the pawn on g2.",
+            {},
+            "calls the queen on g5 white",
+        ),
+        (
+            "The rook on g5 eyes the pawn on g2.",
+            "Black's queen on g5 already attacks the pawn on g2.",
+            {},
+            "pairs rook with g5",
+        ),
+        (
+            "The white queen on g5 eyes the pawn on g2.",
+            "The queen on g5 attacks the pawn on g2.",
+            {"g5": "black", "g2": "white"},
+            "calls the queen on g5 white",
+        ),
+        (
+            "Black's queen on g5 stares at the pawn on g2.",
+            "The queen on g5 attacks the pawn on g2.",
+            {"g5": "black", "g2": "white"},
+            None,
+        ),
+    ],
+)
+def test_every_piece_on_a_square_matches_its_fact(
+    sentence: str, fact: str, sides: dict[str, str], problem: str | None
+) -> None:
+    problems = sentence_problems(sentence, fact, sides=sides)
+    if problem is None:
+        assert problems == []
+    else:
+        assert problem in problems, problems
+
+
+@pytest.mark.parametrize(
+    "verb",
+    ["snatches", "grabs", "claims", "collects", "picks up", "wins", "casts off", "steals"],
+)
+def test_capture_verbs_need_a_capture_in_the_fact(verb: str) -> None:
+    attacked = "The knight on f7 attacks the rook on h8."
+    assert any(
+        "taken" in item
+        for item in sentence_problems(f"The knight on f7 {verb} the rook on h8.", attacked)
+    )
+    taken = "5.Nxf7: the knight on e5 takes the pawn on f7."
+    assert not any(
+        "taken" in item
+        for item in sentence_problems(f"5.Nxf7! The knight {verb} the pawn on f7.", taken)
+    )
+
+
+def test_one_exclamation_per_comment() -> None:
+    assert limit_exclamations(["What a move!", "The rook runs!", "Then 1.Re1! wins!"]) == [
+        "What a move!",
+        "The rook runs.",
+        "Then 1.Re1 wins.",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_voiced_comment_keeps_one_exclamation() -> None:
+    facts, _ = select_facts(_p1_facts())
+    writer = _Writer([fact.text.rstrip(".") + "!" for fact in facts])
+    voiced = await voice_facts(writer, facts, mover=chess.WHITE, played="5.Nxf7")
+    assert voiced.text.count("!") <= 1
+    assert all(sentence.text.endswith((".", "!", "?")) for sentence in voiced.sentences)

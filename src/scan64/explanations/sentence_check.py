@@ -21,7 +21,7 @@ The rules are the ones measured by the narrator voice benchmark
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 SQUARE = re.compile(r"\b[a-h][1-8]\b")
 MOVE = re.compile(
@@ -65,9 +65,48 @@ TERMS: tuple[str, ...] = (
 # fact says a piece is taken: "7.Qe2 snags the queen" for a queen that is only
 # attacked teaches a false lesson.
 CAPTURE_WORDS = re.compile(
-    r"\b(take[sn]?|taking|took|captur\w*|snag\w*|grab\w*|seiz\w*|swallow\w*|gobbl\w*|"
-    r"devour\w*|eat[s]?|eaten|ate|pick\w* (up|off)|carr(y|ies|ied) off|collect\w*|"
-    r"wins? the|won the|nab\w*)\b",
+    r"\b(take[sn]?|taking|took|captur\w*|snag\w*|snatch\w*|grab\w*|seiz\w*|swallow\w*|"
+    r"gobbl\w*|devour\w*|eat[s]?|eaten|ate|pick\w* (up|off)|carr(y|ies|ied) off|collect\w*|"
+    r"claim\w*|win|wins|winning|won|cast\w*|steal\w*|stole|stolen|nab\w*)\b",
+    re.IGNORECASE,
+)
+# Judgements a sentence may use only when its fact uses them: the model must not
+# call a move better, stronger or more spirited on its own (#454 blind judge).
+JUDGEMENT_WORDS: tuple[str, ...] = (
+    "better",
+    "best",
+    "worse",
+    "worst",
+    "stronger",
+    "strongest",
+    "weaker",
+    "weakest",
+    "sharper",
+    "quicker",
+    "faster",
+    "livelier",
+    "spirited",
+    "grander",
+    "superior",
+    "inferior",
+    "footing",
+    "direct route",
+    "mistake",
+    "blunder",
+    "error",
+    "brilliant",
+    "clever",
+    "wise",
+    "wiser",
+    "winning",
+    "losing",
+)
+# "more daring", "less safe"; "<word>er path" such as "a safer path".
+_MORE_ADJECTIVE = re.compile(r"\b(more|less)\s+(?!than\b|and\b|of\b)[a-z]+", re.IGNORECASE)
+_ER_PATH = re.compile(r"\b[a-z]+er\s+(path|route|road|way)\b", re.IGNORECASE)
+# "<piece> on <square>", with an optional side: "Black's queen on g5", "the white king on e8".
+_PIECE_ON = re.compile(
+    r"\b(?:(white|black)(?:'s)?\s+)?(king|queen|rook|bishop|knight|pawn)\s+on\s+([a-h][1-8])\b",
     re.IGNORECASE,
 )
 _LETTERS = {"K": "king", "Q": "queen", "R": "rook", "B": "bishop", "N": "knight"}
@@ -145,9 +184,60 @@ def fact_takes(fact: str, relation_kinds: Iterable[str] = ()) -> bool:
     return any("x" in move for move in MOVE.findall(fact))
 
 
-def sentence_problems(sentence: str, fact: str, relation_kinds: Iterable[str] = ()) -> list[str]:
+def judgement_problems(sentence: str, fact: str) -> list[str]:
+    """Comparative or judgement words in ``sentence`` that ``fact`` does not contain."""
+    low, source = sentence.lower(), fact.lower()
+    problems = [
+        f"judgement {word}"
+        for word in JUDGEMENT_WORDS
+        if re.search(r"\b" + word + r"\b", low) and not re.search(r"\b" + word + r"\b", source)
+    ]
+    problems.extend(
+        f"judgement {match.group(0).lower()}"
+        for pattern in (_MORE_ADJECTIVE, _ER_PATH)
+        for match in pattern.finditer(sentence)
+        if match.group(0).lower() not in source
+    )
+    return problems
+
+
+def piece_pairs(text: str) -> list[tuple[str | None, str, str]]:
+    """Each "<piece> on <square>" with its side when named: ("black", "queen", "g5")."""
+    return [
+        (side.lower() if side else None, piece.lower(), square)
+        for side, piece, square in _PIECE_ON.findall(text)
+    ]
+
+
+def pairing_problems(sentence: str, fact: str, sides: Mapping[str, str] | None = None) -> list[str]:
+    """A piece named on a square the fact does not pair it with, or with the wrong side.
+
+    ``sides`` maps a square to the side of the piece on it ("white" or "black"),
+    from the fact's relations; a side the fact text names counts too.
+    """
+    fact_pairs = piece_pairs(fact)
+    pieces_on = {(piece, square) for _, piece, square in fact_pairs}
+    known = dict(sides or {})
+    known.update({square: side for side, _, square in fact_pairs if side})
+    problems = []
+    for side, piece, square in piece_pairs(sentence):
+        if (piece, square) not in pieces_on:
+            problems.append(f"pairs {piece} with {square}")
+        elif side and square in known and known[square] != side:
+            problems.append(f"calls the {piece} on {square} {side}")
+    return problems
+
+
+def sentence_problems(
+    sentence: str,
+    fact: str,
+    relation_kinds: Iterable[str] = (),
+    sides: Mapping[str, str] | None = None,
+) -> list[str]:
     """Problems with one sentence written for one fact; an empty list means it passes."""
     problems = violations(sentence, fact)
+    problems.extend(judgement_problems(sentence, fact))
+    problems.extend(pairing_problems(sentence, fact, sides))
     fact_squares, fact_moves = _tokens(fact)
     squares, moves = _tokens(sentence)
     if (fact_squares or fact_moves) and not (fact_squares & squares or fact_moves & moves):
@@ -165,6 +255,30 @@ def repair(text: str, played: str) -> str:
     return re.sub(re.escape(played) + r"(!!|!\?|!)", played, text)
 
 
+def limit_exclamations(sentences: list[str], keep: int = 1) -> list[str]:
+    """Keep the first ``keep`` "!" of a comment.
+
+    Each item is one sentence, so a later "!" at its end becomes a full stop,
+    and a later "!" inside it (after a move, "1.Re1!") is removed.
+    """
+    kept = 0
+    out = []
+    for sentence in sentences:
+        sentence = sentence.rstrip()
+        chars: list[str] = []
+        for index, char in enumerate(sentence):
+            if char != "!":
+                chars.append(char)
+                continue
+            if kept < keep:
+                kept += 1
+                chars.append(char)
+            elif index == len(sentence) - 1 and not (chars and chars[-1] in ".!?"):
+                chars.append(".")
+        out.append("".join(chars))
+    return out
+
+
 def finish(sentence: str) -> str:
     """End a sentence with a full stop when it has no end mark."""
     sentence = sentence.strip()
@@ -180,6 +294,11 @@ def colour_words(sentence: str, fact: str) -> set[str]:
 
 __all__ = [
     "CAPTURE_WORDS",
+    "JUDGEMENT_WORDS",
+    "judgement_problems",
+    "limit_exclamations",
+    "pairing_problems",
+    "piece_pairs",
     "colour_words",
     "fact_takes",
     "finish",

@@ -19,20 +19,26 @@ Q4_K_S in #462).
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Literal, Protocol, runtime_checkable
 
-from scan64.explanations.role_facts import RoleFact, colour_name, role_label
+import chess
+
+from scan64.explanations.role_facts import ROLES, RoleFact, colour_name, role_label
 from scan64.explanations.sentence_check import (
     colour_words,
     finish,
+    limit_exclamations,
     repair,
     sentence_problems,
 )
 
 # A failed sentence is written again at most this many times.
 MAX_RETRIES: Final = 2
+# One comment has at most one "!".
+MAX_EXCLAMATIONS: Final = 1
 
 VOICE_SYSTEM_PROMPT: Final = (
     "You rewrite one chess fact as one lively sentence for a club player. Keep every move, "
@@ -144,6 +150,8 @@ class VoicedSentence:
 @dataclass(frozen=True)
 class VoicedExplanation:
     sentences: tuple[VoicedSentence, ...]
+    # Facts left out by ``select_facts``: only one fact per role is voiced.
+    dropped_facts: int = 0
 
     @property
     def text(self) -> str:
@@ -157,6 +165,41 @@ class VoicedExplanation:
     @property
     def calls(self) -> int:
         return sum(sentence.calls for sentence in self.sentences)
+
+
+def _weight(fact: RoleFact) -> int:
+    """How much a fact carries: a mate first, then a capture or a check, then the rest."""
+    kinds = {relation.kind for relation in fact.relations}
+    if kinds & {"mates", "stalemates"}:
+        return 3
+    if kinds & {"takes", "gives_check"}:
+        return 2
+    return 1 if kinds - {"moves"} else 0
+
+
+def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
+    """At most one fact per role, in story order, and the number left out.
+
+    Within a role the fact with the highest ``_weight`` wins; on a tie, the
+    first. The story order is the move, what it misses, what follows, and what
+    the mover could have played.
+    """
+    chosen: list[RoleFact] = []
+    for role in ROLES:
+        of_role = [fact for fact in facts if fact.role == role]
+        if of_role:
+            chosen.append(max(of_role, key=_weight))
+    return tuple(chosen), len(facts) - len(chosen)
+
+
+def _sides(fact: RoleFact) -> dict[str, str]:
+    """The side of each piece the fact's relations name, by square."""
+    sides: dict[str, str] = {}
+    for relation in fact.relations:
+        for piece in (relation.subject, relation.target, relation.through):
+            if piece is not None:
+                sides[chess.square_name(piece.square)] = colour_name(piece.colour).lower()
+    return sides
 
 
 def _first_line(raw: str) -> str:
@@ -178,11 +221,13 @@ async def voice_facts(
     the pipeline: the caller falls back to its template.
     """
     system = voice_system_prompt(colour_name(mover))
+    selected, dropped = select_facts(facts)
     used: set[str] = set()
     sentences: list[VoicedSentence] = []
-    for fact in facts:
+    for fact in selected:
         role = role_label(fact.role, mover)
         kinds = [relation.kind for relation in fact.relations]
+        sides = _sides(fact)
         avoid: set[str] = set()
         chosen: str | None = None
         calls = 0
@@ -190,7 +235,7 @@ async def voice_facts(
             calls += 1
             raw = await writer.rewrite(system, voice_prompt(role, fact.text, sorted(avoid)))
             text = repair(_first_line(raw), played)
-            if not text or sentence_problems(text, fact.text, kinds):
+            if not text or sentence_problems(text, fact.text, kinds, sides):
                 continue
             repeated = colour_words(text, fact.text) & used
             if repeated and not avoid:
@@ -205,10 +250,16 @@ async def voice_facts(
             continue
         sentences.append(VoicedSentence(fact, finish(chosen), "model", calls))
         used |= colour_words(chosen, fact.text)
-    return VoicedExplanation(tuple(sentences))
+    limited = limit_exclamations([sentence.text for sentence in sentences], MAX_EXCLAMATIONS)
+    sentences = [
+        dataclasses.replace(sentence, text=finish(text))
+        for sentence, text in zip(sentences, limited, strict=True)
+    ]
+    return VoicedExplanation(tuple(sentences), dropped)
 
 
 __all__ = [
+    "MAX_EXCLAMATIONS",
     "MAX_RETRIES",
     "VOICE_EXAMPLES",
     "VOICE_NAME",
@@ -217,6 +268,7 @@ __all__ = [
     "SentenceWriter",
     "VoicedExplanation",
     "VoicedSentence",
+    "select_facts",
     "voice_facts",
     "voice_prompt",
     "voice_system_prompt",

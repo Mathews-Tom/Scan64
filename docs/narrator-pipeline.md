@@ -740,16 +740,19 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
 1. **Facts.** Code writes the facts (`explanations/role_facts.py`, #460). Each fact has a role (the move, what it misses, what follows, what the mover could have played) and the relations it states (takes, attacks, pins, gives check and others).
    - Lesson: the facts of the played move against the engine's best move and line (`lesson_role_facts` in `assembly.py`).
    - Analysis Board: for each engine line, the facts of its first move and of the moves that follow. The template's first sentence (the side to move and the engine's first choice) opens the explanation.
-2. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
-3. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
+2. **At most four facts.** One fact per role is voiced, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). Within a role, a mate comes first, then a capture or a check, then any other relation, then a plain move. The other facts are left out and counted.
+3. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
+4. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
    - names a move, square, piece or chess term that its fact does not contain;
    - keeps none of the fact's moves or squares;
-   - says a piece is taken when the fact takes nothing (an attacked piece is never "taken");
+   - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing" and the like, "more" or "less" with an adjective, or "a safer path";
+   - names a piece on a square that the fact does not pair with that piece, or gives it the wrong side ("White's queen on g5" for Black's queen);
+   - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen";
    - is more than one sentence.
    Code removes a "!" written directly after the played move before the check.
-4. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
-5. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
-6. **Joining.** Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
+5. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
+6. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
+7. **Joining.** A comment keeps at most one "!": code turns a later one at the end of a sentence into a full stop and removes one inside a sentence. Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
 
 When the pipeline applies:
 
@@ -763,8 +766,8 @@ When the pipeline applies:
 
 The local provider checks the model list once per explanation and rechecks consent before every request.
 
-**Counts.** Section 17's counters gain two fields per pipeline: `sentences` (sentences written) and `sentence_fallbacks` (sentences that use the plain fact text). `GET /v1/diagnostics/narrator` reports both.
+**Counts.** Section 17's counters gain three fields per pipeline: `sentences` (sentences written), `sentence_fallbacks` (sentences that use the plain fact text) and `facts_dropped` (facts left out by the four-fact limit). `GET /v1/diagnostics/narrator` reports all three.
 
 **Limits.**
-- One explanation sends one request per fact, plus retries. On the five voice benchmark positions the fact generator gives 6 to 15 facts per move. With gemma4-e4b Q3_K_M on an RTX 5090 (100 explanations, 920 sentences), one explanation took 0.91 s at the median and 1.83 s at p95, and 0.8% of the sentences used the plain fact text. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
+- One explanation sends one request per voiced fact, plus retries. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
 - The check reads words, not meaning. A sentence that stays inside its fact's moves, squares and pieces but states a wrong relation can still pass. One fact per call keeps that rare: each call has only one fact to get wrong.

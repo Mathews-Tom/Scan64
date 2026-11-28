@@ -27,6 +27,7 @@ class NarratorPipelineCounts(BaseModel):
     # Voice pipeline (#454): sentences written, and those that fell back to the fact text.
     sentences: int = 0
     sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
 
 class NarratorDiagnosticsRead(BaseModel):
@@ -43,6 +44,7 @@ def _pipeline(counts: NarratorCounts) -> NarratorPipelineCounts:
         fallbacks_by_reason=dict(sorted(counts.fallbacks.items())),
         sentences=counts.sentences,
         sentence_fallbacks=counts.sentence_fallbacks,
+        facts_dropped=counts.facts_dropped,
     )
 
 

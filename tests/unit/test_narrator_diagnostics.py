@@ -169,6 +169,7 @@ def test_endpoint_reports_counts_and_rate_per_pipeline(host: str) -> None:
             "fallbacks_by_reason": expected.fallbacks,
             "sentences": expected.sentences,
             "sentence_fallbacks": expected.sentence_fallbacks,
+            "facts_dropped": expected.facts_dropped,
         }
     assert body["lesson"]["fallbacks_by_reason"]["unknown_slot"] >= 1
     assert body["lesson"]["fallback_rate"] is not None

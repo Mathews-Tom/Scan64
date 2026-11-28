@@ -66,6 +66,7 @@ class _PipelineTally:
     fallbacks: Counter[str] = field(default_factory=Counter)
     sentences: int = 0
     sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
 
 @dataclass(frozen=True)
@@ -81,9 +82,11 @@ class NarratorCounts:
     accepted: int
     fallbacks: dict[str, int]
     # Voice pipeline (#454): sentences written, and those that use the plain
-    # fact text because every try failed the sentence check.
+    # fact text because every try failed the sentence check, and facts left
+    # out because only one fact per role is voiced.
     sentences: int = 0
     sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
     @property
     def fallback_total(self) -> int:
@@ -138,6 +141,7 @@ def record_voiced_sentences(
     with _tallies_lock:
         _tallies[pipeline].sentences += len(voiced.sentences)
         _tallies[pipeline].sentence_fallbacks += voiced.fallback_sentences
+        _tallies[pipeline].facts_dropped += voiced.dropped_facts
     if voiced.fallback_sentences:
         logger.info(
             "Narrator sentences fell back to the fact text: pipeline=%s count=%d of %d",
@@ -171,6 +175,7 @@ def narrator_counts() -> dict[NarratorPipeline, NarratorCounts]:
                 dict(tally.fallbacks),
                 tally.sentences,
                 tally.sentence_fallbacks,
+                tally.facts_dropped,
             )
             for pipeline, tally in _tallies.items()
         }
