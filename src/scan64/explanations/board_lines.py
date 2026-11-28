@@ -74,7 +74,7 @@ from scan64.explanations.facts import (
     line_evaluation_change,
     material,
 )
-from scan64.explanations.role_facts import RoleFactsError, role_facts
+from scan64.explanations.role_facts import RoleFact, RoleFactsError, role_facts
 from scan64.explanations.role_facts import numbered_san as move_label
 from scan64.explanations.slots import (
     Slot,
@@ -862,6 +862,29 @@ def _validated_provider_explanation(
     return explanation
 
 
+def fact_moves(fen: str, line: Sequence[str], fact: RoleFact) -> tuple[str, ...]:
+    """The moves of ``line`` that one voiced sentence cites (#485).
+
+    The Analysis Board highlights a claim's moves as a prefix of its line, so
+    the claim cites the line up to the last move its fact's relations name.
+    A relation names a move of the line when it has the move and the position
+    it is played from. A fact that names no move of the line cites the first move.
+    """
+    board = chess.Board(fen)
+    played_from: dict[tuple[str, str], int] = {}
+    for index, uci in enumerate(line):
+        played_from.setdefault((board.fen(), uci), index)
+        try:
+            board.push_uci(uci)
+        except ValueError:
+            break
+    last = max(
+        (played_from.get((relation.fen, relation.move), -1) for relation in fact.relations),
+        default=-1,
+    )
+    return tuple(line[: max(last, 0) + 1])
+
+
 async def voiced_board_explanation(
     writer: SentenceWriter, facts: BoardLinesFacts, template: Explanation
 ) -> Explanation | None:
@@ -889,7 +912,7 @@ async def voiced_board_explanation(
             _claim(
                 f"Line {line.rank}: {sentence.text}" if index == 0 else sentence.text,
                 line.line_id,
-                line.uci,
+                fact_moves(facts.position.fen, line.uci, sentence.fact),
             )
             for index, sentence in enumerate(voiced.sentences)
         )
@@ -964,6 +987,7 @@ __all__ = [
     "board_narrator_system_prompt",
     "build_board_lines_facts",
     "claim_line_id",
+    "fact_moves",
     "numbered_san",
     "resolve_board_lines_explanation",
     "scored_legal_lines",

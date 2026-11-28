@@ -22,12 +22,14 @@ from scan64.explanations.board_lines import (
     board_slot_catalogue,
     build_board_lines_facts,
     claim_line_id,
+    fact_moves,
     numbered_san,
     resolve_board_lines_explanation,
     scored_legal_lines,
     template_board_claims,
     template_board_explanation,
 )
+from scan64.explanations.role_facts import RoleFact, role_facts
 from scan64.explanations.validator import (
     GroundedExplanationValidationError,
     validate_generated_explanation,
@@ -278,3 +280,18 @@ def test_prompt_is_the_slot_list_but_a_claim_may_cite_the_full_line(name: str) -
         assert catalogue.slots_for(line.line_id)[f"line:{line.line_id}"].moves == line.uci
     # The facts the response, template and grounding use are not cut.
     assert [len(line.moves) for line in facts.lines] == [len(line.uci) for line in facts.lines]
+
+
+def test_a_voiced_sentence_cites_the_moves_of_its_own_fact() -> None:
+    # #485: 1.Qc1 Ne2+ 2.Kf1 Nxc1. The move cites 1.Qc1 only; the capture after
+    # the check cites the line up to 2...Nxc1.
+    fen = "6k1/8/8/8/3n4/8/6PP/3Q2K1 w - - 0 1"
+    line = ("d1c1", "d4e2", "g1f1", "e2c1")
+    facts = role_facts(fen, line[0], line[0], played_line=line[1:])
+    cited = {fact.text: fact_moves(fen, line, fact) for fact in facts}
+    assert cited["1.Qc1: the queen on d1 goes sideways from d1 to c1."] == line[:1]
+    assert cited["The knight on e2 gives check to the king on g1."] == line[:2]
+    capture = next(text for text in cited if "takes the queen on c1" in text)
+    assert cited[capture] == line
+    # A fact that names no move of the line cites its first move.
+    assert fact_moves(fen, line, RoleFact("what_follows", "No move.", ())) == line[:1]
