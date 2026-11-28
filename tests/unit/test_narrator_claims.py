@@ -142,7 +142,7 @@ SUPPORTING = ClaimFacts(
     balances=frozenset({0, -1, 3}),
     changes=frozenset({2, -3}),
     evaluations=frozenset({20, 350}),
-    factors=frozenset({("king", 1), ("threats", 1), ("activity", -1)}),
+    factors=frozenset({("king", 1, "before"), ("threats", 1, "before"), ("activity", -1, "best")}),
 )
 NOTHING = ClaimFacts(balances=frozenset({0}), changes=frozenset({0}), evaluations=frozenset({20}))
 
@@ -274,7 +274,7 @@ def test_a_threats_factor_name_admits_its_words_only_with_its_head_noun() -> Non
     """#431: "rook threats" no longer admits a bare "rook"; "piece placement" no "piece"."""
     catalogue = SlotCatalogue(
         by_evidence={"ev": {"factor:rook_threats:best": Slot("factor:rook_threats:best", "", "")}},
-        phrases={"ev": ("rook threats", "safe pawn threats")},
+        phrases={"ev": ("rook threats", "safe pawn threats", "slider on the queen")},
     )
     words = catalogue.vocabulary("ev")
     assert "rook" not in words and "threat" not in words
@@ -283,6 +283,9 @@ def test_a_threats_factor_name_admits_its_words_only_with_its_head_noun() -> Non
         assert chess_words_outside_slots(text, words, phrases) is None
     assert chess_words_outside_slots("your rook is lost", words, phrases) == "rook"
     assert chess_words_outside_slots("keep pawns safe", words, phrases) == "pawns"
+    # A name not ending in "threats" counts only as a whole.
+    assert chess_words_outside_slots("a slider on the queen", words, phrases) is None
+    assert chess_words_outside_slots("your queen is trapped", words, phrases) == "queen"
     assert unsupported_claim("You are up a piece.", catalogue.claim_facts("ev")) is not None
 
 
@@ -319,12 +322,23 @@ def test_a_lesson_factor_name_and_its_slot() -> None:
 
 
 def test_a_comparison_with_the_best_move_is_checked_for_its_topic() -> None:
-    """A factor change is the played move against the best move: either side may be named."""
+    """A change against the best move is played minus best: about the best move, flip it."""
     context, evidence_id = _lesson(THREATS_FELL)
-    assert ("king", 1) not in _facts(context, evidence_id).factors
-    assert _validate("The best move keeps your king safer.", context, evidence_id)
-    assert _validate("{best} keeps your king safer.", context, evidence_id)
-    assert _rejects("Your king is safer after your move.", context, evidence_id)
+    factors = _facts(context, evidence_id).factors
+    assert ("king", -1, "best") in factors and ("king", 1, "best") not in factors
+    for text in (
+        "The best move keeps your king safer.",
+        "{best} keeps your king safer.",
+        "Your king is safe only after the best move.",
+        "Your king safety is worse than after the best move.",
+    ):
+        assert _validate(text, context, evidence_id)
+    for text in (
+        "The best move makes your king weaker.",
+        "With the best move, your king is more exposed.",
+        "Your king is safer after your move.",
+    ):
+        assert _rejects(text, context, evidence_id)
 
 
 def test_the_pawn_unit_after_an_evaluation_slot_is_not_a_chess_word() -> None:

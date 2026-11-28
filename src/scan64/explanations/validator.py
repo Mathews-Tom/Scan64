@@ -210,15 +210,6 @@ _PAWN_UNIT_AFTER_SLOT = re.compile(
 )
 
 
-# Claim text that names the best move: a best-move slot ({best}, {capture:best},
-# {factor:KEY:best}) or "the best/better/right move" (``claims.supported``).
-_NAMES_BEST = re.compile(
-    r"\{\s*(?:[a-z_]+:)*best\s*\}|\b(?:best|better|right|stronger|correct)\s+"
-    r"(?:move|one|choice|option|reply)\b",
-    re.IGNORECASE,
-)
-
-
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
     """Check one slot claim's text (slot path) and return it with every slot filled."""
     slots = catalogue.slots_for(evidence_id)
@@ -245,11 +236,12 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
         )
     # After the slot-token rule, so these reasons count only what the claim
     # rule adds (#431).
-    claim = unsupported_claim(
-        prose,
-        catalogue.claim_facts(evidence_id),
-        compares_best=_NAMES_BEST.search(text) is not None,
+    # The claim rule reads {best} as "the best move" (``claims._about_best``).
+    claim_prose = SLOT_TOKEN.sub(
+        lambda match: " the best move " if match.group("name") == "best" else " ~ ",
+        text.replace("’", "'").replace("‘", "'"),
     )
+    claim = unsupported_claim(claim_prose, catalogue.claim_facts(evidence_id))
     if claim is not None:
         if claim.negated:
             raise _reject("negated_claim", f"states a negated chess claim: {claim.text!r}")

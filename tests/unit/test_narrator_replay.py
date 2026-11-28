@@ -17,10 +17,12 @@ def test_the_replay_rejects_only_the_classified_true_rejections() -> None:
     # Each one classified by hand as a true rejection (PR #442):
     # - "you lost {material_gain} pawns": the slot is points of material, not pawns;
     # - "your opponent's position was much better after your move": still +0.61;
+    # - "with the best move, {best}, your king is more exposed": the best move's
+    #   line leaves the king safer than the played move's;
     # - "your opponent's king is not in immediate danger ... {check:played}": negated;
     # - "{factor:safe_pawn_threats:played} ... keep pawns safe": misreads the factor.
     assert result.newly_rejected == Counter(
-        {"chess_token_outside_slot": 2, "unsupported_claim": 1, "negated_claim": 1}
+        {"chess_token_outside_slot": 2, "unsupported_claim": 2, "negated_claim": 1}
     )
     # Every newly accepted claim is the unit after an evaluation slot: "{eval_diff} pawns".
     assert set(result.newly_accepted) == {"chess_token_outside_slot"}

@@ -79,7 +79,8 @@ class ClaimFacts:
     balances: frozenset[int] = frozenset()  # learner material advantage, per fact position
     changes: frozenset[int] = frozenset()  # learner material change from the root, per ply
     evaluations: frozenset[int] = frozenset()  # engine scores, centipawns (mates as large)
-    factors: frozenset[tuple[str, int]] = frozenset()  # (topic, sign of the change)
+    # (topic, sign of the change, reference point: "before" or "best").
+    factors: frozenset[tuple[str, int, str]] = frozenset()
 
     @classmethod
     def collect(
@@ -104,7 +105,8 @@ class ClaimFacts:
         for change in factors:
             group = factor_group(change)
             if group in FACTOR_TOPICS and change.change_pawns != 0:
-                topics.add((FACTOR_TOPICS[group], 1 if change.change_pawns > 0 else -1))
+                sign = 1 if change.change_pawns > 0 else -1
+                topics.add((FACTOR_TOPICS[group], sign, change.compared_with))
         return cls(frozenset(balances), frozenset(changes), frozenset(scores), frozenset(topics))
 
 
@@ -553,13 +555,14 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
 )
 
 
-def supported(claim: Claim, facts: ClaimFacts, *, compares_best: bool = False) -> bool:
+def supported(claim: Claim, facts: ClaimFacts, *, about_best: bool = False) -> bool:
     """Whether some fact of ``facts`` states ``claim`` (side and sign checked).
 
-    ``compares_best``: the claim text names the best move. A factor change is
-    the played move against the best move, so "the best move keeps your king
-    safer" and "your king became weaker" state the same change; a king,
-    threats or activity claim is then checked for its topic only.
+    ``about_best``: the claim is about the best move ("the best move keeps
+    your king safer", "your king is safe only after the best move"). A
+    factor change against the best move is the played move minus the best
+    move, so such a king, threats or activity claim needs a change against
+    the best move with the opposite sign.
     """
     signs = (1, -1) if claim.side == 0 else (claim.side,)
     if claim.topic in ("balance", "change"):
@@ -585,9 +588,15 @@ def supported(claim: Claim, facts: ClaimFacts, *, compares_best: bool = False) -
             for side in signs
             for score in facts.evaluations
         )
-    if claim.sign == 0 or compares_best:
-        return any(topic == claim.topic for topic, _ in facts.factors)
-    return any((claim.topic, side * claim.sign) in facts.factors for side in signs)
+    if claim.sign == 0:
+        return any(topic == claim.topic for topic, _, _ in facts.factors)
+    if about_best:
+        return any((claim.topic, -side * claim.sign, "best") in facts.factors for side in signs)
+    return any(
+        (claim.topic, side * claim.sign, reference) in facts.factors
+        for side in signs
+        for reference in ("before", "best")
+    )
 
 
 @dataclass(frozen=True)
@@ -598,9 +607,29 @@ class RejectedClaim:
     negated: bool
 
 
-def unsupported_claim(
-    prose: str, facts: ClaimFacts, *, compares_best: bool = False
-) -> RejectedClaim | None:
+# The best move named in the same sentence as a claim: before it as the
+# subject ("the best move keeps your king safer") or after it as a condition
+# ("your king is safe only after the best move"), not as the base of a
+# comparison ("worse than after the best move"). The validator writes the
+# {best} slot as "the best move" in the prose it passes here.
+_BEST_SUBJECT = re.compile(
+    r"\b(?:the\s+)?(?:best|better|right|stronger|correct)\s+(?:move|one|choice|option|reply)\b",
+    re.IGNORECASE,
+)
+_BEST_CONDITION = re.compile(
+    r"^(?:(?!\bthan\b)[^.!?;])*?\b(?:with|after|by|only\s+with|only\s+after)\s+(?:the\s+)?(?:best|better|right"
+    r"|stronger|correct)\s+(?:move|one|choice|option|reply)\b",
+    re.IGNORECASE,
+)
+
+
+def _about_best(prose: str, match: re.Match[str]) -> bool:
+    sentence_start = max(prose.rfind(mark, 0, match.start()) for mark in ".!?;") + 1
+    before = prose[sentence_start : match.start()]
+    return bool(_BEST_SUBJECT.search(before) or _BEST_CONDITION.search(prose[match.end() :]))
+
+
+def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
     """The first claim in ``prose`` that is negated or no fact supports, else ``None``.
 
     The validator runs it after the vocabulary rule, and it only adds
@@ -615,7 +644,7 @@ def unsupported_claim(
             # A negated claim states an absence, which no fact records.
             if groups.get("neg") or groups.get("neg2"):
                 return RejectedClaim(match[0].strip(), negated=True)
-            if not supported(read(match), facts, compares_best=compares_best):
+            if not supported(read(match), facts, about_best=_about_best(prose, match)):
                 return RejectedClaim(match[0].strip(), negated=False)
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
     return None

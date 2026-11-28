@@ -90,18 +90,20 @@ def vocabulary(phrases: Iterable[str]) -> frozenset[str]:
 
 
 def blank_phrases(prose: str, phrases: Iterable[str]) -> str:
-    """``prose`` with every occurrence of a phrase's ending blanked (word forms compared).
+    """``prose`` with every occurrence of a phrase blanked (word forms compared).
 
-    A threats factor name admits its words only with its head noun (#431):
-    ``safe pawn threats`` admits "safe pawn threats", "pawn threats" and
-    "threats", never a bare "pawn"; ``rook threats`` never a bare "rook".
+    A threats factor name admits its words only with its head noun (#431): a
+    name ending in "threats" admits its endings (``safe pawn threats``: "safe
+    pawn threats", "pawn threats", "threats", never a bare "pawn"); any other
+    name only as a whole ("slider on the queen", never a bare "queen").
     """
     tokens = list(_WORD.finditer(prose.lower()))
     forms = [_word_form(token[0]) for token in tokens]
     chars = list(prose)
     for phrase in phrases:
         words = [_word_form(w) for w in _WORD.findall(phrase.lower())]
-        for target in (words[cut:] for cut in range(len(words))):
+        cuts = range(len(words)) if words[-1:] == ["threat"] else range(1 if words else 0)
+        for target in (words[cut:] for cut in cuts):
             for start in range(len(forms) - len(target) + 1):
                 if forms[start : start + len(target)] == target:
                     begin, end = tokens[start].start(), tokens[start + len(target) - 1].end()
