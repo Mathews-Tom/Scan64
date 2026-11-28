@@ -12,6 +12,7 @@ from scan64.providers.engine.config import (
     STOCKFISH_PATH_ENV,
     EngineConfigurationError,
     active_engine_profile,
+    ladder_engine_profile,
 )
 
 
@@ -27,15 +28,21 @@ async def _run_server(server: uvicorn.Server, url: str, open_browser: bool) -> N
 
 
 def _require_engine_binary() -> None:
-    """Exit unless the active profile's engine binary exists.
+    """Exit unless the analysis and ladder profiles' engine binaries exist.
 
     Only the default profile needs Stockfish. A configured profile needs its
     own binary, and the error names the profile that needs it.
     """
     try:
         profile = active_engine_profile()
+        ladder = ladder_engine_profile()
     except EngineConfigurationError as error:
         raise SystemExit(f"Engine configuration is invalid: {error}") from error
+    if ladder is not None and shutil.which(ladder.binary_path) is None:
+        raise SystemExit(
+            f"The ladder engine profile {ladder.source} ({ladder.name}) needs "
+            f"{ladder.binary_path}, which is not an executable file or on PATH."
+        )
     if shutil.which(profile.binary_path) is not None:
         return
     if profile.source is not None:

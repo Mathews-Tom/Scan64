@@ -24,7 +24,13 @@ from scan64.providers.engine import (
     line_from_info,
     load_engine_profile,
 )
-from scan64.providers.engine.config import LadderSettings, scaled_nodes
+from scan64.providers.engine.config import (
+    LADDER_ENGINE_CONFIG_ENV,
+    LadderSettings,
+    ladder_engine_config,
+    ladder_engine_profile,
+    scaled_nodes,
+)
 from scan64.providers.engine.uci import full_strength_options, lines_from_result, startup_options
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig, search_limit
 from scan64.providers.stockfish.identity import analysis_identity
@@ -587,3 +593,52 @@ def test_score_scale_is_part_of_identity_only_when_not_one() -> None:
     assert StockfishConfig(binary_path="x", score_scale=2.8).fingerprint() != (
         StockfishConfig(binary_path="x", score_scale=1.0).fingerprint()
     )
+
+
+def test_ladder_profile_is_the_analysis_engine_until_set(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    analysis_path = tmp_path / "analysis.toml"
+    analysis_path.write_text(
+        "[engine]\nname = 'caissa'\nbinary_path = 'caissa'\n", encoding="utf-8"
+    )
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis_path))
+    monkeypatch.delenv(LADDER_ENGINE_CONFIG_ENV, raising=False)
+    analysis = EngineConfig()
+    assert ladder_engine_profile() is None
+    assert ladder_engine_config(analysis) is analysis
+    unset = EnginePoolManager(analysis)
+    assert unset.ladder_pool is unset.interactive_pool
+    assert unset.ladder_config is analysis
+
+    ladder_path = tmp_path / "ladder.toml"
+    ladder_path.write_text(
+        "[engine]\nname = 'arasan'\nbinary_path = 'arasan'\nthreads = 2\n"
+        + ELO_LADDER
+        + "movetime_ms = 100\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder_path))
+    ladder = ladder_engine_config(analysis)
+    assert (ladder.name, ladder.binary_path, ladder.threads) == ("arasan", "arasan", 2)
+    assert ladder.ladder.strength == "elo" and ladder.ladder.movetime_ms == 100
+    # The analysis engine is untouched by the ladder profile.
+    assert (EngineConfig().name, EngineConfig().ladder.strength) == ("caissa", "skill")
+    manager = EnginePoolManager.from_env(analysis)
+    assert manager.ladder_pool is not manager.interactive_pool
+    assert manager.ladder_pool.config is manager.ladder_config
+    assert manager.ladder_config.name == "arasan"
+    assert manager.interactive_pool.config is analysis
+
+
+def test_ladder_profile_errors_name_its_variable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, "ladder.toml")
+    with pytest.raises(
+        EngineConfigurationError, match=f"{LADDER_ENGINE_CONFIG_ENV} must be an absolute"
+    ):
+        ladder_engine_profile()
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(tmp_path / "missing.toml"))
+    with pytest.raises(EngineConfigurationError, match="does not exist"):
+        ladder_engine_profile()

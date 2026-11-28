@@ -11,6 +11,7 @@ lessons and narrator evidence without a code change.
 | --- | --- | --- |
 | `SCAN64_ENGINE_CONFIG` | unset | Absolute path of an engine profile (TOML). When set, it fully defines the engine. |
 | `SCAN64_STOCKFISH_PATH` | `stockfish` on `PATH` | Stockfish binary used when no profile is selected. Ignored when `SCAN64_ENGINE_CONFIG` is set. |
+| `SCAN64_LADDER_ENGINE_CONFIG` | unset | Absolute path of a second profile that plays every bot move (the ladder and legacy Skill Level sessions). Unset, bot moves use the analysis engine. |
 
 Without a profile the engine is Stockfish from `SCAN64_STOCKFISH_PATH`, one
 thread, 16 MB hash, no extra options: the same identity as before profiles
@@ -184,8 +185,18 @@ The `skill` ladder stays Stockfish-only on purpose: its error budgets,
 `SKILL_POLICY_VERSION = "stockfish-error-budget-v1"` and the strength estimate
 cohorts (`api/strength.py`) are defined against Stockfish. An engine with
 `UCI_Elo` but no `Skill Level` (Arasan 26.1) plays the ladder through
-`[ladder] strength = "elo"`. Opponent moves come from the same interactive pool
-as hints. A profile that can play neither ladder makes bot play unavailable;
+`[ladder] strength = "elo"`. Without `SCAN64_LADDER_ENGINE_CONFIG`, opponent
+moves come from the same interactive pool as hints, under the analysis
+profile's `[ladder]`. With it, they come from a pool of the ladder profile's
+engine (sized like the interactive pool) under that profile's `[ladder]`; the
+analysis profile's `[ladder]` is then unused, and `scan64 serve` checks the
+ladder profile's binary too. Analysis, hints and review never use the ladder
+profile. Example: Caissa for analysis, Arasan for the ladder:
+
+```sh
+SCAN64_ENGINE_CONFIG=/path/to/caissa.toml SCAN64_LADDER_ENGINE_CONFIG=/path/to/arasan-ladder.toml scan64 serve
+```
+ A profile that can play neither ladder makes bot play unavailable;
 play never falls back to Stockfish. The play endpoints
 (`POST /v1/play-sessions` when the bot moves first, `…/moves`, `…/resume` and
 `…/opponent-move`) return 503 with

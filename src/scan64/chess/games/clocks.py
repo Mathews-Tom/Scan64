@@ -264,6 +264,7 @@ class PlayClockRuntime:
             PlaySessionService,
         )
         from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
+        from scan64.providers.engine.config import ladder_engine_config
         from scan64.providers.stockfish.adapter import StockfishConfig
 
         with Session(self.engine) as session:
@@ -282,7 +283,9 @@ class PlayClockRuntime:
             with Session(self.engine) as session:
                 service = PlaySessionService(
                     session,
-                    StockfishOpponentProvider(StockfishConfig(), self.pool_manager),
+                    StockfishOpponentProvider(
+                        ladder_engine_config(StockfishConfig()), self.pool_manager
+                    ),
                     engine_pool_manager=self.pool_manager,
                     clock_runtime=self,
                 )

@@ -16,7 +16,7 @@ from scan64.chess.opponents.bot_policy import (
     choose_ladder_move,
 )
 from scan64.chess.opponents.protocols import OpponentContext
-from scan64.providers.engine.config import UciOptionValue, scaled_nodes
+from scan64.providers.engine.config import UciOptionValue, ladder_engine_config, scaled_nodes
 from scan64.providers.engine.uci import (
     ELO_LADDER_OPTIONS,
     FULL_STRENGTH,
@@ -340,11 +340,23 @@ class PoolBoundAdapter:
 
 class EnginePoolManager:
     def __init__(
-        self, config: StockfishConfig, interactive_concurrency: int = 2, batch_concurrency: int = 2
+        self,
+        config: StockfishConfig,
+        interactive_concurrency: int = 2,
+        batch_concurrency: int = 2,
+        ladder_config: StockfishConfig | None = None,
     ):
         self.config = config
         self.interactive_pool = EnginePool(config, interactive_concurrency)
         self.batch_pool = EnginePool(config, batch_concurrency)
+        # Bot moves: the ladder engine's own pool, or the interactive pool when
+        # the ladder engine is the analysis engine.
+        self.ladder_config = config if ladder_config is None else ladder_config
+        self.ladder_pool = (
+            self.interactive_pool
+            if ladder_config is None
+            else EnginePool(ladder_config, interactive_concurrency)
+        )
         # Only public engine inputs/results; never player IDs, hint steps,
         # session snapshots or history-dependent nudge projections.
         self._hint_cache: OrderedDict[HintCacheKey, EngineAnalysis] = OrderedDict()
@@ -354,15 +366,17 @@ class EnginePoolManager:
         """Size the interactive pool from its override (default 2), and the batch
         pool from its override or available CPUs minus interactive capacity and
         one application CPU (minimum 2). Direct constructors keep explicit sizes."""
+        ladder = ladder_engine_config(config)
         return cls(
             config,
             interactive_concurrency=interactive_concurrency(),
             batch_concurrency=batch_concurrency(),
+            ladder_config=None if ladder is config else ladder,
         )
 
     @property
     def closed(self) -> bool:
-        return self.interactive_pool.closed and self.batch_pool.closed
+        return self.interactive_pool.closed and self.batch_pool.closed and self.ladder_pool.closed
 
     @property
     def batch_adapter(self) -> PoolBoundAdapter:
@@ -373,6 +387,8 @@ class EnginePoolManager:
     async def close(self) -> None:
         await self.interactive_pool.close()
         await self.batch_pool.close()
+        if self.ladder_pool is not self.interactive_pool:
+            await self.ladder_pool.close()
         self._hint_cache.clear()
 
     async def analyze_interactive(
@@ -391,13 +407,13 @@ class EnginePoolManager:
     async def play_interactive(
         self, fen: str, skill_level: int, limit: chess.engine.Limit
     ) -> chess.engine.PlayResult:
-        async with self.interactive_pool.acquire() as adapter:
+        async with self.ladder_pool.acquire() as adapter:
             return await adapter.play_move(fen, skill_level, limit)
 
     async def play_bot_interactive(
         self, fen: str, context: OpponentContext
     ) -> chess.engine.PlayResult:
-        async with self.interactive_pool.acquire() as adapter:
+        async with self.ladder_pool.acquire() as adapter:
             return await adapter.play_bot_move(fen, context)
 
     async def analyze_batch(
