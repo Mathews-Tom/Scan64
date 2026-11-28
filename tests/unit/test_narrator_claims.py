@@ -173,7 +173,56 @@ def test_a_supported_claim_still_needs_its_chess_words_named() -> None:
     assert _rejects("You are up a piece.", bare, "ev")
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        # Review of #431: judgements around a factor name, position subjects, negation.
+        "Your king safety is excellent.",
+        "Their king safety is poor.",
+        "Your pawn shelter is intact.",
+        "Your position is better.",
+        "Your position is winning.",
+        "You are in serious trouble.",
+        "You are materially up.",
+        "You are cramped.",
+        "Your pieces are better.",
+        "The evaluation favors you.",
+        "You are not up a piece.",
+    ],
+)
+def test_paraphrased_and_negated_claims_need_a_fact(text: str) -> None:
+    assert unsupported_claim(text, NOTHING) is not None
+
+
+def test_a_negated_claim_is_rejected_even_where_the_claim_is_true() -> None:
+    """No fact records an absence: "not up a piece" is rejected on a piece-up position."""
+    context, evidence_id = _lesson(UP_A_PIECE)
+    assert _rejects("You are not up a piece.", context, evidence_id)
+
+
+def test_a_judgement_around_a_factor_name_follows_its_sign() -> None:
+    context, evidence_id = _lesson(THREATS_FELL)
+    assert _validate("Your king safety is worse now.", context, evidence_id)
+    assert _rejects("Your king safety is excellent.", context, evidence_id)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "You are behind on the clock, so slow down.",
+        "You're ahead of the curve.",
+        "You are winning the learning game.",
+    ],
+)
+def test_tone_with_a_chess_word_is_no_claim(text: str) -> None:
+    """The claim rule does not read it; its chess word stays a vocabulary question (#408)."""
+    context, evidence_id = _lesson(LEVEL)
+    assert unsupported_claim(text, _facts(context, evidence_id)) is None
+
+
 NEUTRAL = [
+    "They are better prepared than you think.",
+    "That shows real initiative.",
     "Good effort! You played {played}, a {mistake}.",
     "Keep going, you are learning fast. Slow down before each move.",
     "That one stings, but it happens to everyone.",

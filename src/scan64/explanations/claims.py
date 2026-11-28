@@ -114,10 +114,12 @@ _OWNER = (
     r"(?P<owner>your\s+opponent's|the\s+opponent's|opponent's|their|the\s+learner's"
     r"|the\s+side\s+to\s+move's|your|the)"
 )
-# A form of "to be", with contractions and a few adverbs.
+# A form of "to be", with contractions, a negation (``neg``) and a few adverbs.
 _BE = (
-    r"(?:'re|'s|\s+(?:is|are|was|were|will\s+be|would\s+be|stays?|remains?|stayed|remained"
-    r"|ends?\s+up|ended\s+up|has\s+been|have\s+been|look|looks|looked|stand|stands|stood))"
+    r"(?:'re|'s|\s+(?:(?P<neg>aren't|isn't|wasn't|weren't)|is|are|was|were|will\s+be"
+    r"|would\s+be|stays?|remains?|stayed|remained|ends?\s+up|ended\s+up|has\s+been"
+    r"|have\s+been|look|looks|looked|stand|stands|stood))"
+    r"(?:\s+(?P<neg2>not|never|no\s+longer))?"
     r"(?:\s+(?:now|still|already|clearly|slightly|much|far|well|just|completely|totally"
     r"|simply|probably|definitely|a\s+bit|quite|very|more|less|so|left))*"
 )
@@ -205,7 +207,25 @@ _ACTIVITY = r"space|mobility|activity|piece\s+activity|development|piece\s+place
 # Plain tone ("you are struggling with this", "you are in control of your
 # learning") is no claim, so only position words are read.
 _BETTER = r"better|ahead"
-_WORSE = r"worse|behind|in\s+trouble"
+_WORSE = r"worse|behind|in\s+(?:serious\s+|real\s+|big\s+|deep\s+)?(?:trouble|danger)"
+# Words after an evaluation word that make it tone: "ahead of the curve",
+# "behind on the clock", "winning the learning game", "better than this".
+_NOT_A_POSITION = (
+    r"(?!\s+(?:off|than|at|of|on|the|a|an|this|that|your|to|with|prepared|for\s+it)\b)"
+)
+_GOOD = (
+    r"better|stronger|good|great|excellent|fine|solid|safe|safer|intact|healthy|improved"
+    r"|high|superior|secure"
+)
+_BAD = (
+    r"worse|weaker|poor|bad|weak|broken|damaged|shattered|low|inferior|compromised|ruined"
+    r"|lacking|exposed|vulnerable"
+)
+_POSITION_GOOD = r"winning|won|better|good|great|strong|excellent|comfortable|pleasant|healthy"
+_POSITION_BAD = (
+    r"losing|lost|worse|bad|weak|difficult|terrible|poor|critical|dangerous|hopeless"
+    r"|uncomfortable|tough|awful"
+)
 _WINNING = r"winning|won|completely\s+winning|clearly\s+winning|totally\s+winning"
 _LOSING = r"losing|lost|completely\s+lost|clearly\s+lost|totally\s+lost"
 _EQUAL = r"equal|balanced|level|even|drawn|drawish|roughly\s+equal|about\s+equal"
@@ -301,11 +321,18 @@ def _advantage(match: re.Match[str]) -> Claim:
 
 def _factor_direction(match: re.Match[str]) -> Claim:
     topic = match.group("topic").lower()
-    kind = "king" if topic.startswith("king") else "threats" if "threat" in topic else "activity"
+    if topic.startswith("king") or "shelter" in topic:
+        kind = "king"
+    else:
+        kind = "threats" if "threat" in topic else "activity"
     return Claim(kind, _side(match.group("owner")), -1 if match.group("minus") else 1)
 
 
 _I = re.IGNORECASE
+_FACTOR_TOPIC = (
+    r"king\s+safety|king\s+shelter|pawn\s+shelter|threats|mobility|space|piece\s+placement"
+    r"|piece\s+activity|activity|development"
+)
 # A unit with a count ("a piece", "the exchange") or bare "material".
 _COUNTED = rf"(?:{_COUNT_REQUIRED}{_UNIT_PIECES}|(?P<unit_m>material))"
 _POSITION_BE = (
@@ -374,12 +401,14 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     ),
     # Evaluation: "you are winning", "the opponent is better", "the position is equal".
     (
-        re.compile(rf"\b{_SUBJECT}{_BE}\s+(?:{_WINNING}|(?P<minus>{_LOSING}))\b", _I),
+        re.compile(
+            rf"\b{_SUBJECT}{_BE}\s+(?:{_WINNING}|(?P<minus>{_LOSING}))\b{_NOT_A_POSITION}", _I
+        ),
         _signed("evaluation", level=WINNING_CP),
     ),
     (
         re.compile(
-            rf"\b{_SUBJECT}{_BE}\s+(?:{_BETTER}|(?P<minus>{_WORSE}))\b(?!\s+(?:off|than|at)\b)",
+            rf"\b{_SUBJECT}{_BE}\s+(?:{_BETTER}|(?P<minus>{_WORSE}))\b{_NOT_A_POSITION}",
             _I,
         ),
         _signed("evaluation", level=BETTER_CP),
@@ -398,6 +427,31 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
             _I,
         ),
         _signed("evaluation", level=WINNING_CP),
+    ),
+    (
+        re.compile(
+            rf"\b{_OWNER}\s+(?:position|game){_BE}\s+(?:(?P<big>winning|won)|{_POSITION_GOOD}"
+            rf"|(?P<minus>(?P<big2>losing|lost)|{_POSITION_BAD}))\b",
+            _I,
+        ),
+        lambda match: Claim(
+            "evaluation",
+            _side(match.group("owner")),
+            -1 if match.group("minus") else 1,
+            level=WINNING_CP if match.group("big") or match.group("big2") else BETTER_CP,
+        ),
+    ),
+    (
+        re.compile(
+            r"\bfavou?r(?:s|ed|ing)?\s+(?P<who>your\s+opponent|the\s+opponent|them|you"
+            r"|the\s+side\s+to\s+move)\b",
+            _I,
+        ),
+        _signed("evaluation", level=BETTER_CP),
+    ),
+    (
+        re.compile(rf"\b{_SUBJECT}{_BE}\s+materially\s+{_UP}\b", _I),
+        _balance(1),
     ),
     (
         re.compile(
@@ -430,10 +484,18 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     # A factor topic with a direction: "your king safety suffered", "your mobility improved".
     (
         re.compile(
-            rf"(?:\b{_OWNER}\s+)?\b(?P<topic>king\s+safety|king\s+shelter|threats|mobility"
-            r"|space|piece\s+placement|piece\s+activity|activity|development)"
+            rf"(?:\b{_OWNER}\s+)?\b(?P<topic>{_FACTOR_TOPIC})"
             rf"(?:\s+(?:has|have|had|really|also|clearly))*\s+(?:{_UP_WORDS}"
             rf"|(?P<minus>{_DOWN_WORDS}))\b",
+            _I,
+        ),
+        _factor_direction,
+    ),
+    # A factor topic with a judgement: "your king safety is poor", "... is stronger".
+    (
+        re.compile(
+            rf"(?:\b{_OWNER}\s+)?\b(?P<topic>{_FACTOR_TOPIC}){_BE}\s+(?:{_GOOD}"
+            rf"|(?P<minus>{_BAD}))\b",
             _I,
         ),
         _factor_direction,
@@ -443,7 +505,7 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         re.compile(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:(?P<minus>{_FEW})\s+)?(?:(?:real|serious|strong"
             r"|dangerous|some|many|lots\s+of|a\s+lot\s+of|good|nasty)\s+)?"
-            rf"(?:{_THREATS})\b",
+            rf"(?:{_THREATS})\b(?!\s+to\b)",
             _I,
         ),
         _signed("threats"),
@@ -455,7 +517,15 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     # Piece activity: "your pieces are passive", "you have more space".
     (
         re.compile(
-            rf"\b{_OWNER}\s+(?:pieces|army|forces){_BE}\s+(?:{_ACTIVE}|(?P<minus>{_PASSIVE}))\b",
+            rf"\b{_OWNER}\s+(?:pieces|army|forces){_BE}\s+(?:{_ACTIVE}|better|stronger"
+            rf"|(?P<minus>{_PASSIVE}|worse|weaker))\b",
+            _I,
+        ),
+        _signed("activity"),
+    ),
+    (
+        re.compile(
+            rf"\b{_SUBJECT}{_BE}\s+(?:more\s+active|(?P<minus>passive|cramped|tied\s+up))\b",
             _I,
         ),
         _signed("activity"),
@@ -468,9 +538,10 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         ),
         _signed("activity"),
     ),
-    # Bare threat words name a threats fact: "no counterplay", "the initiative".
+    # Bare threat words name a threats fact: "no counterplay". ("Initiative" is
+    # also tone: "that shows real initiative".)
     (
-        re.compile(r"\b(?:counterplay|counter-play|initiative|compensation)\b", _I),
+        re.compile(r"\b(?:counterplay|counter-play|compensation)\b", _I),
         lambda match: Claim("threats", 0, 0),
     ),
 )
@@ -518,7 +589,9 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> str | None:
     remaining = prose
     for pattern, read in CLAIM_RULES:
         for match in pattern.finditer(remaining):
-            if not supported(read(match), facts):
+            groups = match.groupdict()
+            # A negated claim states an absence, which no fact records.
+            if groups.get("neg") or groups.get("neg2") or not supported(read(match), facts):
                 return match[0].strip()
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
     return None
