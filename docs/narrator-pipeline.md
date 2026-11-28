@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096); the new section 18 was written for #459 (concept library). The new section 19 and section 17's counters were added for #454 (voice pipeline: one fact per call, every sentence checked). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -208,27 +208,27 @@ Operator Ollama setup (`SCAN64_LLM_CONFIG` points at an absolute TOML path):
 ```toml
 [llm]
 provider = "ollama"
-model = "scan64-narrator-gemma4-e4b-q3km:latest"
+model = "scan64-narrator-gemma4-e4b-q4ks:latest"
 base_url = "http://127.0.0.1:11434"
 context_tokens = 4096  # optional; sent as options.num_ctx
 ```
 
 `llm.context_tokens` defaults to 4096 and accepts integers in [2048, 131072]. Use at least 4096; below that, the longest prompt plus its answer can fill the context and the generation falls back to the template. The value overrides a Modelfile `PARAMETER num_ctx`. The key is rejected for `openai`. The local provider's default deadline is 180 s (`SCAN64_LOCAL_LLM_TIMEOUT_SECONDS`). The operator path has no such setting: `resolve_explanation` opens `httpx.AsyncClient()` with the httpx default of 5 s per request (`assembly.py:181`), shorter than the 10–58 s measured below (#414).
 
-### Default local model (#429)
+### Default local model (#429, #462)
 
-The default narrator model is gemma-4-E4B-it at Q3_K_M, chosen in #389 from the #428 benchmark ([narrator model evaluation](evaluation/narrator-models.md#decision)). `providers/llm/narrator_model.py` pins it:
+The default narrator model is gemma-4-E4B-it at Q4_K_S, chosen in #462 for the voice pipeline ([narrator model evaluation](evaluation/narrator-models.md#voice-pipeline-decision-462)). It replaces Q3_K_M, chosen in #389 for the slot prompt. `providers/llm/narrator_model.py` pins it:
 
 | Field | Value |
 |---|---|
-| Ollama name | `scan64-narrator-gemma4-e4b-q3km:latest` (`DEFAULT_NARRATOR_MODEL`) |
-| Source | `unsloth/gemma-4-E4B-it-GGUF`, revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, file `gemma-4-E4B-it-Q3_K_M.gguf` (4,058,137,728 bytes) |
-| SHA-256 | `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
-| Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
+| Ollama name | `scan64-narrator-gemma4-e4b-q4ks:latest` (`DEFAULT_NARRATOR_MODEL`) |
+| Source | `unsloth/gemma-4-E4B-it-GGUF`, revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`, file `gemma-4-E4B-it-Q4_K_S.gguf` (4,844,850,304 bytes) |
+| SHA-256 | `0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
+| Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q4ks.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
 | Licence | Apache-2.0 (GGUF `general.license`), [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship the weights |
-| GPU memory | 2.96–3.13 GiB measured at `num_ctx` 4096 (RTX 5090, `runs_20261127_213350`); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
+| GPU memory | 3.46–3.53 GiB of process memory at `num_ctx` 4096 (RTX 5090; Ollama's `size_vram` says 2.84 GiB); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
 
-`scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q3km` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
+`scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q4ks` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
 
 Selection stays with the owner grant (section 7): nothing is enabled without consent. The probe returns `recommended_model`, and Settings preselects it when it is listed, unless the owner's saved grant names another listed model. A saved grant is never rewritten. Without a grant, without Ollama, or without the granted model in `/api/tags`, the template explanation is used and no evidence is sent (`test_without_a_local_model_the_template_explains`). The hosted (OpenAI-compatible) adapter sends no `think` field: it is not part of that API.
 
@@ -732,3 +732,103 @@ The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanatio
 ```bash
 curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
 ```
+
+## 18. Concept library (#459)
+
+Code decides every chess term the narrator may name. The concept library finds each concept on the board, in a move or in the engine line. It returns a plain fact that names the pieces and squares. A fact never holds a score, a count or a factor name. Module: `src/scan64/explanations/concepts.py`. Each fact is a `ConceptFact`: the concept, the sentence, and the squares the sentence names.
+
+Check, interposition, pin, checkmate and stalemate are in the role-labelled fact generator (#460). The library does not repeat them.
+
+**Entry points.**
+
+| Function | Input | Concepts |
+|---|---|---|
+| `position_concepts(board)` | a position | hanging and trapped pieces, back-rank weakness, overloading, pawn structure, blockade, outpost, weak square, bad bishop, files, space |
+| `move_concepts(board, move)` | a position and a legal move | fork, skewer, discovered attack or check |
+| `intent_concepts(board, move, line, move_score_cp=, best_score_cp=, threat_line=)` | the move, the engine's best line after it, the move's and the best move's scores (mover's view) and, for prophylaxis, the opponent's best line if the mover passed | sacrifice, compensation, initiative, prophylaxis |
+
+Scores only decide a concept; they never reach the text.
+
+**Definitions** (approved by Sydney, 2026-11-28). Piece values are 1, 3, 3, 5 and 9. A move "loses material" when its static exchange loses at least one pawn. In the static exchange (`static_exchange`), each side recaptures with its least valuable piece and stops when recapturing loses.
+
+| Concept | Rule |
+|---|---|
+| Fork | After the move, the piece attacks two or more enemy pieces (the king counts, pawns do not). After every legal reply, it can take one of them with gain. A reply that gives check only delays the fork when the mover can answer the check and the fork then holds again (up to two checks in a row). |
+| Skewer | After the move, a bishop, rook or queen attacks the king, or a piece worth more than the piece behind it. The line piece is the piece that moved, or a piece the move uncovers (a discovered skewer). After every legal reply, it can take the piece behind, or the front piece with gain when that piece stays. A check only delays the skewer, as for a fork. The piece behind is never a pawn. |
+| Discovered attack or check | A queen, rook or bishop that did not move attacks a new piece (not a pawn) after the move. A new attack on the king is a discovered check. |
+| Hanging piece | A piece (not a pawn or king, as in the lesson diagnosis rule) is attacked and not defended, or attacked by a less valuable piece. |
+| Trapped piece | The piece is attacked, staying loses material, and every move it can make loses material. |
+| Back-rank weakness | The king is on its first rank. Each square in front of it holds its own piece or is attacked. An enemy rook or queen can give mate on that rank. |
+| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. |
+| Passed, isolated, doubled, backward pawn | Passed: no enemy pawn ahead on its file or the files next to it. Doubled: two pawns of one side on a file. Isolated and backward: the factor module's terms. |
+| Blockade | A piece stands on the square in front of an enemy passed pawn. |
+| Outpost, weak square | The factor module's outpost square: on the fourth to sixth rank, guarded by a pawn, and no enemy pawn can ever attack it. A knight or bishop on it stands on an outpost. Empty, it is a weak square for the opponent. |
+| Bad bishop | Most of the bishop's own pawns stand on its colour, and at least two of them are fixed by enemy pawns. |
+| Open and half-open file | Open: no pawns on the file. A rook on an open or half-open file: the factor module's rook-on-file term. |
+| Space | One side scores higher on the factor module's space term, and its space area is at least `SPACE_MARGIN` (3) greater. The fact names its advanced central pawns. |
+| Sacrifice | After the engine's best line from the move, the mover is at least two pawns down. The move's score is within half a pawn of the best move's score. |
+| Compensation | Only after a sacrifice. Each fact names one gain along the line: checks on the enemy king, the enemy king drawn off its first rank, a new passed pawn, or a rook or queen on a newly opened file. The text never uses the word "compensation". |
+| Initiative | The move and the mover's next moves in the line make a run of at least three forcing moves. Forcing: a check, a capture, or a threat (a new winning capture, or mate in one). |
+| Prophylaxis | Before the move, the opponent's best line after a pass wins at least a pawn. After the move, the engine's best line wins less than a pawn. The move is not a check, a capture or a threat. |
+
+**Example facts.**
+
+- "Nc7+ is a fork: the white knight on c7 attacks the black rook on a8 and the black king on e8, and one of them is lost."
+- "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the king moves, the rook takes the black rook on e8."
+- "the black knight on d6 blockades the passed pawn on d5."
+- "d3 is prophylaxis: it stops Black's Nxe4, which would have won the white pawn on e4."
+
+**Tests.** `tests/unit/test_concepts.py` has one positive and one negative position for each concept, checked with python-chess. It also checks that no fact text holds a number outside a square or move, or the word "compensation".
+
+**Measured.** Over 2876 legal positions from `tests/fixtures` (position concepts and the first ten legal moves of each), no detector fails, and the slowest position takes 13 ms (linux-5090). With the check search of #487, over 4231 positions from `tests/fixtures`, the slowest takes 45 ms (15 ms before).
+
+**Limits.**
+
+- A fork or skewer must hold after every legal reply. After a check, the mover must keep the forking or skewering piece on its square. A run of more than two checks breaks it.
+- Overloading needs the defender's recapture to be safe. Prophylaxis is not stated for a piece that steps out of the threatened capture.
+- A discovered skewer needs the front piece to be newly attacked. A skewer opened by a piece that steps out from between the front piece and the piece behind is not found.
+- The intent concepts trust the engine line they are given. A line cut in the middle of an exchange can show material that the next move wins back.
+- The library is not yet wired into the narrator facts. The voice pipeline (#454) states its facts one at a time.
+
+## 19. Voice pipeline (#454)
+
+Since #454 a provider that can write plain text words a lesson or an Analysis Board explanation one fact at a time. The method is the one the voice benchmark measured (`docs/evaluation/narrator-voice.md`, run 8 in #457 and the held-out run in #462).
+
+1. **Facts.** Code writes the facts (`explanations/role_facts.py`, #460). Each fact has a role (the move, what it misses, what follows, what the mover could have played) and the relations it states (takes, attacks, pins, gives check and others).
+   - Lesson: the facts of the played move against the engine's best move and line (`lesson_role_facts` in `assembly.py`).
+   - Analysis Board: for each engine line, the facts of its first move and of the moves that follow. The template's first sentence (the side to move and the engine's first choice) opens the explanation.
+2. **At most four facts.** Each role becomes one fact, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). A role's fact starts with its framing fact when it has one ("White could have played 7.Qe2 instead of 7.Be2."). Then it adds up to two of the role's other facts, chosen in this order: a mate, a check, a capture, the rest. The chosen facts keep the order of the moves. The other facts are left out and counted. The model may write two sentences for a fact with several parts. A pin fact names the pinned piece instead of "it" ("the queen on e4 pins the bishop on e2 to the king on e1").
+3. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
+4. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
+   - names a move, square, piece or chess term that its fact does not contain;
+   - keeps none of the fact's moves or squares;
+   - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing", "strong", "elegant", "risky" and the like, "more" or "less" with an adjective, or "a safer path";
+   - calls a move "quiet" when its fact takes a piece or gives check. A quiet move takes nothing and gives no check;
+   - names a piece on a square that the fact does not pair with that piece, or gives it the wrong side ("White's queen on g5" for Black's queen);
+   - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen";
+   - states the alternative move as played: a "could have played" sentence must say "could", "would", "instead" or "might have";
+   - names the wrong piece as pinned: after "pins" the first piece named must be the pinned piece, and before "is pinned" the last one;
+   - has more sentences than allowed: one, or two for a fact with several parts.
+   Code removes a "!" written directly after the played move before the check.
+5. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
+6. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
+7. **Joining.** A comment keeps at most one "!": code turns a later one at the end of a sentence into a full stop and removes one inside a sentence. Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
+   On the Analysis Board each claim cites only the moves of its own fact: its line up to the last move the fact names (`board_lines.fact_moves`). The board highlights those moves for that sentence. A sentence about the first move highlights the first move only.
+
+When the pipeline applies:
+
+| Provider | Path |
+|---|---|
+| Local Ollama grant, or an operator Ollama or hosted provider | Voice pipeline |
+| A provider that can only return claims (for example a test double) | The slot path of section 13 |
+| No best move, or facts that do not replay | The slot path of section 13 |
+| A provider error during any sentence | The template, with reason `provider_error` |
+| No grant and no operator configuration | The template |
+
+The local provider checks the model list once per explanation and rechecks consent before every request.
+
+**Counts.** Section 17's counters gain three fields per pipeline: `sentences` (sentences written), `sentence_fallbacks` (sentences that use the plain fact text) and `facts_dropped` (facts left out by the four-fact limit). `GET /v1/diagnostics/narrator` reports all three.
+
+**Limits.**
+- One explanation sends one request per voiced fact, plus retries. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
+- The check reads words, not meaning. A sentence that stays inside its fact's moves, squares and pieces but states a wrong relation can still pass. One fact per call keeps that rare: each call has only one fact to get wrong.

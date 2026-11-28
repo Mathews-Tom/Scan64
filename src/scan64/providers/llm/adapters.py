@@ -133,6 +133,31 @@ class OllamaExplanationAdapter:
             raise LLMProviderError("Ollama response lacks string message.content")
         return _parse_generated_explanation(content, "Ollama")
 
+    async def rewrite(self, system: str, user: str) -> str:
+        """Plain text for one system and one user message (the voice pipeline, #454)."""
+        payload: dict[str, object] = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            "think": False,
+        }
+        if self._context_tokens is not None:
+            payload["options"] = {"num_ctx": self._context_tokens}
+        try:
+            response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise LLMProviderError("Ollama sentence request failed") from error
+        body = _response_object(response, "Ollama")
+        message = _required_object(body.get("message"), "message", "Ollama")
+        content = message.get("content")
+        if not isinstance(content, str):
+            raise LLMProviderError("Ollama response lacks string message.content")
+        return content
+
 
 class HostedExplanationAdapter:
     """OpenAI-compatible adapter using strict function-calling output."""
@@ -197,3 +222,31 @@ class HostedExplanationAdapter:
         if name != self._TOOL_NAME or not isinstance(arguments, str):
             raise LLMProviderError("Hosted provider returned an unexpected function call")
         return _parse_generated_explanation(arguments, "Hosted provider")
+
+    async def rewrite(self, system: str, user: str) -> str:
+        """Plain text for one system and one user message (the voice pipeline, #454)."""
+        try:
+            response = await self._client.post(
+                f"{self._base_url}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self._api_key}"},
+                json={
+                    "model": self._model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise LLMProviderError("Hosted sentence request failed") from error
+        body = _response_object(response, "Hosted provider")
+        choices = _required_list(body.get("choices"), "choices", "Hosted provider")
+        if not choices:
+            raise LLMProviderError("Hosted provider returned no choices")
+        choice = _required_object(choices[0], "choices[0]", "Hosted provider")
+        message = _required_object(choice.get("message"), "message", "Hosted provider")
+        content = message.get("content")
+        if not isinstance(content, str):
+            raise LLMProviderError("Hosted provider returned no text content")
+        return content

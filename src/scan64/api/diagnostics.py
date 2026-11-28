@@ -24,6 +24,10 @@ class NarratorPipelineCounts(BaseModel):
     # Fallbacks per attempt; null before the first attempt.
     fallback_rate: float | None
     fallbacks_by_reason: dict[str, int]
+    # Voice pipeline (#454): sentences written, and those that fell back to the fact text.
+    sentences: int = 0
+    sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
 
 class NarratorDiagnosticsRead(BaseModel):
@@ -38,6 +42,9 @@ def _pipeline(counts: NarratorCounts) -> NarratorPipelineCounts:
         fallbacks=counts.fallback_total,
         fallback_rate=counts.fallback_rate,
         fallbacks_by_reason=dict(sorted(counts.fallbacks.items())),
+        sentences=counts.sentences,
+        sentence_fallbacks=counts.sentence_fallbacks,
+        facts_dropped=counts.facts_dropped,
     )
 
 

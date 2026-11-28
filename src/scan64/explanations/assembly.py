@@ -24,8 +24,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+import chess
 import httpx
-from chess_lesson_spec import Diagnosis, Explanation
+from chess_lesson_spec import Diagnosis, Explanation, ExplanationClaim
 
 from scan64.explanations.facts import (
     NarratorFacts,
@@ -33,6 +34,7 @@ from scan64.explanations.facts import (
     build_narrator_facts,
     verified_lines_by_evidence,
 )
+from scan64.explanations.role_facts import RoleFact, RoleFactsError, numbered_san, role_facts
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
@@ -43,6 +45,7 @@ from scan64.explanations.validator import (
     validate_generated_explanation,
 )
 from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
+from scan64.explanations.voice_pipeline import SentenceWriter, VoicedExplanation, voice_facts
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
 from scan64.providers.llm.adapters import LLMExplanationProvider
@@ -61,6 +64,9 @@ class _PipelineTally:
     attempts: int = 0
     accepted: int = 0
     fallbacks: Counter[str] = field(default_factory=Counter)
+    sentences: int = 0
+    sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
 
 @dataclass(frozen=True)
@@ -75,6 +81,12 @@ class NarratorCounts:
     attempts: int
     accepted: int
     fallbacks: dict[str, int]
+    # Voice pipeline (#454): sentences written, and those that use the plain
+    # fact text because every try failed the sentence check, and facts left
+    # out because only one fact per role is voiced.
+    sentences: int = 0
+    sentence_fallbacks: int = 0
+    facts_dropped: int = 0
 
     @property
     def fallback_total(self) -> int:
@@ -122,6 +134,28 @@ def record_template_fallback(
     )
 
 
+def record_voiced_sentences(
+    voiced: VoicedExplanation, pipeline: NarratorPipeline = "lesson"
+) -> None:
+    """Count one voiced explanation's sentences and its plain-fact fallbacks (#454)."""
+    with _tallies_lock:
+        _tallies[pipeline].sentences += len(voiced.sentences)
+        _tallies[pipeline].sentence_fallbacks += voiced.fallback_sentences
+        _tallies[pipeline].facts_dropped += voiced.dropped_facts
+    if voiced.fallback_sentences:
+        logger.info(
+            "Narrator sentences fell back to the fact text: pipeline=%s count=%d of %d",
+            pipeline,
+            voiced.fallback_sentences,
+            len(voiced.sentences),
+            extra={
+                "event": "narrator_sentence_fallback",
+                "pipeline": pipeline,
+                "count": voiced.fallback_sentences,
+            },
+        )
+
+
 def template_fallback_counts() -> dict[str, int]:
     """Template fallbacks by reason code since process start, summed over pipelines."""
     total: Counter[str] = Counter()
@@ -135,7 +169,14 @@ def narrator_counts() -> dict[NarratorPipeline, NarratorCounts]:
     """A consistent snapshot of every pipeline's counts since process start."""
     with _tallies_lock:
         return {
-            pipeline: NarratorCounts(tally.attempts, tally.accepted, dict(tally.fallbacks))
+            pipeline: NarratorCounts(
+                tally.attempts,
+                tally.accepted,
+                dict(tally.fallbacks),
+                tally.sentences,
+                tally.sentence_fallbacks,
+                tally.facts_dropped,
+            )
             for pipeline, tally in _tallies.items()
         }
 
@@ -232,6 +273,84 @@ def _explanation_request(
     )
 
 
+def sentence_writer(provider: LLMExplanationProvider) -> SentenceWriter | None:
+    """``provider`` as a plain-sentence writer, or ``None`` when it can write only claims."""
+    if isinstance(provider, LocalNarratorProvider):
+        return provider if provider.supports_rewrite() else None
+    return provider if isinstance(provider, SentenceWriter) else None
+
+
+def lesson_role_facts(facts: NarratorFacts) -> tuple[RoleFact, ...] | None:
+    """The role-labelled facts of the mistake (#460), or ``None`` without a best move."""
+    position = facts.position
+    best = position.best_move
+    if best is None:
+        return None
+    played = position.played_move.uci
+    best_line: tuple[str, ...] = next(
+        (
+            line.uci
+            for line in facts.lines
+            if not line.begins_with_played_move and line.uci and line.uci[0] == best.uci
+        ),
+        (best.uci,),
+    )
+    played_line: tuple[str, ...] = next(
+        (
+            line.uci[1:]
+            for line in facts.lines
+            if line.begins_with_played_move and line.uci and line.uci[0] == played
+        ),
+        (),
+    )
+    try:
+        return role_facts(
+            position.fen, played, best.uci, best_line=best_line, played_line=played_line
+        )
+    except RoleFactsError as error:
+        logger.warning("Role facts unavailable: %s", error)
+        return None
+
+
+def voiced_explanation(
+    voiced: VoicedExplanation, evidence_ref: str, line: Sequence[str] = ()
+) -> Explanation:
+    """A client-visible explanation: one claim per checked sentence."""
+    claims = [
+        ExplanationClaim(
+            text=sentence.text, evidence_ref=evidence_ref, line=tuple(line), disclosure_level=1
+        )
+        for sentence in voiced.sentences
+    ]
+    return Explanation(text=voiced.text, claims=claims)
+
+
+async def _attempt_voiced_generation(
+    writer: SentenceWriter,
+    facts: NarratorFacts,
+    template_explanation: Explanation,
+) -> Explanation | None:
+    """The voice pipeline for one lesson (#454); ``None`` when it does not apply."""
+    story = lesson_role_facts(facts)
+    if not story:
+        return None
+    board = chess.Board(facts.position.fen)
+    played = numbered_san(board, chess.Move.from_uci(facts.position.played_move.uci))
+    try:
+        voiced = await voice_facts(writer, story, mover=board.turn, played=played)
+    except LLMProviderError:
+        record_template_fallback("provider_error")
+        return template_explanation
+    record_voiced_sentences(voiced, "lesson")
+    record_narrator_accepted("lesson")
+    evidence_ref = (
+        template_explanation.claims[0].evidence_ref
+        if template_explanation.claims
+        else facts.evidence[0].evidence_id
+    )
+    return voiced_explanation(voiced, evidence_ref)
+
+
 async def _attempt_grounded_generation(
     provider: LLMExplanationProvider,
     diagnosis: Diagnosis,
@@ -247,6 +366,11 @@ async def _attempt_grounded_generation(
         logger.warning("Narrator facts unavailable: %s", error)
         record_template_fallback("invalid_evidence")
         return template_explanation
+    writer = sentence_writer(provider)
+    if writer is not None:
+        voiced = await _attempt_voiced_generation(writer, facts, template_explanation)
+        if voiced is not None:
+            return voiced
     context = _grounding_context(facts, evidence, fen)
     request = _explanation_request(facts, voice)
     try:
