@@ -626,6 +626,7 @@ format = "stockfish"
 | Rodent V | `rodent` | GPL-3.0 | run from its own folder (Scan64 starts it there) |
 | Laser | `laser` | GPL-3.0 | nothing; the table goes to standard error, and Scan64 reads it there |
 
+Only the Stockfish 11 row is recorded from a real build; the Stockfish 2.1, 8 and 15.1 rows follow the print code (#478).
 Stockfish 16 and later have no classical evaluation, so they print no table.
 Ethereal, Stash, Weiss and Berserk need a tuner build to print one, so they are
 not supported.

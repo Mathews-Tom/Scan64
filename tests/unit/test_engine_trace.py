@@ -203,6 +203,15 @@ def test_runner_sends_no_option_the_engine_lacks(
     assert not any(line.startswith("setoption") for line in log.read_text().splitlines())
 
 
+@pytest.mark.parametrize("missing", ["engine", "folder/engine"])
+def test_runner_names_a_missing_binary(tmp_path: Path, missing: str) -> None:
+    binary = tmp_path / missing
+    profile = load_engine_profile(_profile(tmp_path, binary, "[trace]\nformat = 'stockfish'\n"))
+    with pytest.raises(EngineConfigurationError, match="cannot start its trace engine") as error:
+        asyncio.run(read_eval_trace(profile, chess.Board(P1)))
+    assert str(binary) in str(error.value)
+
+
 def test_runner_rejects_an_undeclared_trace_option(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

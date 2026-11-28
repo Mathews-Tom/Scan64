@@ -381,13 +381,20 @@ async def read_eval_trace(
         )
     if board.is_check():
         raise EvalTraceUnavailableError("Engines print no evaluation trace with a side in check")
-    process = await asyncio.create_subprocess_exec(
-        profile.binary_path,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=_cwd(profile.binary_path),
-    )
+    try:
+        process = await asyncio.create_subprocess_exec(
+            profile.binary_path,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=_cwd(profile.binary_path),
+        )
+    except OSError as error:
+        # A missing folder fails on ``cwd`` and names the folder, not the binary.
+        raise EngineConfigurationError(
+            f"Engine profile {profile.name!r} cannot start its trace engine "
+            f"{profile.binary_path}: {error.strerror or error}"
+        ) from error
     assert process.stdin is not None and process.stdout is not None
     try:
         async with asyncio.timeout(timeout_s):
