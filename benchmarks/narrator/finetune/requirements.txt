@@ -1,0 +1,8 @@
+# Training only, in an environment outside the repository. Not a Scan64 dependency.
+# torch comes from https://download.pytorch.org/whl/cu128. Python 3.12.
+torch==2.11.0+cu128
+transformers==5.24.1
+peft==0.22.0
+accelerate==1.16.0
+safetensors==0.8.0
+tokenizers==0.23.3

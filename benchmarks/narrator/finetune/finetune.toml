@@ -1,0 +1,38 @@
+# Fine-tune of a small narrator on the verified pairs of #464 (issue #465).
+# Recipe: chess-annotator (MIT), https://github.com/shashank-v-98/chess-annotator.
+
+[base]
+repo = "Qwen/Qwen3-1.7B"
+revision = "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+licence = "Apache-2.0"
+
+[data]
+# Sources whose text may be used for training. Chess Fundamentals stays out: its
+# 1934 revision is an open copyright question (scripts/annotated-corpus.toml).
+sources = ["lasker_chess_strategy"]
+split_every = 10
+
+[lora]
+rank = 32
+alpha = 64
+dropout = 0.05
+targets = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+[train]
+seed = 465
+epochs = 2
+batch = 16
+learning_rate = 1e-4
+
+[serve]
+# bf16 weights, served by serve.py.
+# The Qwen3 model card's sampling for non-thinking mode.
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+
+[evaluate]
+benchmark_samples = 5
+heldout_samples = 1
+nodes = 400000
+blind_seed = 465
