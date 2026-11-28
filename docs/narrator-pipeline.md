@@ -740,7 +740,7 @@ curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default po
 
 A lesson explains one mistake. Often the game was lost before it: the king had no cover for several moves, or the pieces had no squares. Code computes these root causes, and the move where the game turned, from the game's moves, the engine scores of the game's positions and the factor module (section 15). The narrator only words them. Module: `src/scan64/explanations/themes.py`.
 
-**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) does not pass it yet (#482); until then the themes reach no player.
+**Input.** `GameTrace`: every position of the game and its engine score (the fast pass, 10 000 nodes per position). `game_trace(initial_fen, moves, evaluations)` builds it. `build_narrator_facts(..., game=trace)` and `resolve_explanation(..., game=trace)` take it. Without it, `NarratorFacts.game` is absent and the prompt is unchanged. Game analysis (`run_analysis_for_game`) builds the trace once from the fast pass and passes it for each lesson (#482). Explanations outside game analysis, such as the analysis board, have no game and get no themes.
 
 **Window.** The positions where the learner was to move in their last 4 moves, up to and including the mistake (`THEME_WINDOW`). A theme holds when:
 
