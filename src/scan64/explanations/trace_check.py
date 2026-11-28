@@ -65,6 +65,20 @@ def _sign(value: float, epsilon: float) -> int:
     return 1 if value > 0 else -1
 
 
+def _module_end_game(report: FactorReport, trace: EvalTrace, group: str) -> float:
+    """The module's end-game value of ``group`` as the trace counts it, in internal units.
+
+    Stockfish 12 to 15.1 and Fairy-Stockfish print a ``Winnable`` row whose
+    end-game value is the scaled end game minus the end game before the bonus,
+    so it includes the scale factor. Stockfish 11's ``Initiative`` row does not.
+    """
+    net_eg = report.groups[group].net_eg
+    if group == "Winnable" and any(row.name.lower() == "winnable" for row in trace.rows):
+        before_bonus = report.end_game - net_eg
+        return report.end_game * report.scale_factor / 64 - before_bonus
+    return net_eg
+
+
 def sign_disagreements(
     report: FactorReport, trace: EvalTrace, *, epsilon: float = SIGN_EPSILON
 ) -> list[SignDisagreement]:
@@ -76,7 +90,7 @@ def sign_disagreements(
             continue
         pairs: tuple[tuple[GamePhase, float, float | None], ...] = (
             ("middle game", module.net_mg / PAWN_VALUE_EG, trace_mg),
-            ("end game", module.net_eg / PAWN_VALUE_EG, trace_eg),
+            ("end game", _module_end_game(report, trace, group) / PAWN_VALUE_EG, trace_eg),
         )
         for phase, module_value, trace_value in pairs:
             if trace_value is None:

@@ -301,6 +301,27 @@ def test_sign_disagreements_compare_each_group_and_phase() -> None:
     assert found[0].module == pytest.approx(mobility.net_mg / 206)
 
 
+def test_winnable_row_is_compared_with_the_scale_factor() -> None:
+    # The bonus is +0.28 pawns. Stockfish 15.1 prints Winnable -2.22 here, scale factor included.
+    report = evaluate_factors("r3k1r1/pbpp1pbp/1p2p2p/2Q5/2P1P3/2P4N/PP3PPP/RN3RK1 b q - 0 13")
+    winnable = report.groups["Winnable"].net_eg
+    assert report.scale_factor < 64
+    scaled = report.end_game * report.scale_factor / 64 - (report.end_game - winnable)
+    assert winnable > 0.05 * 206 and scaled < -0.05 * 206
+
+    # Stockfish 12 to 15.1 and Fairy-Stockfish: the row includes the scale factor.
+    assert sign_disagreements(report, _trace(report.fen, {"Winnable": (0.0, -2.22)})) == []
+    (found,) = sign_disagreements(report, _trace(report.fen, {"Winnable": (0.0, 0.5)}))
+    assert (found.group, found.phase) == ("Winnable", "end game")
+    assert found.module == pytest.approx(scaled / 206)
+    assert found.module == pytest.approx(-2.22, abs=0.5)
+
+    # Stockfish 11: the row leaves the scale factor out.
+    assert sign_disagreements(report, _trace(report.fen, {"Initiative": (0.0, 0.5)})) == []
+    (found,) = sign_disagreements(report, _trace(report.fen, {"Initiative": (0.0, -0.5)}))
+    assert found.module == pytest.approx(winnable / 206)
+
+
 def test_report_lists_disagreements_and_skips() -> None:
     report = evaluate_factors(P2)
     agreeing = evaluate_factors(P1)
