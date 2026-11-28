@@ -42,6 +42,12 @@ SOFTWARE.
 - **Source**: https://github.com/official-stockfish/Stockfish/tree/sf_18. The Dockerfile verifies the source archive's SHA-256 (`22a195567e3493e7c9ca8bf8fa2339f4ffc876384849ac8a417ff4b919607e7b`) and the full SHA-256 of each embedded Stockfish NNUE network before building.
 - **Redistribution**: The image includes the corresponding source archive, `Copying.txt` and both original networks in `/usr/share/doc/stockfish/`, alongside the executable at `/usr/local/bin/stockfish`. The source archive contains the upstream build scripts; reproduce the binary with `make -C src build ARCH=x86-64 COMP=gcc` or `ARCH=armv8` after placing the included networks in `src/`. These are Stockfish networks, not Maia weights.
 
+## Stockfish Evaluation Guide
+- **Author**: hxim (with one commit by Martin Bennedik), https://github.com/hxim/Stockfish-Evaluation-Guide.
+- **License**: GPL-3.0 (`Copying.txt` in the guide repository).
+- **Version ported**: commit `63ff375bb5a8b7b2e4f965c3a3de7698fef7616c` (2024-12-07).
+- **Usage**: `src/scan64/explanations/factors/` is a Python port of the guide's 125 evaluation functions (the Stockfish 12-era classical evaluation, in 13 groups). The port keeps the guide's function names, groups, tables and arithmetic. The parity harness `tests/helpers/factors/seg_harness.cjs` runs the guide's original JavaScript under Node to produce the committed reference values; the guide itself is not redistributed.
+
 ## Chessground
 - **License**: GPL-3.0-or-later
 - **Usage**: Frontend chessboard component.

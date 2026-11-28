@@ -50,12 +50,19 @@ class BatchAnalysisAdapter:
         self.adapter = adapter
         self.completed: list[tuple[str, EngineAnalysis]] = []
         self._saved: dict[tuple[str, str], tuple[dict[str, Any], list[dict[str, Any]]]] = {}
+        self._owner = owner
+        self._loaded: set[str] = set()
         board = board_from(initial_fen)
         fens = [board.fen()]
         for move in moves:
             board.push_uci(move)
             fens.append(board.fen())
-        unique_fens = list(dict.fromkeys(fens))
+        self.prefetch(session, fens)
+
+    def prefetch(self, session: Session, fens: list[str] | tuple[str, ...]) -> None:
+        """Load the owner's saved searches of ``fens`` (for example line positions, #367)."""
+        unique_fens = [fen for fen in dict.fromkeys(fens) if fen not in self._loaded]
+        self._loaded.update(unique_fens)
         with session.no_autoflush:
             for offset in range(0, len(unique_fens), 400):
                 rows = session.exec(
@@ -63,7 +70,7 @@ class BatchAnalysisAdapter:
                     .join(EngineAnalysis, col(EngineAnalysis.position_id) == col(Position.id))
                     .join(Game, col(Position.game_id) == col(Game.id))
                     .where(
-                        Game.owner_player_id == owner,
+                        Game.owner_player_id == self._owner,
                         col(Position.fen).in_(unique_fens[offset : offset + 400]),
                     )
                     .order_by(col(EngineAnalysis.created_at), col(EngineAnalysis.id))

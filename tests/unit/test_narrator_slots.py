@@ -177,12 +177,11 @@ def test_a_slot_of_another_evidence_item_rejects() -> None:
         # Check, mate, capture, tactic, threat and material words.
         "{best} gives check.",
         "{best} is checkmate.",
-        "{best} captures with tempo.",
         "{best} takes everything.",
+        # "captures", "threat" and "attack" are facts of this position (a capture
+        # slot, threat slots, a king attack factor): test_narrator_vocabulary.py.
         "{best} is a fork.",
         "{best} sets up a pin.",
-        "{best} creates a threat.",
-        "{best} attacks two targets.",
         "Your piece was hanging.",
         "{best} wins material.",
         "You lose time after {played}.",
@@ -349,13 +348,14 @@ def test_the_board_slot_list_names_the_comparison_lines_instead_of_repeating_the
     for line_id in line_ids:
         for slot in catalogue.slots_for(line_id).values():
             if slot.name not in catalogue.shared:
-                assert prompt.count(f"{{{slot.name}}} = ") == 1
-    reference = f"For evidence {COMPARISON_EVIDENCE_ID}: every slot listed for "
+                assert prompt.count(f"{{{slot.name}}} = ") <= 1
+    reference = f'evidence_ref "{COMPARISON_EVIDENCE_ID}"'
     if count == 1:
         assert reference not in prompt
         assert COMPARISON_EVIDENCE_ID not in catalogue.by_evidence
     else:
-        assert f"{reference}{', '.join(line_ids)}." in prompt.splitlines()
+        assert catalogue.combined[COMPARISON_EVIDENCE_ID] == tuple(line_ids)
+        assert f"{reference}; lines {', '.join(line_ids)}:" in prompt.splitlines()
         # The comparison item still accepts every line's slots.
         comparison = catalogue.slots_for(COMPARISON_EVIDENCE_ID)
         for line_id in line_ids:

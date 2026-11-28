@@ -96,7 +96,13 @@ def test_play_from_here_api_flow(client: TestClient, session: Session):
 
 def test_game_positions_are_returned_in_ply_order(client: TestClient, session: Session):
     headers = _register(session, "test_user")
-    game = Game(pgn="", owner_player_id="test_user")
+    # The endpoint lists positions the game's moves reach; these are three of four.
+    game = Game(
+        pgn="",
+        owner_player_id="test_user",
+        headers={"FEN": "8/8/8/8/8/8/8/K6k w - - 0 1"},
+        moves=["a1a2", "h1h2", "a2a3"],
+    )
     session.add(game)
     session.flush()
     initial_position = Position(
@@ -111,7 +117,7 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
         [
             Position(
                 game_id=game.id,
-                fen="8/8/8/8/8/8/8/K6k b - - 0 2",
+                fen="8/8/8/8/8/K7/7k/8 b - - 3 2",
                 half_move_clock=0,
                 full_move_number=2,
                 side_to_move="b",
@@ -119,7 +125,7 @@ def test_game_positions_are_returned_in_ply_order(client: TestClient, session: S
             ),
             Position(
                 game_id=game.id,
-                fen="8/8/8/8/8/8/8/K6k b - - 0 1",
+                fen="8/8/8/8/8/8/K7/7k b - - 1 1",
                 half_move_clock=0,
                 full_move_number=1,
                 side_to_move="b",

@@ -1,0 +1,1625 @@
+{
+ "seed": 407,
+ "positions": [
+  {
+   "id": "curated-start",
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-krpkr_one_flank",
+   "fen": "8/8/4k3/8/5P2/4K3/6r1/5R2 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-krpkr_king_shelters",
+   "fen": "8/5k2/8/5P2/6K1/8/r7/5R2 b - - 3 50",
+   "source": "curated"
+  },
+  {
+   "id": "curated-krkr_pawns_both_flanks",
+   "fen": "8/p4k2/8/6p1/P7/6P1/r4K2/4R3 w - - 0 40",
+   "source": "curated"
+  },
+  {
+   "id": "curated-opposite_bishops_pawns",
+   "fen": "8/5k2/3b4/1p3p2/1P3P2/4B3/5K2/8 w - - 0 45",
+   "source": "curated"
+  },
+  {
+   "id": "curated-opposite_bishops_rooks",
+   "fen": "4r1k1/5ppp/3b4/8/8/4B3/5PPP/4R1K1 w - - 0 30",
+   "source": "curated"
+  },
+  {
+   "id": "curated-queen_vs_minors",
+   "fen": "4k3/8/3nb3/8/8/8/3Q4/4K3 w - - 0 60",
+   "source": "curated"
+  },
+  {
+   "id": "curated-queen_vs_rook",
+   "fen": "8/8/4k3/8/3r4/8/4Q3/4K3 b - - 0 70",
+   "source": "curated"
+  },
+  {
+   "id": "curated-pawnless_rook_vs_bishop",
+   "fen": "8/8/3bk3/8/8/4K3/8/5R2 w - - 0 80",
+   "source": "curated"
+  },
+  {
+   "id": "curated-bare_minor_vs_pawns",
+   "fen": "8/8/4k3/2p5/2P5/3N4/4K3/8 w - - 0 50",
+   "source": "curated"
+  },
+  {
+   "id": "curated-kpk",
+   "fen": "8/8/8/4k3/8/4P3/4K3/8 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-passer_a_file",
+   "fen": "6k1/8/P7/8/8/8/5PPP/6K1 w - - 0 40",
+   "source": "curated"
+  },
+  {
+   "id": "curated-passer_h_file_black",
+   "fen": "6k1/5ppp/8/8/8/7p/8/1R4K1 b - - 0 40",
+   "source": "curated"
+  },
+  {
+   "id": "curated-passers_edges_rooks",
+   "fen": "r5k1/P7/8/8/8/8/7p/R5K1 w - - 0 50",
+   "source": "curated"
+  },
+  {
+   "id": "curated-pin_bishop",
+   "fen": "4k3/8/8/1b6/8/3N4/8/5K2 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-pin_rook_xray",
+   "fen": "4r1k1/8/8/8/4R3/8/4R3/4K3 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-pin_queen_line",
+   "fen": "3qk3/8/8/8/3Q4/8/8/3K4 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-queens_battery",
+   "fen": "k7/8/8/3q4/8/1Q6/Q7/7K w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-castling_rights_only_white",
+   "fen": "r3k2r/pppq1ppp/2npbn2/4p3/4P3/2NPBN2/PPPQ1PPP/R3K2R w KQ - 4 9",
+   "source": "curated"
+  },
+  {
+   "id": "curated-castling_rights_only_black",
+   "fen": "r3k2r/pppq1ppp/2npbn2/4p3/4P3/2NPBN2/PPPQ1PPP/R3K2R b kq - 4 9",
+   "source": "curated"
+  },
+  {
+   "id": "curated-trapped_rook",
+   "fen": "rnbq1bnr/ppppkppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQ - 2 3",
+   "source": "curated"
+  },
+  {
+   "id": "curated-trapped_rook_no_castling",
+   "fen": "6k1/5ppp/8/8/8/8/5PPP/5KBR w - - 0 30",
+   "source": "curated"
+  },
+  {
+   "id": "curated-outposts",
+   "fen": "r1bq1rk1/pp3ppp/2n5/3pN3/3P4/2PB4/PP3PPP/R2Q1RK1 w - - 0 14",
+   "source": "curated"
+  },
+  {
+   "id": "curated-weak_queen",
+   "fen": "4k3/8/8/1b6/8/3Q4/8/4K3 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-king_attack",
+   "fen": "r1bq1rk1/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQ - 6 5",
+   "source": "curated"
+  },
+  {
+   "id": "curated-storm",
+   "fen": "r1bq1rk1/pp2ppbp/2np1np1/8/3NP1PP/2N1BP2/PPPQ4/R3KB1R b KQ - 0 10",
+   "source": "curated"
+  },
+  {
+   "id": "curated-blocked_center",
+   "fen": "r1bqk2r/pp1nbppp/2p1p3/3pP3/3P4/2PB1N2/PP3PPP/RNBQK2R w KQkq - 1 8",
+   "source": "curated"
+  },
+  {
+   "id": "curated-rule50_high",
+   "fen": "8/8/4k3/8/2R5/8/4K3/2r5 w - - 87 120",
+   "source": "curated"
+  },
+  {
+   "id": "curated-many_queens",
+   "fen": "1Q4k1/8/8/8/8/8/1q6/1Q4K1 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-doubled_isolated",
+   "fen": "4k3/8/8/3p4/8/3P4/3P4/4K3 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-connected_passers",
+   "fen": "6k1/8/8/2PP4/8/8/5ppp/6K1 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-pawns_only_both_flanks",
+   "fen": "8/pp3kpp/8/8/8/8/PP3KPP/8 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-weak_lever",
+   "fen": "4k3/8/8/3p1p2/4P3/8/8/4K3 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-weak_lever_black",
+   "fen": "4k3/8/8/4p3/3P1P2/8/8/4K3 b - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-doubled_isolated_white",
+   "fen": "4k3/8/4p3/8/8/4P3/4P3/4K3 w - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "curated-doubled_isolated_black",
+   "fen": "4k3/3p4/3p4/8/8/3P4/8/4K3 b - - 0 1",
+   "source": "curated"
+  },
+  {
+   "id": "bench-00-before",
+   "fen": "r3k1r1/pbpp1pbp/1p2p2p/2Q5/2P1P3/2P4N/PP3PPP/RN3RK1 b q - 0 13",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-00-after",
+   "fen": "r3k1r1/pbpp1pbp/4p2p/1pQ5/2P1P3/2P4N/PP3PPP/RN3RK1 w q - 0 14",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-01-before",
+   "fen": "7Q/2p1kp2/3p3p/2r1p1p1/8/6P1/P2R1P1P/5RK1 b - - 1 29",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-01-after",
+   "fen": "7Q/2p1kp2/7p/2rpp1p1/8/6P1/P2R1P1P/5RK1 w - - 0 30",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-02-before",
+   "fen": "3q1rk1/p1p2ppp/Q2pbn2/2b1p1B1/4P3/2PP1N2/Pr1N1PPP/R4RK1 b - - 1 12",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-02-after",
+   "fen": "3q1rk1/p1p2ppp/Q2pbn2/2b1p1B1/4P3/2PP1N2/P2r1PPP/R4RK1 w - - 0 13",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-03-before",
+   "fen": "5rk1/p1pq1p2/Q2p1n2/2b1p1N1/4P2p/2PP3b/P4PPB/R4RK1 b - - 0 19",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-03-after",
+   "fen": "5rk1/p1p2p2/Q2p1n2/2b1p1N1/4P1qp/2PP3b/P4PPB/R4RK1 w - - 1 20",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-04-before",
+   "fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-04-after",
+   "fen": "rnbqkbnr/pp2pppp/3p4/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR b KQkq - 1 3",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-05-after",
+   "fen": "rnbqkbnr/pp2pp1p/3p2p1/2p5/2PP1B2/8/PP2PPPP/RN1QKBNR w KQkq - 0 4",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-06-before",
+   "fen": "6k1/1p3p2/p1p3bQ/2q5/8/P4B2/1P3PP1/7K w - - 1 30",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-06-after",
+   "fen": "6k1/1p3p2/p1p3bQ/2q5/4B3/P7/1P3PP1/7K b - - 2 30",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-07-before",
+   "fen": "r2qkb1r/3p1pp1/2N3np/p7/Bpb1P3/8/PP1P1PPP/R1BQ1RK1 b kq - 0 15",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-07-after",
+   "fen": "r2qkb1r/3p1pp1/2N3np/p7/Bp2P3/8/PP1P1PPP/R1BQ1bK1 w kq - 0 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-08-before",
+   "fen": "r4b1r/3p1kp1/6np/p7/Bp2Q3/8/PP1P1P1P/R1B3K1 b - - 0 19",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-08-after",
+   "fen": "r4bkr/3p2p1/6np/p7/Bp2Q3/8/PP1P1P1P/R1B3K1 w - - 1 20",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-09-before",
+   "fen": "rnbqk2r/pppp1ppp/5n2/2b1p1B1/2B1P3/3P4/PPP2PPP/RN1QK1NR b KQkq - 2 4",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-09-after",
+   "fen": "rnbqk2r/pppp1ppp/5n2/4p1B1/2B1P3/3P4/PPP2bPP/RN1QK1NR w KQkq - 0 5",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-10-before",
+   "fen": "r1b2rk1/pppp1ppp/5q2/3Qp3/1nB1P3/5N2/PPP3PP/RN3RK1 w - - 8 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-10-after",
+   "fen": "r1b2rk1/pppp1ppp/5q2/4Q3/1nB1P3/5N2/PPP3PP/RN3RK1 b - - 0 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-11-before",
+   "fen": "r3qrk1/2p5/p1Pp2p1/3Np3/2P1PnQ1/8/P5PP/2R2RK1 w - - 6 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-11-after",
+   "fen": "r3qrk1/2p5/p1Pp2p1/4p3/2P1PNQ1/8/P5PP/2R2RK1 b - - 0 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-12-before",
+   "fen": "r5k1/2p5/p1qp1Qp1/8/2P1P3/8/P5PP/2R3K1 b - - 1 25",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-12-after",
+   "fen": "r5k1/2pq4/p2p1Qp1/8/2P1P3/8/P5PP/2R3K1 w - - 2 26",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-13-before",
+   "fen": "r2q1r1k/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 b - - 1 17",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-13-after",
+   "fen": "r2q1rk1/pppb2p1/3p2Qp/4P3/8/3B4/PPP2bPP/2KRR3 w - - 2 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-14-after",
+   "fen": "r2q1rk1/pppb2p1/3pP1Qp/8/8/3B4/PPP2bPP/2KRR3 b - - 0 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-15-before",
+   "fen": "rnr5/1p1bkp1p/p1Pp1n1q/4p1p1/4P1P1/2N4P/PPPNQPB1/1K1R3R b - - 0 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-15-after",
+   "fen": "rnr5/1p2kp1p/p1bp1n1q/4p1p1/4P1P1/2N4P/PPPNQPB1/1K1R3R w - - 0 19",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-16-before",
+   "fen": "rnr2q2/3nkp1p/p1bp4/1p2p1P1/4P1P1/2N1Q3/PPPN1PB1/1K1R3R w - - 1 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-16-after",
+   "fen": "rnr2q2/3nkp1p/p1bp2P1/1p2p3/4P1P1/2N1Q3/PPPN1PB1/1K1R3R b - - 0 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-17-before",
+   "fen": "rnbqkbnr/p3pppp/2pp4/1p1P4/2P1P3/8/PP3PPP/RNBQKBNR b KQkq - 0 4",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-17-after",
+   "fen": "rnbqkbnr/p3pppp/3p4/1p1p4/2P1P3/8/PP3PPP/RNBQKBNR w KQkq - 0 5",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-18-after",
+   "fen": "rnbqkbnr/p3pppp/3p4/1p1P4/4P3/8/PP3PPP/RNBQKBNR b KQkq - 0 5",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-19-before",
+   "fen": "8/8/6k1/8/8/1P2RQ2/P2K3p/7r w - - 4 42",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-19-after",
+   "fen": "8/8/6k1/8/8/1P2R3/P2K3p/7Q b - - 0 42",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-20-before",
+   "fen": "rnb1k1nr/pppp2b1/4p1qp/5p2/3P1B2/2PB1N2/PP3PPP/RN1Q1RK1 b kq - 1 9",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-20-after",
+   "fen": "rnb1k2r/pppp2b1/4pnqp/5p2/3P1B2/2PB1N2/PP3PPP/RN1Q1RK1 w kq - 2 10",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-21-before",
+   "fen": "r1b3k1/pp1p2b1/2n1p1rp/4Bp1q/3P2n1/2P2N2/PP2BPPP/RN1Q1RK1 w - - 13 17",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-21-after",
+   "fen": "r1b3k1/pp1p2B1/2n1p1rp/5p1q/3P2n1/2P2N2/PP2BPPP/RN1Q1RK1 b - - 0 17",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-22-before",
+   "fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B3p3/5N2/PPP2PPP/RNBQR1K1 w - - 0 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-22-after",
+   "fen": "r1bq1rk1/pp3ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 b - - 1 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-23-after",
+   "fen": "r1b2rk1/ppq2ppp/2nb1n2/8/B2Np3/8/PPP2PPP/RNBQR1K1 w - - 2 12",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-24-before",
+   "fen": "1r2kb1r/pb3ppp/8/3qp3/3p1P2/7P/PPP1N1P1/1RBQ1RK1 w k - 2 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-24-after",
+   "fen": "1r2kb1r/pb3ppp/8/3qp3/3p1P2/7P/PPP1NKP1/1RBQ1R2 b k - 3 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-25-before",
+   "fen": "1r2k2r/p5pp/3Q4/4p3/1P2b3/7P/PP2N1q1/1RB1KR2 b k - 2 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-25-after",
+   "fen": "3rk2r/p5pp/3Q4/4p3/1P2b3/7P/PP2N1q1/1RB1KR2 w k - 3 23",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-26-before",
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/1b4b1/1PP1PQPB/PB1PNP1P/RN2K2R w KQ - 3 9",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-26-after",
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/1b4b1/1PP1P1PB/PB1PNPQP/RN2K2R b KQ - 4 9",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-27-before",
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/8/1Pb1P1PB/PB1PKPQP/RN5R w - - 0 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-27-after",
+   "fen": "r4rk1/ppp2ppp/2n2n2/3pp1q1/8/1PB1P1PB/P2PKPQP/RN5R b - - 0 11",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-28-before",
+   "fen": "r2qkbnr/ppp1pppp/2n5/3p1b2/3P4/3BP3/PPP2PPP/RNBQK1NR w KQkq - 2 4",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-28-after",
+   "fen": "r2qkbnr/ppp1pppp/2n5/3p1b2/3P4/3BP3/PPPB1PPP/RN1QK1NR b KQkq - 3 4",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-29-before",
+   "fen": "2kr2nr/pp3ppp/2p1p3/8/3qP3/1QN2K2/PP3PPP/7R b - - 1 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-29-after",
+   "fen": "2kr2nr/pp3ppp/2p1pq2/8/4P3/1QN2K2/PP3PPP/7R w - - 2 19",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-30-before",
+   "fen": "r2q1rk1/1pp2pp1/p1n2n1p/2bN2N1/2P1p3/3bP1P1/PB1P1PBP/R2QK2R w KQ - 0 14",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-30-after",
+   "fen": "r2q1rk1/1pp2pp1/p1n2n1p/2bN4/2P1p3/3bP1PN/PB1P1PBP/R2QK2R b KQ - 1 14",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-31-before",
+   "fen": "r2q1r1k/1pp2pp1/p1n2n1p/2bN4/2P1p3/3bP1PN/PB1P1PBP/R2QK2R w KQ - 2 15",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-31-after",
+   "fen": "r2q1r1k/1pp2pp1/p1n2n1p/2bN4/2P1p3/2BbP1PN/P2P1PBP/R2QK2R b KQ - 3 15",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-32-before",
+   "fen": "4rrk1/p1p2ppp/2N5/2Qp1b2/5B2/2N5/PPP3PP/R4K1n w - - 3 17",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-32-after",
+   "fen": "4rrk1/p1p2ppp/2N5/2Qp1b2/5B2/2N5/PPP3PP/4RK1n b - - 4 17",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-33-before",
+   "fen": "1r3k2/Q4p2/2pq3N/4p2b/1n1P4/4P3/PP5P/2KR2R1 b - - 2 24",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-33-after",
+   "fen": "1r3k2/Q4p2/2pq3N/4p3/1n1P4/4P3/PP5P/2Kb2R1 w - - 0 25",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-34-before",
+   "fen": "1r3k2/Q4p2/2pq3N/4p3/1n1P4/4P3/PP5P/2Kb1R2 b - - 1 25",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-34-after",
+   "fen": "1r3k2/Q4p2/2pq3N/8/1n1p4/4P3/PP5P/2Kb1R2 w - - 0 26",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-35-before",
+   "fen": "2r3k1/pq1nppbp/3p2p1/1N1P4/4P3/1Q6/PP1B1PPP/2R3K1 w - - 1 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-35-after",
+   "fen": "2r3k1/Nq1nppbp/3p2p1/3P4/4P3/1Q6/PP1B1PPP/2R3K1 b - - 0 22",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-36-before",
+   "fen": "1Q6/4ppkp/3p2p1/3Pb3/qP2P3/P2nB2P/4KPP1/8 b - - 2 30",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-36-after",
+   "fen": "1Q6/4ppkp/3p2p1/3Pb3/1P2P3/P2nB2P/2q1KPP1/8 w - - 3 31",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-37-before",
+   "fen": "8/4kp2/7R/1R6/3Pp1p1/4N1P1/5PKP/r7 w - - 3 38",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-37-after",
+   "fen": "8/4kp2/7R/4R3/3Pp1p1/4N1P1/5PKP/r7 b - - 4 38",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-38-before",
+   "fen": "2r5/3k4/1R5R/8/3P2p1/4N1P1/5PKP/8 w - - 5 44",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-38-after",
+   "fen": "2r5/3k4/1R5R/8/3P2N1/6P1/5PKP/8 b - - 0 44",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-39-before",
+   "fen": "8/3NR3/r4pkp/p7/1p3PP1/7P/8/6K1 b - - 0 36",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-39-after",
+   "fen": "8/3NR3/r4pkp/p7/5PP1/1p5P/8/6K1 w - - 0 37",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-40-before",
+   "fen": "rn2kbnr/1bQ2ppp/p3p3/8/2P5/2N1BN2/PP2PPPP/2KR1B1R b kq - 0 12",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-40-after",
+   "fen": "r3kbnr/1bQ2ppp/p1n1p3/8/2P5/2N1BN2/PP2PPPP/2KR1B1R w kq - 1 13",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-41-before",
+   "fen": "r3k1nr/3qbppp/ppb1p3/4P3/P1NP4/2P1BN2/5PPP/R2QR1K1 w kq - 1 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-41-after",
+   "fen": "r3k1nr/3qbppp/ppb1p3/4P3/P1NP4/1QP1BN2/5PPP/R3R1K1 b kq - 2 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-42-before",
+   "fen": "rn2k1nr/1b2qpp1/ppppp3/8/2PPP3/3Q1Pp1/PP2B1P1/RN2BRK1 w kq - 2 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-42-after",
+   "fen": "rn2k1nr/1b2qpp1/ppppp3/8/2PPPP2/3Q2p1/PP2B1P1/RN2BRK1 b kq - 0 16",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-43-before",
+   "fen": "r4k2/1b1nn2R/ppppppp1/8/2PPPP2/2N5/PP1BBKP1/7R b - - 6 26",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-43-after",
+   "fen": "r5k1/1b1nn2R/ppppppp1/8/2PPPP2/2N5/PP1BBKP1/7R w - - 7 27",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-44-before",
+   "fen": "r1b1r1k1/pp1n1p1p/2pb1PpB/3Np3/2B1P3/8/PPP3PP/3R1RK1 w - - 0 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-44-after",
+   "fen": "r1b1r1k1/pp1n1p1p/2pb1PpB/4p3/2B1P3/4N3/PPP3PP/3R1RK1 b - - 1 18",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-45-before",
+   "fen": "r2q1rk1/1pp1bppp/p3bn2/4p3/1n2P3/1PN2PP1/PB1PN2P/R2QKB1R w KQ - 1 12",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-45-after",
+   "fen": "r2q1rk1/1pp1bppp/p3bn2/4p3/1n2P3/PPN2PP1/1B1PN2P/R2QKB1R b KQ - 0 12",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-46-before",
+   "fen": "7Q/1p1q1kp1/3pRP1p/2pP2pP/2Pr2K1/p7/8/8 w - - 5 39",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-46-after",
+   "fen": "7Q/1p1q1kp1/3pRP1p/2pP1KpP/2Pr4/p7/8/8 b - - 6 39",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-47-before",
+   "fen": "r3k2r/p4p2/2p2p1p/4pb2/4N3/2PPbP2/PP4PP/R3K1NR w KQkq - 0 15",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-47-after",
+   "fen": "r3k2r/p4p2/2p2N1p/4pb2/8/2PPbP2/PP4PP/R3K1NR b KQkq - 0 15",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-48-before",
+   "fen": "4k1rr/3q4/P2p1p2/2pNp3/1P2P2n/2NP2P1/2P2P2/1R3RK1 w - - 1 28",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-48-after",
+   "fen": "4k1rr/3q4/P2p1p2/2PNp3/4P2n/2NP2P1/2P2P2/1R3RK1 b - - 0 28",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-49-before",
+   "fen": "3k1r2/1Qp1n3/p2pq3/3P1p1r/3NP1p1/7P/PP3P2/1K2RB2 w - - 2 29",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "bench-49-after",
+   "fen": "3k1r2/1Qp1n3/B2pq3/3P1p1r/3NP1p1/7P/PP3P2/1K2R3 b - - 0 29",
+   "source": "benchmarks/narrator/positions.json"
+  },
+  {
+   "id": "fixture-allowed_mate-00",
+   "fen": "3rk3/8/8/8/8/8/8/3QK3 w - - 0 1",
+   "source": "tests/fixtures/allowed_mate.json"
+  },
+  {
+   "id": "fixture-allowed_mate-01",
+   "fen": "8/8/8/8/8/1qk5/7P/K7 w - - 0 1",
+   "source": "tests/fixtures/allowed_mate.json"
+  },
+  {
+   "id": "fixture-allowed_mate-02",
+   "fen": "8/8/8/8/8/1qk5/8/KR6 w - - 0 1",
+   "source": "tests/fixtures/allowed_mate.json"
+  },
+  {
+   "id": "fixture-allowed_mate-03",
+   "fen": "8/8/8/8/3q4/2k5/8/K2R4 w - - 0 1",
+   "source": "tests/fixtures/allowed_mate.json"
+  },
+  {
+   "id": "fixture-allowed_mate-04",
+   "fen": "8/8/8/8/8/2kq4/8/K2R4 w - - 0 1",
+   "source": "tests/fixtures/allowed_mate.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-00",
+   "fen": "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-01",
+   "fen": "r2q1rk1/ppp2ppp/2n1bn2/2bpp3/4P3/2PP1N2/PP1NBPPP/R1BQ1RK1 b - - 0 8",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-02",
+   "fen": "r3k2r/pppq1ppp/2npbn2/4p3/2B1P3/2NP1N2/PPPQ1PPP/R3K2R w KQkq - 0 9",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-04",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-05",
+   "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-06",
+   "fen": "8/2k5/8/8/3K4/8/8/7q b - - 0 1",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-07",
+   "fen": "8/8/8/4k3/8/8/4P3/4K3 w - - 0 1",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-08",
+   "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-09",
+   "fen": "rnbqkbnr/ppp2ppp/8/3pp3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-10",
+   "fen": "7k/P7/8/8/8/8/8/7K w - - 0 1",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-analysis_board_lines-11",
+   "fen": "6rk/6pp/8/6N1/8/8/8/6K1 b - - 0 1",
+   "source": "tests/fixtures/analysis_board_lines.json"
+  },
+  {
+   "id": "fixture-hint_engine_recording-00",
+   "fen": "r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2QK2R w KQ - 0 8",
+   "source": "tests/fixtures/hint_engine_recording.json"
+  },
+  {
+   "id": "fixture-hint_engine_recording-01",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 2 3",
+   "source": "tests/fixtures/hint_engine_recording.json"
+  },
+  {
+   "id": "fixture-hint_engine_recording-02",
+   "fen": "r3k2r/ppp2ppp/2n5/3N4/8/8/PPP2PPP/R3K2R w KQkq - 0 1",
+   "source": "tests/fixtures/hint_engine_recording.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-00",
+   "fen": "k7/8/8/4n3/8/8/8/4Q2K w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-01",
+   "fen": "4k3/8/2n5/1B6/8/8/P6P/7K w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-02",
+   "fen": "4k3/8/8/7q/8/8/P7/6K1 w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-04",
+   "fen": "4k3/8/8/8/8/8/P7/4K3 w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-05",
+   "fen": "k5r1/8/8/7r/4N3/8/8/1K6 w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-06",
+   "fen": "4r1k1/8/8/8/8/8/8/K3Q3 w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-07",
+   "fen": "k7/8/8/7Q/8/8/8/7K w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-live_detector_corpus-08",
+   "fen": "k2q1r2/4b3/8/8/8/8/PP6/1K1Q1R2 w - - 0 1",
+   "source": "tests/fixtures/live_detector_corpus.json"
+  },
+  {
+   "id": "fixture-m47_source_multipv-00",
+   "fen": "r3kb1r/q1p1pp1p/ppn1b3/6pn/2p2P2/P1NPPQ2/1P4PP/R1B1KBNR b kq - 7 12",
+   "source": "tests/fixtures/m47_source_multipv.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-01",
+   "fen": "rnbqkbnr/p1ppp1pp/8/1B3p2/4P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 3",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-02",
+   "fen": "rnbqkbnr/p1pppppp/8/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 0 1",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-03",
+   "fen": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR w KQ - 3 5",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-04",
+   "fen": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3k4/8/PPPN1PPP/R3K1NR w KQ - 0 10",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-05",
+   "fen": "rnbq1bnr/p1pppkpp/8/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR b KQ - 2 4",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-06",
+   "fen": "rnbB1bnr/p1pp3p/8/1B2p1p1/2Qk4/8/PPPN1PPP/R3K1NR b KQ - 0 1",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-07",
+   "fen": "rnbq1bnr/p1ppp1pp/5k2/1B3P1Q/8/8/PPPP1PPP/RNB1K1NR w KQ - 0 1",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-08",
+   "fen": "8/6R1/8/4K3/5Qp1/6k1/8/8 b - - 2 79",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-09",
+   "fen": "rnbB1bnr/p1pp1Q1p/8/1B2p1p1/3k4/8/PPPN1PPP/R3K1NR w KQ - 0 1",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-10",
+   "fen": "rnbB1bnr/p1pp2pp/8/1B2pk1Q/3P4/8/PPP2PPP/RN2K1NR b KQ - 0 7",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_credit_cap_game-11",
+   "fen": "rnbqkbnr/p1ppp1pp/8/1B3p2/4P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 1",
+   "source": "tests/fixtures/m61_credit_cap_game.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-00",
+   "fen": "4k1r1/Q1p2p2/3pp2p/2r3p1/8/6P1/P2R1P1P/5RK1 w - - 1 27",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-02",
+   "fen": "r3k1r1/p1pp1pbp/2b1p2p/1Q6/2P5/2P4N/PP1N1PPP/R4RK1 w q - 2 16",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-03",
+   "fen": "rn1qkb1r/pbpppppp/1p5B/8/2B1P3/3P4/PPP2PPP/RN1QK1NR b KQkq - 0 4",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-04",
+   "fen": "Q5r1/2p1kp2/3pp2p/2r3p1/8/6P1/P2R1P1P/5RK1 w - - 3 28",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-05",
+   "fen": "5r1k/1p2rp2/p1nQ2p1/2p5/2P1P3/2K2P1B/PP6/7R b - - 2 32",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-06",
+   "fen": "3r3k/1p2rp2/p1nQ2p1/2p5/2P1P3/2K2P1B/PP6/7R w - - 3 33",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-07",
+   "fen": "r3k1r1/p1pp1pbp/2b1p2p/8/2P5/1QP4N/PP1N1PPP/R4RK1 b q - 3 16",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-08",
+   "fen": "4k1r1/Q1p2p2/3pp2p/1r4p1/8/6P1/P2R1P1P/5RK1 b - - 0 26",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-09",
+   "fen": "rn1qkb1r/pbpppppp/1p5n/8/2B1P3/3P4/PPP2PPP/RNBQK1NR w KQkq - 1 4",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-10",
+   "fen": "4rr1k/1p2Np2/p2p1np1/2p5/2P1P3/4KP1p/PP4q1/R2Q1B1R b - - 3 26",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-m61_positive_proofs-11",
+   "fen": "4rr1k/1p2Np2/p2p2p1/2p5/2P1P1n1/4KP1p/PP4q1/R2Q1B1R w - - 4 27",
+   "source": "tests/fixtures/m61_positive_proofs.json"
+  },
+  {
+   "id": "fixture-puzzles-00",
+   "fen": "8/pr6/3kp3/R2p1pp1/3P4/4PPP1/8/5K2 b - - 0 35",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-01",
+   "fen": "2r3k1/p4ppp/3r1n2/2b3B1/Q7/6P1/PPB1qP1P/R4RK1 w - - 7 24",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-02",
+   "fen": "4k3/5R2/p1p2K2/r4Ppp/6P1/7P/8/8 w - - 0 51",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-03",
+   "fen": "3r1rk1/pp3p1p/2npqp2/4pN2/4P3/2P3Q1/P4PPP/R4RK1 b - - 6 17",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-04",
+   "fen": "2r2rk1/pp3ppp/2n5/q2p4/3Pn3/P1P2B2/2QB1PPP/R1R3K1 b - - 0 16",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-05",
+   "fen": "8/8/6p1/7p/p2k3P/P4pP1/1PK2P2/8 w - - 6 64",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-06",
+   "fen": "r7/pp1Qp1B1/8/3kb3/4q3/8/PP3PP1/5K2 b - - 4 34",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-07",
+   "fen": "4kr2/p3n3/2p4Q/2PpP1N1/2pB1p2/q1P5/1r3PPP/1R4K1 w - - 0 29",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-08",
+   "fen": "2kr3r/p1p2pp1/3b1n1p/1B2p3/3n2b1/2NPB3/PPPN1P1P/R3KR2 w Q - 2 15",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-09",
+   "fen": "4rrk1/pbp3pp/3q4/2P2p2/5b2/P1Q2N1P/6PN/R4R1K b - - 0 27",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-10",
+   "fen": "8/2kn1p2/8/3P4/R7/2P1N3/1r2K3/8 w - - 13 70",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-puzzles-11",
+   "fen": "rqr5/5ppk/p3p2p/8/4N2P/2n1BB2/PP3PP1/R3K2R w KQ - 0 21",
+   "source": "tests/fixtures/m77/puzzles.csv"
+  },
+  {
+   "id": "fixture-recorded-source-v3-00",
+   "fen": "1r4k1/p4ppp/4p3/p5n1/4P3/1P1N1PPq/QB3b1P/R5K1 w - - 0 30",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-01",
+   "fen": "r6k/pp1b2p1/3p2rp/6q1/2Q2p2/1P3P1P/PBP1R1P1/4R1K1 b - - 1 24",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-02",
+   "fen": "8/5k1R/5p2/2K2Npp/4P3/5P2/8/3r2n1 b - - 3 57",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-03",
+   "fen": "8/p2Q1p2/1p3p1p/2b1k3/5P2/8/PPBr1q1P/R6K b - - 0 31",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-04",
+   "fen": "2r1r3/5R2/p7/6P1/5P2/PB3bR1/1PP2k1P/2K5 w - - 1 35",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-05",
+   "fen": "r1b5/ppp3pp/3k4/4p2Q/1q5P/3B4/P2KR3/4R3 w - - 9 30",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-06",
+   "fen": "6R1/r7/3p4/6p1/4Pp2/5P2/5kPK/8 w - - 0 48",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-07",
+   "fen": "4nrk1/2pR2pp/5p2/p7/P5QP/1q6/1B4P1/1K6 b - - 1 27",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-08",
+   "fen": "5rk1/5pp1/p1r1p1bp/BpnpP3/8/P1P2P2/1P4PP/2KR1B1R w - - 0 21",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-09",
+   "fen": "2kr2r1/p4p2/1p5p/2p1Pp1P/2Pp1P1Q/3P1q2/PP6/1K1R2R1 w - - 1 28",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-10",
+   "fen": "8/3pk3/R7/1R2Pp1p/2PPnKr1/8/8/8 w - - 4 43",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-recorded-source-v3-11",
+   "fen": "2r4k/pb4pp/1p6/3pP3/3Pn3/2PBq1NQ/PP5P/5R1K b - - 4 23",
+   "source": "tests/fixtures/m77/recorded-source-v3.json"
+  },
+  {
+   "id": "fixture-synthetic_cases-00",
+   "fen": "3r2k1/5ppp/8/8/8/4Q3/4R3/6K1 w - - 0 1",
+   "source": "tests/fixtures/m94/synthetic_cases.json"
+  },
+  {
+   "id": "fixture-synthetic_cases-01",
+   "fen": "q7/6k1/8/8/8/8/B7/R5K1 w - - 0 1",
+   "source": "tests/fixtures/m94/synthetic_cases.json"
+  },
+  {
+   "id": "fixture-synthetic_cases-02",
+   "fen": "k7/1p6/2N5/8/8/8/B7/R5K1 w - - 0 1",
+   "source": "tests/fixtures/m94/synthetic_cases.json"
+  },
+  {
+   "id": "fixture-synthetic_cases-03",
+   "fen": "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1",
+   "source": "tests/fixtures/m94/synthetic_cases.json"
+  },
+  {
+   "id": "fixture-synthetic_cases-04",
+   "fen": "4k2q/8/8/8/8/8/8/RK6 w - - 0 1",
+   "source": "tests/fixtures/m94/synthetic_cases.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-00",
+   "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-01",
+   "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-02",
+   "fen": "rnbqkbnr/pppp1ppp/4p3/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-03",
+   "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-04",
+   "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-06",
+   "fen": "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-07",
+   "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-08",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-09",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-10",
+   "fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-maia_human_1500-11",
+   "fen": "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+   "source": "tests/fixtures/maia_human_1500.json"
+  },
+  {
+   "id": "fixture-expected-00",
+   "fen": "2k2b1r/q1p1p3/1p6/1p3p1n/2b5/P2n2P1/1P1BK2P/R5NR b - - 3 29",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-01",
+   "fen": "2k2b2/2p1p3/1p4q1/1p3K2/2b2n2/P7/1P5P/R5NR w - - 4 36",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-02",
+   "fen": "2k2b1r/q1p1p3/1p6/1p3p2/2b5/P2n2n1/1P1BK2P/R5NR w - - 0 30",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-03",
+   "fen": "r1bqkb1r/ppp1pp1p/3p1np1/4n3/3P1B2/4P3/PPP1BPPP/RN1QK2R b KQkq - 1 6",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-04",
+   "fen": "2kr1b1r/1qpbpp1p/ppn5/6Pn/2P5/P1N1P3/1P4PP/R1B1KBNR w - - 1 16",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-05",
+   "fen": "rnb1kb1r/1pp1pppp/p4n2/7Q/2pq1P2/P2PP3/1P4PP/RNB1KBNR b KQkq - 1 6",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-06",
+   "fen": "rnb1kb1r/ppp1pppp/5n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR b KQkq - 0 5",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-07",
+   "fen": "2k2b2/1qp1p3/1p6/1p6/2b2B2/P2n3K/1P5P/R5NR b - - 0 33",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-08",
+   "fen": "rnb1kb1r/1pp1pppp/p4n2/8/2pq1P2/P2PP3/1P4PP/RNBQKBNR w KQkq - 0 6",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-09",
+   "fen": "r1bqkb1r/ppp1pppp/3p1n2/4n3/3P1B2/8/PPP1PPPP/RN1QKB1R w KQkq - 2 5",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-10",
+   "fen": "r1bqk2r/ppp1ppbp/3p1np1/4n3/3PP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 2 7",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "fixture-expected-11",
+   "fen": "2k2b1r/q1p1p3/1p6/1p2np1n/2b5/P5P1/1P5P/R1B1K1NR w - - 0 28",
+   "source": "tests/fixtures/v0_9_0/expected.json"
+  },
+  {
+   "id": "pgn-opening-00",
+   "fen": "r1bq1rk1/1pp2ppp/p1nb1n2/8/8/P1N1PN2/1PP2PPP/R1BQKB1R w KQ - 0 8",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-00",
+   "fen": "6k1/1p3p2/p1p4p/2q2b2/8/P4B2/1P1Q1PP1/7K w - - 0 29",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-00",
+   "fen": "8/5pk1/Q5b1/1p6/7q/8/5PP1/6K1 b - - 2 40",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-01",
+   "fen": "rnb1kbnr/ppp2ppp/8/3pp1q1/8/1P2P1P1/PBPP1P1P/RN1QKBNR b KQkq - 0 4",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-01",
+   "fen": "r4rk1/ppp2ppp/2n2n2/B3p1q1/3p4/1P2P1PB/P2PKPQP/RN5R b - - 1 12",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-01",
+   "fen": "4r2k/2Q2R2/6p1/7p/2B5/1P4K1/P6P/1N6 b - - 0 37",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-02",
+   "fen": "rnbqkbnr/ppp2ppp/8/4p3/3pP3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 0 4",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-02",
+   "fen": "r3k1nr/p5pp/n1N5/1pp1Nb2/1b2pP2/1B6/PPPP2PP/R1B1K2R b KQkq - 1 15",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-02",
+   "fen": "6k1/4K2q/8/8/8/5r2/8/8 w - - 0 49",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-03",
+   "fen": "r1bqkb1r/ppppn1pp/2n2p2/4p3/2BPP3/5N2/PPP2PPP/RNBQK2R w KQkq - 1 5",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-03",
+   "fen": "1kbr3r/p1p1q2p/1p1p1p2/PP1P1P1p/2PQPb2/2N4P/4B1P1/R3R1K1 w - - 1 22",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-04",
+   "fen": "rnbqkbnr/pppp4/4p3/5p2/6Pp/1PPPP1P1/P6P/RNBQKBNR b KQkq - 0 7",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-04",
+   "fen": "rnbqkbnr/pp6/2ppp1Q1/4N3/8/1PPPP1Pp/P6P/RNB1KB1R b KQkq - 1 11",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-05",
+   "fen": "r1bqkbnr/ppp2ppp/2np4/4p3/4P3/N1P2P1N/PP4PP/R1BQKB1R b KQkq - 2 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-05",
+   "fen": "r4rk1/1pp2pp1/p2p1q1p/4n3/2NQP1Bb/2P1R2P/PP3pRP/5K2 b - - 1 23",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-06",
+   "fen": "r1b1kb1r/p1pp1p1p/2p2np1/4N3/4P3/8/PPPP1PPP/RNB1K2R w KQkq - 1 8",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-06",
+   "fen": "r1b4r/p1p2p1p/3pknp1/3N4/4P3/8/PPPP1PPP/R1B1K2R w KQ - 2 12",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-07",
+   "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/4PP2/5N2/PPPP2PP/RNBQKB1R b KQkq - 1 3",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-07",
+   "fen": "2krr3/pp1nb2p/2p2q2/3p2p1/3P1p2/2BR1N1P/PPP1Q1P1/2K1R3 w - - 3 19",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-08",
+   "fen": "r2qk2r/ppp2ppp/2np1b2/4p3/4P1b1/3P1N2/PPP1BPPP/RN1Q1RK1 w kq - 0 8",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-08",
+   "fen": "r2qk2r/ppp2ppp/3p1b2/4p3/4P3/2PP1Q1P/PP3PP1/RN3RK1 b kq - 0 11",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-09",
+   "fen": "r3k2r/pp2bppp/1q1pbn2/2p1p3/2PnP3/P1NP1N1P/1P1BBPP1/1R1QK2R w Kkq - 5 11",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-09",
+   "fen": "r3r3/2qk3p/Rp1p3b/1PpP1bp1/2Pp1p2/3P1B1P/2QB1PP1/5RK1 w - - 4 28",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-10",
+   "fen": "rnbqkb1r/p4ppp/1pp1pn2/2Pp4/3P4/2N4P/PP2PPP1/R1BQKBNR w KQkq - 0 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-10",
+   "fen": "r1b1kb1r/p2n1pp1/q1p1p2p/2Pp4/3Pn3/P1N1P2P/3B1PP1/R2QKBNR w KQkq - 1 12",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-11",
+   "fen": "rnbqkb1r/1pp1ppp1/p4n1p/3p4/3P1B2/2N2N2/PPP1PPPP/R2QKB1R w KQkq - 0 5",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-11",
+   "fen": "r2qkb1r/1pp2ppB/p1n1pn1p/3p4/3P1BP1/2N1PN1P/PPP1QP2/R3K2R b KQkq - 0 11",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-12",
+   "fen": "rn1qkb1r/ppp1ppp1/4bB1p/2Pp4/3P4/8/PP2PPPP/RN1QKBNR b KQkq - 0 5",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-12",
+   "fen": "r7/p4kp1/q1p2r2/2Pp1Npp/3P4/P3P3/3Q1PPP/R4RK1 b - - 0 22",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-03",
+   "fen": "6k1/5rp1/8/2q5/6p1/6P1/Q4P1P/4R1K1 w - - 0 40",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-13",
+   "fen": "r1bqkbnr/pppp1ppp/8/4n3/4P3/8/PPP2PPP/RNBQKBNR w KQkq - 0 4",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-13",
+   "fen": "4r1k1/1pp2ppp/p7/8/2P3n1/PP1B1bPP/5P2/5RK1 b - - 0 21",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-04",
+   "fen": "8/7k/p6P/1p4PK/1Pb5/8/8/8 b - - 0 52",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-14",
+   "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq - 5 4",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-14",
+   "fen": "r3k2r/ppp2ppp/3b4/3R4/2P1Pp2/5n2/PPP2PKP/5R2 b kq - 5 18",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-15",
+   "fen": "r1bqk1nr/ppp2ppp/2np4/2b5/2BPP3/5N2/PP3PPP/RNBQK2R b KQkq - 0 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-15",
+   "fen": "r2q1rk1/1p3p2/p1p4p/3P1bp1/2B5/2N2N1P/PP3KP1/R2Q4 w - - 0 21",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-05",
+   "fen": "4k1r1/5p2/p2Q4/8/8/2N4P/Pq4P1/3R3K w - - 2 44",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-16",
+   "fen": "r1b1k2r/pp1nbppp/4p3/qPp5/P1B1n3/4PN2/3P1PPP/RNBQ1RK1 w kq - 3 10",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-16",
+   "fen": "r1b2rk1/pp3ppp/8/1Pp1p3/PqP1PP1b/7R/4Q1P1/1NB2RK1 b - - 2 18",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-17",
+   "fen": "r1b1kb1r/ppp2ppp/2n5/3qp3/8/1P3N2/PBPP1PPP/R2QKB1R b KQkq - 3 7",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-17",
+   "fen": "3rr1k1/5pp1/3p2bp/p3p3/P2p4/1P3R2/1B3PPP/4R1K1 b - - 1 25",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-06",
+   "fen": "8/8/5p2/P3kPp1/1R1p2P1/1P6/4K3/2r5 w - - 1 49",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-18",
+   "fen": "r1bqkb1r/2pp1ppp/p4n1n/4P3/3P4/7P/PPP2PP1/RNBQK2R w KQkq - 0 9",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-18",
+   "fen": "2kr1b1r/1bp2ppp/p3p3/8/3P4/2N4P/PPP2PP1/R4RK1 w - - 4 15",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-19",
+   "fen": "r3kbnr/ppp2pp1/3p4/4p3/2BNPPpq/8/PPPP2P1/RNBQ1RK1 w kq - 1 9",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-19",
+   "fen": "2k5/pp4b1/2pprNr1/6p1/3BP1R1/3P4/PPP1K1P1/5R2 w - - 6 25",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-20",
+   "fen": "r1bqk2r/ppp2ppp/2np4/3N4/1b2P3/4Q3/PPPB1PPP/R3KB1R b KQkq - 1 9",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-20",
+   "fen": "r4rk1/ppp2pp1/3p1q1p/3P4/2R5/3B3Q/PPP2PPP/2K4R b - - 1 18",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-21",
+   "fen": "r3k1nr/pp1b1ppp/1qN1p3/1B1pP3/8/2N1b3/PPP2PPP/R2QK2R w KQkq - 0 10",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-21",
+   "fen": "r7/p3k1pp/4b3/R3p3/2r5/2PK4/6PP/8 b - - 1 27",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-07",
+   "fen": "r7/p5pp/2r2k2/8/1K6/2P1p3/b5PP/8 w - - 0 32",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-22",
+   "fen": "rn1qkb1r/ppp1pppp/5n2/8/2pPP3/5Q1P/PP3PP1/RNB1KB1R b KQkq - 0 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-22",
+   "fen": "rn2k2r/p1p2ppp/2q1p3/8/1ppB4/b1P2PPP/P1K1Q3/3R1B1R b kq - 0 15",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-23",
+   "fen": "2kr3r/ppp1qpbp/2np4/8/8/2P1PP2/PP1NBP1P/R1B1K1NR b KQ - 4 10",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-23",
+   "fen": "2kr3r/p1p1q1b1/1pn5/3p1p1p/3N1P2/P1P1P3/1P1NBP1P/R1B1K2R b KQ - 1 14",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-24",
+   "fen": "rn1qkb1r/ppp2ppp/3p1n2/4p3/2B1P3/2N2Q1P/PPPP1PP1/R1B1K2R b KQkq - 0 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-24",
+   "fen": "rn3rk1/pp2bppp/3p1n2/qP2p3/4P3/2NPB2P/B1P2PP1/1R1QK2R w K - 3 18",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-08",
+   "fen": "6k1/3R2P1/1p1p4/4p3/4P3/3P4/3K1n2/8 w - - 1 51",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-25",
+   "fen": "rn1qkb1r/pp1bpppp/3p1n2/2p5/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-25",
+   "fen": "r2qk2r/3nppbp/3p1np1/1BpP4/4P3/5Q1P/PPP2PP1/R1B2RK1 b kq - 0 13",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-26",
+   "fen": "r1bqkb1r/ppp2ppp/2n5/1B1N4/4n3/8/PPP2PPP/R1BQK1NR b KQkq - 1 7",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-26",
+   "fen": "r2q1b1r/2Nbkppp/p7/2Q5/2P5/8/PP3PPP/R1B1K1NR b KQ - 0 13",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-27",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/3Pp3/4P3/8/PPP2PPP/RNBQKBNR b KQkq - 0 3",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-27",
+   "fen": "r3k2r/pppq1pBp/3p4/3P3n/2P1P3/P4N2/2P2P2/R2Q1BK1 b kq - 0 17",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-28",
+   "fen": "rnbqk2r/pppp1ppp/5n2/2b1p3/8/4PQ1N/PPPP1PPP/RNB1KB1R w KQkq - 4 4",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-28",
+   "fen": "r2qr1k1/pp3ppN/2p5/2bp4/5P1P/2NB4/PPKP2P1/1RB4n b - - 0 18",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-opening-29",
+   "fen": "r1bqkb1r/1ppp1ppp/p1n2n2/8/4P3/2N1Q3/PPP2PPP/R1B1KBNR w KQkq - 0 6",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-middlegame-29",
+   "fen": "r4rk1/1bp2pp1/p1np1q1p/1p1B4/4P3/2P1QPPN/P1P4P/3RK2R b K - 3 17",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-09",
+   "fen": "8/8/p7/4rkp1/2p5/P1Rb2KP/8/8 b - - 1 47",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-10",
+   "fen": "8/N3kpp1/7p/8/2P3P1/4P2P/5P2/6K1 b - - 0 39",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-11",
+   "fen": "R7/4kp2/P7/2pn3p/r7/3P4/1KP5/8 w - - 3 35",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-12",
+   "fen": "5k2/R4P2/4P3/8/1P4P1/2P3P1/2P5/4R1K1 w - - 1 55",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-13",
+   "fen": "8/7p/5k2/4p2p/8/6K1/8/2b5 b - - 1 51",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-14",
+   "fen": "8/4kp1P/8/4KP2/8/8/1p6/8 b - - 0 52",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-15",
+   "fen": "8/8/5k2/2R5/4K3/3P1p1P/8/8 w - - 0 46",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-16",
+   "fen": "8/8/8/8/6Kp/7P/6k1/8 w - - 0 50",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-17",
+   "fen": "4r2r/p7/bp6/k2R4/8/8/6PP/6K1 b - - 2 33",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-18",
+   "fen": "8/1k6/8/3KB3/4B1PP/8/5P2/8 w - - 1 62",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-19",
+   "fen": "5BBQ/8/8/p1bpp3/4k3/6P1/KN6/8 w - - 0 50",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-20",
+   "fen": "8/7p/4r3/2r2p2/5P2/1k4K1/p6P/R7 b - - 3 49",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-21",
+   "fen": "R7/2p5/p3np2/2Pp1k2/4p3/4P1r1/3K4/8 b - - 7 40",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-22",
+   "fen": "8/1R4p1/p2bk3/3r4/6Q1/2P3P1/5pK1/2q5 b - - 7 47",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-23",
+   "fen": "8/2R5/2P3k1/8/2bBP2P/5PK1/6P1/2r5 w - - 3 43",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-24",
+   "fen": "8/8/5k2/7R/4Q3/8/5PP1/6K1 b - - 4 48",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-25",
+   "fen": "6Q1/8/8/3k4/8/4K3/1pp5/1R6 b - - 0 46",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-26",
+   "fen": "8/8/2k2KNp/pP3P2/4P1PP/1PP5/8/8 b - - 0 43",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-27",
+   "fen": "8/5pkp/6p1/p7/8/3K2P1/P2R1P1P/4r3 w - - 1 34",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-28",
+   "fen": "7R/2q1kp2/p1Pb4/8/8/8/PP2Q3/2R4K b - - 0 40",
+   "source": "tests/fixtures/m48 real games"
+  },
+  {
+   "id": "pgn-endgame-29",
+   "fen": "8/8/8/pB1P4/P3P3/k7/2Q2K2/8 b - - 1 54",
+   "source": "tests/fixtures/m48 real games"
+  }
+ ]
+}
