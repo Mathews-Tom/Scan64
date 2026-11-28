@@ -68,7 +68,14 @@ FACTOR_TOPICS = {
     "Space": "activity",
 }
 # Root-cause themes (#400) that state a learner weakness of a claim topic.
-THEME_TOPICS = {"unsafe_king": "king", "passive_pieces": "activity"}
+THEME_TOPICS = {
+    "unsafe_king": "king",
+    "passive_pieces": "activity",
+    # Variant themes (#402) that state a weak learner king.
+    "king_drop_squares": "king",
+    "check_exposure": "king",
+    "explosion_threats": "king",
+}
 _GROUP_OF_PART = dict(PARTS)
 
 
