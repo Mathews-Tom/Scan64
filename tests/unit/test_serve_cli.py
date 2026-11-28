@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -8,6 +9,12 @@ import uvicorn
 from scan64.api.web import web_dist_directory
 from scan64.cli.main import main
 from scan64.cli.serve import _run_server, serve_command
+from scan64.providers.engine.config import (
+    ENGINE_CONFIG_ENV,
+    LADDER_ENGINE_CONFIG_ENV,
+    STOCKFISH_PATH_ENV,
+)
+from scan64.providers.engine.install_defaults import BUNDLED_ENGINES_DIR_ENV
 
 
 def test_serve_dispatch_uses_loopback_and_opens_browser(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -35,8 +42,90 @@ def test_serve_rejects_invalid_ports(monkeypatch: pytest.MonkeyPatch, port: str)
 
 
 def test_missing_stockfish_exits_with_actionable_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(ENGINE_CONFIG_ENV, raising=False)
+    monkeypatch.delenv(STOCKFISH_PATH_ENV, raising=False)
     monkeypatch.setenv("PATH", "")
     with pytest.raises(SystemExit, match="stockfish.*PATH"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+
+
+def executable(path: Path) -> Path:
+    path.write_text("#!/bin/sh\n", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+POSIX_EXECUTABLE = pytest.mark.skipif(
+    sys.platform == "win32", reason="the test binaries use the POSIX executable bit"
+)
+
+
+def no_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The engine check passes when serve reaches the web client check."""
+    monkeypatch.setenv("SCAN64_WEB_DIST", str(tmp_path / "no-client"))
+
+
+@POSIX_EXECUTABLE
+def test_default_profile_checks_stockfish_on_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv(ENGINE_CONFIG_ENV, raising=False)
+    monkeypatch.delenv(STOCKFISH_PATH_ENV, raising=False)
+    executable(tmp_path / "stockfish")
+    monkeypatch.setenv("PATH", str(tmp_path))
+    no_client(monkeypatch, tmp_path)
+    with pytest.raises(SystemExit, match="pnpm.*build"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+
+
+@POSIX_EXECUTABLE
+def test_stockfish_path_replaces_the_path_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv(ENGINE_CONFIG_ENV, raising=False)
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setenv(STOCKFISH_PATH_ENV, str(executable(tmp_path / "sf18")))
+    no_client(monkeypatch, tmp_path)
+    with pytest.raises(SystemExit, match="pnpm.*build"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    monkeypatch.setenv(STOCKFISH_PATH_ENV, str(tmp_path / "missing"))
+    with pytest.raises(SystemExit, match=f"{STOCKFISH_PATH_ENV}=.*missing"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+
+
+@POSIX_EXECUTABLE
+def test_non_stockfish_profile_does_not_need_stockfish(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary = executable(tmp_path / "ethereal")
+    profile = tmp_path / "engine.toml"
+    profile.write_text(f"[engine]\nname = \"ethereal\"\nbinary_path = '{binary}'\n")
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
+    monkeypatch.setenv("PATH", "")
+    no_client(monkeypatch, tmp_path)
+    with pytest.raises(SystemExit, match="pnpm.*build"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+
+
+def test_missing_profile_binary_names_the_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = tmp_path / "engine.toml"
+    profile.write_text('[engine]\nname = "ethereal"\nbinary_path = "ethereal-missing"\n')
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit) as error:
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    message = str(error.value)
+    assert str(profile) in message and "(ethereal)" in message
+    assert "ethereal-missing" in message and "Stockfish" not in message
+
+
+def test_invalid_profile_exits_with_configuration_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(tmp_path / "absent.toml"))
+    with pytest.raises(SystemExit, match="Engine configuration is invalid: .*absent.toml"):
         serve_command("127.0.0.1", 8001, open_browser=False)
 
 
@@ -113,3 +202,40 @@ def test_browser_uses_reachable_loopback_address(
     assert server.config.host == host
     assert url == f"http://{browser_host}:8001"
     assert open_browser is True
+
+
+def test_missing_ladder_profile_binary_names_the_ladder_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analysis = tmp_path / "engine.toml"
+    analysis.write_text('[engine]\nname = "ethereal"\nbinary_path = "ethereal-missing"\n')
+    ladder = tmp_path / "ladder.toml"
+    ladder.write_text('[engine]\nname = "arasan"\nbinary_path = "arasan-missing"\n')
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis))
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder))
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit) as error:
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    message = str(error.value)
+    assert message.startswith(f"The ladder engine profile {ladder} (arasan) needs arasan-missing")
+
+
+def test_a_fresh_packaged_install_checks_the_bundled_engines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The image's bundled profiles, with binaries that are not there (#396).
+    bundled = tmp_path / "engines"
+    bundled.mkdir()
+    for name in ("caissa", "arasan"):
+        (bundled / f"{name}.toml").write_text(
+            f'[engine]\nname = "{name}"\nbinary_path = "{name}-missing"\n'
+        )
+    # Empty means unset; monkeypatch restores what serve selects in os.environ.
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, "")
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, "")
+    monkeypatch.setenv(BUNDLED_ENGINES_DIR_ENV, str(bundled))
+    monkeypatch.setenv("SCAN64_DATABASE_URL", f"sqlite:///{(tmp_path / 'scan64.db').as_posix()}")
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit, match=r"arasan\.toml \(arasan\) needs arasan-missing"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    assert 'engines = "bundled"' in (tmp_path / "scan64.db.engines.toml").read_text()

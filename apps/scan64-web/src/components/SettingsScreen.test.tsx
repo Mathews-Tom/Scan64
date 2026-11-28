@@ -100,35 +100,126 @@ describe('Settings', () => {
   });
 });
 
+const lastPieceSet = PIECE_SET_OPTIONS[PIECE_SET_OPTIONS.length - 1];
+const lastBoardTheme = BOARD_THEME_OPTIONS[BOARD_THEME_OPTIONS.length - 1];
+const MATERIAL_BOARDS = BOARD_THEME_OPTIONS.filter((option) => option.material !== 'flat');
+
+describe('Staunton piece sets', () => {
+  it('groups Staunton-pattern sets apart from other designs and defaults to Staunton (cburnett)', () => {
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    const pieceSets = screen.getByRole('group', { name: 'Piece set' });
+    const staunton = within(pieceSets).getByRole('group', { name: 'Staunton pattern' });
+    const other = within(pieceSets).getByRole('group', { name: 'Other designs' });
+    expect(within(staunton).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual([
+      'cburnett', 'merida', 'chessnut', 'california', 'maestro', 'staunty', 'mpchess', 'sophia',
+    ]);
+    expect(within(other).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['spatial', 'firi']);
+    expect(within(staunton).getByRole('radio', { name: 'Staunton (cburnett)' })).toBeChecked();
+    expect(document.documentElement.dataset.pieceSet).toBe('cburnett');
+    const names = new Set(within(pieceSets).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).name));
+    expect(names.size).toBe(1);
+  });
+
+  it('switches between groups with one selection', () => {
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Spatial' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'mpchess' }));
+    const pieceSets = screen.getByRole('group', { name: 'Piece set' });
+    expect(within(pieceSets).getAllByRole('radio', { checked: true })).toEqual([screen.getByRole('radio', { name: 'mpchess' })]);
+    expect(localStorage.getItem('scan64-piece-set')).toBe('mpchess');
+  });
+
+  it.each(PIECE_SET_OPTIONS.map(({ value, label }) => [value, label] as const))('keeps a saved %s choice at startup', (value, label) => {
+    localStorage.setItem('scan64-piece-set', value);
+    expect(initializeBoardAppearance().pieceSet).toBe(value);
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+  });
+});
+
+describe('Material boards', () => {
+  it('groups flat palettes, wood and stone boards and keeps Brown and cream as the default', () => {
+    initializeBoardAppearance();
+    render(<SettingsScreen />);
+    const boards = screen.getByRole('group', { name: 'Board palette' });
+    const groups = ['Flat colours', 'Wood', 'Stone'] as const;
+    const radios = Object.fromEntries(groups.map((name) => [name, within(within(boards).getByRole('group', { name })).getAllByRole('radio').map((radio) => radio.closest('label')?.textContent)]));
+    expect(radios['Flat colours']).toEqual(['Brown and cream', 'Green and buff', 'Classic brown', 'Classic green', 'Walnut', 'Sand', 'Slate', 'Sage', 'Graphite']);
+    expect(radios.Wood).toEqual(['Walnut and maple', 'Rosewood and boxwood', 'Mahogany and maple', 'Ebony and boxwood']);
+    expect(radios.Stone).toEqual(['White and black marble', 'Grey and blue granite']);
+    expect(within(boards).getByRole('radio', { name: 'Brown and cream' })).toBeChecked();
+    expect(within(boards).getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked)).toHaveLength(1);
+    expect(document.documentElement.dataset.boardTheme).toBe('brown');
+  });
+
+  it('moves one selection across the flat, wood and stone groups', () => {
+    render(<SettingsScreen />);
+    for (const label of ['Ebony and boxwood', 'Grey and blue granite', 'Sage', 'Walnut and maple']) {
+      fireEvent.click(screen.getByRole('radio', { name: label }));
+      const checked = within(screen.getByRole('group', { name: 'Board palette' })).getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked);
+      expect(checked.map((radio) => radio.closest('label')?.textContent)).toEqual([label]);
+    }
+    expect(localStorage.getItem('scan64-board-theme')).toBe('walnut-maple');
+  });
+
+  it.each(MATERIAL_BOARDS.map(({ value, label }) => [value, label] as const))('saves %s and restores it at startup', (value, label) => {
+    const view = render(<SettingsScreen />);
+    fireEvent.click(screen.getByRole('radio', { name: label }));
+    expect(localStorage.getItem('scan64-board-theme')).toBe(value);
+    expect(document.documentElement.dataset.boardTheme).toBe(value);
+    view.unmount();
+    delete document.documentElement.dataset.boardTheme;
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'cburnett', boardTheme: value });
+    render(<SettingsScreen />);
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+  });
+
+  it('keeps earlier saved palettes unchanged', () => {
+    for (const { value, label } of BOARD_THEME_OPTIONS.filter((option) => option.material === 'flat')) {
+      localStorage.setItem('scan64-board-theme', value);
+      expect(initializeBoardAppearance().boardTheme).toBe(value);
+      const view = render(<SettingsScreen />);
+      expect(screen.getByRole('radio', { name: label })).toBeChecked();
+      view.unmount();
+    }
+  });
+});
+
 describe('Independent board preferences', () => {
   it('persists every piece set and palette without changing the app appearance', () => {
     localStorage.setItem('scan64-appearance', 'dark');
     initializeAppearance();
     const view = render(<SettingsScreen />);
+    // The loops find each radio by its value: 40 accessible-name queries over the whole
+    // screen took 1.3-6 s of vitest's 5 s budget. Names are checked by getByRole below.
+    const radio = (group: string, value: string) =>
+      view.container.querySelector<HTMLInputElement>(`.${group} input[type="radio"][value="${value}"]`)!;
     fireEvent.click(screen.getByRole('radio', { name: 'Firi' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Green and buff' }));
-    for (const { value: pieceSet, label } of PIECE_SET_OPTIONS) {
-      fireEvent.click(screen.getByRole('radio', { name: label }));
+    for (const { value: pieceSet } of PIECE_SET_OPTIONS) {
+      fireEvent.click(radio('settings-piece-sets', pieceSet));
       expect(localStorage.getItem('scan64-piece-set')).toBe(pieceSet);
       expect(document.documentElement.dataset.pieceSet).toBe(pieceSet);
       expect(document.documentElement.dataset.boardTheme).toBe('green');
       expect(document.documentElement.dataset.appearance).toBe('dark');
     }
-    for (const { value: boardTheme, label: boardLabel } of BOARD_THEME_OPTIONS) {
-      fireEvent.click(screen.getByRole('radio', { name: boardLabel }));
+    for (const { value: boardTheme } of BOARD_THEME_OPTIONS) {
+      fireEvent.click(radio('settings-board-themes', boardTheme));
       expect(localStorage.getItem('scan64-board-theme')).toBe(boardTheme);
       expect(document.documentElement.dataset.boardTheme).toBe(boardTheme);
-      expect(document.documentElement.dataset.pieceSet).toBe('staunty');
+      expect(document.documentElement.dataset.pieceSet).toBe(lastPieceSet.value);
       expect(document.documentElement.dataset.appearance).toBe('dark');
     }
     fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
-    expect(document.documentElement.dataset.pieceSet).toBe('staunty');
-    expect(document.documentElement.dataset.boardTheme).toBe('graphite');
+    expect(document.documentElement.dataset.pieceSet).toBe(lastPieceSet.value);
+    expect(document.documentElement.dataset.boardTheme).toBe(lastBoardTheme.value);
     view.unmount();
-    expect(initializeBoardAppearance()).toEqual({ pieceSet: 'staunty', boardTheme: 'graphite' });
+    expect(initializeBoardAppearance()).toEqual({ pieceSet: lastPieceSet.value, boardTheme: lastBoardTheme.value });
     render(<SettingsScreen />);
-    expect(screen.getByRole('radio', { name: 'Staunty (non-commercial)' })).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'Graphite' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: lastPieceSet.label })).toBeChecked();
+    expect(screen.getByRole('radio', { name: lastBoardTheme.label })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
   });
 

@@ -1,0 +1,18 @@
+# Arasan 26.1 (MIT) as the bot-ladder engine (#396). Arasan has no Skill Level
+# and ignores `go nodes`, so the ladder uses its UCI_LimitStrength/UCI_Elo
+# (declared 1000-3450) with a fixed move time. The eight values are the
+# UCI_Elo sent for levels 1-8, not measured playing strength; the measured
+# strength of each level is recorded in docs/engines.md.
+# Select for bot moves only with SCAN64_LADDER_ENGINE_CONFIG=<absolute path to
+# this file>; SCAN64_ENGINE_CONFIG selects it for analysis too.
+[engine]
+name = "arasan"
+binary_path = "~/.local/opt/engines/arasan/arasanx-64"
+
+[engine.options]
+OwnBook = false
+
+[ladder]
+strength = "elo"
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]
+movetime_ms = 500

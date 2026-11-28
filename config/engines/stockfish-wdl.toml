@@ -1,0 +1,17 @@
+# Stockfish 18 with win/draw/loss output on every stored line.
+# UCI_ShowWDL becomes part of the engine identity, so rows from this profile
+# never reuse rows from the default (WDL-free) Stockfish setup.
+[engine]
+name = "stockfish-wdl"
+binary_path = "stockfish"
+threads = 1
+hash_mb = 16
+
+[engine.options]
+UCI_ShowWDL = true
+
+# Optional per-use override of the built-in hint budget (200k nodes, 1.5 s, 4 lines).
+# [limits.hint]
+# nodes = 200000
+# time_ms = 1500
+# multipv = 4

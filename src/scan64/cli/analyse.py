@@ -43,7 +43,8 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
 
     print(f"Analysing {len(files)} files...")
 
-    adapter = StockfishAdapter(StockfishConfig())
+    engine_config = StockfishConfig()
+    adapter = StockfishAdapter(engine_config)
     orchestrator = FastPassOrchestrator(
         adapter, FastPassConfig(nodes=10000, swing_threshold_cp=150)
     )
@@ -149,6 +150,7 @@ async def analyse_command(file_patterns: list[str], report: bool = False) -> Non
                 fen=fen_before,
                 lesson_id=f"les_{uuid4()}",
                 accepted_moves_san=[board_before.san(move) for move in accepted],
+                engine=engine_config.name,
             )
             lesson.explanation = await resolve_explanation(diagnosis, evidence, fen_before)
 

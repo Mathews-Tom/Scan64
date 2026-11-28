@@ -18,7 +18,7 @@ describe('GamesListScreen', () => {
 
   it('lists every returned game and opens the selected game', async () => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-      items: [{ id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
+      items: [{ variant: 'chess', id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 2 }],
       next_cursor: null,
     });
     const onOpenGame = vi.fn();
@@ -30,6 +30,20 @@ describe('GamesListScreen', () => {
     expect(ApiClient.getPlayerGames).toHaveBeenCalledWith('player-1');
     fireEvent.click(screen.getByRole('button', { name: /Alice vs Bob/ }));
     expect(onOpenGame).toHaveBeenCalledWith('game-1');
+  });
+
+  it('labels a variant game as not analysed instead of counting diagnoses', async () => {
+    vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
+      items: [
+        { variant: 'crazyhouse', id: 'game-1', white: 'Alice', black: 'Bob', result: '1-0', date: '2026.07.28', created_at: '2026-07-28T12:00:00Z', diagnosis_count: 0 },
+        { variant: 'Bughouse', id: 'game-2', white: 'Carol', black: 'Dan', result: '0-1', date: '2026.07.29', created_at: '2026-07-29T12:00:00Z', diagnosis_count: 0 },
+      ],
+      next_cursor: null,
+    });
+    render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: /Alice vs Bob/ })).toHaveTextContent('Crazyhouse, not analysed');
+    expect(screen.getByRole('button', { name: /Alice vs Bob/ })).not.toHaveTextContent('diagnoses');
+    expect(screen.getByRole('button', { name: /Carol vs Dan/ })).toHaveTextContent('Bughouse, not analysed');
   });
 
   it('offers username import when there are no games yet', async () => {
@@ -48,7 +62,7 @@ describe('GamesListScreen', () => {
     ['????.??.??', null],
   ] as const)('does not replace partial PGN date %s with the import date', async (date, knownYear) => {
     vi.mocked(ApiClient.getPlayerGames).mockResolvedValue({
-      items: [{ id: 'partial-date', white: 'Alice', black: 'Bob', result: '1-0', date, created_at: '2026-11-14T12:00:00Z', diagnosis_count: 0 }],
+      items: [{ variant: 'chess', id: 'partial-date', white: 'Alice', black: 'Bob', result: '1-0', date, created_at: '2026-11-14T12:00:00Z', diagnosis_count: 0 }],
       next_cursor: null,
     });
     render(<GamesListScreen onOpenGame={vi.fn()} onImportGames={vi.fn()} />);

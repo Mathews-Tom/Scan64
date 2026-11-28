@@ -17,6 +17,7 @@ from sqlmodel import Session, col, select
 from scan64.api.auth import require_authenticated_player
 from scan64.api.models import Player
 from scan64.api.onboarding import manual_bot_level, onboarding_for
+from scan64.api.variant_games import require_standard
 from scan64.chess.analysis.jobs import submit_analysis_job
 from scan64.chess.games.assistance import AssistanceMode, StalePlaySnapshot, assistance_modes
 from scan64.chess.games.clock_models import PlayClock, PlayClockRead, TimeControl
@@ -30,6 +31,7 @@ from scan64.chess.games.play_session_service import (
     PlaySessionService,
     TakebackNotAllowed,
 )
+from scan64.chess.opponents.bot_policy import SKILL_POLICY_VERSION, bot_policy_version
 from scan64.chess.opponents.bots import BOT_LEVELS, get_bot_level
 from scan64.chess.opponents.stockfish_opponent import StockfishOpponentProvider
 from scan64.learning.sparring import (
@@ -43,12 +45,14 @@ from scan64.learning.sparring import (
     read_sparring,
 )
 from scan64.persistence.database import get_session
+from scan64.providers.engine import EngineCapabilityError
+from scan64.providers.engine.config import ladder_engine_config
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["play-sessions"])
 
-BOT_POLICY_VERSION = "stockfish-error-budget-v1"
+BOT_POLICY_VERSION = SKILL_POLICY_VERSION
 CLOCK_EXPIRY_WAIT_SECONDS = 15.0
 CLOCK_CHANGE_WAIT_SECONDS = 5.0
 
@@ -140,9 +144,28 @@ class PlayMoveResponse(BaseModel):
     clock: PlayClockRead | None = None
 
 
+BOT_PLAY_UNAVAILABLE = "bot_play_unavailable"
+
+
+def bot_play_unavailable(error: EngineCapabilityError) -> HTTPException:
+    """503: the active engine profile cannot play bot moves; play never falls back."""
+    return HTTPException(
+        status_code=503,
+        detail={
+            "code": BOT_PLAY_UNAVAILABLE,
+            "message": "Bot play is unavailable under the active engine profile.",
+            "reason": str(error),
+            "kind": error.kind,
+        },
+    )
+
+
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
-    return StockfishOpponentProvider(StockfishConfig(), pool_manager=pool_manager)
+    analysis = StockfishConfig()
+    return StockfishOpponentProvider(
+        ladder_engine_config(analysis), pool_manager=pool_manager, analysis_config=analysis
+    )
 
 
 def get_maia_config_path() -> Path | None:
@@ -270,7 +293,13 @@ async def create_play_session(
                 if initial_fen is None and session_in.game_id is None
                 else 1
             )
-        config["bot_policy_version"] = BOT_POLICY_VERSION
+        pool_manager = getattr(request.app.state, "engine_pool_manager", None)
+        engine_config = (
+            pool_manager.ladder_config
+            if pool_manager is not None
+            else ladder_engine_config(StockfishConfig())
+        )
+        config["bot_policy_version"] = bot_policy_version(engine_config)
     else:
         config.pop("bot_policy_version", None)
     # Client-supplied internal values cannot select another seed or undo boundary.
@@ -286,6 +315,7 @@ async def create_play_session(
         game = session.get(Game, session_in.game_id)
         if game is None or game.owner_player_id != authenticated_player_id:
             raise HTTPException(status_code=404, detail="Game not found")
+        require_standard(game, "bot play")
         board = chess.Board(game.headers.get("FEN", chess.STARTING_FEN))
         for move in game.moves:
             board.push_uci(move)
@@ -412,7 +442,11 @@ async def create_play_session(
         service.notify_clock()
     else:
         if game is not None and board.turn != colour and not board.is_game_over():
-            first_move = await service.play_opponent_move(play_session, game, board)
+            try:
+                first_move = await service.play_opponent_move(play_session, game, board)
+            except EngineCapabilityError as error:
+                session.rollback()
+                raise bot_play_unavailable(error) from error
             game.pgn = build_pgn(game)
             play_session.opponent_config = {
                 **play_session.opponent_config,
@@ -557,6 +591,8 @@ async def create_move(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -603,6 +639,8 @@ async def resume_play_session(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
@@ -664,6 +702,8 @@ async def resume_opponent_move(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except EngineCapabilityError as error:
+        raise bot_play_unavailable(error) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:

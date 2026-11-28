@@ -17,6 +17,7 @@ from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.games.models import Game, PlaySession
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import PooledStockfishAdapter
+from tests.support.engines import fake_xboard_launcher
 
 ENDPOINT = "/v1/analysis/position"
 
@@ -85,7 +86,8 @@ def test_real_adapter_scores_are_normalized_to_white(
     ]
     engine.id = {"name": "deterministic"}
     engine.config = {}
-    engine.options = {}
+    # Declared like Stockfish: hints ask for several lines.
+    engine.options = dict.fromkeys(("MultiPV",))
     binary = tmp_path / "stockfish"
     binary.write_bytes(b"deterministic UCI test double")
     monkeypatch.setattr(chess.engine, "popen_uci", AsyncMock(return_value=(None, engine)))
@@ -217,7 +219,8 @@ def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
     engine = AsyncMock()
     engine.id = {"name": "deterministic"}
     engine.config = {}
-    engine.options = {}
+    # Declared like Stockfish: hints ask for several lines.
+    engine.options = dict.fromkeys(("MultiPV",))
     binary = tmp_path / "stockfish"
     binary.write_bytes(b"deterministic UCI test double")
     monkeypatch.setattr(app.state.engine_pool_manager.config, "binary_path", str(binary))
@@ -238,6 +241,7 @@ def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
     assert retried.status_code == 200, retried.text
     assert retried.json() == {
         "fen": chess.STARTING_FEN,
+        "variant": "chess",
         "lines": [
             {
                 "score_cp": 25,
@@ -275,7 +279,7 @@ def test_terminal_positions_need_no_pool_or_search(
             monkeypatch.setattr(app.state, "engine_pool_manager", None)
         response = client.post(ENDPOINT, headers=headers, json=body)
         assert response.status_code == 200, response.text
-        assert response.json() == {"fen": chess.Board(fen).fen(), "lines": []}
+        assert response.json() == {"fen": chess.Board(fen).fen(), "variant": "chess", "lines": []}
     analyze.assert_not_awaited()
 
 
@@ -369,9 +373,32 @@ def test_analysis_is_read_only_and_response_contains_no_player_tokens(
     assert all(response.status_code == 200 for response in responses)
     assert terminal.status_code == 200
     assert responses[0].json() == responses[1].json()
-    assert set(responses[0].json()) == {"fen", "lines"}
+    assert set(responses[0].json()) == {"fen", "variant", "lines"}
     for response in responses:
         assert owner["Authorization"].removeprefix("Bearer ") not in response.text
         assert other["Authorization"].removeprefix("Bearer ") not in response.text
     assert writes == []
     assert analyze.await_count == 2
+
+
+def test_engine_without_multipv_answers_capability_unavailable_not_500(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A real XBoard process cannot give the hint's lines: a stable 503, never a 500."""
+    launcher, _ = fake_xboard_launcher(tmp_path, monkeypatch)
+    headers = register(db_session, "analysis-owner")
+    manager = app.state.engine_pool_manager
+    monkeypatch.setattr(manager.config, "binary_path", str(launcher))
+    monkeypatch.setattr(manager.config, "protocol", "xboard")
+    assert manager.hint_limits()[2] > 1
+    response = client.post(
+        ENDPOINT, headers=headers, json={"player_id": "analysis-owner", "fen": chess.STARTING_FEN}
+    )
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "engine_capability_unavailable"
+    assert "MultiPV" in detail["reason"]
+    assert "FakeXBoard 1" in detail["reason"]

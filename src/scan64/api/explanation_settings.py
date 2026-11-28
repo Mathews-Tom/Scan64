@@ -11,9 +11,15 @@ from sqlmodel import Session
 
 from scan64.api.auth import require_player_token
 from scan64.content.puzzle_practice import lock_puzzle_player
-from scan64.explanations.settings import OwnerExplanationSettings, operator_manages_explanations
+from scan64.explanations.settings import (
+    OwnerExplanationSettings,
+    operator_manages_explanations,
+    stored_narrator_voice,
+)
+from scan64.explanations.voice import NarratorVoice
 from scan64.persistence.database import get_session
 from scan64.providers.llm.local_ollama import detect_local_ollama
+from scan64.providers.llm.narrator_model import DEFAULT_NARRATOR_MODEL
 
 router = APIRouter(prefix="/v1/players/{player_id}/explanation-settings", tags=["settings"])
 _MAX_UPDATE_BYTES = 1024
@@ -22,11 +28,16 @@ _MAX_UPDATE_BYTES = 1024
 class ExplanationSettingsRead(BaseModel):
     mode: Literal["disabled", "local", "operator"]
     model: str | None = None
+    # Narrator voice of the local grant (#387); null unless mode is "local".
+    voice: NarratorVoice | None = None
 
 
 class ExplanationProbeRead(BaseModel):
     available: bool
     models: list[str]
+    # The default narrator model (#429). Settings preselects it when it is listed;
+    # a saved grant for another model is kept.
+    recommended_model: str = DEFAULT_NARRATOR_MODEL
 
 
 class ExplanationSettingsUpdate(BaseModel):
@@ -34,6 +45,8 @@ class ExplanationSettingsUpdate(BaseModel):
 
     model: str | None = Field(min_length=1, max_length=128)
     consent: bool
+    # Optional (#387). Absent keeps the saved voice; a new grant gets the default.
+    voice: NarratorVoice | None = None
 
 
 def _require_settings_control() -> None:
@@ -54,7 +67,7 @@ def get_explanation_settings(
     row = session.get(OwnerExplanationSettings, player_id)
     if row is None:
         return ExplanationSettingsRead(mode="disabled")
-    return ExplanationSettingsRead(mode="local", model=row.model)
+    return ExplanationSettingsRead(mode="local", model=row.model, voice=stored_narrator_voice(row))
 
 
 @router.post("/probe", response_model=ExplanationProbeRead)
@@ -90,6 +103,8 @@ async def set_explanation_settings(
 
     if update.consent != (update.model is not None):
         raise HTTPException(status_code=422, detail="Enabling a model requires explicit consent")
+    if update.model is None and update.voice is not None:
+        raise HTTPException(status_code=422, detail="A voice applies only to an enabled model")
     if update.model is not None:
         models = await detect_local_ollama()
         if models is None:
@@ -105,12 +120,17 @@ async def set_explanation_settings(
         if row is not None:
             session.delete(row)
     elif row is None:
-        session.add(OwnerExplanationSettings(player_id=player_id, model=update.model))
+        row = OwnerExplanationSettings(player_id=player_id, model=update.model, voice=update.voice)
+        session.add(row)
     else:
         row.model = update.model
         row.revision = uuid4().hex
+        if update.voice is not None:
+            row.voice = update.voice
     session.commit()
     response.headers["Cache-Control"] = "no-store"
-    if update.model is None:
+    if update.model is None or row is None:
         return ExplanationSettingsRead(mode="disabled")
-    return ExplanationSettingsRead(mode="local", model=update.model)
+    return ExplanationSettingsRead(
+        mode="local", model=update.model, voice=stored_narrator_voice(row)
+    )

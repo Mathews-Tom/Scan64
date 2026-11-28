@@ -1,0 +1,4 @@
+# Linux compat set (#411): Stockfish 11 (2020, classical eval), an old Stockfish.
+[engine]
+name = "stockfish-11"
+binary_path = "~/.local/opt/engines/stockfish11/stockfish11"

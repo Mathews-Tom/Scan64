@@ -45,3 +45,37 @@ describe('analyzePosition', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('explainPosition', () => {
+  it('posts the FEN and optional budgets with the player bearer token', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    const result = {
+      fen: 'position', source: 'template', fallback_reason: null, text: 'White to move.', lines: [],
+      claims: [{ text: 'White to move.', evidence_ref: 'line-1', line_id: 'line-1', moves: ['e2e4'] }], facts: {},
+    };
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
+    vi.stubGlobal('fetch', fetch);
+    expect(await ApiClient.explainPosition({ player_id: 'p', fen: 'position', multipv: 3 })).toEqual(result);
+    expect(fetch).toHaveBeenCalledWith('/v1/analysis/position/explanation', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer secret' },
+      body: JSON.stringify({ player_id: 'p', fen: 'position', multipv: 3 }),
+    });
+  });
+
+  it('passes the abort signal to the request', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetch);
+    const signal = new AbortController().signal;
+    await ApiClient.explainPosition({ player_id: 'p', fen: 'position' }, signal);
+    expect(fetch).toHaveBeenCalledWith('/v1/analysis/position/explanation', expect.objectContaining({ signal }));
+  });
+
+  it('preserves the status and server detail of a rejected request', async () => {
+    localStorage.setItem('scan64_player_token:p', 'secret');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 422, statusText: 'Unprocessable', json: async () => ({ detail: 'multipv exceeds the 4-line analysis limit' }) }));
+    await expect(ApiClient.explainPosition({ player_id: 'p', fen: 'position', multipv: 9 })).rejects.toMatchObject({
+      status: 422, message: 'Failed to explain engine lines: multipv exceeds the 4-line analysis limit',
+    });
+  });
+});

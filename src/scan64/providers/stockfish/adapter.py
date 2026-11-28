@@ -1,11 +1,28 @@
-import os
-from dataclasses import dataclass, field
+"""Per-call UCI engine adapter. Stockfish is the default engine, not a requirement.
+
+``StockfishConfig``/``StockfishAdapter`` are kept as the historical names of
+``EngineConfig``/``UciEngineAdapter``; see ``scan64.providers.engine``.
+"""
+
+import asyncio
+from collections.abc import Coroutine
 from typing import Any, Protocol, runtime_checkable
 
 import chess
 import chess.engine
 
 from scan64.chess.analysis.models import EngineAnalysis
+from scan64.providers.engine.config import EngineConfig, scaled_nodes
+from scan64.providers.engine.uci import (
+    Engine,
+    EngineCapabilityError,
+    declares,
+    is_xboard,
+    lines_from_result,
+    open_engine,
+    require_variant,
+    startup_options,
+)
 from scan64.providers.stockfish.identity import (
     ExecutableSignature,
     analysis_identity,
@@ -36,42 +53,123 @@ class IdentifiedEngineAdapter(EngineAdapter, Protocol):
     async def analysis_identity(self) -> dict[str, Any]: ...
 
 
-@dataclass
-class StockfishConfig:
-    binary_path: str = field(
-        default_factory=lambda: os.environ.get("SCAN64_STOCKFISH_PATH", "stockfish")
+StockfishConfig = EngineConfig
+
+
+def search_limit(
+    nodes: int | None, depth: int | None, time_ms: int | None, *, node_scale: float
+) -> chess.engine.Limit:
+    """``nodes`` is a Scan64 budget; the engine receives it times ``node_scale``."""
+    return chess.engine.Limit(
+        nodes=scaled_nodes(nodes, node_scale),
+        depth=depth,
+        time=time_ms / 1000.0 if time_ms else None,
     )
-    threads: int = 1
-    hash_size: int = 16
+
+
+async def search(
+    engine: Engine,
+    board: chess.Board,
+    limit: chess.engine.Limit,
+    multipv: int,
+    game: object | None = None,
+    *,
+    deadline_s: float,
+    score_scale: float,
+) -> list[dict[str, Any]]:
+    """Run one search and return every MultiPV line in stored form.
+
+    python-chess raises ``EngineError`` for ``multipv > 1`` on a UCI engine that
+    does not declare ``MultiPV``, and for any ``multipv`` argument over XBoard.
+    An XBoard engine therefore gets a single-line search with no ``multipv``
+    argument. A request for more lines than either engine can give is a
+    capability error; no single-line substitute is ever returned for a
+    multi-line request.
+
+    A search without a time limit must finish within ``deadline_s`` seconds;
+    otherwise it is stopped and the engine is reported as not honouring its
+    node or depth limit.
+    """
+    require_variant(engine, board)
+    if is_xboard(engine):
+        if multipv > 1:
+            raise EngineCapabilityError(
+                f"{multipv} analysis lines need MultiPV, which "
+                f"{engine.id.get('name', 'the configured engine')} cannot provide over XBoard"
+            )
+        single = await bounded(engine, engine.analyse(board, limit, game=game), limit, deadline_s)
+        return lines_from_result(single, board.turn, score_scale=score_scale)
+    if multipv > 1 and not declares(engine, "MultiPV"):
+        raise EngineCapabilityError(
+            f"{multipv} analysis lines need the UCI option MultiPV, which "
+            f"{engine.id.get('name', 'the configured engine')} does not declare"
+        )
+    result = await bounded(
+        engine, engine.analyse(board, limit, multipv=multipv, game=game), limit, deadline_s
+    )
+    return lines_from_result(result, board.turn, score_scale=score_scale)
+
+
+async def bounded[T](
+    engine: Engine, search: Coroutine[Any, Any, T], limit: chess.engine.Limit, deadline_s: float
+) -> T:
+    """``search`` under ``deadline_s`` when ``limit`` sets no time of its own."""
+    if limit.time is not None:
+        return await search
+    try:
+        return await asyncio.wait_for(search, deadline_s)
+    except TimeoutError as error:
+        bound = f"{limit.nodes} nodes" if limit.nodes is not None else f"depth {limit.depth}"
+        raise EngineCapabilityError(
+            f"{engine.id.get('name', 'the configured engine')} did not finish a search limited "
+            f"to {bound} within {deadline_s:g} s; Scan64 sizes its searches by node budget, "
+            "so the engine must honour go nodes"
+        ) from error
 
 
 class StockfishAdapter:
-    def __init__(self, config: StockfishConfig):
+    def __init__(self, config: EngineConfig):
         self.config = config
         self._identity: dict[str, Any] | None = None
         self._identity_signature: ExecutableSignature | None = None
+
+    async def _start(self) -> Engine:
+        engine = await open_engine(self.config)
+        try:
+            await engine.configure(startup_options(engine, self.config))
+        except BaseException:
+            await engine.quit()
+            raise
+        return engine
+
+    def _effective_identity(self) -> dict[str, Any]:
+        assert self._identity is not None
+        identity = dict(self._identity)
+        resources = {"Threads": self.config.threads, "Hash": self.config.hash_size}
+        identity["options"] = dict(
+            identity["options"],
+            **{name: value for name, value in resources.items() if name in identity["options"]},
+        )
+        return identity
 
     async def analysis_identity(self) -> dict[str, Any]:
         # Unlike a live pooled process, a per-call adapter has no loaded build
         # between calls. A replaced executable must invalidate its probe.
         signature = executable_signature(self.config.binary_path)
         if self._identity is None or self._identity_signature != signature:
-            _, engine = await chess.engine.popen_uci(self.config.binary_path)
+            engine = await self._start()
             try:
-                await engine.configure(
-                    {"Threads": self.config.threads, "Hash": self.config.hash_size}
-                )
                 self._identity = analysis_identity(
-                    engine, engine_identity(engine, self.config.binary_path), self.config.threads
+                    engine,
+                    engine_identity(engine, self.config.binary_path),
+                    self.config.threads,
+                    self.config.node_scale,
+                    self.config.score_scale,
                 )
                 self._identity_signature = signature
             finally:
                 await engine.quit()
-        identity = dict(self._identity)
-        identity["options"] = dict(
-            identity["options"], Threads=self.config.threads, Hash=self.config.hash_size
-        )
-        return identity
+        return self._effective_identity()
 
     async def analyze_position(
         self,
@@ -82,41 +180,28 @@ class StockfishAdapter:
         multipv: int = 1,
     ) -> EngineAnalysis:
         signature = executable_signature(self.config.binary_path)
-        _, engine = await chess.engine.popen_uci(self.config.binary_path)
+        engine = await self._start()
         try:
-            await engine.configure({"Threads": self.config.threads, "Hash": self.config.hash_size})
             self._identity = analysis_identity(
-                engine, engine_identity(engine, self.config.binary_path), self.config.threads
+                engine,
+                engine_identity(engine, self.config.binary_path),
+                self.config.threads,
+                self.config.node_scale,
+                self.config.score_scale,
             )
             self._identity_signature = signature
-
-            board = chess.Board(fen)
-            limit = chess.engine.Limit(
-                nodes=nodes, depth=depth, time=time_ms / 1000.0 if time_ms else None
+            limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
+            raw_result = await search(
+                engine,
+                chess.Board(fen),
+                limit,
+                multipv,
+                deadline_s=self.config.search_deadline_s,
+                score_scale=self.config.score_scale,
             )
-
-            info_result = await engine.analyse(board, limit, multipv=multipv)
-
-            if not isinstance(info_result, list):
-                info_result = [info_result]
-
-            raw_result = []
-            for info in info_result:
-                res: dict[str, Any] = {}
-                if "pv" in info:
-                    res["pv"] = [m.uci() for m in info["pv"]]
-                if "score" in info:
-                    score = info["score"].pov(board.turn)
-                    if score.is_mate():
-                        res["score_mate"] = score.mate()
-                    else:
-                        res["score_cp"] = score.score()
-                raw_result.append(res)
-
             config_dict = dict(
                 self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )
-
             return EngineAnalysis(
                 position_id=None,  # To be filled by the caller
                 config=config_dict,
@@ -124,3 +209,16 @@ class StockfishAdapter:
             )
         finally:
             await engine.quit()
+
+
+UciEngineAdapter = StockfishAdapter
+
+__all__ = [
+    "EngineAdapter",
+    "IdentifiedEngineAdapter",
+    "StockfishAdapter",
+    "StockfishConfig",
+    "UciEngineAdapter",
+    "search",
+    "search_limit",
+]

@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
+from scan64.chess.variants import STANDARD, UnsupportedVariantError, not_covered, variant_of
 
 
 class InvalidGameError(Exception):
@@ -57,10 +58,13 @@ def ingest_pgn(pgn_string: str) -> tuple[Game, list[Position]]:
     if game_node is None:
         raise InvalidGameError("Empty or unparsable PGN")
 
-    # Check for variants in headers
-    variant = game_node.headers.get("Variant", "Standard")
-    if variant != "Standard":
-        raise NonStandardVariantError(f"Variant '{variant}' is not supported")
+    # Standard analysis only: a supported variant is not covered here yet.
+    try:
+        variant = variant_of(game_node.headers)
+    except UnsupportedVariantError as error:
+        raise NonStandardVariantError(str(error)) from None
+    if variant != STANDARD:
+        raise NonStandardVariantError(not_covered(variant, "game analysis"))
 
     headers = dict(game_node.headers)
 

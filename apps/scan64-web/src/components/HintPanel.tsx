@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { linePosition } from './linePosition';
 import { ApiClient } from '../api/client';
 import type { MoveInsight, PositionInsight, Visualization } from '../api/types';
@@ -19,7 +19,10 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
   const restoreFocus = useRef(false);
   const requestFocus = useRef(false);
   const hintDetails = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  // The Hint button is disabled while a request runs, so focus falls to <body>.
+  // Restore it before paint: with a passive effect the hint text shows first,
+  // and an Escape pressed then reaches <body>, not the panel, and is lost.
+  useLayoutEffect(() => {
     if (!busy && requestFocus.current) {
       requestFocus.current = false;
       if (document.activeElement !== document.body && document.activeElement !== hintButton.current) return;
@@ -31,7 +34,7 @@ export function HintPanel({ playerId, sessionId, fen, disabled = false, onPrevie
     restoreFocus.current = true;
     setResult(null); setSelection(null); onPreview(null);
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!result && restoreFocus.current) {
       restoreFocus.current = false;
       hintButton.current?.focus();

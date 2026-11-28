@@ -38,8 +38,14 @@ import type {
   PositionRead,
   PositionInsight,
   PositionInsightRequest,
+  PositionExplanationRead,
+  PositionExplanationRequest,
+  PositionHealthRead,
+  PositionHealthRequest,
   PositionAnalysisRead,
   PositionAnalysisRequest,
+  VariantPositionRead,
+  VariantPositionRequest,
   PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
@@ -68,6 +74,69 @@ export class ApiRequestError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+export const BOT_PLAY_UNAVAILABLE_MESSAGE =
+  'Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.';
+
+/** Why the server cannot play the bot move (``detail.kind``); each has its own fix. */
+export type BotPlayUnavailableKind = 'missing_capability' | 'policy_mismatch' | 'elo_out_of_range';
+
+const BOT_PLAY_ADVICE: Record<BotPlayUnavailableKind, string> = {
+  missing_capability: BOT_PLAY_UNAVAILABLE_MESSAGE,
+  policy_mismatch: 'This game was started under another bot ladder than the server plays now, so it cannot continue. Start a new game.',
+  elo_out_of_range: "The engine profile asks the engine for a strength it does not accept. Correct the profile's [ladder] elo values.",
+};
+
+/** The server's engine profile cannot play bot moves (503 bot_play_unavailable). */
+export class BotPlayUnavailableError extends ApiRequestError {
+  readonly reason: string | null;
+  readonly kind: BotPlayUnavailableKind;
+
+  constructor(reason: string | null, kind: BotPlayUnavailableKind = 'missing_capability') {
+    super(kind === 'missing_capability' || !reason ? BOT_PLAY_ADVICE[kind] : `${BOT_PLAY_ADVICE[kind]} ${reason}`, 503);
+    this.reason = reason;
+    this.kind = kind;
+  }
+}
+
+/** A 503 ``detail`` naming bot_play_unavailable, or null. An unknown kind fails loudly. */
+function botPlayUnavailable(detail: unknown): BotPlayUnavailableError | null {
+  if (detail === null || typeof detail !== 'object' || !('code' in detail) || detail.code !== 'bot_play_unavailable') return null;
+  const reason = 'reason' in detail && typeof detail.reason === 'string' ? detail.reason : null;
+  const kind = 'kind' in detail ? detail.kind : 'missing_capability';
+  if (typeof kind !== 'string' || !(kind in BOT_PLAY_ADVICE)) throw new Error(`Unknown bot_play_unavailable kind: ${String(kind)}`);
+  return new BotPlayUnavailableError(reason, kind as BotPlayUnavailableKind);
+}
+
+async function playRequestError(response: Response, fallback: string): Promise<ApiRequestError> {
+  if (response.status === 503) {
+    let body: unknown = null;
+    try { body = await response.json(); } catch { body = null; }
+    const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+    const unavailable = botPlayUnavailable(detail);
+    if (unavailable) return unavailable;
+  }
+  return new ApiRequestError(`${fallback}: ${response.statusText}`, response.status);
+}
+
+/**
+ * The text of an error body's ``detail``: the string itself, or for a 503
+ * ``engine_capability_unavailable`` its message and the engine's reason.
+ */
+/** End `text` with exactly one full stop unless it already ends a sentence. */
+function sentence(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+export function errorDetailText(body: unknown, fallback: string): string {
+  const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+  if (typeof detail === 'string') return detail;
+  if (detail !== null && typeof detail === 'object' && 'message' in detail && typeof detail.message === 'string') {
+    const reason = 'reason' in detail && typeof detail.reason === 'string' ? ` ${sentence(detail.reason)}` : '';
+    return `${detail.message}${reason}`;
+  }
+  return fallback;
 }
 
 export class LessonAttemptLimitError extends ApiRequestError {
@@ -290,11 +359,23 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to get hint: ${detail}`, response.status);
     }
     return await response.json() as PositionInsight;
+  }
+
+  static async variantPosition(playerId: string, data: VariantPositionRequest): Promise<VariantPositionRead> {
+    const response = await apiFetch(`${apiBase()}/variants/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(errorDetailText(body, response.statusText), response.status);
+    }
+    return await response.json() as VariantPositionRead;
   }
 
   static async analyzePosition(data: PositionAnalysisRequest): Promise<PositionAnalysisRead> {
@@ -305,11 +386,42 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to analyse position: ${detail}`, response.status);
     }
     return await response.json() as PositionAnalysisRead;
+  }
+
+  static async positionHealth(data: PositionHealthRequest, signal?: AbortSignal): Promise<PositionHealthRead> {
+    const { player_id, ...body } = data;
+    const response = await apiFetch(`${apiBase()}/analysis/position/health`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(player_id) },
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
+        ? body.detail : response.statusText;
+      throw new ApiRequestError(`Failed to read position health: ${detail}`, response.status);
+    }
+    return await response.json() as PositionHealthRead;
+  }
+
+  static async explainPosition(data: PositionExplanationRequest, signal?: AbortSignal): Promise<PositionExplanationRead> {
+    const response = await apiFetch(`${apiBase()}/analysis/position/explanation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(data.player_id) },
+      body: JSON.stringify(data),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = errorDetailText(body, response.statusText);
+      throw new ApiRequestError(`Failed to explain engine lines: ${detail}`, response.status);
+    }
+    return await response.json() as PositionExplanationRead;
   }
 
   static async createGame(data: GameCreate): Promise<GameRead> {
@@ -322,7 +434,8 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error(`Failed to create game: ${response.statusText}`);
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(`Failed to create game: ${errorDetailText(body, response.statusText)}`, response.status);
     }
     const json = await response.json();
     return json as unknown as GameRead;
@@ -399,7 +512,8 @@ export class ApiClient {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to get game review: ${response.statusText}`, response.status);
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(`Failed to get game review: ${errorDetailText(body, response.statusText)}`, response.status);
     }
     return await response.json() as GameReviewRead;
   }
@@ -411,8 +525,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Failed to backfill game review: ${detail}`, response.status);
     }
     return await response.json() as GameReviewRead;
@@ -436,9 +549,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const error: unknown = await response.json().catch(() => null);
-      const detail = error !== null && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string'
-        ? error.detail : response.statusText;
-      throw new ApiRequestError(`Failed to create analysis job: ${detail}`, response.status);
+      throw new ApiRequestError(`Failed to create analysis job: ${errorDetailText(error, response.statusText)}`, response.status);
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;
@@ -500,6 +611,8 @@ export class ApiClient {
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
       const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
+      const unavailable = response.status === 503 ? botPlayUnavailable(detail) : null;
+      if (unavailable) throw unavailable;
       throw new ApiRequestError(typeof detail === 'string' ? detail : `Failed to create play session: ${response.statusText}`, response.status);
     }
     const json = await response.json();
@@ -545,7 +658,7 @@ export class ApiClient {
       body: JSON.stringify({ expected_clock_version: expectedClockVersion }),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to resume opponent move: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to resume opponent move');
     }
     return await response.json() as PlayMoveResponse;
   }
@@ -560,7 +673,7 @@ export class ApiClient {
       body: JSON.stringify(move),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to make move: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to make move');
     }
     const json = await response.json();
     return json as unknown as PlayMoveResponse;
@@ -573,7 +686,7 @@ export class ApiClient {
       headers: getPlayerAuthorizationHeader(playerId),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to resume bot turn: ${response.statusText}`, response.status);
+      throw await playRequestError(response, 'Failed to resume bot turn');
     }
     return await response.json() as PlayMoveResponse;
   }
@@ -703,8 +816,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
-      const detail = body !== null && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string'
-        ? body.detail : response.statusText;
+      const detail = errorDetailText(body, response.statusText);
       throw new ApiRequestError(`Habit request failed: ${detail}`, response.status);
     }
     return await response.json() as HabitSummaryRead;

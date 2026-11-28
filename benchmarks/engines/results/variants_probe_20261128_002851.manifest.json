@@ -1,0 +1,236 @@
+{
+  "manifest": {
+    "code": {
+      "commit": "f10d6d67ff144c6f3c063b23917308449212fc95",
+      "dirty": false
+    },
+    "config": {
+      "path": "benchmarks/engines/variants_probe_linux.toml",
+      "sha256": "aa94a146c519770a086698ca56f40090254e7454413ad47cda623a27e85b823d"
+    },
+    "config_digest": "15e3b824d21f492e8610af81c1935b3c7f3cce806675b33b88c99d23af3722f6",
+    "cpu_affinity": "32-39",
+    "engine": {
+      "declared_variants": [
+        "3check",
+        "5check",
+        "ai-wok",
+        "almost",
+        "amazon",
+        "antichess",
+        "armageddon",
+        "asean",
+        "ataxx",
+        "atomic",
+        "breakthrough",
+        "bughouse",
+        "cambodian",
+        "chaturanga",
+        "chess",
+        "chessgi",
+        "chigorin",
+        "clobber",
+        "codrus",
+        "coregal",
+        "crazyhouse",
+        "dobutsu",
+        "euroshogi",
+        "extinction",
+        "fairy",
+        "fischerandom",
+        "gardner",
+        "giveaway",
+        "gorogoro",
+        "grasshopper",
+        "hoppelpoppel",
+        "horde",
+        "judkins",
+        "karouk",
+        "kinglet",
+        "kingofthehill",
+        "knightmate",
+        "koedem",
+        "kyotoshogi",
+        "loop",
+        "losalamos",
+        "losers",
+        "makpong",
+        "makruk",
+        "micro",
+        "mini",
+        "minishogi",
+        "minixiangqi",
+        "newzealand",
+        "nightrider",
+        "nocastle",
+        "nocheckatomic",
+        "normal",
+        "placement",
+        "pocketknight",
+        "racingkings",
+        "seirawan",
+        "shatar",
+        "shatranj",
+        "shouse",
+        "sittuyin",
+        "suicide",
+        "threekings",
+        "torishogi"
+      ],
+      "engine_name": "Fairy-Stockfish 14",
+      "engine_version": "sha256:ab6b85823152e78654092dc2fbb154956a559c6ef0455d728268544390ee150f",
+      "network": null,
+      "options": {
+        "Debug Log File": "",
+        "EvalFile": "<empty>",
+        "Hash": 16,
+        "Move Overhead": 10,
+        "Protocol": "uci",
+        "Skill Level": 20,
+        "Slow Mover": 100,
+        "Syzygy50MoveRule": true,
+        "SyzygyPath": "<empty>",
+        "SyzygyProbeDepth": 1,
+        "SyzygyProbeLimit": 7,
+        "Threads": 1,
+        "TsumeMode": false,
+        "UCI_AnalyseMode": false,
+        "UCI_Elo": 1350,
+        "UCI_LimitStrength": false,
+        "UCI_ShowWDL": false,
+        "Use NNUE": true,
+        "VariantPath": "<empty>",
+        "nodestime": 0
+      }
+    },
+    "env": {
+      "SCAN64_ENGINE_POOL_BATCH_CONCURRENCY": "2"
+    },
+    "profile": {
+      "path": "config/engines/linux/fairy-stockfish.toml",
+      "sha256": "deef70ad071bb545623a7b705cbcf5087469fc04846e3e092ad0cd0a7420628d"
+    },
+    "python": "3.12.13",
+    "python_chess": "1.11.2",
+    "settings": {
+      "hash_mb": 16,
+      "multipv": 3,
+      "nodes": 300000,
+      "positions": [
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+          "label": "start",
+          "variant": "crazyhouse"
+        },
+        {
+          "fen": "r1bq1b1r/ppp2kpp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R[PPnp] w KQ - 0 7",
+          "label": "fried-liver",
+          "variant": "crazyhouse"
+        },
+        {
+          "fen": "r2qkb1r/pppbpppp/8/3n4/3P4/8/PPP2PPP/RNBQKB1R[NPnp] w KQkq - 0 7",
+          "label": "alekhine",
+          "variant": "crazyhouse"
+        },
+        {
+          "fen": "rn2kbnr/ppq2ppp/2p1p3/8/3P4/2N2B2/PPP2PPP/R1BQ1RK1[BPnp] w kq - 1 9",
+          "label": "scandinavian",
+          "variant": "crazyhouse"
+        },
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1",
+          "label": "start",
+          "variant": "3check"
+        },
+        {
+          "fen": "r1bq1bnr/pppp1k1p/2n3p1/4Q3/4P3/8/PPPP1PPP/RNB1K1NR b KQ - 1+3 0 5",
+          "label": "white-two-checks",
+          "variant": "3check"
+        },
+        {
+          "fen": "rn2kbnr/ppp2ppp/4p3/6B1/3P4/8/PPP1NPPP/R2QK2R b KQkq - 3+1 1 8",
+          "label": "black-two-checks",
+          "variant": "3check"
+        },
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "label": "start",
+          "variant": "atomic"
+        },
+        {
+          "fen": "rnbqkb1r/ppp1pppp/5n2/3pN3/8/8/PPPPPPPP/RNBQKB1R w KQkq - 2 3",
+          "label": "knight-threat",
+          "variant": "atomic"
+        },
+        {
+          "fen": "rnbqk2r/pppp1ppp/4pn2/8/1b6/2N1P2N/PPPP1PPP/R1BQKB1R w KQkq - 4 4",
+          "label": "pinned-knight",
+          "variant": "atomic"
+        },
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1",
+          "label": "start",
+          "variant": "antichess"
+        },
+        {
+          "fen": "rnbqkbnr/p1pppppp/8/1p6/8/4P3/PPPP1PPP/RNBQKBNR w - - 0 2",
+          "label": "forced-capture",
+          "variant": "antichess"
+        },
+        {
+          "fen": "r2qkbnr/p1pp1ppp/np2p3/8/8/1P2P2N/P1PP1PPP/RNBQK2R w - - 0 5",
+          "label": "middlegame",
+          "variant": "antichess"
+        },
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "label": "start",
+          "variant": "kingofthehill"
+        },
+        {
+          "fen": "rnbq1b1r/ppppkppp/5n2/4p3/4P3/4K3/PPPP1PPP/RNBQ1BNR w - - 4 4",
+          "label": "king-walk",
+          "variant": "kingofthehill"
+        },
+        {
+          "fen": "r1bqk1nr/ppp2ppp/2np4/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 0 5",
+          "label": "italian",
+          "variant": "kingofthehill"
+        },
+        {
+          "fen": "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1",
+          "label": "start",
+          "variant": "horde"
+        },
+        {
+          "fen": "rnbqkbnr/p1p3pp/2p1p3/5PP1/PPP1PPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 5",
+          "label": "opening",
+          "variant": "horde"
+        },
+        {
+          "fen": "r1bqkbnr/pppp1p1p/2n1pP2/1PP1P3/PPPP1PPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 1 4",
+          "label": "pawn-wedge",
+          "variant": "horde"
+        },
+        {
+          "fen": "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1",
+          "label": "start",
+          "variant": "racingkings"
+        },
+        {
+          "fen": "8/8/8/8/1k4K1/8/1rbnNBR1/qrbnNBRQ w - - 4 3",
+          "label": "race",
+          "variant": "racingkings"
+        },
+        {
+          "fen": "8/8/8/8/3Nn2K/k7/1rb2BR1/qrbnNBRQ b - - 5 3",
+          "label": "knights-out",
+          "variant": "racingkings"
+        }
+      ],
+      "threads": 1
+    },
+    "started_at": "2026-11-28T00:28:51+00:00"
+  },
+  "run_id": "330a5324460957e6606815f72c6f755ee0a2a910de0d93417cba7aaa932bd2c4"
+}

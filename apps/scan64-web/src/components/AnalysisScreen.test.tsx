@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AnalysisScreen } from './AnalysisScreen';
 import { ApiClient, ApiRequestError } from '../api/client';
 import { Chess } from 'chess.js';
-import type { PositionAnalysisRead } from '../api/types';
+import type { PositionAnalysisRead, PositionExplanationRead } from '../api/types';
 
 vi.mock('chessground', () => ({
   Chessground: () => ({ set: vi.fn(), destroy: vi.fn(), redrawAll: vi.fn() }),
@@ -14,6 +14,11 @@ vi.mock('../api/client', () => ({
     createGame: vi.fn(),
     createPlaySession: vi.fn(),
     analyzePosition: vi.fn(),
+    explainPosition: vi.fn(),
+    variantPosition: vi.fn(async () => ({
+      variant: 'crazyhouse', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1', turn: 'white', san: [],
+      legal_moves: ['e2e4'], check: false, pockets: { white: {}, black: {} }, remaining_checks: null, outcome: null,
+    })),
   },
   ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
@@ -33,10 +38,35 @@ describe('AnalysisScreen', () => {
     vi.mocked(ApiClient.analyzePosition).mockReset();
     vi.mocked(ApiClient.analyzePosition).mockImplementation(async ({ fen }) => {
       const move = new Chess(fen).moves({ verbose: true })[0];
-      return { fen, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
+      return { fen, variant: 'chess' as const, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
     });
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('opens a variant board only on request and keeps the standard moves for the way back', async () => {
+    render(<AnalysisScreen />);
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    await waitFor(() => expect(screen.getByLabelText('Move (UCI or SAN)')).toHaveValue(''));
+    const picker = screen.getByLabelText('Variant');
+    picker.focus();
+    fireEvent.change(picker, { target: { value: 'crazyhouse' } });
+    // Browsing the options changes nothing until the board is opened.
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(ApiClient.variantPosition).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Crazyhouse board' }));
+    // The button disables itself; focus goes to the board opened.
+    expect(screen.getByRole('heading', { name: 'Crazyhouse board' })).toHaveFocus();
+    expect(await screen.findByTestId('variant-position-status')).toHaveTextContent('White to move.');
+    expect(screen.getByTestId('standard-analysis')).not.toBeVisible();
+    expect(screen.getByLabelText('Variant')).toBe(picker);
+    fireEvent.change(picker, { target: { value: 'chess' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Standard board' }));
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(screen.getByTestId('standard-analysis')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Standard board' })).toHaveFocus();
+    expect(within(screen.getByTestId('standard-analysis')).getAllByRole('button', { name: /e4/ }).length).toBeGreaterThan(0);
+  });
 
   it('preserves prior branches and exported PGN when the backend rejects a parseable illegal FEN', async () => {
     render(<AnalysisScreen />);
@@ -91,7 +121,7 @@ describe('AnalysisScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
     const position = new Chess(); position.move('e4');
     await waitFor(() => expect(screen.getByLabelText('FEN')).toHaveValue(position.fen()));
-    await act(async () => pending.resolve({ fen: candidate, lines: [{
+    await act(async () => pending.resolve({ variant: 'chess', fen: candidate, lines: [{
       score_cp: 950, mate: null, moves: [{ uci: 'e7e8q', san: 'e8=Q+' }],
     }] }));
     expect(screen.getByLabelText('FEN')).toHaveValue(position.fen());
@@ -131,7 +161,7 @@ describe('AnalysisScreen', () => {
 
   it('plays the entire legal prefix through a clicked PV move and refreshes the selected position', async () => {
     const initial = new Chess().fen();
-    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ fen: initial, lines: [{
+    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ variant: 'chess', fen: initial, lines: [{
       score_cp: 34, mate: null,
       moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }, { uci: 'g1f3', san: 'Nf3' }],
     }, { score_cp: null, mate: -4, moves: [{ uci: 'd2d4', san: 'd4' }] }] });
@@ -194,15 +224,15 @@ describe('AnalysisScreen', () => {
     const blackFen = vi.mocked(ApiClient.analyzePosition).mock.calls[1][0].fen;
     fireEvent.click(screen.getByRole('button', { name: 'First' }));
     await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(3));
-    await act(async () => secondA.resolve({ fen: new Chess().fen(), lines: [{
+    await act(async () => secondA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
       score_cp: 55, mate: null, moves: [{ uci: 'e2e4', san: 'e4' }],
     }] }));
     expect(screen.getByLabelText('Line 1 evaluation +0.55')).toBeInTheDocument();
     await act(async () => {
-      firstA.resolve({ fen: new Chess().fen(), lines: [{
+      firstA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
         score_cp: 111, mate: null, moves: [{ uci: 'd2d4', san: 'd4' }],
       }] });
-      positionB.resolve({ fen: blackFen, lines: [{
+      positionB.resolve({ variant: 'chess', fen: blackFen, lines: [{
         score_cp: null, mate: -5, moves: [{ uci: 'e7e5', san: 'e5' }],
       }] });
     });
@@ -328,7 +358,7 @@ describe('AnalysisScreen', () => {
     const onPlayFromHere = vi.fn();
     const playSession = { id: 'session-1', player_id: 'player-1', game_id: 'game-1',
     opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false, assistance_modes: [] };
-    vi.mocked(ApiClient.createGame).mockResolvedValue({
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess',
       id: 'game-1',
       pgn: '',
       white: 'White',
@@ -349,5 +379,122 @@ describe('AnalysisScreen', () => {
       playSession,
       'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
+  });
+
+  describe('Explain lines', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const explained: PositionExplanationRead = {
+      fen: startFen,
+      source: 'template',
+      fallback_reason: null,
+      text: 'White to move. Line 1: 1.e4 e5. Line 2 (1.d4) scores 0.11 pawns less than line 1 for the side to move.',
+      lines: [
+        { line_id: 'line-1', rank: 1, score_cp: 41, mate: null, depth: 14, seldepth: 24,
+          moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }] },
+        { line_id: 'line-2', rank: 2, score_cp: 30, mate: null, depth: 13, seldepth: 20,
+          moves: [{ uci: 'd2d4', san: 'd4' }, { uci: 'g8f6', san: 'Nf6' }] },
+      ],
+      claims: [
+        { text: 'White to move. The engine\'s first choice is 1.e4.', evidence_ref: 'line-1', line_id: 'line-1', moves: ['e2e4'] },
+        { text: 'Line 1: 1.e4 e5.', evidence_ref: 'line-1', line_id: 'line-1', moves: ['e2e4', 'e7e5'] },
+        { text: 'Line 2 (1.d4) scores 0.11 pawns less than line 1 for the side to move.', evidence_ref: 'comparison',
+          line_id: 'line-2', moves: ['d2d4', 'g8f6'] },
+      ],
+      facts: {},
+    };
+    const cited = () => Array.from(document.querySelectorAll('[data-cited="true"]')).map(node => node.textContent);
+
+    it('shows the explanation next to the lines and highlights the moves each claim cites', async () => {
+      vi.mocked(ApiClient.explainPosition).mockResolvedValue(explained);
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      const claims = within(await screen.findByRole('list', { name: 'Explanation claims' }));
+      expect(ApiClient.explainPosition).toHaveBeenCalledWith({ player_id: 'player-1', fen: startFen }, expect.any(AbortSignal));
+      expect(screen.getByText(/Template explanation from the engine lines/)).toBeInTheDocument();
+      // The board shows exactly the explained lines.
+      expect(screen.getByLabelText('Line 2 evaluation +0.30')).toBeInTheDocument();
+      expect(cited()).toEqual([]);
+
+      const comparison = claims.getByRole('button', { name: /^Line 2: Line 2 \(1\.d4\)/ });
+      fireEvent.mouseEnter(comparison);
+      expect(cited()).toEqual(['d4', 'Nf6']);
+      fireEvent.mouseLeave(comparison);
+      expect(cited()).toEqual([]);
+
+      const opening = claims.getByRole('button', { name: /^Line 1: White to move/ });
+      fireEvent.click(opening);
+      expect(opening).toHaveAttribute('aria-pressed', 'true');
+      expect(cited()).toEqual(['e4']);
+      fireEvent.mouseEnter(comparison);
+      expect(cited()).toEqual(['d4', 'Nf6']);
+      fireEvent.mouseLeave(comparison);
+      expect(cited()).toEqual(['e4']);
+      fireEvent.click(opening);
+      expect(cited()).toEqual([]);
+    });
+
+    it('labels provider wording that passed grounding', async () => {
+      vi.mocked(ApiClient.explainPosition).mockResolvedValue({ ...explained, source: 'narrator' });
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      expect(await screen.findByText(/Worded by your configured model/)).toBeInTheDocument();
+    });
+
+    it('reports a failed explanation without discarding the engine lines', async () => {
+      vi.mocked(ApiClient.explainPosition).mockRejectedValue(
+        new ApiRequestError('Failed to explain engine lines: Analysis capacity is busy; try again shortly', 503),
+      );
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Analysis capacity is busy');
+      expect(screen.getByLabelText('Line 1 evaluation +0.20')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Explain lines' })).toBeEnabled();
+    });
+
+    it('drops an explanation that arrives after the position changed', async () => {
+      const pending = Promise.withResolvers<PositionExplanationRead>();
+      vi.mocked(ApiClient.explainPosition).mockReturnValue(pending.promise);
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      await act(async () => { pending.resolve(explained); await pending.promise; });
+      await screen.findByRole('button', { name: 'Explain lines' });
+      expect(screen.queryByRole('list', { name: 'Explanation claims' })).not.toBeInTheDocument();
+    });
+
+    it('aborts the running explanation when the position changes and shows nothing for it', async () => {
+      let signal: AbortSignal | undefined;
+      vi.mocked(ApiClient.explainPosition).mockImplementation((_data, requestSignal) => {
+        signal = requestSignal;
+        return new Promise((_resolve, reject) => {
+          requestSignal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        });
+      });
+      render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      await waitFor(() => expect(signal).toBeDefined());
+      expect(signal?.aborted).toBe(false);
+      fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+      expect(signal?.aborted).toBe(true);
+      await screen.findByRole('button', { name: 'Explain lines' });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText('Explaining the engine lines…')).not.toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Explanation claims' })).not.toBeInTheDocument();
+    });
+
+    it('aborts the running explanation when the board unmounts', async () => {
+      let signal: AbortSignal | undefined;
+      vi.mocked(ApiClient.explainPosition).mockImplementation((_data, requestSignal) => {
+        signal = requestSignal;
+        return new Promise(() => {});
+      });
+      const { unmount } = render(<AnalysisScreen />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Explain lines' }));
+      await waitFor(() => expect(signal).toBeDefined());
+      unmount();
+      expect(signal?.aborted).toBe(true);
+    });
   });
 });

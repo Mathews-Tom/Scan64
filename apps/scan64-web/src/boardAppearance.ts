@@ -1,28 +1,46 @@
+/**
+ * `staunton` marks sets drawn in the Staunton pattern that FIDE Handbook C.02 requires for
+ * tournament pieces. Settings groups sets by this flag; stored values never change.
+ */
 export const PIECE_SET_OPTIONS = [
-  { value: 'cburnett', label: 'Staunton (cburnett)' },
-  { value: 'merida', label: 'Merida' },
-  { value: 'chessnut', label: 'Chessnut' },
-  { value: 'spatial', label: 'Spatial' },
-  { value: 'firi', label: 'Firi' },
-  { value: 'california', label: 'California (non-commercial)' },
-  { value: 'maestro', label: 'Maestro (non-commercial)' },
-  { value: 'staunty', label: 'Staunty (non-commercial)' },
+  { value: 'cburnett', label: 'Staunton (cburnett)', staunton: true },
+  { value: 'merida', label: 'Merida', staunton: true },
+  { value: 'chessnut', label: 'Chessnut', staunton: true },
+  { value: 'spatial', label: 'Spatial', staunton: false },
+  { value: 'firi', label: 'Firi', staunton: false },
+  { value: 'california', label: 'California (non-commercial)', staunton: true },
+  { value: 'maestro', label: 'Maestro (non-commercial)', staunton: true },
+  { value: 'staunty', label: 'Staunty (non-commercial)', staunton: true },
+  { value: 'mpchess', label: 'mpchess', staunton: true },
+  { value: 'sophia', label: 'Sophia (GNOME Chess)', staunton: true },
 ] as const;
 
+/**
+ * `material` groups boards in Settings. Wood and stone boards draw a matte, albedo-only texture
+ * built by scripts/build-board-textures.py; their ids, labels and groups match
+ * boardMaterials.generated.json, and stored values never change.
+ */
 export const BOARD_THEME_OPTIONS = [
-  { value: 'brown', label: 'Brown and cream' },
-  { value: 'green', label: 'Green and buff' },
-  { value: 'brown-classic', label: 'Classic brown' },
-  { value: 'green-classic', label: 'Classic green' },
-  { value: 'walnut', label: 'Walnut' },
-  { value: 'sand', label: 'Sand' },
-  { value: 'slate', label: 'Slate' },
-  { value: 'sage', label: 'Sage' },
-  { value: 'graphite', label: 'Graphite' },
+  { value: 'brown', label: 'Brown and cream', material: 'flat' },
+  { value: 'green', label: 'Green and buff', material: 'flat' },
+  { value: 'brown-classic', label: 'Classic brown', material: 'flat' },
+  { value: 'green-classic', label: 'Classic green', material: 'flat' },
+  { value: 'walnut', label: 'Walnut', material: 'flat' },
+  { value: 'sand', label: 'Sand', material: 'flat' },
+  { value: 'slate', label: 'Slate', material: 'flat' },
+  { value: 'sage', label: 'Sage', material: 'flat' },
+  { value: 'graphite', label: 'Graphite', material: 'flat' },
+  { value: 'walnut-maple', label: 'Walnut and maple', material: 'wood' },
+  { value: 'rosewood-boxwood', label: 'Rosewood and boxwood', material: 'wood' },
+  { value: 'mahogany-maple', label: 'Mahogany and maple', material: 'wood' },
+  { value: 'ebony-boxwood', label: 'Ebony and boxwood', material: 'wood' },
+  { value: 'marble', label: 'White and black marble', material: 'stone' },
+  { value: 'granite', label: 'Grey and blue granite', material: 'stone' },
 ] as const;
 
 export type PieceSet = typeof PIECE_SET_OPTIONS[number]['value'];
 export type BoardTheme = typeof BOARD_THEME_OPTIONS[number]['value'];
+export type BoardMaterial = typeof BOARD_THEME_OPTIONS[number]['material'];
 export interface BoardAppearance { pieceSet: PieceSet; boardTheme: BoardTheme }
 
 function readChoice<T extends string>(key: string, options: readonly { value: T }[], fallback: T, sessionValue?: string): T {

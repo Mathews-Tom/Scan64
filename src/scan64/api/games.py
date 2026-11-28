@@ -15,6 +15,7 @@ from scan64.api.auth import require_authenticated_player, require_player_token
 from scan64.api.game_review import GameReviewRead, build_game_review
 from scan64.api.learning import _reverify_persisted_lesson
 from scan64.api.pagination import PaginatedResponse, decode_timestamp_uuid_cursor, encode_cursor
+from scan64.api.variant_games import is_standard, require_standard
 from scan64.chess.analysis.jobs import backfill_game_review, submit_analysis_job
 from scan64.chess.analysis.models import (
     AnalysisJob,
@@ -23,6 +24,7 @@ from scan64.chess.analysis.models import (
     PersistedLessonOpportunity,
 )
 from scan64.chess.analysis.notifications import AnalysisJobSubscription, AnalysisSubscriptionLimit
+from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.games.online_import import (
     OnlineImportError,
@@ -31,6 +33,12 @@ from scan64.chess.games.online_import import (
     source_identity,
 )
 from scan64.chess.positions.models import Position
+from scan64.chess.variants import (
+    UnsupportedVariantError,
+    board_variant,
+    stored_variant,
+    variant_of,
+)
 from scan64.content.models import StudySession
 from scan64.learning.diagnosis.visibility import visible_game_lesson
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
@@ -51,6 +59,19 @@ class GameRead(BaseModel):
     white: str
     black: str
     result: str
+    # ``chess`` for standard; else the variant's UCI name, or a legacy tag as written.
+    variant: str
+
+    @classmethod
+    def from_game(cls, game: Game) -> "GameRead":
+        return cls(
+            id=game.id,
+            pgn=game.pgn,
+            white=game.white,
+            black=game.black,
+            result=game.result,
+            variant=stored_variant(game.headers),
+        )
 
 
 class AnalysisJobRead(BaseModel):
@@ -108,7 +129,7 @@ def _decode_game_cursor(cursor: str) -> tuple[datetime, UUID]:
 @router.post("/v1/games", response_model=GameRead)
 def create_game(
     game_in: GameCreate, request: Request, session: Session = Depends(get_session)
-) -> Game:
+) -> GameRead:
     import io
 
     import chess.pgn
@@ -120,6 +141,19 @@ def create_game(
 
     if not chess_game:
         raise HTTPException(status_code=400, detail="Invalid PGN")
+    try:
+        variant_of(chess_game.headers)
+    except UnsupportedVariantError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
+    # The reader records a malformed starting FEN here; ``board()`` would raise it.
+    if chess_game.errors:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid PGN: {chess_game.errors[0]}"
+        ) from None
+    try:
+        board_variant(chess_game.board())
+    except UnsupportedVariantError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
 
     game = Game(
         pgn=game_in.pgn,
@@ -136,7 +170,7 @@ def create_game(
     session.add(game)
     session.commit()
     session.refresh(game)
-    return game
+    return GameRead.from_game(game)
 
 
 @router.post("/v1/games/import-online", response_model=OnlineImportRead)
@@ -252,15 +286,13 @@ def list_games(
         )
         games = games[:limit]
 
-    game_reads = [
-        GameRead(id=g.id, pgn=g.pgn, white=g.white, black=g.black, result=g.result) for g in games
-    ]
+    game_reads = [GameRead.from_game(g) for g in games]
     return PaginatedResponse(items=game_reads, next_cursor=next_cursor)
 
 
 @router.get("/v1/games/{game_id}", response_model=GameRead)
-def get_game(game_id: UUID, request: Request, session: Session = Depends(get_session)) -> Game:
-    return _get_owned_game(game_id, request, session)
+def get_game(game_id: UUID, request: Request, session: Session = Depends(get_session)) -> GameRead:
+    return GameRead.from_game(_get_owned_game(game_id, request, session))
 
 
 @router.get("/v1/games/{game_id}/learning-opportunities", response_model=GameLearningSessionRead)
@@ -382,6 +414,7 @@ def create_analysis_job(
         raise HTTPException(
             status_code=409, detail="Cannot analyse a legacy game without owner_color"
         )
+    require_standard(game, "game analysis")
 
     job = AnalysisJob(game_id=game_id)
     session.add(job)
@@ -523,9 +556,21 @@ def get_game_positions(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> list[PositionRead]:
     game = _get_owned_game(game_id, request, session)
+    if not is_standard(game):
+        # A variant game is never analysed (``require_standard``), so it has no
+        # positions; its moves need not replay on a standard board.
+        return []
+    # Only the positions the game passed through. Searches along a lesson's
+    # verified lines (#367) are stored as positions of the game too, so the
+    # evidence can name them, but they are not moves of this game.
+    board = board_from(game.headers.get("FEN"))
+    game_fens = [board.fen()]
+    for move in game.moves:
+        board.push_uci(move)
+        game_fens.append(board.fen())
     positions = session.exec(
         select(Position)
-        .where(Position.game_id == game_id)
+        .where(Position.game_id == game_id, col(Position.fen).in_(game_fens))
         .order_by(
             col(Position.full_move_number),
             case((col(Position.side_to_move) == "w", 0), else_=1),
@@ -569,7 +614,9 @@ def get_game_positions(
 def get_game_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
-    return build_game_review(_get_owned_game(game_id, request, session), session)
+    game = _get_owned_game(game_id, request, session)
+    require_standard(game, "game review")
+    return build_game_review(game, session)
 
 
 @router.post("/v1/games/{game_id}/review/backfill", response_model=GameReviewRead)
@@ -577,6 +624,7 @@ async def backfill_review(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> GameReviewRead:
     game = _get_owned_game(game_id, request, session)
+    require_standard(game, "game review")
     completed = session.exec(
         select(AnalysisJob.id).where(
             AnalysisJob.game_id == game.id, AnalysisJob.status == "completed"

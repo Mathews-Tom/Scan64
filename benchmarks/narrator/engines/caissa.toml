@@ -1,0 +1,12 @@
+# Caissa 2.0 for the narrator benchmark only (issue #389); not a Scan64 default.
+# caissa-uci is a two-line shell wrapper next to the binary:
+#   cd "$(dirname "$0")" && exec ./caissa "$@"
+# Caissa loads its default EvalFile (eval-ml-8-152B-spsa.pnn) from the working
+# directory, and a profile has no working-directory field.
+# Select it with SCAN64_ENGINE_CONFIG=<absolute path of this file>;
+# build_positions_live.py sets that itself.
+[engine]
+name = "caissa-2.0"
+binary_path = "~/.local/opt/engines/caissa/caissa-uci"
+threads = 1
+hash_mb = 64

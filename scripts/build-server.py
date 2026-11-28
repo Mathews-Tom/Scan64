@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Stage native frozen servers, Stockfish and complete redistribution notices.
+"""Stage native frozen servers, the bundled engines and complete redistribution notices.
+
+The engines are Stockfish 18, Caissa 2.0 (analysis) and Arasan 26.1 (bot ladder),
+each built on the host from its SHA-256-pinned source archive and networks. The
+pins are the Dockerfile's; this script never accepts an input the image would not.
 
 Run ``uv sync --locked --group build --python-preference only-managed``, build
 the web client, and install ``cargo-about`` 0.8.2 with ``cargo install cargo-about
@@ -29,13 +33,64 @@ from typing import Any, BinaryIO, NamedTuple
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / "build" / "server-inputs"
 RESOURCES = ROOT / "apps" / "scan64-desktop" / "resources"
-ENGINE_FILES = (
-    (
-        "stockfish-sf_18.tar.gz",
-        "https://codeload.github.com/official-stockfish/Stockfish/tar.gz/refs/tags/sf_18",
+# Downloaded inputs per engine; each one's SHA-256 is read from the Dockerfile.
+ENGINE_FILES = {
+    "stockfish": (
+        (
+            "stockfish-sf_18.tar.gz",
+            "https://codeload.github.com/official-stockfish/Stockfish/tar.gz/refs/tags/sf_18",
+        ),
+        ("nn-c288c895ea92.nnue", "https://tests.stockfishchess.org/api/nn/nn-c288c895ea92.nnue"),
+        ("nn-37f18f62d772.nnue", "https://tests.stockfishchess.org/api/nn/nn-37f18f62d772.nnue"),
     ),
-    ("nn-c288c895ea92.nnue", "https://tests.stockfishchess.org/api/nn/nn-c288c895ea92.nnue"),
-    ("nn-37f18f62d772.nnue", "https://tests.stockfishchess.org/api/nn/nn-37f18f62d772.nnue"),
+    "caissa": (
+        ("caissa-2.0.tar.gz", "https://codeload.github.com/Witek902/Caissa/tar.gz/refs/tags/2.0"),
+        (
+            "eval-ml-8-152B-spsa.pnn",
+            "https://github.com/Witek902/Caissa-Nets/releases/download/"
+            "eval-ml-8-152B-spsa/eval-ml-8-152B-spsa.pnn",
+        ),
+        (
+            "Caissa-Nets-LICENSE",
+            "https://raw.githubusercontent.com/Witek902/Caissa-Nets/"
+            "8098255ee7b6608d9698ce0c725b743c74ab2f9b/LICENSE",
+        ),
+    ),
+    "arasan": (
+        (
+            "arasan-v26.1.tar.gz",
+            "https://codeload.github.com/jdart1/arasan-chess/tar.gz/refs/tags/v26.1",
+        ),
+        (
+            "fathom-c9c6fef0.tar.gz",
+            "https://codeload.github.com/jdart1/Fathom/tar.gz/"
+            "c9c6fef0dddc05d2e242c183acf5833149ab676d",
+        ),
+    ),
+}
+CAISSA_NETWORK = "eval-ml-8-152B-spsa.pnn"
+# Inside the Arasan source archive; Arasan loads it from its executable's directory.
+ARASAN_NETWORK = "arasanv8-20261005.nnue"
+# GCC-only parts of Caissa's makefile FLAGS. Clang rejects -flto-partition, and with
+# -fno-exceptions it rejects the throw in the uninstantiated Allocator template
+# (src/backend/Memory.hpp). Caissa's CMake build for clang uses neither flag.
+CAISSA_GCC_ONLY_FLAGS = ("-flto-partition=one", "-fno-exceptions")
+# Arasan 26.1 builds on Windows only with MSVC. Two preprocessor guards let MinGW
+# take the MSVC branches it supports: no POSIX headers (the getrlimit code that
+# needs <sys/resource.h> is already #ifndef _WIN32) and _aligned_malloc with
+# _aligned_free (MinGW has no std::aligned_alloc). The edits apply to the
+# digest-checked archive, must match exactly once, and change nothing else.
+ARASAN_MINGW_EDITS = (
+    (
+        "globals.cpp",
+        "#elif !defined(_MSC_VER)\n// assume POSIX system",
+        "#elif !defined(_WIN32)\n// assume POSIX system",
+    ),
+    (
+        "types.h",
+        '#ifdef _MSC_VER\nextern "C" {\n   #include <malloc.h>',
+        '#if defined(_MSC_VER) || defined(__MINGW32__)\nextern "C" {\n   #include <malloc.h>',
+    ),
 )
 CARGO_ABOUT_VERSION = "0.8.2"
 FONT_LICENSES = ("host-grotesk-OFL.txt", "jetbrains-mono-OFL.txt")
@@ -49,6 +104,8 @@ class BuildPlatform(NamedTuple):
     suffix: str
     python_target: str
     python_optimization: str
+    cxx: str
+    caissa_target: str
 
 
 def build_platform() -> BuildPlatform:
@@ -63,6 +120,8 @@ def build_platform() -> BuildPlatform:
             "",
             "aarch64-apple-darwin",
             "pgo+lto",
+            "clang++",
+            "neon",
         )
     if target in (("win32", "amd64"), ("win32", "x86_64")):
         return BuildPlatform(
@@ -73,6 +132,8 @@ def build_platform() -> BuildPlatform:
             ".exe",
             "x86_64-pc-windows-msvc",
             "pgo",
+            "g++",
+            "sse4",
         )
     if target == ("linux", "x86_64"):
         return BuildPlatform(
@@ -83,6 +144,8 @@ def build_platform() -> BuildPlatform:
             "",
             "x86_64-unknown-linux-gnu",
             "pgo+lto",
+            "g++",
+            "sse4",
         )
     raise SystemExit("Server packaging requires macOS arm64, Windows x64 or Linux x64")
 
@@ -91,17 +154,240 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
 
 
-def pinned_engine_files(dockerfile: str) -> list[tuple[str, str, str]]:
+DOWNLOAD = re.compile(r"curl --fail --location --retry 3 (https://\S+) --output (\S+)")
+CHECK = re.compile(r"echo '([0-9a-f]{64})  (\S+)' \| sha256sum --check")
+
+
+def dockerfile_runs(dockerfile: str) -> list[list[str]]:
+    """The && commands of every RUN in a stage the image build uses.
+
+    Comment lines never count. A used stage is the final stage or one that a
+    COPY --from names; a download in any other stage never reaches the image.
+    """
+    lines = [line for line in dockerfile.splitlines() if not line.lstrip().startswith("#")]
+    instructions = re.split(r"(?<!\\)\n", "\n".join(lines))
+    stage = None
+    runs: list[tuple[str | None, str]] = []
+    used: set[str | None] = set()
+    for instruction in instructions:
+        joined = re.sub(r"\s*\\\n\s*", " ", instruction).strip()
+        words = joined.split()
+        if not words:
+            continue
+        keyword = words[0].upper()
+        if keyword == "FROM":
+            stage = words[3] if len(words) >= 4 and words[2].upper() == "AS" else None
+        elif keyword == "COPY":
+            used.update(
+                word.removeprefix("--from=") for word in words if word.startswith("--from=")
+            )
+        elif keyword == "RUN":
+            runs.append((stage, joined[len(words[0]) :]))
+    used.add(stage)
+    return [
+        [command.strip() for command in text.split("&&")] for name, text in runs if name in used
+    ]
+
+
+def dockerfile_checks(dockerfile: str, name: str) -> list[tuple[str, str]]:
+    """The (digest, path) of every exact SHA-256 check of a file of this name."""
+    return [
+        (match[1], match[2])
+        for run in dockerfile_runs(dockerfile)
+        for command in run
+        if (match := CHECK.fullmatch(command)) and Path(match[2]).name == name
+    ]
+
+
+def dockerfile_digest(dockerfile: str, name: str) -> str:
+    """The one SHA-256 the Dockerfile checks for a file of this name."""
+    matches = dockerfile_checks(dockerfile, name)
+    if len(matches) != 1:
+        raise ValueError(f"Dockerfile pin missing: {name}")
+    return matches[0][0]
+
+
+def dockerfile_download_digest(dockerfile: str, name: str, url: str) -> str:
+    """The SHA-256 of the one download of this file, checked later in its own RUN.
+
+    The download and its check are exact commands in one && chain, so a
+    neutralised check ("|| true") or a download in an unused stage never pins.
+    This guards against drift, not a hostile Dockerfile: it reads command order,
+    not shell control flow (a leading "false ;" is still accepted).
+    """
+    found = []
+    for run in dockerfile_runs(dockerfile):
+        for index, command in enumerate(run):
+            download = DOWNLOAD.fullmatch(command)
+            if download and Path(download[2]).name == name:
+                checks = [
+                    match[1]
+                    for later in run[index + 1 :]
+                    if (match := CHECK.fullmatch(later)) and match[2] == download[2]
+                ]
+                found.append((download[1], checks))
+    if len(found) != 1 or found[0][0] != url or len(found[0][1]) != 1:
+        raise ValueError(f"Dockerfile pin missing: {name}")
+    return found[0][1][0]
+
+
+def pinned_engine_files(dockerfile: str) -> dict[str, list[tuple[str, str, str]]]:
     """Use the container's authoritative pins; never accept an unchecked input."""
-    files = []
-    for name, url in ENGINE_FILES:
-        match = re.search(
-            r"echo '([0-9a-f]{64})  (?:/out/|src/)" + re.escape(name) + "'", dockerfile
+    return {
+        engine: [
+            (name, url, dockerfile_download_digest(dockerfile, name, url)) for name, url in files
+        ]
+        for engine, files in ENGINE_FILES.items()
+    }
+
+
+def sha256(path: Path) -> str:
+    with path.open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def extract(archive_path: Path, destination: Path) -> Path:
+    """Unpack a source archive safely and return its single top-level directory."""
+    with tarfile.open(archive_path, "r:gz") as archive:
+        roots = {Path(member.name).parts[0] for member in archive.getmembers()}
+        if len(roots) != 1:
+            raise ValueError(f"Source archive has no single top-level directory: {archive_path}")
+        archive.extractall(destination, filter="data")
+    return destination / roots.pop()
+
+
+def replace_once(path: Path, old: str, new: str) -> None:
+    """Edit pinned upstream source only where the expected text occurs exactly once."""
+    text = path.read_text(encoding="utf-8")
+    if text.count(old) != 1:
+        raise ValueError(f"Expected one match in {path.name}: {old.splitlines()[0]}")
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+# The bundled engines a fresh desktop install selects (#396): each profile is the
+# image's, with its binary relative to the profile (resources/engines/).
+BUNDLED_PROFILES = ("caissa", "arasan")
+
+
+def desktop_profile(container_profile: str, binary: str) -> str:
+    """The image's profile with ``binary_path`` beside it in the desktop resources."""
+    line = re.compile(r'^binary_path = "[^"\n]+"$', re.MULTILINE)
+    if len(line.findall(container_profile)) != 1:
+        raise SystemExit("A bundled engine profile needs exactly one binary_path line")
+    header = (
+        "# Staged for the desktop app by scripts/build-server.py from the image's\n"
+        "# profile below; only binary_path differs, relative to this file.\n"
+    )
+    return header + line.sub(f'binary_path = "../{binary}"', container_profile)
+
+
+def makefile_list(makefile: str, variable: str) -> list[str]:
+    """A plain `NAME = a b \\` list from an upstream makefile, continuation lines included."""
+    match = re.search(rf"^{re.escape(variable)} = ((?:.*\\\n)*.*)$", makefile, re.MULTILINE)
+    if match is None:
+        raise ValueError(f"Makefile variable missing: {variable}")
+    return match[1].replace("\\\n", " ").split()
+
+
+def build_caissa(target: BuildPlatform, engine: Path, source: Path) -> None:
+    """src/makefile build with the verified network embedded through EVALFILE."""
+    tree = extract(engine / "caissa-2.0.tar.gz", source)
+    networks = tree / "data" / "neuralNets"
+    networks.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(engine / CAISSA_NETWORK, networks / CAISSA_NETWORK)
+    command = [
+        target.make,
+        "-C",
+        str(tree / "src"),
+        target.caissa_target,
+        f"CC={target.cxx}",
+        # GNU make 3.81 (macOS) cannot read version.txt with $(file <).
+        "VERSION=2.0",
+        f"EVALFILE=../data/neuralNets/{CAISSA_NETWORK}",
+    ]
+    if sys.platform == "win32":
+        # The makefile links MinGW builds statically; a GUI subsystem keeps the
+        # child windowless while its CRT still receives the UCI pipes.
+        command.append("LIBS=-pthread -Wl,--subsystem,windows")
+    if target.cxx == "clang++":
+        makefile = (tree / "src" / "makefile").read_text(encoding="utf-8")
+        match = re.search(r"^FLAGS = (.*)$", makefile, re.MULTILINE)
+        if match is None:
+            raise ValueError("Caissa makefile FLAGS missing")
+        flags = match[1].split()
+        for flag in CAISSA_GCC_ONLY_FLAGS:
+            if flags.count(flag) != 1:
+                raise ValueError(f"Caissa makefile FLAGS changed: {flag}")
+            flags.remove(flag)
+        # A command-line FLAGS also skips the makefile's g++-only `FLAGS +=`
+        # (-fno-peel-loops), which matches "clang++" through findstring g++.
+        command.append("FLAGS=" + " ".join(flags))
+    run(*command)
+    built = [path for path in (tree / "src").glob("caissa-2.0-*") if path.is_file()]
+    if len(built) != 1:
+        raise ValueError(f"Caissa build produced {len(built)} executables")
+    shutil.copy2(built[0], engine / f"caissa{target.suffix}")
+    shutil.copy2(tree / "LICENSE", engine / "LICENSE")
+    shutil.copy2(tree / "src" / "backend" / "syzygy" / "LICENSE", engine / "Fathom-LICENSE")
+
+
+def build_arasan(target: BuildPlatform, engine: Path, source: Path, dockerfile: str) -> None:
+    """Compile the upstream Makefile's arasanx sources and flags in one compiler call.
+
+    The Makefile itself needs bc, gawk and getconf for GCC and links with gold on
+    Linux; the Windows runner's shell has none of them. Docker uses the Makefile.
+    """
+    tree = extract(engine / "arasan-v26.1.tar.gz", source)
+    fathom = extract(engine / "fathom-c9c6fef0.tar.gz", source)
+    shutil.copytree(fathom, tree / "src" / "syzygy", dirs_exist_ok=True)
+    network = tree / "network" / ARASAN_NETWORK
+    if sha256(network) != dockerfile_digest(dockerfile, ARASAN_NETWORK):
+        raise ValueError(f"SHA-256 mismatch: {ARASAN_NETWORK}")
+    src = tree / "src"
+    if sys.platform == "win32":
+        for name, old, new in ARASAN_MINGW_EDITS:
+            replace_once(src / name, old, new)
+    sources = makefile_list((src / "Makefile").read_text(encoding="utf-8"), "ARASANX_SOURCES")
+    if sys.platform == "darwin":
+        simd = ["-D_MAC", "-DSIMD", "-DNEON"]
+        optimization = ["-O3", "-fno-rtti", "-DNDEBUG"]
+        libraries = ["-lm"]
+    else:
+        # BUILD_TYPE=modern, the SSE4.1/POPCNT level of the Stockfish build.
+        simd = ["-DSIMD", "-DSSE2", "-msse2", "-msse3", "-DUSE_POPCNT", "-DSSSE3", "-DSSE41"]
+        simd += ["-mssse3", "-msse4.1", "-msse4.2", "-mpopcnt"]
+        optimization = ["-Ofast", "-fno-rtti", "-fno-enforce-eh-specs", "-DNDEBUG"]
+        libraries = (
+            ["-static", "-Wl,--subsystem,windows"] if sys.platform == "win32" else ["-lm", "-lrt"]
         )
-        if match is None or url not in dockerfile:
-            raise ValueError(f"Dockerfile pin missing: {name}")
-        files.append((name, url, match[1]))
-    return files
+    binary = engine / f"arasan{target.suffix}"
+    run(
+        target.cxx,
+        "-std=c++17",
+        "-fno-strict-aliasing",
+        "-DUSE_INTRINSICS",
+        "-DUSE_ASM",
+        "-DSYZYGY_TBS",
+        "-D_64BIT",
+        "-DSMP_STATS",
+        "-DARASAN_VERSION=26.1",
+        f"-DNETWORK={ARASAN_NETWORK}",
+        f"-I{src}",
+        f"-I{src / 'nnue'}",
+        *simd,
+        *optimization,
+        "-pthread",
+        *(str(src / name) for name in [*sources, "syzygy.cpp"]),
+        "-x",
+        "c++",
+        str(src / "syzygy" / "src" / "tbprobe.c"),
+        "-o",
+        str(binary),
+        *libraries,
+    )
+    shutil.copy2(network, engine / ARASAN_NETWORK)
+    shutil.copy2(tree / "LICENSE", engine / "LICENSE")
+    shutil.copy2(fathom / "LICENSE", engine / "Fathom-LICENSE")
 
 
 def fetch_url(url: str, destination: BinaryIO) -> None:
@@ -338,7 +624,7 @@ def main() -> None:
     for name in FONT_LICENSES:
         if not (public / "fonts" / name).is_file():
             raise SystemExit(f"Bundled font license missing: {name}")
-    tools = [target.make, target.compiler_binary, "cargo-about"]
+    tools = [target.make, target.compiler_binary, target.cxx, "cargo-about"]
     if sys.platform == "darwin":
         tools.append("xcode-select")
     for tool in tools:
@@ -351,20 +637,20 @@ def main() -> None:
             ["g++", "-dumpmachine"], cwd=ROOT, text=True
         ).strip()
         if not compiler_target.startswith("x86_64-") or "mingw" not in compiler_target:
-            raise SystemExit("Windows Stockfish requires MinGW64 g++ on PATH")
+            raise SystemExit("Windows engines require MinGW64 g++ on PATH")
     STAGE.mkdir(parents=True, exist_ok=True)
-    engine = STAGE / "stockfish"
-    engine.mkdir(exist_ok=True)
-    inputs = pinned_engine_files((ROOT / "Dockerfile").read_text())
-    for name, url, digest in inputs:
-        download(url, engine / name, digest)
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    pins = pinned_engine_files(dockerfile)
+    for engine_name, files in pins.items():
+        (STAGE / engine_name).mkdir(exist_ok=True)
+        for name, url, digest in files:
+            download(url, STAGE / engine_name / name, digest)
     source = STAGE / "source"
     shutil.rmtree(source, ignore_errors=True)
     source.mkdir()
-    with tarfile.open(engine / "stockfish-sf_18.tar.gz", "r:gz") as archive:
-        archive.extractall(source, filter="data")
-    tree = source / "Stockfish-sf_18"
-    for name, _, _ in inputs:
+    engine = STAGE / "stockfish"
+    tree = extract(engine / "stockfish-sf_18.tar.gz", source)
+    for name, _, _ in pins["stockfish"]:
         if name.endswith(".nnue"):
             shutil.copy2(engine / name, tree / "src" / name)
     command = [
@@ -386,18 +672,33 @@ def main() -> None:
     binary = "stockfish" + target.suffix
     shutil.copy2(tree / "src" / binary, engine / binary)
     shutil.copy2(tree / "Copying.txt", engine / "Copying.txt")
+    build_caissa(target, STAGE / "caissa", source)
+    build_arasan(target, STAGE / "arasan", source, dockerfile)
+    # Everything that accompanies each executable: pinned inputs, built files, licences.
+    staged = {engine_name: [name for name, _, _ in files] for engine_name, files in pins.items()}
+    staged["stockfish"] += [binary, "Copying.txt"]
+    staged["caissa"] += [f"caissa{target.suffix}", "LICENSE", "Fathom-LICENSE"]
+    staged["arasan"] += [f"arasan{target.suffix}", ARASAN_NETWORK, "LICENSE", "Fathom-LICENSE"]
     python_notices()
     rust = rust_notices()
     run(sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "scan64-server.spec")
     # Stage only complete build outputs; no system interpreter or PATH engine is needed at runtime.
     RESOURCES.mkdir(parents=True, exist_ok=True)
-    for name in ("scan64-server", "stockfish", "notices"):
+    for name in ("scan64-server", *staged, "engines", "notices"):
         shutil.rmtree(RESOURCES / name, ignore_errors=True)
     shutil.copytree(ROOT / "dist" / "scan64-server", RESOURCES / "scan64-server")
-    engine_resources = RESOURCES / "stockfish"
-    engine_resources.mkdir()
-    for name in [item[0] for item in inputs] + [binary, "Copying.txt"]:
-        shutil.copy2(engine / name, engine_resources / name)
+    for engine_name, names in staged.items():
+        engine_resources = RESOURCES / engine_name
+        engine_resources.mkdir()
+        for name in names:
+            shutil.copy2(STAGE / engine_name / name, engine_resources / name)
+    profiles = RESOURCES / "engines"
+    profiles.mkdir()
+    for engine_name in BUNDLED_PROFILES:
+        container = ROOT / "config" / "engines" / "container" / f"{engine_name}.toml"
+        (profiles / f"{engine_name}.toml").write_text(
+            desktop_profile(container.read_text(), f"{engine_name}/{engine_name}{target.suffix}")
+        )
     notices = RESOURCES / "notices"
     notices.mkdir()
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):

@@ -9,7 +9,16 @@ from urllib.parse import urlparse
 
 import httpx
 
+from scan64.explanations.voice import (
+    DEFAULT_NARRATOR_VOICE,
+    NarratorVoice,
+    NarratorVoiceError,
+    parse_narrator_voice,
+)
 from scan64.providers.llm.adapters import (
+    DEFAULT_OLLAMA_CONTEXT_TOKENS,
+    MAX_OLLAMA_CONTEXT_TOKENS,
+    MIN_OLLAMA_CONTEXT_TOKENS,
     HostedExplanationAdapter,
     LLMExplanationProvider,
     OllamaExplanationAdapter,
@@ -26,6 +35,9 @@ class LLMProviderConfig:
     model: str | None = None
     base_url: str | None = None
     api_key_environment: str | None = None
+    # Narrator voice (#387): ``voice`` in the [llm] table; absent means the default.
+    voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
+    context_tokens: int = DEFAULT_OLLAMA_CONTEXT_TOKENS
 
     @classmethod
     def from_toml(cls, path: Path) -> LLMProviderConfig:
@@ -49,8 +61,12 @@ class LLMProviderConfig:
         provider = raw_llm.get("provider")
         if not isinstance(provider, str):
             raise LLMConfigurationError("llm.provider must be template, ollama, or openai")
+        try:
+            voice = parse_narrator_voice(raw_llm.get("voice"))
+        except NarratorVoiceError as error:
+            raise LLMConfigurationError(f"llm.voice: {error}") from error
         if provider == "template":
-            return cls(provider=provider)
+            return cls(provider=provider, voice=voice)
         if provider not in {"ollama", "openai"}:
             raise LLMConfigurationError("llm.provider must be template, ollama, or openai")
 
@@ -63,6 +79,8 @@ class LLMProviderConfig:
 
         api_key_environment = raw_llm.get("api_key_environment")
         if provider == "openai":
+            if "context_tokens" in raw_llm:
+                raise LLMConfigurationError("llm.context_tokens applies only to provider ollama")
             if not isinstance(api_key_environment, str) or not api_key_environment:
                 raise LLMConfigurationError(
                     "OpenAI-compatible configuration requires llm.api_key_environment"
@@ -72,8 +90,30 @@ class LLMProviderConfig:
                 model=model,
                 base_url=base_url,
                 api_key_environment=api_key_environment,
+                voice=voice,
             )
-        return cls(provider=provider, model=model, base_url=base_url)
+        return cls(
+            provider=provider,
+            model=model,
+            base_url=base_url,
+            voice=voice,
+            context_tokens=_context_tokens(raw_llm.get("context_tokens")),
+        )
+
+
+def _context_tokens(value: object) -> int:
+    if value is None:
+        return DEFAULT_OLLAMA_CONTEXT_TOKENS
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not MIN_OLLAMA_CONTEXT_TOKENS <= value <= MAX_OLLAMA_CONTEXT_TOKENS
+    ):
+        raise LLMConfigurationError(
+            f"llm.context_tokens must be an integer from {MIN_OLLAMA_CONTEXT_TOKENS} "
+            f"to {MAX_OLLAMA_CONTEXT_TOKENS}"
+        )
+    return value
 
 
 def create_llm_provider(
@@ -93,6 +133,7 @@ def create_llm_provider(
             base_url=_validated_base_url(config.base_url, allow_loopback_http=True),
             model=_required_value(config.model, "llm.model"),
             client=client,
+            context_tokens=config.context_tokens,
         )
     if config.provider == "openai":
         environment_values = os.environ if environment is None else environment

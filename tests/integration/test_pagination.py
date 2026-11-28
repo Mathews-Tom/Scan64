@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
@@ -14,40 +16,38 @@ from scan64.api.models import (  # noqa: F401
 from scan64.chess.analysis.models import AnalysisJob, EngineAnalysis  # noqa: F401
 from scan64.chess.games.models import Game, PlaySession  # noqa: F401
 from scan64.chess.positions.models import Position  # noqa: F401
+from scan64.persistence import database
 from scan64.persistence.database import get_session
+from tests.support.idempotency import idempotency_session
 
 
 @pytest.fixture(name="session")
-def session_fixture():
+def session_fixture() -> Iterator[Session]:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    from scan64.persistence import database
-
+    previous_engine = database.engine
     database.engine = engine
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        database.engine = previous_engine
+        engine.dispose()
 
 
 @pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
+def client_fixture(session: Session) -> Iterator[TestClient]:
+    def get_session_override() -> Session:
         return session
 
     app.dependency_overrides[get_session] = get_session_override
-
-    for middleware in app.user_middleware:
-        if middleware.cls.__name__ == "IdempotencyMiddleware":
-
-            def mock_get_session():
-                yield session
-
-            middleware.kwargs["get_session_callable"] = mock_get_session
-
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+    try:
+        with idempotency_session(app, session):
+            yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_pagination(client: TestClient, session: Session):

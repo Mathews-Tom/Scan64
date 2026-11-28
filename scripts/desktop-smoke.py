@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import urlopen
@@ -137,12 +138,28 @@ def process_executable(pid: int) -> Path | None:
         return None
 
 
-def stockfish_children(server_pid: int) -> list[int]:
+# The bundled engine that plays the smoke's bot move, by the engines the installed
+# server recorded for its data folder (scan64.providers.engine.install_defaults, #396).
+BOT_ENGINE = {"bundled": "arasan", "stockfish": "stockfish"}
+
+
+def recorded_install_engines(data_dir: Path) -> str:
+    """The install's recorded engines; the installed server writes them on first start."""
+    record = data_dir / "scan64.db.engines.toml"
+    engines = tomllib.loads(record.read_text(encoding="utf-8")).get("engines")
+    if engines not in BOT_ENGINE:
+        raise AssertionError(f"Unexpected engines record {record}: {engines!r}")
+    return engines
+
+
+def engine_children(server_pid: int, stem: str) -> list[int]:
+    """Live children of the server running the bundled ``stem`` from its own resource folder."""
     return [
         pid
         for pid in descendants(server_pid)
         if (executable := process_executable(pid)) is not None
-        and executable.name.lower() in ("stockfish", "stockfish.exe")
+        and executable.name.lower() in (stem, f"{stem}.exe")
+        and executable.parent.name.lower() == stem
     ]
 
 
@@ -225,9 +242,12 @@ def run(
             children = descendants(process.pid)
             assert server_pid in children, "Receipt server is not a child of the installed app"
             if packaged:
-                engines = stockfish_children(server_pid)
-                assert engines, "Installed server has no live bundled Stockfish executable"
+                install_engines = recorded_install_engines(directory / "data")
+                bot_engine = BOT_ENGINE[install_engines]
+                engines = engine_children(server_pid, bot_engine)
+                assert engines, f"Installed server has no live bundled {bot_engine} executable"
                 children = sorted(set(children + engines))
+                record["install_engines"] = install_engines
                 record["engine_pids"] = engines
         if screenshot is not None:
             # The ordinary analysis screen mounts after initializeDesktop returns.

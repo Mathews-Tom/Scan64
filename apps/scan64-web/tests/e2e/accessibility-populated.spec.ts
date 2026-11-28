@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { attachScreenshot } from './screenshot';
 import { prepareToday } from './today';
 import { strengthFixture } from '../../src/components/strength.test-fixtures';
 import { checkUserDrawing } from './board';
@@ -28,7 +29,7 @@ async function capture(page: Page, info: TestInfo, state: string) {
   expect(widths.main[0], `${state} main`).toBeLessThanOrEqual(widths.main[1]);
   await info.attach(`${state}-widths`, { body: JSON.stringify(widths), contentType: 'application/json' });
   await info.attach(`${state}-tree`, { body: await page.locator('main').ariaSnapshot(), contentType: 'text/plain' });
-  await info.attach(`${state}-screen`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await attachScreenshot(page, info, `${state}-screen`, { fullPage: true });
 }
 
 for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }]) {
@@ -51,7 +52,7 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 320 }
       await page.route('**/v1/content/famous-games', route => route.fulfill({ json: [{ id: 'opera', skill_mapping: {}, payload: { title: 'Opera Game', historical_context: long, strategic_context: long, moves: ['e4'], decisions: [{ id: 'opening', ply: 0, fen, prompt: long, played_move: 'e4', accepted_moves: ['e4'], verified_alternatives: [], hints: [long], comparison: long }] } }] }));
       await page.route('**/v1/play-sessions', route => route.fulfill({ json: { id: 'accessible-play', player_id: 'player-1', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] } }));
       await page.route('**/v1/insights/position', route => route.fulfill({ json: { step: 3, fen, visualizations: [], candidates: [{ number: 1, move: 'e2e4', san: 'e4', line: ['e2e4', 'e7e5'], reasons: [{ tier: 'principle', kind: 'centre', description: long, line: ['e2e4'], squares: ['e4'] }], fallback: false, visualizations: [] }] } }));
-      await page.route('**/v1/games', route => route.fulfill({ json: { id: 'import-game', white: long, black: long, result: '*', pgn: '1. e4 *' } }));
+      await page.route('**/v1/games', route => route.fulfill({ json: { id: 'import-game', white: long, black: long, result: '*', pgn: '1. e4 *', variant: 'chess' } }));
       await page.route('**/v1/games/import-game/analysis-jobs', route => route.fulfill({ json: { id: 'analysis-1', game_id: 'import-game', status: 'completed' } }));
       await page.route('**/v1/analysis-jobs/analysis-1', route => route.fulfill({ json: { id: 'analysis-1', game_id: 'import-game', status: 'completed' } }));
       await page.route('**/v1/games/import-game/learning-opportunities?*', route => route.fulfill({ json: { session_id: 'study-1', lessons: [lesson], next_cursor: null } }));

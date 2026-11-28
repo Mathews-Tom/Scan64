@@ -1,0 +1,948 @@
+{
+  "$defs": {
+    "CentipawnEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "centipawns",
+          "title": "Status",
+          "type": "string"
+        },
+        "centipawns": {
+          "description": "Learner's point of view: positive favours the learner.",
+          "title": "Centipawns",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "fast_pass",
+            "reply_pass",
+            "focused_pass",
+            "mate_source_pass",
+            "analysis_board_pass",
+            "line_pass"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "centipawns",
+        "source"
+      ],
+      "title": "CentipawnEvaluation",
+      "type": "object"
+    },
+    "EvidenceFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "line_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Line Ids",
+          "type": "array"
+        },
+        "pieces": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EvidencePiece"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "squares": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Squares",
+          "type": "array"
+        },
+        "tactic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tactic"
+        },
+        "mate_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mate In"
+        },
+        "material_gain": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pawn units won by the line.",
+          "title": "Material Gain"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "kind",
+        "claim"
+      ],
+      "title": "EvidenceFacts",
+      "type": "object"
+    },
+    "EvidencePiece": {
+      "additionalProperties": false,
+      "properties": {
+        "square": {
+          "pattern": "^[a-h][1-8]$",
+          "title": "Square",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "colour": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Colour",
+          "type": "string"
+        },
+        "role": {
+          "description": "Evidence payload field naming this piece.",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "square",
+        "piece",
+        "colour",
+        "role"
+      ],
+      "title": "EvidencePiece",
+      "type": "object"
+    },
+    "FactorChange": {
+      "additionalProperties": false,
+      "description": "A factor change that passed its threshold and agrees with the engine.",
+      "properties": {
+        "key": {
+          "description": "Slot key, for example king_safety.",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "description": "Plain name, for example king safety.",
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "group",
+            "term"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "guide_name": {
+          "description": "Group or part name in the Stockfish Evaluation Guide.",
+          "title": "Guide Name",
+          "type": "string"
+        },
+        "compared_with": {
+          "description": "before: the position before the mistake; best: after the best move's line (Analysis Board: after line 1).",
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "change_pawns": {
+          "description": "Played point minus the reference point, learner's view, pawns.",
+          "title": "Change Pawns",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "kind",
+        "guide_name",
+        "compared_with",
+        "change_pawns"
+      ],
+      "title": "FactorChange",
+      "type": "object"
+    },
+    "FactorFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Factor module version.",
+          "title": "Source",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/FactorPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "engine_swing_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine score after the mistake minus before it, learner's view; mates count as large scores. Absent: no factor fact (the engine gave no direction).",
+          "title": "Engine Swing Cp"
+        },
+        "swings": {
+          "default": [],
+          "description": "The swing each comparison used (#367); absent before #367.",
+          "items": {
+            "$ref": "#/$defs/FactorSwing"
+          },
+          "title": "Swings",
+          "type": "array"
+        },
+        "changes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FactorChange"
+          },
+          "title": "Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "points"
+      ],
+      "title": "FactorFacts",
+      "type": "object"
+    },
+    "FactorPoint": {
+      "additionalProperties": false,
+      "description": "One measured position, reached by ``uci`` from the position before the mistake.\n\nAnalysis Board: ``best`` is line 1 and ``line`` the explained line, both from\nthe board position.",
+      "properties": {
+        "point": {
+          "enum": [
+            "before",
+            "played",
+            "best",
+            "line"
+          ],
+          "title": "Point",
+          "type": "string"
+        },
+        "uci": {
+          "default": [],
+          "description": "Moves from the position before the mistake to this position.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Uci",
+          "type": "array"
+        },
+        "quiet": {
+          "default": true,
+          "description": "False: no quiet position within the ply limit (not measured).",
+          "title": "Quiet",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "point"
+      ],
+      "title": "FactorPoint",
+      "type": "object"
+    },
+    "FactorSwing": {
+      "additionalProperties": false,
+      "description": "The engine swing a comparison's sign rule used.",
+      "properties": {
+        "compared_with": {
+          "enum": [
+            "before",
+            "best"
+          ],
+          "title": "Compared With",
+          "type": "string"
+        },
+        "swing_cp": {
+          "description": "Engine score at the played (board: line) point minus the score at the reference point, learner's view; mates count as large scores.",
+          "title": "Swing Cp",
+          "type": "integer"
+        },
+        "source": {
+          "description": "points: per-move evaluations at both measured positions; mistake: the position scores were unknown, so engine_swing_cp.",
+          "enum": [
+            "points",
+            "mistake"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compared_with",
+        "swing_cp",
+        "source"
+      ],
+      "title": "FactorSwing",
+      "type": "object"
+    },
+    "LineEvaluationChange": {
+      "additionalProperties": false,
+      "description": "What the line wins or loses by engine evaluation, learner's view (#368).",
+      "properties": {
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation of the position before the line's first move.",
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            }
+          ],
+          "description": "Evaluation after ply end_ply, the line's last scored move.",
+          "title": "End"
+        },
+        "end_ply": {
+          "minimum": 1,
+          "title": "End Ply",
+          "type": "integer"
+        },
+        "change_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "end minus start, learner's view; positive: the line gains for the learner. Absent unless both are centipawn scores.",
+          "title": "Change Cp"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "end_ply"
+      ],
+      "title": "LineEvaluationChange",
+      "type": "object"
+    },
+    "MateEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "mate",
+          "title": "Status",
+          "type": "string"
+        },
+        "mate_in": {
+          "description": "Full moves to mate. Positive: the learner mates. Negative: the learner is mated.",
+          "title": "Mate In",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "fast_pass",
+            "reply_pass",
+            "focused_pass",
+            "mate_source_pass",
+            "analysis_board_pass",
+            "line_pass"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "mate_in",
+        "source"
+      ],
+      "title": "MateEvaluation",
+      "type": "object"
+    },
+    "Material": {
+      "additionalProperties": false,
+      "description": "Piece values pawn 1, knight 3, bishop 3, rook 5, queen 9; kings excluded.",
+      "properties": {
+        "white": {
+          "minimum": 0,
+          "title": "White",
+          "type": "integer"
+        },
+        "black": {
+          "minimum": 0,
+          "title": "Black",
+          "type": "integer"
+        },
+        "learner_advantage": {
+          "description": "Learner's material minus the opponent's.",
+          "title": "Learner Advantage",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "white",
+        "black",
+        "learner_advantage"
+      ],
+      "title": "Material",
+      "type": "object"
+    },
+    "MistakeClass": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name"
+      ],
+      "title": "MistakeClass",
+      "type": "object"
+    },
+    "MoveFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "ply": {
+          "description": "1 is the first move from the position before the mistake.",
+          "minimum": 1,
+          "title": "Ply",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "mover": {
+          "enum": [
+            "learner",
+            "opponent"
+          ],
+          "title": "Mover",
+          "type": "string"
+        },
+        "san": {
+          "title": "San",
+          "type": "string"
+        },
+        "uci": {
+          "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+          "title": "Uci",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "captures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PieceOnSquare"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent: no capture."
+        },
+        "check": {
+          "default": false,
+          "title": "Check",
+          "type": "boolean"
+        },
+        "checkmate": {
+          "default": false,
+          "title": "Checkmate",
+          "type": "boolean"
+        },
+        "promotion": {
+          "anyOf": [
+            {
+              "enum": [
+                "pawn",
+                "knight",
+                "bishop",
+                "rook",
+                "queen",
+                "king"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promotion"
+        },
+        "castling": {
+          "anyOf": [
+            {
+              "enum": [
+                "kingside",
+                "queenside"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Castling"
+        },
+        "material_after": {
+          "$ref": "#/$defs/Material"
+        },
+        "new_threats": {
+          "default": [],
+          "description": "Opponent-of-mover pieces (not kings) attacked by the mover and not defended after this move that were not attacked-and-undefended before it.",
+          "items": {
+            "$ref": "#/$defs/PieceOnSquare"
+          },
+          "title": "New Threats",
+          "type": "array"
+        },
+        "evaluation_after": {
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation After"
+        }
+      },
+      "required": [
+        "ply",
+        "side",
+        "mover",
+        "san",
+        "uci",
+        "piece",
+        "material_after",
+        "evaluation_after"
+      ],
+      "title": "MoveFacts",
+      "type": "object"
+    },
+    "PieceOnSquare": {
+      "additionalProperties": false,
+      "properties": {
+        "square": {
+          "pattern": "^[a-h][1-8]$",
+          "title": "Square",
+          "type": "string"
+        },
+        "piece": {
+          "enum": [
+            "pawn",
+            "knight",
+            "bishop",
+            "rook",
+            "queen",
+            "king"
+          ],
+          "title": "Piece",
+          "type": "string"
+        },
+        "colour": {
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Colour",
+          "type": "string"
+        }
+      },
+      "required": [
+        "square",
+        "piece",
+        "colour"
+      ],
+      "title": "PieceOnSquare",
+      "type": "object"
+    },
+    "PositionFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "fen": {
+          "title": "Fen",
+          "type": "string"
+        },
+        "side_to_move": {
+          "description": "The learner, who made the mistake.",
+          "enum": [
+            "white",
+            "black"
+          ],
+          "title": "Side To Move",
+          "type": "string"
+        },
+        "material": {
+          "$ref": "#/$defs/Material"
+        },
+        "played_move": {
+          "$ref": "#/$defs/MoveFacts"
+        },
+        "best_move": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoveFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evaluation_before": {
+          "description": "Position before the played move.",
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation Before"
+        },
+        "evaluation_after": {
+          "description": "Position after the played move.",
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Evaluation After"
+        },
+        "best_move_evaluation": {
+          "discriminator": {
+            "mapping": {
+              "centipawns": "#/$defs/CentipawnEvaluation",
+              "mate": "#/$defs/MateEvaluation",
+              "unknown": "#/$defs/UnknownEvaluation"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CentipawnEvaluation"
+            },
+            {
+              "$ref": "#/$defs/MateEvaluation"
+            },
+            {
+              "$ref": "#/$defs/UnknownEvaluation"
+            }
+          ],
+          "title": "Best Move Evaluation"
+        },
+        "evaluation_difference_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Best-move evaluation minus played-move evaluation, learner's view; absent unless both are centipawn scores.",
+          "title": "Evaluation Difference Cp"
+        },
+        "swing_cp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Swing Cp"
+        },
+        "mistake_class": {
+          "$ref": "#/$defs/MistakeClass"
+        }
+      },
+      "required": [
+        "fen",
+        "side_to_move",
+        "material",
+        "played_move",
+        "evaluation_before",
+        "evaluation_after",
+        "best_move_evaluation",
+        "mistake_class"
+      ],
+      "title": "PositionFacts",
+      "type": "object"
+    },
+    "UnknownEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "unknown",
+          "description": "No stored engine search scored this position. State no evaluation.",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "UnknownEvaluation",
+      "type": "object"
+    },
+    "VerifiedLineFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "line_id": {
+          "title": "Line Id",
+          "type": "string"
+        },
+        "origins": {
+          "description": "Evidence payload fields.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Origins",
+          "type": "array"
+        },
+        "begins_with_played_move": {
+          "default": false,
+          "title": "Begins With Played Move",
+          "type": "boolean"
+        },
+        "uci": {
+          "description": "Cite this sequence, or a prefix of it, as a claim line.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Uci",
+          "type": "array"
+        },
+        "full_plies": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Plies in the engine line when it was cut to the plies shown; absent if uncut.",
+          "title": "Full Plies"
+        },
+        "moves": {
+          "items": {
+            "$ref": "#/$defs/MoveFacts"
+          },
+          "minItems": 1,
+          "title": "Moves",
+          "type": "array"
+        },
+        "evaluation_change": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineEvaluationChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent: the start or every move is unscored."
+        }
+      },
+      "required": [
+        "line_id",
+        "origins",
+        "uci",
+        "moves"
+      ],
+      "title": "VerifiedLineFacts",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Every chess fact an explanation may state, computed before the LLM call.",
+  "properties": {
+    "schema_version": {
+      "const": "narrator-facts/1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "position": {
+      "$ref": "#/$defs/PositionFacts"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceFacts"
+      },
+      "minItems": 1,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "lines": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/VerifiedLineFacts"
+      },
+      "title": "Lines",
+      "type": "array"
+    },
+    "factors": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FactorFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Factor changes across the mistake (#408); absent when not measured."
+    }
+  },
+  "required": [
+    "schema_version",
+    "position",
+    "evidence"
+  ],
+  "title": "NarratorFacts",
+  "type": "object",
+  "$id": "https://github.com/Mathews-Tom/Scan64/schemas/narrator-facts.schema.json"
+}

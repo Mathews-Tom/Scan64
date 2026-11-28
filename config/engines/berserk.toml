@@ -1,0 +1,7 @@
+# Berserk (GPL-3.0) as the analysis engine. Berserk reports WDL by default.
+# Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
+[engine]
+name = "berserk"
+binary_path = "~/.local/opt/engines/Berserk.exe"
+threads = 1
+hash_mb = 16

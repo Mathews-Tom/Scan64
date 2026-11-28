@@ -4,7 +4,7 @@ import { prepareToday } from './today';
 import { makeGameReview } from '../../src/components/review.test-fixtures';
 import { Chess } from 'chess.js';
 import { readFile } from 'node:fs/promises';
-import type { GameRead, PlaySessionRead } from '../../src/api/types';
+import type { GameRead, PlaySessionRead, PositionExplanationRead } from '../../src/api/types';
 
 test.beforeEach(async ({ page }) => {
   await prepareToday(page);
@@ -28,7 +28,7 @@ test('analysis board accepts a real pointer move before starting a player-owned 
   await page.route('**/v1/games', async route => {
     const request = route.request().postDataJSON() as { owner_color: string; pgn: string };
     expect(request.owner_color).toBe('black');
-    createdGame = { id: 'test-game', pgn: request.pgn, white: 'White', black: 'Black', result: '*' };
+    createdGame = { id: 'test-game', pgn: request.pgn, white: 'White', black: 'Black', result: '*', variant: 'chess' };
     await route.fulfill({ json: createdGame });
   });
   await page.route('**/v1/games/test-game', async route => {
@@ -267,4 +267,38 @@ test('ignores stale analysis after A to B to A navigation', async ({ page }) => 
   await Promise.all(completed.map(item => item.promise));
   await expect(page.getByLabel('Line 1 evaluation +0.55')).toBeVisible();
   await expect(page.getByLabel('Line 1 evaluation +1.11')).toHaveCount(0);
+});
+
+test('explains the engine lines and highlights the moves a claim cites', async ({ page }) => {
+  // Template response of the server for recorded Stockfish 18 lines
+  // (regenerate: uv run python tests/fixtures/write_analysis_explanation_e2e.py).
+  const explanation = JSON.parse(await readFile(
+    new URL('./fixtures/analysis-explanation-start.json', import.meta.url), 'utf8',
+  )) as PositionExplanationRead;
+  let requested: unknown = null;
+  await page.route('**/v1/analysis/position/explanation', async route => {
+    requested = route.request().postDataJSON();
+    await route.fulfill({ json: explanation });
+  });
+  await page.goto('/analysis');
+  const engine = page.getByTestId('multipv-lines');
+  await engine.getByRole('button', { name: 'Explain lines' }).click();
+  const claims = page.getByRole('list', { name: 'Explanation claims' });
+  await expect(claims.getByRole('listitem')).toHaveCount(explanation.claims.length);
+  expect(requested).toEqual({ player_id: expect.any(String), fen: new Chess().fen() });
+  await expect(engine.getByLabel('Line 2 evaluation +0.35')).toBeVisible();
+  await expect(engine.locator('[data-cited="true"]')).toHaveCount(0);
+
+  const lineTwo = explanation.claims.find(claim => claim.text.startsWith('Line 2: '))!;
+  const claim = claims.getByRole('button', { name: `Line 2: ${lineTwo.text}` });
+  await claim.hover();
+  const cited = engine.getByLabel('Engine line 2').locator('[data-cited="true"]');
+  await expect(cited).toHaveCount(lineTwo.moves.length);
+  await expect(engine.getByLabel('Engine line 1').locator('[data-cited="true"]')).toHaveCount(0);
+
+  const opening = claims.getByRole('button', { name: /^Line 1: White to move/ });
+  await opening.click();
+  await expect(opening).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('heading', { name: 'Analysis Board' }).hover();
+  await expect(engine.locator('[data-cited="true"]')).toHaveText(['e4']);
 });

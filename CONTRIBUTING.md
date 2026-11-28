@@ -40,13 +40,13 @@ export SCAN64_DATA_DIR=/tmp/scan64-contributing-data
 
 ## Checks and documentation
 
-Run the repository gate after code changes:
+CI runs the jobs that a pull request's changed files can affect, as chosen by `scripts/ci_areas.py`: Python tests on Linux and macOS, Python static checks, the web client, and the desktop shell. A file that no rule recognises runs every job. Pull requests into `main`, and every push to `main` or an epic branch, run all of them. The `Gate` job reports the result as the one required check. Locally, run the checks that cover your change ([rule 9](#rules)). `scripts/check.sh` has the same sections as CI. Name the ones you need, and run all of them only before an epic merges into `main`, before a release, or when no narrower check covers the change:
 
 ```sh
-scripts/check.sh
+scripts/check.sh python-tests python-static   # sections: python-tests, python-static, web, desktop; none runs all
 ```
 
-It covers backend tests excluding `real_model`, Ruff, strict typing, recorded diagnosis precision, dependency licences, the production web build, frontend lint/unit tests and Playwright. The checkpoint-dependent [Maia operator gate](docs/maia.md#verify) and the web client's Lighthouse report are separate.
+It covers backend tests excluding `real_model` (in four pytest-xdist workers), Ruff, strict typing, recorded diagnosis precision, dependency licences, the production web build, frontend lint/unit tests and Playwright, and the desktop shell's cargo format, Clippy and tests. The checkpoint-dependent [Maia operator gate](docs/maia.md#verify) and the web client's Lighthouse report are separate.
 
 Keep board coverage based on real pointer interaction, alongside keyboard UCI/SAN, readable-position, promotion, focus and responsive controls; do not replace it with test-only move hooks. Human macOS Safari/VoiceOver acceptance is still pending owner observation, not an automated pass. Record actual versions and observations when completing that acceptance.
 
@@ -112,7 +112,19 @@ Each rule below comes from a real failure, review finding or repair round in Sca
 | 30 | Feature pull requests never edit `CHANGELOG.md` or version files. A release is prepared once, after its changes merge. | Changelog conflicts and half-released trains |
 | 31 | Release versions never use semver prereleases such as `1.0.0-rc.1`. Tauri writes the version verbatim into the `.deb` control file, where dpkg orders `1.0.0-rc.1` above `1.0.0`. | A final release that installs as a downgrade |
 
-Propose a new rule in the pull request that fixes the failure it comes from.
+Propose a new rule, or a change to one, in a rule-change issue that links the failure it comes from ([Changing the rules](#changing-the-rules)).
+
+## Changing the rules
+
+Only the owner (Tom, `Mathews-Tom`) changes Scan64's rules. They are:
+
+- this file, `CONTRIBUTING.md`
+- the [review procedure](docs/review-procedure.md)
+- everything under `.github/`: workflows, `CODEOWNERS`, and the pull request and issue templates
+- `scripts/check.sh`, `scripts/ci_areas.py` and `scripts/scan64_coord.py`
+- the repository rulesets and settings
+
+`CODEOWNERS` makes every change to these files need the owner's approval, and only repository admins can change rulesets. Contributors and agents don't edit them, not even to fix a typo. To propose a change, open a [rule-change issue](https://github.com/Mathews-Tom/Scan64/issues/new?template=rule-change.yml) that gives the failure it comes from, the exact change, what it prevents and what it costs. The owner decides on the issue and makes the change.
 
 ## Local desktop builds
 
@@ -166,3 +178,70 @@ pull-request event can run the upload job.
 Release preparation and publication require owner approval; this workflow does
 not create tags or releases. Keep signing keys out of source and logs, and follow
 the [signing and key-rotation policy](SECURITY.md#desktop-update-signing).
+
+## Working across machines
+
+Scan64 work runs on several machines at once. These rules keep two machines from taking the same ticket. The [Scan64 board](https://github.com/users/Mathews-Tom/projects/1) shows Status and Machine for every issue and PR, and `scripts/scan64_coord.py` applies the rules.
+
+### Machines
+
+Each machine has a `machine:<name>` label. The part of the name before the first `-` is its OS, which the `needs-test:<os>` labels use.
+
+| Machine | Label | Preferred work |
+|---|---|---|
+| Linux, RTX 5090 | `machine:linux-5090` | LLM runs and benchmarks, engine runs and builds, long jobs |
+| Windows laptop, RTX 4080 | `machine:windows-4080` | Code that needs no GPU or engine; Windows-only behaviour (paths, process handling, CRLF); Windows test runs |
+| Mac, current macOS | `machine:mac` | macOS test runs, macOS desktop smoke, current Safari and WebKit checks |
+| Mac, old macOS | `machine:mac-old` | Safari 14–16 and old WebKit checks; desktop smoke on older macOS |
+
+If an LLM fits both GPUs, it runs on the 5090. If an engine runs on Linux and Windows, it runs on Linux. Each OS keeps a small smoke run for its own platform behaviour. Adding a machine means adding its `machine:<name>` label and a row here, plus a `needs-test:<os>` label for a new OS.
+
+### Rules
+
+1. **One ticket, one machine.** The `machine:<name>` label on an issue or PR is the claim, and the board's Machine field mirrors it.
+2. **Claim before you start:** `scan64-coord claim <N>`. It refuses a ticket that another machine has claimed.
+3. **Never push to a ticket that another machine claimed.** To hand over, agree in a comment on the ticket, then run `scan64-coord claim <N> --takeover`. For a share of a ticket another machine owns, `scan64-coord split <N> "<title>"` creates and claims a sub-issue.
+4. **Release when you stop:** `scan64-coord release <N> --review` when your PR is open (the machine keeps the claim, and the ticket's open PRs get its label); `--done` when the work is merged; no flag to give the ticket back.
+5. **Tests on another OS only when the change can behave differently there.** When a pull request changes Python code, CI runs the Python suite on Linux and the suite and static checks on macOS (`Python (macos-15)`). When it changes the desktop shell or its build files, CI runs the desktop smoke test and installer build on all three OSes. Pull requests into `main` run all of them. Add `needs-test:windows` or `needs-test:mac` only when the PR touches something CI can't check on that OS: Windows behaviour beyond the desktop smoke test (paths, process handling, CRLF), macOS versions newer than CI's, the installed desktop app, or Safari and WebKit rendering. Say in a PR comment what to check. The machine with that OS runs those checks and the changed test files, and posts the results as a PR comment. It does not push to the PR. Both Macs see `needs-test:mac`; to reach one of them only, for example for a Safari 14–16 check, use `scan64-coord ask <N> mac-old "<request>"`.
+6. **Requests between machines go through GitHub, not chat.** `scan64-coord ask <N> <machine> "<request>"` comments on issue or PR N and adds `needs:<machine>`. The other machine sees N under "Waiting on this machine" in its status at session start, acts, and replies with `scan64-coord answer <N> "<result>"`, which removes the label. Requests without a ticket go on the coordination issue #404. Requests for a person rather than an agent mention them in the comment as usual.
+7. **Every change goes through a pull request.** This includes one-line fixes and changes to an epic branch. Never push directly to `main` or to an epic branch. Name branches `<type>/<issue>-<slug>`, for example `feat/397-engine-compat`. While an epic is open, branch from the epic branch and target it. Sign off every commit. Anyone can merge a pull request into `main` or an epic branch, their own included, once all of these hold for its current head commit:
+   - the `Gate` check passed;
+   - a review under the [review procedure](docs/review-procedure.md) set the `scan64/review` status to success;
+   - no "Request changes" review is open;
+   - if it touches a path in [`.github/CODEOWNERS`](.github/CODEOWNERS), a listed owner other than its author approved it.
+
+   A reviewer files a blocking finding as "Request changes", or as a failed `scan64/review` status when reviewing on the author's own account, and everything else as a comment. A pull request into `main` also needs an approval from someone other than its author after its last push. GitHub enforces all of this on `main` and on `epic/*` branches. A pull request stacked on another pull request's branch isn't checked by GitHub when it merges there. Its commits are reviewed as part of the parent pull request's head before the parent merges into the epic ([review procedure](docs/review-procedure.md)).
+8. **No status files in the repository.** Status lives on the board and in the issues. Local campaign notes stay local.
+9. **Run only checks that can fail.** Run a check only if a plausible defect in the change could make it fail. For a pull request, that means its changed test files and the checks for the areas it touches (for example, frontend checks only when the frontend changed); CI covers the rest and skips the jobs no changed file can affect. Don't rerun a check on a commit that already has a result, and don't repeat the epic's full suite for each pull request stacked on it. State in the PR what you ran and what you left to CI.
+
+### Setup on each machine (once)
+
+From a Scan64 checkout, with `gh` logged in:
+
+```sh
+python3 scripts/scan64_coord.py setup <machine>   # for example: setup mac
+```
+
+On Windows, use `python` instead of `python3`. Setup writes the machine name to `~/.config/scan64/machine`, installs a copy of the tool in `~/.local/share/scan64/coord` and a `scan64-coord` command in `~/.local/bin`, and prints the current status. It changes nothing in the checkout. A machine that used the earlier standalone `scan64-coord` repo reruns `setup` and `install-hooks`: its hooks are pointed at the new copy, and the old clone in `~/.local/share/scan64-coord` can then be deleted.
+
+With Claude Code, also run `scan64-coord install-hooks`, then open `/hooks` once or restart Claude Code. This adds two hooks to `~/.claude/settings.json` and keeps the existing ones:
+
+- At session start, the agent gets `scan64-coord status` in its context, after the installed copy refreshes itself from `origin/main`, or from `origin/epic/371` while the tool is only on the epic branch. The same hook runs `scan64-coord gc --apply`, which removes finished worktrees.
+- Before a `git push` or `gh pr create` in a Scan64 checkout, the hook blocks the command if the branch's ticket belongs to another machine.
+
+Other agents and people run `scan64-coord status` and `scan64-coord gc --apply` at the start of a session, and `scan64-coord check` before pushing.
+
+### Commands
+
+| Command | Effect |
+|---|---|
+| `scan64-coord status` | Claims per machine, PRs that need this OS, unclaimed and unblocked tickets |
+| `scan64-coord claim <N> [--takeover]` | Claim issue or PR N for this machine |
+| `scan64-coord split <N> "<title>"` | Create and claim a sub-issue for this machine's share of N |
+| `scan64-coord release <N> [--review\|--done]` | Change or drop the claim |
+| `scan64-coord ask <N> <machine> "<request>"` | Ask another machine to act on N: comment plus `needs:<machine>` |
+| `scan64-coord answer <N> "<result>"` | Reply on N and remove `needs:<this machine>` |
+| `scan64-coord check [branch]` | Exit 1 if another machine owns the branch's ticket |
+| `scan64-coord gc [--apply]` | Remove finished worktrees (dry run without `--apply`). A worktree goes only when all of these hold: it has no changes and no ignored files other than caches and build output (`.venv`, `node_modules`, `test-results` and the like); `lsof` shows no process using it, so nothing is removed where `lsof` is missing; it hasn't changed for an hour; and its commit is on origin or in a pull request. Its work must also be over: merged, or its pull request closed. For review checkouts (a detached HEAD or a `review/*` branch), it is also enough that the branch has moved past the checkout or that `scan64/review` is set on its commit. Only local `review/*` branches are deleted. |
+| `scan64-coord setup <machine>` | One-time machine setup |
+| `scan64-coord install-hooks` | Add the Claude Code hooks |

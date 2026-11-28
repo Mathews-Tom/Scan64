@@ -38,9 +38,18 @@ def _decision_from(
 
 
 class StockfishOpponentProvider(OpponentPolicy):
-    def __init__(self, config: StockfishConfig, pool_manager: EnginePoolManager | None = None):
+    """``config`` plays ladder moves; ``analysis_config`` (default ``config``) plays
+    legacy Skill Level sessions, which predate the ladder engine."""
+
+    def __init__(
+        self,
+        config: StockfishConfig,
+        pool_manager: EnginePoolManager | None = None,
+        analysis_config: StockfishConfig | None = None,
+    ):
         self.config = config
         self.pool_manager = pool_manager
+        self.analysis_config = config if analysis_config is None else analysis_config
 
     async def choose_move(self, position: Position, context: OpponentContext) -> MoveDecision:
         """
@@ -50,8 +59,9 @@ class StockfishOpponentProvider(OpponentPolicy):
         sessions without ``bot_level`` retain their legacy Skill Level path,
         including clamping old stored strengths to the engine's 0–20 range.
 
-        When ``pool_manager`` is set, moves are served from the interactive
-        engine pool so live play is never queued behind batch analysis and no
+        When ``pool_manager`` is set, ladder moves are served from its ladder
+        pool and legacy moves from its interactive pool, so live play is never
+        queued behind batch analysis and no
         new engine process is spawned per move. Without it (the pre-M41
         behaviour, retained for one release), a fresh process is spawned and
         torn down for this call only.
@@ -78,15 +88,14 @@ class StockfishOpponentProvider(OpponentPolicy):
             time_taken_ms = int((time.monotonic() - start_time) * 1000)
             return _decision_from(result, board, time_taken_ms)
 
-        _, engine = await chess.engine.popen_uci(self.config.binary_path)
+        _, engine = await chess.engine.popen_uci(self.analysis_config.binary_path)
         try:
             await engine.configure(
                 {
-                    "Threads": self.config.threads,
-                    "Hash": self.config.hash_size,
+                    "Threads": self.analysis_config.threads,
+                    "Hash": self.analysis_config.hash_size,
                     "Skill Level": skill_level,
                     "UCI_LimitStrength": False,
-                    "UCI_Elo": 1320,
                 }
             )
 

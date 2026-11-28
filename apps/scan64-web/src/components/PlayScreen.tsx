@@ -12,7 +12,7 @@ import {
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ApiClient, ApiRequestError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
+import { ApiClient, ApiRequestError, BotPlayUnavailableError, ensurePlayerAuthorization, getStoredPlayerId, setActivePlayerId } from '../api/client';
 import { DEFAULT_BOT_LEVEL, sessionPlayerColor } from '../api/opponent';
 import { CriticalMomentReview } from './CriticalMomentReview';
 import type { BotRead, CriticalInterruptionRead, PlayAssistanceMode, PlayAssistanceRead, PlayClockRead, PlaySessionRead, PlayMoveResponse, TimeControl } from '../api/types';
@@ -166,6 +166,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
   } | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Survives board refreshes, which clear `error`; a new game clears it.
+  const [botPlayNotice, setBotPlayNotice] = useState<string | null>(null);
   const [conversionRefreshing, setConversionRefreshing] = useState(false);
   const [conversionRefreshFailed, setConversionRefreshFailed] = useState(false);
   const [conversionRetrying, setConversionRetrying] = useState(false);
@@ -353,6 +355,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     setStartingGame(true);
     try {
       setError(null);
+      setBotPlayNotice(null);
       let pid = playerId;
       if (!pid) {
         pid = 'player-' + Date.now();
@@ -796,6 +799,12 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
         queuedMoveNeedsRefreshRef.current.add(graded.source.sessionId);
         setRefreshSessionId(graded.source.sessionId);
       }
+      if (caught instanceof BotPlayUnavailableError) {
+        // The server saved the player's move before the bot failed; the refresh shows it.
+        setAssistanceError(null);
+        setBotPlayNotice(caught.message);
+        return;
+      }
       setAssistanceError(`${caught instanceof Error ? caught.message : 'Move could not be committed.'} No move was queued. Refresh if needed, then check again.`);
     } finally {
       movePendingRef.current = false;
@@ -830,7 +839,8 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
     } catch (caught) {
       requireProtectedRefresh(source);
       if (getStoredPlayerId() === source.playerId) {
-        setError(`${caught instanceof Error ? caught.message : 'Bot turn failed.'} Refresh the game before retrying; your move was not replayed.`);
+        if (caught instanceof BotPlayUnavailableError) setBotPlayNotice(caught.message);
+        else setError(`${caught instanceof Error ? caught.message : 'Bot turn failed.'} Refresh the game before retrying; your move was not replayed.`);
       }
     } finally {
       movePendingRef.current = false;
@@ -1178,13 +1188,14 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
 
   useEffect(() => {
     const handleSyncSuccess = (event: Event) => {
-      const { queuedMove, response } =
+      const { queuedMove, response, botPlayUnavailable } =
         (event as CustomEvent<QueuedMoveSyncSuccess>).detail;
       const currentSession = sessionRef.current;
       if (queuedMove.sessionId !== currentSession?.id) return;
       if (currentSession.clock) return;
       queuedMoveNeedsRefreshRef.current.add(queuedMove.sessionId);
       if (response !== null) applyMoveResponse(response);
+      if (botPlayUnavailable !== undefined) setBotPlayNotice(botPlayUnavailable);
     };
     const handleSyncFailure = (event: Event) => {
       const { queuedMove, message } =
@@ -1324,6 +1335,7 @@ export function PlayScreen({ initialSession, initialFen, onNavigate }: PlayScree
           <button className="btn btn--primary" onClick={startGame} disabled={!botChoiceReady || botChoicePending || startingGame} data-testid="start-btn">Start Game</button>
         </Panel>
       )}
+      {botPlayNotice && <div className="error" role="alert">{botPlayNotice}</div>}
       {error && <div className="error" role="alert">{error}</div>}
       {syncRetrySessionId ? (
         <>

@@ -19,11 +19,16 @@ from scan64.chess.games.assistance import (
     StalePlaySnapshot,
     persist_assistance,
 )
+from scan64.chess.variants import STANDARD, VariantName, board_class, pgn_san
+from scan64.explanations.board_lines import ScoredLine, scored_legal_lines
 from scan64.learning.insights import InsightStep, insight_step, position_insight
 from scan64.persistence.database import get_session
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 router = APIRouter(tags=["insights"])
+
+# Engine lines the Analysis Board shows and, by default, explains.
+FREE_ANALYSIS_LINES = 3
 
 
 class PositionInsightRequest(BaseModel):
@@ -94,6 +99,9 @@ async def insight_position(
 class PositionAnalysisRequest(BaseModel):
     player_id: str
     fen: str
+    # The rules the FEN is read and searched under; the engine must declare a
+    # variant other than standard chess.
+    variant: VariantName = STANDARD
 
 
 class PositionAnalysisMove(BaseModel):
@@ -109,66 +117,51 @@ class PositionAnalysisLine(BaseModel):
 
 class PositionAnalysisRead(BaseModel):
     fen: str
+    variant: VariantName
     lines: list[PositionAnalysisLine]
 
 
 def _analysis_lines(board: chess.Board, analysis: EngineAnalysis) -> list[PositionAnalysisLine]:
     """Validate complete PVs, retaining engine rank and converting mover scores to White."""
-    lines: list[PositionAnalysisLine] = []
-    sign = 1 if board.turn == chess.WHITE else -1
-    for result in analysis.raw_result:
-        cp = result.get("score_cp")
-        mate = result.get("score_mate")
-        if not ((type(cp) is int and mate is None) or (cp is None and type(mate) is int)):
-            continue
-        pv = result.get("pv")
-        if not isinstance(pv, list) or not pv:
-            continue
-        continuation = board.copy(stack=False)
-        moves: list[PositionAnalysisMove] = []
-        for uci in pv:
-            if not isinstance(uci, str):
-                break
-            try:
-                move = continuation.parse_uci(uci)
-            except ValueError:
-                break
-            # parse_uci accepts the null move, which is not a legal continuation.
-            if move not in continuation.legal_moves:
-                break
-            moves.append(PositionAnalysisMove(uci=move.uci(), san=continuation.san(move)))
-            continuation.push(move)
-        else:
-            lines.append(
-                PositionAnalysisLine(
-                    score_cp=cp * sign if cp is not None else None,
-                    mate=mate * sign if mate is not None else None,
-                    moves=moves,
-                )
-            )
-            if len(lines) == 3:
-                break
+    lines = [
+        position_analysis_line(board, line)
+        for line in scored_legal_lines(board, analysis)[:FREE_ANALYSIS_LINES]
+    ]
     if not lines:
         raise ValueError("The engine returned no usable continuations")
     return lines
 
 
-@router.post("/v1/analysis/position", response_model=PositionAnalysisRead)
-async def analyze_position(
-    body: PositionAnalysisRequest, request: Request, session: Session = Depends(get_session)
-) -> PositionAnalysisRead:
-    player_id = require_authenticated_player(request, session)
-    if player_id != body.player_id:
-        raise HTTPException(status_code=404, detail="Player not found")
+def position_analysis_line(board: chess.Board, line: ScoredLine) -> PositionAnalysisLine:
+    """One engine line in the free-analysis shape: White-view scores and contextual SAN."""
+    sign = 1 if board.turn == chess.WHITE else -1
+    replay = board.copy(stack=False)
+    moves: list[PositionAnalysisMove] = []
+    for move in line.moves:
+        moves.append(PositionAnalysisMove(uci=move.uci(), san=pgn_san(replay, move)))
+        replay.push(move)
+    return PositionAnalysisLine(
+        score_cp=line.score_cp * sign if line.score_cp is not None else None,
+        mate=line.score_mate * sign if line.score_mate is not None else None,
+        moves=moves,
+    )
+
+
+def free_analysis_board(fen: str, variant: VariantName = STANDARD) -> chess.Board:
+    """Parse a free-analysis FEN under ``variant``'s rules; 422 before any engine access
+    when it is not a position of that variant."""
     try:
-        board = chess.Board(body.fen)
+        board = board_class(variant)(fen)
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid FEN") from None
     if not board.is_valid():
-        raise HTTPException(status_code=422, detail="Invalid chess position")
-    fen = board.fen()
-    if board.is_game_over():
-        return PositionAnalysisRead(fen=fen, lines=[])
+        detail = "Invalid chess position" if variant == STANDARD else f"Invalid {variant} position"
+        raise HTTPException(status_code=422, detail=detail)
+    return board
+
+
+def free_analysis_manager(request: Request) -> EnginePoolManager:
+    """The interactive pool free analysis is admitted to, or 503 when it cannot admit."""
     manager: EnginePoolManager | None = getattr(request.app.state, "engine_pool_manager", None)
     if manager is None:
         raise HTTPException(
@@ -180,6 +173,21 @@ async def analyze_position(
             status_code=503,
             detail="Analysis requires at least two interactive engines; try again when available",
         )
+    return manager
+
+
+@router.post("/v1/analysis/position", response_model=PositionAnalysisRead)
+async def analyze_position(
+    body: PositionAnalysisRequest, request: Request, session: Session = Depends(get_session)
+) -> PositionAnalysisRead:
+    player_id = require_authenticated_player(request, session)
+    if player_id != body.player_id:
+        raise HTTPException(status_code=404, detail="Player not found")
+    board = free_analysis_board(body.fen, body.variant)
+    fen = board.fen()
+    if board.is_game_over():
+        return PositionAnalysisRead(fen=fen, variant=body.variant, lines=[])
+    manager = free_analysis_manager(request)
     try:
         analysis = await manager.analyze_hint(board)
         try:
@@ -189,7 +197,7 @@ async def analyze_position(
             # Evict only when free-analysis conversion rejects it, so Retry searches again.
             manager.invalidate_hint(board)
             raise
-        return PositionAnalysisRead(fen=fen, lines=lines)
+        return PositionAnalysisRead(fen=fen, variant=body.variant, lines=lines)
     except TimeoutError:
         raise HTTPException(
             status_code=503, detail="Analysis capacity is busy; try again shortly"

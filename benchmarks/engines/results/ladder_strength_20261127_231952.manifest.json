@@ -1,0 +1,113 @@
+{
+  "manifest": {
+    "code": {
+      "commit": "2b640f76e914c1e7b7462a0efe0999955e436ed8",
+      "dirty": false
+    },
+    "config": {
+      "path": "benchmarks/engines/ladder_strength_linux.toml",
+      "sha256": "fcb2b8d23ea0bb900bc74aa9e7eaa6a774bce4826b4852afb37259bb7a4723ae"
+    },
+    "ladder": {
+      "engine": {
+        "depth": null,
+        "engine_name": "Arasan v26.1",
+        "engine_version": "sha256:0d522d483ab51ac1896565f65cb6e1cf7c60cccde885498ffb8a71245a35617c",
+        "multipv": 1,
+        "network": "{\"NNUE file\": \"1f98bc6c1ac615646d66d409e138225c56765ad0c1065f1ce20a22a56c631927\"}",
+        "nodes": null,
+        "options": {
+          "Book variety": 50,
+          "BookPath": "book.bin",
+          "Contempt": 0,
+          "Hash": 16,
+          "Learning file": "arasan.lrn",
+          "Move overhead": 30,
+          "NNUE file": "arasanv8-20261005.nnue",
+          "OwnBook": false,
+          "Ponder": false,
+          "Position learning": false,
+          "SyzygyPath": "syzygy",
+          "SyzygyProbeDepth": 4,
+          "SyzygyUse50MoveRule": true,
+          "Threads": 1,
+          "UCI_Elo": 1320,
+          "UCI_LimitStrength": false,
+          "Use tablebases": false
+        },
+        "time_ms": null
+      },
+      "policy": "uci-elo-v1:arasan:1000,1200,1400,1600,1800,2000,2200,2500:500ms",
+      "profile": "config/engines/linux/arasan.toml",
+      "profile_sha256": "e16e34745b128113473924814be93b5828a168fedaf82cd102e2d9a6cd567abb",
+      "sent_elo": {
+        "1": 1000,
+        "2": 1200,
+        "3": 1400,
+        "4": 1600,
+        "5": 1800,
+        "6": 2000,
+        "7": 2200,
+        "8": 2500
+      }
+    },
+    "reference": {
+      "engine": {
+        "engine_name": "Stockfish 18",
+        "engine_version": "sha256:e16866e09afd5be00990e69e3ac7b3c0794abcce133a2dd7b99f13570385b73d",
+        "network": null,
+        "options": {
+          "Debug Log File": "<empty>",
+          "EvalFile": "nn-c288c895ea92.nnue",
+          "EvalFileSmall": "nn-37f18f62d772.nnue",
+          "Hash": "16",
+          "Move Overhead": "10",
+          "MultiPV": "1",
+          "NumaPolicy": "auto",
+          "Ponder": "False",
+          "Skill Level": "20",
+          "Syzygy50MoveRule": "True",
+          "SyzygyPath": "<empty>",
+          "SyzygyProbeDepth": "1",
+          "SyzygyProbeLimit": "7",
+          "Threads": "1",
+          "UCI_Chess960": "False",
+          "UCI_Elo": "1320",
+          "UCI_LimitStrength": "False",
+          "UCI_ShowWDL": "False",
+          "nodestime": "0"
+        }
+      },
+      "profile": "config/engines/stockfish-wdl.toml",
+      "profile_sha256": "9ce81e1e8d9fcb2871a3eaed7b6134b44ddcfe992476c3e9e9de57ef5a530c81"
+    },
+    "settings": {
+      "anchors": [
+        1320,
+        1320,
+        1400,
+        1600,
+        1800,
+        2000,
+        2200,
+        2500
+      ],
+      "max_plies": 300,
+      "openings": [
+        "e2e4 e7e5 g1f3 b8c6 f1b5 a7a6",
+        "e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6",
+        "e2e4 e7e6 d2d4 d7d5 b1c3 g8f6",
+        "e2e4 c7c6 d2d4 d7d5 e4e5 c8f5",
+        "d2d4 d7d5 c2c4 e7e6 b1c3 g8f6",
+        "d2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6",
+        "d2d4 g8f6 c2c4 e7e6 g1f3 b7b6",
+        "c2c4 e7e5 b1c3 g8f6 g1f3 b8c6",
+        "g1f3 d7d5 g2g3 g8f6 f1g2 e7e6",
+        "e2e4 e7e5 g1f3 g8f6 f3e5 d7d6 e5f3 f6e4"
+      ],
+      "reference_movetime_ms": 500,
+      "rounds": 2
+    }
+  },
+  "run_id": "3c32f49e7444cf6967f35244f67450074ebc6471d31bc0cd3f4d68d580e7c416"
+}

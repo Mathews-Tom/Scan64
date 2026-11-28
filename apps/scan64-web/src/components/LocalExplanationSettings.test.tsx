@@ -59,8 +59,25 @@ describe('Local explanation settings', () => {
     fireEvent.click(consent);
     fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
     expect(await screen.findByText('Enabled for new explanations using local:b.')).toBeInTheDocument();
-    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:b', consent: true }) });
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:b', consent: true, voice: 'coach' }) });
     expect(consent).not.toBeChecked();
+  });
+
+  it('sends the chosen narrator voice with the grant and shows the saved voice', async () => {
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null, voice: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'] }))
+      .mockResolvedValueOnce(response({ mode: 'local', model: 'local:a', voice: 'terse' }));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    const voice = await screen.findByRole('combobox', { name: 'Narrator voice' });
+    expect(voice).toHaveValue('coach');
+    expect(screen.getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['local:a', 'coach', 'terse', 'playful']);
+    fireEvent.change(voice, { target: { value: 'terse' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local wording' }));
+    expect(await screen.findByText('Enabled for new explanations using local:a with the terse voice.')).toBeInTheDocument();
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ model: 'local:a', consent: true, voice: 'terse' }) });
   });
 
   it('reads persisted enablement on remount and disables without probing', async () => {
@@ -240,6 +257,36 @@ describe('Local explanation settings', () => {
     await screen.findByText(new RegExp(message));
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('preselects the recommended narrator model but keeps a saved model (#429)', async () => {
+    const recommended = 'scan64-narrator-gemma4-e4b-q3km:latest';
+    const probe = { available: true, models: ['local:a', recommended, 'local:b'], recommended_model: recommended };
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null })).mockResolvedValueOnce(response(probe));
+    const view = render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue(recommended);
+    expect(screen.getByRole('option', { name: `${recommended} (recommended)` })).toBeInTheDocument();
+    expect(screen.queryByText(/is not installed/)).not.toBeInTheDocument();
+    view.unmount();
+
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'local', model: 'local:b', voice: 'coach' })).mockResolvedValueOnce(response(probe));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue('local:b');
+  });
+
+  it('names the install step when the recommended model is missing (#429)', async () => {
+    owner();
+    fetchMock.mockResolvedValueOnce(response({ mode: 'disabled', model: null }))
+      .mockResolvedValueOnce(response({ available: true, models: ['local:a'], recommended_model: 'scan64-narrator-gemma4-e4b-q3km:latest' }));
+    render(<LocalExplanationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Detect local Ollama' }));
+    expect(await screen.findByRole('combobox', { name: 'Local model' })).toHaveValue('local:a');
+    expect(screen.getByText(/is not installed/)).toHaveTextContent('scan64-cli narrator install');
+    expect(screen.getByText(/is not installed/)).toHaveTextContent('built-in templates');
   });
 
   it('keeps operator configuration read-only', async () => {

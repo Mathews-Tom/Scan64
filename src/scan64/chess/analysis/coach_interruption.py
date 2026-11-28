@@ -298,6 +298,9 @@ async def _prepare_coach_interruption(
         fen=before_board.fen(),
         lesson_id=str(opportunity_id),
         accepted_moves_san=[before_board.san(move) for move in accepted],
+        # The pool's engine searched this position; a running pool keeps the
+        # processes it started with when the profile file changes.
+        engine=pool_manager.config.name,
     )
     lesson.explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
     try:

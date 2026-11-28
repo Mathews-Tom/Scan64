@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -21,6 +22,7 @@ from scan64.learning.diagnosis.models import DiagnosisCandidate
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.profiling.models import ProfileObservation, SkillState
 from scan64.learning.scheduling.spaced_repetition import ReviewSchedule
+from scan64.providers.engine import ENGINE_CONFIG_ENV
 from scan64.providers.stockfish.pool import EnginePoolManager
 
 CHECKMATE_FEN = "7k/8/5KQ1/8/8/8/8/8 w - - 0 1"
@@ -143,6 +145,37 @@ def test_coach_diagnostic_persists_attempt_context_before_move_response(
     )
     assert engine_evidence.claim == "bounded interactive analysis for the flagged position"
     assert engine_evidence.payload["analysis_depth"] == "interactive"
+
+
+def test_coach_lesson_records_the_pool_engine_after_the_profile_changes(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    auth = _register(db_session)
+    play_session = _coach_session(db_session, coach_mode=True)
+    _install_deterministic_diagnostic(monkeypatch)
+    # The running pool's engine searched this position. A profile selected
+    # later does not change the processes the pool started with.
+    pool = client.app.state.engine_pool_manager  # type: ignore[attr-defined]
+    monkeypatch.setattr(pool.config, "name", "pool-engine")
+    profile = tmp_path / "engine.toml"
+    profile.write_text("[engine]\nname = 'second'\nbinary_path = 'second'\n", encoding="utf-8")
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
+
+    response = client.post(
+        f"/v1/play-sessions/{play_session.id}/moves",
+        json={"move": "e2e3"},
+        headers=auth,
+    )
+
+    assert response.status_code == 200, response.text
+    lesson = response.json()["critical_interruption"]["lesson"]
+    assert lesson["verification"]["engine"] == "pool-engine"
+    db_session.rollback()
+    opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
+    assert opportunity.lesson_spec["verification"]["engine"] == "pool-engine"
 
 
 @pytest.mark.parametrize("reset_timing", ["never", "before_game", "after_game"])

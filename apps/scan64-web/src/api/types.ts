@@ -13,9 +13,38 @@ export type PositionInsightRequest = { player_id: string; step: 1 | 2 | 3 } & (
   { fen: string; play_session_id?: never } | { play_session_id: string; fen?: never }
 );
 
+/** A variant's UCI name (`scan64.chess.variants.VariantName`); `chess` is standard. */
+export type VariantName = 'chess' | 'crazyhouse' | '3check' | 'atomic' | 'antichess' | 'kingofthehill' | 'horde' | 'racingkings';
+
+/** POST /v1/variants/position: the position after `moves` under the variant's rules. */
+export interface VariantPositionRequest {
+  variant: VariantName;
+  /** The variant's own start position when absent. */
+  fen?: string;
+  /** UCI moves from `fen`; drops are `P@e5`. */
+  moves: string[];
+}
+
+export interface VariantPositionRead {
+  variant: VariantName;
+  fen: string;
+  turn: 'white' | 'black';
+  san: string[];
+  /** Every legal move in UCI, drops included. */
+  legal_moves: string[];
+  check: boolean;
+  /** Crazyhouse only: pieces in hand, by lower-case letter. */
+  pockets: { white: Partial<Record<string, number>>; black: Partial<Record<string, number>> } | null;
+  /** Three-check only: checks each side still has to give. */
+  remaining_checks: { white: number; black: number } | null;
+  outcome: { result: '1-0' | '0-1' | '1/2-1/2'; termination: string } | null;
+}
+
 export interface PositionAnalysisRequest {
   player_id: string;
   fen: string;
+  /** Rules the FEN is read and searched under; omitted means standard chess. */
+  variant?: VariantName;
 }
 
 export interface PositionAnalysisMove {
@@ -31,7 +60,44 @@ export interface PositionAnalysisLine {
 
 export interface PositionAnalysisRead {
   fen: string;
+  variant: VariantName;
   lines: PositionAnalysisLine[];
+}
+
+/** Analysis Board line explanation request; budgets may only narrow the analysis limits. */
+export interface PositionExplanationRequest {
+  player_id: string;
+  fen: string;
+  multipv?: number;
+  nodes?: number;
+  depth?: number;
+}
+
+export interface PositionExplanationLine extends PositionAnalysisLine {
+  line_id: string;
+  rank: number;
+  depth: number | null;
+  seldepth: number | null;
+}
+
+/** One grounded claim; `moves` is the UCI prefix of the linked line that it cites. */
+export interface PositionExplanationClaim {
+  text: string;
+  evidence_ref: string;
+  line_id: string;
+  moves: string[];
+}
+
+export interface PositionExplanationRead {
+  fen: string;
+  /** `template`: deterministic wording; `narrator`: configured model wording that passed grounding. */
+  source: 'template' | 'narrator';
+  fallback_reason: string | null;
+  text: string;
+  lines: PositionExplanationLine[];
+  claims: PositionExplanationClaim[];
+  /** Board-lines facts (schemas/board-lines-facts.schema.json). */
+  facts: Record<string, unknown>;
 }
 
 export interface MoveInsight {
@@ -107,6 +173,8 @@ export interface StrengthRead {
     provider: 'stockfish';
     bot_level: number;
     bot_policy_version: string;
+    /** The engine the recorded policy plays with; unstamped cohorts are Stockfish. */
+    engine: string;
     time_control: TimeControl | null;
     latest: BotResultsSample;
     previous: BotResultsSample;
@@ -426,6 +494,8 @@ export interface GameRead {
   white: string;
   black: string;
   result: string;
+  /** `chess` for standard; else the variant's UCI name, or a legacy tag as written. */
+  variant: string;
 }
 
 export interface PlayerGameRead {
@@ -436,6 +506,7 @@ export interface PlayerGameRead {
   date: string;
   created_at: string;
   diagnosis_count: number;
+  variant: string;
 }
 
 export interface PlayerGamesPage {
@@ -812,4 +883,30 @@ export interface PatternRecurrenceReport {
   coverage: Record<string, number>;
   patterns: PatternRecurrence[];
   caveat: string;
+}
+
+export type HealthLevel = 'good' | 'fair' | 'low';
+export type HealthTrend = 'rising' | 'falling' | 'steady';
+
+export interface PositionHealthRequest {
+  player_id: string;
+  fen: string;
+  learner: 'white' | 'black';
+  previous_fen?: string | null;
+}
+
+export interface HealthMeterRead {
+  health: number;
+  level: HealthLevel;
+  trend: HealthTrend;
+  terms: { name: string; pawns: number }[];
+}
+
+export interface PositionHealthRead {
+  fen: string;
+  learner: 'white' | 'black';
+  overall: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead };
+  groups: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead }[];
+  // Set when the game is over; the panel shows the result instead of the meters.
+  outcome: 'checkmate' | 'stalemate' | 'insufficient_material' | 'seventyfive_moves' | null;
 }

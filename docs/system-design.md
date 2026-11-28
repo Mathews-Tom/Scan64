@@ -12,7 +12,7 @@ The Dockerfile builds the client and pinned Stockfish 18, runs as a non-root use
 
 The desktop app (macOS arm64, Windows x64, Linux x64) uses a Tauri 2 system-webview window containing that same React client. `scripts/build-server.py` freezes `scan64.desktop_server` through the one-folder `scan64-server.spec`, compiles the Dockerfile's SHA-256-pinned Stockfish 18 for the target and verifies both pinned networks. Tauri packages the server folder, engine/networks, corresponding GPL source archive, `Copying.txt`, Scan64 licence and notices as app resources. No Tk or browser process is required. Installers are not code-signed (macOS ad-hoc, not notarized; Windows not Authenticode-signed); update bundles are signed with the updater key and verified by the app.
 
-The shell selects a free loopback port, creates a per-launch shell token, starts the resource-directory server with a cleared, allowlisted environment, and waits up to 30 seconds with three retries. It passes the absolute bundled Stockfish path through `SCAN64_STOCKFISH_PATH`, without modifying PATH, so application folders containing colons work too. Only debug builds accept `SCAN64_SERVER_COMMAND` and `SCAN64_DEBUG_PUZZLE_URL` for development/CI. Startup failure shows the log path and Restart. The server serves no client files, permits only shell origins through CORS and requires the shell token for every request except minimal `/health`; player bearer authorization remains underneath.
+The shell selects a free loopback port, creates a per-launch shell token, starts the resource-directory server with a cleared, allowlisted environment, and waits up to 30 seconds with three retries. It passes the absolute bundled Stockfish path through `SCAN64_STOCKFISH_PATH` and the bundled Caissa and Arasan profiles' folder through `SCAN64_BUNDLED_ENGINES_DIR`, without modifying PATH, so application folders containing colons work too. The server records on first start which engines the install keeps ([which engines an install uses](engines.md#which-engines-an-install-uses)). Only debug builds accept `SCAN64_SERVER_COMMAND` and `SCAN64_DEBUG_PUZZLE_URL` for development/CI. Startup failure shows the log path and Restart. The server serves no client files, permits only shell origins through CORS and requires the shell token for every request except minimal `/health`; player bearer authorization remains underneath.
 
 The fixed shell origin preserves player local storage across port changes. Data lives under the OS app-data directory `org.scan64.desktop` (macOS `~/Library/Application Support`, Windows `%APPDATA%`, Linux `${XDG_DATA_HOME:-~/.local/share}`), including `scan64.db`, `backups/` and `logs/server.log`; on Windows the webview's local storage, which holds the player token, lives separately under `%LOCALAPPDATA%\org.scan64.desktop\EBWebView`. Older desktop data is not migrated. A second launch focuses the existing window. Quit closes the server's stdin pipe; EOF triggers graceful shutdown and a three-second independent process-tree hard exit. macOS/Linux kill the isolated process group; Windows uses a kill-on-close Job Object, including engine descendants.
 
@@ -104,7 +104,30 @@ Player-derived records participate in export, import, and deletion. Deletion is 
 
 ## Engine capacity
 
-Stockfish work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests. A job first waits on its game's lock and only then takes a run slot, so duplicate jobs for one game cannot occupy slots that other games need.
+The analysis engine is any UCI engine selected by an engine profile
+(`SCAN64_ENGINE_CONFIG`); without one it is Stockfish from
+`SCAN64_STOCKFISH_PATH`, unchanged from earlier releases. Configuration, stored
+line fields, cache identity, per-feature UCI requirements and a measured engine
+comparison are in [Analysis engines](engines.md).
+
+| Setting | Source | Default | Applies to |
+| --- | --- | --- | --- |
+| Engine binary | profile `engine.binary_path`, else `SCAN64_STOCKFISH_PATH` | `stockfish` on `PATH` | every pool process and per-call adapter |
+| Threads / Hash | profile `engine.threads` / `engine.hash_mb` | 1 / 16 MB | sent only if the engine declares them |
+| Extra UCI options | profile `[engine.options]` | none | validated against the engine's declared options at start |
+| Hint search | profile `[limits.hint]` | 200,000 nodes, 1.5 s, MultiPV 4 | interactive hints |
+| Review / focused / verification search | callers | 10,000-node review; fixed focused and verification budgets | batch analysis |
+| Interactive pool size | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | 2 | hints, and opponents unless a ladder profile is set |
+| Ladder pool | `SCAN64_LADDER_ENGINE_CONFIG` | none: opponents use the interactive pool | opponent moves; sized like the interactive pool |
+| Batch pool size | `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, CPUs − interactive − 1)` | analysis jobs and backfill |
+
+Each stored line records the full PV, the cp or mate score and, when reported,
+WDL, depth, seldepth, nodes, nps and the MultiPV index; older rows without
+those fields load unchanged. Bot-ladder and Skill Level opponents need
+Stockfish's strength options and fail with a named `EngineCapabilityError` on
+engines without them.
+
+Engine work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests. A job first waits on its game's lock and only then takes a run slot, so duplicate jobs for one game cannot occupy slots that other games need.
 
 Fast and focused analysis passes keep at most the batch pool's engine count of searches in flight, preserve position order, and cancel and await outstanding searches before returning a failure. Without a pool, analysis remains serial and starts only one engine at a time.
 
@@ -115,6 +138,8 @@ include the full FEN (including clocks), executable SHA-256, external network
 content when present, all effective UCI defaults/overrides, exact nodes/depth/time
 limits and MultiPV. Each engine process identifies its executable once; legacy
 unknown or incomplete identities miss. The reported engine name stays unchanged.
+A different engine binary always has a different key, so a new engine never
+reuses Stockfish rows.
 
 Hits create fresh detached analysis IDs and independent result/config payloads;
 source analyses, game links, review occurrences and lesson provenance never move.
@@ -133,17 +158,24 @@ Runtime controls:
 | `SCAN64_DATA_DIR` | SQLite database directory for puzzle downloads | Overrides the puzzle download directory; does not relocate the database. The macOS app sets it to its application-support directory. |
 | `SCAN64_WEB_DIST` | `apps/scan64-web/dist` in a source checkout | Built web-client directory; Docker and the macOS app set their bundled paths. |
 | `SCAN64_ANALYSIS_DAILY_QUOTA` | `50` | Immediately admitted analysis games per player per day; `0` queues every job. |
-| `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | `2` | Interactive Stockfish pool size. |
-| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, available CPUs − interactive pool size − 1)` | Batch Stockfish pool size; uses process affinity where supported, otherwise the system CPU count. An unknown CPU count uses the minimum of 2. |
+| `SCAN64_ENGINE_CONFIG` | unset | Absolute path of an engine profile TOML; selects the analysis engine. See [Analysis engines](engines.md). |
+| `SCAN64_STOCKFISH_PATH` | `stockfish` on `PATH` | Stockfish binary when no engine profile is set. |
+| `SCAN64_LADDER_ENGINE_CONFIG` | unset | Absolute path of an engine profile TOML for bot moves only; unset, bot moves use the analysis engine. See [Analysis engines](engines.md). |
+| `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | `2` | Interactive engine pool size. |
+| `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, available CPUs − interactive pool size − 1)` | Batch engine pool size; uses process affinity where supported, otherwise the system CPU count. An unknown CPU count uses the minimum of 2. |
 | `SCAN64_ENGINE_POOL_ENABLED` | enabled | Set `0`, `false`, `no`, or `off` to construct engines per call. |
 | `SCAN64_MAIA_CONFIG` | unset | Operator-owned Maia configuration file. |
 | `SCAN64_LLM_CONFIG` | unset | Optional explanation-provider configuration file. |
+| `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | Deadline for one local Ollama explanation (model listing plus chat), (0, 600]. |
+| `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` | Largest serialised local explanation request, [1024, 16 MiB]. |
+| `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` | Largest local Ollama response body, [1024, 16 MiB]. |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `4096` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
 
 ## Optional providers
 
-Stockfish is required for the local application. Maia is optional and requires operator-provided assets; follow [Maia operator provisioning](maia.md). Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.
+Stockfish is required for the local application with the default engine profile (`scan64 serve` checks for `stockfish` on `PATH`, or the `SCAN64_STOCKFISH_PATH` binary). An engine profile can select another UCI engine for analysis; `scan64 serve` then checks that profile's binary and does not need Stockfish. Bot play is unavailable under a non-Stockfish profile: play never falls back to Stockfish, and bot-move requests return 503 with code `bot_play_unavailable`. The player's committed move stays saved, and the web client shows that bot play is unavailable under the active engine profile. Maia is optional and requires operator-provided assets; follow [Maia operator provisioning](maia.md). Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.
 
-The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. Missing or rejected output falls back to templates. Disabling changes only future generation, never stored explanations. Operator-supplied `SCAN64_LLM_CONFIG` retains precedence where explicitly configured.
+The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. Missing or rejected output falls back to templates. Claim text is grounded as well as its cited line: `explanations/validator.py` reads each claim with a fixed grammar (SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns within 25 cp, mate-in-N, material, check, side to move, castling, promotion, en passant and named tactics) and checks every fact against the cited evidence payload and the boards it proves. A move must be one of that evidence's verified or payload moves at the point it is legal; a chess token outside the grammar rejects the claim. Each fallback is logged with a reason code, never evidence contents, and counted in-process (`template_fallback_counts()` in `explanations/assembly.py`). The model never receives raw engine payloads: `explanations/facts.py` builds a JSON document (`schemas/narrator-facts.schema.json`) with, for every move of every verified line, SAN, UCI, piece, capture, check, mate, promotion, castling, material after the move, new undefended threats and the stored engine evaluation after the move (or `unknown`; no search runs in the explanation path), plus side to move, evaluations before and after the played move, the best move and its evaluation, their difference and the mistake class. Every line starts at the position before the mistake and is cut after 8 plies. The validator admits evaluations, material balances and attacks only where those facts or the cited evidence's boards prove them. Evidence whose lines do not replay legally falls back to the template. See [Narrator pipeline](narrator-pipeline.md). Disabling changes only future generation, never stored explanations. Operator-supplied `SCAN64_LLM_CONFIG` retains precedence where explicitly configured.
 
 ## Deliberate limits
 

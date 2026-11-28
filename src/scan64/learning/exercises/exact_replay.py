@@ -9,6 +9,8 @@ from chess_lesson_spec import (
     Verification,
 )
 
+from scan64.providers.engine.config import active_engine_profile
+
 
 async def generate_exact_replay_exercise(
     diagnosis: Diagnosis,
@@ -16,9 +18,14 @@ async def generate_exact_replay_exercise(
     lesson_id: str,
     accepted_moves_san: list[str],
     hints: list[Hint] | None = None,
+    *,
+    engine: str | None = None,
 ) -> LessonSpec:
     """
     Generate an exact-replay exercise from a diagnosed position.
+
+    ``engine`` names the engine profile whose search the lesson is verified
+    against; without it, the active engine profile.
     """
     if hints is None:
         hints = []
@@ -38,8 +45,11 @@ async def generate_exact_replay_exercise(
     ]
     interaction = Interaction(input="move", maximum_attempts=3, accepted_moves=accepted_moves)
 
-    # Placeholder verification since it runs before verifier
-    verification = Verification(status="unverified", engine="stockfish")
+    # Unverified until verify_lesson checks it against the engine's search.
+    verification = Verification(
+        status="unverified",
+        engine=engine if engine is not None else active_engine_profile().name,
+    )
 
     return LessonSpec(
         schema_version="0.2.0",

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiRequestError, LessonAttemptLimitError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
+import { ApiClient, ApiRequestError, BotPlayUnavailableError, BOT_PLAY_UNAVAILABLE_MESSAGE, LessonAttemptLimitError, createActivePlayer, getPlayerAuthorizationHeader, getStoredPlayerId } from './client';
 import { onboardingFixture, strengthFixture } from '../components/strength.test-fixtures';
 
 describe('ApiClient', () => {
@@ -382,6 +382,81 @@ describe('ApiClient', () => {
     await expect(request).rejects.toMatchObject({ status: 404 });
   });
 
+  it.each([
+    ['move', () => ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' })],
+    ['resume', () => ApiClient.resumePlaySession('sess-1', 'player-1')],
+    ['opponent move', () => ApiClient.resumePlaySessionOpponentMove('sess-1', 3)],
+    ['create', () => ApiClient.createPlaySession({ player_id: 'player-1', opponent_config: {} })],
+  ])('maps a 503 bot_play_unavailable %s response to BotPlayUnavailableError', async (_name, call) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Service Unavailable',
+      json: async () => ({ detail: {
+        code: 'bot_play_unavailable',
+        message: 'Bot play is unavailable under the active engine profile.',
+        reason: 'The bot ladder requires UCI option(s) Skill Level, which Ethereal does not declare',
+      } }),
+    });
+    const error = await call().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(BotPlayUnavailableError);
+    expect(error).toMatchObject({
+      status: 503, message: BOT_PLAY_UNAVAILABLE_MESSAGE, reason: expect.stringContaining('Skill Level'),
+    });
+  });
+
+  it.each([
+    ['policy_mismatch', "This game was started under the bot ladder 'stockfish-error-budget-v1'", 'Start a new game.'],
+    ['elo_out_of_range', 'level 1 UCI_Elo 1000, outside the 1350-3450', "Correct the profile's [ladder] elo values."],
+  ])('shows the %s advice and the server reason, not the Stockfish advice', async (kind, reason, advice) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Service Unavailable',
+      json: async () => ({ detail: { code: 'bot_play_unavailable', message: 'Bot play is unavailable under the active engine profile.', reason, kind } }),
+    });
+    const error = await ApiClient.makePlaySessionMove('session-1', { move: 'e2e4' } as never).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(BotPlayUnavailableError);
+    expect(error).toMatchObject({ kind, reason });
+    expect((error as Error).message).toContain(advice);
+    expect((error as Error).message).toContain(reason);
+    expect((error as Error).message).not.toContain('Stockfish profile');
+  });
+
+  it.each([
+    ['analysis board', () => ApiClient.analyzePosition({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to analyse position'],
+    ['hint', () => ApiClient.getPositionInsight({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to get hint'],
+    ['explanation', () => ApiClient.explainPosition({ player_id: 'player-1', fen: 'startpos' } as never), 'Failed to explain engine lines'],
+  ])('shows the engine capability message and reason on a 503 %s response', async (_name, call, prefix) => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Service Unavailable',
+      json: async () => ({ detail: {
+        code: 'engine_capability_unavailable',
+        message: 'This feature is unavailable under the active engine profile.',
+        reason: '4 analysis lines need the UCI option MultiPV, which NoMultiPV 1 does not declare',
+      } }),
+    });
+    const error = await call().catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      status: 503,
+      message: `${prefix}: This feature is unavailable under the active engine profile. `
+        + '4 analysis lines need the UCI option MultiPV, which NoMultiPV 1 does not declare.',
+    });
+  });
+
+  it('keeps other 503 move responses as plain ApiRequestError', async () => {
+    localStorage.setItem('scan64_player_id', 'player-1');
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503, statusText: 'Busy', json: async () => ({ detail: 'busy' }),
+    });
+    const error = await ApiClient.makePlaySessionMove('sess-1', { move: 'e2e4' }).catch((caught: unknown) => caught);
+    expect(error).not.toBeInstanceOf(BotPlayUnavailableError);
+    expect(error).toMatchObject({ status: 503, message: 'Failed to make move: Busy' });
+  });
+
   it('makePlaySessionMove calls POST /v1/play-sessions/{id}/moves', async () => {
     localStorage.setItem('scan64_player_id', 'player-1');
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
@@ -550,9 +625,24 @@ describe('ApiClient', () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      status: 400,
       statusText: 'Bad Request',
+      json: async () => { throw new SyntaxError('no body'); },
     });
 
     await expect(ApiClient.createGame({ owner_color: 'white',  pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
+  });
+
+  it('reports the server reason when a game cannot be created', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: async () => ({ detail: "Variant 'Chess960' is not supported; Scan64 supports Standard, Crazyhouse, Three-check, Atomic, Antichess, King of the Hill, Horde, Racing Kings" }),
+    });
+
+    await expect(ApiClient.createGame({ owner_color: 'white', pgn: '', player_id: 'player-1' })).rejects.toThrow(
+      "Failed to create game: Variant 'Chess960' is not supported; Scan64 supports Standard, Crazyhouse, Three-check, Atomic, Antichess, King of the Hill, Horde, Racing Kings");
   });
 });

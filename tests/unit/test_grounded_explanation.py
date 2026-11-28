@@ -36,7 +36,7 @@ def _diagnosis_and_evidence() -> tuple[Diagnosis, list[Evidence]]:
             "results_in_material_gain": True,
             "played_move": "e2e3",
             "best_move": "g1f3",
-            "focused_line": ["g1f3"],
+            "focused_line": ["e7e5"],
         },
     )
     diagnosis = Diagnosis(
@@ -97,7 +97,8 @@ async def test_grounded_generation_replaces_the_template(tmp_path: Path) -> None
                         {
                             "claims": [
                                 {
-                                    "text": "A knight fork on e7 wins your queen on d5.",
+                                    "text": "The {tactic} on {square:1} was there: "
+                                    "{piece:2} was the target.",
                                     "evidence_ref": "ev_1",
                                     "line": ["g1f3"],
                                     "certainty": "observed",
@@ -119,7 +120,10 @@ async def test_grounded_generation_replaces_the_template(tmp_path: Path) -> None
             client=client,
         )
 
-    assert explanation.text == "A knight fork on e7 wins your queen on d5."
+    # Slots are filled by code (#386).
+    assert explanation.text == (
+        "The knight fork on e7 was there: the black queen on d5 was the target."
+    )
     assert explanation.claims[0].evidence_ref == "ev_1"
 
 
@@ -196,7 +200,7 @@ async def test_local_wording_reuses_grounding_and_preserves_explicit_operator_pr
     outcome: str, tmp_path: Path
 ) -> None:
     attempted = False
-    phrasing = "Developing the knight to f3 was the recorded alternative."
+    phrasing = "Developing with {move:L1:1} was the recorded alternative."
 
     class LocalModel:
         async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
@@ -230,7 +234,7 @@ async def test_local_wording_reuses_grounding_and_preserves_explicit_operator_pr
     )
     assert attempted is (outcome != "operator")
     if outcome == "valid":
-        assert explanation.text == phrasing
+        assert explanation.text == "Developing with Nf3 was the recorded alternative."
         assert explanation.claims[0].evidence_ref == "ev_1"
     else:
         assert explanation == template

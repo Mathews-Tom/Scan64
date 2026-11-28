@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO, NoReturn, cast
 
-from scan64.desktop_backups import application_version, prepare_desktop_backup
+from scan64.desktop_backups import DesktopBackup, application_version, prepare_desktop_backup
 
 # Leave margin under the shell's five-second kill deadline. This timer does not
 # depend on uvicorn's event loop, lifespan, engine pool, or graceful shutdown.
@@ -62,6 +62,19 @@ def configure_environment(configuration: DesktopConfiguration) -> None:
     os.environ["SCAN64_DATABASE_URL"] = f"sqlite:///{database_path}"
     os.environ["SCAN64_SHELL_TOKEN"] = configuration.token
     os.environ["SCAN64_DISTRIBUTION"] = "desktop"
+
+
+def prepare_install(configuration: DesktopConfiguration) -> DesktopBackup:
+    """Record this install's engines, then back up its data.
+
+    The engines come first: a fresh install is one with no database yet. The
+    shell always passes its bundled Stockfish in ``SCAN64_STOCKFISH_PATH``, so
+    that variable does not count as a configured engine here.
+    """
+    from scan64.providers.engine.install_defaults import apply_install_engines
+
+    apply_install_engines(os.environ["SCAN64_DATABASE_URL"], honour_stockfish_path=False)
+    return prepare_desktop_backup(configuration.data_dir, application_version(os.environ))
 
 
 def _create_windows_job() -> int:
@@ -246,7 +259,7 @@ def main() -> NoReturn:
             if sys.stderr is None:
                 sys.stderr = log
 
-        backup = prepare_desktop_backup(configuration.data_dir, application_version(os.environ))
+        backup = prepare_install(configuration)
 
         # Backup precedes all API imports; migrations run in uvicorn's lifespan.
         # Commit the version only after that lifespan and server binding succeed.

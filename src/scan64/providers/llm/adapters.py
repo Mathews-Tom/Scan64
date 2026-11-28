@@ -9,6 +9,14 @@ from pydantic import ValidationError
 
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
+# Ollama ``num_ctx`` for narrator calls (#429). Since #408 the prompt is the
+# system prompt and slot list only: the longest measured is 1,565 tokens for a
+# lesson and 1,608 for the Analysis Board at MultiPV 4. 4096 holds either plus a
+# 2,048-token answer, and its KV cache is the one the narrator benchmark measured.
+DEFAULT_OLLAMA_CONTEXT_TOKENS = 4096
+MIN_OLLAMA_CONTEXT_TOKENS = 2048
+MAX_OLLAMA_CONTEXT_TOKENS = 131072
+
 
 class LLMExplanationProvider(Protocol):
     """Provider boundary for schema-constrained explanation generation."""
@@ -79,27 +87,46 @@ def _parse_generated_explanation(raw: str, provider: str) -> GeneratedExplanatio
 class OllamaExplanationAdapter:
     """Ollama-compatible adapter using its JSON-schema response format."""
 
-    def __init__(self, *, base_url: str, model: str, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        model: str,
+        client: httpx.AsyncClient,
+        context_tokens: int | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._client = client
+        self._context_tokens = context_tokens
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        payload: dict[str, object] = {
+            "model": self._model,
+            "messages": _messages(request),
+            "stream": False,
+            "format": _schema(),
+            # The narrator only words engine evidence; it must not reason (#429).
+            # The narrator benchmark sent it to all 11 models it measured.
+            "think": False,
+        }
+        if self._context_tokens is not None:
+            payload["options"] = {"num_ctx": self._context_tokens}
         try:
-            response = await self._client.post(
-                f"{self._base_url}/api/chat",
-                json={
-                    "model": self._model,
-                    "messages": _messages(request),
-                    "stream": False,
-                    "format": _schema(),
-                },
-            )
+            response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
             response.raise_for_status()
         except httpx.HTTPError as error:
             raise LLMProviderError("Ollama explanation request failed") from error
 
         body = _response_object(response, "Ollama")
+        prompt_tokens = body.get("prompt_eval_count")
+        if (
+            self._context_tokens is not None
+            and isinstance(prompt_tokens, int)
+            and prompt_tokens >= self._context_tokens
+        ):
+            # Ollama silently drops the start of a prompt that fills num_ctx.
+            raise LLMProviderError("Ollama truncated the prompt to its context length")
         message = _required_object(body.get("message"), "message", "Ollama")
         content = message.get("content")
         if not isinstance(content, str):

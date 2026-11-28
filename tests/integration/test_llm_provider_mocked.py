@@ -75,6 +75,7 @@ async def test_ollama_adapter_uses_json_schema_and_parses_response() -> None:
 
     assert observed_request["model"] == "local-model"
     assert observed_request["stream"] is False
+    assert observed_request["think"] is False  # #429, also without context_tokens
     response_schema = observed_request["format"]
     assert isinstance(response_schema, dict)
     assert response_schema["additionalProperties"] is False

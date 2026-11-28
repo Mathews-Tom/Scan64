@@ -121,6 +121,15 @@ vi.mock('../api/client', () => ({
       this.status = status;
     }
   },
+  BotPlayUnavailableError: class BotPlayUnavailableError extends Error {
+    readonly status = 503;
+    readonly reason: string | null;
+
+    constructor(reason: string | null) {
+      super('Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.');
+      this.reason = reason;
+    }
+  },
   ApiClient: {
     getBots: vi.fn().mockResolvedValue([{ level: 1, name: 'Server beginner', description: 'Friendly bot' }]),
     getPlayerOnboarding: vi.fn(),
@@ -155,7 +164,7 @@ const timedSession: PlaySessionRead = {
   opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [], clock: timedClock,
   pgn: '', result: '*',
 };
-const timedGame = { id: 'timed-game', pgn: '', white: 'test-player', black: 'Stockfish', result: '*' };
+const timedGame = { variant: 'chess', id: 'timed-game', pgn: '', white: 'test-player', black: 'Stockfish', result: '*' };
 
 afterEach(() => {
   vi.useRealTimers();
@@ -1060,7 +1069,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(active);
     const terminal = Promise.withResolvers<PlaySessionRead>();
     vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(terminal.promise);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-1',
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'custom-1',
       pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1. Kf2 *`, white: 'bot', black: 'human', result: '*' });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: null, status: 'completed' });
     vi.mocked(ApiClient.createPlaySession).mockRejectedValueOnce(new ApiRequestError('Conversion start unavailable', 503)).mockResolvedValue(fresh);
@@ -1114,7 +1123,7 @@ describe('PlayScreen', () => {
         source_ply: 2, source_fen: '7k/8/5KQ1/8/8/8/8/8 w - - 0 1', player_color: 'white', seed: 'seed',
         completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null } };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(active);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-game',
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'custom-game',
       pgn: `[SetUp "1"]\n[FEN "${active.sparring!.source_fen}"]\n\n*`, white: 'human', black: 'bot', result: '*' });
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...active, status: 'completed' });
     vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce({ ...active, status: 'completed', sparring: {
@@ -1143,7 +1152,7 @@ describe('PlayScreen', () => {
         source_ply: 12, source_fen: sourceFen, player_color: 'black', seed: 'seed',
         completed_at: null, result: null, outcome: null, verification_status: 'verified', next_review_at: null },
     });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-resume',
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'custom-resume',
       pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`, white: 'bot', black: 'human', result: '*' });
     render(<PlayScreen />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
@@ -1175,7 +1184,7 @@ describe('PlayScreen', () => {
         localStorage.setItem('scan64_active_play_session_id', completed.id);
       }
       vi.mocked(ApiClient.getPlaySession).mockResolvedValue(completed);
-      vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'custom-terminal',
+      vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'custom-terminal',
         pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n[Result "1-0"]\n\n1. Qg7# 1-0`,
         white: 'human', black: 'bot', result: '1-0' });
       vi.mocked(getQueuedMoves).mockResolvedValue([
@@ -1242,7 +1251,7 @@ describe('PlayScreen', () => {
     expect(screen.getByTestId('chessground-board')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
 
-    await act(async () => reloaded.resolve({
+    await act(async () => reloaded.resolve({ variant: 'chess',
       id: 'custom-queued', pgn: `[SetUp "1"]\n[FEN "${sourceFen}"]\n\n1... Ra1 2. Kf2 *`,
       white: 'bot', black: 'human', result: '*',
     }));
@@ -1397,7 +1406,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
     vi.mocked(ApiClient.makePlaySessionMove).mockReturnValueOnce(commit.promise);
     vi.mocked(ApiClient.getPlaySession).mockReturnValueOnce(refreshed.promise);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 e5 *', white: 'human', black: 'bot', result: '*',
     });
     render(<PlayScreen initialSession={assistanceSession} />);
@@ -1444,7 +1453,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.gradePlayMoves).mockResolvedValue(blunderVerdict);
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValue(new ApiRequestError('Engine failed', 500));
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, assistance_modes: ['guard'] });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 *', white: 'human', black: 'bot', result: '*',
     });
     const reply = Promise.withResolvers<{ opponent_move: string; status: string }>();
@@ -1511,7 +1520,7 @@ describe('PlayScreen', () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     localStorage.setItem('scan64_active_play_session_id', assistanceSession.id);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, assistance_modes: ['candidates', 'guard'] });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
     render(<PlayScreen />);
     expect(await screen.findByTestId('play-assistance-used')).toHaveTextContent('Candidates, blunder guard');
     expect(screen.getByTestId('play-assistance-used')).toHaveTextContent('permanently');
@@ -1540,7 +1549,7 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.gradePlayMoves).mockReturnValueOnce(oldGrades.promise);
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
     vi.mocked(ApiClient.takebackPlaySession).mockResolvedValue(assistanceSession);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'game-123', pgn: '*', white: 'human', black: 'bot', result: '*' });
     render(<PlayScreen initialSession={assistanceSession} />);
     await act(async () => getRegisteredMoveHandler()('e2', 'e4'));
     const repeated = new Chess();
@@ -1612,7 +1621,7 @@ describe('PlayScreen', () => {
       id: 'blocked-session', player_id: 'test-player', game_id: 'blocked-game',
       opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [],
     });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'blocked-game', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
     });
     try {
@@ -1958,7 +1967,7 @@ describe('PlayScreen', () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
     opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123',
       pgn: '1. e4 e5 *',
       white: 'test-player',
@@ -2000,7 +2009,7 @@ describe('PlayScreen', () => {
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.mocked(ApiClient.makePlaySessionMove).mockRejectedValueOnce(new Error('response lost'));
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(playSession);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 *', white: 'test-player', black: 'Stockfish', result: '*',
     });
     vi.mocked(ApiClient.resumePlaySession).mockResolvedValue({
@@ -2028,11 +2037,45 @@ describe('PlayScreen', () => {
     network.mockRestore();
   });
 
+  it('keeps the bot-play-unavailable notice through the refresh and on bot recovery', async () => {
+    localStorage.setItem('scan64_player_id', 'test-player');
+    const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
+      player_color: 'white', game_id: 'game-123', opponent_config: {},
+      status: 'active', coach_mode: false, assistance_modes: [] };
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(ApiClient.getPlaySession).mockResolvedValue(playSession);
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
+      id: 'game-123', pgn: '1. e4 *', white: 'test-player', black: 'Stockfish', result: '*',
+    });
+    const { BotPlayUnavailableError } = await import('../api/client');
+    vi.mocked(ApiClient.resumePlaySession).mockRejectedValue(new BotPlayUnavailableError('no Skill Level'));
+    vi.mocked(syncQueuedMoves).mockImplementation(async () => {
+      window.dispatchEvent(new CustomEvent(QUEUED_MOVE_SYNC_SUCCEEDED, { detail: {
+        queuedMove: { sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn: '' },
+        response: null,
+        botPlayUnavailable: 'Bot play is unavailable under the active engine profile. Switch to the Stockfish profile to play the bot.',
+      } }));
+    });
+    render(<PlayScreen initialSession={playSession} />);
+    await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
+    network.mockReturnValue(true);
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    const resume = await screen.findByRole('button', { name: 'Resume bot turn' });
+    await waitFor(() => expect(screen.getByTestId('chessground-board-san-move-list')).toHaveTextContent('e4'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Bot play is unavailable under the active engine profile/);
+    fireEvent.click(resume);
+    await waitFor(() => expect(ApiClient.resumePlaySession).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    expect(screen.getByRole('alert')).toHaveTextContent(/active engine profile/);
+    expect(screen.queryByText(/your move was not replayed/)).not.toBeInTheDocument();
+    network.mockRestore();
+  });
+
   it('locks moves and resign through queued acknowledgment, failed refresh and canonical retry', async () => {
     localStorage.setItem('scan64_player_id', 'test-player');
     const playSession: PlaySessionRead = { id: 'sess-123', player_id: 'test-player',
       game_id: 'game-123', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
-    const canonicalGame = { id: 'game-123', pgn: '1. e4 e5 *',
+    const canonicalGame = { variant: 'chess', id: 'game-123', pgn: '1. e4 e5 *',
       white: 'test-player', black: 'Stockfish', result: '*' };
     const refresh = Promise.withResolvers<typeof canonicalGame>();
     const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
@@ -2096,9 +2139,9 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves).mockReturnValueOnce(olderQueueRead.promise).mockResolvedValue([]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(playSession);
     vi.mocked(ApiClient.getGame)
-      .mockResolvedValueOnce({ id: 'game-123', pgn: '1. e4 e5 2. Nf3 Nc6 *',
+      .mockResolvedValueOnce({ variant: 'chess', id: 'game-123', pgn: '1. e4 e5 2. Nf3 Nc6 *',
         white: 'test-player', black: 'Stockfish', result: '*' })
-      .mockResolvedValueOnce({ id: 'game-123', pgn: '1. e4 e5 *',
+      .mockResolvedValueOnce({ variant: 'chess', id: 'game-123', pgn: '1. e4 e5 *',
         white: 'test-player', black: 'Stockfish', result: '*' });
     vi.mocked(syncQueuedMoves).mockImplementationOnce(async () => {
       window.dispatchEvent(new CustomEvent(QUEUED_MOVE_SYNC_SUCCEEDED, { detail: {
@@ -2134,14 +2177,14 @@ describe('PlayScreen', () => {
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
     opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
     vi.mocked(ApiClient.getGame)
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ variant: 'chess',
         id: 'game-123',
         pgn: '1. e4 e5 *',
         white: 'test-player',
         black: 'Stockfish',
         result: '*',
       })
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ variant: 'chess',
         id: 'game-123',
         pgn: '1. e4 e5 2. Nf3 Nc6 *',
         white: 'test-player',
@@ -2173,7 +2216,7 @@ describe('PlayScreen', () => {
     ]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
     opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123',
       pgn: '1. e4 e5 *',
       white: 'test-player',
@@ -2211,7 +2254,7 @@ describe('PlayScreen', () => {
       const resumed: PlaySessionRead = { ...assistanceSession, id: 'sess-123' };
       const refreshed = Promise.withResolvers<PlaySessionRead>();
       vi.mocked(ApiClient.getPlaySession).mockResolvedValueOnce(resumed).mockReturnValue(refreshed.promise);
-      vi.mocked(ApiClient.getGame).mockResolvedValue({
+      vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
         id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
       });
       render(<PlayScreen />);
@@ -2250,7 +2293,7 @@ describe('PlayScreen', () => {
     localStorage.setItem('scan64_active_play_session_id', 'sess-123');
     vi.mocked(getQueuedMoves).mockResolvedValue([{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1 }]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
     });
     render(<PlayScreen />);
@@ -2270,7 +2313,7 @@ describe('PlayScreen', () => {
     vi.mocked(removeQueuedMove).mockImplementation(async () => { queued = []; });
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
     const canonical = Promise.withResolvers<GameRead>();
-    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({
+    vi.mocked(ApiClient.getGame).mockResolvedValueOnce({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
     }).mockReturnValue(canonical.promise);
     render(<PlayScreen />);
@@ -2279,7 +2322,7 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(ApiClient.getGame).toHaveBeenCalledTimes(2));
     const activePlayerCalls = vi.mocked(setActivePlayerId).mock.calls.length;
     localStorage.setItem('scan64_player_id', 'other-player');
-    await act(async () => canonical.resolve({
+    await act(async () => canonical.resolve({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
     }));
     expect(setActivePlayerId).toHaveBeenCalledTimes(activePlayerCalls);
@@ -2309,7 +2352,7 @@ describe('PlayScreen', () => {
     const queued = [{ sessionId: 'sess-123', move: 'e2e4', timestamp: 1, sourcePgn }];
     vi.mocked(getQueuedMoves).mockResolvedValue(queued);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...assistanceSession, id: 'sess-123' });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '', white: 'test-player', black: 'Stockfish', result: '*',
     });
     render(<PlayScreen />);
@@ -2337,14 +2380,14 @@ describe('PlayScreen', () => {
       .mockRejectedValueOnce(new Error('temporary failure'))
       .mockResolvedValueOnce(resumedSession);
     vi.mocked(ApiClient.getGame)
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ variant: 'chess',
         id: 'game-123',
         pgn: '1. e4 e5 *',
         white: 'test-player',
         black: 'Stockfish',
         result: '*',
       })
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ variant: 'chess',
         id: 'game-123',
         pgn: '1. e4 e5 2. Nf3 Nc6 *',
         white: 'test-player',
@@ -2475,7 +2518,7 @@ describe('PlayScreen', () => {
       id: 'sess-123', player_id: 'test-player', game_id: 'game-123',
       opponent_config: {}, status: 'active', coach_mode: true, assistance_modes: [],
     });
-    vi.mocked(ApiClient.getGame).mockResolvedValue({
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess',
       id: 'game-123', pgn: '1. e4 e5 *', white: 'test-player', black: 'Stockfish', result: '*',
     });
 
@@ -2568,7 +2611,7 @@ describe('PlayScreen', () => {
     vi.mocked(getQueuedMoves).mockResolvedValueOnce([queuedMove]).mockResolvedValueOnce([]);
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(resumedSession);
     vi.mocked(ApiClient.getGame)
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ variant: 'chess',
         id: 'game-123',
         pgn: '',
         white: 'test-player',
@@ -2963,7 +3006,7 @@ describe('PlayScreen', () => {
     const session: PlaySessionRead = { id: 'reload-black', player_id: 'test-player', game_id: 'black-game',
       opponent_config: { player_color: 'black' }, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue(session);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'black-game', pgn: '1. e4', white: 'bot', black: 'human', result: '*' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'black-game', pgn: '1. e4', white: 'bot', black: 'human', result: '*' });
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'g1f3', status: 'active' });
     vi.mocked(ApiClient.resignPlaySession).mockResolvedValue({ ...session, status: 'completed' });
     render(<PlayScreen />);
@@ -2992,7 +3035,7 @@ describe('PlayScreen', () => {
       player_color: 'white', opponent_config: {}, status: 'active', coach_mode: false, assistance_modes: [] };
     vi.mocked(ApiClient.makePlaySessionMove).mockResolvedValue({ opponent_move: 'e7e5', status: 'active' });
     vi.mocked(ApiClient.takebackPlaySession).mockResolvedValue(session);
-    vi.mocked(ApiClient.getGame).mockResolvedValue({ id: 'undo-game', pgn: '', white: 'human', black: 'bot', result: '*' });
+    vi.mocked(ApiClient.getGame).mockResolvedValue({ variant: 'chess', id: 'undo-game', pgn: '', white: 'human', black: 'bot', result: '*' });
     render(<PlayScreen initialSession={session} />);
     await act(async () => { await getRegisteredMoveHandler()('e2', 'e4'); });
     await waitFor(() => expect(screen.getByTestId('takeback-btn')).toBeEnabled());
