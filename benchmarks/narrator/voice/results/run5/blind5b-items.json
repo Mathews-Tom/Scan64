@@ -1,0 +1,1562 @@
+[
+ {
+  "id": "f001",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a square for the king on h2. Notice how Black's king remains shut in by its own pawns on f7, g7, and h7! White could have played 1.Rd8 instead to deliver checkmate at once."
+ },
+ {
+  "id": "f002",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures the pawn with 5.Nxf7, leaving the g2-pawn without a defender. Black's queen immediately steps in with 5...Qxg2 to attack the rook on h1! Notice how 5.Bxf7+ would have taken the pawn with check, requiring Black to respond to the check first."
+ },
+ {
+  "id": "f003",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1. 1.d4 places a pawn in the centre and allows the bishop on c1 to use the diagonal to h6."
+ },
+ {
+  "id": "f004",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White plays 1.Kd2, but the knight on d5 is ready for a different role. Notice how 1.Nc7+ gives check while also attacking the rook on a8! After the king moves, the knight can capture the rook."
+ },
+ {
+  "id": "f005",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White finds a block with 7.Be2, but the queen on e4 keeps that bishop pinned to the king. Black responds with 7...Nf3, and it is checkmate! Notice how 7.Qe2 also blocks the check while attacking the queen on e4."
+ },
+ {
+  "id": "f006",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended against 5...Qxg2. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f007",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight hunts down the pawn to stare at the rook on h8. Black's queen swoops in with 5...Qxg2 and sets its sights on the rook on h1! White could have invited the bishop to the party with 5.Bxf7+, where the check demands a response from Black."
+ },
+ {
+  "id": "f008",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to step to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f009",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f010",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to step to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f011",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White meets the check by moving the bishop to e2. Black responds with 7...Nf3 and delivers checkmate because the queen on e4 pins that bishop to the king! Notice how 7.Qe2 also blocks the check while attacking the queen on e4."
+ },
+ {
+  "id": "f012",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures the pawn with 5.Nxf7, and the knight now eyes the rook on h8. Notice how the queen on g5 is already eyeing the g2 pawn, which sits undefended! After 5...Qxg2, the queen also attacks the rook on h1. White could have played 5.Bxf7+ instead, as the bishop captures the pawn with check!"
+ },
+ {
+  "id": "f013",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to move to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f014",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures the pawn on f7 with the knight, and the rook on h8 stands in the line of fire. Notice how the queen on g5 already eyes the g2 pawn, which now has no defenders! Black responds with 5...Qxg2, and the queen directly faces the rook on h1. White could have played 5.Bxf7+ instead. This move takes the same pawn while delivering a check, and Black must deal with the check first."
+ },
+ {
+  "id": "f015",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to step to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f016",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a square for the king on h2. Notice how Black's king remains shut in by its own pawns on f7, g7, and h7! White could have ended the game immediately with 1.Rd8."
+ },
+ {
+  "id": "f017",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, and the king on g1 finds a new seat on h2. Meanwhile, the king on g8 sits behind a wall of its own pawns. White could have played 1.Rd8, and the rook on d8 would have delivered checkmate at once."
+ },
+ {
+  "id": "f018",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check with 7.Be2, but the queen on e4 pins the bishop to the king. Black follows with 7...Nf3 and delivers checkmate! Notice how 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f019",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains locked in a cage of pawns. White could have played 1.d4 to open the road for the bishop to march toward h6!"
+ },
+ {
+  "id": "f020",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains tucked away behind the pawns. Notice how 1.d4 would have changed the landscape, placing a pawn in the centre and opening a clear path for the bishop to reach h6!"
+ },
+ {
+  "id": "f021",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 is played instead of 1.Nc7+. With 1.Nc7+, the knight gives check and attacks the rook on a8. Black's king must move, and the knight then takes the rook."
+ },
+ {
+  "id": "f022",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 is a quiet stroll for the pawn. The bishop on c1 remains behind a wall of b2 and d2! White could have played 1.d4 to let the bishop run free on the diagonal to h6."
+ },
+ {
+  "id": "f023",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check from the queen by moving the bishop to e2. Notice how 7...Nf3 delivers checkmate because the queen on e4 pins that bishop to the king! White could have also played 7.Qe2 to block the check while attacking the queen on e4."
+ },
+ {
+  "id": "f024",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1 from the pawns on b2 and d2. 1.d4 places a pawn in the centre and allows the bishop on c1 to use the diagonal to h6."
+ },
+ {
+  "id": "f025",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 steps in front of the queen's check. Black's knight jumps to f3 for a checkmate! 7.Qe2 would have blocked the check while also launching an attack on the queen."
+ },
+ {
+  "id": "f026",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 blocks the check, but 7...Nf3 is checkmate because the bishop on e2 is pinned to the king. 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f027",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a flight square for the king on h2. Notice how the black king remains shut in by its own pawns on f7, g7, and h7! White could have played 1.Rd8 to deliver checkmate at once."
+ },
+ {
+  "id": "f028",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White's knight captures the pawn on f7 and eyes the rook on h8. Notice how the queen on g5 is already eyeing the g2 pawn, which remains undefended after 5.Nxf7 Black simply plays 5...Qxg2 to attack the rook on h1. White could have played 5.Bxf7+ instead, as the check would have required an immediate answer from Black."
+ },
+ {
+  "id": "f029",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight captures the pawn to hunt the rook on h8! Meanwhile, the queen on g5 eyes the g2 pawn, and 5...Qxg2 invites the queen to feast on the rook on h1. White could have played 5.Bxf7+ to take the pawn with a check."
+ },
+ {
+  "id": "f030",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight grabs the pawn while eyeing the rook on h8! Black's queen dances over to g2 with 5...Qxg2 to hunt the rook on h1. 5.Bxf7+ would have invited the bishop to take the pawn with a check."
+ },
+ {
+  "id": "f031",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3, and the white king finds a new seat on h2. Meanwhile, the black king remains trapped behind a wall of its own pawns! White could have played 1.Rd8 to deliver a checkmate at once."
+ },
+ {
+  "id": "f032",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, giving the king a place to move on h2. Notice how Black's king is already shut in by its own pawns! White could have finished the game immediately with 1.Rd8!"
+ },
+ {
+  "id": "f033",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a path for the king on g1 to move to h2. Notice how Black's king on g8 remains shut in by its own pawns! White could have ended the game immediately with 1.Rd8."
+ },
+ {
+  "id": "f034",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to move to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f035",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight on c7 takes the rook."
+ },
+ {
+  "id": "f036",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight takes the rook."
+ },
+ {
+  "id": "f037",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains behind its wall of pawns. Notice how 1.d4 would have opened the diagonal, allowing that bishop to reach h6!"
+ },
+ {
+  "id": "f038",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1, which remains shut in by the pawns on b2 and d2. 1.d4 puts the pawn in the centre and opens the diagonal for the bishop on c1."
+ },
+ {
+  "id": "f039",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White moves the king to d2. Notice how 1.Nc7+ would have delivered a check while attacking the rook on a8 at the same time! After the king moves, the knight captures the rook."
+ },
+ {
+  "id": "f040",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 is played instead of 1.Nc7+. After 1.Nc7+, the king must move and the knight takes the rook on a8."
+ },
+ {
+  "id": "f041",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to step to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f042",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White uses the bishop to block the check from the queen on e4. Notice how the queen pins that bishop to the king, so 7...Nf3 results in checkmate! White could have played 7.Qe2 to block the check and attack the black queen at the same time."
+ },
+ {
+  "id": "f043",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 steps in front of the queen's check. Black's knight leaps to f3, and the game ends in checkmate! 7.Qe2 would have blocked the check while also pointing a finger at the queen on e4."
+ },
+ {
+  "id": "f044",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White plays 1.Kd2 and the king takes a stroll to d2. White could have invited the knight to c7 with 1.Nc7+ to deliver a check and hunt the rook on a8. After 1.Nc7+, the king must dance away and the knight takes the rook!"
+ },
+ {
+  "id": "f045",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 is played. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight takes the rook."
+ },
+ {
+  "id": "f046",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1. 1.d4 places a pawn in the centre and opens the diagonal for the bishop."
+ },
+ {
+  "id": "f047",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1, which remains shut in by the pawns. 1.d4 stands in the centre and allows the bishop on c1 to use the diagonal to h6."
+ },
+ {
+  "id": "f048",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check with 7.Be2. Because the queen on e4 pins the bishop to the king, Black's 7...Nf3 results in checkmate! Notice how 7.Qe2 also blocks the check and adds an attack against the black queen."
+ },
+ {
+  "id": "f049",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, the knight lunges forward to seize the pawn and point its sights at the rook on h8. Meanwhile, Black's queen dances toward g2 to snatch the pawn and target the rook on h1! White could have invited the bishop to the party with 5.Bxf7+, taking the pawn with a check."
+ },
+ {
+  "id": "f050",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, making the h2 square available for the king. Notice how Black's king remains tucked away behind its own pawns! White could have ended the game immediately with 1.Rd8!"
+ },
+ {
+  "id": "f051",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight takes the rook on a8."
+ },
+ {
+  "id": "f052",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check, and Black must respond to the check."
+ },
+ {
+  "id": "f053",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 is a quiet parade for the pawn, but the bishop on c1 remains trapped behind a wall of friends. 1.d4 would have offered the bishop a scenic tour along the diagonal to h6!"
+ },
+ {
+  "id": "f054",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains trapped behind the pawns on b2 and d2. Notice how 1.d4 instead would have opened the diagonal for that bishop to reach h6!"
+ },
+ {
+  "id": "f055",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight takes the rook."
+ },
+ {
+  "id": "f056",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 allows 7...Nf3 checkmate because the bishop on e2 is pinned to the king. 7.Qe2 blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f057",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White plays 1.Kd2. Notice how 1.Nc7+ instead would give check and attack the rook on a8 at the same time! Black's king must move, and then the knight on c7 takes the rook."
+ },
+ {
+  "id": "f058",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "The knight on e5 marches forward with 5.Nxf7 and takes the pawn while eyeing the rook on h8. Meanwhile, the queen on g5 casts a gaze on the lonely pawn at g2, and 5...Qxg2 sees her snatch it and face off against the rook on h1. White could have invited the bishop to the party with 5.Bxf7+, taking the pawn and delivering a check."
+ },
+ {
+  "id": "f059",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White plays 7.Be2 to stand between the king and the queen's gaze. Black's knight jumps into f3 for a checkmate, as the queen on e4 holds the bishop in a pin. 7.Qe2 would have blocked the check while also launching an attack on Black's queen."
+ },
+ {
+  "id": "f060",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White's king takes a stroll to d2! The knight on c7 was ready to dance with a check and snatch the rook on a8. After the king moves, the knight captures the prize."
+ },
+ {
+  "id": "f061",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check with 7.Be2. Because the queen on e4 pins the bishop to the king, the knight on f3 cannot be taken, leading to checkmate after 7...Nf3! Notice how 7.Qe2 also blocks the check while attacking the queen on e4."
+ },
+ {
+  "id": "f062",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White takes the pawn with 5.Nxf7, and the knight looks toward the rook on h8. Notice how the pawn on g2 sits undefended, and Black's queen captures it with 5...Qxg2! White could have played 5.Bxf7+ instead, taking the pawn with check to ensure the king's immediate attention."
+ },
+ {
+  "id": "f063",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White chooses to step the king to d2. Notice how 1.Nc7+ instead would give check and attack the rook on a8 at the same time! After the king moves, the knight on c7 would simply take the rook."
+ },
+ {
+  "id": "f064",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 allows 7...Nf3 checkmate because the queen on e4 pins the bishop to the king. 7.Qe2 blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f065",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2, and the bishop stands as a shield against the queen on e4. Black's knight leaps to f3 for the checkmate! 7.Qe2 also blocks the check and invites the queen on e4 to a confrontation."
+ },
+ {
+  "id": "f066",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3, and the bishop on c1 remains in its room behind the b2 and d2 pawns. White could have played 1.d4 to clear a path for the bishop to roam the diagonal to h6!"
+ },
+ {
+  "id": "f067",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight hunts down a pawn while pointing a finger at the rook on h8! Meanwhile, the queen on g5 eyes the pawn on g2, which stands undefended. Black's queen steps into the house with 5...Qxg2 and eyes the rook on h1. White could have sent the bishop for 5.Bxf7+, capturing the pawn with a check that demands an immediate answer!"
+ },
+ {
+  "id": "f068",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White chooses 1.Kd2 to move the king. Notice how 1.Nc7+ instead would have given check and attacked the rook on a8! Black's king would have to move, and then the knight would have taken the rook."
+ },
+ {
+  "id": "f069",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 blocks the check, but 7...Nf3 is checkmate because the bishop on e2 is pinned to the king. 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f070",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3, and the bishop on c1 remains behind a wall of pawns. White could have played 1.d4 to clear a path for the bishop to run the diagonal to h6!"
+ },
+ {
+  "id": "f071",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to move to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f072",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White's knight jumps to f7 and attacks the rook on h8. Notice how the queen on g5 already eyes the g2 pawn, which now has no defender, and Black captures it with 5...Qxg2! White could have played 5.Bxf7+ to take the pawn with check instead."
+ },
+ {
+  "id": "f073",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White's king takes a stroll to d2. The knight on d5 could have leaped to c7+ to check the king and hunt the rook on a8! After the king moves, the knight would have seized the rook at a8."
+ },
+ {
+  "id": "f074",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check, and Black must answer the check."
+ },
+ {
+  "id": "f075",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 is played. 1.Nc7+ gives check and attacks the rook on a8. Black's king must move, and the knight on c7 takes the rook on a8."
+ },
+ {
+  "id": "f076",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a path for the king to move to h2. Notice how the king on g8 is currently blocked by its own pawns! White could have ended the game immediately with 1.Rd8!"
+ },
+ {
+  "id": "f077",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 steps in front of the queen's check! But the knight on g8 dances into f3 for a checkmate. 7.Qe2 blocks the check while also sending an invitation to the queen on e4."
+ },
+ {
+  "id": "f078",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played. 1.Nc7+ gives check and attacks the rook on a8 at the same time. After the king moves, the knight takes the rook."
+ },
+ {
+  "id": "f079",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check with 7.Be2, but the bishop is pinned to the king by the queen. Black answers 7...Nf3 and delivers checkmate! Notice how 7.Qe2 also blocks the check while attacking the queen on e4."
+ },
+ {
+  "id": "f080",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 stands in front of the queen's fire! Black's knight dances in with 7...Nf3 for a checkmate. 7.Qe2 also blocks the check and brings the queen to a party with the black queen on e4."
+ },
+ {
+  "id": "f081",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1, which remains shut in by the pawns on b2 and d2. 1.d4 places a pawn in the centre and allows the bishop on c1 to use the diagonal toward h6."
+ },
+ {
+  "id": "f082",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White uses 7.Be2 to block the check from the queen. Black responds with 7...Nf3, which ends the game in checkmate because the bishop is pinned to the king! Notice how 7.Qe2 also blocks the check while attacking the queen on e4."
+ },
+ {
+  "id": "f083",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White invites the king to a new seat at h2 with 1.h3. Meanwhile, Black's king is locked in a room by its own pawns! White could have delivered an instant checkmate with 1.Rd8."
+ },
+ {
+  "id": "f084",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White moves the king to d2. Notice how 1.Nc7+ would have given check while attacking the rook on a8! Since the king must move, the knight then captures the rook on a8."
+ },
+ {
+  "id": "f085",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2 was played instead of 1.Nc7+. 1.Nc7+ gives check and attacks the rook on a8. After the king moves, the knight on c7 takes the rook."
+ },
+ {
+  "id": "f086",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White's bishop steps in front of the king to block the queen's gaze. Black's knight leaps into the fray with 7...Nf3 and delivers a checkmate! 7.Qe2 would have blocked the check while also offering an invitation to the black queen."
+ },
+ {
+  "id": "f087",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3, and the bishop on c1 remains behind a wall of pawns! White could have played 1.d4 to place a pawn in the center and grant the bishop a clear path to h6."
+ },
+ {
+  "id": "f088",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3 and prepares a cozy spot for the king on h2. The king on g8 is currently locked in a room by its own pawns! White could have invited the king to a final dance with 1.Rd8 to deliver checkmate at once."
+ },
+ {
+  "id": "f089",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White's king takes a stroll to d2. The knight on c7 invites the king to dance with a check and eyes the rook on a8 at the same time. After the king moves, the knight on c7 claims the rook on a8!"
+ },
+ {
+  "id": "f090",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1, which is shut in by the pawns on b2 and d2. 1.d4 places a pawn in the centre and opens the diagonal for the bishop on c1."
+ },
+ {
+  "id": "f091",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White plays 1.Kd2, and the king takes a stroll. 1.Nc7+ would have seen the knight deliver a check and an invitation to the rook on a8 at once! After the king moves, the knight on c7 takes the rook."
+ },
+ {
+  "id": "f092",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, creating a space for the king on h2. Notice how Black's king on g8 remains shut in by its own pawns! White could have finished the game immediately with 1.Rd8!"
+ },
+ {
+  "id": "f093",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures the pawn with 5.Nxf7, creating an attack on the rook on h8. Notice how the pawn on g2 stands alone, and Black's queen captures it with 5...Qxg2! White could have played 5.Bxf7+ instead, taking the pawn with check so that Black must respond to the king's safety first."
+ },
+ {
+  "id": "f094",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1 from the pawns on b2 and d2. 1.d4 puts a pawn in the centre and opens the diagonal for the bishop."
+ },
+ {
+  "id": "f095",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White moves the king to d2. Notice how 1.Nc7+ instead would have given a check while attacking the rook on a8 at the same time! Black's king would have to move, and the knight could then take the rook."
+ },
+ {
+  "id": "f096",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 is met by 7...Nf3, which is checkmate because the bishop is pinned to the king. 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f097",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 invites the king on g1 to a walk toward h2. Meanwhile, the king on g8 sits behind a wall of three pawns. White could have delivered a checkmate instantly with 1.Rd8."
+ },
+ {
+  "id": "f098",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to move to h2. Black's king remains shut in by its own pawns. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f099",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White's king steps out for a stroll to d2. The knight on c7 could have invited the king to dance with a check and then snatched the rook on a8!"
+ },
+ {
+  "id": "f100",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, and the king on g1 invites the king on g1 to take a seat on h2. Black's king on g8 remains trapped in a cage of its own pawns! White could have invited the king to a final dance with 1.Rd8, which delivers checkmate at once."
+ },
+ {
+  "id": "f101",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f102",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White and the king take a stroll to d2. The knight on c7 would have invited the king to dance with a check while simultaneously grabbing the rook on a8! After the king moves, the knight on c7 would have snatched the rook."
+ },
+ {
+  "id": "f103",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains blocked by the pawns on b2 and d2. Notice how 1.d4 would have changed things by moving the pawn from d2 to d4! This opens the diagonal for the bishop to reach h6."
+ },
+ {
+  "id": "f104",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 results in checkmate after 7...Nf3 because the bishop is pinned to the king. 7.Qe2 blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f105",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White plays 1.Kd2, but there is a more direct path for the knight. Notice how 1.Nc7+ gives a check and attacks the rook on a8 at the same time! Since the king must move, the knight can then take the rook on a8."
+ },
+ {
+  "id": "f106",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, and the king on g1 finds a seat on h2. Meanwhile, the king on g8 remains trapped behind a wall of pawns! White could have played 1.Rd8 and delivered checkmate in one go."
+ },
+ {
+  "id": "f107",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains tucked away behind the pawns on b2 and d2. Notice how 1.d4 instead would have placed a pawn in the centre and opened the diagonal for that bishop to reach h6!"
+ },
+ {
+  "id": "f108",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1 from its pawns. 1.d4 stands in the centre and allows the bishop on c1 to use the diagonal to h6."
+ },
+ {
+  "id": "f109",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 blocks the check, but 7...Nf3 is checkmate because the bishop on e2 is pinned to the king. 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f110",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White plays 7.Be2 to stand in front of the queen's gaze. Black's knight leaps to f3 and delivers checkmate! 7.Qe2 also blocks the check and goes on a hunt for the queen on e4."
+ },
+ {
+  "id": "f111",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight snacks on a pawn while pointing a finger at the rook on h8! However, the queen on g5 eyes the pawn on g2, and 5...Qxg2 brings her to the doorstep of the rook on h1. 5.Bxf7+ would have invited the king to dance with a check first."
+ },
+ {
+  "id": "f112",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains trapped behind the pawns on b2 and d2. Notice how 1.d4 would have changed the scenery! That move places the pawn in the centre and opens a path for the bishop to reach h6."
+ },
+ {
+  "id": "f113",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f114",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains locked in a room with its neighbors on b2 and d2. 1.d4 would have opened a grand hallway for the bishop to travel from c1 to h6."
+ },
+ {
+  "id": "f115",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3 to give the king a square on h2. Notice how the black king is currently shut in by its own pawns! White could have ended the game immediately with 1.Rd8!"
+ },
+ {
+  "id": "f116",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended from the queen on g5. Black answers 5...Qxg2 to attack the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f117",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains behind the wall of pawns on b2 and d2. Notice how 1.d4 would have changed things! That move puts a pawn in the centre and opens the diagonal for the bishop to reach h6."
+ },
+ {
+  "id": "f118",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 does not free the bishop on c1, which is shut in by the pawns on b2 and d2. 1.d4 occupies the centre and opens the diagonal for the bishop on c1."
+ },
+ {
+  "id": "f119",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White blocks the check with 7.Be2. Notice how the queen on e4 pins the bishop to the king, so Black's 7...Nf3 delivers checkmate! White could have played 7.Qe2 instead to block the check and attack the queen."
+ },
+ {
+  "id": "f120",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures the pawn with 5.Nxf7, but the pawn on g2 stands alone. Black's queen reaches g2 at once, attacking the rook on h1! White could have played 5.Bxf7+ instead, which would have given a check for Black to answer."
+ },
+ {
+  "id": "f121",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f122",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White's knight captures the pawn on f7 and targets the rook on h8. Notice how the queen on g5 already eyes the g2 pawn, which is now left without a defender. Black takes it immediately with 5...Qxg2! White could have played 5.Bxf7+ instead, as the check would require Black to respond before capturing on g2."
+ },
+ {
+  "id": "f123",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White moves the king to d2. The knight on c7 would have delivered a check to the king and a snack to the rook on a8! After the king moves, the knight on c7 would have captured the rook."
+ },
+ {
+  "id": "f124",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3, and the bishop on c1 remains behind a wall of pawns. White could have played 1.d4 to open a path for the bishop to roam the diagonal to h6."
+ },
+ {
+  "id": "f125",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains tucked away behind the pawns on b2 and d2. Notice how 1.d4 would instead clear the path, letting that bishop step out onto the h6 diagonal!"
+ },
+ {
+  "id": "f126",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2, and the king takes a stroll to d2. White could have played 1.Nc7+ instead, where the knight dances into the black king's face and targets the rook on a8. After the king moves, the knight on c7 scoops up the rook on a8!"
+ },
+ {
+  "id": "f127",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "White offers a shield with 7.Be2 to block the queen's check. Black's knight leaps into the f3 square and delivers a checkmate! 7.Qe2 also blocks the check and launches an attack on the queen."
+ },
+ {
+  "id": "f128",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, and the knight on f7 snatches a pawn while pointing at the rook on h8. Black's queen on g5 swoops in with 5...Qxg2 and eyes the rook on h1! 5.Bxf7+ would have taken the pawn with a check, demanding an answer from Black."
+ },
+ {
+  "id": "f129",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "1.e3 and the bishop on c1 remains behind a wall of pawns. White could have played 1.d4 to let the bishop take a stroll along the diagonal to h6."
+ },
+ {
+  "id": "f130",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White steps the king to d2. Notice how 1.Nc7+ would have delivered a check while attacking the rook on a8 at the same time! After the king moves, the knight on c7 would take the rook."
+ },
+ {
+  "id": "f131",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "White captures a pawn with 5.Nxf7 and targets the rook on h8. Notice how the queen on g5 still eyes the g2 pawn, which now has no defenders, leading to 5...Qxg2! White could have played 5.Bxf7+ instead to take the pawn with check."
+ },
+ {
+  "id": "f132",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 is met by 7...Nf3 and checkmate, as the queen on e4 pins the bishop to the king. 7.Qe2 blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f133",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3 and offers the king on g1 a cozy seat on h2. Meanwhile, the king on g8 remains trapped behind its own wall of pawns! White could have invited the king to a permanent nap with 1.Rd8, which delivers checkmate at once."
+ },
+ {
+  "id": "f134",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, and the king on g1 finds a new room at h2. Black's king remains a prisoner behind its own pawns on f7, g7, and h7. White could have played 1.Rd8 instead of 1.h3 to deliver checkmate at once."
+ },
+ {
+  "id": "f135",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains locked in its room by the pawns on b2 and d2. 1.d4 would have stepped outside and let the bishop gallop down the diagonal to h6!"
+ },
+ {
+  "id": "f136",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to move to h2. Black's king on g8 is shut in by its own pawns. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f137",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended from the queen on g5. Black answers with 5...Qxg2, attacking the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f138",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7 leaves the pawn on g2 undefended, and 5...Qxg2 attacks the rook on h1. 5.Bxf7+ takes the pawn with check."
+ },
+ {
+  "id": "f139",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains behind its wall of pawns. Notice how 1.d4 would have changed the scenery! That move puts a pawn in the centre and opens the diagonal from c1 to h6."
+ },
+ {
+  "id": "f140",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 allows the king on g1 to step to h2. 1.Rd8 gives checkmate at once."
+ },
+ {
+  "id": "f141",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "1.Kd2, and the king takes a stroll to d2. Instead, the knight could have leaped to c7+ to give check and hunt the rook on a8! After 1.Nc7+, the king must dance away and the knight captures the rook."
+ },
+ {
+  "id": "f142",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, the knight snatches the pawn and eyes the rook on h8! Meanwhile, the queen on g5 eyes the g2 pawn, which now stands alone. Black's queen joins the party with 5...Qxg2 and stares at the rook on h1. 5.Bxf7+ would have grabbed the pawn with a check, making Black answer the king's distress first."
+ },
+ {
+  "id": "f143",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 is met by 7...Nf3, which is checkmate because the queen on e4 pins the bishop to the king. 7.Qe2 blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f144",
+  "position": "White: king on e1; knight on d5.\nBlack: king on e8; rook on a8.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.Kd2.",
+   "What White could have played: White could have played 1.Nc7+ instead of 1.Kd2. The knight on c7 gives check and attacks the rook on a8 at the same time.",
+   "What 1.Nc7+ wins: Black's king must move, and then the knight on c7 takes the rook on a8."
+  ],
+  "comment": "White moves the king to d2. Notice how 1.Nc7+ would have checked the king while attacking the rook on a8 at the same time! After the king moves, the knight on c7 takes the rook."
+ },
+ {
+  "id": "f145",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 blocks the check, but 7...Nf3 is checkmate because the bishop is pinned to the king. 7.Qe2 also blocks the check and attacks the queen on e4."
+ },
+ {
+  "id": "f146",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and e5; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on g5; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 5.Nxf7. The knight on f7 has taken the pawn and attacks the rook on h8.",
+   "What it misses: Black's queen on g5 already attacks the pawn on g2. After 5.Nxf7 nothing defends the pawn on g2.",
+   "What follows: Black answers 5...Qxg2. The queen on g2 then attacks the rook on h1.",
+   "What White could have played: White could have played 5.Bxf7+ instead of 5.Nxf7. The bishop on f7 takes the same pawn with check, and Black must answer the check before anything else."
+  ],
+  "comment": "5.Nxf7, the knight snatches the pawn and eyes the rook on h8! However, the queen on g5 dances toward the pawn on g2, which sits undefended. With 5...Qxg2, the queen joins the party on g2 and eyes the rook on h1. 5.Bxf7+ would have taken the pawn with a check, and Black would have to address the king's invitation first."
+ },
+ {
+  "id": "f147",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "1.h3 invites the king on g1 to take a seat on h2. Meanwhile, the king on g8 remains behind a wall of its own pawns! White could have sent the rook on d8 to deliver checkmate immediately."
+ },
+ {
+  "id": "f148",
+  "position": "White: king on e1; queen on d1; rooks on a1 and h1; bishops on c1 and f1; knights on b1 and g1; pawns on a2, b2, c2, d2, e2, f2, g2 and h2.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on b8 and g8; pawns on a7, b7, c7, d7, e7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.e3.",
+   "What it misses: The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+   "What White could have played: White could have played 1.d4 instead of 1.e3. The pawn on d4 stands in the centre, and the bishop on c1 can then use the diagonal from c1 to h6."
+  ],
+  "comment": "White plays 1.e3, but the bishop on c1 remains tucked away behind the pawns on b2 and d2. Notice how 1.d4 would have changed the landscape! That move occupies the centre and opens a clear path for the bishop to reach the h6 diagonal."
+ },
+ {
+  "id": "f149",
+  "position": "White: king on e1; queen on d1; rooks on a1 and f1; bishops on c1 and c4; knights on b1 and f7; pawns on a2, b2, c2, d2, f2 and h2.\nBlack: king on e8; queen on e4; rooks on a8 and h8; bishops on c8 and f8; knights on d4 and g8; pawns on a7, b7, c7, d7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 7.Be2 to block the check from the queen on e4.",
+   "What follows: Black answers 7...Nf3, and it is checkmate.",
+   "Why: The queen on e4 pins the bishop on e2 to the king, so the bishop cannot take the knight on f3.",
+   "The better move: 7.Qe2 also blocks the check, and it attacks Black's queen on e4. So 7.Be2 was not the only way to block the check."
+  ],
+  "comment": "7.Be2 stands in front of the queen's fire! But the knight on g8 leaps to f3 and the king's dance ends with a checkmate. 7.Qe2 would have blocked the check while waving a challenge at the queen on e4."
+ },
+ {
+  "id": "f150",
+  "position": "White: king on g1; rook on d1; pawns on f2, g2 and h2.\nBlack: king on g8; pawns on f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "The move: White played 1.h3. Now the king on g1 can step to h2.",
+   "What it misses: Black's king on g8 is shut in by its own pawns on f7, g7 and h7.",
+   "What White could have played: White could have played 1.Rd8 instead of 1.h3. The rook on d8 gives checkmate at once."
+  ],
+  "comment": "White plays 1.h3, giving the king a square on h2. Notice how the black king is shut in by its own pawns! White could have played 1.Rd8! to deliver checkmate at once."
+ }
+]
