@@ -1,0 +1,55 @@
+Stockfish 2.1 64bit by Tord Romstad, Marco Costalba and Joona Kiiski
+Good! CPU has hardware POPCNT.
+id name Stockfish 2.1 64bit
+id author Tord Romstad, Marco Costalba and Joona Kiiski
+
+option name Use Search Log type check default false
+option name Search Log Filename type string default SearchLog.txt
+option name Book File type string default book.bin
+option name Best Book Move type check default false
+option name Mobility (Middle Game) type spin default 100 min 0 max 200
+option name Mobility (Endgame) type spin default 100 min 0 max 200
+option name Passed Pawns (Middle Game) type spin default 100 min 0 max 200
+option name Passed Pawns (Endgame) type spin default 100 min 0 max 200
+option name Space type spin default 100 min 0 max 200
+option name Aggressiveness type spin default 100 min 0 max 200
+option name Cowardice type spin default 100 min 0 max 200
+option name Minimum Split Depth type spin default 7 min 4 max 7
+option name Maximum Number of Threads per Split Point type spin default 5 min 4 max 8
+option name Threads type spin default 32 min 1 max 32
+option name Use Sleeping Threads type check default false
+option name Hash type spin default 32 min 4 max 8192
+option name Clear Hash type button
+option name Ponder type check default true
+option name OwnBook type check default true
+option name MultiPV type spin default 1 min 1 max 500
+option name Skill Level type spin default 20 min 0 max 20
+option name Emergency Move Horizon type spin default 40 min 0 max 50
+option name Emergency Base Time type spin default 200 min 0 max 30000
+option name Emergency Move Time type spin default 70 min 0 max 5000
+option name Minimum Thinking Time type spin default 20 min 0 max 5000
+option name UCI_Chess960 type check default false
+option name UCI_AnalyseMode type check default false
+uciok
+           Eval term |    White    |    Black    |     Total     
+                     |   MG    EG  |   MG    EG  |   MG     EG   
+---------------------+-------------+-------------+---------------
+Material, PST, Tempo |   ---   --- |   ---   --- |  -0.23  -0.16 
+  Material imbalance |   ---   --- |   ---   --- |   0.00   0.00 
+               Pawns |   ---   --- |   ---   --- |   0.00   0.00 
+             Knights |  0.00  0.00 |  0.00  0.00 |  +0.00  +0.00 
+             Bishops |  0.00  0.00 |  0.00  0.00 |  +0.00  +0.00 
+               Rooks | -0.37  0.00 | -0.41  0.00 |  +0.04  +0.00 
+              Queens |  0.00  0.00 |  0.00  0.00 |  +0.00  +0.00 
+            Mobility |  0.02 -0.15 |  0.03 -0.16 |  -0.02  +0.02 
+         King safety |  0.73  0.00 |  0.73  0.00 |  +0.00  +0.00 
+             Threats |  0.07  0.39 |  0.04  0.20 |  +0.04  +0.20 
+        Passed pawns |  0.00  0.00 |  0.00  0.00 |  +0.00  +0.00 
+   Unstoppable pawns |   ---   --- |   ---   --- |  +0.00  +0.00 
+               Space |  0.46  0.00 |  0.46  0.00 |  +0.00  +0.00 
+---------------------+-------------+-------------+---------------
+               Total |   ---   --- |   ---   --- |  -0.16  +0.06 
+
+Uncertainty margin: White: +0.00, Black: +0.00
+Scaling: 100.00% MG,   0.00% * 100.00% EG.
+Total evaluation: -0.16

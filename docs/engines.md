@@ -498,7 +498,7 @@ engine and points a profile at it.
 | Obsidian | https://github.com/gab8192/Obsidian | GPL-3.0 | truncated PVs |
 | Triumviratus | https://github.com/Tors3/Triumviratus | GPL-3.0 | network from an external file |
 | Fairy-Max | Debian package `fairymax` | public domain; also GPL or MIT (see below) | XBoard only; no MultiPV, Hash or Threads |
-| Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace |
+| Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace ([traces](#evaluation-traces-409)) |
 | Rodent V | https://github.com/nescitus/Rodent-V | GPL-3.0 | large option list; personality files |
 | PZChessBot | https://github.com/kevlu8/PZChessBot | AGPL-3.0 | lower-case option names |
 | Lc0 | https://github.com/LeelaChessZero/lc0 | GPL-3.0 (network licence not stated) | slow neural nodes; no Hash |
@@ -590,6 +590,109 @@ the binary SHA-256 is also in every JSONL record. This table replaces nothing ab
   (see Follow-ups).
 - Lc0's `node_scale` is measured nodes per second against Stockfish 18 (T1
   0.12, BT4 0.013); Maia-3 stays at 1.
+
+## Evaluation traces (#409)
+
+Some classical engines print a breakdown of their evaluation for the UCI
+command `eval`: material, pawns, mobility, king safety and other parts, for
+White and for Black. Scan64 can read that table as a second factor source and
+compare it with its own factor module
+([`explanations/factors`](../src/scan64/explanations/factors/__init__.py)).
+
+A profile says that its engine prints a trace with a `[trace]` table. Scan64
+never assumes it. Without the table, reading a trace raises
+`EvalTraceUnavailableError` (an `EngineCapabilityError`, kind `no_eval_trace`).
+The same error comes for a variant board, for a side in check (the engines print
+no table there), and when the engine prints no table that the format can read.
+
+```toml
+[engine]
+name = "stockfish-11"
+binary_path = "/path/to/stockfish11"
+
+[trace]
+format = "stockfish"
+# Optional: more UCI options, sent for the trace only.
+# options = { "Use NNUE" = false }
+```
+
+| Engine | Format | Licence | What the trace needs |
+| --- | --- | --- | --- |
+| Stockfish 2.1 to 11 | `stockfish` | GPL-3.0 | nothing |
+| Stockfish 12 to 15.1 | `stockfish` | GPL-3.0 | `Use NNUE` false (set by Scan64) |
+| Fairy-Stockfish | `stockfish` | GPL-3.0 | `Use NNUE` false (set by Scan64); standard chess only |
+| RubiChess | `rubichess` | GPL-3.0 | `Use_NNUE` false (set by Scan64) |
+| Vajolet2 | `vajolet` | GPL-3.0 | nothing: its trace is always classical |
+| Rodent V | `rodent` | GPL-3.0 | run from its own folder (Scan64 starts it there) |
+| Laser | `laser` | GPL-3.0 | nothing; the table goes to standard error, and Scan64 reads it there |
+
+Every row is tested against a recorded output of a real build (#478).
+Stockfish 16 and later have no classical evaluation, so they print no table.
+Ethereal, Stash, Weiss and Berserk need a tuner build to print one, so they are
+not supported.
+
+Scan64 bundles none of these engines. The user installs the engine and points
+a profile at it. The trace runs in its own short process: `uci`, the trace
+options, `position fen`, `eval`, `quit`, with a 10-second bound. It never uses
+the analysis pools, so the trace options never reach the analysis engine.
+
+What Scan64 keeps from a trace:
+
+- every row of the table, in pawns, from White's point of view (Rodent V and
+  Laser print centipawns; Scan64 divides by 100);
+- the engine's `id name` (its name and version) as the source;
+- the final evaluation, where the engine labels it "white side" (Stockfish) or
+  "From White's point of view" (Rodent V).
+
+Each trace stays apart from the factor module's values, under its own source,
+and is never merged into them. Rows map to the factor module's groups: for
+example, Knights, Bishops, Rooks and Queens are Pieces, King safety is King,
+and Initiative (Stockfish 11) is Winnable. A row with no group (Rodent V's
+Other, Fairy-Stockfish's Variant) keeps its own name only.
+
+### Cross-check report
+
+The report lists each position and group where the trace and the factor module
+point in opposite ways, for the middle game and the end game. A value under
+0.05 pawns has no sign.
+
+```
+uv run python -m scan64.explanations.trace_check --profile engine.toml --fens positions.txt
+```
+
+`positions.txt` has one FEN per line. Positions with a side in check are listed
+as skipped.
+
+Run on linux-5090 (2026-11-28; commit `214ddfe` for the first three rows,
+`87fad91` for the others) over the 324 positions of
+`tests/fixtures/factors/positions.json` (34 are in check and skipped):
+
+| Engine | Positions compared | Positions with a sign disagreement | Group rows |
+| --- | --- | --- | --- |
+| Stockfish 11 | 290 | 13 | 14 |
+| Fairy-Stockfish 14 | 290 | 42 | 44 |
+| Rodent V 1.2 | 290 | 190 | 345 |
+| Stockfish 2.1 | 290 | 195 | 401 |
+| Stockfish 8 | 290 | 119 | 169 |
+| Stockfish 15.1 | 290 | 33 | 34 |
+| RubiChess 20261103 | 289 | 219 | 413 |
+| Vajolet2 3.2 | 280 | 202 | 392 |
+| Laser 1.8 beta | 281 | 204 | 472 |
+
+RubiChess, Vajolet2 and Laser print no table for some end games, where a
+shortcut gives the evaluation (for example a known draw or a clear win).
+The report lists those positions as skipped: 1 for RubiChess, 10 for
+Vajolet2 and 9 for Laser.
+
+Stockfish 11 and 15.1 are close to the factor module, which follows the
+Stockfish 12 classical evaluation. The older Stockfish versions and the other
+engines weigh the parts in their own way, so many of their groups differ in
+sign.
+
+The test fixtures are in
+[`tests/fixtures/engine_traces/`](../tests/fixtures/engine_traces/README.md).
+Each file is a recorded output of a real build. The README lists the build
+commit and command of each engine.
 
 ## Follow-ups
 

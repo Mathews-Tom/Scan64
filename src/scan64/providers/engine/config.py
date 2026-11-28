@@ -152,6 +152,55 @@ def _ladder(raw: object, config_path: Path) -> LadderSettings:
     )
 
 
+# Evaluation-trace formats (``[trace] format``), one per family of ``eval``
+# printouts that ``scan64.providers.engine.trace`` reads. A profile without a
+# ``[trace]`` table supplies no trace: Scan64 never probes an engine for one.
+type TraceFormatName = Literal["stockfish", "rubichess", "vajolet", "rodent", "laser"]
+TRACE_FORMATS: tuple[TraceFormatName, ...] = (
+    "stockfish",
+    "rubichess",
+    "vajolet",
+    "rodent",
+    "laser",
+)
+
+
+@dataclass(frozen=True)
+class TraceSettings:
+    """The engine's declared ``eval`` printout and the options set before it.
+
+    ``options`` are sent for the trace only, after the format's own defaults
+    (``Use NNUE`` false for Stockfish 12 to 15.1, ``Use_NNUE`` false for
+    RubiChess), so a classical trace never changes the analysis settings.
+    """
+
+    format: TraceFormatName
+    options: MappingProxyType[str, UciOptionValue]
+
+
+def _trace(raw: object, config_path: Path) -> TraceSettings | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise EngineConfigurationError(f"{config_path}: [trace] must be a table")
+    _reject_unknown(raw, {"format", "options"}, "trace")
+    value = raw.get("format")
+    trace_format = next((name for name in TRACE_FORMATS if name == value), None)
+    if trace_format is None:
+        raise EngineConfigurationError(
+            f"{config_path}: trace.format must be one of {', '.join(TRACE_FORMATS)}"
+        )
+    options = raw.get("options", {})
+    if not isinstance(options, dict):
+        raise EngineConfigurationError(f"{config_path}: [trace.options] must be a table")
+    for option, option_value in options.items():
+        if not isinstance(option_value, bool | int | str):
+            raise EngineConfigurationError(
+                f"{config_path}: trace.options.{option} must be a boolean, integer or string"
+            )
+    return TraceSettings(format=trace_format, options=MappingProxyType(dict(options)))
+
+
 # Uses whose search limits a profile may override. Absent uses keep the
 # caller's built-in budget (for ``hint``: ``scan64.providers.stockfish.pool``).
 KNOWN_USES = frozenset({"hint"})
@@ -173,6 +222,8 @@ class EngineProfile:
     limits: MappingProxyType[str, SearchLimits]
     ladder: LadderSettings
     source: Path | None
+    # The declared evaluation trace; ``None``: the engine supplies none.
+    trace: TraceSettings | None = None
 
 
 def _stockfish_profile() -> EngineProfile:
@@ -298,7 +349,7 @@ def load_engine_profile(path: Path, env: str = ENGINE_CONFIG_ENV) -> EngineProfi
         raise EngineConfigurationError(f"Engine configuration does not exist: {path}") from error
     except tomllib.TOMLDecodeError as error:
         raise EngineConfigurationError(f"Invalid engine configuration {path}: {error}") from error
-    _reject_unknown(raw, {"engine", "limits", "ladder"}, "root")
+    _reject_unknown(raw, {"engine", "limits", "ladder", "trace"}, "root")
     engine = raw.get("engine")
     if not isinstance(engine, dict):
         raise EngineConfigurationError(f"{path}: an [engine] table is required")
@@ -346,6 +397,7 @@ def load_engine_profile(path: Path, env: str = ENGINE_CONFIG_ENV) -> EngineProfi
         limits=_limits(raw.get("limits"), path),
         ladder=_ladder(raw.get("ladder"), path),
         source=path,
+        trace=_trace(raw.get("trace"), path),
     )
 
 
