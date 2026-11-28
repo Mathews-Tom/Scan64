@@ -242,6 +242,6 @@ Other agents and people run `scan64-coord status` and `scan64-coord gc --apply` 
 | `scan64-coord ask <N> <machine> "<request>"` | Ask another machine to act on N: comment plus `needs:<machine>` |
 | `scan64-coord answer <N> "<result>"` | Reply on N and remove `needs:<this machine>` |
 | `scan64-coord check [branch]` | Exit 1 if another machine owns the branch's ticket |
-| `scan64-coord gc [--apply]` | Remove finished worktrees (dry run without `--apply`). A worktree goes only when it is clean, no process is using it, it hasn't changed for an hour, its commit is on origin or in a pull request, and its work is merged, closed, moved past or reviewed. Only local `review/*` branches are deleted. |
+| `scan64-coord gc [--apply]` | Remove finished worktrees (dry run without `--apply`). A worktree goes only when all of these hold: it has no changes and no ignored files other than caches and build output (`.venv`, `node_modules`, `test-results` and the like); `lsof` shows no process using it, so nothing is removed where `lsof` is missing; it hasn't changed for an hour; and its commit is on origin or in a pull request. Its work must also be over: merged, or its pull request closed. For review checkouts (a detached HEAD or a `review/*` branch), it is also enough that the branch has moved past the checkout or that `scan64/review` is set on its commit. Only local `review/*` branches are deleted. |
 | `scan64-coord setup <machine>` | One-time machine setup |
 | `scan64-coord install-hooks` | Add the Claude Code hooks |

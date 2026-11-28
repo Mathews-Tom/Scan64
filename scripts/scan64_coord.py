@@ -60,8 +60,10 @@ _MACHINE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _PUSH = re.compile(r"\bgit\b.*\bpush\b|\bgh\s+pr\s+create\b")
 
 
-def gh(*args: str, check: bool = True) -> str:
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, encoding="utf-8")
+def gh(*args: str, check: bool = True, timeout: float | None = None) -> str:
+    result = subprocess.run(
+        ["gh", *args], capture_output=True, text=True, encoding="utf-8", timeout=timeout
+    )
     if check and result.returncode != 0:
         raise SystemExit(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
@@ -475,6 +477,25 @@ def status_lines() -> list[str]:
 
 # A worktree whose index or HEAD changed this recently may still be in use.
 GC_RECENT_SECONDS = 3600
+# Ignored paths gc may delete with a worktree: caches and build output that a
+# rebuild recreates. Any other ignored file (.env, a database, notes) keeps it.
+REBUILDABLE = frozenset(
+    {
+        ".venv",
+        "node_modules",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "test-results",
+        "playwright-report",
+        "dist",
+        "build",
+        "target",
+    }
+)
+# Seconds allowed for each gh call gc makes, so the session-start hook can't hang.
+GC_GH_TIMEOUT = 30
 
 
 def git(workdir: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -489,27 +510,32 @@ def git(workdir: str, *args: str) -> subprocess.CompletedProcess[str]:
 def gc_verdict(
     *,
     locked: bool,
-    in_use: bool,
-    dirty: bool,
+    in_use: bool | None,
+    changes: list[str],
     recent: bool,
     merged: bool,
     pr_closed: bool,
     pushed: bool,
+    disposable: bool,
     superseded: bool,
     reviewed: bool,
 ) -> tuple[bool, str]:
     """Whether `gc` removes a worktree, and why.
 
-    Removal needs two things: nothing can be lost (the tree is clean and its commit is
-    on origin or in a pull request) and the work is over (merged, closed, moved past or
-    reviewed). Anything else is kept.
+    Removal needs two things: nothing can be lost (no changes or non-rebuildable files,
+    no process using it, its commit on origin or in a pull request) and the work is over
+    (merged or closed; for review checkouts also moved past or reviewed). `in_use` is
+    None when processes can't be checked, and then the worktree is kept. `disposable`
+    marks review checkouts: a detached HEAD or a `review/*` branch.
     """
     if locked:
         return False, "locked"
+    if in_use is None:
+        return False, "can't check for processes using it (no lsof)"
     if in_use:
         return False, "a process is using it"
-    if dirty:
-        return False, "uncommitted or untracked changes"
+    if changes:
+        return False, "has files that would be lost: " + ", ".join(changes[:3])
     if recent:
         return False, "used in the last hour"
     if merged:
@@ -518,10 +544,10 @@ def gc_verdict(
         return True, "its pull request is merged or closed"
     if not pushed:
         return False, "has commits that are not on origin"
-    if superseded:
-        return True, "its branch on origin has moved past it"
-    if reviewed:
-        return True, "reviewed (scan64/review is set on its commit)"
+    if disposable and superseded:
+        return True, "review checkout; its branch on origin has moved past it"
+    if disposable and reviewed:
+        return True, "review checkout; scan64/review is set on its commit"
     return False, "work in progress"
 
 
@@ -540,14 +566,29 @@ def linked_worktrees(repo: str) -> list[dict[str, str]]:
     return entries[1:]
 
 
-def process_cwds() -> list[str]:
-    """Working directories of running processes; empty where `lsof` is unavailable."""
+def process_cwds() -> list[str] | None:
+    """Working directories of running processes; None where `lsof` is unavailable."""
     if not shutil.which("lsof"):
-        return []
+        return None
     out = subprocess.run(
         ["lsof", "-a", "-d", "cwd", "-Fn"], capture_output=True, text=True, encoding="utf-8"
     ).stdout
     return [os.path.realpath(line[1:]) for line in out.splitlines() if line.startswith("n")]
+
+
+def unsafe_files(path: str) -> list[str]:
+    """Changes and ignored files that removing the worktree would lose.
+
+    Ignored caches and build output (REBUILDABLE) don't count; everything else does.
+    """
+    out = git(path, "status", "--porcelain", "--ignored").stdout
+    unsafe = []
+    for line in out.splitlines():
+        status, name = line[:2], line[3:].rstrip("/")
+        if status == "!!" and Path(name).name in REBUILDABLE:
+            continue
+        unsafe.append(name)
+    return unsafe
 
 
 def changed_since(path: str, seconds: int) -> bool:
@@ -564,14 +605,21 @@ def pull_request_states() -> dict[str, str]:
     Empty when `gh` fails, which only makes gc keep more.
     """
     args = ["pr", "list", "-R", REPO, "--state", "all", "--limit", "300"]
-    out = gh(*args, "--json", "headRefOid,state", check=False)
+    out = gh(*args, "--json", "headRefOid,state", check=False, timeout=GC_GH_TIMEOUT)
     return {pr["headRefOid"]: pr["state"] for pr in json.loads(out or "[]")}
 
 
 def has_review_status(commit: str) -> bool:
     """Whether a `scan64/review` status is set on the commit; False when `gh` fails."""
     query = '[.[] | select(.context == "scan64/review")] | length'
-    out = gh("api", f"repos/{REPO}/commits/{commit}/statuses", "--jq", query, check=False)
+    out = gh(
+        "api",
+        f"repos/{REPO}/commits/{commit}/statuses",
+        "--jq",
+        query,
+        check=False,
+        timeout=GC_GH_TIMEOUT,
+    )
     return out.strip() not in ("", "0")
 
 
@@ -606,12 +654,15 @@ def gc(repo: str, apply: bool, recent_seconds: int = GC_RECENT_SECONDS) -> list[
         pushed = bool(remote) or head in states
         remove, reason = gc_verdict(
             locked="locked" in entry,
-            in_use=any(cwd == path or cwd.startswith(path + os.sep) for cwd in cwds),
-            dirty=bool(git(path, "status", "--porcelain").stdout.strip()),
+            in_use=None
+            if cwds is None
+            else any(cwd == path or cwd.startswith(path + os.sep) for cwd in cwds),
+            changes=unsafe_files(path),
             recent=changed_since(path, recent_seconds),
             merged=any(ref == "origin/main" or ref.startswith("origin/epic/") for ref in remote),
             pr_closed=states.get(head) in ("MERGED", "CLOSED"),
             pushed=pushed,
+            disposable=not branch or branch.startswith("review/"),
             superseded=any(
                 ref in remote and git(repo, "rev-parse", ref).stdout.strip() != head for ref in own
             ),
