@@ -6,17 +6,19 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The current release is `1.1.0`; the README's [Stable from 1.0](../README.md#stable-from-10) section states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
+The current release is `1.2.0`; the README's [Stable from 1.0](../README.md#stable-from-10) section states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
 
 ## What works today
 
 ### Play, import, and review
 
-- Play Stockfish at eight relative bot levels, choose White, Black or Random, promote, resign, and resume an active session after reload or navigation. Untimed games allow pair takebacks; timed games use server-owned clocks and keep separate strength cohorts. Bot levels are not human Elo estimates.
+- Play eight relative bot levels, choose White, Black or Random, promote, resign, and resume an active session after reload or navigation. Untimed games allow pair takebacks; timed games use server-owned clocks and keep separate strength cohorts. Bot levels are not human Elo estimates; fresh desktop and Docker installations use Arasan for the ladder.
 - Reveal a three-step hint ladder: a question and square, an idea and piece, then sound candidate moves. Tactical explanations use engine lines; positional principles describe local board facts.
 - In unrated Play, grade up to three candidate moves or turn on the blunder guard. Assisted results and conversion practice do not count as independent full-game strength results.
 - Import a player-owned PGN with your playing colour or public standard-chess games by Lichess/Chess.com username. Replay every move with accuracy, coverage, a White-perspective probability graph, up to three trusted key moments, separate display-only good moments and shared-budget lesson retries.
-- Choose the piece set and board palette in **Settings → Chessboard**. Staunton (cburnett) pieces on a Brown and cream board are the default; Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage and Graphite boards and seven other piece sets are available. Settings cites FIDE Handbook C.02 for the traditional board colours.
+- Choose the piece set and board palette in **Settings → Chessboard**. Staunton (cburnett) pieces on a Brown and cream board are the default; ten piece sets are grouped by Staunton pattern and Other designs. Traditional palettes follow FIDE-inspired board colours; matte wood and stone textures have a WebP fallback on older Safari.
+- View **Position health** for both sides in game review and on the standard Analysis Board: an overall meter and eight evaluation factors with trends and details, independent of the engine and local wording model.
+- Explore up to three engine lines on the standard Analysis Board and choose **Explain lines** for evidence-based explanations. Use a compatible user-installed engine for seven supported chess variants; variant review, bot play, training and narration are not covered.
 - Study opening-family missions and famous games through Library.
 - Install a community lesson-pack JSON file from **Library → Community lesson packs** ([format](lesson-packs.md)). The engine re-verifies every solver move locally before a lesson becomes playable; rejected lessons show the failing move and reason, and each pack shows its title, author, licence, version and file fingerprint until uninstalled. Each player can install up to 20 packs. Pack play is checked on the server, records no attempts and never changes progress, schedules, skills, recurrence or diagnosis.
 - In Opening Explorer, import your own standard-chess repertoire PGN (up to 256 KiB, 16 records, fewer than 4096 moves, 256 plies per line and 32 nested variations). Every record retains a separate root and all alternatives. Browse saved variations and practise a saved decision for the side to move with an interactive board or keyboard.
@@ -41,19 +43,19 @@ The current release is `1.1.0`; the README's [Stable from 1.0](../README.md#stab
 
 ### Operational and privacy boundaries
 
-- Interactive play and batch analysis use separate Stockfish pools.
+- Analysis and bot-ladder engines can be selected with separate profiles. Interactive and batch analysis use separate engine pools; a different ladder engine gets its own pool. New desktop and Docker installations use Caissa for analysis and Arasan for the ladder, while existing installations keep their engine choice.
 - Analysis beyond a player’s daily admission quota is queued fairly instead of silently discarded.
 - Player-reachable game, play-session, position, analysis-job, and attempt paths are authorized by bearer-token ownership.
 - Missing, malformed, ownerless, and non-owned resources use the same not-found surface.
 - Player-scoped export, import, and deletion cover learning, analysis, and study records.
 - Lesson packs belong to the player who installed them and are removed with that player's data. Account exports leave them out; keep the original file to reinstall and re-verify it.
 - **Settings → Send feedback** drafts a GitHub issue with an optional version line. The desktop app opens GitHub's prefilled form in the system browser and a browser install links to it; Scan64 sends nothing itself.
-- Optional local wording is off by default. A player can authorise a fixed loopback Ollama service to reword new explanations; the consent is local to that installation and does not travel in account archives.
+- Optional local wording is off by default. A player can authorise a fixed loopback Ollama service, choose a narrator voice and use a recommended gemma4-e4b Q3_K_M model if installed. Chess facts come from verified evidence and fact slots; rejected or unavailable wording falls back to the template. The default model currently falls back for Analysis Board explanations. The consent is local to that installation and does not travel in account archives.
 - Account archives retain repertoire IDs, nodes, attempts and schedules; restored attempts and observations are historical, not newly verified evidence. Reset Progress clears repertoire practice and schedules but keeps imported trees. Delete Data removes both.
 - Repertoire and account export/import/delete/reset routes bypass generic HTTP response caching and always perform their own authorization. Drill retries use the persisted, payload-bound attempt ID; repeating an import intentionally creates independent content. Repertoire archive records are individually bounded before model expansion/replay. Creation/review timestamps must be ISO dates from 1970 to before 2100, no more than five minutes ahead of the restoring clock; due dates must be before 2200. Accepted prior review times anchor later decision timestamps during clock rollback, preserving replay order.
 - These guards use decoded, route-relative paths for mounted deployments and URL-delimiter-bearing account IDs. Confirmed deletion and repertoire reviews share the player write fence and freshly authorize after waiting; deletion previews remain read-only. Restored timestamps preserve UTC instants, including mixed-offset archives. PGN imports preserve same-line setup tags and reject dropped or duplicate tags, conflicting Result metadata, and blank record separators inside a variation before any write.
 - The additive repertoire migration refuses downgrade while imported content, attempts or repertoire schedule history remain. Before upgrade, keep the desktop pre-migration backup and an account export. Recovery means copying that backup to a separate disposable data directory and opening it with the matching older version, not deleting live rows to force downgrade; keep the current database/export intact. The migration tests exercise upgrade/downgrade/re-upgrade on an unused copy, refusal with imported/practised data, and recovery of the unchanged pre-migration backup copy.
-- Run the built UI and API on one port with `scan64-cli serve`, build a local Docker image, or install the desktop app: one window, bundled Python/Stockfish, in-app puzzle import and signed in-app updates, with installers for macOS Apple silicon, Windows x64 and Linux x64 attached to each release. No hosted service, published container image or Developer ID/Authenticode-signed app is provided.
+- Run the built UI and API on one port with `scan64-cli serve`, build a local Docker image, or install the desktop app: one window, bundled Python and Stockfish/Caissa/Arasan engines, in-app puzzle import and signed in-app updates, with installers for macOS Apple silicon, Windows x64 and Linux x64 attached to each release. No hosted service, published container image or Developer ID/Authenticode-signed app is provided.
 
 ## Architecture boundaries
 
@@ -62,7 +64,7 @@ The current release is `1.1.0`; the README's [Stable from 1.0](../README.md#stab
 | React web application | Renders Today, onboarding, play, review, training, puzzles, profile, Library and linked-student coach screens. |
 | FastAPI application | Owns HTTP contracts, identity checks, lifecycle operations, and application orchestration; optionally serves the built web client. |
 | SQLite and migrations | Persist player, game, analysis, lesson, review, puzzle, onboarding, goal, streak and pattern-target records locally. |
-| Stockfish | Supplies opponent moves and authoritative analysis. |
+| Chess engines | Supply opponent moves and authoritative analysis through configurable engine profiles. |
 | LessonSpec | Carries a renderer-independent lesson from the learning engine to a board client. |
 | Optional providers | Maia supplies an operator-provisioned human-like opponent; an optional LLM can verbalize already-verified analysis. |
 

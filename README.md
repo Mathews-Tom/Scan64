@@ -28,7 +28,7 @@
 
 Most chess tools can tell you that a move was bad. Scan64 tries to help you see *why*, and then gives you something to practise. It is built for improving club players, roughly 600 to 1600, who keep losing to the same kinds of mistakes, but anyone who enjoys the game is welcome.
 
-- **Your games are the curriculum.** Import by Lichess or Chess.com username, paste a PGN, or play here. Stockfish turns supported mistakes into lessons and evidence-linked patterns.
+- **Your games are the curriculum.** Import by Lichess or Chess.com username, paste a PGN, or play here. Your analysis engine turns supported mistakes into lessons and evidence-linked patterns.
 - **Help at the right depth.** Three-step hints go from a nudge to the idea to sound moves. Candidates and an optional blunder guard let you examine choices before committing.
 - **Evidence, not promises.** Profile shows game insights, recurring patterns and before/after recurrence with sample sizes. A change is not proof that training caused it, or that your rating improved.
 - **Local-first.** Games and progress stay on your computer. Online imports, **Download puzzles** from Lichess, desktop updates and optional local model wording have explicit network boundaries; no online Scan64 account is needed. See [Stable from 1.0](#stable-from-10) for the compatibility boundary.
@@ -45,7 +45,7 @@ Pick one of eight relative bot levels, a colour and an optional clock. Untimed g
 
 ### Turn a reviewed mistake into practice
 
-Replay every move with Stockfish accuracy and coverage, an evaluation graph, and up to three trusted key moments to retry. Daily Training brings your eligible lessons back on a review schedule; this recording follows a real game-derived lesson through hints to a server-verified answer. The Analysis Board also lets you explore up to three engine lines and save variations as PGN.
+Replay every move with engine-scored accuracy and coverage, an evaluation graph, and up to three trusted key moments to retry. Daily Training brings your eligible lessons back on a review schedule; this recording follows a real game-derived lesson through hints to a server-verified answer. The Analysis Board also lets you explore up to three engine lines and save variations as PGN.
 
 <p align="center"><img src="assets/demo-review.gif" alt="Daily Training on a position from an imported game: revealing three hints, inspecting the Nxf2 candidate arrow, then recording a correct hinted answer" width="860"></p>
 
@@ -89,7 +89,7 @@ Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a s
 ## How it works
 
 ```text
-Play or import → Stockfish analysis → supported diagnosis → lesson → verified answer
+Play or import → Engine analysis → supported diagnosis → lesson → verified answer
        ↑                                                                    ↓
        └──────────── Profile evidence and scheduled practice ───────────────┘
 ```
@@ -185,7 +185,7 @@ docker build -t scan64 .
 docker run --name scan64 -p 127.0.0.1:8001:8001 -v scan64-data:/data scan64
 ```
 
-Open `http://127.0.0.1:8001`. The image supports Linux amd64 and arm64, includes checksum-verified Stockfish 18, runs as a non-root user and keeps its database in the `scan64-data` volume. Stop with Ctrl-C and resume with `docker start -a scan64`; your games survive as long as you reuse the volume.
+Open `http://127.0.0.1:8001`. The image supports Linux amd64 and arm64, bundles Stockfish 18, Caissa 2.0 and Arasan 26.1, runs as a non-root user and keeps its database in the `scan64-data` volume. Fresh installations analyse with Caissa and play the bot ladder with Arasan. Stop with Ctrl-C and resume with `docker start -a scan64`; your games survive as long as you reuse the volume.
 
 ### From source
 
