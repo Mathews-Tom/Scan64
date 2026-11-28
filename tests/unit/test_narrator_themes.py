@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
+from typing import Any
 
 import chess
 import pytest
 from chess_lesson_spec import ExplanationClaim
 
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations import assembly
 from scan64.explanations.claims import ClaimFacts, unsupported_claim
 from scan64.explanations.factor_facts import GROUP_NAMES
@@ -19,6 +22,7 @@ from scan64.explanations.themes import (
     GameTrace,
     ThemeKey,
     TurningPointFacts,
+    check_level_scores,
     game_theme_facts,
     measure_themes,
     theme_phrase,
@@ -313,3 +317,47 @@ def test_theme_claim_facts() -> None:
     assert unsupported_claim("your pieces are passive", facts) is None
     assert unsupported_claim("your opponent's king is exposed", facts) is not None
     assert unsupported_claim("your king is exposed", ClaimFacts.collect(root, (), ())) is not None
+
+
+def _search(deep: dict[int, int | None]) -> tuple[list[int], Any]:
+    """White-view deep scores by position, and the positions searched."""
+    asked: list[int] = []
+
+    async def search(index: int) -> EngineAnalysis | None:
+        asked.append(index)
+        score = deep[index]
+        if score is None:
+            return None
+        cp = score if index % 2 == 0 else -score
+        return EngineAnalysis(config={}, raw_result=[{"score_cp": cp}])
+
+    return asked, search
+
+
+def test_a_deep_check_moves_a_noisy_turning_point_to_the_earlier_move() -> None:
+    # Fast pass: position 4 looks level (-40). Deeper, it is not.
+    fast = _trace([0, 0, 0, -120, -40, -160, -200, -300, -400])
+    asked, search = _search({4: -110, 2: 0, 3: -120})
+    checked = asyncio.run(check_level_scores(fast, chess.WHITE, search))
+    before, after = (turning_point(t, 8, chess.WHITE) for t in (fast, checked))
+    assert before is not None and before.ply == 5
+    assert after is not None and after.ply == 3
+    assert asked == [4, 2, 3]
+
+
+def test_a_deep_check_finds_a_later_level_position() -> None:
+    fast = _trace([0, 0, 0, -120, -70, -160, -200, -300, -400])
+    asked, search = _search({4: -10, 5: None})
+    point = turning_point(
+        asyncio.run(check_level_scores(fast, chess.WHITE, search)), 8, chess.WHITE
+    )
+    assert point is not None and point.ply == 5
+    assert point.evaluation_after_cp == -160  # a search without a score keeps the fast score
+    assert asked == [4, 5]
+
+
+def test_no_deep_check_without_a_lost_game() -> None:
+    asked, search = _search({})
+    trace = _trace([0, 0, 0, -60, -40])
+    assert asyncio.run(check_level_scores(trace, chess.WHITE, search)) is trace
+    assert asked == []
