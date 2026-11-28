@@ -101,7 +101,33 @@ JUDGEMENT_WORDS: tuple[str, ...] = (
     "winning",
     "losing",
     "deadly",
+    # Colour words that judge a move or a position (#485).
+    "calm",
+    "modest",
+    "humble",
+    "simple",
+    "subtle",
+    "strong",
+    "weak",
+    "powerful",
+    "elegant",
+    "beautiful",
+    "bold",
+    "daring",
+    "sharp",
+    "aggressive",
+    "passive",
+    "safe",
+    "solid",
+    "risky",
+    "dangerous",
+    "crushing",
+    "devastating",
 )
+# A quiet move takes nothing and gives no check (#485): "takes the queen on g5,
+# a quiet bishop step" is false. The word stays for a fact that does neither.
+QUIET = re.compile(r"\bquiet(ly|er|est)?\b", re.IGNORECASE)
+_CHECK_KINDS = frozenset({"gives_check", "mates"})
 # "more daring", "less safe"; "<word>er path" such as "a safer path".
 _MORE_ADJECTIVE = re.compile(r"\b(more|less)\s+(?!than\b|and\b|of\b)[a-z]+", re.IGNORECASE)
 _ER_PATH = re.compile(r"\b[a-z]+er\s+(path|route|road|way)\b", re.IGNORECASE)
@@ -183,6 +209,15 @@ def fact_takes(fact: str, relation_kinds: Iterable[str] = ()) -> bool:
     if CAPTURE_WORDS.search(fact):
         return True
     return any("x" in move for move in MOVE.findall(fact))
+
+
+def fact_checks(fact: str, relation_kinds: Iterable[str] = ()) -> bool:
+    """True when the fact gives check or mate: a relation, the word "check" or "mate", or ``+``."""
+    if _CHECK_KINDS & set(relation_kinds):
+        return True
+    if re.search(r"\b(check|checks|checkmate|mate)\b", fact, re.IGNORECASE):
+        return True
+    return re.search(r"(?:[a-h][1-8]|O-O(?:-O)?)[+#]", fact) is not None
 
 
 def judgement_problems(sentence: str, fact: str) -> list[str]:
@@ -285,8 +320,11 @@ def sentence_problems(
     squares, moves = _tokens(sentence)
     if (fact_squares or fact_moves) and not (fact_squares & squares or fact_moves & moves):
         problems.append("keeps no move or square of the fact")
-    if CAPTURE_WORDS.search(sentence) and not fact_takes(fact, relation_kinds):
+    kinds = set(relation_kinds)
+    if CAPTURE_WORDS.search(sentence) and not fact_takes(fact, kinds):
         problems.append("says a piece is taken; the fact takes nothing")
+    if QUIET.search(sentence) and (fact_takes(fact, kinds) or fact_checks(fact, kinds)):
+        problems.append("calls a move quiet; the fact takes or gives check")
     # One end mark more is allowed, for a move written as "1.Re1!" inside a sentence.
     if len(re.findall(r"[.!?](\s|$)", sentence.strip())) > max_sentences + 1:
         problems.append("too many sentences")
@@ -348,6 +386,8 @@ __all__ = [
     "pairing_problems",
     "piece_pairs",
     "colour_words",
+    "QUIET",
+    "fact_checks",
     "fact_takes",
     "finish",
     "repair",

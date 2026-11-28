@@ -745,7 +745,8 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
 4. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
    - names a move, square, piece or chess term that its fact does not contain;
    - keeps none of the fact's moves or squares;
-   - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing" and the like, "more" or "less" with an adjective, or "a safer path";
+   - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing", "strong", "elegant", "risky" and the like, "more" or "less" with an adjective, or "a safer path";
+   - calls a move "quiet" when its fact takes a piece or gives check. A quiet move takes nothing and gives no check;
    - names a piece on a square that the fact does not pair with that piece, or gives it the wrong side ("White's queen on g5" for Black's queen);
    - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen";
    - states the alternative move as played: a "could have played" sentence must say "could", "would", "instead" or "might have";
@@ -755,6 +756,7 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
 5. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
 6. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
 7. **Joining.** A comment keeps at most one "!": code turns a later one at the end of a sentence into a full stop and removes one inside a sentence. Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
+   On the Analysis Board each claim cites only the moves of its own fact: its line up to the last move the fact names (`board_lines.fact_moves`). The board highlights those moves for that sentence. A sentence about the first move highlights the first move only.
 
 When the pipeline applies:
 
