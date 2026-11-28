@@ -221,7 +221,7 @@ def test_every_cause_fact_names_sides_and_passes_its_own_check(
 @pytest.mark.parametrize(
     ("theme", "index", "sentence"),
     [
-        (_UNSAFE_KING, 0, "White's king on e1 was perfectly safe."),
+        (_UNSAFE_KING, 0, "White's king on e1 had plenty of cover."),
         (_UNSAFE_KING, 0, "Black's queen on g5 smiled."),
         (_WEAK_PAWNS, 0, "A pawn on d3 stood proud."),
         (_PASSIVE, 0, "White's rook on a1 hummed a tune."),

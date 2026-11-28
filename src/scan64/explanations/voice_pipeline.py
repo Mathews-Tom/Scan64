@@ -180,7 +180,7 @@ def cause_problems(sentence: str, fact: RoleFact | CauseFact) -> list[str]:
     """A cause or turning-point sentence must state its fact's claim, word for word.
 
     The general check needs only one square or move of the fact, so "White's king
-    on e1 was perfectly safe" would pass for a king with little cover.
+    on e1 had plenty of cover" would pass for a king with little cover.
     """
     if isinstance(fact, CauseFact) and fact.claim.lower() not in sentence.lower():
         return ["leaves out the cause or the turning point"]
