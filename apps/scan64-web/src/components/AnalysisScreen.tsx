@@ -46,6 +46,13 @@ export function AnalysisScreen({ gameId, initialPly, onPlayFromHere }: AnalysisS
 function FreeAnalysis({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromHere'>) {
   const [variant, setVariant] = useState<VariantName>('chess');
   const [pending, setPending] = useState<VariantName>('chess');
+  // Opening a board disables its button; focus goes to the board opened, not the page.
+  const boardHeading = useRef<HTMLHeadingElement>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) boardHeading.current?.focus();
+    opened.current = true;
+  }, [variant]);
   return <div className="analysis-screen working-screen">
     <h2>Analysis Board</h2>
     <form className="working-actions" aria-label="Choose a variant" onSubmit={event => { event.preventDefault(); setVariant(pending); }}>
@@ -56,6 +63,7 @@ function FreeAnalysis({ onPlayFromHere }: Pick<AnalysisScreenProps, 'onPlayFromH
       <Button type="submit" disabled={pending === variant}>Open {VARIANT_NAMES[pending]} board</Button>
     </form>
     <p>The Standard board keeps its moves while another variant is open; a variant board starts from its start position each time it is opened.</p>
+    <h3 ref={boardHeading} tabIndex={-1}>{VARIANT_NAMES[variant]} board</h3>
     <FreeAnalysisBoard onPlayFromHere={onPlayFromHere} hidden={variant !== 'chess'} />
     {variant !== 'chess' && <VariantAnalysisBoard key={variant} variant={variant} />}
   </div>;

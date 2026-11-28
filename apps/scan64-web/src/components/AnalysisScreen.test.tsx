@@ -55,6 +55,8 @@ describe('AnalysisScreen', () => {
     expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
     expect(ApiClient.variantPosition).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Open Crazyhouse board' }));
+    // The button disables itself; focus goes to the board opened.
+    expect(screen.getByRole('heading', { name: 'Crazyhouse board' })).toHaveFocus();
     expect(await screen.findByTestId('variant-position-status')).toHaveTextContent('White to move.');
     expect(screen.getByTestId('standard-analysis')).not.toBeVisible();
     expect(screen.getByLabelText('Variant')).toBe(picker);
@@ -62,6 +64,7 @@ describe('AnalysisScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Standard board' }));
     expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
     expect(screen.getByTestId('standard-analysis')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Standard board' })).toHaveFocus();
     expect(within(screen.getByTestId('standard-analysis')).getAllByRole('button', { name: /e4/ }).length).toBeGreaterThan(0);
   });
 

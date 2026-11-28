@@ -112,6 +112,35 @@ describe('VariantAnalysisBoard', () => {
     expect(screen.getByRole('group', { name: 'White pieces in hand' }).querySelector('[aria-pressed="true"]')).toBeNull();
   });
 
+  it('starts no engine search for a board closed while its position loads', async () => {
+    let release: () => void = () => {};
+    const read = vi.mocked(ApiClient.variantPosition).getMockImplementation()!;
+    vi.mocked(ApiClient.variantPosition).mockImplementationOnce(async (player, body) => {
+      await new Promise<void>(resolve => { release = resolve; });
+      return read(player, body);
+    });
+    const { unmount } = render(<VariantAnalysisBoard variant="crazyhouse" />);
+    await waitFor(() => expect(ApiClient.variantPosition).toHaveBeenCalledTimes(1));
+    unmount();
+    release();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(ApiClient.analyzePosition).not.toHaveBeenCalled();
+  });
+
+  it('reads the position and its legal moves as text, drops included', async () => {
+    render(<VariantAnalysisBoard variant="crazyhouse" />);
+    for (const uci of ['e2e4', 'd7d5', 'e4d5', 'd8d5']) {
+      await screen.findByText(/to move\./);
+      enter(uci);
+    }
+    await waitFor(() => expect(screen.getByRole('group', { name: 'White pieces in hand' })).toHaveTextContent('pawn ×1'));
+    const pieces = screen.getByRole('list', { name: 'Pieces by square' });
+    expect(within(pieces).getByText('d5: Black queen')).toBeInTheDocument();
+    expect(within(pieces).getByText('e1: White king')).toBeInTheDocument();
+    expect(within(pieces).queryByText(/^e2:/)).toBeNull();
+    expect(screen.getByTestId('variant-legal-moves')).toHaveTextContent('P@e6');
+  });
+
   it('lists every move of the line, by UCI until its SAN arrives', async () => {
     let release: () => void = () => {};
     render(<VariantAnalysisBoard variant="3check" />);

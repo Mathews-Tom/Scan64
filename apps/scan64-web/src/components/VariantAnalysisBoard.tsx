@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
@@ -18,7 +18,8 @@ const POCKET_ORDER = ['p', 'n', 'b', 'r', 'q'] as const;
 
 type Position =
   | { state: 'loading' }
-  | { state: 'ready'; read: VariantPositionRead }
+  // ``prefix``: the moves this read is the position after, joined by spaces.
+  | { state: 'ready'; read: VariantPositionRead; prefix: string }
   | { state: 'error'; message: string };
 
 type Evaluation =
@@ -30,6 +31,24 @@ type Evaluation =
 /** The placement field Chessground reads: no pockets, no promoted-piece marks. */
 function boardFen(fen: string): string {
   return fen.split(' ')[0].split('[')[0].replace(/~/g, '');
+}
+
+/** Occupied squares of a FEN's placement, a8 to h1, for reading without the picture. */
+function piecesBySquare(fen: string): { square: string; color: 'White' | 'Black'; name: string }[] {
+  const pieces: { square: string; color: 'White' | 'Black'; name: string }[] = [];
+  boardFen(fen).split('/').forEach((rank, index) => {
+    let file = 0;
+    for (const symbol of rank) {
+      if (/\d/.test(symbol)) { file += Number(symbol); continue; }
+      pieces.push({
+        square: `${'abcdefgh'[file]}${8 - index}`,
+        color: symbol === symbol.toUpperCase() ? 'White' : 'Black',
+        name: PIECE_NAMES[symbol.toLowerCase()],
+      });
+      file += 1;
+    }
+  });
+  return pieces;
 }
 
 function evaluationLabel(line: PositionAnalysisLine): string {
@@ -64,7 +83,12 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
-  const read = position.state === 'ready' ? position.read : null;
+  // Only the read of the moves now selected may take a move: while the next
+  // position loads, the previous one's legal moves are not this position's.
+  const read = position.state === 'ready' && position.prefix === moves.slice(0, selected).join(' ')
+    ? position.read : null;
+  const liveRead = useRef<VariantPositionRead | null>(null);
+  useLayoutEffect(() => { liveRead.current = read; }, [read]);
   useBoardFit(element, board);
 
   // A pocket selection or a promotion choice belongs to the position it was made in.
@@ -96,7 +120,7 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
         if (!current()) return;
         next = await ApiClient.variantPosition(playerId, { variant, moves: requested });
         if (!current()) return;
-        setPosition({ state: 'ready', read: next });
+        setPosition({ state: 'ready', read: next, prefix: requested.join(' ') });
         positioned = true;
         if (requested.length === moves.length) setSans(next.san);
         if (next.outcome) return;
@@ -115,6 +139,8 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
         }
       }
     })();
+    // A replaced or closed board starts no engine search for its old position.
+    return () => { generation.current += 1; };
   }, [variant, moves, selected, attempt]);
 
   useEffect(() => {
@@ -124,7 +150,12 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
   }, []);
 
   useEffect(() => {
-    if (!board.current || !read) return;
+    if (!board.current) return;
+    if (!read) {
+      board.current.set({ movable: { color: undefined, dests: new Map(), events: { after: undefined } },
+        events: { select: undefined } });
+      return;
+    }
     const dests = new Map<Key, Key[]>();
     for (const uci of read.legal_moves) {
       if (uci.includes('@')) continue;
@@ -145,6 +176,7 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
         free: false,
         events: {
           after: (from, to) => {
+            if (liveRead.current !== read) return;
             const matching = read.legal_moves.filter(uci => uci.startsWith(`${from}${to}`));
             if (matching.length === 1) play(matching);
             else if (matching.length > 1) setPromotions(matching);
@@ -153,7 +185,7 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
       },
       events: {
         select: key => {
-          if (!pocketPiece) return;
+          if (!pocketPiece || liveRead.current !== read) return;
           const drop = `${pocketPiece.toUpperCase()}@${key}`;
           if (read.legal_moves.includes(drop)) play([drop]);
           else setError(`A ${PIECE_NAMES[pocketPiece]} cannot be dropped on ${key}.`);
@@ -188,6 +220,22 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
             : read.outcome ? outcomeText(read)
               : `${read.turn === 'white' ? 'White' : 'Black'} to move.${read.check ? ' Check.' : ''}`}
         </p>
+        {read && <>
+          <details>
+            <summary>Read board position</summary>
+            <p>Coordinates identify each occupied square. Board viewed from White.</p>
+            <ul aria-label="Pieces by square">
+              {piecesBySquare(read.fen).map(piece => <li key={piece.square}>
+                {piece.square}: {piece.color} {piece.name}
+              </li>)}
+            </ul>
+          </details>
+          <details>
+            <summary>Legal moves and notation help</summary>
+            <p>UCI uses source and destination squares, with q, r, b or n for promotion; a drop is the piece letter, @ and the square, such as N@f3.</p>
+            <p data-testid="variant-legal-moves">{read.legal_moves.join(', ') || 'No legal moves.'}</p>
+          </details>
+        </>}
       </div>
     </div>
     <Panel className="board-workspace__side working-controls" aria-label="Variant analysis controls">
@@ -221,7 +269,7 @@ export function VariantAnalysisBoard({ variant }: { variant: Exclude<VariantName
       {promotions && <section className="working-controls__section" aria-label="Promotion">
         <h3>Promote to</h3>
         <div className="working-actions">
-          {promotions.map(uci => <Button key={uci} onClick={() => play([uci])}>{PIECE_NAMES[uci[4]]}</Button>)}
+          {promotions.map(uci => <Button key={uci} disabled={!read} onClick={() => { if (read) play([uci]); }}>{PIECE_NAMES[uci[4]]}</Button>)}
           <Button onClick={() => { setPromotions(null); board.current?.set({ fen: read ? boardFen(read.fen) : undefined }); }}>Cancel</Button>
         </div>
       </section>}
