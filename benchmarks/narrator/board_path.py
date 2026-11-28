@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import math
 import random
@@ -72,6 +73,8 @@ POSITIONS: dict[str, str] = {
 DEFAULT_MODEL = "scan64-bench-gemma4-e4b-q4ks:latest"
 DEFAULT_URL = "http://127.0.0.1:11434"
 CONTEXT_TOKENS = 4096
+ENGINE_OPTIONS = {"Threads": 1, "Hash": 16}
+NET_OPTIONS = ("EvalFile", "EvalFileSmall")
 
 NAMES = {
     chess.KING: "king",
@@ -107,6 +110,21 @@ def render(fen: str) -> str:
 # --- Engine lines --------------------------------------------------------------
 
 
+def engine_identity(engine_path: str) -> Row:
+    """Binary digest, name, network and settings of an engine, for a record's ``meta``."""
+    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+        name = engine.id.get("name")
+        nets = {k: engine.options[k].default for k in NET_OPTIONS if k in engine.options}
+    return {
+        "name": name,
+        "sha256": hashlib.sha256(Path(engine_path).read_bytes()).hexdigest(),
+        # Stockfish embeds these networks: the file name holds the first 12 hex
+        # digits of the network's SHA-256.
+        "networks": nets,
+        "options": ENGINE_OPTIONS,
+    }
+
+
 def _raw(info: chess.engine.InfoDict, turn: chess.Color) -> Row:
     score = info["score"].pov(turn)
     return {
@@ -120,7 +138,7 @@ def _raw(info: chess.engine.InfoDict, turn: chess.Color) -> Row:
 
 def _search(engine_path: str, fen: str) -> Row:
     with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
-        engine.configure({"Threads": 1, "Hash": 16})
+        engine.configure(ENGINE_OPTIONS)
         board = chess.Board(fen)
         infos = engine.analyse(board, chess.engine.Limit(nodes=HINT_NODES), multipv=HINT_MULTIPV)
         raw = [_raw(info, board.turn) for info in infos]
@@ -138,13 +156,17 @@ def _search(engine_path: str, fen: str) -> Row:
         return {"fen": fen, "engine": engine.id.get("name"), "raw": raw, "along": along}
 
 
-def search_lines(engines: list[str]) -> Row:
+def search_lines(engines: list[str], positions: dict[str, str] = POSITIONS) -> Row:
     """For each position: the board's MultiPV search and the searches along its lines.
 
     A position whose search kills the first engine is searched with the next one.
     """
-    out: Row = {"hint_nodes": HINT_NODES, "line_nodes": LINE_NODES}
-    for test, fen in POSITIONS.items():
+    out: Row = {
+        "hint_nodes": HINT_NODES,
+        "line_nodes": LINE_NODES,
+        "engine_identity": [engine_identity(path) for path in engines],
+    }
+    for test, fen in positions.items():
         for engine_path in engines:
             try:
                 out[test] = _search(engine_path, fen)
@@ -154,6 +176,10 @@ def search_lines(engines: list[str]) -> Row:
         else:
             raise SystemExit(f"{test}: every engine died")
     return out
+
+
+def tests_of(stored: Row) -> list[str]:
+    return [key for key, value in stored.items() if isinstance(value, dict) and "fen" in value]
 
 
 def board_facts(stored: Row, test: str) -> Any:
@@ -204,14 +230,40 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
+def tree_state(exclude: Path) -> tuple[str, bool, str | None]:
+    """The commit, whether the tree differs from it, and a SHA-256 of the difference.
+
+    Untracked files count as a difference. ``exclude``, the run's own output, does not.
+    """
+    root = Path(_git("rev-parse", "--show-toplevel"))
+    own = exclude.resolve()
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all"],
+        cwd=root, capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    changed = [e[3:] for e in status.split("\0") if e and (root / e[3:]).resolve() != own]
+    if not changed:
+        return _git("rev-parse", "HEAD"), False, None
+    digest = hashlib.sha256()
+    for name in sorted(changed):
+        path = root / name
+        digest.update(name.encode() + b"\0" + (path.read_bytes() if path.is_file() else b""))
+    return _git("rev-parse", "HEAD"), True, digest.hexdigest()
+
+
 async def run(stored: Row, *, model: str, url: str, samples: int, out: Path) -> None:
+    commit, dirty, dirty_sha256 = tree_state(out)
     meta = {
-        "commit": _git("rev-parse", "HEAD"),
-        "dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
+        "commit": commit,
+        "dirty": dirty,
+        "dirty_sha256": dirty_sha256,
         "model": model,
         "think": False,
         "num_ctx": CONTEXT_TOKENS,
-        "engines": {t: stored[t]["engine"] for t in POSITIONS},
+        "engines": {t: stored[t]["engine"] for t in tests_of(stored)},
+        "engine_identity": stored.get("engine_identity"),
+        "hint_nodes": stored["hint_nodes"],
+        "line_nodes": stored["line_nodes"],
     }
     async with httpx.AsyncClient(timeout=120) as client:
         tags = (await client.get(f"{url}/api/tags")).json()
@@ -224,7 +276,7 @@ async def run(stored: Row, *, model: str, url: str, samples: int, out: Path) -> 
             base_url=url, model=model, client=client, context_tokens=CONTEXT_TOKENS
         )
         with out.open("x", encoding="utf-8") as handle:
-            for test in POSITIONS:
+            for test in tests_of(stored):
                 facts = board_facts(stored, test)
                 for n in range(samples):
                     before = narrator_counts()["board"]
@@ -265,7 +317,7 @@ def blind(
     rows: list[Row], stored: Row, *, seed: int, prefix: str
 ) -> tuple[list[Row], dict[str, Row]]:
     """Shuffled items with no labels, and the key that unblinds them."""
-    facts = {test: judge_facts(board_facts(stored, test)) for test in POSITIONS}
+    facts = {test: judge_facts(board_facts(stored, test)) for test in {r["test"] for r in rows}}
     rows = list(rows)
     random.Random(seed).shuffle(rows)
     items, key = [], {}
@@ -274,7 +326,7 @@ def blind(
         items.append(
             {
                 "id": item_id,
-                "position": render(POSITIONS[row["test"]]),
+                "position": render(stored[row["test"]]["fen"]),
                 "facts": facts[row["test"]],
                 "comment": row["text"],
             }
@@ -318,7 +370,7 @@ def summarise(key: dict[str, Row], judgements: list[Row], runs: list[Row]) -> st
         "| Position | Faithful | Faithful and lively |",
         "|---|---|---|",
     ]
-    for test in POSITIONS:
+    for test in dict.fromkeys(j["test"] for j in joined):
         cell = [j for j in joined if j["test"] == test]
         out.append(
             f"| {test} | {sum(j['faithful'] for j in cell)}/{len(cell)} | "
@@ -333,6 +385,8 @@ def main(argv: list[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("lines")
     p.add_argument("--engine", action="append", required=True, help="repeat for fallbacks")
+    p.add_argument("--positions", type=Path, help="a game_path position file")
+    p.add_argument("--count", type=int, default=None, help="only its first N positions")
     p.add_argument("--out", type=Path, required=True)
     p = sub.add_parser("run")
     p.add_argument("--lines", type=Path, required=True)
@@ -354,8 +408,12 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if args.command == "lines":
+        chosen = POSITIONS
+        if args.positions:
+            entries = json.loads(args.positions.read_text(encoding="utf-8"))["positions"]
+            chosen = {e["id"]: e["fen"] for e in entries[: args.count]}
         args.out.write_text(
-            json.dumps(search_lines(args.engine), indent=1) + "\n", encoding="utf-8"
+            json.dumps(search_lines(args.engine, chosen), indent=1) + "\n", encoding="utf-8"
         )
     elif args.command == "run":
         stored = json.loads(args.lines.read_text(encoding="utf-8"))
