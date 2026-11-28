@@ -120,6 +120,7 @@ comparison are in [Analysis engines](engines.md).
 | Interactive pool size | `SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY` | 2 | hints, and opponents unless a ladder profile is set |
 | Ladder pool | `SCAN64_LADDER_ENGINE_CONFIG` | none: opponents use the interactive pool | opponent moves; sized like the interactive pool |
 | Batch pool size | `SCAN64_ENGINE_POOL_BATCH_CONCURRENCY` | `max(2, CPUs − interactive − 1)` | analysis jobs and backfill |
+| Evaluation trace | profile `[trace]` | none: the engine supplies no trace | the trace cross-check; one short-lived process per position, outside the pools |
 
 Each stored line records the full PV, the cp or mate score and, when reported,
 WDL, depth, seldepth, nodes, nps and the MultiPV index; older rows without
