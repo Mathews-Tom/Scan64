@@ -9,7 +9,7 @@ configurable through the environment (documented in docs/narrator-pipeline.md):
 | ``SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES`` | 262144 (256 KiB) | serialised chat request |
 | ``SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES`` | 262144 (256 KiB) | each response body |
 | ``SCAN64_LOCAL_LLM_CONTEXT_TOKENS`` | 4096 | ``num_ctx``; a prompt filling it is rejected |
-| ``SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS`` | 2 | explanations in flight across the process |
+| ``SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS`` | 2 | calls in flight, with the operator's Ollama |
 
 A call over the process-wide limit fails at once with ``LLMProviderError``, so the
 caller uses the template: there is no queue (#472).
@@ -24,7 +24,6 @@ import asyncio
 import math
 import os
 import re
-import threading
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import TypeGuard
@@ -32,13 +31,19 @@ from typing import TypeGuard
 import httpx
 
 from scan64.providers.llm.adapters import (
+    CALL_SLOTS,
     DEFAULT_OLLAMA_CONTEXT_TOKENS,
     MAX_OLLAMA_CONTEXT_TOKENS,
     MIN_OLLAMA_CONTEXT_TOKENS,
     LLMProviderError,
     OllamaExplanationAdapter,
 )
-from scan64.providers.llm.config import LLMConfigurationError
+from scan64.providers.llm.config import (
+    DEFAULT_MAX_CONCURRENT_CALLS,
+    LLMConfigurationError,
+    bounded_int,
+    max_concurrent_calls,
+)
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
 LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
@@ -47,9 +52,6 @@ TIMEOUT_ENV = "SCAN64_LOCAL_LLM_TIMEOUT_SECONDS"
 MAX_REQUEST_BYTES_ENV = "SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES"
 MAX_RESPONSE_BYTES_ENV = "SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES"
 CONTEXT_TOKENS_ENV = "SCAN64_LOCAL_LLM_CONTEXT_TOKENS"
-MAX_CONCURRENT_CALLS_ENV = "SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS"
-DEFAULT_MAX_CONCURRENT_CALLS = 2
-_MAX_CONCURRENT_CALLS = 8
 DEFAULT_OPERATION_SECONDS = 180.0
 DEFAULT_MAX_REQUEST_BYTES = 256 * 1024
 DEFAULT_MAX_RESPONSE_BYTES = 256 * 1024
@@ -83,43 +85,15 @@ class LocalOllamaLimits:
             max_response_bytes=_byte_count(
                 values, MAX_RESPONSE_BYTES_ENV, DEFAULT_MAX_RESPONSE_BYTES
             ),
-            context_tokens=_bounded_int(
+            context_tokens=bounded_int(
                 values,
                 CONTEXT_TOKENS_ENV,
                 DEFAULT_CONTEXT_TOKENS,
                 _MIN_CONTEXT_TOKENS,
                 _MAX_CONTEXT_TOKENS,
             ),
-            max_concurrent_calls=_bounded_int(
-                values,
-                MAX_CONCURRENT_CALLS_ENV,
-                DEFAULT_MAX_CONCURRENT_CALLS,
-                1,
-                _MAX_CONCURRENT_CALLS,
-            ),
+            max_concurrent_calls=max_concurrent_calls(values),
         )
-
-
-class _CallSlots:
-    """Count local explanations in flight across the process; never wait for a slot."""
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._in_flight = 0
-
-    def try_acquire(self, capacity: int) -> bool:
-        with self._lock:
-            if self._in_flight >= capacity:
-                return False
-            self._in_flight += 1
-            return True
-
-    def release(self) -> None:
-        with self._lock:
-            self._in_flight -= 1
-
-
-_CALL_SLOTS = _CallSlots()
 
 
 def _seconds(values: Mapping[str, str], name: str, default: float) -> float:
@@ -136,22 +110,7 @@ def _seconds(values: Mapping[str, str], name: str, default: float) -> float:
 
 
 def _byte_count(values: Mapping[str, str], name: str, default: int) -> int:
-    return _bounded_int(values, name, default, _MIN_BYTES, _MAX_BYTES)
-
-
-def _bounded_int(
-    values: Mapping[str, str], name: str, default: int, minimum: int, maximum: int
-) -> int:
-    raw = values.get(name)
-    if raw is None:
-        return default
-    try:
-        count = int(raw)
-    except ValueError as error:
-        raise LLMConfigurationError(f"{name} must be an integer, got {raw!r}") from error
-    if not minimum <= count <= maximum:
-        raise LLMConfigurationError(f"{name} must be in [{minimum}, {maximum}]")
-    return count
+    return bounded_int(values, name, default, _MIN_BYTES, _MAX_BYTES)
 
 
 def _permitted_name(value: object) -> TypeGuard[str]:
@@ -281,12 +240,12 @@ class LocalOllamaExplanationProvider:
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
         limits = self._limits if self._limits is not None else LocalOllamaLimits.from_environment()
-        if not _CALL_SLOTS.try_acquire(limits.max_concurrent_calls):
+        if not CALL_SLOTS.try_acquire(limits.max_concurrent_calls):
             raise LLMProviderError("Local Ollama is busy with other explanations")
         try:
             return await self._generate(request, limits)
         finally:
-            _CALL_SLOTS.release()
+            CALL_SLOTS.release()
 
     async def _generate(
         self, request: ExplanationRequest, limits: LocalOllamaLimits

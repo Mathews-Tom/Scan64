@@ -12,12 +12,14 @@ operator-provided opt-in.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import httpx
 import pytest
 
+from scan64.explanations.assembly import resolve_explanation, template_fallback_counts
 from scan64.providers.llm import (
     HostedExplanationAdapter,
     LLMConfigurationError,
@@ -25,8 +27,10 @@ from scan64.providers.llm import (
     load_configured_llm_provider,
 )
 from scan64.providers.llm.adapters import LLMProviderError
-from scan64.providers.llm.config import LLMProviderConfig
+from scan64.providers.llm.config import MAX_CONCURRENT_CALLS_ENV, LLMProviderConfig
 from scan64.providers.llm.contracts import ExplanationRequest, LLMMessage
+from scan64.providers.llm.local_ollama import LocalOllamaExplanationProvider
+from tests.unit.test_claim_text_grounding import MISSED_CAPTURE, _diagnosis
 
 
 def _write_toml(tmp_path: Path, content: str) -> Path:
@@ -178,3 +182,73 @@ def test_llm_config_rejects_context_tokens_for_a_hosted_provider(tmp_path: Path)
 
 def _request() -> ExplanationRequest:
     return ExplanationRequest(messages=(LLMMessage(role="user", content="evidence"),))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("capacity", [1, 2])
+async def test_operator_explanation_over_the_server_limit_gets_the_template(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capacity: int
+) -> None:
+    """#491: real HTTP calls hold every slot, so the next explanation does not wait."""
+    monkeypatch.setenv(MAX_CONCURRENT_CALLS_ENV, str(capacity))
+    entered = asyncio.Semaphore(0)
+    release = asyncio.Event()
+    chats = 0
+
+    async def ollama(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        nonlocal chats
+        await reader.readuntil(b"\r\n\r\n")
+        chats += 1
+        entered.release()
+        await release.wait()
+        writer.write(b"HTTP/1.1 503 Busy\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        await writer.drain()
+        writer.close()
+
+    async def explain() -> object:
+        # No ``client``: each explanation opens its own, as the server does.
+        return await resolve_explanation(
+            _diagnosis(), [MISSED_CAPTURE.evidence], MISSED_CAPTURE.fen
+        )
+
+    async def authorized() -> bool:
+        return True
+
+    template = await resolve_explanation(
+        _diagnosis(), [MISSED_CAPTURE.evidence], MISSED_CAPTURE.fen, environment={}
+    )
+    server = await asyncio.start_server(ollama, "127.0.0.1", 0)
+    async with server:
+        port = server.sockets[0].getsockname()[1]
+        config_path = _write_toml(
+            tmp_path,
+            f'[llm]\nprovider = "ollama"\nmodel = "m"\nbase_url = "http://127.0.0.1:{port}"\n',
+        )
+        monkeypatch.setenv("SCAN64_LLM_CONFIG", str(config_path))
+        holders = [asyncio.create_task(explain()) for _ in range(capacity)]
+        for _ in holders:
+            await asyncio.wait_for(entered.acquire(), 10)
+        try:
+            before = template_fallback_counts().get("provider_error", 0)
+
+            assert await explain() == template
+            assert template_fallback_counts()["provider_error"] == before + 1
+            # The owner's local model shares the limit.
+            with pytest.raises(LLMProviderError, match="busy"):
+                await LocalOllamaExplanationProvider("m", authorized).generate(_request())
+            assert chats == capacity
+            assert not any(holder.done() for holder in holders)
+        finally:
+            release.set()
+            await asyncio.gather(*holders)
+        # The slots are free again after failed calls: this one reaches the server.
+        await explain()
+        assert chats == capacity + 1
+
+
+@pytest.mark.asyncio
+async def test_llm_config_rejects_an_invalid_server_limit(tmp_path: Path) -> None:
+    environment = {"SCAN64_LLM_CONFIG": str(_ollama_toml(tmp_path)), MAX_CONCURRENT_CALLS_ENV: "0"}
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(LLMConfigurationError, match=MAX_CONCURRENT_CALLS_ENV):
+            load_configured_llm_provider(client=client, environment=environment)

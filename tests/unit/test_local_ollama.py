@@ -10,7 +10,7 @@ import pytest
 
 from scan64.providers.llm import local_ollama as local
 from scan64.providers.llm.adapters import LLMProviderError
-from scan64.providers.llm.config import LLMConfigurationError
+from scan64.providers.llm.config import MAX_CONCURRENT_CALLS_ENV, LLMConfigurationError
 from scan64.providers.llm.contracts import ExplanationRequest, LLMMessage
 
 
@@ -336,11 +336,11 @@ async def test_prompt_that_fills_the_context_is_rejected(
 
 def test_concurrent_call_limit_parses_from_the_environment() -> None:
     assert local.LocalOllamaLimits.from_environment({}).max_concurrent_calls == 2
-    limits = local.LocalOllamaLimits.from_environment({local.MAX_CONCURRENT_CALLS_ENV: "1"})
+    limits = local.LocalOllamaLimits.from_environment({MAX_CONCURRENT_CALLS_ENV: "1"})
     assert limits.max_concurrent_calls == 1
     for value in ("0", "9", "two"):
         with pytest.raises(LLMConfigurationError):
-            local.LocalOllamaLimits.from_environment({local.MAX_CONCURRENT_CALLS_ENV: value})
+            local.LocalOllamaLimits.from_environment({MAX_CONCURRENT_CALLS_ENV: value})
 
 
 @pytest.mark.asyncio
@@ -348,7 +348,7 @@ def test_concurrent_call_limit_parses_from_the_environment() -> None:
 async def test_call_over_the_process_limit_fails_at_once(
     peer: Callable, monkeypatch: pytest.MonkeyPatch, capacity: int
 ) -> None:
-    monkeypatch.setenv(local.MAX_CONCURRENT_CALLS_ENV, str(capacity))
+    monkeypatch.setenv(MAX_CONCURRENT_CALLS_ENV, str(capacity))
     entered = asyncio.Semaphore(0)
     release = asyncio.Event()
     chats = 0

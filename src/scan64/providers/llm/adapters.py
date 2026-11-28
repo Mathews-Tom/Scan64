@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Mapping
 from typing import Protocol, cast
 
@@ -84,6 +85,28 @@ def _parse_generated_explanation(raw: str, provider: str) -> GeneratedExplanatio
         raise LLMProviderError(f"{provider} returned an invalid explanation schema") from error
 
 
+class CallSlots:
+    """Count Ollama explanations in flight across the process; never wait for a slot."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._in_flight = 0
+
+    def try_acquire(self, capacity: int) -> bool:
+        with self._lock:
+            if self._in_flight >= capacity:
+                return False
+            self._in_flight += 1
+            return True
+
+    def release(self) -> None:
+        with self._lock:
+            self._in_flight -= 1
+
+
+CALL_SLOTS = CallSlots()
+
+
 class OllamaExplanationAdapter:
     """Ollama-compatible adapter using its JSON-schema response format."""
 
@@ -94,13 +117,26 @@ class OllamaExplanationAdapter:
         model: str,
         client: httpx.AsyncClient,
         context_tokens: int | None = None,
+        max_concurrent_calls: int | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._client = client
         self._context_tokens = context_tokens
+        # None: the caller holds the slot (LocalOllamaExplanationProvider).
+        self._max_concurrent_calls = max_concurrent_calls
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
+        if self._max_concurrent_calls is None:
+            return await self._generate(request)
+        if not CALL_SLOTS.try_acquire(self._max_concurrent_calls):
+            raise LLMProviderError("Ollama is busy with other explanations")
+        try:
+            return await self._generate(request)
+        finally:
+            CALL_SLOTS.release()
+
+    async def _generate(self, request: ExplanationRequest) -> GeneratedExplanation:
         payload: dict[str, object] = {
             "model": self._model,
             "messages": _messages(request),

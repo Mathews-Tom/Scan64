@@ -170,7 +170,7 @@ Runtime controls:
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` | Largest serialised local explanation request, [1024, 16 MiB]. |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` | Largest local Ollama response body, [1024, 16 MiB]. |
 | `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `4096` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
-| `SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS` | `2` | Local Ollama explanations in flight across the whole server, [1, 8]. A request over the limit gets the template at once; it does not wait. |
+| `SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS` | `2` | Ollama explanations in flight across the whole server, local and `SCAN64_LLM_CONFIG` together, [1, 8]. A request over the limit gets the template at once; it does not wait. |
 
 ## Optional providers
 
