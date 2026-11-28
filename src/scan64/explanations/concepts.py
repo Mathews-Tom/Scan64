@@ -343,7 +343,9 @@ def overloaded_pieces(board: chess.Board, colour: chess.Color) -> list[ConceptFa
 
     The opponent takes one target, the defender recaptures, and the other
     target is then unguarded and taken. The fact needs that sequence to win
-    material, so a recapture that wins a queen is no overload.
+    material, so a recapture that wins a queen is no overload. A queen trade
+    that then wins only a pawn is no overload either. The defender may be the
+    king.
     """
     enemy = _with_turn(board, not colour)
     if enemy is None:
@@ -385,6 +387,10 @@ def _overload(
         if not captures:
             continue
         take = min(captures, key=lambda m: _value(enemy.piece_at(m.from_square)))
+        queen_trade = (
+            enemy.piece_type_at(take.from_square) == chess.QUEEN
+            and enemy.piece_type_at(first) == chess.QUEEN
+        )
         recapture = chess.Move(defender, first)
         after = enemy.copy(stack=False)
         after.push(take)
@@ -397,6 +403,8 @@ def _overload(
         for second in targets:
             if second == first or after.attackers(colour, second):
                 continue
+            if queen_trade and after.piece_type_at(second) == chess.PAWN:
+                continue  # a queen trade that wins a pawn
             for grab in after.legal_moves:
                 if grab.to_square != second:
                     continue

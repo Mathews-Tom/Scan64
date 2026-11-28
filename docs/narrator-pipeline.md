@@ -759,7 +759,7 @@ Scores only decide a concept; they never reach the text.
 | Hanging piece | A piece (not a pawn or king, as in the lesson diagnosis rule) is attacked and not defended, or attacked by a less valuable piece. |
 | Trapped piece | The piece is attacked, staying loses material, and every move it can make loses material. |
 | Back-rank weakness | The king is on its first rank. Each square in front of it holds its own piece or is attacked. An enemy rook or queen can give mate on that rank. |
-| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. |
+| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. A king can be the defender. A queen trade that then wins only a pawn does not count. |
 | Passed, isolated, doubled, backward pawn | Passed: no enemy pawn ahead on its file or the files next to it. Doubled: two pawns of one side on a file. Isolated and backward: the factor module's terms. |
 | Blockade | A piece stands on the square in front of an enemy passed pawn. |
 | Outpost, weak square | The factor module's outpost square: on the fourth to sixth rank, guarded by a pawn, and no enemy pawn can ever attack it. A knight or bishop on it stands on an outpost. Empty, it is a weak square for the opponent. |

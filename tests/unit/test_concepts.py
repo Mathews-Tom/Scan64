@@ -25,6 +25,8 @@ POSITION_POSITIVE = [
     ("trapped_piece", "r5k1/B1p5/1p6/8/8/8/8/6K1 w - - 0 1", "a7"),
     ("back_rank_weakness", "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", "g8"),
     ("overloading", "k7/3q4/8/1n6/8/7b/8/1R4KR w - - 0 1", "d7"),
+    # A king can be overloaded, and a rook trade that wins a pawn counts (#488).
+    ("overloading", "3rk3/5p2/8/8/2B5/8/8/3RK3 w - - 0 1", "e8"),
     ("passed_pawn", "4k3/8/8/3P4/8/8/8/4K3 w - - 0 1", "d5"),
     ("isolated_pawn", "4k3/8/8/8/3P4/8/PP6/4K3 w - - 0 1", "d4"),
     ("doubled_pawns", "4k3/8/8/8/8/2P5/2P5/4K3 w - - 0 1", "c3"),
@@ -48,6 +50,8 @@ POSITION_NEGATIVE = [
     ("back_rank_weakness", "6k1/5pp1/7p/8/8/8/8/4R1K1 w - - 0 1"),  # h7 is free
     ("overloading", "k7/3q4/8/1n6/6p1/7b/8/1R4KR w - - 0 1"),  # two defenders
     ("overloading", "k7/3q4/8/1n6/8/7b/1R5R/1Q4KR w - - 0 1"),  # the recapture loses the queen
+    # A queen trade that wins only a pawn is no overload (#488).
+    ("overloading", "r1bqk2r/p4ppp/8/4p3/1nB5/8/PPP2PPP/R2QK2R w KQkq - 0 12"),
     ("passed_pawn", "4k3/2p5/8/3P4/8/8/8/4K3 w - - 0 1"),
     ("isolated_pawn", "4k3/8/8/8/3P4/4P3/8/4K3 w - - 0 1"),
     ("doubled_pawns", "4k3/8/8/8/8/3P4/2P5/4K3 w - - 0 1"),
