@@ -21,6 +21,7 @@ Each folder with a blind set also holds the judge brief, word for word, as `judg
 
 Limits of these records:
 
+- The stored H2 records came from an illegal position (#500). In `8/1r6/8/3k4/8/8/6B1/6K1 w - - 0 1` the bishop on g2 already gives check, with White to move. This covers the 50 H2 comments of `run9` (10 per cell) and their judgements. They stay unchanged. The legal version is `H2b-skewer` in `data.py`, with the bishop on e2: the same theme, moves and facts. No stored record uses H2b, and run 9 does not offer it, because run 9 must reproduce the stored records. A new run version adds it.
 - They predate the `meta` field. They do not record the git commit, the model digest, the Ollama version or the sampling options. The model behind each file is named in #457 and in `summarise.py`. Run 9 records name the model and the options. New runs record all of it.
 - Each stored key sat in the same folder as its items file. The judges were told not to open it, and nothing stopped them. New sets write the key outside the judge's folder (`blind --key-out`).
 - One judge session (session 1) judged the sets of runs 2–8 one after the other. Each set was blind, but the judge knew the rubric decisions it had made on the earlier sets.

@@ -29,9 +29,13 @@ def clauses(fact: str) -> list[str]:
     return [c.strip().rstrip(".,") for c in SPLIT.split(fact) if c.strip()]
 
 
+def all_fens() -> dict[str, str]:
+    """The FEN of every stored position."""
+    return data.FENS | data.FENS_HELDOUT | data.FENS_CORRECTED
+
+
 def board(test: str, *sans: str) -> chess.Board:
-    fen = data.FENS_HELDOUT[test] if test in data.FENS_HELDOUT else data.FENS[test]
-    b = chess.Board(fen)
+    b = chess.Board(all_fens()[test])
     for san in sans:
         b.push_san(san)
     return b
@@ -111,6 +115,7 @@ P1, P2, P3, P4, P5 = (
     "P5-shut-bishop",
 )
 H1, H2, H3, H4, H5 = "H1-missed-mate", "H2-skewer", "H3-stalemate", "H4-pin", "H5-allowed-fork"
+H2B = "H2b-skewer"
 
 CLAIMS: dict[str, Callable[[], bool]] = {
     # P1: 5.Nxf7 grabs a pawn; 5...Qxg2 follows; 5.Bxf7+ takes the same pawn with check.
@@ -217,6 +222,17 @@ CLAIMS: dict[str, Callable[[], bool]] = {
         board(H2, "Bf3+").is_check() and piece(board(H2), "d5", chess.KING, B)
     ),
     "h2.king-steps-off-then-bxb7": lambda: every_reply_then(H2, ("Bf3+",), True, "Bxb7"),
+    # H2b: the legal H2 (#500), bishop on e2.
+    "h2b.kf2-legal": lambda: legal(H2B, "Kf2"),
+    "h2b.bf3-legal-instead-of-kf2": lambda: legal_instead(H2B, "Bf3+", "Kf2"),
+    "h2b.bf3-checks-king-d5": lambda: (
+        not board(H2B).is_attacked_by(W, sq("d5"))
+        and board(H2B, "Bf3+").is_check()
+        and piece(board(H2B), "d5", chess.KING, B)
+    ),
+    "h2b.king-steps-off-then-bxb7": lambda: (
+        piece(board(H2B), "b7", chess.ROOK, B) and every_reply_then(H2B, ("Bf3+",), True, "Bxb7")
+    ),
     # H3: 1.Qf7 stalemates; 1.Qf8# mates.
     "h3.qf7-legal": lambda: legal(H3, "Qf7"),
     "h3.qf7-stalemate": lambda: (
@@ -371,6 +387,13 @@ CLAUSE_CLAIMS: dict[str, dict[str, list[str]]] = {
         "Black's king must step off the diagonal": ["h2.king-steps-off-then-bxb7"],
         "then the bishop on f3 can take the rook on b7": ["h2.king-steps-off-then-bxb7"],
     },
+    "H2b": {
+        "White played 1.Kf2": ["h2b.kf2-legal"],
+        "White could have played 1.Bf3+ instead of 1.Kf2": ["h2b.bf3-legal-instead-of-kf2"],
+        "The bishop on f3 gives check to the king on d5": ["h2b.bf3-checks-king-d5"],
+        "Black's king must step off the diagonal": ["h2b.king-steps-off-then-bxb7"],
+        "then the bishop on f3 can take the rook on b7": ["h2b.king-steps-off-then-bxb7"],
+    },
     "H3": {
         "White played 1.Qf7": ["h3.qf7-legal"],
         "Black's king on h8 is not in check and has no move": ["h3.qf7-stalemate"],
@@ -407,7 +430,7 @@ CLAUSE_CLAIMS: dict[str, dict[str, list[str]]] = {
 def all_facts() -> list[tuple[str, str]]:
     """(test, fact) for every fact of every run version."""
     out = [(t, f) for t, facts in data.TESTS_V1.items() for f in facts]
-    for tests in (data.TESTS_RUN4, data.TESTS_RUN5, data.TESTS_HELDOUT):
+    for tests in (data.TESTS_RUN4, data.TESTS_RUN5, data.TESTS_HELDOUT, data.TESTS_CORRECTED):
         out += [(t, f) for t, facts in tests.items() for _, f in facts]
     return out
 

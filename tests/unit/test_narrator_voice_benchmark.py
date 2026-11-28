@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import chess
 import pytest
 
 from benchmarks.narrator.voice import data, pipeline, summarise, verify
@@ -53,6 +54,27 @@ def test_a_false_fact_fails_its_check() -> None:
     after_kd2 = verify.board("P4-fork", "Kd2")
     assert not verify.attacks(after_kd2, "d5", "a8")
     assert not verify.board("H3-stalemate", "Qf8#").is_stalemate()
+
+
+@pytest.mark.parametrize("test", sorted(verify.all_fens()))
+def test_every_stored_position_is_legal(test: str) -> None:
+    """H2 is the one exception: the run 9 records came from its illegal FEN (#500)."""
+    board = chess.Board(verify.all_fens()[test])
+    if test in data.ILLEGAL_POSITIONS:
+        assert board.status() == chess.STATUS_OPPOSITE_CHECK
+    else:
+        assert board.is_valid(), board.status()
+
+
+def test_the_legal_h2_is_a_skewer() -> None:
+    """Before 1.Bf3+ the king is not attacked; after it, the rook stands behind the king."""
+    before, after = verify.board("H2b-skewer"), verify.board("H2b-skewer", "Bf3+")
+    assert not before.is_attacked_by(chess.WHITE, chess.D5)
+    assert after.checkers() == chess.SquareSet([chess.F3])
+    assert chess.D5 in chess.SquareSet.between(chess.F3, chess.B7)
+    without_king = after.copy()
+    without_king.remove_piece_at(chess.D5)
+    assert chess.B7 in without_king.attacks(chess.F3)
 
 
 # --- Examples pass the same checks as model output ---------------------------------------------
