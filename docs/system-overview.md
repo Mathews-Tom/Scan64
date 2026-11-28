@@ -6,7 +6,7 @@ Scan64 is a local-first chess practice and learning application. It gives a play
 play or import -> analyse -> persist evidence -> diagnose -> serve lesson -> verify answer -> update mastery and review
 ```
 
-The current release is `1.1.0`; the README's [Stable from 1.0](../README.md#stable-from-10) section states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
+The current release is `1.1.0`; [Stable from 1.0](about.md#stable-from-10) states its compatibility commitments. See the [changelog](../CHANGELOG.md), [published releases](https://github.com/Mathews-Tom/Scan64/releases) and [latest stable release](https://github.com/Mathews-Tom/Scan64/releases/latest).
 
 ## What works today
 

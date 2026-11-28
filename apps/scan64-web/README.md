@@ -4,7 +4,7 @@ The Scan64 web client is a React and TypeScript application built with Vite. It 
 
 ## Run locally
 
-Follow the [root prerequisites](../../README.md) first, including Python/uv and Stockfish for the API, and Node.js/pnpm for the client. Install client dependencies from the repository root:
+Follow the [source prerequisites](../../docs/getting-started.md#from-source) first, including Python/uv and Stockfish for the API, and Node.js/pnpm for the client. Install client dependencies from the repository root:
 
 ```sh
 pnpm --dir apps/scan64-web install --frozen-lockfile
@@ -75,4 +75,4 @@ The optional `scripts/m81-live-evidence.mjs` records six screens at four widths 
 
 ## User documentation
 
-Use the [root README](../../README.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.
+Use [Get started](../../docs/getting-started.md) for installation and the [user guide](../../docs/user-guide.md) for workflows and manual acceptance testing.
