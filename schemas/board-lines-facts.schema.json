@@ -615,7 +615,7 @@
           "type": "string"
         },
         "uci": {
-          "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+          "pattern": "^([a-h][1-8][a-h][1-8][qrbn]?|[PNBRQ]@[a-h][1-8])$",
           "title": "Uci",
           "type": "string"
         },

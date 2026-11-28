@@ -802,7 +802,7 @@ The numbers are sides with the same result as at 1 000 000 nodes: the same move,
 
 **Raw scores (#513).** `tests/fixtures/themes/turning_point_scores.json` holds the score of every position at 10 000, 100 000 and 1 000 000 nodes, with the commit, the uncommitted changes (none), and the digests of the script, the games and the engine. `tests/helpers/themes/record_turning_points.py` recorded it. `uv run python -m tests.helpers.themes.summarize_turning_points` recomputes every figure above without an engine; the check rows run `check_level_scores` on the recorded scores. The new recording gives the same counts as #486, whose raw scores were not kept. #486 did not define its sides exactly: the definition above was chosen after the recording because it gives the 72 sides of #486. With a side counted for a point in any pass of the table, the rule gives 71 of 73 and, on the 160 other games, 137 of 143. #486 stated 5.6 and 1.8 searches; the recording gives 6.4 and 1.9.
 
-Nothing calls `check_level_scores` yet. Game analysis passes it when it passes the trace (#482).
+Nothing calls `check_level_scores` yet: game analysis passes the trace with its fast-pass scores (#482).
 
 **Limits.**
 

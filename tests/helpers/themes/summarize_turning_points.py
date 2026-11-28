@@ -116,6 +116,8 @@ def summarize_set(recorded: list[dict[str, Any]], games: list[dict[str, Any]]) -
                 }
     reference = "every position, 1000000 nodes"
     with_point = [r for r, _, _ in rows if r["fast pass"] is not None or r[reference] is not None]
+    passes = [name for name in rows[0][0] if not name.startswith(("median", "mean"))]
+    any_pass = [r for r, _, _ in rows if any(r[name] is not None for name in passes)]
     summary: dict[str, Any] = {
         "games": len(games),
         "sides": len(rows),
@@ -123,6 +125,10 @@ def summarize_set(recorded: list[dict[str, Any]], games: list[dict[str, Any]]) -
         "same_as_deep": {
             name: sum(r[name] == r[reference] for r in with_point) for name in rows[0][0]
         },
+        "rule_with_a_point_in_any_pass": [
+            sum(r[RULE] == r[reference] for r in any_pass),
+            len(any_pass),
+        ],
         "lost_sides": lost_sides,
         "searches_per_lost_side": round(searches / lost_sides, 1),
         "fast_pass_differs": differ,
