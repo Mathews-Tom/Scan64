@@ -6,26 +6,27 @@ The pairs themselves are written outside the repository.
 | Source | Games (held out) | Sentences | Kept | Trimmed | Dropped | Held-out pairs |
 |---|---:|---:|---:|---:|---:|---:|
 | Chess Fundamentals | 7 (0) | 234 | 0 | 0 | 234 | 0 |
-| Chess Strategy (second edition, translated by J. du Mont) | 30 (2) | 878 | 1 | 1 | 876 | 0 |
+| Chess Strategy (second edition, translated by J. du Mont) | 30 (2) | 878 | 1 | 0 | 877 | 0 |
 
-Audit sample for the blind judge: 2 pairs (target 200, seed 464).
+Audit sample for the blind judge: 1 pairs (target 200, seed 464).
 
 ## Dropped and trimmed, by reason
 
 | Reason | Chess Fundamentals | Chess Strategy (second edition, translated by J. du Mont) |
 |---|---:|---:|
 | no move before the comment | 0 | 29 |
-| no chess content | 81 | 248 |
-| descriptive square or piece | 16 | 113 |
-| move not in the facts | 63 | 253 |
-| move ambiguous | 17 | 71 |
+| no chess content | 80 | 193 |
+| descriptive square or piece | 20 | 195 |
+| move not in the facts | 63 | 257 |
+| move ambiguous | 17 | 69 |
 | engine: level | 1 | 0 |
-| unsupported term | 27 | 93 |
-| unsupported judgement | 9 | 13 |
-| unsupported piece or square | 8 | 27 |
-| capture without a capture fact | 0 | 1 |
-| no move or square of the facts | 9 | 25 |
-| more than one sentence | 3 | 4 |
+| unsupported term | 14 | 70 |
+| unsupported judgement | 4 | 6 |
+| unsupported piece or square | 3 | 13 |
+| no move or square of the facts | 7 | 12 |
+| more than one sentence | 2 | 3 |
+| played move is not the game move | 5 | 5 |
+| name or date | 18 | 25 |
 
 A trimmed sentence is counted under the reason its cut part failed.
 
@@ -35,11 +36,14 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 
 | Term | Sentences |
 |---|---:|
+| would | 134 |
 | threat | 76 |
 | develop | 74 |
 | exchange | 66 |
+| los | 58 |
 | prevent | 47 |
 | advantage | 43 |
+| cannot | 42 |
 | castl | 42 |
 | defen | 37 |
 | better | 32 |
@@ -59,6 +63,7 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | avoid | 16 |
 | superior | 16 |
 | strong | 15 |
+| bad | 14 |
 | winning | 13 |
 | safe | 9 |
 | idea | 9 |
@@ -67,6 +72,7 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | mistake | 8 |
 | escape | 8 |
 | gambit | 6 |
+| recapture | 6 |
 | compensat | 5 |
 | hope | 5 |
 | initiative | 5 |
@@ -80,10 +86,12 @@ Terms a sentence names that no fact for its position backs, by number of sentenc
 | worse | 3 |
 | weaker | 3 |
 | inferior | 3 |
+| resign | 3 |
 | subtle | 3 |
 | wise | 3 |
 | blunder | 2 |
 | complicat | 2 |
+| fall | 2 |
 | dangerous | 2 |
 | losing | 2 |
 | elegant | 2 |

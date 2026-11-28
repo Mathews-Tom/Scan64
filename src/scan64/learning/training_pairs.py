@@ -72,6 +72,8 @@ REASONS: tuple[str, ...] = (
     "piece on the wrong square",
     "no move or square of the facts",
     "more than one sentence",
+    "played move is not the game move",
+    "name or date",
 )
 
 # A descriptive move in prose: "P-K4", "Kt - R 4", "KtxP ch", "B(Q2)-K3", "Castles",
@@ -87,14 +89,32 @@ DESCRIPTIVE_MOVE = re.compile(
     rf"(?:\s?(?:dis\.?\s?ch|ch|mate)\b)?"
 )
 # A descriptive square left once the moves are read: "at Kt2", "KB4", "Q 5".
-DESCRIPTIVE_SQUARE = re.compile(rf"\b{_DESIGNATOR}\s?[1-8]\b|\b(?:[KQ]?(?:Kt|R|B)|[KQ])?P\b|\bKt\b")
+DESCRIPTIVE_SQUARE = re.compile(
+    rf"\b{_DESIGNATOR}\s?[1-8]\b|\b(?:[KQ]?(?:Kt|R|B)|[KQ])?P\b|\bKt\b|\b(?:[KQ](?:Kt|R|B)|Q|R|B|K)\b"
+)
 # A clause boundary a trim may cut at.
-_CLAUSE = re.compile(r",\s(?=(?:but|as|for|because|since|which|so|while|though)\b)")
+_CLAUSE = re.compile(r",\s(?=(?:as|for|because|since|which|so)\b)")
 # A sentence opening with one of these is a dependent clause: no trim keeps its start alone.
 _DEPENDENT = re.compile(
     r"^(?:if|against|after|in view|when|although|though|as|since|while|unless|because|should)\b",
     re.IGNORECASE,
 )
+# "played", "answered", "chose": a claim about the game move, unless it is "could have played".
+_PLAY_VERB = re.compile(
+    r"\b(?:play|plays|played|answer|answers|answered|chose|chooses|repl(?:y|ies|ied))\b",
+    re.IGNORECASE,
+)
+_COUNTERFACTUAL = re.compile(
+    r"\b(?:could|should|would|might|must|can|cannot|may)(?:\s+not)?(?:\s+have)?\s+(?:been\s+)?(?:play|played|answer|answered|chose|chosen|repl(?:y|ied))\b",
+    re.IGNORECASE,
+)
+_NUMBERED_SAN = re.compile(r"\b\d+\.(?:\.\.)?[A-Za-z][\w=+#-]*[\w+#]")
+# A capitalised word after the first that is not a side or a piece: a player, an event, a place.
+_NAME = re.compile(r"(?<!^)(?<![.!?]\s)\b[A-Z][a-z]+\b")
+_NOT_A_NAME = frozenset(
+    {"White", "Black", "King", "Queen", "Rook", "Bishop", "Knight", "Pawn", "Kt"}
+)
+_YEAR = re.compile(r"\b1[5-9]\d\d\b")
 _SENTENCE_END = re.compile(r"[.!?](?:\s|$)")
 _NUMBER = re.compile(r"^(\d+)\s?(\.\s?\.\.\.?|\.\.\.)?")
 _MATE = re.compile(r"\b(?:check)?mate[sd]?\b", re.IGNORECASE)
@@ -123,6 +143,14 @@ CLAIM_WORDS: tuple[str, ...] = (
     "complicat",
     "promising",
     "chance",
+    "cannot",
+    "can't",
+    "bad",
+    "los",
+    "would",
+    "resign",
+    "recapture",
+    "fall",
 )
 # A score this close to level contradicts "winning"; one this far from level, "a draw".
 LEVEL_CP = 150
@@ -265,7 +293,8 @@ def _resolve(token: str, facts: PositionFacts) -> set[str]:
             # "21. PxP" names White's 21st move, "21...PxP" Black's.
             if board.fullmove_number != int(number.group(1)):
                 continue
-            if number.group(2) is not None and board.turn == chess.WHITE:
+            black = number.group(2) is not None
+            if black != (board.turn == chess.BLACK):
                 continue
         try:
             parsed = parse_move(board, text, origins.squares)
@@ -285,8 +314,19 @@ def _unmatched_terms(text: str, facts: str) -> tuple[str, ...]:
     )
 
 
+def _game_move(facts: PositionFacts) -> str:
+    board, _, move = facts.positions[0]
+    return numbered_san(board, move)
+
+
 def _check(text: str, facts: PositionFacts, view: EngineView) -> str | None:
     """The first reason ``text`` (already in SAN) fails, or ``None`` when it passes."""
+    if any(name not in _NOT_A_NAME for name in _NAME.findall(text)) or _YEAR.search(text):
+        return "name or date"
+    if _PLAY_VERB.search(text) and not _COUNTERFACTUAL.search(text):
+        game = _game_move(facts).rstrip("+#")
+        if any(move.rstrip("+#") != game for move in _NUMBERED_SAN.findall(text)):
+            return "played move is not the game move"
     if _MATE.search(text) and not (view.best_mate or view.played_mate):
         return "engine: no mate"
     if _DRAW.search(text) and abs(view.played_score_cp) >= DRAW_CP:

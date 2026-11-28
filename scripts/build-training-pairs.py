@@ -21,9 +21,11 @@ written to the path in ``scripts/training-pairs.toml``.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import random
+import shutil
 import tomllib
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
@@ -187,6 +189,27 @@ def main() -> None:
         ],
     )
     engine_path = out_dir / "engine.jsonl"
+    settings = config["engine"]
+    # The cache holds analyses for one engine and one search budget: resuming with
+    # another would mix them.
+    binary = shutil.which(settings["command"])
+    if binary is None:
+        raise FileNotFoundError(f"engine {settings['command']!r} is not on PATH")
+    identity = {
+        **settings,
+        "binary": str(Path(binary).resolve()),
+        "binary_sha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
+    }
+    identity_path = out_dir / "engine-settings.json"
+    if engine_path.is_file():
+        if not identity_path.is_file():
+            raise RuntimeError(f"{engine_path} has no {identity_path.name}: move the cache aside")
+        recorded = json.loads(identity_path.read_text(encoding="utf-8"))
+        if recorded != identity:
+            raise RuntimeError(
+                f"{engine_path} was built with {recorded}, not {identity}: move the cache aside"
+            )
+    identity_path.write_text(json.dumps(identity, indent=2) + "\n", encoding="utf-8")
     cached: dict[tuple[str, str], dict[str, Any]] = {}
     if engine_path.is_file():
         for line in engine_path.read_text(encoding="utf-8").splitlines():
@@ -201,7 +224,6 @@ def main() -> None:
     heldout_pairs: Counter[str] = Counter()
     split_games: dict[str, Counter[str]] = defaultdict(Counter)
     pairs: list[dict[str, Any]] = []
-    settings = config["engine"]
     with (
         chess.engine.SimpleEngine.popen_uci(settings["command"]) as engine,
         engine_path.open("a", encoding="utf-8") as engine_out,

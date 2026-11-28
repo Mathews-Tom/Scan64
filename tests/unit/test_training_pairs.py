@@ -96,12 +96,27 @@ def test_descriptive_moves_become_the_facts_san(sentence: str, expected: str) ->
         ("8... P-Q3 was possible.", "move not in the facts"),
         ("KtxP takes the pawn on e5. P-Q3 protects it.", "more than one sentence"),
         ("If KtxP takes the pawn on e5, but it is a mistake.", "unsupported judgement"),
+        # A contrastive clause may correct the kept part, so no cut at "but".
+        ("KtxP takes the pawn on e5, but it is a mistake.", "unsupported judgement"),
         ("After KtxP the game is a draw.", "engine: not a draw"),
         ("KtxP and mate follows.", "engine: no mate"),
         ("After P-Q3 White is winning.", "engine: level"),
         ("KtxP wins.", "engine: level"),
         ("KtxP develops the knight.", "unsupported term"),
         ("P-Q3 was threatened.", "unsupported term"),
+        # An undotted number is White's move; White does not castle at move 8.
+        ("8. Castles was possible.", "move not in the facts"),
+        ("White played 8. Castles.", "move not in the facts"),
+        # "played" is a claim about the game move (8.Nxe5), not the engine's 8.d3.
+        ("White played P-Q3.", "played move is not the game move"),
+        ("Here Lasker played P-Q3 against Janowski.", "name or date"),
+        ("P-Q3 was played in Paris, 1912.", "name or date"),
+        ("Black cannot play P-Q3.", "unsupported term"),
+        ("P-Q3 is bad.", "unsupported term"),
+        ("P-Q3 would lose a pawn.", "unsupported term"),
+        ("KtxP takes the Black Q on e5.", "descriptive square or piece"),
+        ("KtxP attacks the KB.", "descriptive square or piece"),
+        ("KtxP takes the pawn on e5 and Black cannot recapture.", "unsupported term"),
         ("P-Q3 offered the only hope.", "unsupported term"),
         ("KtxP is a blunder.", "unsupported judgement"),
         ("KtxP takes the queen on d8.", "unsupported piece or square"),
@@ -123,13 +138,22 @@ def test_a_backed_sentence_is_kept() -> None:
 def test_a_judgement_clause_is_trimmed_off() -> None:
     view = _view()
     facts = position_facts(GAME.sans, PLY, view)
-    verdict = judge("KtxP takes the pawn on e5, but it is a mistake.", facts, view)
+    verdict = judge("KtxP takes the pawn on e5, as it is a mistake.", facts, view)
     assert (verdict.outcome, verdict.text, verdict.reason) == (
         "trimmed",
         "8.Nxe5 takes the pawn on e5.",
         "unsupported judgement",
     )
     assert "mistake" in verdict.unmatched_terms
+
+
+def test_played_is_the_game_move_and_could_have_played_the_alternative() -> None:
+    view = _view()
+    facts = position_facts(GAME.sans, PLY, view)
+    assert judge("White played KtxP.", facts, view).text == "White played 8.Nxe5."
+    assert judge("White could have played P-Q3.", facts, view).text == (
+        "White could have played 8.d3."
+    )
 
 
 def test_a_mate_claim_stands_when_the_engine_has_mate() -> None:
