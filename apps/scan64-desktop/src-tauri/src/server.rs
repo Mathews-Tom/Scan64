@@ -350,6 +350,12 @@ fn configure_engine(command: &mut Command, resource_dir: &Path) {
         // Keep external NNUE files discoverable without changing the inherited PATH.
         command.current_dir(engine_dir);
     }
+    // A fresh install's analysis and bot engines (Caissa, Arasan); the server
+    // records which engines this installation keeps next to its database.
+    let profiles = resource_dir.join("engines");
+    if profiles.is_dir() {
+        command.env("SCAN64_BUNDLED_ENGINES_DIR", profiles);
+    }
 }
 
 #[cfg(test)]
@@ -409,7 +415,24 @@ mod tests {
             Some(&Some(std::ffi::OsStr::new("original")))
         );
         assert_eq!(command.get_current_dir(), Some(engine_dir.as_path()));
+        assert!(!variables.contains_key(std::ffi::OsStr::new("SCAN64_BUNDLED_ENGINES_DIR")));
         fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn bundled_engine_profiles_are_passed_by_their_folder() {
+        let root = env::temp_dir().join(new_token().unwrap());
+        let profiles = root.join("engines");
+        fs::create_dir_all(&profiles).unwrap();
+        let mut command = Command::new("unused");
+        command.env_clear();
+        configure_engine(&mut command, &root);
+        let variables: std::collections::HashMap<_, _> = command.get_envs().collect();
+        assert_eq!(
+            variables.get(std::ffi::OsStr::new("SCAN64_BUNDLED_ENGINES_DIR")),
+            Some(&Some(profiles.as_os_str()))
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

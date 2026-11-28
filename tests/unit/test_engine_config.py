@@ -127,7 +127,6 @@ def test_profile_is_reread_after_edit(monkeypatch: pytest.MonkeyPatch, tmp_path:
     [
         ("[engine]\nbinary_path = 'x'\n", "engine.name"),
         ("[engine]\nname = 'x'\n", "binary_path"),
-        ("[engine]\nname = 'x'\nbinary_path = 'rel/x'\n", "absolute or a bare command"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\nthreads = 0\n", "engine.threads"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\ncolour = 1\n", "Unknown keys"),
         ("[engine]\nname = 'x'\nbinary_path = 'x'\n[engine.options]\nThreads = 4\n", "managed"),
@@ -166,6 +165,20 @@ def test_profile_path_must_exist_and_be_absolute(
         EngineConfig()
     with pytest.raises(EngineConfigurationError, match="absolute"):
         load_engine_profile(Path("relative.toml"))
+
+
+def test_a_relative_binary_path_is_the_profile_folder_s(tmp_path: Path) -> None:
+    # A bundled engine moves with its profile wherever the desktop app is installed.
+    profiles = tmp_path / "engines"
+    profiles.mkdir()
+    nested = load_engine_profile(
+        write_profile(profiles, "[engine]\nname = 'caissa'\nbinary_path = '../caissa/caissa'\n")
+    )
+    assert nested.binary_path == str((tmp_path / "caissa" / "caissa").resolve())
+    bare = load_engine_profile(
+        write_profile(profiles, "[engine]\nname = 'sf'\nbinary_path = 'stockfish'\n")
+    )
+    assert bare.binary_path == "stockfish"
 
 
 def test_extended_line_fields_from_engine_info() -> None:

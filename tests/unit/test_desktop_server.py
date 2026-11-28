@@ -432,3 +432,40 @@ def test_version_backup_precedes_api_loading_and_migrations_and_fails_closed(
     assert events == ([] if failure == "backup" else ["api-loaded", "migration"])
     exit_tree.assert_called_once_with(0 if failure is None else 1)
     assert marker.read_text() == ("0.6.2\n" if failure is None else "0.6.1\n")
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_install_engines_are_recorded_before_the_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing: bool
+) -> None:
+    # The backup is where a database first exists; the engine choice reads before it (#396).
+    bundled = tmp_path / "engines"
+    bundled.mkdir()
+    for name in ("caissa", "arasan"):
+        (bundled / f"{name}.toml").write_text(f'[engine]\nname = "{name}"\nbinary_path = "x"\n')
+    for name, value in environment(tmp_path).items():
+        monkeypatch.setenv(name, value)
+    # Empty means unset; monkeypatch restores what prepare_install selects.
+    monkeypatch.setenv("SCAN64_ENGINE_CONFIG", "")
+    monkeypatch.setenv("SCAN64_LADDER_ENGINE_CONFIG", "")
+    monkeypatch.setenv("SCAN64_BUNDLED_ENGINES_DIR", str(bundled))
+    # As the shell passes it; it does not stop a fresh install selecting the bundled engines.
+    monkeypatch.setenv("SCAN64_STOCKFISH_PATH", str(tmp_path / "stockfish"))
+    configuration = desktop_server.configuration_from_environment(os.environ)
+    desktop_server.configure_environment(configuration)
+    database = configuration.data_dir / "scan64.db"
+    if existing:
+        database.write_bytes(b"")
+    record = configuration.data_dir / "scan64.db.engines.toml"
+    seen: list[str] = []
+
+    def backup(data_dir: Path, version: str) -> str:
+        seen.append(record.read_text())
+        database.touch()
+        return "backup"
+
+    monkeypatch.setattr(desktop_server, "prepare_desktop_backup", backup)
+    assert desktop_server.prepare_install(configuration) == "backup"
+    expected = "stockfish" if existing else "bundled"
+    assert len(seen) == 1 and f'engines = "{expected}"' in seen[0]
+    assert (os.environ["SCAN64_ENGINE_CONFIG"] == str(bundled / "caissa.toml")) == (not existing)

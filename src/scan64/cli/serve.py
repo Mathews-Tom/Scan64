@@ -14,6 +14,7 @@ from scan64.providers.engine.config import (
     active_engine_profile,
     ladder_engine_profile,
 )
+from scan64.providers.engine.install_defaults import apply_install_engines
 
 
 async def _run_server(server: uvicorn.Server, url: str, open_browser: bool) -> None:
@@ -58,7 +59,19 @@ def _require_engine_binary() -> None:
     )
 
 
+def _select_install_engines() -> None:
+    """A packaged server's engines when none is configured (install_defaults)."""
+    # The database module builds its engine at import; it connects only later.
+    from scan64.persistence.database import database_url_from_environment
+
+    try:
+        apply_install_engines(database_url_from_environment())
+    except EngineConfigurationError as error:
+        raise SystemExit(f"Engine configuration is invalid: {error}") from error
+
+
 def serve_command(host: str, port: int, *, open_browser: bool) -> None:
+    _select_install_engines()
     _require_engine_binary()
     if not (web_dist_directory() / "index.html").is_file():
         raise SystemExit(

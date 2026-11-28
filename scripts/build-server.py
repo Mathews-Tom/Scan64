@@ -264,6 +264,23 @@ def replace_once(path: Path, old: str, new: str) -> None:
     path.write_text(text.replace(old, new), encoding="utf-8")
 
 
+# The bundled engines a fresh desktop install selects (#396): each profile is the
+# image's, with its binary relative to the profile (resources/engines/).
+BUNDLED_PROFILES = ("caissa", "arasan")
+
+
+def desktop_profile(container_profile: str, binary: str) -> str:
+    """The image's profile with ``binary_path`` beside it in the desktop resources."""
+    line = re.compile(r'^binary_path = "[^"\n]+"$', re.MULTILINE)
+    if len(line.findall(container_profile)) != 1:
+        raise SystemExit("A bundled engine profile needs exactly one binary_path line")
+    header = (
+        "# Staged for the desktop app by scripts/build-server.py from the image's\n"
+        "# profile below; only binary_path differs, relative to this file.\n"
+    )
+    return header + line.sub(f'binary_path = "../{binary}"', container_profile)
+
+
 def makefile_list(makefile: str, variable: str) -> list[str]:
     """A plain `NAME = a b \\` list from an upstream makefile, continuation lines included."""
     match = re.search(rf"^{re.escape(variable)} = ((?:.*\\\n)*.*)$", makefile, re.MULTILINE)
@@ -667,7 +684,7 @@ def main() -> None:
     run(sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "scan64-server.spec")
     # Stage only complete build outputs; no system interpreter or PATH engine is needed at runtime.
     RESOURCES.mkdir(parents=True, exist_ok=True)
-    for name in ("scan64-server", *staged, "notices"):
+    for name in ("scan64-server", *staged, "engines", "notices"):
         shutil.rmtree(RESOURCES / name, ignore_errors=True)
     shutil.copytree(ROOT / "dist" / "scan64-server", RESOURCES / "scan64-server")
     for engine_name, names in staged.items():
@@ -675,6 +692,13 @@ def main() -> None:
         engine_resources.mkdir()
         for name in names:
             shutil.copy2(STAGE / engine_name / name, engine_resources / name)
+    profiles = RESOURCES / "engines"
+    profiles.mkdir()
+    for engine_name in BUNDLED_PROFILES:
+        container = ROOT / "config" / "engines" / "container" / f"{engine_name}.toml"
+        (profiles / f"{engine_name}.toml").write_text(
+            desktop_profile(container.read_text(), f"{engine_name}/{engine_name}{target.suffix}")
+        )
     notices = RESOURCES / "notices"
     notices.mkdir()
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):

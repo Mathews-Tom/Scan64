@@ -80,6 +80,8 @@ def check_contents(resources: Path) -> list[str]:
         "arasan/arasanv8-20261005.nnue",
         "arasan/LICENSE",
         "arasan/Fathom-LICENSE",
+        "engines/caissa.toml",
+        "engines/arasan.toml",
         "notices/LICENSE",
         "notices/THIRD_PARTY_NOTICES.md",
         "notices/WEB_THIRD_PARTY_LICENSES.md",
@@ -188,6 +190,8 @@ def frozen_smoke(
         SCAN64_PORT=str(port),
         SCAN64_SHELL_TOKEN=token,
         SCAN64_STOCKFISH_PATH=str(stockfish),
+        # As the shell passes them: a fresh install plays with the bundled engines.
+        SCAN64_BUNDLED_ENGINES_DIR=str(resources / "engines"),
     )
     helpers = smoke_helpers()
     environment["PATH"] = helpers.runtime_path()
@@ -230,7 +234,9 @@ def frozen_smoke(
                 move
             )
             children = helpers.descendants(process.pid)
-            assert children, "No bundled Stockfish process was launched"
+            assert children, "No bundled engine process was launched"
+            record = directory / "data" / "scan64.db.engines.toml"
+            assert 'engines = "bundled"' in record.read_text(), "A fresh install kept Stockfish"
             assert process.stdin is not None
             process.stdin.close()
             process.wait(timeout=5)
@@ -240,7 +246,7 @@ def frozen_smoke(
                 "health": "ok",
                 "player_created": True,
                 "bot_move": move,
-                "stockfish": str(stockfish),
+                "engines": "bundled",
                 "children_stopped": len(children),
             }
             print("Frozen server smoke PASS: " + json.dumps(receipt), flush=True)
@@ -383,7 +389,9 @@ def main() -> None:
     if summary:
         with Path(summary).open("a") as output:
             output.write("### Installable dry-run artifacts\n\n```text\n" + text + "```\n")
-    print("All installed bundles passed content, Stockfish and app lifetime checks", flush=True)
+    print(
+        "All installed bundles passed content, bundled engine and app lifetime checks", flush=True
+    )
 
 
 if __name__ == "__main__":

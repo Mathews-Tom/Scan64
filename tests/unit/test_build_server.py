@@ -221,6 +221,11 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
     (root / "Dockerfile").write_text(dockerfile.replace(arasan_network, fixture_network))
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         (root / name).write_text(name)
+    container = root / "config" / "engines" / "container"
+    container.mkdir(parents=True)
+    for engine_name in builder.BUNDLED_PROFILES:
+        image_profile = builder.ROOT / "config" / "engines" / "container" / f"{engine_name}.toml"
+        shutil.copy2(image_profile, container / f"{engine_name}.toml")
     web = root / "apps" / "scan64-web" / "dist"
     web.mkdir(parents=True)
     (web / "THIRD_PARTY_LICENSES.md").write_text("web notices")
@@ -368,6 +373,14 @@ def test_build_only_copies_pinned_inputs_from_a_dirty_cache(
     assert (resources / "arasan" / builder.ARASAN_NETWORK).read_text() == "fixture network"
     assert (resources / "arasan" / "Fathom-LICENSE").read_text() == "Fathom MIT"
     assert len([args for args in calls if args[0] == cxx]) == 1
+    # A fresh desktop install's bundled profiles point beside them (#396).
+    assert {item.name for item in (resources / "engines").iterdir()} == {
+        "caissa.toml",
+        "arasan.toml",
+    }
+    for engine_name in builder.BUNDLED_PROFILES:
+        profile = (resources / "engines" / f"{engine_name}.toml").read_text()
+        assert f'binary_path = "../{engine_name}/{engine_name}{suffix}"' in profile
     assert (resources / "notices" / "WEB_THIRD_PARTY_LICENSES.md").read_text() == "web notices"
     assert (resources / "notices" / "rust-licenses.html").read_text() == "verified Rust notices"
     assert (resources / "notices" / "rust-licenses.json").read_text() == "verified Rust notices"
@@ -669,3 +682,33 @@ def test_pinned_source_edits_need_exactly_one_match(builder: ModuleType, tmp_pat
     source.write_text("#ifdef A\n")
     builder.replace_once(source, "#ifdef A", "#if defined(A)")
     assert source.read_text() == "#if defined(A)\n"
+
+
+@pytest.mark.parametrize("engine_name", ["caissa", "arasan"])
+def test_desktop_profiles_are_the_image_profiles_beside_the_resources(
+    builder: ModuleType, tmp_path: Path, engine_name: str
+) -> None:
+    from dataclasses import replace
+
+    from scan64.providers.engine.config import load_engine_profile
+
+    container = (
+        Path(__file__).resolve().parents[2]
+        / "config"
+        / "engines"
+        / "container"
+        / f"{engine_name}.toml"
+    )
+    profiles = tmp_path / "resources" / "engines"
+    profiles.mkdir(parents=True)
+    desktop = profiles / f"{engine_name}.toml"
+    desktop.write_text(
+        builder.desktop_profile(container.read_text(), f"{engine_name}/{engine_name}.exe")
+    )
+    image = load_engine_profile(container)
+    bundled = load_engine_profile(desktop)
+    assert bundled.binary_path == str(
+        (tmp_path / "resources" / engine_name / f"{engine_name}.exe").resolve()
+    )
+    # Everything but the binary's place (and the file it came from) is the image's.
+    assert replace(bundled, binary_path=image.binary_path, source=image.source) == image

@@ -1,10 +1,13 @@
 # Analysis engines
 
-Scan64 analyses with one UCI engine selected by configuration. Stockfish 18 is
-the default. The Dockerfile and the desktop build bundle Stockfish 18, Caissa
-2.0 and Arasan 26.1 ([Bundled engines](#bundled-engines)). Any other open-source
-UCI engine can replace it for analysis, review, hints, lessons and narrator
-evidence without a code change.
+Scan64 analyses with one UCI engine selected by configuration. The Docker
+image and the desktop app bundle Stockfish 18, Caissa 2.0 and Arasan 26.1
+([Bundled engines](#bundled-engines)). A fresh install of either analyses with
+Caissa and plays the bot ladder with Arasan; an install from before keeps
+Stockfish ([Which engines an install uses](#which-engines-an-install-uses)). A
+source checkout uses Stockfish on `PATH`. Any other open-source UCI engine can
+replace them for analysis, review, hints, lessons and narrator evidence without a
+code change.
 
 ## Bundled engines
 
@@ -16,28 +19,63 @@ executable ([THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)).
 
 | Engine | Role (#396) | Network | Docker image | Desktop resources |
 | --- | --- | --- | --- | --- |
-| Stockfish 18 (GPL-3.0) | default today | two NNUE files, embedded | `/usr/local/bin/stockfish` | `stockfish/stockfish[.exe]` |
+| Stockfish 18 (GPL-3.0) | installs from before the bundled engines | two NNUE files, embedded | `/usr/local/bin/stockfish` | `stockfish/stockfish[.exe]` |
 | Caissa 2.0 (MIT) | analysis | `eval-ml-8-152B-spsa.pnn`, embedded through `EVALFILE` | `/usr/local/bin/caissa` | `caissa/caissa[.exe]` |
 | Arasan 26.1 (MIT) | bot ladder | `arasanv8-20261005.nnue`, loaded from the executable's directory | `/usr/local/lib/arasan/arasan` | `arasan/arasan[.exe]` next to the `.nnue` |
 
-The image also carries one profile for each permissive engine in
-`/usr/local/share/scan64/engines/` (sources in
+Each package carries one profile for each permissive engine (sources in
 [`config/engines/container/`](../config/engines/container/)): `caissa.toml`
 (`UCI_ShowWDL` on) and `arasan.toml` (`OwnBook` off, the `elo` ladder of
-`config/engines/arasan.toml`). Nothing selects them yet, so the image and the
-desktop app still analyse and play with Stockfish. Select one with
-`docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml ...`
-(or `arasan.toml`). Under the Caissa profile bot play is unavailable, since
-Caissa has no strength options. The ladder profile variable
-`SCAN64_LADDER_ENGINE_CONFIG` takes effect only once #439 is merged; then
-`-e SCAN64_LADDER_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml`
-next to the Caissa profile lets Arasan play the ladder. The fresh-install default
-(Caissa for analysis, Arasan for the ladder) and the desktop shell passing both
-variables come with #396's default change. Caissa's `score_scale` is not set:
-its fit is open on #396.
+`config/engines/arasan.toml`). The image has them in
+`/usr/local/share/scan64/engines/`. The desktop build stages them in
+`engines/` among its resources, with `binary_path` rewritten to the engine
+beside them (`../caissa/caissa[.exe]`).
+
+**Provisional score scale.** `caissa.toml` sets no `score_scale`, so a fresh
+install reads Caissa's centipawns as Stockfish's. The committed measurement
+([`caissa_positions_report.md`](../benchmarks/narrator/results/caissa_positions_report.md),
+Evaluation) puts them at 0.71–0.75 of Stockfish's (1M-node searches pooled,
+n = 37): win percentages and the 150 cp mistake threshold run on an
+uncalibrated scale, and won positions read near 600–700 cp where Stockfish
+reports 1,000 or more. The earlier #396 comparison (1 s searches, n = 31) found
+the opposite, a slope of 1.19, so no single factor fits both samples yet. The
+fit on the 50 narrator positions is open on #396.
+Installs that keep Stockfish are unaffected.
+
+### Which engines an install uses
+
+A package names its profile folder in `SCAN64_BUNDLED_ENGINES_DIR`: the image
+sets it, and the desktop shell passes it. On the first start with that folder
+and no engine configured, the server records the install's engines in
+`<database>.engines.toml` next to its database (`/data/scan64.db.engines.toml`
+in the image, `scan64.db.engines.toml` in the desktop data folder):
+
+| At first start | Recorded | Analysis | Bot ladder |
+| --- | --- | --- | --- |
+| no database yet (a fresh install) | `engines = "bundled"` | Caissa | Arasan |
+| a database already there | `engines = "stockfish"` | Stockfish | Stockfish |
+
+Every later start reads the record, so an update never changes an install's
+engines: games under way, bot sessions (each plays only under the ladder it
+started with) and stored analysis keep the engine they were made with.
+
+To switch an install, stop it and edit the record (`"bundled"` or
+`"stockfish"`). `SCAN64_ENGINE_CONFIG` or `SCAN64_LADDER_ENGINE_CONFIG` set
+explicitly always win, and so does `SCAN64_STOCKFISH_PATH` in the image (the
+desktop shell always passes its bundled Stockfish there, so it does not count in
+the desktop app). Nothing is recorded on such a start. In the image:
+
+```sh
+docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml \
+  -e SCAN64_LADDER_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml ...
+```
+
+Under the Caissa profile alone bot play is unavailable, since Caissa has no
+strength options. Switching the ladder engine ends a bot session started under
+the old one with 503 `bot_play_unavailable` on its next move.
 
 Every desktop installer check (`scripts/desktop-package-smoke.py`) requires the
-three folders, checks every pinned file against its Dockerfile digest, and starts
+three engine folders and `engines/` with both profiles, checks every pinned file against its Dockerfile digest, and starts
 each engine outside its own folder: it must report its `id name` and answer `uci`
 and `isready`.
 
@@ -58,7 +96,7 @@ A profile:
 ```toml
 [engine]
 name = "ethereal"                                  # label for logs; not part of cache identity
-binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands) or a bare command on PATH
+binary_path = "~/.local/opt/engines/Ethereal.exe"  # absolute (~ expands), relative to this file, or a bare command on PATH
 protocol = "uci"                                   # optional: "uci" (default) or "xboard"
 threads = 1                                        # sent as Threads when the engine declares it
 hash_mb = 16                                       # sent as Hash when the engine declares it
@@ -85,8 +123,11 @@ Examples: [`config/engines/`](../config/engines/) (`ethereal.toml`,
 
 Rules (all enforced at load or engine start, failing with the file and key):
 
-- Unknown tables/keys, a relative `binary_path` containing a directory, a
-  missing or relative profile path, and non-positive numbers are rejected.
+- Unknown tables/keys, a missing or relative profile path, and non-positive
+  numbers are rejected.
+- A `binary_path` without a directory (`stockfish`) is looked up on `PATH`. A
+  relative `binary_path` with a directory (`../caissa/caissa`) is resolved
+  against the profile file's own folder.
 - `engine.options` may not set Scan64-managed options: `Threads`, `Hash`,
   `MultiPV`, `Ponder`, `UCI_AnalyseMode`, `UCI_Chess960`, `UCI_Variant`,
   `UCI_Opponent`, `UCI_RatingAdv`, `Skill Level`, `UCI_LimitStrength`, `UCI_Elo`.
@@ -307,7 +348,7 @@ is now `EngineConfig` and reads the active profile.
 | `learning/evaluation/m93_protocol.py:18`, `m94_protocol.py:30`, `lichess_themes.py:718` | Measurement protocols pinned to "Stockfish 19" | Intentional: frozen evaluation protocols. |
 | `cli/serve.py` | Checks the active profile's binary: `stockfish` on `PATH` (or `SCAN64_STOCKFISH_PATH`) for the default profile, the profile's `binary_path` otherwise | Profile-driven; the error names the profile that needs the missing binary. |
 | `cli/main.py:27`, `cli/bots.py` | `calibrate --stockfish` and calibration output | Calibration is Stockfish-only by design. |
-| `Dockerfile`, `scripts/build-server.py`, `scan64-server.spec`, desktop shell | Bundle and pin Stockfish 18, Caissa 2.0 and Arasan 26.1 with their networks; the shell passes only `SCAN64_STOCKFISH_PATH` | Caissa and Arasan are bundled but not selected yet ([Bundled engines](#bundled-engines)); other engines are operator-provided. |
+| `Dockerfile`, `scripts/build-server.py`, `scan64-server.spec`, desktop shell | Bundle and pin Stockfish 18, Caissa 2.0 and Arasan 26.1 with their networks; the shell passes `SCAN64_STOCKFISH_PATH` and `SCAN64_BUNDLED_ENGINES_DIR` | A fresh install selects Caissa and Arasan ([Which engines an install uses](#which-engines-an-install-uses)); other engines are operator-provided. |
 | `SCAN64_ENGINE_POOL_*` | Pool sizes | Engine-neutral. |
 
 ## Building a second engine

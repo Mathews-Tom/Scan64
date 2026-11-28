@@ -100,7 +100,7 @@ Lesson answers are checked on the server before they update skills and matching 
 
 ### Install the desktop app
 
-The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and Stockfish; no developer tools or separate engine are needed.
+The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and three engines: a fresh install analyses with Caissa and plays the bot levels with Arasan; an install from before keeps Stockfish ([which engines an install uses](docs/engines.md#which-engines-an-install-uses)). No developer tools or separate engine are needed.
 
 **Download the installer for your platform from the [latest published Scan64 release](https://github.com/Mathews-Tom/Scan64/releases/latest).** [Desktop CI](https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml) artifacts are test builds, not release installers.
 
@@ -168,7 +168,7 @@ SCAN64_UPDATER_DRY_RUN=1 pnpm --dir apps/scan64-desktop tauri build --config src
 open apps/scan64-desktop/src-tauri/target/release/bundle/macos/Scan64.app
 ```
 
-The build bundles Python, Stockfish 18, both networks and their licences/source; runtime needs no developer tools or system Stockfish. It is **unsigned and not notarized** (ad-hoc signing only). If macOS blocks a trusted build, use **System Settings → Privacy & Security → Open Anyway**; never disable Gatekeeper globally.
+The build bundles Python, Stockfish 18, Caissa 2.0 and Arasan 26.1, their networks and their licences/source; runtime needs no developer tools or system Stockfish. It is **unsigned and not notarized** (ad-hoc signing only). If macOS blocks a trusted build, use **System Settings → Privacy & Security → Open Anyway**; never disable Gatekeeper globally.
 
 This is an explicit development dry run: it skips the production public-key guard and cannot consume production updates. The published installers use the production updater key; never use the test-only updater overlay for a release.
 

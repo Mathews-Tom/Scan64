@@ -57,6 +57,8 @@ def test_bundle_content_check_requires_font_and_rust_notices(tmp_path: Path) -> 
         "arasan/arasanv8-20261005.nnue",
         "arasan/LICENSE",
         "arasan/Fathom-LICENSE",
+        "engines/caissa.toml",
+        "engines/arasan.toml",
         "notices/LICENSE",
         "notices/THIRD_PARTY_NOTICES.md",
         "notices/WEB_THIRD_PARTY_LICENSES.md",
@@ -95,7 +97,7 @@ def test_bundled_engine_files_must_match_the_dockerfile_digest(
     names += ["arasan/LICENSE", "arasan/Fathom-LICENSE", "notices/THIRD_PARTY_NOTICES.md"]
     names += ["notices/WEB_THIRD_PARTY_LICENSES.md", "notices/rust-licenses.html"]
     names += ["notices/rust-licenses.json", "notices/fonts/host-grotesk-OFL.txt"]
-    names += ["notices/fonts/jetbrains-mono-OFL.txt"]
+    names += ["notices/fonts/jetbrains-mono-OFL.txt", "engines/caissa.toml", "engines/arasan.toml"]
     pinned = [
         "stockfish/stockfish-sf_18.tar.gz",
         "stockfish/nn-c288c895ea92.nnue",
@@ -203,20 +205,40 @@ def test_process_executable_identifies_the_running_interpreter() -> None:
     assert any(executable.samefile(path) for path in interpreters if path)
 
 
-@pytest.mark.parametrize("name", ["stockfish", "stockfish.exe", "STOCKFISH.EXE"])
-def test_engine_snapshot_does_not_count_webview_helpers(
-    monkeypatch: pytest.MonkeyPatch, name: str
+@pytest.mark.parametrize(
+    ("stem", "name"),
+    [("stockfish", "stockfish"), ("stockfish", "STOCKFISH.EXE"), ("arasan", "arasan.exe")],
+)
+def test_engine_snapshot_counts_only_the_bundled_engine(
+    monkeypatch: pytest.MonkeyPatch, stem: str, name: str
 ) -> None:
     helpers = packaging.smoke_helpers()
 
     def children(parent: int) -> list[int]:
         assert parent == 10
-        return [11, 12, 13]
+        return [11, 12, 13, 14]
 
-    executables = {11: Path("/bundle/stockfish") / name, 12: Path("/bundle/WebKitWebProcess")}
+    executables = {
+        11: Path("/bundle") / stem / name,
+        12: Path("/bundle/WebKitWebProcess"),
+        # The same engine name outside its resource folder is not the bundled one.
+        14: Path("/usr/bin") / name,
+    }
     monkeypatch.setattr(helpers, "descendants", children)
     monkeypatch.setattr(helpers, "process_executable", executables.get)
-    assert helpers.stockfish_children(10) == [11]
+    assert helpers.engine_children(10, stem) == [11]
+
+
+@pytest.mark.parametrize(("engines", "bot"), [("bundled", "arasan"), ("stockfish", "stockfish")])
+def test_the_smoke_expects_the_bot_engine_the_install_recorded(
+    tmp_path: Path, engines: str, bot: str
+) -> None:
+    helpers = packaging.smoke_helpers()
+    (tmp_path / "scan64.db.engines.toml").write_text(f'engines = "{engines}"\n')
+    assert helpers.BOT_ENGINE[helpers.recorded_install_engines(tmp_path)] == bot
+    (tmp_path / "scan64.db.engines.toml").write_text('engines = "lc0"\n')
+    with pytest.raises(AssertionError, match="Unexpected engines record"):
+        helpers.recorded_install_engines(tmp_path)
 
 
 def test_failed_app_smoke_preserves_both_logs_before_temporary_cleanup(

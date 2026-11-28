@@ -258,11 +258,12 @@ def _binary_path(raw: object, config_path: Path) -> str:
     if not isinstance(raw, str) or not raw:
         raise EngineConfigurationError(f"{config_path}: engine.binary_path is required")
     expanded = os.path.expanduser(raw)
+    # A bare command name is looked up on PATH. A relative path with a directory
+    # is the profile's own folder's: a bundled engine moves with its profile
+    # wherever the desktop app is installed.
     if os.sep in expanded or (os.altsep is not None and os.altsep in expanded):
         if not Path(expanded).is_absolute():
-            raise EngineConfigurationError(
-                f"{config_path}: engine.binary_path must be absolute or a bare command name"
-            )
+            return str((config_path.parent / expanded).resolve())
     return expanded
 
 
