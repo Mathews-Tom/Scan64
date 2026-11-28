@@ -65,6 +65,12 @@ POSITION_NEGATIVE = [
 MOVE_POSITIVE = [
     ("fork", "r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", "b5c7", "a8"),
     ("skewer", "8/6r1/8/4k3/8/8/8/2B1K3 w - - 0 1", "c1b2", "g7"),
+    # The check Bb7+ only delays the fork (#487).
+    ("fork", "r1b1r3/6k1/8/1N6/8/P3P3/7P/7K w - - 0 1", "b5c7", "e8"),
+    # The check Ng3+ only delays the skewer (#487).
+    ("skewer", "8/k4n2/8/3r3n/8/3P3P/2B2PP1/7K w - - 0 1", "c2b3", "f7"),
+    # The knight uncovers the rook: a discovered skewer (#487).
+    ("skewer", "4r3/8/8/4k3/8/8/4N3/4R1K1 w - - 0 1", "e2c1", "e8"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
 ]
@@ -72,6 +78,9 @@ MOVE_POSITIVE = [
 MOVE_NEGATIVE = [
     ("fork", "r2qk3/8/8/1N6/8/8/8/4K3 w - - 0 1", "b5c7"),  # Qxc7
     ("skewer", "7k/6q1/8/4n3/8/8/8/2B1K3 w - - 0 1", "c1b2"),  # a pin, not a skewer
+    ("fork", "r1b1r3/6k1/8/1N6/8/P7/7P/7K w - - 0 1", "b5c7"),  # Re1+ saves the rook
+    ("skewer", "8/k4n2/8/3r3n/8/7P/2B2PP1/7K w - - 0 1", "c2b3"),  # Rd1+ saves the rook
+    ("skewer", "4r3/8/8/4kb2/8/8/4N3/4R1K1 w - - 0 1", "e2c1"),  # Be4 blocks the rook
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
 ]
@@ -131,6 +140,13 @@ def test_fact_texts() -> None:
     assert fork[0].text == (
         "Nc7+ is a fork: the white knight on c7 attacks the black rook on a8 and the black "
         "king on e8, and one of them is lost."
+    )
+    opened = _names(
+        move_concepts(chess.Board(MOVE_POSITIVE[4][1]), chess.Move.from_uci("e2c1")), "skewer"
+    )
+    assert opened[0].text == (
+        "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the "
+        "king moves, the rook takes the black rook on e8."
     )
     blockade = _names(position_concepts(chess.Board(POSITION_POSITIVE[8][1])), "blockade")
     assert blockade[0].text == "the black knight on d6 blockades the passed pawn on d5."
