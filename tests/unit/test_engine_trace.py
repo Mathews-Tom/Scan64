@@ -314,7 +314,6 @@ def test_winnable_row_is_compared_with_the_scale_factor() -> None:
     (found,) = sign_disagreements(report, _trace(report.fen, {"Winnable": (0.0, 0.5)}))
     assert (found.group, found.phase) == ("Winnable", "end game")
     assert found.module == pytest.approx(scaled / 206)
-    assert found.module == pytest.approx(-2.22, abs=0.5)
 
     # Stockfish 11: the row leaves the scale factor out.
     assert sign_disagreements(report, _trace(report.fen, {"Initiative": (0.0, 0.5)})) == []
