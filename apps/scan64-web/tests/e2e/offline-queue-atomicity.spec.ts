@@ -64,6 +64,10 @@ async function finishQueueOperation(page: Page): Promise<QueuedMove[]> {
   });
 }
 
+// The two tabs reach IndexedDB over separate channels, so a request made first can still
+// arrive second (#434). Each cross-tab test asserts what holds in either order: every
+// intent survives and no transaction applies by half.
+
 test('preserves concurrent appends from independent tabs', async ({ page, context }) => {
   const other = await context.newPage();
   await Promise.all([prepareQueuePage(page), prepareQueuePage(other)]);
@@ -81,10 +85,12 @@ test('preserves concurrent appends from independent tabs', async ({ page, contex
     await releaseQueue(page);
   }
   await finishQueueOperation(page);
-  expect(await finishQueueOperation(other)).toEqual([
+  const queue = await finishQueueOperation(other);
+  expect(queue).toHaveLength(2);
+  expect(queue).toEqual(expect.arrayContaining([
     { sessionId: 'first', move: 'e2e4', sourcePgn: '', timestamp: expect.any(Number) },
     { sessionId: 'second', move: 'd2d4', sourcePgn: '', timestamp: expect.any(Number) },
-  ]);
+  ]));
 });
 
 for (const first of ['append', 'discard'] as const) {
@@ -140,7 +146,7 @@ test('does not resurrect another discarded intent across tabs', async ({ page, c
   expect(await finishQueueOperation(other)).toEqual([]);
 });
 
-test('clear removes earlier appends but preserves a later append', async ({ page, context }) => {
+test('a clear and an append from another tab each apply whole, in either order', async ({ page, context }) => {
   const other = await context.newPage();
   await Promise.all([prepareQueuePage(page), prepareQueuePage(other)]);
   await holdQueue(page, [{ sessionId: 'legacy', move: 'e2e4', timestamp: 1 }]);
@@ -157,8 +163,28 @@ test('clear removes earlier appends but preserves a later append', async ({ page
     await releaseQueue(page);
   }
   await finishQueueOperation(page);
-  expect(await finishQueueOperation(other)).toEqual([]);
-  const later = await other.evaluate(async () => {
+  // Append then clear leaves nothing; clear then append leaves only the append.
+  // The legacy entry is gone either way, and nothing is applied by half.
+  const queue = (await finishQueueOperation(other)).map(({ sessionId, move }) => `${sessionId} ${move}`);
+  expect([[], ['earlier d2d4']]).toContainEqual(queue);
+});
+
+test('clear removes earlier appends but preserves a later append', async ({ page }) => {
+  await prepareQueuePage(page);
+  await holdQueue(page, [{ sessionId: 'legacy', move: 'e2e4', timestamp: 1 }]);
+  try {
+    // One tab, one connection: transactions start in the order they are made.
+    await page.evaluate(() => {
+      const state = window as unknown as QueueTestWindow;
+      state.queueOperation = state.queueModule.queueMove('earlier', 'd2d4', '');
+      (window as unknown as { clearOperation: Promise<void> }).clearOperation = state.queueModule.clearQueuedMoves();
+    });
+  } finally {
+    await releaseQueue(page);
+  }
+  await page.evaluate(() => (window as unknown as { clearOperation: Promise<void> }).clearOperation);
+  expect(await finishQueueOperation(page)).toEqual([]);
+  const later = await page.evaluate(async () => {
     const queue = (window as unknown as QueueTestWindow).queueModule;
     await queue.queueMove('later', 'g1f3', '');
     return queue.getQueuedMoves();
