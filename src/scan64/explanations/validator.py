@@ -200,9 +200,29 @@ def slot_citation(
     return best
 
 
+# A slot whose value already ends in pawns ("4.05 pawns", "fell by 0.65 pawns
+# for you"), followed by the unit again: "{eval_diff} pawns". The unit is
+# dropped, so it is neither checked as a chess word nor rendered twice (#431).
+_PAWN_UNIT_AFTER_SLOT = re.compile(
+    r"(\{\s*(?:eval(?:_before|_after|_diff)?(?::[A-Za-z0-9_-]+)?|diff:[A-Za-z0-9_-]+"
+    r"|factor:[A-Za-z0-9_:-]+)\s*\})\s+pawns?\b",
+    re.IGNORECASE,
+)
+
+
+# Claim text that names the best move: a best-move slot ({best}, {capture:best},
+# {factor:KEY:best}) or "the best/better/right move" (``claims.supported``).
+_NAMES_BEST = re.compile(
+    r"\{\s*(?:[a-z_]+:)*best\s*\}|\b(?:best|better|right|stronger|correct)\s+"
+    r"(?:move|one|choice|option|reply)\b",
+    re.IGNORECASE,
+)
+
+
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
     """Check one slot claim's text (slot path) and return it with every slot filled."""
     slots = catalogue.slots_for(evidence_id)
+    text = _PAWN_UNIT_AFTER_SLOT.sub(r"\1", text)
     for match in SLOT_TOKEN.finditer(text):
         name = match.group("name")
         if name in slots:
@@ -225,7 +245,11 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
         )
     # After the slot-token rule, so these reasons count only what the claim
     # rule adds (#431).
-    claim = unsupported_claim(prose, catalogue.claim_facts(evidence_id))
+    claim = unsupported_claim(
+        prose,
+        catalogue.claim_facts(evidence_id),
+        compares_best=_NAMES_BEST.search(text) is not None,
+    )
     if claim is not None:
         if claim.negated:
             raise _reject("negated_claim", f"states a negated chess claim: {claim.text!r}")

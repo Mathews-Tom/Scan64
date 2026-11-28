@@ -31,7 +31,7 @@ from dataclasses import dataclass, field, replace
 
 import chess
 
-from scan64.explanations.claims import ClaimFacts
+from scan64.explanations.claims import ClaimFacts, factor_group
 from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
     CentipawnEvaluation,
@@ -90,21 +90,41 @@ def vocabulary(phrases: Iterable[str]) -> frozenset[str]:
 
 
 def blank_phrases(prose: str, phrases: Iterable[str]) -> str:
-    """``prose`` with every whole occurrence of a phrase blanked (word forms compared).
+    """``prose`` with every occurrence of a phrase's ending blanked (word forms compared).
 
-    A factor name admits its words only as the whole name (#431): ``rook
-    threats`` admits "rook threats", never a bare "rook".
+    A threats factor name admits its words only with its head noun (#431):
+    ``safe pawn threats`` admits "safe pawn threats", "pawn threats" and
+    "threats", never a bare "pawn"; ``rook threats`` never a bare "rook".
     """
     tokens = list(_WORD.finditer(prose.lower()))
     forms = [_word_form(token[0]) for token in tokens]
     chars = list(prose)
     for phrase in phrases:
-        target = [_word_form(w) for w in _WORD.findall(phrase.lower())]
-        for start in range(len(forms) - len(target) + 1) if target else ():
-            if forms[start : start + len(target)] == target:
-                begin, end = tokens[start].start(), tokens[start + len(target) - 1].end()
-                chars[begin:end] = " " * (end - begin)
+        words = [_word_form(w) for w in _WORD.findall(phrase.lower())]
+        for target in (words[cut:] for cut in range(len(words))):
+            for start in range(len(forms) - len(target) + 1):
+                if forms[start : start + len(target)] == target:
+                    begin, end = tokens[start].start(), tokens[start + len(target) - 1].end()
+                    chars[begin:end] = " " * (end - begin)
     return "".join(chars)
+
+
+def factor_names(changes: Iterable[FactorChange]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Passed factor names as (vocabulary terms, phrases), first occurrence order.
+
+    A Threats-group name ("rook threats", "minor piece threats") names the
+    attacking piece type, not a piece of the position, so it is a phrase
+    (``blank_phrases``). Every other name ("king safety", "weak queen",
+    "connected pawns") names the side's own king, pieces or pawns, and its
+    words are vocabulary words; claims about them are read by the claim rule.
+    """
+    names = list(
+        dict.fromkeys((change.name, factor_group(change) == "Threats") for change in changes)
+    )
+    return (
+        tuple(name for name, threats in names if not threats),
+        tuple(name for name, threats in names if threats),
+    )
 
 
 def chess_words_outside_slots(
@@ -179,8 +199,8 @@ class SlotCatalogue:
     # Fact names per evidence item beyond its slot names: the mistake class
     # and the evidence tactic (vocabulary rule).
     terms: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
-    # Names of the passed factor changes per evidence item, admitted only as
-    # whole names (#431).
+    # Names of the passed Threats-group factor changes per evidence item,
+    # admitted only with their head noun (#431, ``factor_names``).
     phrases: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     # Relational facts per evidence item (``claims.py``); an item without an
     # entry supports no claim.
@@ -195,7 +215,8 @@ class SlotCatalogue:
     def vocabulary(self, evidence_id: str) -> frozenset[str]:
         """Words a claim citing ``evidence_id`` may use outside slots.
 
-        Factor slot names add no word: a factor name is a phrase (``phrases``).
+        Factor slot names add no word: the passed factor names come in
+        ``terms`` or, for threats, ``phrases`` (``factor_names``).
         """
         names = (name for name in self.slots_for(evidence_id) if not name.startswith("factor:"))
         return vocabulary((*names, *self.terms.get(evidence_id, ())))
@@ -560,7 +581,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     by_evidence: dict[str, dict[str, Slot]] = {}
     terms: dict[str, tuple[str, ...]] = {}
     changes = facts.factors.changes if facts.factors else ()
-    factor_names = tuple(dict.fromkeys(change.name for change in changes))
+    factor_terms, factor_phrases = factor_names(changes)
     lines = {line.line_id: line.moves for line in facts.lines}
     claims: dict[str, ClaimFacts] = {}
     for item in facts.evidence:
@@ -570,7 +591,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         slots.update((slot.name, slot) for slot in _evidence_slots(item))
         by_evidence[item.evidence_id] = slots
         tactic = (item.tactic.replace("_", " "),) if item.tactic else ()
-        terms[item.evidence_id] = (position.mistake_class.name, *tactic)
+        terms[item.evidence_id] = (position.mistake_class.name, *tactic, *factor_terms)
         moves = [(played,), *([(best,)] if best is not None else [])]
         claims[item.evidence_id] = ClaimFacts.collect(
             position.material,
@@ -582,7 +603,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
         terms=terms,
-        phrases={item.evidence_id: factor_names for item in facts.evidence},
+        phrases={item.evidence_id: factor_phrases for item in facts.evidence},
         claims=claims,
         example=_lesson_example({slot.name for slot in shared}),
     )
@@ -622,6 +643,7 @@ __all__ = [
     "evaluation_value",
     "FACTOR_REFERENCES",
     "FACTOR_SLOT_SUFFIX",
+    "factor_names",
     "factor_slots",
     "factor_value",
     "lesson_slot_catalogue",

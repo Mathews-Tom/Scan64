@@ -65,6 +65,13 @@ FACTOR_TOPICS = {
 _GROUP_OF_PART = dict(PARTS)
 
 
+def factor_group(change: FactorChange) -> str:
+    """The evaluation group of a factor change: its own name, or its part's group."""
+    return (
+        change.guide_name if change.kind == "group" else _GROUP_OF_PART.get(change.guide_name, "")
+    )
+
+
 @dataclass(frozen=True)
 class ClaimFacts:
     """Every relational fact a claim citing one evidence item may state, learner's view."""
@@ -95,11 +102,7 @@ class ClaimFacts:
                     scores.add(cp)
         topics = set()
         for change in factors:
-            group = (
-                change.guide_name
-                if change.kind == "group"
-                else _GROUP_OF_PART.get(change.guide_name, "")
-            )
+            group = factor_group(change)
             if group in FACTOR_TOPICS and change.change_pawns != 0:
                 topics.add((FACTOR_TOPICS[group], 1 if change.change_pawns > 0 else -1))
         return cls(frozenset(balances), frozenset(changes), frozenset(scores), frozenset(topics))
@@ -431,7 +434,9 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
     (
         re.compile(
             rf"\b{_OWNER}\s+(?:position|game){_BE}\s+(?:(?P<big>winning|won)|{_POSITION_GOOD}"
-            rf"|(?P<minus>(?P<big2>losing|lost)|{_POSITION_BAD}))\b",
+            rf"|(?P<minus>(?P<big2>losing|lost)|{_POSITION_BAD}))\b"
+            # "worse for you in terms of {factor:...}" compares a factor, not the score.
+            r"(?!(?:\s+for\s+you)?\s+(?:than|in\s+terms\s+of)\b)",
             _I,
         ),
         lambda match: Claim(
@@ -475,8 +480,9 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
         re.compile(
             rf"\b{_OWNER}\s+king(?:'s)?(?:\s+(?:position|shelter|cover|safety))?"
             rf"(?:{_BE})?(?:\s+(?:became|becomes|become|got|gets|feels|felt|seems"
-            r"|has\s+become))?(?:\s+(?:now|still|very|more|less|quite|completely|so|too))*"
-            rf"\s+(?:{_KING_GOOD}|(?P<minus>{_KING_BAD}))\b",
+            r"|has\s+become))?(?:\s+(?:now|still|very|more|less|quite|completely|so|too"
+            r"|in\s+immediate|in\s+real|in\s+serious|in\s+any|in\s+great))*"
+            rf"\s+(?:{_KING_GOOD}|(?P<minus>{_KING_BAD}|danger|trouble))\b",
             _I,
         ),
         _signed("king"),
@@ -547,8 +553,14 @@ CLAIM_RULES: tuple[tuple[re.Pattern[str], _Reader], ...] = (
 )
 
 
-def supported(claim: Claim, facts: ClaimFacts) -> bool:
-    """Whether some fact of ``facts`` states ``claim`` (side and sign checked)."""
+def supported(claim: Claim, facts: ClaimFacts, *, compares_best: bool = False) -> bool:
+    """Whether some fact of ``facts`` states ``claim`` (side and sign checked).
+
+    ``compares_best``: the claim text names the best move. A factor change is
+    the played move against the best move, so "the best move keeps your king
+    safer" and "your king became weaker" state the same change; a king,
+    threats or activity claim is then checked for its topic only.
+    """
     signs = (1, -1) if claim.side == 0 else (claim.side,)
     if claim.topic in ("balance", "change"):
         values = facts.balances if claim.topic == "balance" else facts.changes
@@ -573,7 +585,7 @@ def supported(claim: Claim, facts: ClaimFacts) -> bool:
             for side in signs
             for score in facts.evaluations
         )
-    if claim.sign == 0:
+    if claim.sign == 0 or compares_best:
         return any(topic == claim.topic for topic, _ in facts.factors)
     return any((claim.topic, side * claim.sign) in facts.factors for side in signs)
 
@@ -586,7 +598,9 @@ class RejectedClaim:
     negated: bool
 
 
-def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
+def unsupported_claim(
+    prose: str, facts: ClaimFacts, *, compares_best: bool = False
+) -> RejectedClaim | None:
     """The first claim in ``prose`` that is negated or no fact supports, else ``None``.
 
     The validator runs it after the vocabulary rule, and it only adds
@@ -601,7 +615,7 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
             # A negated claim states an absence, which no fact records.
             if groups.get("neg") or groups.get("neg2"):
                 return RejectedClaim(match[0].strip(), negated=True)
-            if not supported(read(match), facts):
+            if not supported(read(match), facts, compares_best=compares_best):
                 return RejectedClaim(match[0].strip(), negated=False)
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
     return None
@@ -616,6 +630,7 @@ __all__ = [
     "Claim",
     "ClaimFacts",
     "RejectedClaim",
+    "factor_group",
     "supported",
     "unsupported_claim",
 ]

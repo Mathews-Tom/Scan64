@@ -25,11 +25,13 @@ from scan64.explanations.board_lines import (
     scored_legal_lines,
 )
 from scan64.explanations.claims import ClaimFacts, unsupported_claim
+from scan64.explanations.factor_facts import FactorChange
 from scan64.explanations.slots import (
     CHESS_WORDS,
     Slot,
     SlotCatalogue,
     chess_words_outside_slots,
+    factor_names,
 )
 from scan64.explanations.validator import (
     GroundedExplanationContext,
@@ -268,26 +270,67 @@ def test_tone_passes_on_the_analysis_board(text: str) -> None:
     _validate(text, context, "comparison")
 
 
-def test_a_factor_name_admits_its_words_only_as_the_whole_name() -> None:
+def test_a_threats_factor_name_admits_its_words_only_with_its_head_noun() -> None:
     """#431: "rook threats" no longer admits a bare "rook"; "piece placement" no "piece"."""
     catalogue = SlotCatalogue(
         by_evidence={"ev": {"factor:rook_threats:best": Slot("factor:rook_threats:best", "", "")}},
-        phrases={"ev": ("rook threats", "piece placement")},
+        phrases={"ev": ("rook threats", "safe pawn threats")},
     )
     words = catalogue.vocabulary("ev")
     assert "rook" not in words and "threat" not in words
     phrases = catalogue.phrases["ev"]
-    assert chess_words_outside_slots("your rook threats grew", words, phrases) is None
+    for text in ("your rook threats grew", "fewer pawn threats", "a threat"):
+        assert chess_words_outside_slots(text, words, phrases) is None
     assert chess_words_outside_slots("your rook is lost", words, phrases) == "rook"
-    assert chess_words_outside_slots("a threat", words, phrases) == "threat"
+    assert chess_words_outside_slots("keep pawns safe", words, phrases) == "pawns"
     assert unsupported_claim("You are up a piece.", catalogue.claim_facts("ev")) is not None
 
 
-def test_a_lesson_factor_name_is_a_phrase_and_its_slot_adds_no_word() -> None:
+def _change(guide_name: str, name: str, kind: str = "term") -> FactorChange:
+    return FactorChange(
+        key=name.replace(" ", "_"),
+        name=name,
+        kind=kind,  # type: ignore[arg-type]
+        guide_name=guide_name,
+        compared_with="best",
+        change_pawns=-0.5,
+    )
+
+
+def test_only_threats_factor_names_are_phrases() -> None:
+    """A Threats name names an attacker type; others name the side's own king or pieces."""
+    changes = [
+        _change("King", "king safety", "group"),
+        _change("Rook threat", "rook threats"),
+        _change("Weak queen", "weak queen"),
+        _change("King", "king safety", "group"),
+    ]
+    assert factor_names(changes) == (("king safety", "weak queen"), ("rook threats",))
+
+
+def test_a_lesson_factor_name_and_its_slot() -> None:
     context, evidence_id = _lesson(THREATS_FELL)
     assert context.slots is not None
-    assert "king safety" in context.slots.phrases[evidence_id]
-    assert "safety" not in context.slots.vocabulary(evidence_id)
+    assert "king safety" in context.slots.terms[evidence_id]
+    assert not any(name.startswith("factor:") for name in context.slots.terms[evidence_id])
     text = "After {played}, your king safety suffered."
     assert _validate(text, context, evidence_id).endswith("your king safety suffered.")
     assert _rejects("After {played}, your king safety improved.", context, evidence_id)
+
+
+def test_a_comparison_with_the_best_move_is_checked_for_its_topic() -> None:
+    """A factor change is the played move against the best move: either side may be named."""
+    context, evidence_id = _lesson(THREATS_FELL)
+    assert ("king", 1) not in _facts(context, evidence_id).factors
+    assert _validate("The best move keeps your king safer.", context, evidence_id)
+    assert _validate("{best} keeps your king safer.", context, evidence_id)
+    assert _rejects("Your king is safer after your move.", context, evidence_id)
+
+
+def test_the_pawn_unit_after_an_evaluation_slot_is_not_a_chess_word() -> None:
+    context, evidence_id = _lesson(LEVEL)
+    assert context.slots is not None and "eval_diff" in context.slots.slots_for(evidence_id)
+    text = _validate("The best move scores {eval_diff} pawns better.", context, evidence_id)
+    assert text.count("pawns") == 1
+    bare = SlotCatalogue(by_evidence={"ev": {}})
+    assert chess_words_outside_slots("you are two pawns short", bare.vocabulary("ev")) == "pawns"

@@ -76,6 +76,7 @@ from scan64.explanations.slots import (
     Slot,
     SlotCatalogue,
     evaluation_value,
+    factor_names,
     factor_slots,
     line_slots,
     numbered_san,
@@ -627,11 +628,12 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
     items: dict[str, tuple[BoardLineFacts, ...]] = {line.line_id: (line,) for line in facts.lines}
     if len(facts.lines) > 1:
         items[COMPARISON_EVIDENCE_ID] = facts.lines
+    terms: dict[str, tuple[str, ...]] = {}
     phrases: dict[str, tuple[str, ...]] = {}
     claims: dict[str, ClaimFacts] = {}
     for evidence_id, lines in items.items():
         changes = [c for line in lines if line.factors for c in line.factors.changes]
-        phrases[evidence_id] = tuple(dict.fromkeys(change.name for change in changes))
+        terms[evidence_id], phrases[evidence_id] = factor_names(changes)
         claims[evidence_id] = ClaimFacts.collect(
             facts.position.material,
             (facts.position.evaluation, *(line.evaluation for line in lines)),
@@ -650,6 +652,7 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
     return SlotCatalogue(
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
+        terms=terms,
         phrases=phrases,
         claims=claims,
         example=example,
