@@ -65,8 +65,8 @@ The brief is in `results/run1/judge-brief.md`. `judge.join` refuses a missing it
 | Turning point worded by the model | 29/29 | 29/29 | 29/29 | 29/29 |
 | Turning point, first try | 29/29 | 24/29 | 29/29 | 25/29 |
 | Root cause stated (code metric) | 21/23 | 23/23 | 22/23 | 23/23 |
-| Faithful (judge) | 36/37 | 37/37 | 37/37 | 35/37 |
-| Lively (judge) | 2.03 | 2.00 | 1.92 | 2.00 |
+| Faithful (a different judge in each run) | 36/37 | 37/37 | 37/37 | 35/37 |
+| Lively (a different judge in each run) | 2.03 | 2.00 | 1.92 | 2.00 |
 
 `74ee9f5` changes the check and both cause examples of the Tal card, so run 2 measures the two together. The two runs have different judges.
 
@@ -164,7 +164,7 @@ Run 2, 2026-11-28, pipeline at `2df3880`, the same positions, models and samplin
 
 Run 2:
 
-- **The stricter check costs wording, not content.** The model words 18 of 23 causes (Q4_K_S) and 17 of 23 (Q3_K_M), where run 1 had 23 of 23. The plain fact fills the rest, so every explanation states its cause. The turning point needs more tries and never falls back.
+- **After `74ee9f5` the model words fewer causes**: 18 of 23 (Q4_K_S) and 17 of 23 (Q3_K_M), where run 1 had 23 of 23. The check and the Tal examples changed together, with one sample each. The plain fact fills the rest, so every explanation states its cause. The turning point needs more tries and never falls back.
 - **The Chernev card does not change**: 23 of 23 and 29 of 29, all on the first try. It repeats the fact's words.
 - **No change in liveliness is visible.** The judge gives every Tal and `no-cause` comment 2, and every Chernev and plain comment 1, so a small change cannot show.
 - The judge marks 6 of 185 unfaithful: 3 Chernev comments give a White move to Black (#511), 2 Q3_K_M comments claim the castled king is safe, and 1 `no-cause` comment calls the capturing rook captured.
@@ -178,7 +178,7 @@ Run 1:
 
 ## Limits
 
-- **Run 2's judge transcript is also not kept.** The harness left no file. `results/run2/judge-session.md` holds the two attempts, the final report and the counts. The judge took 98 seconds for 185 items, and it gave one `lively` value to each arm.
+- **Run 2's judge transcript is also not kept, so that criterion of #514 is not met.** The harness left no file. `results/run2/judge-session.md` holds the two attempts, the final report and the counts. The judge took 98 seconds for 185 items, and it gave one `lively` value to each arm.
 - **Judges drift between runs.** The plain arm does not use a model, yet its `clear` is 2.97 in run 1 and 2.76 in run 2. Do not compare `clear` across runs.
 - **The rater is a model, and no person has rated the set.** Run 1's working was not kept: no transcript was available afterwards, so how it reached each answer cannot be checked. It judged 185 items in about two minutes and reported a script for bookkeeping. It gave `clear` 3 to 183 items and the same `lively` to every Chernev and plain comment, so treat those two columns as coarse.
 - **The judge broke its brief on `order` twice.** It marked two comments as ordered (q004, q130) whose cause it marked as not named. The judgements are stored unchanged. The column counts a comment only when every fact it orders is named.
