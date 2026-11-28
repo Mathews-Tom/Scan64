@@ -212,6 +212,8 @@ def dockerfile_download_digest(dockerfile: str, name: str, url: str) -> str:
 
     The download and its check are exact commands in one && chain, so a
     neutralised check ("|| true") or a download in an unused stage never pins.
+    This guards against drift, not a hostile Dockerfile: it reads command order,
+    not shell control flow (a leading "false ;" is still accepted).
     """
     found = []
     for run in dockerfile_runs(dockerfile):
