@@ -593,7 +593,7 @@ def test_pin_and_check_sentences_name_the_piece_not_a_pronoun() -> None:
             if any(
                 r.kind in ("pins", "blocks", "mates", "shuts_in", "frees") for r in fact.relations
             ):
-                assert re.search(r"it", fact.text) is None, fact.text
+                assert re.search(r"\bit\b", fact.text) is None, fact.text
 
 
 def test_a_draw_by_insufficient_material_in_a_line_is_stated() -> None:
