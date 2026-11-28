@@ -12,6 +12,7 @@ from benchmarks.narrator.run_benchmark import (
     load_config,
     narrator_digest,
     pipeline_identity,
+    refuse_changed_setup,
     refuse_resume,
 )
 
@@ -110,3 +111,42 @@ def test_resume_refused_after_a_narrator_module_changed(tmp_path: Path, module: 
     assert set(modules) == {f"explanations/{name}.py" for name in NARRATOR_MODULES}
     with pytest.raises(RuntimeError, match="narrator_sha256"):
         refuse_resume(header, {**IDENTITY, "narrator_sha256": now})
+
+
+SETUP = {
+    "commit": "abc",
+    "gpu": "NVIDIA GeForce RTX 5090, 32607 MiB",
+    "ollama_version": "0.40.18",
+    "positions_sha256": "p" * 64,
+    "num_ctx": 4096,
+}
+
+
+def _setup_header(**changes: object) -> dict[str, object]:
+    fields = {**SETUP, **changes}
+    return {"pipeline": {"commit": fields.pop("commit")}, **fields}
+
+
+def test_resume_accepts_the_same_hardware_and_server() -> None:
+    refuse_changed_setup(_setup_header(), dict(SETUP))
+
+
+@pytest.mark.parametrize(
+    ("key", "now"),
+    [
+        ("gpu", "NVIDIA GeForce RTX 4080 Laptop GPU, 12282 MiB"),
+        ("ollama_version", "0.41.0"),
+        ("positions_sha256", "q" * 64),
+        ("num_ctx", 12288),
+        ("commit", "def"),
+    ],
+)
+def test_resume_refuses_other_hardware_server_positions_or_context(key: str, now: object) -> None:
+    with pytest.raises(RuntimeError, match=f"Resume refused: changed .*{key}"):
+        refuse_changed_setup(_setup_header(), {**SETUP, key: now})
+
+
+def test_resume_refuses_a_header_without_the_setup_fields() -> None:
+    header = {"pipeline": {"commit": "abc"}}
+    with pytest.raises(RuntimeError, match="gpu"):
+        refuse_changed_setup(header, dict(SETUP))

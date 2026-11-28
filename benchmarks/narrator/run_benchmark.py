@@ -304,6 +304,26 @@ def refuse_resume(header: dict[str, Any], identity: dict[str, Any]) -> None:
         )
 
 
+def refuse_changed_setup(header: dict[str, Any], current: dict[str, Any]) -> None:
+    """Refuse a resume on other hardware or another server (#380 review).
+
+    The commit, GPU, Ollama version, positions file and ``num_ctx`` of the run now must
+    equal the header's, or the old and new rows are not one measurement. A header
+    without one of these keys (an older runner) has ``None`` there and is refused.
+    """
+    recorded = {
+        "commit": header["pipeline"]["commit"],
+        **{key: header.get(key) for key in current if key != "commit"},
+    }
+    changed = {
+        key: (recorded[key], current[key]) for key in current if recorded[key] != current[key]
+    }
+    if changed:
+        raise RuntimeError(
+            f"Resume refused: changed since the run started (header, now): {changed}"
+        )
+
+
 # --- Setup ---------------------------------------------------------------------
 
 
@@ -1238,17 +1258,7 @@ async def run(
             "positions_sha256": hashlib.sha256(config.positions_file.read_bytes()).hexdigest(),
             "num_ctx": config.num_ctx,
         }
-        recorded = {
-            "commit": header["pipeline"]["commit"],
-            **{key: header.get(key) for key in current if key != "commit"},
-        }
-        changed = {
-            key: (recorded[key], current[key]) for key in current if recorded[key] != current[key]
-        }
-        if changed:
-            raise RuntimeError(
-                f"Resume refused: changed since the run started (header, now): {changed}"
-            )
+        refuse_changed_setup(header, current)
         done = {
             (r["model"], r["position_id"], r["run"]) for r in records if r.get("record") == "run"
         }
