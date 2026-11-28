@@ -38,6 +38,7 @@ from scan64.explanations.role_facts import RoleFact, RoleFactsError, numbered_sa
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
+from scan64.explanations.themes import GameTrace
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
@@ -358,10 +359,11 @@ async def _attempt_grounded_generation(
     fen: str,
     template_explanation: Explanation,
     voice: NarratorVoice = DEFAULT_NARRATOR_VOICE,
+    game: GameTrace | None = None,
 ) -> Explanation:
     record_narrator_attempt("lesson")
     try:
-        facts = build_narrator_facts(diagnosis, evidence, fen)
+        facts = build_narrator_facts(diagnosis, evidence, fen, game)
     except NarratorFactsError as error:
         logger.warning("Narrator facts unavailable: %s", error)
         record_template_fallback("invalid_evidence")
@@ -444,6 +446,7 @@ async def resolve_explanation(
     environment: Mapping[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
     voice: NarratorVoice | None = None,
+    game: GameTrace | None = None,
 ) -> Explanation:
     """Resolve the client-visible explanation for a diagnosis.
 
@@ -454,13 +457,14 @@ async def resolve_explanation(
 
     ``client`` lets a caller (tests, or a host that already owns a shared
     client) supply one; when omitted, a client is opened and closed for the
-    duration of this call.
+    duration of this call. ``game`` (the game's positions and fast-pass scores)
+    adds the root-cause themes and the turning point to the facts (#400).
     """
     template_explanation = await TemplateExplanationProvider().explain(diagnosis, evidence)
 
     async def attempt(provider: LLMExplanationProvider, chosen: NarratorVoice) -> Explanation:
         return await _attempt_grounded_generation(
-            provider, diagnosis, evidence, fen, template_explanation, chosen
+            provider, diagnosis, evidence, fen, template_explanation, chosen, game
         )
 
     return await run_with_explanation_provider(
