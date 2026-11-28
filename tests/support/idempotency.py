@@ -27,11 +27,13 @@ def idempotency_session(app: FastAPI, session: Session) -> Iterator[list[Session
         handed_out.append(session)
         yield session
 
-    [entry] = [
+    entries = [
         m
         for m in app.user_middleware
         if isinstance(m.cls, type) and issubclass(m.cls, IdempotencyMiddleware)
     ]
+    assert len(entries) == 1, f"expected one IdempotencyMiddleware, found {len(entries)}"
+    [entry] = entries
     original_kwargs = dict(entry.kwargs)
     entry.kwargs["get_session_callable"] = get_test_session
     app.middleware_stack = None

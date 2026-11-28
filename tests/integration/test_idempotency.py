@@ -92,7 +92,9 @@ def test_idempotency(
     assert len(games) == 1
 
     # The lookup and the publish each took the test's session, and the
-    # replay record they wrote is visible in it.
+    # replay record they wrote is visible in it. Keep the handoff count: the
+    # real get_session also reaches this in-memory engine through
+    # database.engine, so the record check alone passes without the patch.
     assert len(middleware_sessions) == 2
     [record] = session.exec(select(IdempotencyRecord)).all()
     assert record.idempotency_key.endswith(f":{idem_key}")
@@ -203,3 +205,16 @@ def test_idempotency_does_not_replay_between_authenticated_famous_game_attempts(
     assert first.json()["id"] != second.json()["id"]
     attempts = session.exec(select(ContentAttempt).order_by(ContentAttempt.player_id)).all()
     assert [attempt.player_id for attempt in attempts] == [first_player.id, second_player.id]
+
+
+def test_idempotency_session_restores_the_middleware(session: Session) -> None:
+    [entry] = [m for m in app.user_middleware if m.cls.__name__ == "IdempotencyMiddleware"]
+    assert entry.kwargs["get_session_callable"] is get_session
+
+    with idempotency_session(app, session):
+        assert entry.kwargs["get_session_callable"] is not get_session
+        app.middleware_stack = app.build_middleware_stack()
+
+    # The next test's first request rebuilds the stack with the real callable.
+    assert entry.kwargs == {"get_session_callable": get_session}
+    assert app.middleware_stack is None
