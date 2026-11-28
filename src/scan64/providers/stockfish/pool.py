@@ -53,9 +53,19 @@ HINT_DEADLINE_S = 3.0
 # ``scan64.explanations.facts.LINE_NODES``.
 LINE_NODES = 10_000
 LINE_CACHE_SIZE = 1024
-LineCacheKey = tuple[str, tuple[str, ...], bool, str, int]
+# Variant, root FEN, moves, Chess960, engine identity, nodes.
+LineCacheKey = tuple[str | None, str, tuple[str, ...], bool, str, int]
+# Variant, root FEN, moves, Chess960, engine fingerprint, then the narrowed limits.
 HintCacheKey = tuple[
-    str, tuple[str, ...], bool, tuple[object, ...], int | None, int | None, int, int | None
+    str | None,
+    str,
+    tuple[str, ...],
+    bool,
+    tuple[object, ...],
+    int | None,
+    int | None,
+    int,
+    int | None,
 ]
 
 
@@ -504,6 +514,8 @@ class EnginePoolManager:
         self, board: chess.Board, nodes: int | None = None, depth: int | None = None
     ) -> HintCacheKey:
         return (
+            # The same FEN is a different position under another variant's rules.
+            type(board).uci_variant,
             board.root().fen(en_passant="fen"),
             tuple(move.uci() for move in board.move_stack),
             board.chess960,
@@ -609,6 +621,8 @@ class EnginePoolManager:
                     )
                     for index, board in enumerate(boards):
                         key: LineCacheKey = (
+                            # The same FEN is another position under another variant.
+                            type(board).uci_variant,
                             board.root().fen(en_passant="fen"),
                             tuple(move.uci() for move in board.move_stack),
                             board.chess960,

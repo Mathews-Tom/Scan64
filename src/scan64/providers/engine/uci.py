@@ -103,6 +103,46 @@ def require_options(engine: Engine, names: Iterable[str], feature: str) -> None:
         )
 
 
+def engine_variants(engine: Engine) -> frozenset[str]:
+    """The variants the engine declares, in its protocol's names.
+
+    UCI: the ``UCI_Variant`` choices, compared with a board's ``uci_variant``.
+    XBoard: the ``variants`` feature, compared with ``xboard_variant`` (antichess
+    is ``giveaway`` there). Standard chess (``chess``, XBoard ``normal``) is
+    always playable; an engine without the option or feature declares no other.
+    """
+    if isinstance(engine, chess.engine.XBoardProtocol):
+        declared = str(engine.features.get("variants", "normal")).split(",")
+        return frozenset({name for name in declared if name} | {"normal"})
+    if declares(engine, "UCI_Variant"):
+        names = set(engine.options["UCI_Variant"].var or ())
+    else:
+        names = set()
+    return frozenset(names | {"chess"})
+
+
+def require_variant(engine: Engine, board: chess.Board) -> None:
+    """Refuse a search on a variant board the engine does not declare.
+
+    python-chess sets ``UCI_Variant`` from the board type on every search (a
+    managed option, so profiles cannot set it). An undeclared variant fails
+    there as a plain ``EngineError`` (an invalid combo value over UCI, a
+    missing variant over XBoard), which the endpoints report as a generic
+    analysis failure. Checking first gives the player the reason instead.
+    """
+    variant = type(board).uci_variant
+    name = (
+        type(board).xboard_variant if isinstance(engine, chess.engine.XBoardProtocol) else variant
+    )
+    if name in engine_variants(engine):
+        return
+    raise EngineCapabilityError(
+        f"Analysing {variant} needs an engine that declares it as a variant; "
+        f"{_engine_label(engine)} does not. Install a variant engine such as "
+        "Fairy-Stockfish and select its engine profile."
+    )
+
+
 async def open_engine(config: EngineConfig) -> Engine:
     """Start the profile's engine process with its protocol.
 

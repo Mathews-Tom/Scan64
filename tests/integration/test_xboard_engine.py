@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import chess
+import chess.variant
 import pytest
 
 from scan64.chess.opponents.protocols import OpponentContext
@@ -105,3 +106,17 @@ async def test_pooled_xboard_engine_analyses_and_names_missing_bot_controls(
             await adapter.play_bot_move(chess.STARTING_FEN, OpponentContext(0, bot_level=3))
     finally:
         await adapter.quit()
+
+
+@pytest.mark.asyncio
+async def test_xboard_engine_without_a_variants_feature_refuses_a_variant(
+    xboard_binary: tuple[Path, Path],
+) -> None:
+    binary, log = xboard_binary
+    adapter = PooledStockfishAdapter(xboard_config(binary))
+    try:
+        with pytest.raises(EngineCapabilityError, match="Analysing atomic needs an engine"):
+            await adapter.analyze_position(chess.variant.AtomicBoard(), nodes=5000)
+    finally:
+        await adapter.quit()
+    assert "go" not in log.read_text(encoding="utf-8").split()

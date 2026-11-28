@@ -625,9 +625,24 @@ describe('ApiClient', () => {
     localStorage.setItem('scan64_player_token:player-1', 'token-1');
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      status: 400,
       statusText: 'Bad Request',
+      json: async () => { throw new SyntaxError('no body'); },
     });
 
     await expect(ApiClient.createGame({ owner_color: 'white',  pgn: '', player_id: 'player-1' })).rejects.toThrow('Failed to create game: Bad Request');
+  });
+
+  it('reports the server reason when a game cannot be created', async () => {
+    localStorage.setItem('scan64_player_token:player-1', 'token-1');
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: async () => ({ detail: "Variant 'Chess960' is not supported; Scan64 supports Standard, Crazyhouse, Three-check, Atomic, Antichess, King of the Hill, Horde, Racing Kings" }),
+    });
+
+    await expect(ApiClient.createGame({ owner_color: 'white', pgn: '', player_id: 'player-1' })).rejects.toThrow(
+      "Failed to create game: Variant 'Chess960' is not supported; Scan64 supports Standard, Crazyhouse, Three-check, Atomic, Antichess, King of the Hill, Horde, Racing Kings");
   });
 });

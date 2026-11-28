@@ -44,6 +44,8 @@ import type {
   PositionHealthRequest,
   PositionAnalysisRead,
   PositionAnalysisRequest,
+  VariantPositionRead,
+  VariantPositionRequest,
   PuzzleDailyRead,
   PuzzleRunRead,
   PuzzleStartRead,
@@ -122,13 +124,16 @@ async function playRequestError(response: Response, fallback: string): Promise<A
  * The text of an error body's ``detail``: the string itself, or for a 503
  * ``engine_capability_unavailable`` its message and the engine's reason.
  */
+/** End `text` with exactly one full stop unless it already ends a sentence. */
+function sentence(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
 export function errorDetailText(body: unknown, fallback: string): string {
   const detail = body !== null && typeof body === 'object' && 'detail' in body ? body.detail : null;
   if (typeof detail === 'string') return detail;
-  if (detail !== null && typeof detail === 'object' && 'code' in detail
-      && detail.code === 'engine_capability_unavailable'
-      && 'message' in detail && typeof detail.message === 'string') {
-    const reason = 'reason' in detail && typeof detail.reason === 'string' ? ` ${detail.reason}.` : '';
+  if (detail !== null && typeof detail === 'object' && 'message' in detail && typeof detail.message === 'string') {
+    const reason = 'reason' in detail && typeof detail.reason === 'string' ? ` ${sentence(detail.reason)}` : '';
     return `${detail.message}${reason}`;
   }
   return fallback;
@@ -360,6 +365,19 @@ export class ApiClient {
     return await response.json() as PositionInsight;
   }
 
+  static async variantPosition(playerId: string, data: VariantPositionRequest): Promise<VariantPositionRead> {
+    const response = await apiFetch(`${apiBase()}/variants/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(errorDetailText(body, response.statusText), response.status);
+    }
+    return await response.json() as VariantPositionRead;
+  }
+
   static async analyzePosition(data: PositionAnalysisRequest): Promise<PositionAnalysisRead> {
     const response = await apiFetch(`${apiBase()}/analysis/position`, {
       method: 'POST',
@@ -416,7 +434,8 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error(`Failed to create game: ${response.statusText}`);
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(`Failed to create game: ${errorDetailText(body, response.statusText)}`, response.status);
     }
     const json = await response.json();
     return json as unknown as GameRead;
@@ -493,7 +512,8 @@ export class ApiClient {
       headers: getActivePlayerAuthorizationHeader(),
     });
     if (!response.ok) {
-      throw new ApiRequestError(`Failed to get game review: ${response.statusText}`, response.status);
+      const body: unknown = await response.json().catch(() => null);
+      throw new ApiRequestError(`Failed to get game review: ${errorDetailText(body, response.statusText)}`, response.status);
     }
     return await response.json() as GameReviewRead;
   }
@@ -529,9 +549,7 @@ export class ApiClient {
     });
     if (!response.ok) {
       const error: unknown = await response.json().catch(() => null);
-      const detail = error !== null && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string'
-        ? error.detail : response.statusText;
-      throw new ApiRequestError(`Failed to create analysis job: ${detail}`, response.status);
+      throw new ApiRequestError(`Failed to create analysis job: ${errorDetailText(error, response.statusText)}`, response.status);
     }
     const json = await response.json();
     return json as unknown as AnalysisJobRead;

@@ -15,6 +15,10 @@ vi.mock('../api/client', () => ({
     createPlaySession: vi.fn(),
     analyzePosition: vi.fn(),
     explainPosition: vi.fn(),
+    variantPosition: vi.fn(async () => ({
+      variant: 'crazyhouse', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1', turn: 'white', san: [],
+      legal_moves: ['e2e4'], check: false, pockets: { white: {}, black: {} }, remaining_checks: null, outcome: null,
+    })),
   },
   ensurePlayerAuthorization: vi.fn(() => Promise.resolve('player-1')),
   getOrCreatePlayerId: vi.fn(() => 'player-1'),
@@ -34,10 +38,35 @@ describe('AnalysisScreen', () => {
     vi.mocked(ApiClient.analyzePosition).mockReset();
     vi.mocked(ApiClient.analyzePosition).mockImplementation(async ({ fen }) => {
       const move = new Chess(fen).moves({ verbose: true })[0];
-      return { fen, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
+      return { fen, variant: 'chess' as const, lines: move ? [{ score_cp: 20, mate: null, moves: [{ uci: `${move.from}${move.to}${move.promotion ?? ''}`, san: move.san }] }] : [] };
     });
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('opens a variant board only on request and keeps the standard moves for the way back', async () => {
+    render(<AnalysisScreen />);
+    fireEvent.change(screen.getByLabelText('Move (UCI or SAN)'), { target: { value: 'e4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
+    await waitFor(() => expect(screen.getByLabelText('Move (UCI or SAN)')).toHaveValue(''));
+    const picker = screen.getByLabelText('Variant');
+    picker.focus();
+    fireEvent.change(picker, { target: { value: 'crazyhouse' } });
+    // Browsing the options changes nothing until the board is opened.
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(ApiClient.variantPosition).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Crazyhouse board' }));
+    // The button disables itself; focus goes to the board opened.
+    expect(screen.getByRole('heading', { name: 'Crazyhouse board' })).toHaveFocus();
+    expect(await screen.findByTestId('variant-position-status')).toHaveTextContent('White to move.');
+    expect(screen.getByTestId('standard-analysis')).not.toBeVisible();
+    expect(screen.getByLabelText('Variant')).toBe(picker);
+    fireEvent.change(picker, { target: { value: 'chess' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Standard board' }));
+    expect(screen.queryByTestId('variant-analysis-board')).toBeNull();
+    expect(screen.getByTestId('standard-analysis')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Standard board' })).toHaveFocus();
+    expect(within(screen.getByTestId('standard-analysis')).getAllByRole('button', { name: /e4/ }).length).toBeGreaterThan(0);
+  });
 
   it('preserves prior branches and exported PGN when the backend rejects a parseable illegal FEN', async () => {
     render(<AnalysisScreen />);
@@ -92,7 +121,7 @@ describe('AnalysisScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Make move' }));
     const position = new Chess(); position.move('e4');
     await waitFor(() => expect(screen.getByLabelText('FEN')).toHaveValue(position.fen()));
-    await act(async () => pending.resolve({ fen: candidate, lines: [{
+    await act(async () => pending.resolve({ variant: 'chess', fen: candidate, lines: [{
       score_cp: 950, mate: null, moves: [{ uci: 'e7e8q', san: 'e8=Q+' }],
     }] }));
     expect(screen.getByLabelText('FEN')).toHaveValue(position.fen());
@@ -132,7 +161,7 @@ describe('AnalysisScreen', () => {
 
   it('plays the entire legal prefix through a clicked PV move and refreshes the selected position', async () => {
     const initial = new Chess().fen();
-    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ fen: initial, lines: [{
+    vi.mocked(ApiClient.analyzePosition).mockResolvedValueOnce({ variant: 'chess', fen: initial, lines: [{
       score_cp: 34, mate: null,
       moves: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }, { uci: 'g1f3', san: 'Nf3' }],
     }, { score_cp: null, mate: -4, moves: [{ uci: 'd2d4', san: 'd4' }] }] });
@@ -195,15 +224,15 @@ describe('AnalysisScreen', () => {
     const blackFen = vi.mocked(ApiClient.analyzePosition).mock.calls[1][0].fen;
     fireEvent.click(screen.getByRole('button', { name: 'First' }));
     await waitFor(() => expect(ApiClient.analyzePosition).toHaveBeenCalledTimes(3));
-    await act(async () => secondA.resolve({ fen: new Chess().fen(), lines: [{
+    await act(async () => secondA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
       score_cp: 55, mate: null, moves: [{ uci: 'e2e4', san: 'e4' }],
     }] }));
     expect(screen.getByLabelText('Line 1 evaluation +0.55')).toBeInTheDocument();
     await act(async () => {
-      firstA.resolve({ fen: new Chess().fen(), lines: [{
+      firstA.resolve({ variant: 'chess', fen: new Chess().fen(), lines: [{
         score_cp: 111, mate: null, moves: [{ uci: 'd2d4', san: 'd4' }],
       }] });
-      positionB.resolve({ fen: blackFen, lines: [{
+      positionB.resolve({ variant: 'chess', fen: blackFen, lines: [{
         score_cp: null, mate: -5, moves: [{ uci: 'e7e5', san: 'e5' }],
       }] });
     });
@@ -329,7 +358,7 @@ describe('AnalysisScreen', () => {
     const onPlayFromHere = vi.fn();
     const playSession = { id: 'session-1', player_id: 'player-1', game_id: 'game-1',
     opponent_config: { provider: 'stockfish', bot_level: '1' }, status: 'active', coach_mode: false, assistance_modes: [] };
-    vi.mocked(ApiClient.createGame).mockResolvedValue({
+    vi.mocked(ApiClient.createGame).mockResolvedValue({ variant: 'chess',
       id: 'game-1',
       pgn: '',
       white: 'White',

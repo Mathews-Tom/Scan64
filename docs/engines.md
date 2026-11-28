@@ -248,6 +248,41 @@ play never falls back to Stockfish. The play endpoints
 stays committed; a bot-first session is not created. The web client shows
 that bot play is unavailable under the active engine profile.
 
+## Chess variants (#398)
+
+Scan64 reads variant positions with python-chess's variant boards: crazyhouse,
+three-check (`3check`), atomic, antichess, king of the hill, horde and racing
+kings. Searching one needs an engine that declares the variant. Which engines
+do, how python-chess selects the variant, installing Fairy-Stockfish and its
+probe results are in "Variants" below; this section is what Scan64 does with
+them.
+
+- **API.** `POST /v1/analysis/position` takes an optional `variant` (the names
+  above; default `chess`). The FEN is parsed under that variant's rules: a FEN
+  that is not a position of the variant is a 422 before any engine access. The
+  reply names the variant it was searched under. The explanation endpoint
+  covers standard chess only and rejects any other `variant` with 422.
+- **Engine check.** Before any search (see "How the variant is selected"),
+  Scan64 compares the board's variant with the engine's declared variants:
+  the `UCI_Variant` choices over UCI, or the `variants` feature over XBoard,
+  where antichess is `giveaway`. An undeclared variant is an
+  `EngineCapabilityError`, answered as 503 `engine_capability_unavailable`
+  whose `reason` names the variant and Fairy-Stockfish. Without the check
+  python-chess raises a plain `EngineError`, which the endpoint reports as a
+  generic analysis failure.
+- **Hint cache.** The cache key includes the variant: the same FEN is a
+  different position under another variant's rules.
+- **Not covered.** Diagnosis, lessons, puzzles, the narrator's explanations,
+  bot play and position health read standard chess only.
+- **Tests.** The tests use the fake UCI engine
+  (`tests/fixtures/engines/fake_uci.py`, `FAKE_UCI_VARIANTS`), which plays by
+  python-chess; no test runs Fairy-Stockfish. The probe in "Variants" runs it
+  directly, not through Scan64's endpoints.
+- **Variant games.** A PGN with a supported `Variant` tag is stored with its
+  variant. Game analysis, review and backfill refuse it with 409
+  `variant_not_covered`; the web import says the game is saved and not
+  analysed, and Your Games labels it "<variant>, not analysed".
+
 ## Stockfish-specific assumptions outside the engine provider
 
 Found with `grep -rn -i stockfish src/` plus review of score, limit and option
@@ -536,9 +571,9 @@ the binary SHA-256 is also in every JSONL record. This table replaces nothing ab
 
 ## Variants
 
-Scan64 does not analyse chess variants yet; [#398](https://github.com/Mathews-Tom/Scan64/issues/398)
-tracks the work. This section records which engines can serve them and how
-python-chess selects a variant, measured with the variant probe below.
+What Scan64 does with variants is in "Chess variants (#398)" above. This
+section records which engines can serve them and how python-chess selects a
+variant, measured with the variant probe below.
 
 ### Engines
 
@@ -650,15 +685,10 @@ recorded FEN and moves. `tests/unit/test_variants_probe.py` covers the
 
 Tracked in #398:
 
-- Engine layer: every search gets a standard `chess.Board`, built from a
-  FEN or a standard game replay (`providers/stockfish/pool.py`, `adapter.py`),
-  so no search reaches the engine as a variant; there is no capability message for an engine that does
-  not declare the variant; analysis rows and the cache identity have no
-  variant field.
-- Rules and import: `ingest_fen` accepts standard chess only, and PGN import
-  rejects any `Variant` tag other than `Standard` (`NonStandardVariantError`).
-- Web board: no pockets or drops for crazyhouse, no check count for
-  three-check.
-- Analysis Board engine lines and narration for variants.
-- Diagnosis, lessons and puzzles stay standard chess; variant games are not
-  labelled as not covered there yet.
+- Narration: the explanation endpoint refuses a variant with 422.
+- The variant Analysis Board cannot load a FEN or an imported variant game;
+  it starts from the variant's start position.
+- Game analysis (`ingest_pgn` raises `NonStandardVariantError`), review,
+  diagnosis, lessons, puzzles, bot play and position health stay standard
+  chess; variant games are stored, labelled and refused with 409
+  `variant_not_covered`.

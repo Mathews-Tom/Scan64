@@ -241,6 +241,7 @@ def test_manual_retry_replaces_unusable_cached_output_and_reuses_success(
     assert retried.status_code == 200, retried.text
     assert retried.json() == {
         "fen": chess.STARTING_FEN,
+        "variant": "chess",
         "lines": [
             {
                 "score_cp": 25,
@@ -278,7 +279,7 @@ def test_terminal_positions_need_no_pool_or_search(
             monkeypatch.setattr(app.state, "engine_pool_manager", None)
         response = client.post(ENDPOINT, headers=headers, json=body)
         assert response.status_code == 200, response.text
-        assert response.json() == {"fen": chess.Board(fen).fen(), "lines": []}
+        assert response.json() == {"fen": chess.Board(fen).fen(), "variant": "chess", "lines": []}
     analyze.assert_not_awaited()
 
 
@@ -372,7 +373,7 @@ def test_analysis_is_read_only_and_response_contains_no_player_tokens(
     assert all(response.status_code == 200 for response in responses)
     assert terminal.status_code == 200
     assert responses[0].json() == responses[1].json()
-    assert set(responses[0].json()) == {"fen", "lines"}
+    assert set(responses[0].json()) == {"fen", "variant", "lines"}
     for response in responses:
         assert owner["Authorization"].removeprefix("Bearer ") not in response.text
         assert other["Authorization"].removeprefix("Bearer ") not in response.text

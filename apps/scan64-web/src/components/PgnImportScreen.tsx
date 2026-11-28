@@ -4,6 +4,7 @@ import type { LessonSpec, OnlineGameImportResponse, OnlineGameSource } from '../
 import { CriticalMomentReview } from './CriticalMomentReview';
 import { diagnosisName } from './diagnosisName';
 import { Button, Panel } from './Primitives';
+import { variantLabel } from '../variants';
 
 interface PgnImportScreenProps {
   onExploreAnalysis?: (gameId: string) => void;
@@ -71,6 +72,7 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -104,6 +106,7 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
 
     setLoading(true);
     setError(null);
+    setNotice(null);
     setStatusText('Creating game...');
     setLessons([]);
     
@@ -112,6 +115,10 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
       playerId = await ensurePlayerAuthorization(playerId);
       const game = await ApiClient.createGame({ pgn, player_id: playerId, owner_color: ownerColor });
       if (signal.aborted) return;
+      if (game.variant !== 'chess') {
+        setNotice(`Saved the ${variantLabel(game.variant)} game to Your Games. Game analysis, lessons and diagnosis cover standard chess only, so it is not analysed.`);
+        return;
+      }
 
       setStatusText('Starting analysis job...');
       const job = await ApiClient.createAnalysisJob(game.id);
@@ -227,6 +234,7 @@ export function PgnImportScreen({ onExploreAnalysis, onOpenGame }: PgnImportScre
       </Button>
       
       {statusText && <div className="status" role="status" data-testid="import-status">{statusText}</div>}
+      {notice && <p role="status" data-testid="import-notice">{notice}</p>}
 
       {error && <div className="error" role="alert" data-testid="import-error">{error}</div>}
 

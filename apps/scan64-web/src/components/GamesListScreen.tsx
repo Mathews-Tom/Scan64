@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiClient, ensurePlayerAuthorization, getOrCreatePlayerId } from '../api/client';
 import type { PlayerGameRead } from '../api/types';
 import { latestGameLabel } from './gameLabel';
+import { variantLabel } from '../variants';
 import { Button, EmptyState, ListRow } from './Primitives';
 
 interface GamesListScreenProps {
@@ -50,7 +51,8 @@ export function GamesListScreen({ onOpenGame, onImportGames }: GamesListScreenPr
         {games.map((game) => (
           <ListRow key={game.id}
             label={<Button onClick={() => onOpenGame(game.id)}>
-              {latestGameLabel(game, getOrCreatePlayerId(), true)} — {game.result} — {game.diagnosis_count} diagnoses
+              {latestGameLabel(game, getOrCreatePlayerId(), true)} — {game.result} — {game.variant === 'chess'
+                ? `${game.diagnosis_count} diagnoses` : `${variantLabel(game.variant)}, not analysed`}
             </Button>}
           />
         ))}

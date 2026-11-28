@@ -281,7 +281,17 @@ def test_openings_report_uses_owned_game_families(client: TestClient, db_session
         black="Imported Black",
         result="0-1",
     )
-    db_session.add_all([game, imported])
+    # A crazyhouse game with the same moves is not an Italian Game result.
+    variant = Game(
+        pgn='[Variant "Crazyhouse"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4',
+        moves=["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"],
+        headers={"Variant": "Crazyhouse"},
+        owner_player_id=player_id,
+        white=player_id,
+        black="Opponent",
+        result="0-1",
+    )
+    db_session.add_all([game, imported, variant])
     db_session.flush()
     create_report_lesson(db_session, game, "threat_processing.missed_capture")
     db_session.commit()
