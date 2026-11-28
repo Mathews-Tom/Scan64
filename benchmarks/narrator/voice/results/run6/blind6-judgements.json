@@ -1,0 +1,802 @@
+[
+ {
+  "id": "g001",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g002",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g003",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g004",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g005",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g006",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g007",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g008",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g009",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g010",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g011",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g012",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g013",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g014",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g015",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g016",
+  "faithful": false,
+  "error": "\"The knight on c7 conquers Black's king\": the king is checked, not conquered.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g017",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g018",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g019",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g020",
+  "faithful": false,
+  "error": "\"the rook on h8 take a look\": the knight attacks the rook; the rook looks at nothing.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g021",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g022",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g023",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g024",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g025",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g026",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g027",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g028",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g029",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g030",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g031",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g032",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g033",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g034",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g035",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g036",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g037",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g038",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g039",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g040",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g041",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g042",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g043",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g044",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g045",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g046",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g047",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g048",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g049",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g050",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g051",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g052",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g053",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g054",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g055",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g056",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g057",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g058",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g059",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g060",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g061",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g062",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g063",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g064",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g065",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g066",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g067",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g068",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g069",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g070",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g071",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g072",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g073",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g074",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g075",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g076",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g077",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g078",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g079",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g080",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g081",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g082",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g083",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g084",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g085",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g086",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "g087",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g088",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g089",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g090",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g091",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g092",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g093",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g094",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g095",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g096",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g097",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g098",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g099",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "g100",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ }
+]

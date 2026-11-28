@@ -1,0 +1,1522 @@
+[
+ {
+  "id": "c001",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c002",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c003",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c004",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c005",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c006",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c007",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c008",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c009",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c010",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c011",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c012",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c013",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c014",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c015",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c016",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c017",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c018",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c019",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c020",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c021",
+  "faithful": false,
+  "error": "\"allows Black a direct response\": unsupported claim; facts say nothing about it.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c022",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c023",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c024",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c025",
+  "faithful": false,
+  "error": "\"Instead of 1.e3, 1.d4 was played\": wrong; White played 1.e3.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c026",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c027",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c028",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c029",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c030",
+  "faithful": false,
+  "error": "\"The price is\": 1.e3 costs nothing; the bishop was already blocked.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c031",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c032",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c033",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c034",
+  "faithful": false,
+  "error": "\"was necessary to block the check\": not forced; 7.Qe2 also blocks.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c035",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c036",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c037",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c038",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c039",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c040",
+  "faithful": false,
+  "error": "\"The actual move, 1.Rd8\": 1.h3 was played; Rd8 was the better move.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c041",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c042",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c043",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c044",
+  "faithful": false,
+  "error": "\"the queen on g5 overlooks the pawn on g2\": garbled; White overlooked the attack.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c045",
+  "faithful": false,
+  "error": "\"putting the black king in a position\": nonsense; fact is check forcing king move.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c046",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c047",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c048",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c049",
+  "faithful": false,
+  "error": "\"is forced to block the check\": not forced; 7.Qe2 also blocks.",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c050",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c051",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c052",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c053",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c054",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c055",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c056",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c057",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c058",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c059",
+  "faithful": false,
+  "error": "\"This cramped position reveals a weakness in the center\": not in the facts.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": true
+ },
+ {
+  "id": "c060",
+  "faithful": false,
+  "error": "\"The price is the rook on h8\": attacking Black's rook is a gain, not a price.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c061",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c062",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c063",
+  "faithful": false,
+  "error": "\"knight on d5 was not a direct threat... allows Black time\": unsupported claims.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c064",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c065",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c066",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c067",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c068",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c069",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c070",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c071",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c072",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c073",
+  "faithful": false,
+  "error": "\"but it also put the rook on h8 under attack\": attacking Black's rook framed as a drawback.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c074",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c075",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c076",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c077",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c078",
+  "faithful": false,
+  "error": "\"exposes White to the immediate dangers... king is in peril\": no danger in facts.",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "c079",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c080",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c081",
+  "faithful": false,
+  "error": "\"The cost is\": 1.e3 costs nothing; the bishop was already blocked.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c082",
+  "faithful": false,
+  "error": "\"has a definite drawback\": no drawback of 1.Kd2 in the facts.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c083",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c084",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c085",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c086",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c087",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c088",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c089",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c090",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c091",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c092",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": true
+ },
+ {
+  "id": "c093",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c094",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c095",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c096",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c097",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c098",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c099",
+  "faithful": false,
+  "error": "\"It seems to give up something substantial\": nothing given up per facts.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c100",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c101",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c102",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c103",
+  "faithful": false,
+  "error": "\"Black gains advantage\": advantage not in the facts.",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c104",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c105",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c106",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c107",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c108",
+  "faithful": false,
+  "error": "\"Opening the game should be done with purpose\": this is not an opening.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c109",
+  "faithful": false,
+  "error": "\"brings the queen to h1\": queen goes to g2 and attacks h1; \"only prudent\" unsupported.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c110",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c111",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c112",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c113",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c114",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c115",
+  "faithful": false,
+  "error": "\"open a diagonal through the centre\": the c1 diagonal opened does not run through the centre.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c116",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c117",
+  "faithful": false,
+  "error": "\"partially obscured\": bishop fully blocked; \"necessary opening move\" overclaims.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c118",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c119",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c120",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c121",
+  "faithful": false,
+  "error": "\"a far more solid way to begin the assault\": no assault or solidity in facts.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": true
+ },
+ {
+  "id": "c122",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c123",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c124",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c125",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c126",
+  "faithful": false,
+  "error": "\"sacrifice the bishop's freedom\": bishop was never free; 1.e3 gives nothing up.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c127",
+  "faithful": false,
+  "error": "\"develops a pawn\": development claim not in facts; pawns are not developed.",
+  "lively": 1,
+  "clear": 3,
+  "jargon": true
+ },
+ {
+  "id": "c128",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c129",
+  "faithful": false,
+  "error": "\"A king that is not constrained is a king that must be kept in check\": nonsense.",
+  "lively": 2,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "c130",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c131",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c132",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c133",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c134",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c135",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c136",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c137",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c138",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c139",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c140",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c141",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c142",
+  "faithful": false,
+  "error": "\"This ignores the immediate consequence\": the shut-in king is not a consequence of 1.h3.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c143",
+  "faithful": false,
+  "error": "\"only gives up a square\": 1.h3 gives its king a square, gives nothing up.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c144",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c145",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c146",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c147",
+  "faithful": false,
+  "error": "\"alters the structure of the game\": vague claim not supported by the facts.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": true
+ },
+ {
+  "id": "c148",
+  "faithful": false,
+  "error": "\"7.Qe2 ... would have pinned the queen on e4\": it attacks the queen, no pin.",
+  "lively": 3,
+  "clear": 1,
+  "jargon": false
+ },
+ {
+  "id": "c149",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c150",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c151",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c152",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c153",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c154",
+  "faithful": false,
+  "error": "\"5...Qxg2 attacks the g2 pawn\": Qxg2 captures that pawn; it does not attack it.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c155",
+  "faithful": false,
+  "error": "\"putting pressure on the rooks\": the queen on g2 attacks only the rook on h1.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c156",
+  "faithful": false,
+  "error": "\"which is a reasonable move\": evaluation not in facts; it misses winning a rook.",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c157",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c158",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c159",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c160",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c161",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c162",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c163",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c164",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c165",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": true
+ },
+ {
+  "id": "c166",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c167",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c168",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c169",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c170",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c171",
+  "faithful": false,
+  "error": "\"this blocks the bishop on c1\": 1.e3 does not block it; b2 and d2 already do.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c172",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c173",
+  "faithful": false,
+  "error": "\"After 5.Nxf7, the rook on h1 is under attack\": only after 5...Qxg2.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c174",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c175",
+  "faithful": false,
+  "error": "\"A proper setup for a cozy corner\": nonsense with no basis in the facts.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c176",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c177",
+  "faithful": false,
+  "error": "\"lets White blunder into danger\": no danger to White in the facts.",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c178",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c179",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": true
+ },
+ {
+  "id": "c180",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c181",
+  "faithful": false,
+  "error": "\"which is not an issue\": evaluation not in facts; facts call 1.h3 pointless.",
+  "lively": 1,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c182",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c183",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c184",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c185",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c186",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c187",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "c188",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c189",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "c190",
+  "faithful": true,
+  "error": "",
+  "lively": 1,
+  "clear": 3,
+  "jargon": false
+ }
+]
