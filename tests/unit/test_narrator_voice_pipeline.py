@@ -168,6 +168,12 @@ async def test_board_lines_are_voiced_one_fact_per_call() -> None:
         claim.evidence_ref in {line.line_id for line in facts.lines} for claim in claims[1:]
     )
     assert any(claim.text.startswith("Line 1: ") for claim in claims)
+    # #485: each sentence cites a prefix of its line, and the move itself only its first move.
+    lines = {line.line_id: line.uci for line in facts.lines}
+    for claim in claims[1:]:
+        assert claim.line and lines[claim.evidence_ref][: len(claim.line)] == claim.line
+        if claim.text.startswith("Line "):
+            assert len(claim.line) == 1
     after = narrator_counts()["board"]
     assert after.sentences > before.sentences
     for system, user in writer.calls:
@@ -405,3 +411,38 @@ def test_snipe_is_a_capture_word_and_deadly_a_judgement() -> None:
     assert any("taken" in item for item in problems)
     problems = sentence_problems("A deadly knight on f7 eyes the rook on h8.", attacked)
     assert any(item.startswith("judgement") for item in problems)
+
+
+@pytest.mark.parametrize(
+    ("sentence", "fact", "kinds", "flagged"),
+    [
+        # The #484 review: a capture is never "quiet".
+        (
+            "5.Bxg5 takes the queen on g5, a quiet bishop step.",
+            "5.Bxg5: the bishop on c1 takes the queen on g5.",
+            ["takes"],
+            True,
+        ),
+        # A check is never "quiet" either.
+        (
+            "5.Bb5+ quietly checks the king on e8.",
+            "5.Bb5+: the bishop on b5 gives check to the king on e8.",
+            ["gives_check"],
+            True,
+        ),
+        # A move that takes nothing and gives no check may be quiet (a voice card example).
+        ("1.Qd2, a quiet queen step.", "White played 1.Qd2.", ["moves"], False),
+    ],
+)
+def test_quiet_needs_a_move_that_takes_nothing_and_gives_no_check(
+    sentence: str, fact: str, kinds: list[str], flagged: bool
+) -> None:
+    problems = sentence_problems(sentence, fact, kinds)
+    assert ("calls a move quiet; the fact takes or gives check" in problems) is flagged, problems
+
+
+@pytest.mark.parametrize("word", ["strong", "elegant", "risky", "safe", "crushing"])
+def test_colour_words_that_judge_need_their_fact(word: str) -> None:
+    attacked = "The knight on f7 attacks the rook on h8."
+    problems = sentence_problems(f"A {word} knight on f7 eyes the rook on h8.", attacked)
+    assert f"judgement {word}" in problems
