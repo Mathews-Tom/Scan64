@@ -383,6 +383,10 @@ SLOT_AS_MATERIAL = [
     "You are plus {eval_diff} pawns.",
     "Your opponent leads by {eval_diff} pawns.",
     "You capture {eval_diff} pawns.",
+    # Pre-push check of 7079a8b: material words inside a score sentence.
+    "Score: you capture {eval_diff} pawns.",
+    "The evaluation shows you up {eval_diff} pawns of pieces.",
+    "Evaluation: you have {eval_diff} pawns more.",
 ]
 
 

@@ -682,7 +682,7 @@ _MATERIAL_WORDING = re.compile(
     r"|~\s+(?:more|fewer)\s+pawns?|\b(?:have|has|had)\s+~\s+pawns?",
     re.I,
 )
-# A sentence about the engine score, with no word "material": its slot amount
+# A sentence about the engine score, with no material word: its slot amount
 # is an evaluation ("the evaluation is down {eval} pawns", "costs {eval}
 # pawns of evaluation"), so the slot-as-material checks do not apply.
 _EVALUATION_WORDING = re.compile(
@@ -693,10 +693,18 @@ _EVALUATION_WORDING = re.compile(
 _SENTENCE_END = re.compile(r"[.!?;]")
 
 
+# Material words that keep a score sentence a material claim ("score: you
+# capture {eval_diff} pawns", "the evaluation shows you up {eval_diff} pawns
+# of pieces", "evaluation: you have {eval} pawns more").
+_MATERIAL_IN_SCORE = re.compile(
+    r"\b(?:material\w*|captur\w*|win|wins|won|winning|gain\w*|lose|loses|lost|losing"
+    r"|pieces?|have|has|had)\b",
+    re.I,
+)
+
+
 def _evaluation_sentence(sentence: str) -> bool:
-    return bool(_EVALUATION_WORDING.search(sentence)) and not re.search(
-        r"\bmaterial", sentence, re.I
-    )
+    return bool(_EVALUATION_WORDING.search(sentence)) and not _MATERIAL_IN_SCORE.search(sentence)
 
 
 def _sentence_at(prose: str, index: int) -> str:
