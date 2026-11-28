@@ -57,6 +57,8 @@ def test_bundle_content_check_requires_font_and_rust_notices(tmp_path: Path) -> 
         "arasan/arasanv8-20261005.nnue",
         "arasan/LICENSE",
         "arasan/Fathom-LICENSE",
+        "engines/caissa.toml",
+        "engines/arasan.toml",
         "notices/LICENSE",
         "notices/THIRD_PARTY_NOTICES.md",
         "notices/WEB_THIRD_PARTY_LICENSES.md",
@@ -95,7 +97,7 @@ def test_bundled_engine_files_must_match_the_dockerfile_digest(
     names += ["arasan/LICENSE", "arasan/Fathom-LICENSE", "notices/THIRD_PARTY_NOTICES.md"]
     names += ["notices/WEB_THIRD_PARTY_LICENSES.md", "notices/rust-licenses.html"]
     names += ["notices/rust-licenses.json", "notices/fonts/host-grotesk-OFL.txt"]
-    names += ["notices/fonts/jetbrains-mono-OFL.txt"]
+    names += ["notices/fonts/jetbrains-mono-OFL.txt", "engines/caissa.toml", "engines/arasan.toml"]
     pinned = [
         "stockfish/stockfish-sf_18.tar.gz",
         "stockfish/nn-c288c895ea92.nnue",

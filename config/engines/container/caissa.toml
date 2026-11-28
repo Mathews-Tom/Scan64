@@ -1,7 +1,9 @@
 # Caissa 2.0 (MIT, network MIT) as bundled in the Docker image (#396, #438): the
 # analysis engine. The network is embedded in the binary, so it has no network
 # file and no working-directory dependency.
-# Select with: SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml
+# A fresh image install selects it for analysis through
+# SCAN64_BUNDLED_ENGINES_DIR (scan64.providers.engine.install_defaults).
+# SCAN64_ENGINE_CONFIG=<this path> selects it explicitly.
 [engine]
 name = "caissa"
 binary_path = "/usr/local/bin/caissa"
