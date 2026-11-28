@@ -29,7 +29,7 @@ No LLM-labelled pairs were substituted: #465 asks for human annotations.
 | Loss on the 3 examples | 7.99 before, 3.54 after |
 | Peak GPU memory | 17.2 GiB |
 
-`results/data.json` and `results/train.json` hold the data, config, base, adapter and merged-weight SHA-256. The weights stay outside the repository. A second run with the same data and seed, on an otherwise equal config, gives a different adapter SHA-256 and a loss after of 3.54 against 3.58. The run repeats in method, not bit for bit.
+`results/data.json` and `results/train.json` hold the data, config, base, adapter and merged-weight SHA-256. The weights stay outside the repository. A first run with the same data, seed and training settings (`results/train-run1.json`; only the serving settings differ) gives another adapter SHA-256 and a loss after of 3.58 against 3.54. The evaluated model is the second run, `results/train.json`. The run repeats in method, not bit for bit.
 
 ## Evaluation
 
@@ -56,11 +56,15 @@ Method:
 | All | default | 69 | 67% ±11 | 65% | 2.61 | 2.91 | 1.9% | 0.80 | 1.18 | 2.84 |
 | All | phrase-bank | 33 | 91% ±10 | 85% | 1.91 | 3.00 | 1.0% | - | - | 0 |
 
+Do not read the default and tuned rows as a ranking: 21 of the default's 23 unfaithful verdicts are the "!" rule (see Limits).
+
 Limits:
-- Held-out: 29 comments on 22 distinct moves. Seven moves carry two comments and count twice.
+- Held-out: 29 comments on 22 distinct moves. 4 moves carry more than one comment and count more than once (7 extra items).
 - No interval meets the ±5 of #462. The arms are far from the bar, so more samples do not change the outcome.
 - Base and tuned ran unquantized (bf16) on a Transformers server, with Qwen's sampling (temperature 0.7). Their GPU memory and seconds are not a GGUF's. The default ran on Ollama at temperature 1, with other sessions on the GPU. No footprint claim is made for the tuned model.
 - The GGUF conversion was not run: the session's permission system refused the llama.cpp converter, and Ollama has no MLX runtime to import safetensors here.
+- The run predates the sentence-check fixes of #521 and the legal H2 of #520. Its benchmark set has 4 positions.
+- Stockfish for `positions.json`: the binary of `results/data.json` (`engine`), 1 thread on the #462 positions, 4 threads (cached analyses) on the held-out games.
 - The default scores 67% here and 96% in #462. Facts, positions and judge differ. 21 of its 23 failures are a "!" or praise in the sentence about the played move, which the rubric counts as false. Only its board set (100%) is free of them.
 
 Findings:
