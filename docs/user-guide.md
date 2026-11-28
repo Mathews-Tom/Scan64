@@ -516,7 +516,7 @@ Without a local model, or without a GPU that can run one, Scan64 uses its built-
 
 #### The recommended narrator model
 
-The recommended model is **gemma-4-E4B-it at Q4_K_S** (`scan64-narrator-gemma4-e4b-q4ks:latest` in Ollama), chosen by the [narrator benchmark](evaluation/narrator-models.md#voice-pipeline-decision-462). It needs about 3 GB of GPU memory (2.84 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 4.5 GiB. Its weights are licensed Apache-2.0 under the [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship them.
+The recommended model is **gemma-4-E4B-it at Q4_K_S** (`scan64-narrator-gemma4-e4b-q4ks:latest` in Ollama), chosen by the [narrator benchmark](evaluation/narrator-models.md#voice-pipeline-decision-462). It needs about 3.5 GiB of GPU memory (3.46–3.53 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 4.5 GiB. Its weights are licensed Apache-2.0 under the [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship them.
 
 Install it once, with [Ollama](https://ollama.com/download) installed and running. From a source checkout:
 

@@ -49,8 +49,8 @@ DEFAULT_NARRATOR_GGUF = PinnedGGUF(
 DEFAULT_NARRATOR_MODEL_NAME = "scan64-narrator-gemma4-e4b-q4ks"
 DEFAULT_NARRATOR_MODEL = f"{DEFAULT_NARRATOR_MODEL_NAME}:latest"
 
-# GPU memory budget of the narrator. #462 measured 2.84 GiB for this model at
-# num_ctx 4096 on an RTX 5090.
+# GPU memory budget of the narrator. At num_ctx 4096 on an RTX 5090 this model
+# takes 3.46-3.53 GiB of GPU memory (Ollama's own ``size_vram`` says 2.84).
 NARRATOR_GPU_MEMORY_BUDGET_MIB = 4096
 NARRATOR_NUM_PREDICT = 2048
 

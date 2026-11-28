@@ -2,7 +2,7 @@
 
 Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine, board and factor facts. The validator decides whether its claims replace the template explanation.
 
-Decision (2026-11-28, voice pipeline of #454): use **`gemma4-e4b-q4ks`**, gemma-4-E4B-it at Q4_K_S (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It needs 2.84 GiB of GPU memory. It is the smallest model that meets the bar: 96% faithful and 96% faithful and lively on held-out game moves, and 99% faithful and 89% faithful and lively on the Analysis Board. See [Voice pipeline decision (#462)](#voice-pipeline-decision-462).
+Decision (2026-11-28, voice pipeline of #454): use **`gemma4-e4b-q4ks`**, gemma-4-E4B-it at Q4_K_S (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It takes 3.46–3.53 GiB of GPU memory (2.84 GiB by Ollama's `size_vram`). It is the smallest measured model that meets the bar: 96% faithful and 96% faithful and lively on held-out game moves (38/40 without the illegal H2), and 99% faithful and 89% faithful and lively on the Analysis Board. See [Voice pipeline decision (#462)](#voice-pipeline-decision-462).
 
 The sections after it measure the earlier slot and factor prompts. Their decision (`gemma4-e4b-q3km`, 2026-11-27) is superseded; it stays below as a record.
 
@@ -234,7 +234,8 @@ The bar (#462): the smallest model with at least 95% faithful and at least 80% f
 - Pipeline: the voice pipeline of #454. Code writes each fact, the model rewrites one fact per call, and code checks every sentence ([narrator pipeline, section 18](../narrator-pipeline.md#18-voice-pipeline-454)). Thinking is off.
 - Sampling: each model's own Modelfile. For gemma4-e4b: temperature 1, top_p 0.95, top_k 64.
 - Judges: fresh blind sessions. A judge sees only the position, the facts and the comment, shuffled, with no labels. The rubric is the #458 rubric ([narrator voice benchmark](narrator-voice.md), "Blind-judge protocol").
-- Intervals: 95% normal intervals on each faithful share.
+- Intervals: 95% normal intervals on each faithful share. They treat comments as independent, but each set has only 4 or 5 positions.
+- GPU GiB below is Ollama's `size_vram`. It is lower than process memory, which the older sections report.
 
 ### 12 models, experiment positions
 
@@ -267,11 +268,13 @@ The run 8 pipeline on positions H1–H5 of #458: a missed mate, a skewer, a stal
 | D | praxis-4b | T 1, top_p 0.95, top_k 64 | no | 62% ±13 | 58% | 1.96 | 1.9% | 0.92 |
 | E | praxis-4b | same | yes | 50% ±14 | 50% | 2.02 | 0.0% | 0.72 |
 
+H2 is an illegal position (#500), so 10 comments of each cell are judged on it. Without H2, from the stored verdicts: A 38/40 (95% ±7), B 39/40, C 40/40, D 24/40, E 20/40 faithful. A is exactly at the 95% bar. No interval here meets the ±5 target except the board run and cells A and B with H2.
+
 praxis-4b's Modelfile sets temperature 0. Every retry then returns the same text: 5 distinct comments in 50, one per position. Its 100% faithful score comes from copying the fact. The "own words" rule is not adopted: gemma gains 2 points, inside the noise, and praxis loses 12.
 
 ### Analysis Board path
 
-The app's Analysis Board explanation, end to end (`benchmarks/narrator/board_path.py`). Stockfish 18 searches each position with the board's budget: 200,000 nodes, MultiPV 4, the first 3 lines, and 10,000 nodes per position along them. `resolve_board_lines_explanation` then words the lines with the voice pipeline. The engine lines are searched once and stored, so every sample words the same facts. The model is `scan64-bench-gemma4-e4b-q4ks:latest` on the RTX 5090, Ollama 0.40.18, thinking off.
+The app's Analysis Board explanation code (`benchmarks/narrator/board_path.py`). It calls `resolve_board_lines_explanation` with the app's Ollama adapter. It does not use the HTTP endpoint, the owner's consent provider, the engine pool or the 1.5 s search limit. Stockfish 18 searches each position with the board's budget: 200,000 nodes, MultiPV 4, the first 3 lines, and 10,000 nodes per position along them. `resolve_board_lines_explanation` then words the lines with the voice pipeline. The engine lines are searched once and stored, so every sample words the same facts. The model is `scan64-bench-gemma4-e4b-q4ks:latest` on the RTX 5090, Ollama 0.40.18, thinking off.
 
 The judge reads the facts the app gives the model: the template's opening sentence and the role facts of each line. One fresh judge read all 100 comments (`results/board-path/judge-brief-board.md`).
 
@@ -288,8 +291,12 @@ H2 is left out. Its FEN is illegal: the bishop on g2 already gives check to the 
 | H4 pin | 25/25 | 24/25 |
 | H5 allowed fork | 25/25 | 17/25 |
 
-- Every explanation came from the narrator; none fell back to the template. Before #454, the board path fell back on 16 of 16 requests (#449).
-- The one error: "the knight on e4 now snags the queen on g5", for a knight that only attacks the queen. The sentence check does not know "snags" as a capture verb.
+- Every explanation came from the narrator; none fell back to the template. Before #454, the board path fell back on 16 of 16 requests (#449). The voice pipeline has no whole-answer rejection: only a provider error, or facts it cannot build, leaves it. The 0.4% is the sentences that fell back.
+- The judge session took 31 seconds for 100 comments, so its reading was quick. The verdicts were not re-judged.
+- H5 is the weakest position: 8 of 25 comments are faithful but flat.
+- All items come from 4 positions, so ±2 does not measure variation between positions.
+- The 100 records carry `dirty: false` at commit `cef3d12`, but the runner was an untracked file then. `src/` was unchanged from that commit when the run started, except the default-model edit that followed. `lines.json` was searched before the run by the same runner.
+- The one error: "the knight on e4 now snags the queen on g5", for a knight that only attacks the queen. The sentence check does not know "snags" as a capture verb (#503).
 - Each explanation has 5.5 sentences on average, one per voiced fact of three lines.
 - `summarise` rebuilds both tables from the stored records (`results/board-path/summary.md`).
 
@@ -310,11 +317,13 @@ H2 is left out. Its FEN is illegal: the bishop on g2 already gives check to the 
 | caissa-m1-8b | 20% faithful, and above the 4 GiB budget |
 | gemma4-12b | Comparison only, above the budget (8.91 GiB) |
 
-`gemma4-e4b-q4ks` is the smallest model that meets the bar on every set: 98% (P1–P5), 96% (held-out game moves) and 99% (Analysis Board) faithful.
+`gemma4-e4b-q4ks` is the smallest measured model that meets the bar on every set: 98% (P1–P5), 96% (held-out game moves; 95% without H2) and 99% (Analysis Board) faithful.
 
 ### Not measured
 
-- The phrase-bank narrator (#461) is not in these tables. It is not built yet.
+- The phrase-bank narrator (#461) is not in these tables.
+- Coverage of the facts, and calls per explanation outside the board run, are not in these tables.
+- The held-out game-move run covers only gemma4-e4b Q4_K_S and praxis-4b.
 - No model under 2.2 GiB comes close to the bar. That gap is the target of #465.
 
 ### Lessons

@@ -226,7 +226,7 @@ The default narrator model is gemma-4-E4B-it at Q4_K_S, chosen in #462 for the v
 | SHA-256 | `0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00`, the file the benchmark ran (`benchmarks/narrator/narrator.toml`) |
 | Modelfile | `MODELFILE_TEMPLATE`, identical to `benchmarks/narrator/modelfiles/gemma4-e4b-q4ks.Modelfile` (`RENDERER`/`PARSER gemma4`, temperature 1, top_k 64, top_p 0.95), rendered with `num_ctx` 4096 and `num_predict` 2048 |
 | Licence | Apache-2.0 (GGUF `general.license`), [Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license); Scan64 does not ship the weights |
-| GPU memory | 2.84 GiB measured at `num_ctx` 4096 (RTX 5090, #462); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
+| GPU memory | 3.46–3.53 GiB of process memory at `num_ctx` 4096 (RTX 5090; Ollama's `size_vram` says 2.84 GiB); budget 4 GiB (`NARRATOR_GPU_MEMORY_BUDGET_MIB`) |
 
 `scan64-cli narrator install` (`cli/narrator.py`) is the install step. It stops with a message, and installs nothing, when `ollama` is not on `PATH`, when `127.0.0.1:11434/api/version` does not answer, or when no NVIDIA GPU has 4,096 MiB free (`nvidia-smi --query-gpu=name,memory.total,memory.free`; `--skip-gpu-check` for GPUs it can't read). Then it streams the file, hashes it while writing `<file>.part`, deletes it on a digest mismatch, writes the Modelfile next to it with `FROM ./<file>`, and runs `ollama create scan64-narrator-gemma4-e4b-q4ks` there with `OLLAMA_HOST=127.0.0.1:11434`. It skips every step after the Ollama check when `/api/tags` already lists the model, and deletes the GGUF after `ollama create` unless `--keep-gguf`. It never loads the model. The manual steps are in the [user guide](user-guide.md#the-recommended-narrator-model).
 
