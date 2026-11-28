@@ -51,6 +51,8 @@ def client_fixture(session: Session):
 
     # Let's mock the middleware's get_session directly
     for middleware in app.user_middleware:
+        if middleware.cls.__name__ != "IdempotencyMiddleware":
+            continue
 
         def mock_get_session():
             yield session
