@@ -85,7 +85,8 @@ class Client:
             "model": self.model,
             "model_digest": digest,
             "ollama_version": _get(self.url + "/api/version")["version"],
-            "options": {"num_ctx": NUM_CTX, "think": False, **self.options},
+            "think": False,
+            "options": {"num_ctx": NUM_CTX, **self.options},
             "prompt_version": prompt_version,
         }
 
