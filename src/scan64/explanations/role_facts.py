@@ -59,9 +59,6 @@ _VALUES = {
     chess.QUEEN: 9,
     chess.KING: 100,
 }
-# Plies of the line after the played move that "What follows" states: the
-# opponent's reply, the mover's answer, and the opponent's follow-up.
-FOLLOW_PLIES = 3
 
 
 class RoleFactsError(ValueError):
@@ -198,13 +195,35 @@ def _shut_in(board: chess.Board, colour: chess.Color) -> set[chess.Square]:
 def _pinner(board: chess.Board, square: chess.Square) -> PieceOnSquare | None:
     """The enemy slider that pins the piece on ``square`` to its king."""
     piece = board.piece_at(square)
-    if piece is None or not board.is_pinned(piece.color, square):
+    king = None if piece is None else board.king(piece.color)
+    if piece is None or king is None or not board.is_pinned(piece.color, square):
         return None
-    for ray_square in board.pin(piece.color, square):
-        other = board.piece_at(ray_square)
-        if other is not None and other.color != piece.color and other.piece_type != chess.KING:
-            return PieceOnSquare(other.color, other.piece_type, ray_square)
+    step_file = _sign(chess.square_file(square) - chess.square_file(king))
+    step_rank = _sign(chess.square_rank(square) - chess.square_rank(king))
+    file, rank = chess.square_file(square) + step_file, chess.square_rank(square) + step_rank
+    while 0 <= file < 8 and 0 <= rank < 8:
+        other = board.piece_at(chess.square(file, rank))
+        if other is not None:
+            if other.color == piece.color:
+                return None
+            return PieceOnSquare(other.color, other.piece_type, chess.square(file, rank))
+        file, rank = file + step_file, rank + step_rank
     return None
+
+
+def _sign(value: int) -> int:
+    return (value > 0) - (value < 0)
+
+
+def _blocks_check(board: chess.Board, move: chess.Move) -> bool:
+    """``move`` answers a single check by putting a piece between checker and king."""
+    checkers = board.checkers()
+    king = board.king(board.turn)
+    if len(checkers) != 1 or king is None or board.piece_type_at(move.from_square) == chess.KING:
+        return False
+    if board.is_en_passant(move):
+        return False
+    return move.to_square in chess.SquareSet.between(next(iter(checkers)), king)
 
 
 def _moved(board: chess.Board, move: chess.Move) -> PieceOnSquare:
@@ -287,7 +306,7 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
 
     if board.is_check():
         checkers = board.checkers()
-        if before.piece != chess.KING and move.to_square not in checkers:
+        if _blocks_check(board, move):
             checker = _on(board, next(iter(checkers)))
             said.append(
                 _Said(
@@ -298,9 +317,7 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
             others = [
                 numbered_san(board, other)
                 for other in board.legal_moves
-                if other != move
-                and board.piece_type_at(other.from_square) != chess.KING
-                and other.to_square not in checkers
+                if other != move and _blocks_check(board, other)
             ]
             # A judgement on the played move only; for an alternative it reads as noise.
             if others and not owned:
@@ -429,10 +446,11 @@ def _free_sentences(board: chess.Board, move: chess.Move) -> list[_Said]:
 
 
 def _line_sentences(board: chess.Board, moves: Sequence[chess.Move]) -> list[_Said]:
-    """Facts for the first plies of a line, with a capture that follows a check timed."""
+    """Facts of a line: its first move in full, a capture by the checking piece
+    right after the reply (timed), and a mate anywhere later in the line."""
     said: list[_Said] = []
     scratch = board.copy(stack=False)
-    for index, move in enumerate(moves[:FOLLOW_PLIES]):
+    for index, move in enumerate(moves):
         if index == 0:
             said.extend(_move_sentences(scratch, move, owned=True))
         elif index == 2 and scratch.move_stack and moves[0].to_square == move.from_square:
@@ -459,6 +477,23 @@ def _line_sentences(board: chess.Board, moves: Sequence[chess.Move]) -> list[_Sa
                             scratch.fen(),
                             subject=_on(after, move.to_square),
                             target=captured,
+                        ),
+                    )
+                )
+        if index > 0:
+            after = scratch.copy(stack=False)
+            after.push(move)
+            if after.is_checkmate():
+                said.append(
+                    _Said(
+                        f"The line goes on to {numbered_san(scratch, move)}, and it is mate: "
+                        f"the game ends, and {colour_name(scratch.turn)} wins.",
+                        Relation(
+                            "mates",
+                            move.uci(),
+                            scratch.fen(),
+                            subject=_on(after, move.to_square),
+                            target=_king(after, not scratch.turn),
                         ),
                     )
                 )
@@ -529,7 +564,10 @@ def _threat_sentences(
         attacker_square = follow[0].from_square if square == taken else cheapest
         attacker = _on(after, attacker_square)
         target = PieceOnSquare(piece.color, piece.piece_type, square)
-        already = "already " if attacker_square in board.attackers(not mover, square) else ""
+        stood = square != played.to_square
+        already = (
+            "already " if stood and attacker_square in board.attackers(not mover, square) else ""
+        )
         said.append(
             _Said(
                 f"{attacker.owned_phrase()} {already}attacks {target.owned_phrase()}.",
@@ -557,7 +595,8 @@ def _new_pins(board: chess.Board, move: chess.Move) -> list[tuple[PieceOnSquare,
         if piece is None or piece.color != mover or piece.piece_type == chess.KING:
             continue
         pinner = _pinner(after, square)
-        was = square != move.to_square and _pinner(board, square) is not None
+        origin = move.from_square if square == move.to_square else square
+        was = _pinner(board, origin) is not None
         if pinner is not None and not was:
             pins.append((PieceOnSquare(piece.color, piece.piece_type, square), pinner))
     return pins
@@ -729,7 +768,11 @@ def role_facts(
         )
         if follow_moves:
             threat = follow_moves[0]
-            if after_best.is_check() and threat not in after_best.legal_moves:
+            if (
+                after_best.is_check()
+                and not after_best.is_checkmate()
+                and threat not in after_best.legal_moves
+            ):
                 piece = _on(after_played, threat.from_square)
                 alternative.append(
                     _Said(

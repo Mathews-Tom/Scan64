@@ -17,6 +17,7 @@ import pytest
 
 from scan64.explanations.role_facts import (
     ROLES,
+    PieceOnSquare,
     Relation,
     RoleFact,
     RoleFactsError,
@@ -118,10 +119,45 @@ def _snapshot_entry(name: str) -> list[dict[str, object]]:
         {
             "role": role_label(fact.role, mover),
             "fact": fact.text,
-            "relations": [relation.kind for relation in fact.relations],
+            "relations": [_relation_record(relation) for relation in fact.relations],
         }
         for fact in _facts(name)
     ]
+
+
+def _piece_record(piece: PieceOnSquare | None) -> str | None:
+    if piece is None:
+        return None
+    colour = chess.COLOR_NAMES[piece.colour]
+    return f"{colour} {chess.piece_name(piece.piece)} {chess.square_name(piece.square)}"
+
+
+def _relation_record(relation: Relation) -> dict[str, object]:
+    record: dict[str, object] = {"kind": relation.kind, "move": relation.move}
+    for name in ("subject", "target", "through"):
+        if (piece := _piece_record(getattr(relation, name))) is not None:
+            record[name] = piece
+    if relation.direction is not None:
+        record["direction"] = relation.direction
+    if relation.square is not None:
+        record["square"] = chess.square_name(relation.square)
+    return record
+
+
+def _nearest_beyond(board: chess.Board, square: int, king: int) -> int | None:
+    """The first occupied square past ``square`` on the line from ``king``."""
+    df = (chess.square_file(square) > chess.square_file(king)) - (
+        chess.square_file(square) < chess.square_file(king)
+    )
+    dr = (chess.square_rank(square) > chess.square_rank(king)) - (
+        chess.square_rank(square) < chess.square_rank(king)
+    )
+    f, r = chess.square_file(square) + df, chess.square_rank(square) + dr
+    while 0 <= f < 8 and 0 <= r < 8:
+        if board.piece_at(chess.square(f, r)) is not None:
+            return chess.square(f, r)
+        f, r = f + df, r + dr
+    return None
 
 
 def _board(relation: Relation) -> tuple[chess.Board, chess.Move, chess.Board]:
@@ -175,17 +211,23 @@ def _holds(relation: Relation) -> None:
         case "blocks":
             assert before.is_check() and through is not None
             assert through.square in before.checkers()
-            assert not after.was_into_check()
-            assert move.to_square != through.square
+            king = before.king(before.turn)
+            assert king is not None and len(before.checkers()) == 1
+            assert move.to_square in chess.SquareSet.between(through.square, king)
+            assert not before.is_en_passant(move)
+            assert subject is not None and subject.square == move.to_square
+            on(after, subject)
             assert before.piece_type_at(move.from_square) != chess.KING
         case "pins":
             assert subject is not None and target is not None and through is not None
             on(after, subject)
             on(after, target)
             assert after.is_pinned(target.colour, target.square)
-            assert subject.square in after.pin(target.colour, target.square)
             assert through.piece == chess.KING and after.king(target.colour) == through.square
+            # The pinner is the first piece behind the pinned one, seen from its king.
+            assert _nearest_beyond(after, target.square, through.square) == subject.square
         case "frees":
+            on(before, target)
             assert target is not None
             scratch_before = before.copy()
             scratch_before.turn = target.colour
@@ -215,6 +257,7 @@ def _holds(relation: Relation) -> None:
         case "opens":
             assert subject is not None and relation.square is not None
             assert subject.piece == chess.KING
+            on(before, subject)
 
             def steps(board: chess.Board) -> set[int]:
                 scratch = board.copy()
@@ -301,6 +344,16 @@ def test_a_pin_names_what_it_pins_to() -> None:
         "Black's knight on e5 cannot move, because the rook on e1 pins it to the king on e8."
     ]
     # P2: the played move walks into a pin, and the pin decides what follows.
+    # The pinner is the piece in front of the pinned one, not one behind its king.
+    texts = [f.text for f in role_facts("4R3/8/8/4n3/4k3/8/4BP2/6K1 w - - 0 1", "g1h1", "f2f4")]
+    assert (
+        "Black's knight on e5 cannot move, because the rook on e8 pins it to the king on e4."
+        in (texts)
+    )
+    # A rook moving along its own pin was already pinned; the attack is not "already".
+    texts = [f.text for f in role_facts("4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1", "e2e3", "e1d1")]
+    assert not any("pins" in text for text in texts)
+    assert "Black's rook on e7 attacks White's rook on e3." in texts
     texts = [fact.text for fact in _facts("P2")]
     assert "Black's queen on e4 pins the bishop on e2 to the king on e1." in texts
     assert (
@@ -336,6 +389,37 @@ def test_shut_in_pieces_are_named_with_what_shuts_them_in() -> None:
 
 def test_a_move_that_defends_a_piece_says_so() -> None:
     assert "The pawn on d3 defends the bishop on c4." in [f.text for f in _facts("H1")]
+
+
+def test_en_passant_takes_the_checker_and_does_not_block() -> None:
+    facts = role_facts("4k3/8/8/3pP3/4K3/8/8/8 w - d6 0 1", "e5d6", "e4f3")
+    assert facts[0].text == "1.exd6: the pawn on e5 takes the pawn on d5."
+    assert not any(r.kind == "blocks" for fact in facts for r in fact.relations)
+
+
+def test_a_mate_later_in_a_line_is_stated() -> None:
+    facts = role_facts(
+        "7k/8/8/8/8/8/1R6/R7 w - - 0 1", "a1a2", "b2b7", best_line=("b2b7", "h8g8", "a1a8")
+    )
+    assert "The line goes on to 2.Ra8#, and it is mate: the game ends, and White wins." in [
+        f.text for f in facts
+    ]
+    facts = role_facts(
+        "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq g3 0 2",
+        "a7a6",
+        "d8h4",
+        played_line=("a2a3", "d8h4"),
+    )
+    follows = [f.text for f in facts if f.role == "what_follows"]
+    assert (
+        follows[-1]
+        == "The line goes on to 3...Qh4#, and it is mate: the game ends, and Black wins."
+    )
+    # After a mate there is no check to answer.
+    assert not any(r.kind == "prevents" for fact in facts for r in fact.relations)
+    for fact in facts:
+        for relation in fact.relations:
+            _holds(relation)
 
 
 def test_illegal_input_fails_fast() -> None:
