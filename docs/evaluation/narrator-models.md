@@ -1,4 +1,4 @@
-# Narrator model evaluation (#369, #389)
+# Narrator model evaluation (#369, #389, #449)
 
 Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine, board and factor facts. The validator decides whether its claims replace the template explanation.
 
@@ -47,7 +47,8 @@ Procedure: rank the models that pass by GPU memory, smallest first, and choose t
 - Commands, repository root, Ollama 0.40.18 on 127.0.0.1:11435:
   - main run: `uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml --positions-file benchmarks/narrator/positions-caissa.json --num-ctx 4096`;
   - engine comparison: the same with `--positions-file benchmarks/narrator/positions.json --models ...`;
-  - voices: the same with `--voice terse` or `--voice playful --models ...`.
+  - voices: the same with `--voice terse` or `--voice playful --models ...`;
+  - Analysis Board lines (#449): `uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml --positions-file benchmarks/narrator/positions-board.json --num-ctx 4096 --models gemma4-e4b-q3km --runs-per-position 5`.
 - Positions: `positions-caissa.json`, the 32 of the 50 benchmark positions that Caissa 2.0 diagnoses with a trusted code (#396; same games and learner moves). Each model runs 3 times per position (96 calls per model). The engine comparison uses `positions.json`, the 50 positions from recorded Stockfish 19 searches (150 calls per model).
 - Pipeline: the production `scan64.explanations.assembly:resolve_explanation` with an `OllamaExplanationAdapter` from `create_llm_provider`. It has fact slots (#386), factor facts and factor slots (#408), the fact-driven vocabulary rule (#408), the slot-list-only compact prompt (#408), fitted factor thresholds (#410) and line evaluations (#367).
 - Request: `think = false` and `stream = true` in every `/api/chat` body. `num_ctx` 4096 in every request, `num_predict` 2048. Client timeout 120 s.
@@ -221,6 +222,44 @@ Fallback reasons, main run (calls out of 96):
 
 Accepted answers lose coverage mostly on the key move. For a hanging piece the key move is the opponent's capture, but answers often name only the best move, for example "You played Rxd2, but h6 was stronger. That was a Hanging piece: after your move, threats fell by 0.75 pawns for you." (`gemma4-e4b-q3km`).
 
+### Analysis Board lines (#449)
+
+The runs above score lesson explanations only. Measured on 2026-11-28 with the default narrator, the Analysis Board (`POST /v1/analysis/position/explanation`) fell back to the template in every call, so #449 added a board-lines position set and fixed the cause.
+
+Method: `positions-board.json`, the 12 recorded Analysis Board positions of the tests (Stockfish 18, 200,000 nodes) at the endpoint's default MultiPV 3, with their recorded per-move searches; the runner rebuilds the facts as the endpoint does and calls `resolve_board_lines_explanation` ([narrator pipeline](../narrator-pipeline.md), section 13, Benchmark). `gemma4-e4b-q3km`, 5 runs per position (60 calls per run), `num_ctx` 4096, `think = false`, RTX 5090, Ollama 0.40.18, every header `dirty: false`. Before: commit `02f11fa` (benchmark only, the shipped prompt and validator). After: commit `9b06e04` (outcome words grounded by the line's facts, prompt wording), two runs. The same commits ran the Caissa game-move set (96 calls) to check the lesson path. Coverage on the board is the share of the three explained lines that the answer's slots name.
+
+| Run | Path | Calls | Narrated (grounding pass) | Coverage (accepted) | Delivered coverage | False chess statements / expl. | Latency p50 / p95 (s) | Prompt tokens median / max | Calls that thought |
+|---|---|---|---|---|---|---|---|---|---|
+| `runs_20261128_102734`, before | Analysis Board | 60 | **5.0%** | 100.0% | 5.0% | **2.90** | 1.29 / 1.87 | 1086 / 1294 | 0 |
+| `runs_20261128_110840`, after | Analysis Board | 60 | 50.0% | 95.6% | 47.8% | 0.75 | 1.34 / 1.70 | 1127 / 1335 | 0 |
+| `runs_20261128_111239`, after | Analysis Board | 60 | 46.7% | 92.9% | 43.3% | 0.60 | 1.42 / 1.83 | 1127 / 1335 | 0 |
+| after, pooled | Analysis Board | 120 | **48.3%** | | | **0.68** | | | 0 |
+| `runs_20261128_102903`, before | game moves (Caissa) | 96 | 96.9% | 61.3% | 59.4% | 0.06 | 0.61 / 1.08 | 1254 / 1561 | 0 |
+| `runs_20261128_111012`, after | game moves (Caissa) | 96 | 99.0% | 63.9% | 63.2% | 0.01 | 0.61 / 1.31 | 1254 / 1561 | 0 |
+
+GPU memory 3.13 GiB in every run. Fallback reasons, Analysis Board:
+
+| Run | `chess_token_outside_slot` | `missing_line` | `unknown_slot` | `unsupported_claim` |
+|---|---|---|---|---|
+| before (60 calls) | 55 | 1 | 1 | 0 |
+| after, run 1 (60 calls) | 20 | 3 | 4 | 3 |
+| after, run 2 (60 calls) | 22 | 5 | 5 | 0 |
+
+What the rejected claims say, per fallback (a fallback can have several):
+
+| Cause | Before (57 fallbacks) | After (62 fallbacks, two runs) |
+|---|---|---|
+| an outcome word (material, wins, loses, equal, advantage ...) outside a slot | 42 | 16: outside a material claim ("an advantage for the side to move") or in a comparison claim that does not hold for every line |
+| a line named as text: "Line 2", "line-1", `{line-1}` (a digit, or an unknown slot) | 16 | 26 |
+| a comparison claim linked to no line ("the first line is better than the second") | 5 | 10 |
+| "checkmate" outside a slot | 6 | 7 |
+| a material claim its line does not support (`unsupported_claim`) | 0 | 4 |
+| other (another digit or chess word, another unknown slot, a slot of another line) | 8 | 3 |
+
+- The outcome-word fix works: outcome words cause 16 of 62 fallbacks after, against 42 of 57 before, and narrated calls rise from 5.0% to 48.3%. False chess statements per explanation fall from 2.90 to 0.68; on game moves they do not rise (0.06 to 0.01, narrated 96.9% to 99.0%).
+- The 70% target of #449 is **not met**. Most remaining fallbacks name a line as text instead of by its `{label:line-K}` slot. The digit rule rejects "line 2" as notation, and one rejected claim rejects the whole answer. Prompt variants tried during development (60 or 120 calls each, uncommitted code, not committed results) narrated 27% to 58%; the variant that wrote "line 2" in the prompt as a bad example measured 27%.
+- The 4 `unsupported_claim` rejections are true statements about one line inside a comparison claim ("line one results in the material balance not changing"). The comparison item checks a material claim against every line, because code cannot tell which line the prose means.
+
 ## Decision
 
 2026-11-27: the narrator model is **`gemma4-e4b-q3km`** at `num_ctx` 4096, on every GPU with at least 4 GiB free. It is also the choice for GPUs under 10 GiB; no separate fallback is needed. Below about 3.5 GiB free, no measured model works and the template explanation stays.
@@ -253,6 +292,7 @@ The rule for a later change stays: rerun this benchmark when the prompt builder,
 - Engine comparison on the same positions: Caissa diagnoses 32 of 50 positions. A comparison on the same 32 positions on both engines removes the position-set difference.
 - `think = false` in production: the app adapters send no `think` field. The benchmark numbers assume it.
 - `praxis-4b` loops to the output cap in 18 of 96 calls (p95 7.06 s) and writes malformed line moves in 27.
+- Analysis Board (#449): narrated 48.3% after the outcome-word fix, under the 70% target. Most remaining fallbacks write a line's name as text ("Line 2", "line-1") instead of `{label:line-2}`. Reading such a name as the label slot, when that line's label is in the cited evidence item, would remove them, but it changes the digit rule, so it needs its own decision. Unlinked comparison claims are the next cause.
 - `benchmarks/narrator/HANDOFF-5090.md` is a machine handoff note, not a benchmark file. It should leave the repository; it stays on this branch because file deletion is outside this terminal's policy.
 
 ## Configuration
@@ -289,6 +329,7 @@ Set `SCAN64_LOCAL_LLM_CONTEXT_TOKENS=4096` for the local provider, so it does no
 - Thinking: every benchmark call sent `think = false`. The app adapters send no `think` field, so production calls of a thinking-capable model can differ from these numbers.
 - One GPU class: all factor, slot and free-prose runs are on an RTX 5090. Latency on smaller GPUs is higher (see the RTX 4080 Laptop run below). CPU latency is measured only for `praxis-4b` and `qwen3.5-4b`, on the pre-#367 prompt.
 - Provenance of the five runs above (`runs_20261127_213350`, `_220133`, `_221105`, `_222432`, `_223247`): their headers predate `config_sha256` and `narrator_sha256`, so they cannot be resumed and the header alone does not name the `narrator.toml` or the narrator modules that ran. Both follow from git, because every header has `dirty: false`: `benchmarks/narrator/narrator.toml` has not changed since `29f0424` (`git log -- benchmarks/narrator/narrator.toml`; sha256 `7f109df11a1a` at all three header commits), and `src/scan64/explanations` is identical at `29f0424`, `ecfc8de` and `937353f` (`narrator_sha256` as the runner now computes it: `792cd8a8b563`, 15 files).
+- Analysis Board set (#449): 12 positions, all from the recorded test positions, 60 calls per run. The two runs after the fix differ by 3.3 points narrated.
 - This measures narrator wording, not chess improvement for players.
 
 ## Interim slot run (superseded)
