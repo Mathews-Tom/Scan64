@@ -74,7 +74,7 @@ Procedure: rank the models that pass by GPU memory, smallest first, and choose t
 | Delivered coverage | Coverage over all calls; a fallback counts as 0. This is what a learner gets. |
 | Full coverage | Share of all calls accepted with all three key facts. |
 | Names a factor (accepted / where available) | Share of accepted answers that use at least one listed `{factor:...}` slot, a measured factor change (#410). The second value counts only positions whose slot list has a factor slot: 20 of the 32 Caissa positions, 33 of the 50 Stockfish positions. Runs recorded before the factor slots show `—`. |
-| False chess statements / expl. | Claims rejected for a chess reason, per explanation. On the slot path this includes `chess_token_outside_slot`. |
+| False chess statements / expl. | Claims rejected for a chess reason, per explanation. On the slot path this includes `chess_token_outside_slot` and, since #431, `unsupported_claim` and `negated_claim`. |
 | Latency p50 / p95 | Wall time of the provider call. |
 | First token p50 | Time to the first streamed token. |
 | Hit output cap | Share of calls that stop at `num_predict` (`done_reason = length`). |

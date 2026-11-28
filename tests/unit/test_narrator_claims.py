@@ -25,7 +25,12 @@ from scan64.explanations.board_lines import (
     scored_legal_lines,
 )
 from scan64.explanations.claims import ClaimFacts, unsupported_claim
-from scan64.explanations.slots import Slot, SlotCatalogue, chess_words_outside_slots
+from scan64.explanations.slots import (
+    CHESS_WORDS,
+    Slot,
+    SlotCatalogue,
+    chess_words_outside_slots,
+)
 from scan64.explanations.validator import (
     GroundedExplanationContext,
     GroundedExplanationValidationError,
@@ -68,11 +73,17 @@ def _validate(text: str, context: GroundedExplanationContext, evidence_id: str) 
     return validate_generated_explanation(GeneratedExplanation(claims=(claim,)), context).text
 
 
-def _rejects(text: str, context: GroundedExplanationContext, evidence_id: str) -> bool:
+def _rejects(
+    text: str,
+    context: GroundedExplanationContext,
+    evidence_id: str,
+    reason: str = "unsupported_claim",
+) -> bool:
+    """Whether validation rejects ``text``; a rejection must carry ``reason``."""
     try:
         _validate(text, context, evidence_id)
     except GroundedExplanationValidationError as error:
-        assert error.reason == "chess_token_outside_slot"
+        assert error.reason == reason
         return True
     return False
 
@@ -100,8 +111,11 @@ ISSUE_CLAIMS = [
 
 @pytest.mark.parametrize("text", ISSUE_CLAIMS)
 def test_issue_claims_are_rejected_on_the_starting_position(text: str) -> None:
+    """A claim with a chess word ("pawn", "king") already meets the slot-token rule."""
     context, evidence_id = _board("start")
-    assert _rejects(text, context, evidence_id)
+    expected = "chess_token_outside_slot" if CHESS_WORDS.search(text) else "unsupported_claim"
+    assert _rejects(text, context, evidence_id, expected)
+    assert unsupported_claim(text, _facts(context, evidence_id)) is not None
 
 
 def test_the_issue_example_passes_only_where_the_material_supports_it() -> None:
@@ -167,7 +181,7 @@ def test_a_supported_claim_still_needs_its_chess_words_named() -> None:
         slots=catalogue,
     )
     assert _validate("You are up a piece.", context, "ev") == "You are up a piece."
-    assert _rejects("You won the exchange.", context, "ev")
+    assert _rejects("You won the exchange.", context, "ev", "chess_token_outside_slot")
     # An item without claim facts supports no claim.
     bare = dataclasses.replace(context, slots=SlotCatalogue(by_evidence={"ev": {}}))
     assert _rejects("You are up a piece.", bare, "ev")
@@ -191,13 +205,16 @@ def test_a_supported_claim_still_needs_its_chess_words_named() -> None:
     ],
 )
 def test_paraphrased_and_negated_claims_need_a_fact(text: str) -> None:
-    assert unsupported_claim(text, NOTHING) is not None
+    rejected = unsupported_claim(text, NOTHING)
+    assert rejected is not None and rejected.negated == (" not " in text)
 
 
 def test_a_negated_claim_is_rejected_even_where_the_claim_is_true() -> None:
     """No fact records an absence: "not up a piece" is rejected on a piece-up position."""
     context, evidence_id = _lesson(UP_A_PIECE)
-    assert _rejects("You are not up a piece.", context, evidence_id)
+    assert _rejects("You are not up a piece.", context, evidence_id, "negated_claim")
+    level, level_id = _lesson(LEVEL)
+    assert _rejects("You aren't up a piece.", level, level_id, "negated_claim")
 
 
 def test_a_judgement_around_a_factor_name_follows_its_sign() -> None:

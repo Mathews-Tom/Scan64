@@ -277,7 +277,9 @@ The slot path does not run the claim grammar. On the slot path an `evidence_ref`
 |---|---|
 | `unknown_slot` | a `{...}` names no slot of this position, or braces are malformed (`{played`, `{}`, `{Played}`) |
 | `slot_not_in_evidence` | the slot exists for another evidence item of this position, not the cited one |
-| `chess_token_outside_slot` | the prose outside the slots holds chess content, or a relational claim no fact supports (section 13) |
+| `chess_token_outside_slot` | the prose outside the slots holds chess content (section 13) |
+| `unsupported_claim` | the prose outside the slots states a relational claim no fact of the cited item supports (section 13, claim rule, #431) |
+| `negated_claim` | the prose outside the slots states a negated relational claim ("you are not up a piece"); no fact records an absence (#431) |
 
 It raises `GroundedExplanationValidationError` with a `reason` code (`REJECTION_REASONS`) on the first failure:
 
@@ -515,7 +517,7 @@ Every adversarial text of the claim-grounding suite (#366, #384) is still reject
 
 ### Claim rule (#431)
 
-A relational claim can hold no chess word and no notation: "You are up a piece" passed the vocabulary rule on the starting position. `claims.unsupported_claim` reads the prose outside the slots with a closed table of patterns (`CLAIM_RULES`, `src/scan64/explanations/claims.py`) and rejects the claim as `chess_token_outside_slot` unless a fact of the cited evidence item (`SlotCatalogue.claims`, `ClaimFacts`) supports it, side and sign checked. It runs before the vocabulary rule and only adds rejections: a supported claim still needs its chess words named ("you won the exchange" also needs "won" and "exchange" in the vocabulary).
+A relational claim can hold no chess word and no notation: "You are up a piece" passed the vocabulary rule on the starting position. `claims.unsupported_claim` reads the prose outside the slots with a closed table of patterns (`CLAIM_RULES`, `src/scan64/explanations/claims.py`) and rejects the claim as `unsupported_claim` unless a fact of the cited evidence item (`SlotCatalogue.claims`, `ClaimFacts`) supports it, side and sign checked. It runs after the vocabulary rule, so `unsupported_claim` and `negated_claim` count only the outputs the claim rule rejects and the slot-token rule passed, and it only adds rejections: a supported claim still needs its chess words named ("you won the exchange" also needs "won" and "exchange" in the vocabulary).
 
 | Topic | Examples | Supported by |
 |---|---|---|
@@ -530,7 +532,7 @@ Side words: `you`, `your`, `the learner`, `the side to move` are the learner (th
 
 Measured on the start position of the Analysis Board through the endpoint with an Ollama HTTP double (#431): "You are up a piece." and "Your opponent has no counterplay." were accepted on the base and fall back to the template on the head.
 
-**Looseness (claim rule).** A claim is checked against every fact position of the item, not one moment: "you were winning before {played}" holds when any fact position is winning. Long lines hold many positions: "You are up a piece." is supported for the first evidence item of 26 of the 50 benchmark positions. A side-free claim takes either side's fact. A negated claim ("you are not up a piece", "you aren't losing") is rejected, because no fact records an absence. A claim no pattern reads is left to the vocabulary rule.
+**Looseness (claim rule).** A claim is checked against every fact position of the item, not one moment: "you were winning before {played}" holds when any fact position is winning. Long lines hold many positions: "You are up a piece." is supported for the first evidence item of 26 of the 50 benchmark positions. A side-free claim takes either side's fact. A negated claim ("you are not up a piece", "you aren't losing") is rejected as `negated_claim`, because no fact records an absence. A claim no pattern reads is left to the vocabulary rule.
 
 **Looseness.** A clause slot of any ply admits its word for the whole item: `threat` is in the vocabulary of 48 of the 50 benchmark positions, because most lines have a `{threat:L:N}` slot. The word then carries no square, move or number, so it cannot state which piece is threatened.
 
@@ -542,7 +544,7 @@ The output contract is unchanged: `GeneratedExplanation` claims with `text`, `ev
 
 ### Benchmark
 
-`benchmarks/narrator/run_benchmark.py` records, per claim, `slots`: each slot name the text uses, its rendered value (`null` when not listed) and its UCI moves; per run of the slot pipeline, `slots_used` (all claims' slots in order). Coverage (played move, key move, result) of a record with `slots_used` is counted from the listed slots only (`slot_coverage`): a move counts when a used slot's moves or rendered SAN hold it; the result counts when a used slot's value names it. Records without `slots_used` (all runs before #386) keep the claim-text count, so their summaries recompute unchanged. `chess_token_outside_slot` counts as a false chess statement.
+`benchmarks/narrator/run_benchmark.py` records, per claim, `slots`: each slot name the text uses, its rendered value (`null` when not listed) and its UCI moves; per run of the slot pipeline, `slots_used` (all claims' slots in order). Coverage (played move, key move, result) of a record with `slots_used` is counted from the listed slots only (`slot_coverage`): a move counts when a used slot's moves or rendered SAN hold it; the result counts when a used slot's value names it. Records without `slots_used` (all runs before #386) keep the claim-text count, so their summaries recompute unchanged. `chess_token_outside_slot`, `unsupported_claim` and `negated_claim` count as false chess statements; the per-reason counts (`claim_rejection_reasons`, `fallback_reasons`) keep the claim rule's fallbacks apart from the slot-token rule.
 
 ## 14. Narrator voice (#387)
 

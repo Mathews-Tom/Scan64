@@ -253,7 +253,7 @@ def test_grounded_provider_wording_is_returned_with_its_line_links(
                     disclosure_level=1,
                 ),
             ),
-            "chess_token_outside_slot",
+            "unsupported_claim",
         ),
         (
             (

@@ -578,21 +578,31 @@ def supported(claim: Claim, facts: ClaimFacts) -> bool:
     return any((claim.topic, side * claim.sign) in facts.factors for side in signs)
 
 
-def unsupported_claim(prose: str, facts: ClaimFacts) -> str | None:
-    """The first claim in ``prose`` no fact supports, else ``None``.
+@dataclass(frozen=True)
+class RejectedClaim:
+    """A claim the validator rejects: its text, and whether it is negated."""
 
-    The check only adds rejections: a supported claim still goes through the
-    vocabulary rule, so its chess words ("won", "exchange") must be fact names
-    too. Within this pass a matched claim is blanked so a later rule does not
-    read it again.
+    text: str
+    negated: bool
+
+
+def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
+    """The first claim in ``prose`` that is negated or no fact supports, else ``None``.
+
+    The validator runs it after the vocabulary rule, and it only adds
+    rejections: a supported claim must also pass the vocabulary rule, so its
+    chess words ("won", "exchange") must be fact names too. Within this pass
+    a matched claim is blanked so a later rule does not read it again.
     """
     remaining = prose
     for pattern, read in CLAIM_RULES:
         for match in pattern.finditer(remaining):
             groups = match.groupdict()
             # A negated claim states an absence, which no fact records.
-            if groups.get("neg") or groups.get("neg2") or not supported(read(match), facts):
-                return match[0].strip()
+            if groups.get("neg") or groups.get("neg2"):
+                return RejectedClaim(match[0].strip(), negated=True)
+            if not supported(read(match), facts):
+                return RejectedClaim(match[0].strip(), negated=False)
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
     return None
 
@@ -605,6 +615,7 @@ __all__ = [
     "WINNING_CP",
     "Claim",
     "ClaimFacts",
+    "RejectedClaim",
     "supported",
     "unsupported_claim",
 ]

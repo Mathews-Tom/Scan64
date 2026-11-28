@@ -80,6 +80,9 @@ RejectionReason = Literal[
     "unknown_slot",
     "slot_not_in_evidence",
     "chess_token_outside_slot",
+    # Claim rule (#431): a relational claim outside slots no fact supports.
+    "unsupported_claim",
+    "negated_claim",
 ]
 REJECTION_REASONS: tuple[RejectionReason, ...] = get_args(RejectionReason)
 
@@ -212,12 +215,6 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
-    claim = unsupported_claim(prose, catalogue.claim_facts(evidence_id))
-    if claim is not None:
-        raise _reject(
-            "chess_token_outside_slot",
-            f"states a chess claim no fact supports outside a slot: {claim!r}",
-        )
     residue = chess_words_outside_slots(
         prose, catalogue.vocabulary(evidence_id), catalogue.phrases.get(evidence_id, ())
     )
@@ -226,6 +223,13 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
             "chess_token_outside_slot",
             f"states chess content outside a slot: {residue!r}",
         )
+    # After the slot-token rule, so these reasons count only what the claim
+    # rule adds (#431).
+    claim = unsupported_claim(prose, catalogue.claim_facts(evidence_id))
+    if claim is not None:
+        if claim.negated:
+            raise _reject("negated_claim", f"states a negated chess claim: {claim.text!r}")
+        raise _reject("unsupported_claim", f"states a chess claim no fact supports: {claim.text!r}")
     return render(text, slots)
 
 
