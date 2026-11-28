@@ -1,0 +1,6 @@
+# Linux compat set (#411): XBoard only, no MultiPV, Hash or Threads.
+# Built from the Debian source package; reads fmax.ini from its compiled-in directory.
+[engine]
+name = "fairy-max"
+binary_path = "~/.local/opt/engines/fairymax/fairymax"
+protocol = "xboard"

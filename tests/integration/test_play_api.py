@@ -89,7 +89,9 @@ def test_create_get_analysis_job(client: TestClient, session: Session):
     assert job_data["status"] == "pending"
 
     job_id = job_data["id"]
-    deadline = time.monotonic() + 5.0
+    # A real Stockfish analysis: under parallel workers on a 3-core CI runner
+    # it can take several seconds. The loop returns as soon as the job ends.
+    deadline = time.monotonic() + 30.0
     status = "pending"
     while status not in {"completed", "failed"} and time.monotonic() < deadline:
         get_job_response = client.get(f"/v1/analysis-jobs/{job_id}", headers=headers)

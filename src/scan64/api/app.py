@@ -16,6 +16,7 @@ from scan64.api.coach_linkage import router as coach_linkage_router
 from scan64.api.content import router as content_router
 from scan64.api.data_lifecycle import router as data_lifecycle_router
 from scan64.api.desktop_security import add_desktop_security
+from scan64.api.diagnostics import router as diagnostics_router
 from scan64.api.engine_errors import add_engine_capability_handler
 from scan64.api.explanation_settings import router as explanation_settings_router
 from scan64.api.games import router as games_router
@@ -148,6 +149,7 @@ app.include_router(data_lifecycle_router)
 app.include_router(progress_router)
 app.include_router(onboarding_router)
 app.include_router(explanation_settings_router)
+app.include_router(diagnostics_router)
 app.include_router(strength_router)
 app.include_router(reports_router)
 app.include_router(habit_router)

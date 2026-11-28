@@ -1,0 +1,12 @@
+# Linux compat set (#411): Lc0 0.32.1, CUDA fp16 on an RTX 5090, BT4 net.
+# Option values get no ~ expansion, so the network is set by the wrapper
+# ~/.local/opt/engines/lc0/lc0-bt4 (lc0 --weights=..., built from $HOME), not WeightsFile.
+# BT4 with 2 search threads ~11k nps vs Stockfish 18 ~850k nps -> node_scale 0.013.
+[engine]
+name = "lc0-bt4"
+binary_path = "~/.local/opt/engines/lc0/lc0-bt4"
+threads = 2
+node_scale = 0.013
+
+[engine.options]
+Backend = "cuda-fp16"

@@ -401,12 +401,27 @@ engine and points a profile at it.
 | Minic | https://github.com/tryingsomestuff/Minic | GPL-3.0 | MultiPV capped below 8; non-standard WDL option |
 | Obsidian | https://github.com/gab8192/Obsidian | GPL-3.0 | truncated PVs |
 | Triumviratus | https://github.com/Tors3/Triumviratus | GPL-3.0 | network from an external file |
-| Fairy-Max | Debian package `fairymax` | not stated at source | XBoard only; no MultiPV, Hash or Threads |
+| Fairy-Max | Debian package `fairymax` | public domain; also GPL or MIT (see below) | XBoard only; no MultiPV, Hash or Threads |
 | Fairy-Stockfish | https://github.com/fairy-stockfish/Fairy-Stockfish | GPL-3.0 | several protocols; evaluation-term trace |
 | Rodent V | https://github.com/nescitus/Rodent-V | GPL-3.0 | large option list; personality files |
 | PZChessBot | https://github.com/kevlu8/PZChessBot | AGPL-3.0 | lower-case option names |
 | Lc0 | https://github.com/LeelaChessZero/lc0 | GPL-3.0 (network licence not stated) | slow neural nodes; no Hash |
 | Maia-3 | https://github.com/CSSLab/maia3 | AGPL-3.0 (weights licence not stated) | Python UCI wrapper; rating options |
+
+Fairy-Max's licence is the notice at the top of `fairymax.c` in the Debian
+source package `fairymax_5.0b.orig.tar.gz` (unchanged by the Debian patches):
+"Fairy-Max 5.0 is free software, released in the public domain so that you have
+my permission do with it whatever you want, whether it is commercial or not, at
+your own risk. Those that are not comfortable with this, can also use or
+redistribute it under the GNU Public License or the MIT License." The notice
+names no GPL version. The package's `debian/copyright` gives upstream files the
+custom licence `fairmyax-license` (sic), whose text is the older Fairy-Max 4.8
+grant: "Fairy-Max 4.8 is free software, and you have my permission do with it
+whatever you want, whether it is commercial or not." It does not mention the
+GPL or MIT. Both texts add that configuring patented variants needs the patent
+holders' permission and that there is no warranty. The results tables generated
+before this change (`benchmarks/engines/results/compat_*.md`) still say "not
+stated at source".
 
 ### Results
 
@@ -429,9 +444,56 @@ the comparison above, and the XBoard test engine
    XBoard" (lesson verification: 2 lines).
 4. As 1, plus `MultiPV`.
 
-The ten-engine run is done on the Linux machine, where every engine in the set
-builds and runs. Its table replaces nothing above; it is added here with the
-date and the engine versions.
+Linux run (linux-5090, 2026-11-27, commit `edda2ed`, #411): the ten engines
+above plus Stockfish 11, Lc0 with the BT4 network, Caissa, Arasan, Ethereal,
+Berserk and Koivisto, from `benchmarks/engines/compat-linux.toml` with the
+profiles in `config/engines/compat/linux/`. The states are copied from
+`benchmarks/engines/results/compat_20261127_202247.jsonl`, except the two Lc0
+rows, which come from `compat_20261127_233522.jsonl` (an Lc0-only rerun at
+`747152f`, after the profiles moved to wrapper scripts; same states as
+`202247`). The generated tables with the reason for every `unavailable` and
+`blocked` cell, and the run notes, are the `.md` files next to them. Each engine's source, tag and
+commit, build command, binary SHA-256 and network URL and SHA-256 are in
+[`benchmarks/engines/linux-builds.md`](../benchmarks/engines/linux-builds.md);
+the binary SHA-256 is also in every JSONL record. This table replaces nothing above.
+
+| Engine | Version | Protocol | node_scale | game_analysis | focused_pass | hints | lesson_verification | analysis_board | bot_ladder | skill_level_opponent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stockfish 18 | 18 | UCI | 1 | works | works | works | works | works | works | works |
+| Alexandria | 9.1.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Minic | 3.46 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Obsidian | 16.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Triumviratus | 8.1 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Fairy-Max | 5.0b | XBoard | 1 | unavailable | blocked | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Fairy-Stockfish | 14 | UCI | 1 | works | works | works | works | works | works | works |
+| Rodent V | 1.2 | UCI | 1 | unavailable | blocked | works | unavailable | works | unavailable | unavailable |
+| PZChessBot | 8.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Lc0 | 0.32.1 (T1 net) | UCI | 0.12 | works | works | works | works | works | unavailable | unavailable |
+| Lc0 (BT4) | 0.32.1 (BT4 net) | UCI | 0.013 | works | works | works | works | works | unavailable | unavailable |
+| Maia-3 | 0.1.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Caissa | 2.0 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Arasan | 26.1 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Stockfish 11 | 11 | UCI | 1 | works | works | works | works | works | works | works |
+| Ethereal | 14.40 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Berserk | 14 | UCI | 1 | works | works | works | works | works | unavailable | unavailable |
+| Koivisto | 9.0 | UCI | 1 | works | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |
+
+- `unavailable` on the multi-line features (Alexandria, PZChessBot, Koivisto):
+  "N analysis lines need the UCI option MultiPV, which … does not declare".
+- `bot_ladder` and `skill_level_opponent` are `unavailable` on every engine
+  without `Skill Level` (and, for the ladder, `UCI_LimitStrength`); Stockfish 18,
+  Stockfish 11 and Fairy-Stockfish declare them.
+- Fairy-Max: "does not declare the XBoard setboard feature", so no feature runs
+  and `focused_pass` is `blocked`.
+- Rodent V ignores `go nodes N`; with the profile's `search_deadline_s = 30`
+  its node-only searches (`game_analysis`, `lesson_verification`) are
+  `unavailable` after 30 s and `focused_pass` is `blocked`. Hints and the
+  Analysis Board have a time limit and work.
+- Arasan 26.1 stops after about 6k nodes for any N and Maia-3 ignores node
+  limits, so their node-budget features `work` with less search than asked
+  (see Follow-ups).
+- Lc0's `node_scale` is measured nodes per second against Stockfish 18 (T1
+  0.12, BT4 0.013); Maia-3 stays at 1.
 
 ## Follow-ups
 
@@ -455,4 +517,134 @@ date and the engine versions.
   the compatibility table shows it.
 - Profiles have no working directory, environment variables or command-line
   arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
-  and option values get no `~` expansion.
+  and option values get no `~` expansion (both Lc0 profiles use a wrapper that
+  passes `--weights` from `$HOME`).
+
+## Variants
+
+Scan64 does not analyse chess variants yet; [#398](https://github.com/Mathews-Tom/Scan64/issues/398)
+tracks the work. This section records which engines can serve them and how
+python-chess selects a variant, measured with the variant probe below.
+
+### Engines
+
+| Variant | python-chess board | `UCI_Variant` | Fairy-Stockfish 14 | Standard-chess engines (Stockfish 18 probed) |
+| --- | --- | --- | --- | --- |
+| Crazyhouse | `CrazyhouseBoard` | `crazyhouse` | yes | no |
+| Three-check | `ThreeCheckBoard` | `3check` | yes | no |
+| Atomic | `AtomicBoard` | `atomic` | yes | no |
+| Antichess | `AntichessBoard` | `antichess` | yes | no |
+| King of the hill | `KingOfTheHillBoard` | `kingofthehill` | yes | no |
+| Horde | `HordeBoard` | `horde` | yes | no |
+| Racing kings | `RacingKingsBoard` | `racingkings` | yes | no |
+
+"yes" means the engine lists the value in its `UCI_Variant` option and
+analysed every probe position of that variant. Fairy-Stockfish 14 declares 64
+`UCI_Variant` values in all; the seven above are those python-chess has
+boards for. Stockfish 18 declares no `UCI_Variant` option (probe run below).
+The other standard engines were not probed; they are standard-chess engines
+and are not treated as variant engines.
+
+Fairy-Stockfish (https://github.com/fairy-stockfish/Fairy-Stockfish) is
+GPL-3.0. Scan64 does not download or bundle it: the user installs the release
+binary and points a profile at it, for example
+[`config/engines/linux/fairy-stockfish.toml`](../config/engines/linux/fairy-stockfish.toml)
+(`fairy-stockfish_x86-64` in `~/.local/opt/engines/fairy-stockfish/`). #398
+states that no permissively licensed engine supports crazyhouse and
+three-check (not checked here), so Scan64 has no bundled variant engine.
+
+### How the variant is selected
+
+The board selects the variant. python-chess sends `UCI_Variant` before every
+search from the type of the board it is given (`CrazyhouseBoard` sends
+`crazyhouse`) and raises `EngineError: cannot set UCI_Variant which is
+automatically managed` when a caller sets it. `UCI_Variant` is therefore one
+of the Scan64-managed options a profile may not set (see the rules above);
+a variant engine's profile is an ordinary profile. Before a search, read the
+values the engine declares (`engine.options["UCI_Variant"].var`). Without
+that check python-chess raises `EngineError` ("engine does not support
+UCI_Variant" for an engine without the option, "invalid value for combo option
+'UCI_Variant'" for a value it does not list), not a capability message.
+
+### Probe results
+
+[`benchmarks/engines/variants_probe.py`](../benchmarks/engines/variants_probe.py)
+analyses the start position and two or three fixed positions per variant,
+including crazyhouse positions with pieces in hand and three-check positions
+after checks (one where the side to move has a check left that wins). Each
+search: 300,000 nodes, MultiPV 3, one thread, 16 MB hash, a fresh game per
+position. The probe never sets `UCI_Variant`; a variant the engine does not
+list is recorded as `not declared` and not searched. Every move of each raw
+`pv` the engine sent is replayed on the python-chess variant board; an empty
+`pv` counts as not legal (python-chess itself drops a `pv` it cannot play, so
+its parsed lines cannot show an illegal move).
+
+linux-5090, 2026-11-28, commit `f10d6d6` (clean tree), Fairy-Stockfish 14
+release binary `fairy-stockfish_x86-64` (SHA-256 `ab6b8582…e150f`, no
+network file: `EvalFile` unset), python-chess 1.11.2, CPUs 32-39. Raw records:
+`benchmarks/engines/results/variants_probe_20261128_002851.jsonl`; the
+manifest and the per-position table (scores included) are the `.manifest.json`
+and `.md` files next to it. One run on one machine; PV length and time are
+not playing strength.
+
+| Variant | Positions | Lines per position | PV lengths in plies, per position | All PV moves legal | Time per position |
+| --- | --- | --- | --- | --- | --- |
+| Crazyhouse | start, fried-liver, alekhine, scandinavian | 3 | 14-16-17 / 2-8-12 / 2-11-11 / 13-2-11 | yes | 0.354–0.383 s |
+| Three-check | start, white-two-checks, black-two-checks | 3 | 2-2-13 / 2-2-2 / 1-2-12 | yes | 0.316–0.349 s |
+| Atomic | start, knight-threat, pinned-knight | 3 | 6-2-11 / 1-3-3 / 3-5-2 | yes | 0.037–0.294 s |
+| Antichess | start, forced-capture, middlegame | 3; 1 in forced-capture | 15-2-16 / 12 / 12-14-2 | yes | 0.309–0.357 s |
+| King of the hill | start, king-walk, italian | 3 | 11-13-10 / 10-2-13 / 14-2-14 | yes | 0.354–0.410 s |
+| Horde | start, opening, pawn-wedge | 3 | 15-13-12 / 13-13-2 / 15-14-15 | yes | 0.355–0.401 s |
+| Racing kings | start, race, knights-out | 3 | 13-12-2 / 9-8-13 / 11-12-9 | yes | 0.337–0.352 s |
+
+- The forced-capture antichess position has one legal move, so it returns one
+  line.
+- Mates end the line: black-two-checks (`...Bb4+`, the third check) and
+  knight-threat (`Nxf7`, whose explosion takes the e8 king) are `mate 1` with a
+  one-ply first line, and pinned-knight is `mate 2`. Knight-threat finished in
+  0.037 s.
+- Many lines are 2 plies long. The probe does not show why; standard-chess
+  engines also return short MultiPV lines (Stockfish 18's 1-ply second line in
+  the comparison above).
+
+Stockfish 18 through the same probe (`variants_probe_20261128_002924.jsonl`,
+commit `ee61d81`, profile `config/engines/compat/linux/stockfish-18.toml`):
+every position is `not declared` ("Stockfish 18 declares no UCI_Variant
+option") and no search starts.
+
+Re-run:
+
+```
+taskset -c 32-39 uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux.toml
+uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux_stockfish.toml
+uv run python -m benchmarks.engines.variants_probe --summarise RESULTS.jsonl
+```
+
+A run writes `variants_probe_<UTC stamp>.jsonl`, its `.manifest.json` and a
+`.md` summary under `benchmarks/engines/results/`; there is no resume. The
+manifest records the commit and dirty flag (the whole tree, the results
+directory excluded), the engine's name, executable SHA-256 and option values,
+its declared `UCI_Variant` values, the config and profile SHA-256 and a config
+digest over them and every position, and the python-chess version. Its digest,
+`run_id`, is in every record. `--summarise` rebuilds the summary from the
+manifest and records alone and re-checks every PV's legality from the
+recorded FEN and moves. `tests/unit/test_variants_probe.py` covers the
+`not declared` path and the legality check with a scripted UCI engine
+(`tests/fixtures/engines/fake_variant_uci.py`).
+
+### What Scan64 lacks for variants
+
+Tracked in #398:
+
+- Engine layer: every search gets a standard `chess.Board`, built from a
+  FEN or a standard game replay (`providers/stockfish/pool.py`, `adapter.py`),
+  so no search reaches the engine as a variant; there is no capability message for an engine that does
+  not declare the variant; analysis rows and the cache identity have no
+  variant field.
+- Rules and import: `ingest_fen` accepts standard chess only, and PGN import
+  rejects any `Variant` tag other than `Standard` (`NonStandardVariantError`).
+- Web board: no pockets or drops for crazyhouse, no check count for
+  three-check.
+- Analysis Board engine lines and narration for variants.
+- Diagnosis, lessons and puzzles stay standard chess; variant games are not
+  labelled as not covered there yet.

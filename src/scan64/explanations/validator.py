@@ -1,11 +1,16 @@
 """Grounding contract for provider-worded explanations.
 
 Every claim must cite known evidence, stay within the requested certainty and
-hint level, cite only a legal prefix of a verified line, and its ``text`` may
-state only chess facts present in that evidence or on its boards. Claim text is
-read with a small explicit grammar (see ``_validate_claim_text``); any chess
-token the grammar cannot place rejects the generation rather than passing
-unchecked.
+hint level, and cite only a legal prefix of a verified line. Claim text is
+checked on one of two paths:
+
+- Slot path (#386, ``context.slots`` set): every slot must name a fact listed
+  for the cited evidence item, and the prose outside the slots must hold no
+  chess content (``slots.CHESS_PROSE``). The returned claims hold the rendered
+  text. The claim grammar below is not used.
+- Grammar path (#366, ``context.slots`` unset): claim text is read with a small
+  explicit grammar (see ``_validate_claim_text``); any chess token the grammar
+  cannot place rejects the generation rather than passing unchecked.
 """
 
 from __future__ import annotations
@@ -27,6 +32,13 @@ from scan64.explanations.facts import (
     NarratorFactsError,
     StoredEvaluations,
     parse_played_move,
+)
+from scan64.explanations.slots import (
+    CHESS_PROSE,
+    SLOT_TOKEN,
+    SlotCatalogue,
+    prose_outside_slots,
+    render,
 )
 from scan64.learning.evidence.composer import PIECE_VALUES, line_material_gain
 from scan64.learning.evidence.models import Evidence
@@ -60,6 +72,10 @@ RejectionReason = Literal[
     "wrong_side_to_move",
     "unparsed_chess_token",
     "missing_line",
+    # Slot path (#386).
+    "unknown_slot",
+    "slot_not_in_evidence",
+    "chess_token_outside_slot",
 ]
 REJECTION_REASONS: tuple[RejectionReason, ...] = get_args(RejectionReason)
 
@@ -82,7 +98,8 @@ class GroundedExplanationContext:
     """Verified facts and disclosure policy supplied to an explanation provider.
 
     ``fen`` is the position before the learner's move: its side to move is the
-    learner ("your" in claim text).
+    learner ("your" in claim text). With ``slots`` set, claim text is checked
+    and rendered on the slot path (module docstring).
     """
 
     fen: str
@@ -90,6 +107,7 @@ class GroundedExplanationContext:
     verified_lines: Mapping[str, tuple[tuple[str, ...], ...]]
     requested_hint_level: int
     maximum_certainty: Literal["observed", "likely", "certain"] = "observed"
+    slots: SlotCatalogue | None = None
 
 
 _CERTAINTY_RANK = {"observed": 0, "likely": 1, "certain": 2}
@@ -113,13 +131,48 @@ def validate_generated_explanation(
         ) from error
 
     evidence_by_id = _evidence_by_id(context.evidence)
+    claims: list[ExplanationClaim] = []
     for claim in generated.claims:
-        _validate_claim(claim, board, context, evidence_by_id)
+        _validate_claim_contract(claim, board, context, evidence_by_id)
+        if context.slots is None:
+            _validate_claim_text(
+                claim.text,
+                _ClaimEvidence.build(
+                    board,
+                    evidence_by_id[claim.evidence_ref],
+                    context.verified_lines.get(claim.evidence_ref, ()),
+                ),
+            )
+            claims.append(claim)
+        else:
+            text = render_slot_text(claim.text, context.slots, claim.evidence_ref)
+            claims.append(claim.model_copy(update={"text": text}))
 
-    return Explanation(
-        text=" ".join(claim.text for claim in generated.claims),
-        claims=list(generated.claims),
-    )
+    return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
+
+
+def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
+    """Check one slot claim's text (slot path) and return it with every slot filled."""
+    slots = catalogue.slots_for(evidence_id)
+    for match in SLOT_TOKEN.finditer(text):
+        name = match.group("name")
+        if name in slots:
+            continue
+        if name in catalogue.names():
+            raise _reject(
+                "slot_not_in_evidence", f"uses a slot of another evidence item: {match[0]!r}"
+            )
+        raise _reject("unknown_slot", f"uses an unknown slot: {match[0]!r}")
+    prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
+    if "{" in prose or "}" in prose:
+        raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
+    residue = CHESS_PROSE.search(prose)
+    if residue is not None:
+        raise _reject(
+            "chess_token_outside_slot",
+            f"states chess content outside a slot: {residue[0]!r}",
+        )
+    return render(text, slots)
 
 
 async def attach_validated_explanation(
@@ -148,7 +201,7 @@ def _evidence_by_id(evidence: tuple[Evidence, ...]) -> dict[str, Evidence]:
     return by_id
 
 
-def _validate_claim(
+def _validate_claim_contract(
     claim: ExplanationClaim,
     board: chess.Board,
     context: GroundedExplanationContext,
@@ -172,9 +225,7 @@ def _validate_claim(
         raise GroundedExplanationValidationError(
             "Explanation claim exceeds the requested hint level", reason="disclosure_exceeded"
         )
-    verified_lines = context.verified_lines.get(claim.evidence_ref, ())
-    _validate_line(claim.line, board, verified_lines)
-    _validate_claim_text(claim.text, _ClaimEvidence.build(board, evidence, verified_lines))
+    _validate_line(claim.line, board, context.verified_lines.get(claim.evidence_ref, ()))
 
 
 def _validate_line(

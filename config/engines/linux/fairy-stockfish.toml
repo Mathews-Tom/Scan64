@@ -1,0 +1,14 @@
+# Fairy-Stockfish 14 release binary (x86-64) for the linux-5090 variant probe
+# (#435, part of #398). Fairy-Stockfish is GPL-3.0 and installed by the user;
+# Scan64 does not download or bundle it.
+# https://github.com/fairy-stockfish/Fairy-Stockfish/releases (fairy-stockfish_x86-64)
+#
+# No UCI_Variant here: python-chess sets it from the board type of every
+# search (CrazyhouseBoard -> crazyhouse, ...) and refuses a manual setting, and
+# Scan64's profile loader rejects it as a Scan64-managed option.
+# Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
+[engine]
+name = "fairy-stockfish"
+binary_path = "~/.local/opt/engines/fairy-stockfish/fairy-stockfish_x86-64"
+threads = 1
+hash_mb = 16

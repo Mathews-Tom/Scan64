@@ -1,0 +1,183 @@
+{
+  "header": {
+    "gpu": "NVIDIA GeForce RTX 5090, 32607 MiB",
+    "num_ctx": 12288,
+    "num_predict": 2048,
+    "ollama_version": "0.40.18",
+    "pipeline": {
+      "commit": "b6d29e0beb448fccf8b4e36db7124b90a8fb2f09",
+      "dirty": false,
+      "grounding_context": "scan64.explanations.assembly:grounding_context_for",
+      "module_commit": "8c4fb686b26b2edf5b6b7ddb863ffa62272bf3e5",
+      "module_file": "src/scan64/explanations/assembly.py",
+      "module_sha256": "9fc28043b51e81ae9380f99821769716ba1ce165a5b830dd08d033d601174395",
+      "pipeline_entry": "scan64.explanations.assembly:resolve_explanation",
+      "runner_sha256": "8a0b6d8794b05c79e872c341a424339f08e8d8ec4c2269cd196c9dc15da2a65c"
+    },
+    "positions": 50,
+    "positions_file": "benchmarks/narrator/positions.json",
+    "positions_sha256": "a515d7fd2ff3cc2a7352cd3b29f5618eef00695066ff8ad6e89de557906f2893",
+    "python": "3.12.13",
+    "record": "header",
+    "request_overrides": {
+      "stream": true,
+      "think": false
+    },
+    "request_timeout_s": 120.0,
+    "runs_per_position": 3,
+    "started": "2026-11-27T18:17:32.022881+00:00",
+    "voice": "playful"
+  },
+  "models": {
+    "gemma4-12b": {
+      "claim_rejection_reasons": {
+        "chess_token_outside_slot": 80,
+        "unknown_slot": 3
+      },
+      "claims_per_explanation": 2.12,
+      "coverage_accepted": 0.9082125603864734,
+      "delivered_coverage": 0.41777777777777775,
+      "fallback_reasons": {
+        "chess_token_outside_slot": 79,
+        "unknown_slot": 2
+      },
+      "false_chess_statements_per_explanation": 0.5333333333333333,
+      "first_token_p50_s": 1.0287592189852148,
+      "full_coverage_rate": 0.3333333333333333,
+      "gpu_peak_over_idle_gib": 9.5791015625,
+      "grounding_pass_rate": 0.46,
+      "grounding_pass_rate_by_code": {
+        "board_awareness.hanging_piece": 0.0,
+        "tactics.fork.knight": 1.0,
+        "threat_processing.allowed_mate": 0.5925925925925926,
+        "threat_processing.missed_capture": 0.5555555555555556,
+        "threat_processing.missed_check": 0.4074074074074074,
+        "threat_processing.missed_direct_threat": 0.4444444444444444
+      },
+      "latency_p50_s": 1.9863045245001558,
+      "latency_p95_s": 2.468107440139283,
+      "length_stop_rate": 0.0,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 33.610491870029364,
+      "mean_output_tokens": 249.73333333333332,
+      "mean_prompt_tokens": 6387.78,
+      "model_size_gib": 1.3624707013368607,
+      "ollama_size_vram_gib": 1.3624707013368607,
+      "params_b": 11.95,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.0,
+      "rejected_claims_per_explanation": 0.5533333333333333,
+      "role": "baseline",
+      "runs": 150,
+      "san_correct_rate": null,
+      "san_legal_rate": null,
+      "san_tokens": 0,
+      "served_name": "scan64-bench-gemma4-12b",
+      "thinking_calls": 0,
+      "vram_model_gib": 9.427734375,
+      "within_production_limit_rate": 1.0
+    },
+    "gemma4-e4b": {
+      "claim_rejection_reasons": {
+        "chess_token_outside_slot": 95,
+        "illegal_line_move": 1,
+        "malformed_line_move": 6,
+        "unknown_slot": 7
+      },
+      "claims_per_explanation": 2.1866666666666665,
+      "coverage_accepted": 0.7397260273972602,
+      "delivered_coverage": 0.36,
+      "fallback_reasons": {
+        "chess_token_outside_slot": 68,
+        "illegal_line_move": 1,
+        "malformed_line_move": 4,
+        "unknown_slot": 4
+      },
+      "false_chess_statements_per_explanation": 0.68,
+      "first_token_p50_s": 0.3016001739888452,
+      "full_coverage_rate": 0.24,
+      "gpu_peak_over_idle_gib": 5.2822265625,
+      "grounding_pass_rate": 0.4866666666666667,
+      "grounding_pass_rate_by_code": {
+        "board_awareness.hanging_piece": 0.48148148148148145,
+        "tactics.fork.knight": 0.8666666666666667,
+        "threat_processing.allowed_mate": 0.2962962962962963,
+        "threat_processing.missed_capture": 0.48148148148148145,
+        "threat_processing.missed_check": 0.4444444444444444,
+        "threat_processing.missed_direct_threat": 0.5185185185185185
+      },
+      "latency_p50_s": 0.8006132025329862,
+      "latency_p95_s": 1.2968160745425847,
+      "length_stop_rate": 0.0,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 36.733509314013645,
+      "mean_output_tokens": 209.55333333333334,
+      "mean_prompt_tokens": 6383.78,
+      "model_size_gib": 0.5135351549834013,
+      "ollama_size_vram_gib": 0.5135351549834013,
+      "params_b": 8.0,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.0,
+      "rejected_claims_per_explanation": 0.7266666666666667,
+      "role": "baseline",
+      "runs": 150,
+      "san_correct_rate": null,
+      "san_legal_rate": null,
+      "san_tokens": 0,
+      "served_name": "scan64-bench-gemma4-e4b",
+      "thinking_calls": 0,
+      "vram_model_gib": 5.275390625,
+      "within_production_limit_rate": 1.0
+    },
+    "praxis-4b": {
+      "claim_rejection_reasons": {
+        "chess_token_outside_slot": 45,
+        "malformed_line_move": 9,
+        "unknown_slot": 63
+      },
+      "claims_per_explanation": 1.36,
+      "coverage_accepted": 0.8405797101449275,
+      "delivered_coverage": 0.38666666666666666,
+      "fallback_reasons": {
+        "chess_token_outside_slot": 9,
+        "malformed_line_move": 9,
+        "unknown_slot": 63
+      },
+      "false_chess_statements_per_explanation": 0.36,
+      "first_token_p50_s": 0.3848118869937025,
+      "full_coverage_rate": 0.26,
+      "gpu_peak_over_idle_gib": 3.6982421875,
+      "grounding_pass_rate": 0.46,
+      "grounding_pass_rate_by_code": {
+        "board_awareness.hanging_piece": 0.1111111111111111,
+        "tactics.fork.knight": 0.6,
+        "threat_processing.allowed_mate": 0.0,
+        "threat_processing.missed_capture": 1.0,
+        "threat_processing.missed_check": 0.6666666666666666,
+        "threat_processing.missed_direct_threat": 0.4444444444444444
+      },
+      "latency_p50_s": 0.762762925500283,
+      "latency_p95_s": 1.4379065982240715,
+      "length_stop_rate": 0.0,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 13.488298632961232,
+      "mean_output_tokens": 115.08,
+      "mean_prompt_tokens": 6179.28,
+      "model_size_gib": 3.104638671502471,
+      "ollama_size_vram_gib": 3.104638671502471,
+      "params_b": 4.2,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.0,
+      "rejected_claims_per_explanation": 0.78,
+      "role": "chess",
+      "runs": 150,
+      "san_correct_rate": null,
+      "san_legal_rate": null,
+      "san_tokens": 0,
+      "served_name": "scan64-bench-praxis-4b",
+      "thinking_calls": 0,
+      "vram_model_gib": 3.6982421875,
+      "within_production_limit_rate": 1.0
+    }
+  }
+}
