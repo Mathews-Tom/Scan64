@@ -20,6 +20,14 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLES = ROOT / "apps/scan64-desktop/src-tauri/target/release/bundle"
 EVIDENCE = ROOT / "build/desktop-evidence"
+# Bundled engines: resource directory, executable stem and the UCI `id name` it reports.
+ENGINES = (
+    ("stockfish", "stockfish", "Stockfish 18"),
+    ("caissa", "caissa", "Caissa 2.0"),
+    ("arasan", "arasan", "Arasan 26.1"),
+)
+# Files whose SHA-256 the Dockerfile pins; every one in an engine directory is checked.
+PINNED_SUFFIXES = (".tar.gz", ".nnue", ".pnn", "Caissa-Nets-LICENSE")
 
 
 def command(*args: str, cwd: Path | None = None) -> None:
@@ -53,13 +61,25 @@ def check_windowless(binary: Path) -> None:
 
 def check_contents(resources: Path) -> list[str]:
     executable = ".exe" if os.name == "nt" else ""
+    binaries = [f"scan64-server/scan64-server{executable}"] + [
+        f"{directory}/{stem}{executable}" for directory, stem, _ in ENGINES
+    ]
     required = [
-        f"scan64-server/scan64-server{executable}",
-        f"stockfish/stockfish{executable}",
+        *binaries,
         "stockfish/stockfish-sf_18.tar.gz",
         "stockfish/Copying.txt",
         "stockfish/nn-c288c895ea92.nnue",
         "stockfish/nn-37f18f62d772.nnue",
+        "caissa/caissa-2.0.tar.gz",
+        "caissa/eval-ml-8-152B-spsa.pnn",
+        "caissa/LICENSE",
+        "caissa/Fathom-LICENSE",
+        "caissa/Caissa-Nets-LICENSE",
+        "arasan/arasan-v26.1.tar.gz",
+        "arasan/fathom-c9c6fef0.tar.gz",
+        "arasan/arasanv8-20261005.nnue",
+        "arasan/LICENSE",
+        "arasan/Fathom-LICENSE",
         "notices/LICENSE",
         "notices/THIRD_PARTY_NOTICES.md",
         "notices/WEB_THIRD_PARTY_LICENSES.md",
@@ -72,19 +92,55 @@ def check_contents(resources: Path) -> list[str]:
         path = resources / relative
         assert path.is_file() and path.stat().st_size > 0, f"Missing bundled file: {relative}"
     if os.name == "nt":
-        for relative in required[:2]:
+        for relative in binaries:
             check_windowless(resources / relative)
     dockerfile = (ROOT / "Dockerfile").read_text()
-    for path in (resources / "stockfish").iterdir():
-        if path.name.endswith((".tar.gz", ".nnue")):
-            match = re.search(
-                r"echo '([0-9a-f]{64})  (?:/out/|src/)" + re.escape(path.name) + "'", dockerfile
-            )
-            assert match is not None, f"Missing authoritative digest: {path.name}"
-            with path.open("rb") as source:
-                assert hashlib.file_digest(source, "sha256").hexdigest() == match[1], path.name
+    for directory, _, _ in ENGINES:
+        for path in (resources / directory).iterdir():
+            if path.name.endswith(PINNED_SUFFIXES):
+                digests = re.findall(
+                    r"echo '([0-9a-f]{64})  (?:\S*/)?"
+                    + re.escape(path.name)
+                    + r"' \| sha256sum --check",
+                    dockerfile,
+                )
+                assert len(digests) == 1, f"Missing authoritative digest: {path.name}"
+                with path.open("rb") as source:
+                    assert hashlib.file_digest(source, "sha256").hexdigest() == digests[0], (
+                        path.name
+                    )
     print("Bundle contents PASS: " + ", ".join(required), flush=True)
     return required
+
+
+def check_engine_handshake(binary: Path, name: str, directory: Path) -> str:
+    """The bundled engine starts outside its own directory and answers uci and isready."""
+    result = subprocess.run(
+        [str(binary)],
+        cwd=directory,
+        input="uci\nisready\nquit\n",
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    lines = [line.strip() for line in result.stdout.splitlines()]
+    ids = [line.removeprefix("id name ") for line in lines if line.startswith("id name ")]
+    assert ids and ids[0].startswith(name), f"{binary.name} reported {ids}, not {name}"
+    assert "uciok" in lines, f"{binary.name} did not answer uci: {result.stdout[-500:]}"
+    assert "readyok" in lines[lines.index("uciok") :], (
+        f"{binary.name} did not answer isready: {(result.stdout + result.stderr)[-500:]}"
+    )
+    print(f"Engine handshake PASS: {ids[0]} ({binary.name})", flush=True)
+    return ids[0]
+
+
+def check_engines(resources: Path, directory: Path) -> dict[str, str]:
+    executable = ".exe" if os.name == "nt" else ""
+    return {
+        folder: check_engine_handshake(resources / folder / f"{stem}{executable}", name, directory)
+        for folder, stem, name in ENGINES
+    }
 
 
 def request(port: int, path: str, token: str, body=None, authorization: str | None = None):
@@ -200,6 +256,7 @@ def verify(binary: Path, resources: Path, label: str, *, screenshot: bool = Fals
     with tempfile.TemporaryDirectory(prefix="scan64-installed-") as temporary:
         directory = Path(temporary)
         contents = check_contents(resources)
+        engines = check_engines(resources, directory)
         if os.name == "nt":
             check_windowless(binary)
         server = frozen_smoke(
@@ -216,7 +273,12 @@ def verify(binary: Path, resources: Path, label: str, *, screenshot: bool = Fals
         if screenshot:
             args += ["--screenshot", str(EVIDENCE / "linux-board.png")]
         command(*args)
-        receipt = {"bundle": label, "contents": contents, "frozen_server": server}
+        receipt = {
+            "bundle": label,
+            "contents": contents,
+            "engines": engines,
+            "frozen_server": server,
+        }
         (EVIDENCE / f"{label}-bundle-check.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 

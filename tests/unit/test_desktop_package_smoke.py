@@ -41,10 +41,22 @@ def test_bundle_content_check_requires_font_and_rust_notices(tmp_path: Path) -> 
     paths = [
         f"scan64-server/scan64-server{executable}",
         f"stockfish/stockfish{executable}",
+        f"caissa/caissa{executable}",
+        f"arasan/arasan{executable}",
         "stockfish/stockfish-sf_18.tar.gz",
         "stockfish/Copying.txt",
         "stockfish/nn-c288c895ea92.nnue",
         "stockfish/nn-37f18f62d772.nnue",
+        "caissa/caissa-2.0.tar.gz",
+        "caissa/eval-ml-8-152B-spsa.pnn",
+        "caissa/LICENSE",
+        "caissa/Fathom-LICENSE",
+        "caissa/Caissa-Nets-LICENSE",
+        "arasan/arasan-v26.1.tar.gz",
+        "arasan/fathom-c9c6fef0.tar.gz",
+        "arasan/arasanv8-20261005.nnue",
+        "arasan/LICENSE",
+        "arasan/Fathom-LICENSE",
         "notices/LICENSE",
         "notices/THIRD_PARTY_NOTICES.md",
         "notices/WEB_THIRD_PARTY_LICENSES.md",
@@ -61,6 +73,89 @@ def test_bundle_content_check_requires_font_and_rust_notices(tmp_path: Path) -> 
         AssertionError, match="Missing bundled file: notices/fonts/host-grotesk-OFL"
     ):
         packaging.check_contents(tmp_path)
+
+
+def test_bundle_content_check_requires_both_permissive_engines(tmp_path: Path) -> None:
+    executable = ".exe" if packaging.os.name == "nt" else ""
+    for name in (f"scan64-server/scan64-server{executable}", f"stockfish/stockfish{executable}"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("fixture")
+    with pytest.raises(AssertionError, match=f"Missing bundled file: caissa/caissa{executable}"):
+        packaging.check_contents(tmp_path)
+
+
+def test_bundled_engine_files_must_match_the_dockerfile_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = ".exe" if packaging.os.name == "nt" else ""
+    resources = tmp_path / "resources"
+    names = [f"scan64-server/scan64-server{executable}", "notices/LICENSE"]
+    names += [f"{folder}/{stem}{executable}" for folder, stem, _ in packaging.ENGINES]
+    names += ["stockfish/Copying.txt", "caissa/LICENSE", "caissa/Fathom-LICENSE"]
+    names += ["arasan/LICENSE", "arasan/Fathom-LICENSE", "notices/THIRD_PARTY_NOTICES.md"]
+    names += ["notices/WEB_THIRD_PARTY_LICENSES.md", "notices/rust-licenses.html"]
+    names += ["notices/rust-licenses.json", "notices/fonts/host-grotesk-OFL.txt"]
+    names += ["notices/fonts/jetbrains-mono-OFL.txt"]
+    pinned = [
+        "stockfish/stockfish-sf_18.tar.gz",
+        "stockfish/nn-c288c895ea92.nnue",
+        "stockfish/nn-37f18f62d772.nnue",
+        "caissa/caissa-2.0.tar.gz",
+        "caissa/eval-ml-8-152B-spsa.pnn",
+        "caissa/Caissa-Nets-LICENSE",
+        "arasan/arasan-v26.1.tar.gz",
+        "arasan/fathom-c9c6fef0.tar.gz",
+        "arasan/arasanv8-20261005.nnue",
+    ]
+    for name in names + pinned:
+        (resources / name).parent.mkdir(parents=True, exist_ok=True)
+        (resources / name).write_bytes(b"fixture")
+    digest = packaging.hashlib.sha256(b"fixture").hexdigest()
+    lines = [f"echo '{digest}  /out/{Path(name).name}' | sha256sum --check" for name in pinned]
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    (checkout / "Dockerfile").write_text("\n".join(lines) + "\n")
+    monkeypatch.setattr(packaging, "ROOT", checkout)
+    monkeypatch.setattr(packaging, "check_windowless", lambda binary: None)
+    assert len(packaging.check_contents(resources)) == len(names) + len(pinned)
+    (resources / "caissa/eval-ml-8-152B-spsa.pnn").write_bytes(b"other network")
+    with pytest.raises(AssertionError, match="eval-ml-8-152B-spsa.pnn"):
+        packaging.check_contents(resources)
+    (resources / "caissa/eval-ml-8-152B-spsa.pnn").write_bytes(b"fixture")
+    (checkout / "Dockerfile").write_text("\n".join(lines[:-1]) + "\n")
+    with pytest.raises(AssertionError, match="Missing authoritative digest: arasanv8"):
+        packaging.check_contents(resources)
+
+
+def uci_script(tmp_path: Path, name: str, *, ready: bool) -> Path:
+    script = tmp_path / "engine"
+    reply = "readyok" if ready else "info string failed to load network, terminating"
+    script.write_text(
+        f"#!{packaging.sys.executable}\n"
+        "import sys\n"
+        "for line in sys.stdin:\n"
+        "    if line.strip() == 'uci':\n"
+        f"        print('id name {name}')\n"
+        "        print('uciok', flush=True)\n"
+        "    elif line.strip() == 'isready':\n"
+        f"        print({reply!r}, flush=True)\n"
+        f"        {'' if ready else 'sys.exit(1)'}\n"
+        "    elif line.strip() == 'quit':\n"
+        "        break\n"
+    )
+    script.chmod(0o755)
+    return script
+
+
+@pytest.mark.skipif(packaging.os.name == "nt", reason="The fixture engine is a POSIX script")
+def test_engine_handshake_requires_identity_uciok_and_readyok(tmp_path: Path) -> None:
+    engine = uci_script(tmp_path, "Caissa 2.0 POPCNT", ready=True)
+    assert packaging.check_engine_handshake(engine, "Caissa 2.0", tmp_path) == "Caissa 2.0 POPCNT"
+    with pytest.raises(AssertionError, match="not Arasan 26.1"):
+        packaging.check_engine_handshake(engine, "Arasan 26.1", tmp_path)
+    missing_network = uci_script(tmp_path, "Arasan 26.1", ready=False)
+    with pytest.raises(AssertionError, match="did not answer isready"):
+        packaging.check_engine_handshake(missing_network, "Arasan 26.1", tmp_path)
 
 
 @pytest.mark.parametrize("subsystem", [2, 3])

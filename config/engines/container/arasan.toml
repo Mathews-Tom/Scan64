@@ -1,0 +1,24 @@
+# Arasan 26.1 (MIT, network MIT) as bundled in the Docker image (#396, #438): the
+# bot-ladder engine. It loads arasanv8-20261005.nnue from its own directory.
+# The [ladder] table is the one in config/engines/arasan.toml; keep them equal.
+# No opening book is bundled (OwnBook = false). BookPath and Learning file
+# default to paths in the home directory; they are unused and set to bare names
+# so the engine identity carries no home path.
+# Select as the ladder profile once the ladder has its own profile (#396); today
+# SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml selects it for
+# analysis and the ladder together.
+[engine]
+name = "arasan"
+binary_path = "/usr/local/lib/arasan/arasan"
+threads = 1
+hash_mb = 16
+
+[engine.options]
+OwnBook = false
+BookPath = "book.bin"
+"Learning file" = "arasan.lrn"
+
+[ladder]
+strength = "elo"
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]
+movetime_ms = 500
