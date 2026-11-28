@@ -5,9 +5,20 @@
  },
  "diagnosed": 0,
  "engine": {
+  "binary_sha256": "e16866e09afd5be00990e69e3ac7b3c0794abcce133a2dd7b99f13570385b73d",
   "hash_mb": 16,
   "id_name": "Stockfish 18",
   "multipv": 4,
+  "network": {
+   "EvalFile": {
+    "name": "nn-c288c895ea92.nnue",
+    "sha256": "embedded"
+   },
+   "EvalFileSmall": {
+    "name": "nn-37f18f62d772.nnue",
+    "sha256": "embedded"
+   }
+  },
   "nodes": 1000000,
   "threads": 1
  },
@@ -17910,6 +17921,15 @@
    "stockfish_swing_cp": 5
   }
  ],
+ "provenance": {
+  "commit": "8ebea06816cd1e03c28ae26d4889dee1424ae75d",
+  "config_sha256": "53172bcf4835a3fce6d7bd9812291cbae1b2fa071dcf8154bc635449604d6581",
+  "dirty": "not recorded at the time",
+  "games_sha256": "fddd644245db8d32e5427e0bbbe0127db06194cc43b28e165c8733657619d6e5",
+  "recorded": "Added on 2026-11-28, after the run. commit is the commit that added this file (git log); the run's own commit and dirty flag were not recorded at the time. script_sha256 and games_sha256 are of those files at that commit; config_sha256 is of the search and selection settings above. The engine binary was not recorded at the time: binary_sha256 is of the Stockfish 18 binary record_positions uses on the recording machine, and a rerun with it on 2026-11-28 reproduced this file's positions byte for byte. Its networks are embedded in the binary.",
+  "script": "benchmarks/factor_calibration/record_positions.py",
+  "script_sha256": "1e158c20b93d34e858815f38e0cac224d0fdd7dcf920d943b8cecd9e3ae5e26b"
+ },
  "selection": {
   "min_swing_cp": 40,
   "null_swing_cp": 25

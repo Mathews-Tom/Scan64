@@ -22,14 +22,23 @@ A position keeps its trusted diagnosis when arbitration gives one, else
 ``diagnosis`` is null and ``evidence`` holds the ``engine_analysis`` item, whose
 payload carries the lines and scores the factor facts read. Analysis UUIDs are
 UUID5 values from the position id and ``nps`` is dropped, so a rerun with the
-same engine writes the same bytes.
+same engine writes the same positions.
+
+Provenance (rule 6): ``provenance`` records the commit, whether ``src`` or
+``benchmarks`` had uncommitted changes (the output file excluded), and the
+sha256 of this script, of ``games.json`` and of the search and selection
+config; ``engine`` records the binary sha256 and, per network option, the
+network name and its file sha256, or ``embedded`` when the network is built
+into the binary (covered by ``binary_sha256``).
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +52,7 @@ from scan64.learning.diagnosis.models import LearningOpportunity, PlayerContext
 from scan64.learning.evidence.composer import compose_candidate_evidence, needs_mate_source
 from scan64.learning.plugins.interfaces import PatternDetector
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
+from scan64.providers.stockfish.identity import NETWORK_OPTIONS
 
 STOCKFISH = Path("~/.local/bin/stockfish").expanduser()
 NODES = 1_000_000
@@ -51,6 +61,70 @@ CONCURRENCY = 16
 MIN_SWING_CP = 40
 NULL_SWING_CP = 25
 MATE_CP = 10_000
+
+
+def _git(*args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def _file_sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def _repo_label(path: Path) -> str:
+    resolved = path.resolve()
+    return (
+        resolved.relative_to(REPO_ROOT).as_posix()
+        if resolved.is_relative_to(REPO_ROOT)
+        else path.name
+    )
+
+
+def search_config() -> dict[str, Any]:
+    """Every setting that changes which positions are kept and what they hold."""
+    return {
+        "engine": {"nodes": NODES, "multipv": MULTIPV, "threads": 1, "hash_mb": 16},
+        "selection": {"min_swing_cp": MIN_SWING_CP, "null_swing_cp": NULL_SWING_CP},
+        "mate_cp": MATE_CP,
+    }
+
+
+def config_sha256(config: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(config, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def engine_manifest(identity: dict[str, Any]) -> dict[str, Any]:
+    """Binary digest and per-network identity from the engine's analysis identity."""
+    version = str(identity.get("engine_version") or "")
+    files = json.loads(identity["network"]) if identity.get("network") else {}
+    options = identity.get("options") or {}
+    networks = {
+        name: {"name": options[name], "sha256": files.get(name, "embedded")}
+        for name in NETWORK_OPTIONS
+        if isinstance(options.get(name), str) and options[name]
+    }
+    return {
+        "binary_sha256": version.removeprefix("sha256:") if version.startswith("sha256:") else None,
+        "network": networks,
+    }
+
+
+def code_provenance(games_path: Path, output: Path) -> dict[str, Any]:
+    paths = ["src", "benchmarks"]
+    resolved = output.resolve()
+    if resolved.is_relative_to(REPO_ROOT):
+        paths.append(f":(exclude){resolved.relative_to(REPO_ROOT).as_posix()}")
+    return {
+        "commit": _git("rev-parse", "HEAD"),
+        "dirty": bool(_git("status", "--porcelain", "--", *paths)),
+        "script": _repo_label(Path(__file__)),
+        "script_sha256": _file_sha256(Path(__file__)),
+        "games_sha256": _file_sha256(games_path),
+        "config_sha256": config_sha256(search_config()),
+    }
 
 
 def _cp(analysis: EngineAnalysis) -> int:
@@ -148,6 +222,7 @@ async def _position(
 
 async def record(games_path: Path, output: Path) -> None:
     data = json.loads(games_path.read_text(encoding="utf-8"))
+    provenance = code_provenance(games_path, output)
     adapter = StockfishAdapter(StockfishConfig(binary_path=str(STOCKFISH), threads=1, hash_size=16))
     identity = await adapter.analysis_identity()
     gate = asyncio.Semaphore(CONCURRENCY)
@@ -164,14 +239,13 @@ async def record(games_path: Path, output: Path) -> None:
             {
                 "source": "Lichess games lost slowly, Scan64 evidence and diagnosis pipeline",
                 "games": games_path.resolve().relative_to(REPO_ROOT).as_posix(),
+                "provenance": provenance,
                 "engine": {
                     "id_name": identity.get("engine_name"),
-                    "nodes": NODES,
-                    "multipv": MULTIPV,
-                    "threads": 1,
-                    "hash_mb": 16,
+                    **search_config()["engine"],
+                    **engine_manifest(identity),
                 },
-                "selection": {"min_swing_cp": MIN_SWING_CP, "null_swing_cp": NULL_SWING_CP},
+                "selection": search_config()["selection"],
                 "counts": {
                     kind: sum(p["set"] == kind for p in positions) for kind in ("slow", "null")
                 },
