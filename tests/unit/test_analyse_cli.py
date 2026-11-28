@@ -10,6 +10,7 @@ import scan64.cli.analyse as analyse
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.analysis.orchestration import CandidatePosition, FastPassResult
 from scan64.learning.diagnosis.models import DiagnosisCandidate
+from scan64.providers.engine import ENGINE_CONFIG_ENV
 
 
 def _analysis(*moves: str, mate: int | None = None) -> EngineAnalysis:
@@ -69,6 +70,9 @@ async def test_rejected_candidate_does_not_abort_later_cli_lessons(
     )
     generated = AsyncMock(wraps=analyse.generate_exact_replay_exercise)
     monkeypatch.setattr(analyse, "generate_exact_replay_exercise", generated)
+    profile = tmp_path / "engine.toml"
+    profile.write_text("[engine]\nname = 'second'\nbinary_path = 'second'\n", encoding="utf-8")
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
 
     await analyse.analyse_command([str(pgn)], report=True)
 
@@ -84,3 +88,5 @@ async def test_rejected_candidate_does_not_abort_later_cli_lessons(
     generated.assert_awaited_once()
     assert generated.call_args.kwargs["fen"] == before_black_fen
     assert generated.call_args.kwargs["accepted_moves_san"] == ["c5"]
+    # The lesson names the engine the CLI's adapter was configured with.
+    assert generated.call_args.kwargs["engine"] == "second"
