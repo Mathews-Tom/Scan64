@@ -78,9 +78,18 @@ def tables(folder: Path = RESULTS) -> str:
             asked = [g for g in group if g["asks"][name]]
             return share(sum(g[name] for g in asked), len(asked))
 
+        # An order is right only when nothing it orders is missing; the judge marked two
+        # comments as ordered although it marked their cause as not named.
+        ordered = [g for g in group if g["asks"]["order"]]
+        good = sum(
+            g["order"]
+            and g["root_cause_named"] is not False
+            and g["turning_point_named"] is not False
+            for g in ordered
+        )
         lines.append(
             f"| {model} | {voice} | {n} | {yes('root_cause_named')} "
-            f"| {yes('turning_point_named')} | {yes('order')} "
+            f"| {yes('turning_point_named')} | {share(good, len(ordered))} "
             f"| {share(sum(g['faithful'] for g in group), n)} "
             f"| {share(sum(g['root_cause_named'] and g['faithful'] for g in themed), len(themed))} "
             f"| {sum(g['lively'] for g in group) / n:.2f} "
