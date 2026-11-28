@@ -445,3 +445,35 @@ def test_material_wording_with_a_count_still_follows_the_facts() -> None:
 def test_evaluation_wording_with_the_pawn_unit_passes(text: str) -> None:
     context, evidence_id = _lesson(LEVEL)
     assert _validate(text, context, evidence_id).count("pawns") == 1
+
+
+EDGE_CLAIMS = [
+    # (text, learner material advantages that support it)
+    ("Your material edge is two pawns.", {2}),
+    ("Your opponent's material edge is two pawns.", {-2}),
+    ("Your material lead is a pawn.", {1}),
+    ("Their material advantage is a piece.", {-3, -4}),
+    ("You are ahead by two pawns.", {2}),
+    ("You are two pawns ahead.", {2}),
+    ("You are up two pawns.", {2}),
+    ("You have two extra pawns.", {2}),
+    ("You have an extra piece.", {3, 4}),
+    ("You are up in material.", {1, 2, 3, 4, 9}),
+    ("You are materially up.", {1, 2, 3, 4, 9}),
+    ("You have a material edge.", {1, 2, 3, 4, 9}),
+    ("Your opponent is ahead by two pawns.", {-2}),
+    ("Your opponent is up in material.", {-1, -2, -3, -4, -9}),
+    ("Your opponent has a material lead.", {-1, -2, -3, -4, -9}),
+    ("Your opponent has two extra pawns.", {-2}),
+    ("They are a piece up.", {-3, -4}),
+]
+
+
+@pytest.mark.parametrize(("text", "supporting"), EDGE_CLAIMS)
+@pytest.mark.parametrize("balance", [-9, -4, -3, -2, -1, 0, 1, 2, 3, 4, 9])
+def test_a_material_edge_claim_checks_its_side_and_size(
+    text: str, supporting: set[int], balance: int
+) -> None:
+    """#442 re-review: "your material edge is two pawns" was accepted two pawns down."""
+    facts = ClaimFacts(balances=frozenset({balance}))
+    assert (unsupported_claim(text, facts) is None) == (balance in supporting)

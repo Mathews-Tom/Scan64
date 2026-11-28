@@ -298,7 +298,10 @@ def _balance(sign: int) -> _Reader:
             claim_sign = 1 if direction.lower() in ("up", "ahead") else -1
         else:
             claim_sign = sign
-        return Claim("balance", _side(match.groupdict().get("who")), claim_sign, _amount(match))
+        groups = match.groupdict()
+        # The side is a subject ("you are up a pawn") or an owner ("your material edge").
+        side = _side(groups.get("who") or groups.get("owner"))
+        return Claim("balance", side, claim_sign, _amount(match))
 
     return read
 
