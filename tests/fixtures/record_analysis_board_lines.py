@@ -6,6 +6,8 @@ Run from the repository root with:
 Searches each position with the production adapter at the built-in hint budget
 (200 000 nodes, MultiPV 4, one thread; no time cap, so the recording does not
 depend on machine speed) and stores ``EngineAnalysis.raw_result`` as written.
+The record's ``engine`` key names the one engine that produced every line: its
+UCI ``id name`` (for example ``Stockfish 18``), executable digest and network.
 Tests never invoke the engine.
 """
 
@@ -13,8 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from scan64.providers.stockfish.adapter import StockfishAdapter, StockfishConfig
 from scan64.providers.stockfish.pool import HINT_MULTIPV, HINT_NODES
@@ -36,6 +40,18 @@ POSITIONS = {
 }
 
 
+ENGINE_KEYS = ("engine_name", "engine_version", "network")
+
+
+def engine_key(configs: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """The engine identity shared by every position's analysis config."""
+    identities = {tuple(config[key] for key in ENGINE_KEYS) for config in configs}
+    if len(identities) != 1:
+        raise RuntimeError(f"Expected one engine identity, found {len(identities)}")
+    (identity,) = identities
+    return dict(zip(ENGINE_KEYS, identity, strict=True))
+
+
 async def main() -> None:
     adapter = StockfishAdapter(StockfishConfig())
     record: dict[str, object] = {
@@ -44,10 +60,11 @@ async def main() -> None:
         "recorded_on": datetime.now(UTC).date().isoformat(),
         "regenerate_command": "uv run python tests/fixtures/record_analysis_board_lines.py",
     }
-    positions = {}
+    positions: dict[str, dict[str, Any]] = {}
     for name, fen in POSITIONS.items():
         analysis = await adapter.analyze_position(fen, nodes=HINT_NODES, multipv=HINT_MULTIPV)
         positions[name] = {"fen": fen, "config": analysis.config, "raw_result": analysis.raw_result}
+    record["engine"] = engine_key(entry["config"] for entry in positions.values())
     record["positions"] = positions
     FIXTURE.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote {FIXTURE}")

@@ -73,6 +73,13 @@ async def main() -> None:
         await adapter.quit()
     if any(config != configs[0] for config in configs):
         raise RuntimeError("Searches ran with different engine identities")
+    # The executable digest differs between platform builds; the UCI ``id name``
+    # (name and version) must match the engine that found the lines.
+    if configs[0]["engine_name"] != recording["engine"]["engine_name"]:
+        raise RuntimeError(
+            f"Lines were found by {recording['engine']['engine_name']}, "
+            f"not {configs[0]['engine_name']}"
+        )
     record = {
         "config": configs[0],
         "nodes": LINE_NODES,
