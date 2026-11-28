@@ -35,6 +35,7 @@ from scan64.explanations.validator import (
     validate_generated_explanation,
 )
 from scan64.providers.llm import ExplanationRequest, LLMProviderError, local_ollama
+from scan64.providers.llm.config import MAX_CONCURRENT_CALLS_ENV
 from scan64.providers.llm.contracts import GeneratedExplanation
 from tests.fixtures.record_analysis_board_lines import engine_key
 
@@ -287,7 +288,7 @@ async def test_explanation_over_the_local_model_limit_gets_the_template(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Two explanations at a limit of one: the second gets the template at once (#472)."""
-    monkeypatch.setenv(local_ollama.MAX_CONCURRENT_CALLS_ENV, "1")
+    monkeypatch.setenv(MAX_CONCURRENT_CALLS_ENV, "1")
     entered = asyncio.Event()
     release = asyncio.Event()
 

@@ -24,6 +24,12 @@ from scan64.providers.llm.adapters import (
     OllamaExplanationAdapter,
 )
 
+# One limit for both Ollama paths: the owner's local grant (#472) and the
+# operator configuration (#491).
+MAX_CONCURRENT_CALLS_ENV = "SCAN64_LOCAL_LLM_MAX_CONCURRENT_CALLS"
+DEFAULT_MAX_CONCURRENT_CALLS = 2
+_MAX_CONCURRENT_CALLS = 8
+
 
 class LLMConfigurationError(RuntimeError):
     """Raised when deployment configuration cannot safely select an LLM provider."""
@@ -116,6 +122,27 @@ def _context_tokens(value: object) -> int:
     return value
 
 
+def bounded_int(
+    values: Mapping[str, str], name: str, default: int, minimum: int, maximum: int
+) -> int:
+    raw = values.get(name)
+    if raw is None:
+        return default
+    try:
+        count = int(raw)
+    except ValueError as error:
+        raise LLMConfigurationError(f"{name} must be an integer, got {raw!r}") from error
+    if not minimum <= count <= maximum:
+        raise LLMConfigurationError(f"{name} must be in [{minimum}, {maximum}]")
+    return count
+
+
+def max_concurrent_calls(values: Mapping[str, str]) -> int:
+    return bounded_int(
+        values, MAX_CONCURRENT_CALLS_ENV, DEFAULT_MAX_CONCURRENT_CALLS, 1, _MAX_CONCURRENT_CALLS
+    )
+
+
 def create_llm_provider(
     config: LLMProviderConfig,
     *,
@@ -128,15 +155,16 @@ def create_llm_provider(
         return None
     if client is None:
         raise LLMConfigurationError("An HTTP client is required for an LLM provider")
+    environment_values = os.environ if environment is None else environment
     if config.provider == "ollama":
         return OllamaExplanationAdapter(
             base_url=_validated_base_url(config.base_url, allow_loopback_http=True),
             model=_required_value(config.model, "llm.model"),
             client=client,
             context_tokens=config.context_tokens,
+            max_concurrent_calls=max_concurrent_calls(environment_values),
         )
     if config.provider == "openai":
-        environment_values = os.environ if environment is None else environment
         api_key_name = _required_value(config.api_key_environment, "llm.api_key_environment")
         api_key = environment_values.get(api_key_name)
         if not api_key:
