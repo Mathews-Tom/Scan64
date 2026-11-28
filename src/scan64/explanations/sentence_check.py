@@ -67,7 +67,7 @@ TERMS: tuple[str, ...] = (
 CAPTURE_WORDS = re.compile(
     r"\b(take[sn]?|taking|took|captur\w*|snag\w*|snatch\w*|grab\w*|seiz\w*|swallow\w*|"
     r"gobbl\w*|devour\w*|eat[s]?|eaten|ate|pick\w* (up|off)|carr(y|ies|ied) off|collect\w*|"
-    r"claim\w*|win|wins|winning|won|cast\w*|steal\w*|stole|stolen|nab\w*|snip\w*)\b",
+    r"claim\w*|win|wins|winning|won|cast(s|ing)?|bag(s|ged|ging)?|steal\w*|stole|stolen|nab\w*|snip\w*)\b",
     re.IGNORECASE,
 )
 # Judgements a sentence may use only when its fact uses them: the model must not
@@ -128,6 +128,18 @@ JUDGEMENT_WORDS: tuple[str, ...] = (
 # a quiet bishop step" is false. The word stays for a fact that does neither.
 QUIET = re.compile(r"\bquiet(ly|er|est)?\b", re.IGNORECASE)
 _CHECK_KINDS = frozenset({"gives_check", "mates"})
+# A move that blocks a check gives none (#499): "blocks the check from the queen on e4".
+_BLOCKED_CHECK = re.compile(r"\bblock(s|ed|ing)?\s+(the|a)\s+check\b", re.IGNORECASE)
+# A move with its number and dots: "18.d5" is White's move, "18...d5" Black's (#511).
+_NUMBERED = re.compile(r"\b(\d+)\s*(\.\.\.|\u2026|\.)\s*(" + MOVE.pattern + ")")
+# A capture word and the piece directly after it: "snags the queen on g5",
+# "takes Black's poor pawn on e4" (#503).
+_TAKEN_PIECE = re.compile(
+    CAPTURE_WORDS.pattern
+    + r"\s+(?:the|a|that|this|its|his|her|their|white's|black's)\s+(?:[a-z]+\s+)?"
+    + r"(?P<piece>king|queen|rook|bishop|knight|pawn)\s+on\s+(?P<square>[a-h][1-8])\b",
+    re.IGNORECASE,
+)
 # "more daring", "less safe"; "<word>er path" such as "a safer path".
 _MORE_ADJECTIVE = re.compile(r"\b(more|less)\s+(?!than\b|and\b|of\b)[a-z]+", re.IGNORECASE)
 _ER_PATH = re.compile(r"\b[a-z]+er\s+(path|route|road|way)\b", re.IGNORECASE)
@@ -212,12 +224,46 @@ def fact_takes(fact: str, relation_kinds: Iterable[str] = ()) -> bool:
 
 
 def fact_checks(fact: str, relation_kinds: Iterable[str] = ()) -> bool:
-    """True when the fact gives check or mate: a relation, the word "check" or "mate", or ``+``."""
+    """True when the fact gives check or mate: a relation, the word "check" or "mate", or ``+``.
+
+    A check the fact only blocks does not count.
+    """
     if _CHECK_KINDS & set(relation_kinds):
         return True
-    if re.search(r"\b(check|checks|checkmate|mate)\b", fact, re.IGNORECASE):
+    unblocked = _BLOCKED_CHECK.sub("", fact)
+    if re.search(r"\b(check|checks|checkmate|mate)\b", unblocked, re.IGNORECASE):
         return True
     return re.search(r"(?:[a-h][1-8]|O-O(?:-O)?)[+#]", fact) is not None
+
+
+def taken_piece_problems(sentence: str, fact: str) -> list[str]:
+    """A piece named as taken that the fact does not take.
+
+    A fact of several parts can take one piece and attack another: after
+    "4...Nxe4 ... attacks the queen on g5", "snags the queen on g5" is false.
+    """
+    taken = {match["square"].lower() for match in _TAKEN_PIECE.finditer(fact)}
+    taken |= {move[-2:] for move in MOVE.findall(fact) if "x" in move}
+    return [
+        f"says the {match['piece'].lower()} on {match['square']} is taken; the fact does not"
+        for match in _TAKEN_PIECE.finditer(sentence)
+        if match["square"].lower() not in taken
+    ]
+
+
+def _numbered_moves(text: str) -> set[tuple[str, str, str]]:
+    return {
+        (number, "." if dots == "." else "...", move)
+        for number, dots, move in _NUMBERED.findall(text)
+    }
+
+
+def move_number_problems(sentence: str, fact: str) -> list[str]:
+    """A move written with a number and dots the fact does not use: "18...d5" for "18.d5"."""
+    return [
+        f"numbered move {number}{dots}{move}"
+        for number, dots, move in sorted(_numbered_moves(sentence) - _numbered_moves(fact))
+    ]
 
 
 def judgement_problems(sentence: str, fact: str) -> list[str]:
@@ -316,6 +362,8 @@ def sentence_problems(
     problems = violations(sentence, fact)
     problems.extend(judgement_problems(sentence, fact))
     problems.extend(pairing_problems(sentence, fact, sides))
+    problems.extend(move_number_problems(sentence, fact))
+    problems.extend(taken_piece_problems(sentence, fact))
     fact_squares, fact_moves = _tokens(fact)
     squares, moves = _tokens(sentence)
     if (fact_squares or fact_moves) and not (fact_squares & squares or fact_moves & moves):
@@ -383,6 +431,7 @@ __all__ = [
     "pin_problems",
     "judgement_problems",
     "limit_exclamations",
+    "move_number_problems",
     "pairing_problems",
     "piece_pairs",
     "colour_words",
@@ -392,5 +441,6 @@ __all__ = [
     "finish",
     "repair",
     "sentence_problems",
+    "taken_piece_problems",
     "violations",
 ]

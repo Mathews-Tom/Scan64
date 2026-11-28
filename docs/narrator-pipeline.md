@@ -746,9 +746,10 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
    - names a move, square, piece or chess term that its fact does not contain;
    - keeps none of the fact's moves or squares;
    - uses a judgement word its fact does not use: "better", "stronger", "spirited", "footing", "strong", "elegant", "risky" and the like, "more" or "less" with an adjective, or "a safer path";
-   - calls a move "quiet" when its fact takes a piece or gives check. A quiet move takes nothing and gives no check;
+   - calls a move "quiet" when its fact takes a piece or gives check. A quiet move takes nothing and gives no check. A move that only blocks a check may be quiet;
    - names a piece on a square that the fact does not pair with that piece, or gives it the wrong side ("White's queen on g5" for Black's queen);
-   - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen";
+   - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen". In a fact that takes one piece and attacks another, only the taken piece may follow a capture verb ("snags the queen on g5" fails for a queen that is only attacked);
+   - writes a move with a number and dots that its fact does not use ("18...d5" for "18.d5");
    - states the alternative move as played: a "could have played" sentence must say "could", "would", "instead" or "might have";
    - names the wrong piece as pinned: after "pins" the first piece named must be the pinned piece, and before "is pinned" the last one;
    - has more sentences than allowed: one, or two for a fact with several parts.
