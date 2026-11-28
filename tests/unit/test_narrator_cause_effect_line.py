@@ -28,7 +28,10 @@ from scan64.explanations.themes import (
 )
 from scan64.explanations.voice_pipeline import (
     CAUSE_EXAMPLES,
+    CauseFact,
+    CauseRole,
     cause_facts,
+    cause_problems,
     cause_text,
     select_facts,
     voice_facts,
@@ -215,10 +218,40 @@ def test_every_cause_fact_names_sides_and_passes_its_own_check(
     assert f"{side}'s" in cause.text
 
 
+@pytest.mark.parametrize(
+    ("theme", "index", "sentence"),
+    [
+        (_UNSAFE_KING, 0, "White's king on e1 was perfectly safe."),
+        (_UNSAFE_KING, 0, "Black's queen on g5 smiled."),
+        (_WEAK_PAWNS, 0, "A pawn on d3 stood proud."),
+        (_PASSIVE, 0, "White's rook on a1 hummed a tune."),
+        (_LAGGING, 0, "White's knight on b1 danced."),
+        (_UNSAFE_KING, 1, "3.Nf3, a quiet knight step."),
+        (_UNSAFE_KING, 1, "The game began to turn against Black with 3.Nf3."),
+    ],
+)
+@pytest.mark.asyncio
+async def test_a_sentence_that_keeps_a_square_but_not_the_claim_is_replaced(
+    theme: ThemeFacts, index: int, sentence: str
+) -> None:
+    game = _game(theme)
+    fact = cause_facts(game, chess.WHITE)[index]
+    assert sentence_problems(sentence, fact.text, (), dict(fact.sides)) == []
+    assert cause_problems(fact.text, fact) == []
+    answers: list[str | None] = [*[None] * index, *[sentence] * 3]
+    voiced = await voice_facts(
+        _Writer(answers), _line(), mover=chess.WHITE, played="3.Nf3", game=game
+    )
+    assert voiced.sentences[index].source == "fact"
+    assert voiced.sentences[index].text == fact.text
+
+
 def test_every_cause_example_passes_the_sentence_check() -> None:
     sides = {"g1": "white"}
     for _role, fact, sentence in CAUSE_EXAMPLES:
         assert sentence_problems(sentence, fact, (), sides) == [], (fact, sentence)
+        role: CauseRole = "the_cause" if _role == "The cause" else "the_turn"
+        assert cause_problems(sentence, CauseFact(role, fact)) == []
 
 
 def test_the_template_cause_text_keeps_the_order_and_the_player_words() -> None:

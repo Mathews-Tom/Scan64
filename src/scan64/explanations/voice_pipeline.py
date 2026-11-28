@@ -134,15 +134,15 @@ CAUSE_EXAMPLES: Final[tuple[tuple[str, str, str], ...]] = (
         "The cause",
         "From move 12 to move 15, White's king on g1 had little cover: the f-file next to it "
         "was open, with none of White's pawns on it.",
-        "From move 12 to move 15, White's king on g1 sat in a draughty house: the f-file next "
-        "to it lay open, with none of White's pawns on it!",
+        "From move 12 to move 15, White's king on g1 had little cover: the f-file next "
+        "to it was a draughty door, open, with none of White's pawns on it!",
     ),
     (
         "The turning point",
         "The game began to turn against White with 14.Qd2: before it the position was level, "
         "and after it the engine never again rated it level.",
-        "With 14.Qd2 the game began to tilt against White: level before it, and never level "
-        "again in the engine's eyes after it.",
+        "Here the wind changed: the game began to turn against White with 14.Qd2, level before "
+        "it and never again rated level by the engine after it.",
     ),
 )
 
@@ -167,6 +167,24 @@ class CauseFact:
     text: str
     sides: Mapping[str, str] = field(default_factory=dict)
     relations: tuple[Relation, ...] = ()
+
+    @property
+    def claim(self) -> str:
+        """The words a sentence must keep: what the cause or the turning point states."""
+        if self.role == "the_turn":
+            return self.text.removeprefix("The game ").split(":", 1)[0]
+        return self.text.split(", ", 1)[1].split(":", 1)[0].split(", while ", 1)[0]
+
+
+def cause_problems(sentence: str, fact: RoleFact | CauseFact) -> list[str]:
+    """A cause or turning-point sentence must state its fact's claim, word for word.
+
+    The general check needs only one square or move of the fact, so "White's king
+    on e1 was perfectly safe" would pass for a king with little cover.
+    """
+    if isinstance(fact, CauseFact) and fact.claim.lower() not in sentence.lower():
+        return ["leaves out the cause or the turning point"]
+    return []
 
 
 StoryFact = RoleFact | CauseFact
@@ -450,6 +468,7 @@ async def voice_facts(
                 or sentence_problems(text, fact.text, kinds, sides, allowed)
                 or framing_problems(text, fact.role)
                 or pin_problems(text, pinned)
+                or cause_problems(text, fact)
             ):
                 continue
             repeated = colour_words(text, fact.text) & used
@@ -481,6 +500,7 @@ __all__ = [
     "CauseRole",
     "StoryFact",
     "cause_facts",
+    "cause_problems",
     "cause_text",
     "lesson_turning_point",
     "MAX_EXCLAMATIONS",
