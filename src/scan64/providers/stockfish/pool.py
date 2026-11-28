@@ -147,8 +147,22 @@ class PooledStockfishAdapter:
         self._identity = None
 
     def exited(self) -> bool:
-        """Whether the started process has exited (its search may have timed out instead)."""
-        return self._engine is not None and self._engine.returncode.done()
+        """Whether the started process has exited (its search may have timed out instead).
+
+        python-chess resolves ``returncode`` with the process exit code when the
+        connection to the process is lost. Only a resolved future holding an
+        integer exit code counts: anything else (no process, a pending future,
+        an object without a real future) is a process that has not exited.
+        """
+        if self._engine is None:
+            return False
+        returncode: object = getattr(self._engine, "returncode", None)
+        if not isinstance(returncode, asyncio.Future):
+            return False
+        if not returncode.done() or returncode.cancelled():
+            return False
+        code: object = returncode.result()
+        return isinstance(code, int) and not isinstance(code, bool)
 
     async def quit(self) -> None:
         if self._engine is not None:
