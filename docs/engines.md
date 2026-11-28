@@ -311,7 +311,7 @@ Run 3c32f49e7444, commit 2b640f76e914, profile
 | 7 | 2200 | 2200 | 27-3-10 | 0.713 | 2358 (2241 to 2474) |
 | 8 | 2500 | 2500 | 31-5-4 | 0.838 | 2785 (2643 to 2927) |
 
-Levels 4 and 5 play well below the `UCI_Elo` they are sent, and levels 7 and 8
+Levels 4 to 6 play below the `UCI_Elo` they are sent (4 and 5 well below), and levels 7 and 8
 above it. Levels 1 to 3 lost every game: Stockfish's lowest `UCI_Elo` is 1320,
 so their strength needs a weaker reference and is not measured yet (#396).
 
