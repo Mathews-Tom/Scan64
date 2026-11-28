@@ -228,13 +228,27 @@ def pairing_problems(sentence: str, fact: str, sides: Mapping[str, str] | None =
     return problems
 
 
+_FRAMING = re.compile(r"\b(could|would|instead|might have)\b", re.IGNORECASE)
+
+
+def framing_problems(sentence: str, role: str) -> list[str]:
+    """A "could have played" fact must stay a possibility, never an event."""
+    if role == "could_have_played" and not _FRAMING.search(sentence):
+        return ["states the alternative move as played"]
+    return []
+
+
 def sentence_problems(
     sentence: str,
     fact: str,
     relation_kinds: Iterable[str] = (),
     sides: Mapping[str, str] | None = None,
+    max_sentences: int = 1,
 ) -> list[str]:
-    """Problems with one sentence written for one fact; an empty list means it passes."""
+    """Problems with the text written for one fact; an empty list means it passes.
+
+    ``max_sentences`` is 2 for a fact merged from several parts.
+    """
     problems = violations(sentence, fact)
     problems.extend(judgement_problems(sentence, fact))
     problems.extend(pairing_problems(sentence, fact, sides))
@@ -244,9 +258,9 @@ def sentence_problems(
         problems.append("keeps no move or square of the fact")
     if CAPTURE_WORDS.search(sentence) and not fact_takes(fact, relation_kinds):
         problems.append("says a piece is taken; the fact takes nothing")
-    # Two end marks are allowed, for a move written as "1.Re1!" inside the sentence.
-    if len(re.findall(r"[.!?](\s|$)", sentence.strip())) > 2:
-        problems.append("more than one sentence")
+    # One end mark more is allowed, for a move written as "1.Re1!" inside a sentence.
+    if len(re.findall(r"[.!?](\s|$)", sentence.strip())) > max_sentences + 1:
+        problems.append("too many sentences")
     return problems
 
 
@@ -258,8 +272,9 @@ def repair(text: str, played: str) -> str:
 def limit_exclamations(sentences: list[str], keep: int = 1) -> list[str]:
     """Keep the first ``keep`` "!" of a comment.
 
-    Each item is one sentence, so a later "!" at its end becomes a full stop,
-    and a later "!" inside it (after a move, "1.Re1!") is removed.
+    A later "!" that ends a sentence (at the end of an item, or before a
+    capital letter) becomes a full stop; one inside a sentence (after a move,
+    "1.Re1! wins") is removed.
     """
     kept = 0
     out = []
@@ -273,7 +288,9 @@ def limit_exclamations(sentences: list[str], keep: int = 1) -> list[str]:
             if kept < keep:
                 kept += 1
                 chars.append(char)
-            elif index == len(sentence) - 1 and not (chars and chars[-1] in ".!?"):
+            elif chars and chars[-1] in ".!?":
+                continue
+            elif index == len(sentence) - 1 or re.match(r"\s+[A-Z0-9]", sentence[index + 1 :]):
                 chars.append(".")
         out.append("".join(chars))
     return out
@@ -295,6 +312,7 @@ def colour_words(sentence: str, fact: str) -> set[str]:
 __all__ = [
     "CAPTURE_WORDS",
     "JUDGEMENT_WORDS",
+    "framing_problems",
     "judgement_problems",
     "limit_exclamations",
     "pairing_problems",

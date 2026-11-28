@@ -20,6 +20,7 @@ from scan64.explanations.facts import build_narrator_facts
 from scan64.explanations.role_facts import RoleFact, role_facts
 from scan64.explanations.sentence_check import (
     colour_words,
+    framing_problems,
     limit_exclamations,
     repair,
     sentence_problems,
@@ -92,7 +93,11 @@ def test_the_prompt_holds_the_card_and_one_fact_only() -> None:
             "taken",
         ),
         ("A fork on h8!", "The knight on f7 attacks the rook on h8.", "term fork"),
-        ("Bang. The rook on h8. Gone. Away.", "The knight on f7 attacks the rook on h8.", "more"),
+        (
+            "Bang. The rook on h8. Gone. Away.",
+            "The knight on f7 attacks the rook on h8.",
+            "too many",
+        ),
         ("Black takes on g2 with 5...Qxg2.", "Black answers 5...Qxg2.", None),
     ],
 )
@@ -188,7 +193,7 @@ async def test_a_lesson_is_voiced_from_its_role_facts() -> None:
     assert all_facts
     assert {fact.role for fact in all_facts} >= {"the_move", "could_have_played"}
     story, dropped = select_facts(all_facts)
-    assert dropped == len(all_facts) - len(story)
+    assert 0 <= dropped < len(all_facts)
     writer = _Writer()
     explanation = await resolve_explanation(diagnosis, evidence, _FEN, local_provider=writer)
     assert len(writer.calls) == len(story)
@@ -213,7 +218,7 @@ def test_one_fact_per_role_in_story_order_a_capture_or_check_first() -> None:
     facts = _p1_facts()
     chosen, dropped = select_facts(facts)
     assert 1 <= len(chosen) <= 4
-    assert dropped == len(facts) - len(chosen) > 0
+    assert 0 < dropped < len(facts)
     order = ("the_move", "what_it_misses", "what_follows", "could_have_played")
     roles = [fact.role for fact in chosen]
     assert roles == sorted(roles, key=order.index) and len(set(roles)) == len(roles)
@@ -323,3 +328,35 @@ async def test_a_voiced_comment_keeps_one_exclamation() -> None:
     voiced = await voice_facts(writer, facts, mover=chess.WHITE, played="5.Nxf7")
     assert voiced.text.count("!") <= 1
     assert all(sentence.text.endswith((".", "!", "?")) for sentence in voiced.sentences)
+
+
+def test_the_alternative_keeps_its_framing_and_its_check() -> None:
+    chosen, _ = select_facts(_p1_facts())
+    alternative = next(fact for fact in chosen if fact.role == "could_have_played")
+    assert alternative.text.startswith("White could have played 5.Bxf7+ instead of 5.Nxf7.")
+    kinds = {relation.kind for relation in alternative.relations}
+    assert "gives_check" in kinds
+
+
+@pytest.mark.parametrize(
+    ("sentence", "ok"),
+    [
+        ("The queen on e2 blocks the check.", False),
+        ("7.Qe2 would have blocked the check as well.", True),
+        ("7.Qe2 instead blocks the check too.", True),
+        ("White could have blocked with 7.Qe2.", True),
+    ],
+)
+def test_a_could_have_played_sentence_must_stay_a_possibility(sentence: str, ok: bool) -> None:
+    assert (framing_problems(sentence, "could_have_played") == []) is ok
+    assert framing_problems(sentence, "what_follows") == []
+
+
+@pytest.mark.asyncio
+async def test_an_alternative_stated_as_played_is_retried() -> None:
+    chosen, _ = select_facts(_p1_facts())
+    alternative = next(fact for fact in chosen if fact.role == "could_have_played")
+    writer = _Writer(["5.Bxf7+ takes the pawn on f7 with check.", None])
+    voiced = await voice_facts(writer, [alternative], mover=chess.WHITE, played="5.Nxf7")
+    assert len(writer.calls) == 2
+    assert "could" in voiced.text or "instead" in voiced.text

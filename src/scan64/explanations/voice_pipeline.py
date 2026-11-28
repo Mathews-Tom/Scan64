@@ -20,6 +20,7 @@ Q4_K_S in #462).
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Literal, Protocol, runtime_checkable
@@ -30,6 +31,7 @@ from scan64.explanations.role_facts import ROLES, RoleFact, colour_name, role_la
 from scan64.explanations.sentence_check import (
     colour_words,
     finish,
+    framing_problems,
     limit_exclamations,
     repair,
     sentence_problems,
@@ -43,8 +45,8 @@ MAX_EXCLAMATIONS: Final = 1
 VOICE_SYSTEM_PROMPT: Final = (
     "You rewrite one chess fact as one lively sentence for a club player. Keep every move, "
     "square and piece of the fact, and add none. Do not add any judgement, plan or danger the "
-    "fact does not state. Never put '!' after the move {mover} played. Write plain text, one "
-    "sentence."
+    "fact does not state. Never put '!' after the move {mover} played. Write plain text: one "
+    "sentence, or two for a fact with several parts."
 )
 
 # The Tal-like card measured in #457 (runs 6-9): traits plus one example
@@ -130,6 +132,8 @@ def voice_prompt(role: str, fact: str, avoid: Sequence[str] = ()) -> str:
         for example_role, example_fact, sentence in VOICE_EXAMPLES
     )
     ask = "Now rewrite this fact."
+    if _parts(fact) > 1:
+        ask = "Now rewrite this fact in one or two sentences."
     if avoid:
         ask += f" Do not use: {', '.join(sorted(avoid))}."
     parts.append(f"{ask}\nFact ({role}): {fact}\nSentence:")
@@ -150,7 +154,7 @@ class VoicedSentence:
 @dataclass(frozen=True)
 class VoicedExplanation:
     sentences: tuple[VoicedSentence, ...]
-    # Facts left out by ``select_facts``: only one fact per role is voiced.
+    # Facts left out by ``select_facts``: each role merges at most three.
     dropped_facts: int = 0
 
     @property
@@ -167,29 +171,60 @@ class VoicedExplanation:
         return sum(sentence.calls for sentence in self.sentences)
 
 
+# Relation facts merged into a role's one fact, after its framing fact.
+MAX_RELATION_FACTS: Final = 2
+
+
 def _weight(fact: RoleFact) -> int:
-    """How much a fact carries: a mate first, then a capture or a check, then the rest."""
+    """How much a fact carries: a mate, then a check, then a capture, then the rest."""
     kinds = {relation.kind for relation in fact.relations}
     if kinds & {"mates", "stalemates"}:
+        return 4
+    if "gives_check" in kinds:
         return 3
-    if kinds & {"takes", "gives_check"}:
+    if "takes" in kinds:
         return 2
     return 1 if kinds - {"moves"} else 0
 
 
-def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
-    """At most one fact per role, in story order, and the number left out.
+def _is_framing(fact: RoleFact) -> bool:
+    """A fact that only names a move: "White played 1.Kd2.", "White could have played X ..."."""
+    return all(relation.kind == "moves" for relation in fact.relations)
 
-    Within a role the fact with the highest ``_weight`` wins; on a tie, the
-    first. The story order is the move, what it misses, what follows, and what
-    the mover could have played.
+
+def _parts(text: str) -> int:
+    return max(1, len(re.findall(r"[.!?](\s|$)", text.strip())))
+
+
+def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
+    """One merged fact per role, in story order, and the number of facts left out.
+
+    A role's fact starts with its framing fact when it has one ("White could
+    have played 7.Qe2 instead of 7.Be2."), then adds up to two of its relation
+    facts, chosen by ``_weight`` (a mate, a check, a capture, the rest). The
+    chosen facts keep their own order, which is the order of the moves. The
+    story order is the move, what it misses, what follows, and what the mover
+    could have played.
     """
     chosen: list[RoleFact] = []
+    used = 0
     for role in ROLES:
         of_role = [fact for fact in facts if fact.role == role]
-        if of_role:
-            chosen.append(max(of_role, key=_weight))
-    return tuple(chosen), len(facts) - len(chosen)
+        if not of_role:
+            continue
+        framing = next((fact for fact in of_role if _is_framing(fact)), None)
+        others = [fact for fact in of_role if fact is not framing]
+        picked = sorted(others, key=_weight, reverse=True)[:MAX_RELATION_FACTS]
+        parts = [fact for fact in of_role if fact is framing or fact in picked]
+        used += len(parts)
+        chosen.append(
+            RoleFact(
+                role,
+                " ".join(fact.text for fact in parts),
+                tuple(relation for fact in parts for relation in fact.relations),
+            )
+        )
+    return tuple(chosen), len(facts) - used
 
 
 def _sides(fact: RoleFact) -> dict[str, str]:
@@ -228,6 +263,7 @@ async def voice_facts(
         role = role_label(fact.role, mover)
         kinds = [relation.kind for relation in fact.relations]
         sides = _sides(fact)
+        allowed = min(2, _parts(fact.text))
         avoid: set[str] = set()
         chosen: str | None = None
         calls = 0
@@ -235,7 +271,11 @@ async def voice_facts(
             calls += 1
             raw = await writer.rewrite(system, voice_prompt(role, fact.text, sorted(avoid)))
             text = repair(_first_line(raw), played)
-            if not text or sentence_problems(text, fact.text, kinds, sides):
+            if (
+                not text
+                or sentence_problems(text, fact.text, kinds, sides, allowed)
+                or framing_problems(text, fact.role)
+            ):
                 continue
             repeated = colour_words(text, fact.text) & used
             if repeated and not avoid:
