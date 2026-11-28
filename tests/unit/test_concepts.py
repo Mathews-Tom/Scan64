@@ -47,6 +47,7 @@ POSITION_NEGATIVE = [
     ("trapped_piece", "r5k1/B7/8/8/8/8/8/6K1 w - - 0 1"),  # the bishop can escape
     ("back_rank_weakness", "6k1/5pp1/7p/8/8/8/8/4R1K1 w - - 0 1"),  # h7 is free
     ("overloading", "k7/3q4/8/1n6/6p1/7b/8/1R4KR w - - 0 1"),  # two defenders
+    ("overloading", "k7/3q4/8/1n6/8/7b/1R5R/1Q4KR w - - 0 1"),  # the recapture loses the queen
     ("passed_pawn", "4k3/2p5/8/3P4/8/8/8/4K3 w - - 0 1"),
     ("isolated_pawn", "4k3/8/8/8/3P4/4P3/8/4K3 w - - 0 1"),
     ("doubled_pawns", "4k3/8/8/8/8/3P4/2P5/4K3 w - - 0 1"),
@@ -212,6 +213,11 @@ def test_prophylaxis_absent_for_a_threatening_move() -> None:
     # e5 also defends nothing new, and it attacks the knight on f6: a threat, not a quiet move.
     board = chess.Board(DEFEND)
     assert prophylaxis(board, chess.Move.from_uci("e4e5"), ["f6e4"], ["f6d5"]) is None
+
+
+def test_prophylaxis_absent_when_the_attacked_piece_moves_away() -> None:
+    board = chess.Board("1r4k1/1Q6/8/8/8/8/8/6K1 w - - 0 1")
+    assert prophylaxis(board, chess.Move.from_uci("b7a6"), ["b8b7"], ["g8g7"]) is None
 
 
 def test_intent_concepts_all_three() -> None:

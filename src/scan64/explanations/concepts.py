@@ -391,6 +391,8 @@ def _overload(
             continue
         line = _san_line(enemy, (take, recapture))
         after.push(recapture)
+        if _loses_when_attacked(after, first):
+            continue  # the recapture loses the defender itself
         for second in targets:
             if second == first or after.attackers(colour, second):
                 continue
@@ -1024,14 +1026,23 @@ def prophylaxis(
     if reply_gain is None or reply_gain >= PROPHYLAXIS_GAIN:
         return None
     victim = _first_victim(passed, threat)
-    if victim is None:
-        return None
+    if victim is None or _first_capture_square(passed, threat) == move.from_square:
+        return None  # a piece stepping out of an attack is not prophylaxis
     return ConceptFact(
         "prophylaxis",
         f"{board.san(move)} is prophylaxis: it stops {side_name(not board.turn)}'s "
         f"{passed.san(threat[0])}, which would have won {victim}.",
         (move.to_square, threat[0].to_square),
     )
+
+
+def _first_capture_square(board: chess.Board, moves: Sequence[chess.Move]) -> chess.Square | None:
+    replay = board.copy(stack=False)
+    for m in moves:
+        if replay.turn == board.turn and replay.is_capture(m):
+            return m.to_square
+        replay.push(m)
+    return None
 
 
 def _first_victim(board: chess.Board, moves: Sequence[chess.Move]) -> str | None:

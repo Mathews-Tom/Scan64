@@ -759,7 +759,7 @@ Scores only decide a concept; they never reach the text.
 | Hanging piece | A piece (not a pawn or king, as in the lesson diagnosis rule) is attacked and not defended, or attacked by a less valuable piece. |
 | Trapped piece | The piece is attacked, staying loses material, and every move it can make loses material. |
 | Back-rank weakness | The king is on its first rank. Each square in front of it holds its own piece or is attacked. An enemy rook or queen can give mate on that rank. |
-| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures, and the other is then unguarded and taken, with a gain of material. |
+| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. |
 | Passed, isolated, doubled, backward pawn | Passed: no enemy pawn ahead on its file or the files next to it. Doubled: two pawns of one side on a file. Isolated and backward: the factor module's terms. |
 | Blockade | A piece stands on the square in front of an enemy passed pawn. |
 | Outpost, weak square | The factor module's outpost square: on the fourth to sixth rank, guarded by a pawn, and no enemy pawn can ever attack it. A knight or bishop on it stands on an outpost. Empty, it is a weak square for the opponent. |
@@ -783,6 +783,8 @@ Scores only decide a concept; they never reach the text.
 
 **Limits.**
 
+- A fork or skewer must hold after every legal reply. When the opponent has a check that breaks it, it is not found.
+- Overloading needs the defender's recapture to be safe. Prophylaxis is not stated for a piece that steps out of the threatened capture.
 - A skewer must be made by the piece that moved. A skewer opened by another piece's move is not found.
 - The intent concepts trust the engine line they are given. A line cut in the middle of an exchange can show material that the next move wins back.
 - The library is not yet wired into the narrator facts. The voice pipeline (#454) states its facts one at a time.
