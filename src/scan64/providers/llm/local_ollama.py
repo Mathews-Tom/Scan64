@@ -234,6 +234,9 @@ class LocalOllamaExplanationProvider:
         self._model = model
         self._still_authorized = still_authorized
         self._limits = limits
+        # The voice pipeline sends one request per sentence; the model list is
+        # checked once per provider, consent before every dispatch.
+        self._installed = False
 
     async def _authorize_dispatch(self, _request: httpx.Request) -> None:
         # The catalog probe carries no evidence. Check committed consent at chat dispatch,
@@ -259,3 +262,25 @@ class LocalOllamaExplanationProvider:
                 ).generate(request)
         except (httpx.HTTPError, TimeoutError, ValueError, RecursionError) as error:
             raise LLMProviderError("Local Ollama explanation unavailable") from error
+
+    async def rewrite(self, system: str, user: str) -> str:
+        """One voice sentence from the local model, with the same consent recheck (#454)."""
+        limits = self._limits if self._limits is not None else LocalOllamaLimits.from_environment()
+        try:
+            async with (
+                asyncio.timeout(limits.operation_seconds),
+                _client(limits, limits.operation_seconds) as client,
+            ):
+                if not self._installed:
+                    if not _permitted_name(self._model) or self._model not in await _models(client):
+                        raise LLMProviderError("Local Ollama model is not installed locally")
+                    self._installed = True
+                client.event_hooks["request"].append(self._authorize_dispatch)
+                return await OllamaExplanationAdapter(
+                    base_url=LOCAL_OLLAMA_BASE_URL,
+                    model=self._model,
+                    client=client,
+                    context_tokens=limits.context_tokens,
+                ).rewrite(system, user)
+        except (httpx.HTTPError, TimeoutError, ValueError, RecursionError) as error:
+            raise LLMProviderError("Local Ollama sentence unavailable") from error

@@ -8,7 +8,7 @@ prompt for every recorded position at the largest MultiPV the endpoint allows
 characters with ``assembly.estimated_prompt_tokens`` (2.4 characters per
 token). Since #408 the prompt is the system prompt and slot list, not the facts
 JSON; the lowest ratio the #428 benchmark measured is 2.63 characters per token
-(gemma4-12b; 2.64 for the default model gemma4-e4b-q3km, 534 calls each), so
+(gemma4-12b; 2.64 for the earlier default model gemma4-e4b-q3km, 534 calls each), so
 the estimate over-counts tokens. The 1.75 used before #429 was set for the
 facts JSON prompt.
 """
