@@ -33,6 +33,7 @@ from scan64.explanations.sentence_check import (
     finish,
     framing_problems,
     limit_exclamations,
+    pin_problems,
     repair,
     sentence_problems,
 )
@@ -192,6 +193,30 @@ def _is_framing(fact: RoleFact) -> bool:
     return all(relation.kind == "moves" for relation in fact.relations)
 
 
+def _named_pins(fact: RoleFact) -> str:
+    """The fact text with "pins it to" written out: "pins the bishop on e2 to".
+
+    ``role_facts`` says "the queen on e4 pins it to the king on e1"; a small
+    model then attaches "it" to the wrong piece (#454, blind judge of full3).
+    """
+    text = fact.text
+    for relation in fact.relations:
+        if relation.kind == "pins" and relation.subject and relation.target:
+            text = text.replace(
+                f"{relation.subject.phrase()} pins it to",
+                f"{relation.subject.phrase()} pins {relation.target.phrase()} to",
+            )
+    return text
+
+
+def _pinned(fact: RoleFact) -> set[tuple[str, str]]:
+    return {
+        (chess.piece_name(relation.target.piece), chess.square_name(relation.target.square))
+        for relation in fact.relations
+        if relation.kind == "pins" and relation.target is not None
+    }
+
+
 def _parts(text: str) -> int:
     return max(1, len(re.findall(r"[.!?](\s|$)", text.strip())))
 
@@ -220,7 +245,7 @@ def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
         chosen.append(
             RoleFact(
                 role,
-                " ".join(fact.text for fact in parts),
+                " ".join(_named_pins(fact) for fact in parts),
                 tuple(relation for fact in parts for relation in fact.relations),
             )
         )
@@ -264,6 +289,7 @@ async def voice_facts(
         kinds = [relation.kind for relation in fact.relations]
         sides = _sides(fact)
         allowed = min(2, _parts(fact.text))
+        pinned = _pinned(fact)
         avoid: set[str] = set()
         chosen: str | None = None
         calls = 0
@@ -275,6 +301,7 @@ async def voice_facts(
                 not text
                 or sentence_problems(text, fact.text, kinds, sides, allowed)
                 or framing_problems(text, fact.role)
+                or pin_problems(text, pinned)
             ):
                 continue
             repeated = colour_words(text, fact.text) & used

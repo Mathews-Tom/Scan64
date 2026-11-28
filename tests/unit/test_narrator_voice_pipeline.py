@@ -22,6 +22,7 @@ from scan64.explanations.sentence_check import (
     colour_words,
     framing_problems,
     limit_exclamations,
+    pin_problems,
     repair,
     sentence_problems,
 )
@@ -360,3 +361,47 @@ async def test_an_alternative_stated_as_played_is_retried() -> None:
     voiced = await voice_facts(writer, [alternative], mover=chess.WHITE, played="5.Nxf7")
     assert len(writer.calls) == 2
     assert "could" in voiced.text or "instead" in voiced.text
+
+
+# P2 of the voice experiments: 7.Be2 blocks the check, 7...Nf3#; the bishop on e2 is pinned.
+P2 = "r1b1kbnr/pppp1Npp/8/8/2Bnq3/8/PPPP1P1P/RNBQKR2 w Qkq - 0 7"
+
+
+def _p2_facts() -> tuple[RoleFact, ...]:
+    chosen, _ = select_facts(
+        role_facts(P2, "c4e2", "d1e2", best_line=("d1e2",), played_line=("d4f3",))
+    )
+    return chosen
+
+
+def test_a_merged_pin_fact_names_the_pinned_piece() -> None:
+    texts = " ".join(fact.text for fact in _p2_facts())
+    assert "pins it" not in texts
+    assert "pins the bishop on e2 to the king on e1" in texts
+
+
+def test_a_pin_must_name_the_pinned_piece() -> None:
+    pinned = {("bishop", "e2")}
+    wrong = "The queen on e4 pins the knight on f3 to the king on e1."
+    assert pin_problems(wrong, pinned)
+    assert not pin_problems("The queen on e4 pins the bishop on e2 to the king on e1.", pinned)
+    assert not pin_problems("The bishop on e2 is pinned, so the knight on f3 stays.", pinned)
+    assert pin_problems("The knight on f3 is pinned by the queen on e4.", pinned)
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_pin_target_is_retried() -> None:
+    pin_fact = next(fact for fact in _p2_facts() if "pins" in fact.text)
+    wrong = "The queen on e4 pins the knight on f3 to the king on e1."
+    writer = _Writer([wrong, None])
+    voiced = await voice_facts(writer, [pin_fact], mover=chess.WHITE, played="7.Be2")
+    assert len(writer.calls) == 2
+    assert "pins the knight on f3" not in voiced.text
+
+
+def test_snipe_is_a_capture_word_and_deadly_a_judgement() -> None:
+    attacked = "The knight on f7 attacks the rook on h8."
+    problems = sentence_problems("The knight on f7 snipes the rook on h8.", attacked)
+    assert any("taken" in item for item in problems)
+    problems = sentence_problems("A deadly knight on f7 eyes the rook on h8.", attacked)
+    assert any(item.startswith("judgement") for item in problems)

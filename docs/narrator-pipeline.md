@@ -740,7 +740,7 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
 1. **Facts.** Code writes the facts (`explanations/role_facts.py`, #460). Each fact has a role (the move, what it misses, what follows, what the mover could have played) and the relations it states (takes, attacks, pins, gives check and others).
    - Lesson: the facts of the played move against the engine's best move and line (`lesson_role_facts` in `assembly.py`).
    - Analysis Board: for each engine line, the facts of its first move and of the moves that follow. The template's first sentence (the side to move and the engine's first choice) opens the explanation.
-2. **At most four facts.** Each role becomes one fact, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). A role's fact starts with its framing fact when it has one ("White could have played 7.Qe2 instead of 7.Be2."). Then it adds up to two of the role's other facts, chosen in this order: a mate, a check, a capture, the rest. The chosen facts keep the order of the moves. The other facts are left out and counted. The model may write two sentences for a fact with several parts.
+2. **At most four facts.** Each role becomes one fact, in story order: the move, what it misses, what follows, and what the mover could have played (`select_facts`). A role's fact starts with its framing fact when it has one ("White could have played 7.Qe2 instead of 7.Be2."). Then it adds up to two of the role's other facts, chosen in this order: a mate, a check, a capture, the rest. The chosen facts keep the order of the moves. The other facts are left out and counted. The model may write two sentences for a fact with several parts. A pin fact names the pinned piece instead of "it" ("the queen on e4 pins the bishop on e2 to the king on e1").
 3. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
 4. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
    - names a move, square, piece or chess term that its fact does not contain;
@@ -749,6 +749,7 @@ Since #454 a provider that can write plain text words a lesson or an Analysis Bo
    - names a piece on a square that the fact does not pair with that piece, or gives it the wrong side ("White's queen on g5" for Black's queen);
    - says a piece is taken when the fact takes nothing. An attacked piece is never "taken", "snatched", "won" or "stolen";
    - states the alternative move as played: a "could have played" sentence must say "could", "would", "instead" or "might have";
+   - names the wrong piece as pinned: after "pins" the first piece named must be the pinned piece, and before "is pinned" the last one;
    - has more sentences than allowed: one, or two for a fact with several parts.
    Code removes a "!" written directly after the played move before the check.
 5. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.

@@ -67,7 +67,7 @@ TERMS: tuple[str, ...] = (
 CAPTURE_WORDS = re.compile(
     r"\b(take[sn]?|taking|took|captur\w*|snag\w*|snatch\w*|grab\w*|seiz\w*|swallow\w*|"
     r"gobbl\w*|devour\w*|eat[s]?|eaten|ate|pick\w* (up|off)|carr(y|ies|ied) off|collect\w*|"
-    r"claim\w*|win|wins|winning|won|cast\w*|steal\w*|stole|stolen|nab\w*)\b",
+    r"claim\w*|win|wins|winning|won|cast\w*|steal\w*|stole|stolen|nab\w*|snip\w*)\b",
     re.IGNORECASE,
 )
 # Judgements a sentence may use only when its fact uses them: the model must not
@@ -100,6 +100,7 @@ JUDGEMENT_WORDS: tuple[str, ...] = (
     "wiser",
     "winning",
     "losing",
+    "deadly",
 )
 # "more daring", "less safe"; "<word>er path" such as "a safer path".
 _MORE_ADJECTIVE = re.compile(r"\b(more|less)\s+(?!than\b|and\b|of\b)[a-z]+", re.IGNORECASE)
@@ -228,6 +229,34 @@ def pairing_problems(sentence: str, fact: str, sides: Mapping[str, str] | None =
     return problems
 
 
+_PIN_WORD = re.compile(r"\b(pin|pins|pinning|pinned)\b", re.IGNORECASE)
+_BEFORE_PINNED = re.compile(r"\b(is|are|was|stays|remains|now|still)\s+$", re.IGNORECASE)
+
+
+def pin_problems(sentence: str, pinned: Iterable[tuple[str, str]]) -> list[str]:
+    """A pin word must name the pinned piece: "pins the bishop on e2", "the bishop on e2 is pinned".
+
+    ``pinned`` holds the (piece, square) pairs the fact's ``pins`` relations pin.
+    For "pin", "pins" and "pinning" the first "<piece> on <square>" after the
+    word must be pinned; for "is pinned" it is the last one before the word.
+    """
+    targets = set(pinned)
+    if not targets:
+        return []
+    problems = []
+    for match in _PIN_WORD.finditer(sentence):
+        before, after = sentence[: match.start()], sentence[match.end() :]
+        if match.group(1).lower() == "pinned" and _BEFORE_PINNED.search(before):
+            pairs = piece_pairs(before)
+            named = pairs[-1] if pairs else None
+        else:
+            pairs = piece_pairs(after)
+            named = pairs[0] if pairs else None
+        if named is not None and (named[1], named[2]) not in targets:
+            problems.append(f"pins the {named[1]} on {named[2]}, which is not pinned")
+    return problems
+
+
 _FRAMING = re.compile(r"\b(could|would|instead|might have)\b", re.IGNORECASE)
 
 
@@ -313,6 +342,7 @@ __all__ = [
     "CAPTURE_WORDS",
     "JUDGEMENT_WORDS",
     "framing_problems",
+    "pin_problems",
     "judgement_problems",
     "limit_exclamations",
     "pairing_problems",
