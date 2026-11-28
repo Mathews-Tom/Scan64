@@ -30,6 +30,7 @@ from scan64.explanations.slots import (
     numbered_san,
     slot_names,
 )
+from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
     REJECTION_REASONS,
     GroundedExplanationContext,
@@ -302,7 +303,9 @@ async def test_slots_render_and_the_template_floor_holds_on_3000_fuzzed_position
             assert slot.value
             assert slot.value.lower() in rendered.lower()
         if True:
-            template = await resolve_explanation(diagnosis, [evidence], fen, environment={})
+            # A rejected generation falls back to the template; without a model the
+            # phrase bank words the facts instead (#461).
+            template = await TemplateExplanationProvider().explain(diagnosis, [evidence])
             provider = _Provider(f"{slots['played'].value} was the mistake.")
             explanation = await resolve_explanation(
                 diagnosis, [evidence], fen, local_provider=provider, environment={}
