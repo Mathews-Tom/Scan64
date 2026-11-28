@@ -1,0 +1,106 @@
+{
+  "header": {
+    "gpu": "NVIDIA GeForce RTX 5090, 32607 MiB",
+    "num_ctx": 4096,
+    "num_predict": 2048,
+    "ollama_version": "0.40.18",
+    "pipeline": {
+      "commit": "9b06e04575519fc2568dee8477fdb2eae0a5c79d",
+      "config_file": "benchmarks/narrator/narrator.toml",
+      "config_sha256": "3a96b3cdb00a5a0302da77e26e6e513e6b068bc035b41d48005f87bb1c12177e",
+      "dirty": false,
+      "grounding_context": "scan64.explanations.board_lines:board_slot_grounding",
+      "module_commit": "9b06e04575519fc2568dee8477fdb2eae0a5c79d",
+      "module_file": "src/scan64/explanations/board_lines.py",
+      "module_sha256": "aafd780c55ce685f4503c01a0807642cea1d4201a491bc1ad6faf528513b8954",
+      "narrator_modules": {
+        "src/scan64/explanations/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/scan64/explanations/assembly.py": "79c006f90a1088d825632c2213c5365dcfae987e4c619167b248ad5e881da40f",
+        "src/scan64/explanations/board_lines.py": "aafd780c55ce685f4503c01a0807642cea1d4201a491bc1ad6faf528513b8954",
+        "src/scan64/explanations/claims.py": "43976066ae476fa492e96153761cc262338606438a30d0c0ba372c509c729d8a",
+        "src/scan64/explanations/factor_facts.py": "6d0cd9b0841b4b7c5816183a452d0295a7815f2392a5e220c14b08c2d7afe098",
+        "src/scan64/explanations/factors/__init__.py": "8be7baee21a227f3538756a6323ffe06e57715bad4d6353647d215bf775abd84",
+        "src/scan64/explanations/factors/board.py": "8a2b466e312b38db12a80efc91412cb34a7d2aa14388f373cb704922e4fb748c",
+        "src/scan64/explanations/factors/report.py": "3f4eabc009a9d573d36cc075bbfe640fd913f53b6e5c32712efee76519de3b7a",
+        "src/scan64/explanations/factors/terms.py": "adecbf564b9781a4ef753996e1623b72f1adf85bf4d976a92f7da2ac469f0395",
+        "src/scan64/explanations/facts.py": "812ef96837526f045457e4fb8ea02df418bdfe1aa131d5024159b3c4086e648d",
+        "src/scan64/explanations/settings.py": "0a89d79901a3e2ccdc61806176df9c651df2162fd5cb604ac88b2e96c9909259",
+        "src/scan64/explanations/slots.py": "1e0162c06c8e9eed3226d72926f95baf4384b73f4dfe31077c60751e3aeb6be3",
+        "src/scan64/explanations/templates/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/scan64/explanations/templates/provider.py": "5b88a71aa7170d18e359b315505eeb98f7ed7fb5d8870476676ceaad9e4a4b4b",
+        "src/scan64/explanations/validator.py": "d705c497ed764a8154edd2a438631ece2a9e86af2ff70571e3a18ab263c5629a",
+        "src/scan64/explanations/voice.py": "f67d65332bfa7ab3e6f08aeed3dbf8eb8fe6830f16e4bb1a9379eb837fefe568"
+      },
+      "narrator_sha256": "c27c7c541095acee155d855768f1c0596c0c63cae4a83d6b42e801e8b53f97e3",
+      "pipeline_entry": "scan64.explanations.board_lines:resolve_board_lines_explanation",
+      "runner_sha256": "76fd889ae670f2fa586a63ac80a165e85a1fa3e1ed36e8fc72ad8e507cd49bc7"
+    },
+    "positions": 12,
+    "positions_file": "benchmarks/narrator/positions-board.json",
+    "positions_sha256": "1bc164ef6a3bed174f9097765c4e7aa2bc1651fcb3c42d4b10ae5ad50f2cd55d",
+    "python": "3.12.13",
+    "record": "header",
+    "request_overrides": {
+      "stream": true,
+      "think": false
+    },
+    "request_timeout_s": 120.0,
+    "runs_per_position": 5,
+    "started": "2026-11-28T11:08:40.410256+00:00",
+    "voice": "coach"
+  },
+  "models": {
+    "gemma4-e4b-q3km": {
+      "claim_rejection_reasons": {
+        "chess_token_outside_slot": 40,
+        "missing_line": 5,
+        "unknown_slot": 5,
+        "unsupported_claim": 5
+      },
+      "claims_per_explanation": 4.4,
+      "coverage_accepted": 0.9555555555555556,
+      "delivered_coverage": 0.4777777777777778,
+      "factor_named_accepted": 0.3333333333333333,
+      "factor_named_where_available": 0.5882352941176471,
+      "fallback_reasons": {
+        "chess_token_outside_slot": 20,
+        "missing_line": 3,
+        "unknown_slot": 4,
+        "unsupported_claim": 3
+      },
+      "false_chess_statements_per_explanation": 0.75,
+      "first_token_p50_s": 0.06070661451667547,
+      "full_coverage_rate": 0.4666666666666667,
+      "gpu_peak_over_idle_gib": 3.12890625,
+      "grounding_pass_rate": 0.5,
+      "grounding_pass_rate_by_code": {
+        "analysis_board": 0.5
+      },
+      "latency_p50_s": 1.3425140695471782,
+      "latency_p95_s": 1.6970170109649187,
+      "length_stop_rate": 0.0,
+      "licence": "Apache-2.0",
+      "load_and_first_call_s": 4.4524699279572815,
+      "max_prompt_tokens": 1335,
+      "mean_output_tokens": 288.8333333333333,
+      "mean_prompt_tokens": 1147.9166666666667,
+      "median_prompt_tokens": 1127.0,
+      "model_size_gib": 2.437587889842689,
+      "ollama_size_vram_gib": 2.437587889842689,
+      "params_b": 8.0,
+      "pipeline_exception_rate": 0.0,
+      "provider_error_rate": 0.0,
+      "rejected_claims_per_explanation": 0.9166666666666666,
+      "role": "baseline",
+      "runs": 60,
+      "san_correct_rate": null,
+      "san_legal_rate": null,
+      "san_tokens": 0,
+      "served_name": "scan64-bench-gemma4-e4b-q3km",
+      "thinking_calls": 0,
+      "vram_model_gib": 3.126953125,
+      "within_production_limit_rate": 1.0
+    }
+  },
+  "positions_kind": "board-lines"
+}
