@@ -413,3 +413,17 @@ def test_two_checked_claims_in_one_sentence() -> None:
     assert _reason("scholar_mate_in_one", "line-1", text) is None
     text = "{label:line-1}: the side to move wins material, while the opponent wins material."
     assert _reason("scholar_mate_in_one", "line-1", text) == "unsupported_claim"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The first line: the side to move wins material.",
+        "In line one, the side to move wins material.",
+        "In the top line, the side to move wins material.",
+    ],
+)
+def test_a_line_named_in_words_admits_no_outcome_word(text: str) -> None:
+    # Cited as line 2 (the side to move loses 2), but the prose names line 1,
+    # which wins a pawn: code cannot tell which line the words mean.
+    assert _reason("scholar_mate_in_one", "line-2", text) in REJECTED

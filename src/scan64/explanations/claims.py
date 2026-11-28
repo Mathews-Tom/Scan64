@@ -914,15 +914,18 @@ class OutcomeFacts:
 # side to move as their subject and a "for <side>" after them (second pre-PR
 # review): sentence frame, line and slot talk. Any other word (a size such as
 # "by nine points", "so does the opponent", "only in theory", "the opponent of
-# the side to move") leaves the outcome words to the vocabulary rule.
+# the side to move") leaves the outcome words to the vocabulary rule. Ordinals
+# and number words are left out: "the first line" or "line one" may name
+# another line than the cited one, which a {label:...} slot cannot.
 OUTCOME_SENTENCE_WORDS = frozenset(
     """a an the this that it its in over at by with after of to and so then also here
-    line lines line's first second third top main primary engine engine's choice option
-    path suggestion move sequence continuation start starts started begin begins began
-    show shows showing indicate indicates indicating mean means result results resulting
-    lead leads leading end ends ending ended up where which as is are was be being has
-    have all both overall throughout whole course keep keeps kept keeping maintain
-    maintains maintained leave leaves while balance""".split()
+    line lines line's engine engine's choice option path suggestion suggested suggests
+    move sequence continuation start starts started begin begins began show shows
+    showing indicate indicates indicating mean means result results resulting lead
+    leads leading end ends ending ended up where which as is are was be being has have
+    all both overall throughout whole course keep keeps kept keeping maintain maintains
+    maintained leave leaves while balance outcome score scores scored labeled labelled
+    position compared comparing""".split()
 )
 _SENTENCE_WORD = re.compile(r"~|[a-z']+", re.IGNORECASE)
 
