@@ -8,8 +8,9 @@ at a time and never decides chess. Each fact carries:
 - one sentence that states one relation per clause, with explicit timing
   ("gives check; after the king moves, the knight takes the rook on a8") and
   the square every piece stands on after it moves;
-- its relations as data (takes, attacks, gives check, mates, stalemates,
-  blocks, pins, frees, prevents, moves), for the check in the voice pipeline.
+- its relations as data (takes, attacks, defends, gives check, mates,
+  stalemates, blocks, pins, shuts in, frees, opens, prevents, leaves
+  undefended, moves), for the check in the voice pipeline.
 
 python-chess decides every fact from the position, the played move, the
 engine's best line from the same position and the engine's line after the
@@ -40,12 +41,24 @@ RelationKind = Literal[
     "pins",
     "frees",
     "prevents",
+    "defends",
+    "undefended",
+    "shuts_in",
+    "opens",
 ]
 Direction = Literal["forward", "back", "sideways"]
 
 # Pieces a moved piece's attacks are stated for: the king is stated by the
 # check, pawns would bury the story in noise.
 _ATTACK_TARGETS = (chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN)
+_VALUES = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9,
+    chess.KING: 100,
+}
 # Plies of the line after the played move that "What follows" states: the
 # opponent's reply, the mover's answer, and the opponent's follow-up.
 FOLLOW_PLIES = 3
@@ -88,6 +101,8 @@ class Relation:
     target: PieceOnSquare | None = None
     through: PieceOnSquare | None = None
     direction: Direction | None = None
+    # The square an ``opens`` relation makes reachable.
+    square: chess.Square | None = None
 
 
 @dataclass(frozen=True)
@@ -334,31 +349,41 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
         if target is None or target.color == mover or target.piece_type not in _ATTACK_TARGETS:
             continue
         attacked = PieceOnSquare(target.color, target.piece_type, square)
-        pinner = _pinner(after, square)
-        if pinner is not None and pinner.square != move.to_square:
-            said.append(
-                _Said(
-                    f"{moved.phrase().capitalize()} attacks {attacked.phrase()}; "
-                    f"{attacked.phrase()} is pinned to {_king(after, opponent).phrase()} by "
-                    f"{pinner.phrase()}, so it cannot move away.",
-                    Relation("attacks", uci, fen, subject=moved, target=attacked),
-                    (
-                        Relation(
-                            "pins",
-                            uci,
-                            fen,
-                            subject=pinner,
-                            target=attacked,
-                            through=_king(after, opponent),
-                        ),
-                    ),
-                )
+        said.append(
+            _Said(
+                f"{moved.phrase().capitalize()} attacks {attacked.phrase()}.",
+                Relation("attacks", uci, fen, subject=moved, target=attacked),
             )
-        else:
+        )
+
+    for square in after.attacks(move.to_square):
+        own = after.piece_at(square)
+        if own is None or own.color != mover or own.piece_type not in _ATTACK_TARGETS:
+            continue
+        if board.attackers(mover, square):
+            continue
+        defended = PieceOnSquare(own.color, own.piece_type, square)
+        said.append(
+            _Said(
+                f"{moved.phrase().capitalize()} defends {defended.phrase()}.",
+                Relation("defends", uci, fen, subject=moved, target=defended),
+            )
+        )
+
+    back_rank = 0 if mover == chess.WHITE else 7
+    king_before = _king_squares(board, mover)
+    if (
+        before.piece != chess.KING
+        and king_before
+        and all(chess.square_rank(square) == back_rank for square in king_before)
+    ):
+        king = _king(board, mover)
+        opened = _king_squares(after, mover) - king_before
+        for square in sorted(sq for sq in opened if chess.square_rank(sq) != back_rank):
             said.append(
                 _Said(
-                    f"{moved.phrase().capitalize()} attacks {attacked.phrase()}.",
-                    Relation("attacks", uci, fen, subject=moved, target=attacked),
+                    f"Now {king.phrase()} can step to {chess.square_name(square)}.",
+                    Relation("opens", uci, fen, subject=king, square=square),
                 )
             )
 
@@ -447,6 +472,107 @@ def _gave_check(board: chess.Board, move: chess.Move) -> bool:
     return board.gives_check(move)
 
 
+def _king_squares(board: chess.Board, colour: chess.Color) -> set[chess.Square]:
+    """Squares ``colour``'s king can step to, whichever side is to move."""
+    scratch = board.copy(stack=False)
+    scratch.turn = colour
+    king = scratch.king(colour)
+    return {move.to_square for move in scratch.legal_moves if move.from_square == king}
+
+
+def _blockers(board: chess.Board, square: chess.Square) -> list[PieceOnSquare]:
+    """The piece's own pieces on the squares it attacks: what shuts it in."""
+    colour = board.color_at(square)
+    return [
+        _on(board, target)
+        for target in sorted(board.attacks(square))
+        if board.color_at(target) == colour
+    ]
+
+
+def _phrases(pieces: Sequence[PieceOnSquare], *, own: str) -> str:
+    """'its own pawns on f7, g7 and h7', or each piece named when the kinds differ."""
+    squares = [chess.square_name(piece.square) for piece in pieces]
+    if len({piece.piece for piece in pieces}) == 1:
+        name = chess.piece_name(pieces[0].piece)
+        plural = name if len(pieces) == 1 else f"{name}s"
+        return f"{own}{plural} on {_joined(squares)}"
+    return _joined([piece.phrase() for piece in pieces])
+
+
+def _threat_sentences(
+    board: chess.Board, played: chess.Move, follow: Sequence[chess.Move]
+) -> list[_Said]:
+    """The opponent's attacks the played move leaves.
+
+    A piece attacked by a cheaper piece or not defended, and a pawn the line
+    after the move takes.
+    """
+    mover = board.turn
+    after = board.copy(stack=False)
+    after.push(played)
+    taken = follow[0].to_square if follow and after.is_capture(follow[0]) else None
+    label = numbered_san(board, played)
+    said: list[_Said] = []
+    for square in chess.SQUARES:
+        piece = after.piece_at(square)
+        if piece is None or piece.color != mover or piece.piece_type == chess.KING:
+            continue
+        attackers = sorted(after.attackers(not mover, square))
+        if not attackers or (piece.piece_type == chess.PAWN and square != taken):
+            continue
+        defended = bool(after.attackers(mover, square))
+        values = {a: _VALUES[after.piece_type_at(a) or chess.PAWN] for a in attackers}
+        cheapest = min(attackers, key=lambda a: values[a])
+        if defended and values[cheapest] >= _VALUES[piece.piece_type] and square != taken:
+            continue
+        attacker_square = follow[0].from_square if square == taken else cheapest
+        attacker = _on(after, attacker_square)
+        target = PieceOnSquare(piece.color, piece.piece_type, square)
+        already = "already " if attacker_square in board.attackers(not mover, square) else ""
+        said.append(
+            _Said(
+                f"{attacker.owned_phrase()} {already}attacks {target.owned_phrase()}.",
+                Relation("attacks", played.uci(), board.fen(), subject=attacker, target=target),
+            )
+        )
+        if not defended:
+            said.append(
+                _Said(
+                    f"After {label} nothing defends {target.phrase()}.",
+                    Relation("undefended", played.uci(), board.fen(), target=target),
+                )
+            )
+    return said
+
+
+def _new_pins(board: chess.Board, move: chess.Move) -> list[tuple[PieceOnSquare, PieceOnSquare]]:
+    """(pinned, pinner) for the mover's pieces ``move`` leaves pinned that were not before."""
+    mover = board.turn
+    after = board.copy(stack=False)
+    after.push(move)
+    pins = []
+    for square in chess.SQUARES:
+        piece = after.piece_at(square)
+        if piece is None or piece.color != mover or piece.piece_type == chess.KING:
+            continue
+        pinner = _pinner(after, square)
+        was = square != move.to_square and _pinner(board, square) is not None
+        if pinner is not None and not was:
+            pins.append((PieceOnSquare(piece.color, piece.piece_type, square), pinner))
+    return pins
+
+
+def _mobility_legal(board: chess.Board, square: chess.Square) -> int:
+    """Legal moves of the piece on ``square``, with its side to move."""
+    colour = board.color_at(square)
+    if colour is None:
+        return 0
+    scratch = board.copy(stack=False)
+    scratch.turn = colour
+    return sum(1 for move in scratch.legal_moves if move.from_square == square)
+
+
 def _joined(items: Sequence[str]) -> str:
     if len(items) <= 2:
         return " and ".join(items)
@@ -478,62 +604,140 @@ def role_facts(
     after_played = board.copy(stack=False)
     after_played.push(played_move)
     follow_moves = _replay(after_played, played_line)
+    fen = board.fen()
 
     facts: list[RoleFact] = []
 
     def add(role: Role, said: Sequence[_Said]) -> None:
         facts.extend(RoleFact(role, item.text, (item.relation, *item.more)) for item in said)
 
+    played_label = numbered_san(board, played_move)
     add("the_move", _move_sentences(board, played_move, owned=False))
     add("the_move", _free_sentences(board, played_move))
 
+    best_move = best_moves[0]
+    best_label = numbered_san(board, best_move)
+    after_best = board.copy(stack=False)
+    after_best.push(best_move)
+    opponent = not board.turn
+    still_shut = _freed(board, best_move) - _freed(board, played_move)
+    misses: list[_Said] = []
     if played != best:
-        best_move = best_moves[0]
-        add("what_it_misses", _line_sentences(board, best_moves))
-        still_shut = _freed(board, best_move) - _freed(board, played_move)
-        played_label = numbered_san(board, played_move)
-        best_label = numbered_san(board, best_move)
-        add(
-            "what_it_misses",
-            [
+        misses.extend(_threat_sentences(board, played_move, follow_moves))
+        for pinned, pinner in _new_pins(board, played_move):
+            king = _king(after_played, pinned.colour)
+            misses.append(
                 _Said(
-                    f"{_on(board, square).phrase().capitalize()} could not move before "
-                    f"{played_label}, and it still cannot; {best_label} frees it.",
-                    Relation("frees", best, board.fen(), target=_on(board, square)),
+                    f"{pinner.owned_phrase()} pins {pinned.phrase()} to {king.phrase()}.",
+                    Relation("pins", played, fen, subject=pinner, target=pinned, through=king),
                 )
-                for square in sorted(still_shut)
-            ],
+            )
+        # A pin the better move uses: the piece it attacks cannot get away.
+        for square in after_best.attacks(best_move.to_square):
+            holder = _pinner(after_best, square)
+            if (
+                holder is None
+                or holder.square == best_move.to_square
+                or after_best.color_at(square) != opponent
+            ):
+                continue
+            held = _on(after_best, square)
+            king = _king(after_best, opponent)
+            consequence = "cannot move" if _mobility_legal(after_best, square) == 0 else "is pinned"
+            misses.append(
+                _Said(
+                    f"{held.owned_phrase()} {consequence}, because "
+                    f"{holder.phrase()} pins it to {king.phrase()}.",
+                    Relation("pins", best, fen, subject=holder, target=held, through=king),
+                )
+            )
+        # A mate the better move gives: the king's own pieces shut it in.
+        if after_best.is_checkmate():
+            king = _king(board, opponent)
+            blockers = [
+                piece for piece in _blockers(after_best, king.square) if piece.colour == opponent
+            ]
+            if blockers and all(piece.piece == chess.PAWN for piece in blockers):
+                misses.append(
+                    _Said(
+                        f"{king.owned_phrase()} is shut in by "
+                        f"{_phrases(blockers, own='its own ')}.",
+                        Relation("shuts_in", best, fen, subject=king, target=blockers[0]),
+                        tuple(
+                            Relation("shuts_in", best, fen, subject=king, target=piece)
+                            for piece in blockers[1:]
+                        ),
+                    )
+                )
+        for square in sorted(still_shut):
+            shut = _on(board, square)
+            by = _blockers(board, square)
+            misses.append(
+                _Said(
+                    f"{shut.phrase().capitalize()} was already shut in by "
+                    f"{_phrases(by, own='the ')} before {played_label}, and {played_label} "
+                    "does not free it.",
+                    Relation("shuts_in", played, fen, subject=shut, target=by[0]),
+                    tuple(
+                        Relation("shuts_in", played, fen, subject=shut, target=piece)
+                        for piece in by[1:]
+                    ),
+                )
+            )
+    add("what_it_misses", misses)
+
+    follows = _line_sentences(after_played, follow_moves)
+    if follow_moves:
+        reply = follow_moves[0]
+        after_reply = after_played.copy(stack=False)
+        after_reply.push(reply)
+        for pinned, pinner in _new_pins(board, played_move):
+            if reply.to_square in after_reply.attacks(pinned.square):
+                king = _king(after_reply, pinned.colour)
+                follows.append(
+                    _Said(
+                        f"{pinned.phrase().capitalize()} cannot take "
+                        f"{_on(after_reply, reply.to_square).phrase()}: {pinner.phrase()} pins "
+                        f"it to {king.phrase()}.",
+                        Relation(
+                            "pins",
+                            reply.uci(),
+                            after_played.fen(),
+                            subject=pinner,
+                            target=pinned,
+                            through=king,
+                        ),
+                    )
+                )
+    add("what_follows", follows)
+
+    if played != best:
+        alternative: list[_Said] = [
+            _Said(
+                f"{colour_name(board.turn)} could have played {best_label} "
+                f"instead of {played_label}.",
+                Relation("moves", best, fen, subject=_moved(board, best_move)),
+            )
+        ]
+        alternative.extend(_line_sentences(board, best_moves))
+        alternative.extend(
+            _Said(
+                f"{best_label} frees {_on(board, square).phrase()}.",
+                Relation("frees", best, fen, target=_on(board, square)),
+            )
+            for square in sorted(still_shut)
         )
         if follow_moves:
             threat = follow_moves[0]
-            after_best = board.copy(stack=False)
-            after_best.push(best_move)
             if after_best.is_check() and threat not in after_best.legal_moves:
                 piece = _on(after_played, threat.from_square)
-                add(
-                    "what_it_misses",
-                    [
-                        _Said(
-                            f"After {best_label}, {colour_name(after_best.turn)} must answer "
-                            f"the check, so {piece.phrase()} cannot play "
-                            f"{numbered_san(after_played, threat)} at once.",
-                            Relation("prevents", best, board.fen(), target=piece),
-                        )
-                    ],
+                alternative.append(
+                    _Said(
+                        f"After {best_label}, {colour_name(after_best.turn)} must answer "
+                        f"the check, so {piece.phrase()} cannot play "
+                        f"{numbered_san(after_played, threat)} at once.",
+                        Relation("prevents", best, fen, target=piece),
+                    )
                 )
-
-    add("what_follows", _line_sentences(after_played, follow_moves))
-
-    if played != best:
-        mover = colour_name(board.turn)
-        add(
-            "could_have_played",
-            [
-                _Said(
-                    f"{mover} could have played {numbered_san(board, best_moves[0])} "
-                    f"instead of {numbered_san(board, played_move)}.",
-                    Relation("moves", best, board.fen(), subject=_moved(board, best_moves[0])),
-                )
-            ],
-        )
+        add("could_have_played", alternative)
     return tuple(facts)

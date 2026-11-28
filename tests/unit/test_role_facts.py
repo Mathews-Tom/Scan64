@@ -195,6 +195,33 @@ def _holds(relation: Relation) -> None:
                 m.from_square == target.square for m in scratch_before.pseudo_legal_moves
             )
             assert any(m.from_square == target.square for m in scratch_after.pseudo_legal_moves)
+        case "defends":
+            on(after, subject)
+            on(after, target)
+            assert subject is not None and target is not None
+            assert target.colour == subject.colour
+            assert target.square in after.attacks(subject.square)
+            assert not before.attackers(target.colour, target.square)
+        case "undefended":
+            on(after, target)
+            assert target is not None and not after.attackers(target.colour, target.square)
+        case "shuts_in":
+            assert subject is not None and target is not None
+            board = after if subject.piece == chess.KING else before
+            on(board, subject)
+            on(board, target)
+            assert target.colour == subject.colour
+            assert target.square in board.attacks(subject.square)
+        case "opens":
+            assert subject is not None and relation.square is not None
+            assert subject.piece == chess.KING
+
+            def steps(board: chess.Board) -> set[int]:
+                scratch = board.copy()
+                scratch.turn = subject.colour
+                return {m.to_square for m in scratch.legal_moves if m.from_square == subject.square}
+
+            assert relation.square in steps(after) - steps(before)
         case "prevents":
             assert after.is_check()
             on(before, target)
@@ -258,7 +285,7 @@ def test_directions_are_from_the_movers_side() -> None:
 def test_the_game_result_is_stated() -> None:
     stalemate = " ".join(fact.text for fact in _facts("H3") if fact.role == "the_move")
     assert "stalemate" in stalemate and "ends at once as a draw" in stalemate
-    mate = " ".join(fact.text for fact in _facts("H3") if fact.role == "what_it_misses")
+    mate = " ".join(fact.text for fact in _facts("H3") if fact.role == "could_have_played")
     assert "it is mate: the game ends, and White wins" in mate
 
 
@@ -269,8 +296,46 @@ def test_a_judgement_on_the_block_and_the_alternative() -> None:
 
 
 def test_a_pin_names_what_it_pins_to() -> None:
-    texts = [fact.text for fact in _facts("H4")]
-    assert any("pinned to the king on e8 by the rook on e1" in text for text in texts)
+    misses = [fact.text for fact in _facts("H4") if fact.role == "what_it_misses"]
+    assert misses == [
+        "Black's knight on e5 cannot move, because the rook on e1 pins it to the king on e8."
+    ]
+    # P2: the played move walks into a pin, and the pin decides what follows.
+    texts = [fact.text for fact in _facts("P2")]
+    assert "Black's queen on e4 pins the bishop on e2 to the king on e1." in texts
+    assert (
+        "The bishop on e2 cannot take the knight on f3: the queen on e4 pins it to the king on e1."
+        in texts
+    )
+
+
+def test_what_the_move_leaves_attacked() -> None:
+    misses = [fact.text for fact in _facts("P1") if fact.role == "what_it_misses"]
+    assert misses == [
+        "Black's queen on g5 already attacks White's pawn on g2.",
+        "After 5.Nxf7 nothing defends the pawn on g2.",
+    ]
+    alternative = [fact.text for fact in _facts("P1") if fact.role == "could_have_played"]
+    assert alternative[-1] == (
+        "After 5.Bxf7+, Black must answer the check, so the queen on g5 cannot play "
+        "5...Qxg2 at once."
+    )
+
+
+def test_shut_in_pieces_are_named_with_what_shuts_them_in() -> None:
+    texts = [fact.text for fact in _facts("P3")]
+    assert "Black's king on g8 is shut in by its own pawns on f7, g7 and h7." in texts
+    assert "Now the king on g1 can step to h2." in texts
+    texts = [fact.text for fact in _facts("P5")]
+    assert (
+        "The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, "
+        "and 1.e3 does not free it."
+    ) in texts
+    assert "1.d4 frees the bishop on c1." in texts
+
+
+def test_a_move_that_defends_a_piece_says_so() -> None:
+    assert "The pawn on d3 defends the bishop on c4." in [f.text for f in _facts("H1")]
 
 
 def test_illegal_input_fails_fast() -> None:
