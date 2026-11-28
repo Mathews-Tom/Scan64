@@ -29,7 +29,7 @@ exchange loses at least one pawn.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -79,6 +79,7 @@ SACRIFICE_MATERIAL = 2  # material the mover is down after the engine line
 SACRIFICE_SCORE_CP = 50  # the move's score is this close to the best move's
 INITIATIVE_RUN = 3  # forcing moves in a row by the mover
 PROPHYLAXIS_GAIN = 1  # material the stopped reply would have won
+CHECK_DEPTH = 2  # checks in a row a fork or skewer may answer and still hold
 # Library choice (not in the guide): the side with more space controls at
 # least this much more of the guide's space area (safe central squares,
 # counted twice behind its own pawns).
@@ -405,6 +406,39 @@ def _overload(
     return None
 
 
+def _holds(
+    after: chess.Board, wins: Callable[[chess.Board], bool], checks: int = CHECK_DEPTH
+) -> bool:
+    """``wins`` holds after every legal reply of the side to move in ``after``.
+
+    A reply that gives check and breaks it only delays it when the mover has
+    an answer to the check after which it holds again. Up to ``checks``
+    checks in a row are followed.
+    """
+    for reply in list(after.legal_moves):
+        after.push(reply)
+        ok = wins(after) or (checks > 0 and after.is_check() and _answers(after, wins, checks - 1))
+        after.pop()
+        if not ok:
+            return False
+    return True
+
+
+def _answers(board: chess.Board, wins: Callable[[chess.Board], bool], checks: int) -> bool:
+    """The side in check has a reply after which ``wins`` holds again."""
+    for evasion in list(board.legal_moves):
+        board.push(evasion)
+        ok = _holds(board, wins, checks)
+        board.pop()
+        if ok:
+            return True
+    return False
+
+
+def _gains(board: chess.Board, move: chess.Move) -> bool:
+    return move in board.legal_moves and static_exchange(board, move) >= LOSS
+
+
 def fork(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
     """After ``move`` the piece attacks two or more pieces, and one always falls."""
     after = board.copy(stack=False)
@@ -418,20 +452,15 @@ def fork(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
     ]
     if len(targets) < 2:
         return []
-    for reply in after.legal_moves:
-        after.push(reply)
-        wins = any(
-            (capture := chess.Move(forker, t)) in after.legal_moves
-            and static_exchange(after, capture) >= LOSS
-            for t in targets
-        ) or any(
-            (capture := chess.Move(forker, t, chess.QUEEN)) in after.legal_moves
-            and static_exchange(after, capture) >= LOSS
+
+    def wins(b: chess.Board) -> bool:
+        return any(
+            _gains(b, chess.Move(forker, t)) or _gains(b, chess.Move(forker, t, chess.QUEEN))
             for t in targets
         )
-        after.pop()
-        if not wins:
-            return []
+
+    if not _holds(after, wins):
+        return []
     names = [piece_phrase(after, t) for t in sorted(targets)]
     return [
         ConceptFact(
@@ -461,20 +490,20 @@ def _ray_behind(
     return pairs
 
 
-def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
-    """After ``move`` a line piece hits a king or a dearer piece with a piece behind.
+def _skewers(
+    after: chess.Board, attacker: chess.Square, fresh: chess.SquareSet | None = None
+) -> list[tuple[chess.Square, chess.Square]]:
+    """(front, behind) pairs the line piece on ``attacker`` skewers in ``after``.
 
-    After every legal reply the skewering piece can take the piece behind. As
-    for forks, the piece behind is never a pawn.
+    With ``fresh``, the front piece must stand on one of those squares.
     """
-    after = board.copy(stack=False)
-    after.push(move)
-    attacker = move.to_square
     piece = after.piece_at(attacker)
     if piece is None or piece.piece_type not in _SLIDERS:
         return []
-    facts = []
+    found = []
     for front, behind in _ray_behind(after, attacker, piece.piece_type):
+        if fresh is not None and front not in fresh:
+            continue
         fp, bp = after.piece_at(front), after.piece_at(behind)
         if fp is None or bp is None or fp.color == piece.color or bp.color == piece.color:
             continue
@@ -482,26 +511,79 @@ def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
             continue
         if fp.piece_type != chess.KING and _value(fp) <= _value(bp):
             continue
-        take = chess.Move(attacker, behind)
-        holds = True
-        for reply in after.legal_moves:
-            after.push(reply)
-            same = after.piece_at(behind) == bp
-            holds = same and take in after.legal_moves
-            after.pop()
-            if not holds:
-                break
-        if holds:
+
+        def wins(
+            b: chess.Board,
+            front: chess.Square = front,
+            behind: chess.Square = behind,
+            fp: chess.Piece = fp,
+            bp: chess.Piece = bp,
+        ) -> bool:
+            if b.piece_at(attacker) != piece:
+                return False
+            if b.piece_at(behind) == bp and chess.Move(attacker, behind) in b.legal_moves:
+                return True
+            # The front piece stayed: it is the one taken.
+            return b.piece_at(front) == fp and _gains(b, chess.Move(attacker, front))
+
+        if _holds(after, wins):
+            found.append((front, behind))
+    return found
+
+
+def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
+    """After ``move`` a line piece hits a king or a dearer piece with a piece behind.
+
+    The line piece is the piece that moved, or one the move uncovers (a
+    discovered skewer). After every legal reply, or after the mover answers
+    a check, it can take the piece behind, or the front piece when that one
+    stays. As for forks, the piece behind is never a pawn.
+    """
+    mover = board.turn
+    after = board.copy(stack=False)
+    after.push(move)
+    san = board.san(move)
+    facts = []
+    for front, behind in _skewers(after, move.to_square):
+        facts.append(
+            ConceptFact(
+                "skewer",
+                f"{san} skewers {piece_phrase(after, front)}: when it moves, "
+                f"{piece_phrase(after, move.to_square)} takes {piece_phrase(after, behind)}.",
+                (move.to_square, front, behind),
+            )
+        )
+    for square in sorted(_uncovered(board, after, move, mover)):
+        fresh = after.attacks(square) & ~board.attacks(square)
+        for front, behind in _skewers(after, square, fresh):
             facts.append(
                 ConceptFact(
                     "skewer",
-                    f"{board.san(move)} skewers {piece_phrase(after, front)}: when it "
-                    f"moves, {piece_phrase(after, attacker)} takes "
+                    f"{san} opens a skewer: {piece_phrase(after, square)} attacks "
+                    f"{piece_phrase(after, front)}, and when the "
+                    f"{_NAMES[after.piece_type_at(front) or chess.KING]} moves, the "
+                    f"{_NAMES[after.piece_type_at(square) or chess.QUEEN]} takes "
                     f"{piece_phrase(after, behind)}.",
-                    (attacker, front, behind),
+                    (square, front, behind),
                 )
             )
     return facts
+
+
+def _uncovered(
+    board: chess.Board, after: chess.Board, move: chess.Move, mover: chess.Color
+) -> chess.SquareSet:
+    """The mover's queens, rooks and bishops that did not move with ``move``."""
+    moved = {move.to_square}
+    if board.is_castling(move):
+        rook_file = 5 if board.is_kingside_castling(move) else 3
+        moved.add(chess.square(rook_file, chess.square_rank(move.to_square)))
+    sliders = (
+        after.pieces(chess.BISHOP, mover)
+        | after.pieces(chess.ROOK, mover)
+        | after.pieces(chess.QUEEN, mover)
+    )
+    return chess.SquareSet(sq for sq in sliders if sq not in moved)
 
 
 def discovered_attacks(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
@@ -509,18 +591,8 @@ def discovered_attacks(board: chess.Board, move: chess.Move) -> list[ConceptFact
     mover = board.turn
     after = board.copy(stack=False)
     after.push(move)
-    moved = {move.to_square}
-    if board.is_castling(move):
-        rook_file = 5 if board.is_kingside_castling(move) else 3
-        moved.add(chess.square(rook_file, chess.square_rank(move.to_square)))
     facts = []
-    for square in (
-        after.pieces(chess.BISHOP, mover)
-        | after.pieces(chess.ROOK, mover)
-        | after.pieces(chess.QUEEN, mover)
-    ):
-        if square in moved:
-            continue
+    for square in _uncovered(board, after, move, mover):
         new = [
             t
             for t in after.attacks(square) & ~board.attacks(square)
