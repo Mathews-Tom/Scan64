@@ -1,0 +1,502 @@
+{
+ "b001": {
+  "test": "H3-stalemate",
+  "n": 7,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b002": {
+  "test": "H3-stalemate",
+  "n": 15,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b003": {
+  "test": "H3-stalemate",
+  "n": 5,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b004": {
+  "test": "H5-allowed-fork",
+  "n": 22,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b005": {
+  "test": "H3-stalemate",
+  "n": 16,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b006": {
+  "test": "H5-allowed-fork",
+  "n": 1,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b007": {
+  "test": "H1-missed-mate",
+  "n": 1,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b008": {
+  "test": "H3-stalemate",
+  "n": 0,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b009": {
+  "test": "H5-allowed-fork",
+  "n": 3,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b010": {
+  "test": "H3-stalemate",
+  "n": 11,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b011": {
+  "test": "H5-allowed-fork",
+  "n": 4,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b012": {
+  "test": "H4-pin",
+  "n": 18,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b013": {
+  "test": "H4-pin",
+  "n": 8,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b014": {
+  "test": "H3-stalemate",
+  "n": 19,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b015": {
+  "test": "H4-pin",
+  "n": 14,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b016": {
+  "test": "H4-pin",
+  "n": 1,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b017": {
+  "test": "H5-allowed-fork",
+  "n": 17,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b018": {
+  "test": "H5-allowed-fork",
+  "n": 7,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b019": {
+  "test": "H4-pin",
+  "n": 22,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b020": {
+  "test": "H3-stalemate",
+  "n": 18,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b021": {
+  "test": "H5-allowed-fork",
+  "n": 2,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b022": {
+  "test": "H1-missed-mate",
+  "n": 13,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b023": {
+  "test": "H1-missed-mate",
+  "n": 11,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b024": {
+  "test": "H4-pin",
+  "n": 17,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b025": {
+  "test": "H3-stalemate",
+  "n": 10,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b026": {
+  "test": "H4-pin",
+  "n": 19,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b027": {
+  "test": "H1-missed-mate",
+  "n": 18,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b028": {
+  "test": "H5-allowed-fork",
+  "n": 12,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b029": {
+  "test": "H4-pin",
+  "n": 24,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b030": {
+  "test": "H1-missed-mate",
+  "n": 24,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b031": {
+  "test": "H4-pin",
+  "n": 0,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b032": {
+  "test": "H5-allowed-fork",
+  "n": 18,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b033": {
+  "test": "H3-stalemate",
+  "n": 3,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b034": {
+  "test": "H1-missed-mate",
+  "n": 5,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b035": {
+  "test": "H4-pin",
+  "n": 11,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b036": {
+  "test": "H4-pin",
+  "n": 9,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b037": {
+  "test": "H3-stalemate",
+  "n": 17,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b038": {
+  "test": "H4-pin",
+  "n": 4,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b039": {
+  "test": "H4-pin",
+  "n": 10,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b040": {
+  "test": "H3-stalemate",
+  "n": 6,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b041": {
+  "test": "H1-missed-mate",
+  "n": 8,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b042": {
+  "test": "H1-missed-mate",
+  "n": 21,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b043": {
+  "test": "H4-pin",
+  "n": 7,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b044": {
+  "test": "H4-pin",
+  "n": 12,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b045": {
+  "test": "H1-missed-mate",
+  "n": 14,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b046": {
+  "test": "H4-pin",
+  "n": 6,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b047": {
+  "test": "H3-stalemate",
+  "n": 22,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b048": {
+  "test": "H3-stalemate",
+  "n": 14,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b049": {
+  "test": "H5-allowed-fork",
+  "n": 6,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b050": {
+  "test": "H1-missed-mate",
+  "n": 15,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b051": {
+  "test": "H3-stalemate",
+  "n": 4,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b052": {
+  "test": "H1-missed-mate",
+  "n": 20,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b053": {
+  "test": "H1-missed-mate",
+  "n": 6,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b054": {
+  "test": "H1-missed-mate",
+  "n": 17,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b055": {
+  "test": "H3-stalemate",
+  "n": 13,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b056": {
+  "test": "H5-allowed-fork",
+  "n": 16,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b057": {
+  "test": "H1-missed-mate",
+  "n": 16,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b058": {
+  "test": "H1-missed-mate",
+  "n": 2,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b059": {
+  "test": "H4-pin",
+  "n": 15,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b060": {
+  "test": "H4-pin",
+  "n": 2,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b061": {
+  "test": "H4-pin",
+  "n": 23,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b062": {
+  "test": "H4-pin",
+  "n": 13,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b063": {
+  "test": "H1-missed-mate",
+  "n": 19,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b064": {
+  "test": "H1-missed-mate",
+  "n": 22,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b065": {
+  "test": "H3-stalemate",
+  "n": 12,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b066": {
+  "test": "H4-pin",
+  "n": 5,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b067": {
+  "test": "H5-allowed-fork",
+  "n": 5,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b068": {
+  "test": "H3-stalemate",
+  "n": 20,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b069": {
+  "test": "H4-pin",
+  "n": 21,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b070": {
+  "test": "H3-stalemate",
+  "n": 23,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b071": {
+  "test": "H4-pin",
+  "n": 20,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b072": {
+  "test": "H5-allowed-fork",
+  "n": 13,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b073": {
+  "test": "H5-allowed-fork",
+  "n": 9,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b074": {
+  "test": "H5-allowed-fork",
+  "n": 14,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b075": {
+  "test": "H5-allowed-fork",
+  "n": 8,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b076": {
+  "test": "H1-missed-mate",
+  "n": 10,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b077": {
+  "test": "H4-pin",
+  "n": 16,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b078": {
+  "test": "H1-missed-mate",
+  "n": 4,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b079": {
+  "test": "H4-pin",
+  "n": 3,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b080": {
+  "test": "H3-stalemate",
+  "n": 1,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b081": {
+  "test": "H5-allowed-fork",
+  "n": 15,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b082": {
+  "test": "H5-allowed-fork",
+  "n": 21,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b083": {
+  "test": "H5-allowed-fork",
+  "n": 11,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b084": {
+  "test": "H3-stalemate",
+  "n": 2,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b085": {
+  "test": "H1-missed-mate",
+  "n": 7,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b086": {
+  "test": "H3-stalemate",
+  "n": 21,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b087": {
+  "test": "H5-allowed-fork",
+  "n": 20,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b088": {
+  "test": "H3-stalemate",
+  "n": 9,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b089": {
+  "test": "H3-stalemate",
+  "n": 8,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b090": {
+  "test": "H5-allowed-fork",
+  "n": 24,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b091": {
+  "test": "H5-allowed-fork",
+  "n": 23,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b092": {
+  "test": "H1-missed-mate",
+  "n": 0,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b093": {
+  "test": "H1-missed-mate",
+  "n": 12,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b094": {
+  "test": "H1-missed-mate",
+  "n": 3,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b095": {
+  "test": "H1-missed-mate",
+  "n": 23,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b096": {
+  "test": "H5-allowed-fork",
+  "n": 19,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b097": {
+  "test": "H3-stalemate",
+  "n": 24,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b098": {
+  "test": "H1-missed-mate",
+  "n": 9,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b099": {
+  "test": "H5-allowed-fork",
+  "n": 10,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ },
+ "b100": {
+  "test": "H5-allowed-fork",
+  "n": 0,
+  "model": "scan64-bench-gemma4-e4b-q4ks:latest"
+ }
+}

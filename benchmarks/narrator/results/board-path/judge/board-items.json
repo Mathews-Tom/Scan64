@@ -1,0 +1,1677 @@
+[
+ {
+  "id": "b001",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen on f1 sprints to f8! The king on h8 takes a bow and bows out, for White triumphs. Line 2: 1.Qf6+, the queen leaps from f1 to f6, giving the king on h8 a sudden check! 1...Kg8 moves the king from h8 to g8, and then 2.Qg7# finishes the dance, a mate for White. Line 3: 1.Qa1+ sends the queen from f1 sideways to a1, delivering a check to the king on h8! Black's king dances to g8 with 1...Kg8, and then 2.Qg7#\u2014mate. The game ends, and White takes the crown."
+ },
+ {
+  "id": "b002",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# The queen from f1 sprints to f8, giving check to the king on h8, and bam! It's mate, White wins. Line 2: The queen from f1 boldly strides to f6, delivering a check to the king on h8! 1...Kg8 is a sideways shuffle for Black's king to g8, leading to 2.Qg7#, and the game is over, White triumphs. Line 3: 1.Qa1+ The queen on f1 sails sideways to a1, giving the king on h8 a sudden check! Black's king steps sideways with 1...Kg8, leading to 2.Qg7# and a mated victory for White."
+ },
+ {
+  "id": "b003",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# sends the queen from f1 soaring up to f8! The king on h8 gets checked, and that's it, mate. Line 2: The queen on f1 dances forward to f6 with 1.Qf6+, and gives the king on h8 a sudden shout of check! 1...Kg8, the king on h8 tiptoes to g8, and then 2.Qg7# delivers the final blow, mate. Line 3: The queen on f1 makes a sidle to a1, giving a check to the king on h8! Black's king takes a sidestep with 1...Kg8, only to be caught in the final act as 2.Qg7# brings the game to a sudden, sweet end."
+ },
+ {
+  "id": "b004",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen leaps from d1 to g4, throwing a check at the king on g8, and eyeing the knight on d4! Black's king dances forward with 1...Kf7, moving from g8 to f7. Line 2: The queen on d1 leaps out with 1.Qxd4 to snatch the knight on d4! Black's king makes a little dance from g8 to f7 with 1...Kf7. Line 3: The king on g1 steps forward to f2 with 1.Kf2. Black's knight jumps back from d4 to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b005",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 leaps to f8 with 1.Qf8# The king on h8 is caught, and it's mate; the game ends, and White reigns supreme! Line 2: The queen on f1 marches to f6 with 1.Qf6+, giving the king on h8 a little nudge! Black's king drifts to g8 with 1...Kg8, leading to 2.Qg7# and a swift checkmate. Line 3: 1.Qa1+, the queen on f1 shifts sideways to a1, delivering check to the king on h8! 1...Kg8 sees the black king slide sideways from h8 to g8, and then 2.Qg7# shouts mate, and the game bows to White's victory."
+ },
+ {
+  "id": "b006",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen zooms from d1 to g4, checking the king on g8 and putting the knight on d4 under attack! 1...Kf7, Black's king hops from g8 to f7. Line 2: 1.Qxd4, the queen from d1 swoops down to snatch the knight on d4! Black's king strolls out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king from g1 steps forward to f2! Black's knight from d4 marches back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b007",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 grabs the pawn on f7 with 4.Qxf7#, giving check to the king on e8, and mate! The game ends, and White wins. Line 2: The queen from h5 jumps back to h4, and now the queen on h4 targets the knight on f6! 4...Nd4. Black's knight on c6 dances forward to d4. Line 3: The queen on h5 dances sideways to g5, and on g5, the queen now stares down the knight on f6! Black's knight on f6 leaps to e4, taking the pawn on e4. That knight on e4 then dares the queen on g5."
+ },
+ {
+  "id": "b008",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen leaps forward with 1.Qf8#, giving the king on h8 check, and bingo, it's mate! Line 2: 1.Qf6+, the queen hops from f1 to f6, delivering a check to the king on h8! Black's king wanders to g8 with 1...Kg8, and then 2.Qg7# sends the final curtain falling, a mate. Line 3: The queen on f1 sails sideways to a1 with 1.Qa1+, giving the king on h8 a jolly check! Black's king creeps to g8 with 1...Kg8, and then 2.Qg7# arrives, ending the game with White's victory."
+ },
+ {
+  "id": "b009",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 dances ahead to 1.Qg4+ And with that move, she checks the king on g8 while also eyeing the knight on d4! Black's king springs forward from g8 to f7 with 1...Kf7. Line 2: The queen on d1 makes a hungry leap with 1.Qxd4, snatching the knight on d4! Black's king dances out from g8 with 1...Kf7. Line 3: 1.Kf2, the king steps forward from g1 to f2! Black's knight on d4 makes a merry jaunt back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b010",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 leaps to f8 with 1.Qf8#, striking the king on h8 for mate! The game ends, and White triumphs. Line 2: 1.Qf6+ lifts the queen from f1 to f6, delivering a sharp check right at the king on h8! Black's king creeps to g8 with 1...Kg8, and then comes 2.Qg7#\u2014mate. The game ends, and White wins. Line 3: 1.Qa1+, the queen hops from f1 sideways to a1, giving a check to the king on h8! Black's king sneaks off to g8 with 1...Kg8, and then 2.Qg7# bursts in, mating the whole silly game."
+ },
+ {
+  "id": "b011",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen from d1 marches to g4, putting the king on g8 under fire and poking at the knight on d4! Black's king hops from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 swoops in to snatch the knight on d4! Black's king waddles forward from g8 to f7 with 1...Kf7. Line 3: The king on g1 steps forth to f2 with 1.Kf2. Black's knight on d4 happily hops back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b012",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: 1.f3, the pawn on f2 pushes itself forward to f3! Black's king leaps forward from e8 to e7 with 1...Ke7. Line 2: The king on g1 dances sideway to f1 with 1.Kf1, and this king on f1 now guards the rook on e1! Black's king steps out from e8 to e7 with 1...Ke7. Line 3: 1.Rxe5+, the rook on e1 hunts the knight on e5 and gives the king on e8 a sudden check! Black's king waddles out with 1...Kf7, stepping from e8 to f7."
+ },
+ {
+  "id": "b013",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward with 1.f3. Black's king leaps out with 1...Ke7, stepping from e8 to e7! Line 2: 1.Kf1, the king leaps sideways from g1 to f1, where it guards the rook on e1! Black's king dances a little closer with 1...Ke7, stepping from e8 to e7. Line 3: The rook on e1 charges in with 1.Rxe5+, knocking the knight on e5 and delivering check to the king on e8! Black's king hops out of the starting block with 1...Kf7."
+ },
+ {
+  "id": "b014",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 leaps up to f8 with 1.Qf8# It's a check right to the king on h8, and the game, bam, ends with White's triumph! Line 2: 1.Qf6+ sees the queen from f1 bravely marching to f6, giving check to the king on h8! Black's king takes a little hop to g8 with 1...Kg8, paving the way for 2.Qg7# and White's triumphant win. Line 3: 1.Qa1+, the queen jumps from f1 to a1, giving a royal shove to the king on h8! Black's king shuffles to g8 with 1...Kg8, only to meet the fury of 2.Qg7#."
+ },
+ {
+  "id": "b015",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: 1.f3, the pawn on f2 marches forward to f3! Black's king hops to e7 with 1...Ke7 from e8. Line 2: 1.Kf1, the king on g1 makes a sideways stroll to f1. That king on f1 now guards the rook on e1! Black's king dances from e8 to e7 with 1...Ke7. Line 3: 1.Rxe5+, the rook on e1 sweeps in and claims the knight on e5, while the rook on e5 bellows a check at the king on e8! Black's king hops out from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b016",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 goes forward in a little hop with 1.f3. Black's king dances out from e8 to e7 with 1...Ke7! Line 2: The king hops sideways with 1.Kf1, and that king on f1 stands guard for the rook on e1! Black's king leaps from e8 with 1...Ke7. Line 3: The rook on e1 hunts the knight on e5 with 1.Rxe5+, delivering a check right to the king on e8! Black's king leaps from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b017",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen leaps from d1 to g4, giving check to the king on g8 and attacking the knight on d4! Black's king steps out from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 swoops in to snatch the knight on d4! Black's king leaps out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king hops forward from g1 to f2! Black's knight on d4 swings back with 1...Ne6."
+ },
+ {
+  "id": "b018",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 races forward to g4 with 1.Qg4+, putting the king on g8 in check and threatening the knight on d4! Black's king dances out to f7 with 1...Kf7 from g8. Line 2: 1.Qxd4, the queen from d1 snatches the knight on d4! Black's king happily marches from g8 to f7 with 1...Kf7. Line 3: The king leaps up to f2 with 1.Kf2. Black's knight at d4 dances back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b019",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward with 1.f3. Black's king makes a stroll from e8 to e7 with 1...Ke7! Line 2: The king on g1 steps sideways with 1.Kf1, and that king on f1 guards the rook on e1! Black's king marches out from e8 to e7 with 1...Ke7. Line 3: The rook on e1 marches to e5, snatching the knight on e5, and delivers check to the king on e8! Black's king escapes its post from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b020",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 dances all the way to f8 with 1.Qf8#, delivering check to the king on h8, and voil\u00e0, it's mate! Line 2: 1.Qf6+, the queen on f1 jumps to f6, and suddenly the king on h8 gets a fright! 1...Kg8 lets Black's king step sideways from h8 to g8, and then 2.Qg7# delivers mate, the game over, White wins. Line 3: 1.Qa1+, the queen on f1 dances sideways to a1, throwing a check at the king on h8! Black's king shuffles sideways with 1...Kg8, only to face the queen's final dance with 2.Qg7#, and mate."
+ },
+ {
+  "id": "b021",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 dances forward to g4 with 1.Qg4+, putting the king on g8 under a sudden spotlight, and eyeing the knight on d4! Black's king makes a lively stroll from g8 to f7 with 1...Kf7. Line 2: The queen on d1 makes a grab for 1.Qxd4, snatching the knight on d4! Black's king on g8 strolls forward to f7 with 1...Kf7. Line 3: The king on g1 steps forward to f2 with 1.Kf2. Black's knight on d4 makes a hop back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b022",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 claims the pawn on f7! Check to the king on e8, and mate is served; the game ends and White claims the spoils. Line 2: 4.Qh4 sees the queen on h5 swing back to h4, where she now stares down the knight on f6! Black's knight on c6 marches forward to d4 with 4...Nd4. Line 3: 4.Qg5, the queen steps sideways from h5 to g5, and look, it attacks the knight on f6! Black's knight on f6 leaps to e4, gobbling the pawn on e4, and the knight on e4 now stares down the queen on g5."
+ },
+ {
+  "id": "b023",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 sweeps in to take the pawn on f7: 4.Qxf7#, giving check to the king on e8, a mate! Line 2: 4.Qh4, the queen moves back from h5 to h4, and watch her attack the knight on f6! Black's knight on c6 darts forward to d4 with 4...Nd4. Line 3: 4.Qg5, the queen on h5 shifts sideways to g5, and now the queen on g5 sends a challenge to the knight on f6! Black's knight on f6 dances to e4 with 4...Nxe4, and that knight on e4 starts poking at the queen on g5."
+ },
+ {
+  "id": "b024",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. Black's king dances out from e8 to e7 with 1...Ke7! Line 2: 1.Kf1, the king from g1 steps sideways to f1, and with it, the rook on e1 finds a defender! Black's king happily marches from e8 to e7 with 1...Ke7. Line 3: The rook on e1 leaps to e5, snatching the knight on e5, and 1.Rxe5+ slaps the king on e8 with check! Black's king hops up from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b025",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen on f1 leaps to f8! It gives check to the king on h8, and mate\u2014the game is done, and White wins. Line 2: The queen on f1 launches herself to f6 with 1.Qf6+, giving a cheeky check to the king on h8! Black's king strolls sideways with 1...Kg8, leading to 2.Qg7# and a mate finish. Line 3: 1.Qa1+, the queen on f1 strolls to a1, giving the king on h8 a sudden nudge! Black's king slides sideways to g8 with 1...Kg8, setting up the fatal blow of 2.Qg7#, and checkmate."
+ },
+ {
+  "id": "b026",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: 1.f3, the pawn on f2 hops forward to f3! Black's king marches up with 1...Ke7 from e8 to e7. Line 2: 1.Kf1, the king slides sideways from g1 to f1! And that king on f1 is there to guard the rook on e1. Black's king leaps from e8 to e7 with 1...Ke7. Line 3: The rook on e1 sweeps in with 1.Rxe5+ The rook on e5 now puts the king on e8 under duress! Black's king leaps out from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b027",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 leaps for the pawn on f7 with 4.Qxf7#, giving check to the king on e8, and mate: the game ends, White triumphs! Line 2: 4.Qh4 lets the queen on h5 hop back to h4, where it looks right at the knight on f6! Black's knight jumps from c6 to d4 with 4...Nd4. Line 3: 4.Qg5, the queen from h5 dances sideways to g5, eyeing the knight on f6! Black's knight on f6 swoops in with 4...Nxe4, snatching the pawn on e4, and that knight on e4 now snipes at the queen on g5."
+ },
+ {
+  "id": "b028",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen dances to g4 with 1.Qg4+, giving the king on g8 a fright and pointing a finger at the knight on d4! Black's king leaps out from g8 to f7 with 1...Kf7. Line 2: The queen on d1 makes a sweep for 1.Qxd4, snatching the knight on d4! Black's king steps out from g8 to f7 with 1...Kf7. Line 3: The king on g1 makes a forward step to f2 with 1.Kf2. Black's knight on d4 hops back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b029",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. Black's king steps out from e8 to e7 with 1...Ke7. Line 2: The king from g1 sidles over to f1 in 1.Kf1, giving defense to the rook on e1! 1...Ke7: Black's king on e8 hops up to e7. Line 3: 1.Rxe5+, the rook on e1 swoops in to claim the knight on e5, giving check to the king on e8! Black's king hops out with 1...Kf7, leaping from e8 to f7."
+ },
+ {
+  "id": "b030",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 snatches the pawn on f7 with 4.Qxf7#, delivering check to the king on e8, and voil\u00e0, it's checkmate, White wins! Line 2: The queen on h5 journeys back with 4.Qh4, and now the queen on h4 points a finger at the knight on f6! Black's knight on c6 marches forward to d4 with 4...Nd4. Line 3: The queen on h5 makes a sideways stroll to g5 with 4.Qg5, and now the queen on g5 puts the knight on f6 under the spotlight! 4...Nxe4, the knight from f6 dances to e4, and it pokes the queen on g5."
+ },
+ {
+  "id": "b031",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 strolls forward to f3 with 1.f3. Black's king dances forward from e8 to e7 with 1...Ke7! Line 2: 1.Kf1, the king slides sideways from g1 to f1, and the king on f1 guards the rook on e1! Black's king hops out from e8 with 1...Ke7. Line 3: The rook on e1 hunts down the knight on e5 with 1.Rxe5+, delivering a check to the king on e8! Black's king hops out of e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b032",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen leaps forth with 1.Qg4+, giving the king on g8 a sharp look! And look, that queen on g4 also targets the knight on d4. Black's king on g8 struts forward with 1...Kf7. Line 2: 1.Qxd4, the queen leaps from d1 to snatch the knight on d4! Black's king hops out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king dances forward from g1 to f2! Black's knight on d4 hops back with 1...Ne6."
+ },
+ {
+  "id": "b033",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen leaps from f1 to f8, giving check to the king on h8, and that's mate! Line 2: 1.Qf6+ sends the queen from f1 marching to f6, giving a royal tap to the king on h8! Black's king creeps to g8 with 1...Kg8, leading to 2.Qg7#, and it's checkmate, the game's curtain falls and White triumphs. Line 3: 1.Qa1+, the queen leaps from f1 sideways to a1, giving the king on h8 a check! Black's king takes a sideways hop with 1...Kg8, leading to 2.Qg7# and the grand finale, where White claims the victory."
+ },
+ {
+  "id": "b034",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7# The queen on h5 sweeps in to take the pawn on f7, giving check to the king on e8 and sealing the deal! Line 2: 4.Qh4 the queen dances back from h5 to h4, giving the knight on f6 a good scare! Black's knight from c6 stomps forward to d4 with 4...Nd4. Line 3: The queen on h5 dances sideways with 4.Qg5, and now the queen on g5 pokes at the knight on f6! 4...Nxe4 sees Black's knight on f6 swoop in and seize the pawn on e4; this knight on e4 then stares down the queen on g5."
+ },
+ {
+  "id": "b035",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 strolls forward to f3 with 1.f3. Black's king dances forward from e8 to e7 with 1...Ke7! Line 2: The king on g1 steps sideways to f1 with 1.Kf1, and this little king on f1 gives the rook on e1 some defense! Black's king dances forward from e8 to e7 with 1...Ke7. Line 3: The rook on e1 jumps on the knight on e5, and the rook on e5 sends a check to the king on e8! Black's king leaps from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b036",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward with 1.f3. Black's king steps out from e8 to e7 with 1...Ke7! Line 2: The king on g1 steps sideways with 1.Kf1, and suddenly the king on f1 guards the rook on e1! Black's king on e8 steps forward to e7 with 1...Ke7. Line 3: 1.Rxe5+ The rook on e1 hunts the knight on e5, and the rook on e5 delivers a check to the king on e8! Black's king dances forward from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b037",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 sprints to f8 with 1.Qf8#, giving the king on h8 check, and there is mate; the game ends, and White wins! Line 2: 1.Qf6+ sees the queen on f1 march up to f6, giving a sharp check to the king on h8! Black's king slides to g8 with 1...Kg8, and then 2.Qg7# brings the queen to the grand finale. Line 3: The queen on f1 slides sideways to a1 with 1.Qa1+, and the queen on a1 lays down check upon the king on h8! Black's king shuffles to g8 with 1...Kg8, and then 2.Qg7# sends the game to a swift end, crowning White the victor."
+ },
+ {
+  "id": "b038",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward with 1.f3. Black's king hops forward from e8 to e7 with 1...Ke7! Line 2: 1.Kf1 sees the king on g1 step sideways to f1, and with that move, the king on f1 guards the rook on e1! 1...Ke7: Black's king on e8 tiptoes ahead to e7. Line 3: 1.Rxe5+, the rook on e1 snatches the knight on e5, and the rook on e5 delivers a check to the king on e8! Black's king marches off the e8 square, a bold 1...Kf7."
+ },
+ {
+  "id": "b039",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. Black's king makes a wee hop with 1...Ke7, stepping from e8 to e7! Line 2: 1.Kf1, the king steps to f1! Now the king on f1 keeps the rook on e1 under guard. Black's king hops forward from e8 to e7 with 1...Ke7. Line 3: The rook on e1 marches in with 1.Rxe5+ to seize the knight on e5, putting the king on e8 in hot check! Black's king leaps out from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b040",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 marches to f8 with 1.Qf8#, giving check to the king on h8 and sealing the game with mate! Line 2: 1.Qf6+, the queen from f1 springs forward to f6, giving the king on h8 a sharp check! 1...Kg8, the king strolls to g8, leading to 2.Qg7#, mate. Line 3: The queen on f1 dances sideways to a1 with 1.Qa1+, giving the king on h8 a little dance of check! 1...Kg8 lets the king wiggle from h8 to g8, only for White to strike with 2.Qg7# and claim the whole prize."
+ },
+ {
+  "id": "b041",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 snatches the pawn on f7, delivering check to the king on e8, and that's it\u2014mate! Line 2: 4.Qh4, the queen hops back from h5 to h4, eyeing the knight on f6! Black's knight on c6 marches forward with 4...Nd4. Line 3: 4.Qg5, the queen hunts sideways from h5 to g5, and now it eyes the knight on f6! Black's knight on f6 jumps over with 4...Nxe4, and the knight on e4 then peeks at the queen on g5."
+ },
+ {
+  "id": "b042",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 swoops in and snatches the pawn on f7! The king on e8 is trapped, and it is mate. Line 2: 4.Qh4 sees the queen hop back from h5 to h4, and the queen on h4 now stares down the knight on f6! Black's knight on c6 marches forward with 4...Nd4. Line 3: 4.Qg5: the queen moves sideways from h5 to g5, and this queen on g5 now gives the knight on f6 a little peek! 4...Nxe4, and Black's knight on f6 snatches the pawn on e4, then that knight on e4 eyeballs the queen on g5."
+ },
+ {
+  "id": "b043",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. Black's king dances forward with 1...Ke7, hopping off e8 to e7! Line 2: The king on g1 steps sideways to f1 with 1.Kf1, and this king on f1 guards the rook on e1! Black's king hops to e7 with 1...Ke7 from e8. Line 3: The rook on e1 rushes in with 1.Rxe5+ to seize the knight on e5, and the rook on e5 delivers a check to the king on e8! Black's king leaps forward from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b044",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 advances to f3 with 1.f3. 1...Ke7: Black's king dances forward from e8 to e7! Line 2: 1.Kf1 the king on g1 steps sideways to f1, guarding the rook on e1! Black's king steps out from e8 to e7 with 1...Ke7. Line 3: The rook on e1 hunts the knight on e5 with 1.Rxe5+, putting the king on e8 in hot water! Black's king hops from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b045",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 hunts the pawn on f7 with 4.Qxf7# That gives check to the king on e8, a perfect mate, and White wins! Line 2: 4.Qh4, the queen on h5 sprints back to h4, eyeing the knight on f6! Black's knight on c6 makes a bold charge, advancing to d4. Line 3: 4.Qg5, the queen from h5 swings sideways to g5, and now she peeks at the knight on f6! 4...Nxe4, the knight on f6 scoops up the pawn on e4. Now the knight on e4 gazes at the queen on g5."
+ },
+ {
+  "id": "b046",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: 1.f3, the pawn on f2 hops forward to f3! Black's king ventures out with 1...Ke7, stepping from e8 to e7. Line 2: The king on g1 steps sideways to f1 with 1.Kf1, and that king on f1 defends the rook on e1! Black's king hops out from e8 to e7 with 1...Ke7. Line 3: The rook on e1 leaps for the knight on e5, 1.Rxe5+, delivering a swift check to the king on e8! Black's king on e8 dances forward with 1...Kf7."
+ },
+ {
+  "id": "b047",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen on f1 leaps to f8, putting the king on h8 in checkmate! Line 2: 1.Qf6+, the queen leaps from f1 to f6, giving a proper check to the king on h8! 1...Kg8, and the king dances to g8, leading to 2.Qg7#\u2014mate. The game is over, and White takes the spoils. Line 3: 1.Qa1+, the queen on f1 swivels to a1, giving the king on h8 a jolt! Black's king dances to g8 with 1...Kg8, and then 2.Qg7# sends it into a mating dance."
+ },
+ {
+  "id": "b048",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# sends the queen from f1 on a dazzling leap to f8! It checks the king on h8, and mate\u2014the game is over, and White wins. Line 2: 1.Qf6+, the queen on f1 leaps all the way to f6, giving the king on h8 a sudden scare! 1...Kg8: the king on h8 steps sideways to g8, and then 2.Qg7# brings the glorious mate. Line 3: 1.Qa1+, the queen on f1 sways sideways to a1, giving the king on h8 a check! Black's king strolls sideways with 1...Kg8, leading to 2.Qg7#\u2014checkmate."
+ },
+ {
+  "id": "b049",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 dances to g4 with 1.Qg4+, placing a check upon the king on g8 and giving the knight on d4 a visit! Black's king jumps out from g8 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 swoops in to seize the knight on d4! Black's king steps out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2: the king on g1 steps forward from g1 to f2. Black's knight on d4 hops back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b050",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 marches to f7 with 4.Qxf7#, delivering check to the king on e8, a checkmate that seals the deal and wins the game for White! Line 2: 4.Qh4 sends the queen from h5 back to h4, and the queen on h4 now gazes at the knight on f6! Black's knight on c6 marches forward with 4...Nd4. Line 3: 4.Qg5 sends the queen from h5 sideways to g5, and now the queen on g5 strikes at the knight on f6! 4...Nxe4, the knight on f6 pounces on the pawn on e4; now that knight on e4 stares right down the queen on g5."
+ },
+ {
+  "id": "b051",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 journeys to f8 with 1.Qf8#, giving check to the king on h8, and mate! The game concludes, and White triumphs. Line 2: The queen on f1 hops up to f6 with 1.Qf6+, giving the king on h8 a jig! Black's king sneaks to g8 with 1...Kg8, inviting the queen to deliver mate on g7 with 2.Qg7# and ending the dance. Line 3: 1.Qa1+ The queen from f1 wanders to a1, delivering a check to the king on h8! 1...Kg8 steps sideways to g8, and then 2.Qg7# seals the deal, making it mate."
+ },
+ {
+  "id": "b052",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 swoops down for 4.Qxf7#, giving check to the king on e8, and bam! It's checkmate, White wins. Line 2: The queen on h5 dances back to h4 with 4.Qh4, and there, it aims its attack straight at the knight on f6! Black's knight on c6 bravely marches forward with 4...Nd4. Line 3: 4.Qg5 shows the queen jumping sideways from h5 to g5, and the queen on g5 eyeballs the knight on f6! Black's knight on f6 dives in with 4...Nxe4, taking the pawn on e4, and the knight on e4 now stares down the queen on g5."
+ },
+ {
+  "id": "b053",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 swings in for 4.Qxf7#, delivering check to the king on e8, and BAM! Mate reigns. Line 2: 4.Qh4, the queen trades her haunt on h5 for a new perch on h4, menacing the knight on f6! Black's knight on c6 ventures forth to d4 with 4...Nd4. Line 3: 4.Qg5 sends the queen from h5 to g5, and the queen on g5 now looks menacingly at the knight on f6! 4...Nxe4, the knight on f6 snatches the pawn on e4, and then it targets the queen on g5."
+ },
+ {
+  "id": "b054",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7# The queen on h5 sweeps in for 4.Qxf7#, giving check to the king on e8, and it's mate! Line 2: 4.Qh4, the queen hops back from h5 to h4! And there, the queen on h4 sends an arrow straight at the knight on f6. Black's knight jumps forward from c6 to d4 with 4...Nd4. Line 3: 4.Qg5, the queen from h5 moves sideways to g5, and now the queen on g5 eyes the knight on f6! Black's knight on f6 swoops in with 4...Nxe4, taking the pawn on e4, and now the knight on e4 throws a pebble at the queen on g5."
+ },
+ {
+  "id": "b055",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen leaps from f1 to f8! The king on h8 dances no more, for it is mate, and White reigns supreme. Line 2: The queen on f1 marches forward to f6 with 1.Qf6+ And there it is, checking the king on h8! Black's king hops to g8 with 1...Kg8, and straight away 2.Qg7# sends the king packing\u2014checkmate. Line 3: The queen on f1 swings sideways to a1 with 1.Qa1+, giving the king on h8 a check! Black's king strolls to g8 with 1...Kg8, and then White unleashes 2.Qg7#, checkmate."
+ },
+ {
+  "id": "b056",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 leaps forward to g4 with 1.Qg4+, giving check to the king on g8 and targeting the knight on d4! Black's king dances out with 1...Kf7, stepping from g8 to f7. Line 2: 1.Qxd4, the queen on d1 dances over to snag the knight on d4! Black's king leaps out from g8 with 1...Kf7. Line 3: 1.Kf2, the king leaves its post on g1 and steps forward to f2! Black's knight from d4 hops back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b057",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 leaps for the pawn on f7 with 4.Qxf7#, delivering check to the king on e8, and it's mate! Line 2: 4.Qh4 brings the queen back from h5 to h4, and now the queen on h4 peeks at the knight on f6! Black's knight on c6 marches forth to d4 with 4...Nd4. Line 3: 4.Qg5, the queen dances sideways from h5 to g5, and now the queen on g5 eyes the knight on f6! 4...Nxe4, the knight from f6 claims the pawn on e4, and the knight on e4 now points its finger at the queen on g5."
+ },
+ {
+  "id": "b058",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 swoops in with 4.Qxf7# to snatch the pawn on f7, giving check to the king on e8, and that's the end of the dance! Line 2: The queen on h5 hops back to h4 with 4.Qh4, and there it is, attacking the knight on f6! Black's knight on c6 marches forward with 4...Nd4. Line 3: 4.Qg5 sees the queen march sideways from h5 to g5, where it strikes the knight on f6! 4...Nxe4, the knight on f6 snatches the pawn on e4, and the knight on e4 gives a cheeky poke at the queen on g5."
+ },
+ {
+  "id": "b059",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: 1.f3, the pawn on f2 marches forward to f3! Black's king dances forward from e8 to e7 with 1...Ke7. Line 2: The king on g1 steps sideways with 1.Kf1, and that king on f1 now guards the rook on e1! Black's king dances forward from e8 to e7 with 1...Ke7. Line 3: The rook on e1 charges the knight on e5, with 1.Rxe5+ delivering a check to the king on e8! Black's king leaps forward from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b060",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. 1...Ke7, Black's king steps up from e8 to e7! Line 2: 1.Kf1, the king hops sideways from g1 to f1, and that new king on f1 stands guard over the rook on e1! 1...Ke7: Black's king dances from e8 to e7. Line 3: The rook on e1 marches in for 1.Rxe5+, and the rook on e5 lays a check upon the king on e8! Black's king hops from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b061",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 marches forward to f3 with 1.f3. Black's king strolls from e8 to e7 with 1...Ke7! Line 2: The king on g1 slips to f1 with 1.Kf1, and that little king on f1 now guards the rook on e1! Black's king dances out from e8 to e7 with 1...Ke7. Line 3: The rook on e1 lunges in with 1.Rxe5+, and the rook on e5 sends a check to the king on e8! Black's king dances out of the fortress with 1...Kf7 from e8 to f7."
+ },
+ {
+  "id": "b062",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 hops up to f3 with 1.f3. 1...Ke7: Black's king dances out from e8 to e7! Line 2: The king hops sideways from g1 to f1 with 1.Kf1, and the king on f1 defends the rook on e1! Black's king makes a step, from e8 to e7 with 1...Ke7. Line 3: 1.Rxe5+, the rook from e1 hunts the knight on e5, and the rook on e5 throws a challenge to the king on e8! Black's king jumps from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b063",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 snatches the pawn on f7! Check to the king on e8, and it's mate\u2014the game is done, and White wins. Line 2: The queen from h5 sprints back to h4, and that queen on h4 now eyes the knight on f6! Black's knight on c6 dances forward with 4...Nd4. Line 3: 4.Qg5 The queen on h5 swings sideways to g5 and now spies on the knight on f6! Black's knight on f6 swoops down with 4...Nxe4, and that knight on e4 now snags the queen on g5."
+ },
+ {
+  "id": "b064",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 leaps to f7 with 4.Qxf7#, giving the king on e8 check, and there's no escape, so White wins! Line 2: The queen on h5 retreats to h4 in 4.Qh4, and now the queen on h4 is eyeing the knight on f6! Black's knight leaps forward from c6 to land right on d4. Line 3: The queen on h5 slips sideways to g5 with 4.Qg5, and now the queen on g5 attacks the knight on f6! 4...Nxe4, Black's knight on f6 swoops in to take the pawn on e4, and that knight on e4 now stares down the queen on g5."
+ },
+ {
+  "id": "b065",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# The queen on f1 leaps to f8, checking the king on h8, and BAM, mate! White claims the victory. Line 2: 1.Qf6+, the queen on f1 marches to f6, giving the king on h8 a sharp check! Black's king takes a stroll from h8 to g8 with 1...Kg8, leading to 2.Qg7# and White's victory. Line 3: 1.Qa1+, the queen leaps from f1 to a1, giving a royal poke to the king on h8! Black's king sidles off with 1...Kg8, allowing the queen to visit g7 for 2.Qg7# and the glorious win."
+ },
+ {
+  "id": "b066",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 steps forth with 1.f3. Black's king dances a little jig with 1...Ke7, moving from e8 to e7! Line 2: The king leaps sideways from g1 to f1 with 1.Kf1, and with this move, the king on f1 guards the rook on e1! Black's king makes a small hop from e8 to e7 with 1...Ke7. Line 3: The rook on e1 leaps to e5, snatching the knight on e5, and the rook on e5 delivers a check to the king on e8! Black's king dances out with 1...Kf7, stepping from e8 to f7."
+ },
+ {
+  "id": "b067",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 dances forward to g4 with 1.Qg4+, putting the king on g8 under check and poking the knight on d4! Black's king marches forward with 1...Kf7 from g8 to f7. Line 2: 1.Qxd4, the queen on d1 hunts down the knight on d4! Black's king makes a little hop from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king leaps from g1 to f2! Black's knight hops back from d4 to e6 with 1...Ne6."
+ },
+ {
+  "id": "b068",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen leaps from f1 to f8 with 1.Qf8#, a glorious check to the king on h8, ending the game with a triumphant win! Line 2: The queen on f1 leaps up to f6 with 1.Qf6+ and throws a royal challenge at the king on h8! 1...Kg8, the king hops from h8 to g8, only to face a checkmate from 2.Qg7#. Line 3: 1.Qa1+, the queen hops from f1 to a1, giving the king on h8 a sharp check! Black's king takes a sneaky sidestep to g8 with 1...Kg8, paving the way for 2.Qg7# and a glorious win for White."
+ },
+ {
+  "id": "b069",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 steps up to f3 with 1.f3. 1...Ke7 sees the king on e8 step forward to e7! Line 2: The king on g1 steps sideways to f1 with 1.Kf1, and this king on f1 now guards the rook on e1! Black's king hops from e8 to e7 with 1...Ke7. Line 3: The rook on e1 swings in with 1.Rxe5+, grabbing the knight on e5 and giving the king on e8 a fright! Black's king dances forward from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b070",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 sprints up to f8 with 1.Qf8#, giving check to the king on h8, and it's mate\u2014game over, White wins! Line 2: The queen on f1 dances forward to f6, giving a fiery check to the king on h8! 1...Kg8 sees the black king slip sideways from h8 to g8, only to meet its fate with 2.Qg7#, a checkmate. Line 3: 1.Qa1+, the queen leaps sideways from f1 to a1, giving the king on h8 a cheeky check! Black's king takes a sideways stroll to g8 with 1...Kg8, and then 2.Qg7# seals the deal, a checkmate."
+ },
+ {
+  "id": "b071",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 steps up to f3 with 1.f3. Black's king hops from e8 to e7 with 1...Ke7! Line 2: The king on g1 steps sideways to f1 with 1.Kf1, and that little king on f1 lends a shield to the rook on e1! Black's king from e8 steps forth to e7 with 1...Ke7. Line 3: 1.Rxe5+ The rook on e1 snatches the knight on e5, and the rook on e5 bellows a check at the king on e8! Black's king leaps out with 1...Kf7, stepping from e8 to f7."
+ },
+ {
+  "id": "b072",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 marches up to g4 with 1.Qg4+ and now the queen on g4 gives check to the king on g8 while attacking the knight on d4! Black's king dances forward with 1...Kf7, stepping from g8 to f7. Line 2: 1.Qxd4, the queen from d1 takes the knight on d4! Black's king hops out from g8 to f7 with 1...Kf7. Line 3: The king on g1 steps forward to f2 with 1.Kf2. Black's knight jumps back with 1...Ne6, retreating from d4 to e6!"
+ },
+ {
+  "id": "b073",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen sails from d1 to g4, putting the king on g8 under fire, and the queen on g4 also eyes the knight on d4! Black's king on g8 hops forward with 1...Kf7. Line 2: The queen on d1 lunges with 1.Qxd4 to snag the knight on d4! Black's king hops forward from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king leaps from g1 to f2! 1...Ne6, Black's knight hops back from d4 to e6."
+ },
+ {
+  "id": "b074",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 marches up to g4 with 1.Qg4+, checking the king on g8 and eyeing the knight on d4! Black's king dances out with 1...Kf7, stepping from g8 to f7. Line 2: 1.Qxd4, the queen on d1 leaps to take the knight on d4! Black's king hops from g8 to f7 with 1...Kf7. Line 3: The king on g1 hops forward to f2 with 1.Kf2. Black's knight on d4 trots back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b075",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 makes a lively leap to g4 with 1.Qg4+, checking the king on g8 and staring down the knight on d4! Black's king hops out from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 snatches the knight on d4! Black's king hops from g8 to f7 with 1...Kf7. Line 3: The king on g1 steps forward to f2 with 1.Kf2. 1...Ne6 sees the knight on d4 hopping back to e6."
+ },
+ {
+  "id": "b076",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 leaps to f7 with 4.Qxf7# to deliver check to the king on e8, ending the game, and White takes the prize! Line 2: 4.Qh4, the queen on h5 dances back to h4, and now it stares down the knight on f6! Black's knight on c6 springs forward to d4 with 4...Nd4. Line 3: 4.Qg5, the queen leaps from h5 to g5, laying an attack on the knight on f6! 4...Nxe4: Black's knight from f6 hops to e4, and from there, the knight on e4 strikes at the queen on g5."
+ },
+ {
+  "id": "b077",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 strolls forward to f3 with 1.f3. Black's king dances forward with 1...Ke7 from e8 to e7! Line 2: 1.Kf1 the king hops sideways from g1 to f1, and now the king on f1 guards the rook on e1! Black's king hops with 1...Ke7 from e8 to e7. Line 3: The rook on e1 dives to e5, snatching the knight on e5, and the rook on e5 delivers a check to the king on e8! Black's king hops out from e8 to f7 with 1...Kf7."
+ },
+ {
+  "id": "b078",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 dances down to f7 with 4.Qxf7#, delivering check to the king on e8, and mate! Line 2: The queen on h5 retreats to h4 with 4.Qh4, and the queen on h4 gives a little poke at the knight on f6! Black's knight on c6 hops forward with 4...Nd4. Line 3: 4.Qg5 The queen on h5 drifts sideways to g5, and there! The queen on g5 now stalks the knight on f6. Black's knight on f6 darts in with 4...Nxe4, and that knight on e4 now eyes the queen on g5."
+ },
+ {
+  "id": "b079",
+  "position": "White: king on g1; rook on e1; pawn on f2.\nBlack: king on e8; knight on e5.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.f3.",
+   "Line 1, The move: 1.f3: the pawn on f2 goes forward from f2 to f3.",
+   "Line 1, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 2, The move: 1.Kf1: the king on g1 steps sideways from g1 to f1.",
+   "Line 2, The move: The king on f1 defends the rook on e1.",
+   "Line 2, What follows: 1...Ke7: Black's king on e8 steps forward from e8 to e7.",
+   "Line 3, The move: 1.Rxe5+: the rook on e1 takes the knight on e5.",
+   "Line 3, The move: The rook on e5 gives check to the king on e8.",
+   "Line 3, What follows: 1...Kf7: Black's king on e8 steps forward from e8 to f7."
+  ],
+  "comment": "White to move. The engine's first choice is 1.f3. Line 1: The pawn on f2 strolls forward to f3 with 1.f3. Black's king dances one step forward with 1...Ke7! Line 2: The king on g1 waddles sideways to f1 with 1.Kf1, and this king on f1 now stands guard over the rook on e1! Black's king dances out to e7 with 1...Ke7. Line 3: The rook on e1 hunts the knight on e5 with 1.Rxe5+, sending a sharp check to the king on e8! Black's king dances out with 1...Kf7, stepping forward from e8 to f7."
+ },
+ {
+  "id": "b080",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# as the queen on f1 rockets to f8, giving check to the king on h8 and sealing the mate! Line 2: The queen on f1 struts to f6 with 1.Qf6+, giving the king on h8 a sudden check! 1...Kg8 sees Black's king step to g8, setting the stage for 2.Qg7# and a glorious mate for White. Line 3: The queen on f1 swings to a1 with 1.Qa1+, giving the king on h8 a sudden check! Black's king shuffles to g8 with 1...Kg8, and then 2.Qg7# brings a mate."
+ },
+ {
+  "id": "b081",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: The queen on d1 stomps up to g4 with 1.Qg4+, giving check to the king on g8 and eyeing the knight on d4! Black's king dances forward from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen leaps from d1 to seize the knight on d4! 1...Kf7, Black's king on g8 steps forward to f7. Line 3: 1.Kf2: the king on g1 steps forward from g1 to f2. 1...Ne6, the knight on d4 hops back to e6!"
+ },
+ {
+  "id": "b082",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen leaps from d1 to g4, giving a shout of check to the king on g8, and meanwhile, the queen on g4 eyes the knight on d4! Black's king dances out from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 boldly takes the knight on d4! Black's king hops out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king on g1 strolls forward to f2! Black's knight on d4 dances back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b083",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen from d1 dances to g4, giving check to the king on g8 and hunting the knight on d4! Black's king hops out from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen leaps from d1 to snatch the knight on d4! Black's king steps out from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king jumps off g1 and settles upon f2! Black's knight on d4 dances back with 1...Ne6."
+ },
+ {
+  "id": "b084",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# The queen on f1 marches forward to f8, checking the king on h8, and mate! Line 2: The queen on f1 leaps up to f6 with 1.Qf6+, giving the king on h8 a proper challenge! Black's king dances away with 1...Kg8, just in time for 2.Qg7# to knock the game down and secure the win. Line 3: 1.Qa1+, the queen from f1 sashays to a1, putting the king on h8 in check! Black's king takes a sideways shuffle to g8 with 1...Kg8, and then 2.Qg7# seals the deal: it's mate and White wins."
+ },
+ {
+  "id": "b085",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 hops to f7 with 4.Qxf7#, delivering check to the king on e8, and mate follows! The game ends, and White claims the victory. Line 2: 4.Qh4, the queen jumps back from h5 to h4 and now stares down the knight on f6! Black's knight from c6 leaps out to d4. Line 3: The queen on h5 slithers sideways to 4.Qg5, and from there, the queen on g5 pokes at the knight on f6! Black's knight on f6 swoops in with 4...Nxe4, snagging the pawn on e4, and this little attacker on e4 now eyeballs the queen on g5."
+ },
+ {
+  "id": "b086",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8#, the queen leaps from f1 to f8, delivering check to the king on h8, and mate! Line 2: The queen on f1 strides forward to f6 with 1.Qf6+, delivering check to the king on h8! 1...Kg8 sees the black king step sideways from h8 to g8, which lets 2.Qg7# finish the party with a mating dance. Line 3: 1.Qa1+, the queen on f1 slides sideways to a1, giving the king on h8 a little jolt! Black's king on h8 steps sideways to g8 with 1...Kg8, and then 2.Qg7# seals the deal with mate."
+ },
+ {
+  "id": "b087",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen jumps from d1 to g4, giving check to the king on g8 and eyeing the knight on d4! 1...Kf7: Black's king marches off from g8 to f7. Line 2: 1.Qxd4, the queen from d1 snatches the knight on d4! Black's king hops off the g8 square with 1...Kf7. Line 3: 1.Kf2, the king on g1 steps forward to f2! 1...Ne6, and Black's knight on d4 hops back to e6."
+ },
+ {
+  "id": "b088",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: 1.Qf8# The queen on f1 leaps to f8, delivering check to the king on h8\u2014game over, White wins! Line 2: 1.Qf6+, the queen sprints from f1 to f6, delivering a check to the king on h8! Black's king hops to g8 with 1...Kg8, and then 2.Qg7# strikes, a beautiful checkmate. Line 3: 1.Qa1+, the queen on f1 shifts sideways to a1, delivering a check to the king on h8! 1...Kg8 sees the king shuffle from h8 to g8, and then 2.Qg7# brings the mate to the stage, the game's curtain falls with White's victory."
+ },
+ {
+  "id": "b089",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 marches forward to f8 with 1.Qf8#, checking the king on h8 for mate, and the game ends with White victorious! Line 2: The queen on f1 marches to f6 with 1.Qf6+, giving the king on h8 a royal fright! Black's king shuffles to g8 with 1...Kg8, only to face the queen's grand entrance at 2.Qg7# for a swift mate. Line 3: The queen on f1 sashays to a1 with 1.Qa1+, delivering a check to the king on h8! Black's king slips to g8 with 1...Kg8, and then 2.Qg7# finds the king trapped, the game ends, and White wins."
+ },
+ {
+  "id": "b090",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen dances from d1 to g4, putting the king on g8 under check and eyeing the knight on d4! Black's king on g8 strolls forward to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 swoops in to snatch the knight on d4! 1...Kf7 sees Black's king on g8 step forward to f7. Line 3: 1.Kf2, the king dances forward from g1 to f2! Black's knight from d4 marches off to e6 with 1...Ne6."
+ },
+ {
+  "id": "b091",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen leaps from d1 to g4, giving the king on g8 check and eyeing the knight on d4! Black's king dances out from g8 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 makes a grab for the knight on d4! Black's king dances out to f7 with 1...Kf7 from g8. Line 3: 1.Kf2, the king jumps from g1 to f2! Black's knight on d4 retreats back to e6 with 1...Ne6."
+ },
+ {
+  "id": "b092",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 sweeps in for 4.Qxf7#, checking the king on e8, and mate is struck! Line 2: 4.Qh4, the queen from h5 dances back to h4, and now the queen on h4 eyes the knight on f6! Black's knight leaps across the board from c6 to d4 with 4...Nd4. Line 3: 4.Qg5 moves the queen from h5 sideways to g5, putting the queen on g5 right on top of the knight on f6! 4...Nxe4. Black's knight on f6 swoops in and snatches the pawn on e4, now eyeing the queen on g5."
+ },
+ {
+  "id": "b093",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: The queen on h5 takes the pawn on f7 with 4.Qxf7#, giving check to the king on e8, and checkmate\u2014the game's over, White triumphs! Line 2: The queen on h5 hops back to h4 with 4.Qh4, and there, on h4, it eyes the knight on f6! Black's knight on c6 goes forward with 4...Nd4. Line 3: The queen on h5 slithers over to g5 with 4.Qg5, and behold, the queen on g5 now targets the knight on f6! Black's knight on f6 leaps in with 4...Nxe4, snatching the pawn on e4, and from e4, the knight stares down the queen on g5."
+ },
+ {
+  "id": "b094",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 snatches the pawn on f7, giving check to the king on e8, and it's checkmate! The game ends, and White triumphs. Line 2: 4.Qh4, the queen on h5 swings back to h4, eyeing the knight on f6! Black's knight on c6 marches forward to d4 with 4...Nd4. Line 3: 4.Qg5, the queen on h5 swings sideways to g5, giving a little nudge to the knight on f6! Black's knight on f6 dances in with 4...Nxe4, and the knight on e4 immediately stares down the queen on g5."
+ },
+ {
+  "id": "b095",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7#, the queen on h5 hunts the pawn on f7, delivering check to the king on e8, and mate! Line 2: 4.Qh4 brings the queen from h5 back to h4, and from there, the queen on h4 eyes the knight on f6! Black's knight from c6 charges forward with 4...Nd4. Line 3: The queen on h5 marches sideways to g5, and that queen on g5 sets her sights on the knight on f6! Black's knight on f6 leaps to e4 with 4...Nxe4, and this knight now points a finger right at the queen on g5."
+ },
+ {
+  "id": "b096",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+ sends the queen on d1 leaping up to g4, putting the king on g8 in check and aiming a dart at the knight on d4! Black's king dances forward from g8 to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen on d1 snatches the knight on d4! Black's king dances forward from g8 to f7 with 1...Kf7. Line 3: 1.Kf2, the king on g1 tiptoes forward to f2! Black's knight on d4 hops back with 1...Ne6."
+ },
+ {
+  "id": "b097",
+  "position": "White: king on g6; queen on f1.\nBlack: king on h8.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qf8#.",
+   "Line 1, The move: 1.Qf8#: the queen on f1 goes forward from f1 to f8.",
+   "Line 1, The move: 1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 1.Qf6+: the queen on f1 goes forward from f1 to f6.",
+   "Line 2, The move: The queen on f6 gives check to the king on h8.",
+   "Line 2, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 2, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins.",
+   "Line 3, The move: 1.Qa1+: the queen on f1 goes sideways from f1 to a1.",
+   "Line 3, The move: The queen on a1 gives check to the king on h8.",
+   "Line 3, What follows: 1...Kg8: Black's king on h8 steps sideways from h8 to g8.",
+   "Line 3, What follows: The line goes on to 2.Qg7#, and it is mate: the game ends, and White wins."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qf8#. Line 1: The queen on f1 marches to f8 for 1.Qf8#, delivering check to the king on h8, and that's the curtain drop, White wins! Line 2: 1.Qf6+, the queen leaps from f1 to f6, giving check to the king on h8! Black's king steps sideways with 1...Kg8, leading to 2.Qg7# and the game's finale. Line 3: The queen on f1 slithers sideways to a1 with 1.Qa1+, and the queen on a1 gives a little poke to the king on h8! 1...Kg8. Black's king hops sideways to g8, only to face the Queen's final swoop on 2.Qg7#, checkmate."
+ },
+ {
+  "id": "b098",
+  "position": "White: king on e1; queen on h5; rooks on a1 and h1; bishops on c1 and c4; knights on b1 and g1; pawns on a2, b2, c2, d2, f2, g2, h2 and e4.\nBlack: king on e8; queen on d8; rooks on a8 and h8; bishops on c8 and f8; knights on c6 and f6; pawns on e5, a7, b7, c7, d7, f7, g7 and h7.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 4.Qxf7#.",
+   "Line 1, The move: 4.Qxf7#: the queen on h5 takes the pawn on f7.",
+   "Line 1, The move: 4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+   "Line 2, The move: 4.Qh4: the queen on h5 goes back from h5 to h4.",
+   "Line 2, The move: The queen on h4 attacks the knight on f6.",
+   "Line 2, What follows: 4...Nd4: Black's knight on c6 goes forward from c6 to d4.",
+   "Line 3, The move: 4.Qg5: the queen on h5 goes sideways from h5 to g5.",
+   "Line 3, The move: The queen on g5 attacks the knight on f6.",
+   "Line 3, What follows: 4...Nxe4: Black's knight on f6 takes the pawn on e4.",
+   "Line 3, What follows: The knight on e4 attacks the queen on g5."
+  ],
+  "comment": "White to move. The engine's first choice is 4.Qxf7#. Line 1: 4.Qxf7# the queen on h5 swoops in to snag the pawn on f7, giving check to the king on e8 and sealing the mate! Line 2: 4.Qh4 sees the queen on h5 jump back to h4, eyeing the knight on f6! Black's knight on c6 marches forward to d4 with 4...Nd4. Line 3: 4.Qg5, a quick queen side-step from h5 to g5, and the queen on g5 now pokes the knight on f6! 4...Nxe4, Black's knight from f6 sweeps up the pawn on e4, and this knight on e4 now eyes the queen on g5."
+ },
+ {
+  "id": "b099",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+, the queen leaps from d1 to g4, putting the king on g8 under fire, and attacking the knight on d4! Black's king on g8 hops to f7 with 1...Kf7. Line 2: 1.Qxd4, the queen from d1 snatches the knight on d4! Black's king marches off g8 to f7 with 1...Kf7. Line 3: The king on g1 steps forward with 1.Kf2. Black's knight on d4 hops back to e6 with 1...Ne6!"
+ },
+ {
+  "id": "b100",
+  "position": "White: king on g1; queen on d1; pawns on g2 and h2.\nBlack: king on g8; knight on d4.\nWhite to move.",
+  "facts": [
+   "Opening: White to move. The engine's first choice is 1.Qg4+.",
+   "Line 1, The move: 1.Qg4+: the queen on d1 goes forward from d1 to g4.",
+   "Line 1, The move: The queen on g4 gives check to the king on g8.",
+   "Line 1, The move: The queen on g4 attacks the knight on d4.",
+   "Line 1, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 2, The move: 1.Qxd4: the queen on d1 takes the knight on d4.",
+   "Line 2, What follows: 1...Kf7: Black's king on g8 steps forward from g8 to f7.",
+   "Line 3, The move: 1.Kf2: the king on g1 steps forward from g1 to f2.",
+   "Line 3, What follows: 1...Ne6: Black's knight on d4 goes back from d4 to e6."
+  ],
+  "comment": "White to move. The engine's first choice is 1.Qg4+. Line 1: 1.Qg4+ shows the queen marching from d1 to g4, giving check to the king on g8 and putting the knight on d4 under siege! 1...Kf7, Black's king dances forward from g8 to f7. Line 2: The queen on d1 jumps out with 1.Qxd4 to grab the knight on d4! Black's king steps out from g8 with 1...Kf7. Line 3: 1.Kf2, the king hops forward from g1 to f2! Black's knight from d4 dances back to e6 with 1...Ne6."
+ }
+]
