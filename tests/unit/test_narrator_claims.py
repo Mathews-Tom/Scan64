@@ -366,6 +366,16 @@ SLOT_AS_MATERIAL = [
     "You win {eval_diff} pawns.",
     "That is {eval_diff} pawns of material.",
     "{eval_diff} pawns in material for you.",
+    # Pre-push check of 0571977: separated or reworded material wording.
+    "You are {eval_diff} pawns, up in material.",
+    "You are up in material by {eval_diff} pawns.",
+    "Your material edge is {eval_diff} pawns.",
+    "You have {eval_diff} more pawns.",
+    "You have {eval_diff} extra pawns.",
+    "The material balance is {eval_diff} pawns in your favour.",
+    "You are {eval_diff} pawns in front.",
+    "You are {eval_diff} pawns richer.",
+    "You have {eval_diff} pawns more than your opponent.",
 ]
 
 
@@ -402,3 +412,21 @@ def test_material_wording_with_a_count_still_follows_the_facts() -> None:
     assert unsupported_claim("You are a pawn up in material.", RICH_MATERIAL) is None
     assert unsupported_claim("You are up in material.", RICH_MATERIAL) is None
     assert unsupported_claim("~ scores ~ pawns.", RICH_MATERIAL) is None
+    level = ClaimFacts(balances=frozenset({0}))
+    for text in ("You have two more pawns.", "Your material edge is two pawns."):
+        assert unsupported_claim(text, RICH_MATERIAL) is None
+        assert unsupported_claim(text, level) is not None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The best move scores {eval_diff} pawns better.",
+        "The evaluation went down by {eval_diff} pawns.",
+        "The swing is {eval_diff} pawns in favor of the better choice.",
+        "The position before your move had an evaluation of {eval_before} pawns.",
+    ],
+)
+def test_evaluation_wording_with_the_pawn_unit_passes(text: str) -> None:
+    context, evidence_id = _lesson(LEVEL)
+    assert _validate(text, context, evidence_id).count("pawns") == 1

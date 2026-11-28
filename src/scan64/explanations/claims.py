@@ -406,6 +406,8 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     ),
     (
         _Rule(
+            # Not "the evaluation went down by {eval_diff} pawns" (a score moving).
+            r"(?<!went\s)(?<!goes\s)(?<!gone\s)(?<!go\s)(?<!came\s)(?<!comes\s)"
             rf"(?:\b{_SUBJECT}{_BE}\s+)?\b{_UP}\s+(?:by\s+)?(?:in\s+|on\s+)?{_COUNTED}\b",
             _I,
         ),
@@ -413,7 +415,7 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     ),
     (
         _Rule(
-            rf"\b{_SUBJECT}{_HAVE}\s+(?:(?:a|an|one|two|three|the)\s+)?(?:extra|additional|spare)"
+            rf"\b{_SUBJECT}{_HAVE}\s+(?:{_COUNT_REQUIRED})?(?:extra|additional|spare|more)"
             rf"\s+{_UNIT}\b",
             _I,
         ),
@@ -434,6 +436,14 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
             _I,
         ),
         _signed("balance"),
+    ),
+    (
+        _Rule(
+            rf"\b{_OWNER}\s+material\s+(?:edge|lead|advantage|plus|balance)\s+(?:is|was)"
+            rf"\s+{_COUNT_REQUIRED}{_UNIT_PIECES}",
+            _I,
+        ),
+        _balance(1),
     ),
     # Evaluation: "you are winning", "the opponent is better", "the position is equal".
     (
@@ -660,6 +670,25 @@ def _about_best(prose: str, match: re.Match[str]) -> bool:
     return bool(_BEST_SUBJECT.search(before) or _BEST_CONDITION.search(prose[match.end() :]))
 
 
+# A slot as the pawn amount ("~ pawns") in a sentence with material wording:
+# the slot states an evaluation, and the wording states it as material
+# ("you are {eval_diff} pawns, up in material", "your material edge is
+# {eval_diff} pawns", "you have {eval_diff} more pawns").
+_SLOT_PAWNS = re.compile(r"~\s+(?:(?:more|extra|fewer|additional|spare)\s+)?pawns?\b", re.I)
+_MATERIAL_WORDING = re.compile(
+    r"\b(?:material|materially|ahead|behind|in\s+front|richer|poorer|to\s+the\s+good|extra"
+    r"|spare|additional)\b|~\s+(?:more|fewer)\s+pawns?|\b(?:have|has|had)\s+~\s+pawns?",
+    re.I,
+)
+
+
+def _slot_as_material(prose: str) -> str | None:
+    for sentence in re.split(r"[.!?;]", prose):
+        if _SLOT_PAWNS.search(sentence) and _MATERIAL_WORDING.search(sentence):
+            return sentence.strip()
+    return None
+
+
 def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
     """The first claim in ``prose`` that is negated or no fact supports, else ``None``.
 
@@ -668,6 +697,8 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
     chess words ("won", "exchange") must be fact names too. Within this pass
     a matched claim is blanked so a later rule does not read it again.
     """
+    if (sentence := _slot_as_material(prose)) is not None:
+        return RejectedClaim(sentence, negated=False)
     remaining = prose
     for rule, read in CLAIM_RULES:
         pattern = rule.compiled()
