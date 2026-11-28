@@ -1,6 +1,7 @@
 """Rebuild the result tables of docs/evaluation/explanation-quality.md from the stored records."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,7 @@ from benchmarks.narrator.voice import blind
 from scan64.explanations.themes import ThemeFacts, TurningPointFacts
 
 RESULTS = Path(__file__).resolve().parent / "results" / "run1"
-START, END = "<!-- summarise:start -->", "<!-- summarise:end -->"
+MARKER = re.compile(r"<!-- summarise:(\w+):start -->")
 
 
 def share(hits: int, total: int) -> str:
@@ -59,6 +60,21 @@ def tables(folder: Path = RESULTS) -> str:
             f"| {share(r['grounded'], r['sentences'])} | {share(r['first_try'], r['sentences'])} "
             f"| {r['coverage']:.0%} |"
         )
+    lines += [
+        "",
+        "### Cause and turning-point sentences, worded by the model",
+        "",
+        "| Model | Voice | Cause | Cause, first try | Turning point | Turning point, first try |",
+        "|---|---|---|---|---|---|",
+    ]
+    for (model, voice), group in arms(rows).items():
+        r = metric.rates(group)
+        cells = [
+            share(r[f"{role}_{name}"], r[f"{role}_asked"])
+            for role in ("the_cause", "the_turn")
+            for name in ("model", "first")
+        ]
+        lines.append(f"| {model} | {voice} | {' | '.join(cells)} |")
     key = json.loads((folder / "blind-key.json").read_text(encoding="utf-8"))
     judgements = json.loads((folder / "blind-judgements.json").read_text(encoding="utf-8"))
     joined = judge.join(key, judgements)
@@ -119,6 +135,14 @@ def tables(folder: Path = RESULTS) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_doc(page: str, folder: Path = RESULTS) -> str:
-    head, rest = page.split(START)
-    return f"{head}{START}\n\n{tables(folder)}\n{END}{rest.split(END)[1]}"
+def write_doc(page: str, folder: Path | None = None) -> str:
+    """Rebuild the tables of ``folder``'s run in the page, or of every run the page marks."""
+    runs = MARKER.findall(page)
+    if folder and folder.name not in runs:
+        raise SystemExit(f"the page has no block for {folder.name}; it has {', '.join(runs)}")
+    for name in [folder.name] if folder else runs:
+        start, end = (f"<!-- summarise:{name}:{edge} -->" for edge in ("start", "end"))
+        head, rest = page.split(start)
+        block = tables(folder or RESULTS.parent / name)
+        page = f"{head}{start}\n\n{block}\n{end}{rest.split(end)[1]}"
+    return page

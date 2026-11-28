@@ -6,7 +6,7 @@ pieces, squares, and for pawns the kind of weakness. It has no list of synonyms 
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from scan64.explanations.themes import ThemeFacts, TurningPointFacts
@@ -60,6 +60,14 @@ def coverage(text: str, key_moves: Sequence[str]) -> float:
     return sum(_move(san, text) for san in key_moves) / len(key_moves)
 
 
+# How a sentence the model was asked for ended.
+SOURCES: dict[str, Callable[[dict[str, Any]], bool]] = {
+    "asked": lambda s: True,
+    "model": lambda s: s["source"] == "model",
+    "first": lambda s: s["source"] == "model" and s["calls"] == 1,
+}
+
+
 def rates(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """One arm's rates, from its stored records only."""
     accepted = [r for r in records if r["error"] is None]
@@ -88,6 +96,11 @@ def rates(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
         "first_try": sum(s["source"] == "model" and s["calls"] == 1 for s in written),
         "coverage": sum(coverage(r["text"], r["key_moves"]) for r in accepted)
         / max(1, len(accepted)),
+        **{
+            f"{role}_{name}": sum(s["role"] == role and test(s) for s in written)
+            for role in ("the_cause", "the_turn")
+            for name, test in SOURCES.items()
+        },
         "themed": themed,
         "theme_stated": theme_hits,
         "theme_by_model": theme_model,

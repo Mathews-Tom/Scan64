@@ -58,7 +58,7 @@ The brief is in `results/run1/judge-brief.md`. `judge.join` refuses a missing it
 
 Run 1, 2026-11-28, pipeline at `4a77bdb`, one Claude Sonnet judge for all 185 items. `summarise` rebuilds the tables, and a test checks that they match.
 
-<!-- summarise:start -->
+<!-- summarise:run1:start -->
 
 ### Code metric, by model and voice
 
@@ -69,6 +69,16 @@ Run 1, 2026-11-28, pipeline at `4a77bdb`, one Claude Sonnet judge for all 185 it
 | scan64-bench-gemma4-e4b-q4ks | Chernev | 37/37 (100%) | 23/23 (100%) | 23/23 (100%) | 29/29 (100%) | 15/15 (100%) | 179/180 (99%) | 147/180 (82%) | 100% |
 | scan64-bench-gemma4-e4b-q4ks | Tal | 37/37 (100%) | 21/23 (91%) | 21/23 (91%) | 29/29 (100%) | 14/15 (93%) | 179/180 (99%) | 159/180 (88%) | 95% |
 | scan64-bench-gemma4-e4b-q4ks | no-cause | 37/37 (100%) | 1/23 (4%) | 1/23 (4%) | 0/29 (0%) | 0/15 (0%) | 127/128 (99%) | 118/128 (92%) | 95% |
+
+### Cause and turning-point sentences, worded by the model
+
+| Model | Voice | Cause | Cause, first try | Turning point | Turning point, first try |
+|---|---|---|---|---|---|
+| plain | plain | - | - | - | - |
+| scan64-bench-gemma4-e4b-q3km | Tal | 23/23 (100%) | 18/23 (78%) | 29/29 (100%) | 29/29 (100%) |
+| scan64-bench-gemma4-e4b-q4ks | Chernev | 23/23 (100%) | 23/23 (100%) | 29/29 (100%) | 29/29 (100%) |
+| scan64-bench-gemma4-e4b-q4ks | Tal | 23/23 (100%) | 22/23 (96%) | 29/29 (100%) | 29/29 (100%) |
+| scan64-bench-gemma4-e4b-q4ks | no-cause | - | - | - | - |
 
 ### Blind judge, by model and voice
 
@@ -87,7 +97,7 @@ Run 1, 2026-11-28, pipeline at `4a77bdb`, one Claude Sonnet judge for all 185 it
 | root_cause_named | 88 | 2 | 2 | 23 | 111/115 (97%) |
 | turning_point_named | 116 | 0 | 0 | 29 | 145/145 (100%) |
 
-<!-- summarise:end -->
+<!-- summarise:run1:end -->
 
 ## What it found
 
@@ -117,7 +127,7 @@ python -m benchmarks.narrator.explanation run --voice Tal --model scan64-bench-g
 python -m benchmarks.narrator.explanation run --voice plain --out plain.jsonl
 python -m benchmarks.narrator.explanation blind q4ks-tal.jsonl plain.jsonl --seed 1 --out judge/ --key-out keys/blind-key.json
 python -m benchmarks.narrator.explanation positions --engine stockfish --out new-positions.json
-python -m benchmarks.narrator.explanation summarise --doc docs/evaluation/explanation-quality.md
+python -m benchmarks.narrator.explanation summarise benchmarks/narrator/explanation/results/run2 --doc docs/evaluation/explanation-quality.md
 ```
 
 There is no seed option for the model: compare arms by their shares, never comment by comment. Judge all arms of one comparison with one judge.
