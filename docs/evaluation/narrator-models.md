@@ -1,8 +1,10 @@
-# Narrator model evaluation (#369, #389)
+# Narrator model evaluation (#369, #389, #462)
 
 Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine, board and factor facts. The validator decides whether its claims replace the template explanation.
 
-Decision (2026-11-27, factor pipeline): use **`gemma4-e4b-q3km`**, gemma-4-E4B-it at Q3_K_M (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It needs 2.96–3.13 GiB of GPU memory, so it is also the choice for GPUs under 10 GiB. It is the smallest model near the quality bar; it misses the coverage bar by 2.5 points in the default voice. See [Decision](#decision). This replaces the interim choice of `gemma4-12b` with the `praxis-4b` fallback (slot run `runs_20261127_161413`), which had replaced the 2026-11-26 `praxis-4b` choice measured on the pre-#367 prompt only (on the #367 prompt `praxis-4b` passes grounding in 4.0% of calls; see [Interim slot run](#interim-slot-run-superseded)).
+Decision (2026-11-28, voice pipeline of #454): use **`gemma4-e4b-q4ks`**, gemma-4-E4B-it at Q4_K_S (`unsloth/gemma-4-E4B-it-GGUF`, pinned revision, Apache-2.0), at `num_ctx` 4096. It needs 2.84 GiB of GPU memory. It is the smallest model that meets the bar: 96% faithful and 96% faithful and lively on held-out game moves, and 99% faithful and 89% faithful and lively on the Analysis Board. See [Voice pipeline decision (#462)](#voice-pipeline-decision-462).
+
+The sections after it measure the earlier slot and factor prompts. Their decision (`gemma4-e4b-q3km`, 2026-11-27) is superseded; it stays below as a record.
 
 All numbers below are measured. Raw records and summaries are in `benchmarks/narrator/results/`.
 
@@ -221,7 +223,106 @@ Fallback reasons, main run (calls out of 96):
 
 Accepted answers lose coverage mostly on the key move. For a hanging piece the key move is the opponent's capture, but answers often name only the best move, for example "You played Rxd2, but h6 was stronger. That was a Hanging piece: after your move, threats fell by 0.75 pawns for you." (`gemma4-e4b-q3km`).
 
-## Decision
+## Voice pipeline decision (#462)
+
+2026-11-28: the default narrator model is **`gemma4-e4b-q4ks`**, gemma-4-E4B-it at Q4_K_S, at `num_ctx` 4096. `scan64-cli narrator install` installs it as `scan64-narrator-gemma4-e4b-q4ks:latest`, and Settings recommends it. It replaces `gemma4-e4b-q3km`.
+
+The bar (#462): the smallest model with at least 95% faithful and at least 80% faithful and lively, judged blind, within 4 GiB of GPU memory.
+
+### Method
+
+- Pipeline: the voice pipeline of #454. Code writes each fact, the model rewrites one fact per call, and code checks every sentence ([narrator pipeline, section 18](../narrator-pipeline.md#18-voice-pipeline-454)). Thinking is off.
+- Sampling: each model's own Modelfile. For gemma4-e4b: temperature 1, top_p 0.95, top_k 64.
+- Judges: fresh blind sessions. A judge sees only the position, the facts and the comment, shuffled, with no labels. The rubric is the #458 rubric ([narrator voice benchmark](narrator-voice.md), "Blind-judge protocol").
+- Intervals: 95% normal intervals on each faithful share.
+
+### 12 models, experiment positions
+
+The run 8 pipeline of #457, the Tal voice card, positions P1–P5, 50 comments per model. Two judges each read 300 comments, with every model in equal share in both halves.
+
+| Model | GPU GiB | Faithful (±95%) | Judge 1 / Judge 2 | Faithful and lively | Lively | Clear | Fallback sentences | p95 s |
+|---|---|---|---|---|---|---|---|---|
+| gemma3 270M | 0.30 | 72% ±12 | 80% / 64% | 0% | 1.00 | 2.48 | 70.0% | 7.02 |
+| gemma3 1B | 0.82 | 12% ±9 | 24% / 0% | 12% | 2.00 | 1.22 | 8.8% | 0.36 |
+| praxis-2b (chess LoRA) | 1.30 | 38% ±13 | 48% / 28% | 12% | 1.50 | 2.20 | 35.3% | 0.60 |
+| second-2b (chess SFT) | 1.30 | 20% ±11 | 16% / 24% | 16% | 2.00 | 1.96 | 12.4% | 1.08 |
+| llama3.2 1B | 1.41 | 30% ±13 | 36% / 24% | 4% | 1.24 | 1.56 | 21.8% | 69.49 |
+| qwen3 1.7B | 1.59 | 34% ±13 | 24% / 44% | 22% | 1.56 | 2.30 | 2.9% | 0.31 |
+| qwen3.5 2B | 2.20 | 12% ±9 | 12% / 12% | 10% | 2.54 | 1.58 | 10.0% | 1.16 |
+| gemma4-e4b Q3_K_M (earlier default) | 2.43 | 86% ±10 | 100% / 72% | 86% | 2.14 | 2.86 | 5.6% | 0.74 |
+| praxis-4b (chess LoRA) | 2.76 | 100% | 100% / 100% | 68% | 1.88 | 3.00 | 5.9% | 0.96 |
+| gemma4-e4b Q4_K_S | 2.84 | 98% ±4 | 100% / 96% | 98% | 2.08 | 2.96 | 2.4% | 0.69 |
+| qwen3.5 4B | 2.92 | 58% ±14 | 68% / 48% | 58% | 2.70 | 2.40 | 1.8% | 1.64 |
+| caissa-m1-8b (reference, above budget) | 4.43 | 20% ±11 | 20% / 20% | 20% | 2.64 | 2.04 | 16.5% | 1.06 |
+
+### Held-out game moves
+
+The run 8 pipeline on positions H1–H5 of #458: a missed mate, a skewer, a stalemate, a pin and an allowed fork. Their themes and wording were not used to tune the prompts. 50 comments per cell, one judge for all 250.
+
+| Cell | Model | Sampling | "Own words" rule | Faithful (±95%) | Faithful and lively | Lively | Fallback sentences | p95 s |
+|---|---|---|---|---|---|---|---|---|
+| A | gemma4-e4b Q4_K_S | T 1, top_p 0.95, top_k 64 | no | 96% ±5 | 96% | 2.04 | 0.0% | 0.56 |
+| B | gemma4-e4b Q4_K_S | same | yes | 98% ±4 | 98% | 2.08 | 0.0% | 0.55 |
+| C | praxis-4b | T 0 (its Modelfile) | no | 100% | 0% | 1.00 | 12.5% | 0.60 |
+| D | praxis-4b | T 1, top_p 0.95, top_k 64 | no | 62% ±13 | 58% | 1.96 | 1.9% | 0.92 |
+| E | praxis-4b | same | yes | 50% ±14 | 50% | 2.02 | 0.0% | 0.72 |
+
+praxis-4b's Modelfile sets temperature 0. Every retry then returns the same text: 5 distinct comments in 50, one per position. Its 100% faithful score comes from copying the fact. The "own words" rule is not adopted: gemma gains 2 points, inside the noise, and praxis loses 12.
+
+### Analysis Board path
+
+The app's Analysis Board explanation, end to end (`benchmarks/narrator/board_path.py`). Stockfish 18 searches each position with the board's budget: 200,000 nodes, MultiPV 4, the first 3 lines, and 10,000 nodes per position along them. `resolve_board_lines_explanation` then words the lines with the voice pipeline. The engine lines are searched once and stored, so every sample words the same facts. The model is `scan64-bench-gemma4-e4b-q4ks:latest` on the RTX 5090, Ollama 0.40.18, thinking off.
+
+The judge reads the facts the app gives the model: the template's opening sentence and the role facts of each line. One fresh judge read all 100 comments (`results/board-path/judge-brief-board.md`).
+
+H2 is left out. Its FEN is illegal: the bishop on g2 already gives check to the king on d5, with White to move. The Analysis Board rejects it, and Stockfish crashes on it (#500). So the run uses 25 explanations each of H1, H3, H4 and H5.
+
+| Model | n | Faithful (±95%) | Faithful and lively | Lively | Clear | Jargon | Narrator source | Fallback sentences | Calls per explanation | p50 s | p95 s |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| gemma4-e4b Q4_K_S | 100 | 99% ±2 | 89% | 1.90 | 2.99 | 0 | 100/100 | 0.4% | 6.2 | 0.82 | 1.08 |
+
+| Position | Faithful | Faithful and lively |
+|---|---|---|
+| H1 missed mate | 24/25 | 24/25 |
+| H3 stalemate | 25/25 | 24/25 |
+| H4 pin | 25/25 | 24/25 |
+| H5 allowed fork | 25/25 | 17/25 |
+
+- Every explanation came from the narrator; none fell back to the template. Before #454, the board path fell back on 16 of 16 requests (#449).
+- The one error: "the knight on e4 now snags the queen on g5", for a knight that only attacks the queen. The sentence check does not know "snags" as a capture verb.
+- Each explanation has 5.5 sentences on average, one per voiced fact of three lines.
+- `summarise` rebuilds both tables from the stored records (`results/board-path/summary.md`).
+
+### Why each candidate is rejected
+
+| Candidate | Reason |
+|---|---|
+| gemma3 270M | 72% faithful only because 70% of its sentences fell back to the plain fact; 0% faithful and lively |
+| gemma3 1B | 12% faithful |
+| praxis-2b | 38% faithful |
+| second-2b | 20% faithful |
+| llama3.2 1B | 30% faithful; p95 69 s |
+| qwen3 1.7B | 34% faithful |
+| qwen3.5 2B | 12% faithful |
+| gemma4-e4b Q3_K_M | 86% faithful; its two judges disagree (100% and 72%) |
+| praxis-4b | When it samples it invents (50–62% held out). At temperature 0 it only copies the fact (0% lively) |
+| qwen3.5 4B | 58% faithful |
+| caissa-m1-8b | 20% faithful, and above the 4 GiB budget |
+| gemma4-12b | Comparison only, above the budget (8.91 GiB) |
+
+`gemma4-e4b-q4ks` is the smallest model that meets the bar on every set: 98% (P1–P5), 96% (held-out game moves) and 99% (Analysis Board) faithful.
+
+### Not measured
+
+- The phrase-bank narrator (#461) is not in these tables. It is not built yet.
+- No model under 2.2 GiB comes close to the bar. That gap is the target of #465.
+
+### Lessons
+
+- Most remaining errors invent a direction or a motive the fact does not state: "retreat" or "back" for a forward king move, "danger", "a drawn agreement" for stalemate. Since #460 the facts state the direction of each move and the result of a mate or a stalemate.
+- Two judges can differ by up to 28 points on one model. Compare models with one judge, or with split halves that hold every model in equal share.
+
+## Decision (slot prompt, superseded by #462)
 
 2026-11-27: the narrator model is **`gemma4-e4b-q3km`** at `num_ctx` 4096, on every GPU with at least 4 GiB free. It is also the choice for GPUs under 10 GiB; no separate fallback is needed. Below about 3.5 GiB free, no measured model works and the template explanation stays.
 
@@ -264,16 +365,16 @@ The narrator model is chosen by configuration with no code change:
 
 For the chosen model, `scan64-cli narrator install` (#429) does steps 1 to 3 after checking Ollama and 4 GiB of free GPU memory ([user guide](../user-guide.md#the-recommended-narrator-model)). By hand:
 
-1. Download `gemma-4-E4B-it-Q3_K_M.gguf` from `unsloth/gemma-4-E4B-it-GGUF` at revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`. Check its sha256 `0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4`. `--setup --models gemma4-e4b-q3km` does both steps.
-2. Render `benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile`: substitute `@GGUF@`, `@NUM_CTX@` (4096) and `@NUM_PREDICT@` (2048).
-3. Run `ollama create scan64-narrator-gemma4-e4b-q3km -f <rendered Modelfile>`.
-4. Pick `scan64-narrator-gemma4-e4b-q3km:latest` in Settings, or use the TOML below.
+1. Download `gemma-4-E4B-it-Q4_K_S.gguf` from `unsloth/gemma-4-E4B-it-GGUF` at revision `bfc15c382204943c3a8fff0c750b94ae2364d7a3`. Check its sha256 `0fdbd6df44e505481a0636fe3160d230d6de2ecf0f8a20f06a5c64adef0cae00`. `--setup --models gemma4-e4b-q4ks` does both steps.
+2. Render `benchmarks/narrator/modelfiles/gemma4-e4b-q4ks.Modelfile`: substitute `@GGUF@`, `@NUM_CTX@` (4096) and `@NUM_PREDICT@` (2048).
+3. Run `ollama create scan64-narrator-gemma4-e4b-q4ks -f <rendered Modelfile>`.
+4. Pick `scan64-narrator-gemma4-e4b-q4ks:latest` in Settings, or use the TOML below.
 
 ```toml
 # file named by SCAN64_LLM_CONFIG
 [llm]
 provider = "ollama"
-model = "scan64-narrator-gemma4-e4b-q3km:latest"
+model = "scan64-narrator-gemma4-e4b-q4ks:latest"
 base_url = "http://127.0.0.1:11434"
 context_tokens = 4096
 ```
@@ -290,12 +391,12 @@ Since #429, 4096 is the default `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` and `llm.conte
 - One GPU class: all factor, slot and free-prose runs are on an RTX 5090. Latency on smaller GPUs is higher (see the RTX 4080 Laptop run below). CPU latency is measured only for `praxis-4b` and `qwen3.5-4b`, on the pre-#367 prompt.
 - Provenance of the five runs above (`runs_20261127_213350`, `_220133`, `_221105`, `_222432`, `_223247`): their headers predate `config_sha256` and `narrator_sha256`, so they cannot be resumed and the header alone does not name the `narrator.toml` or the narrator modules that ran. Both follow from git, because every header has `dirty: false`: `benchmarks/narrator/narrator.toml` has not changed since `29f0424` (`git log -- benchmarks/narrator/narrator.toml`; sha256 `7f109df11a1a` at all three header commits), and `src/scan64/explanations` is identical at `29f0424`, `ecfc8de` and `937353f` (`narrator_sha256` as the runner now computes it: `792cd8a8b563`, 15 files).
 - Model identity: in the five runs above, the warm-up record of the `gemma4-e4b-q3km` block records `ollama_digest` `ad97a99ee9b6546cc60b596070d6b4c2bee8e71f142b1123293d47dbb9dcbec6`, the Ollama model digest, not the GGUF SHA-256. On linux-5090, Ollama 0.40.18, `ollama create` from the benchmark's rendered Modelfile (`<gguf_cache>/modelfiles/gemma4-e4b-q3km.Modelfile`: the GGUF `0980898d…55f4`, `PARAMETER num_ctx 12288`) gives that digest again, so it names this GGUF. The benchmark requests set `num_ctx` 4096 in their options. The same Modelfile with `num_ctx 4096` gives `74b9b3a8b3e02db38ea0c1fb7e08ecf5b2af35a761095a42346608d126740a03`, the digest of the model `scan64-cli narrator install` creates.
-- Positions: every benchmark position is a game move with a played move (50 in `positions.json`, 32 in `positions-caissa.json`). The Analysis Board path (`POST /v1/analysis/position/explanation`, the board-lines prompt) is not measured. In the #429 GPU smoke it fell back to the template on 16 of 16 requests, each with `chess_token_outside_slot`. In the 13 logged answers, 37 of 48 claims have a chess word outside a slot, `material` in 28 of them: the model states the outcome in plain words, instead of or as well as the `{outcome:…}` and `{balance:…}` slots. Game-move answers through the app were accepted (2 of 2).
+- Positions: every benchmark position is a game move with a played move (50 in `positions.json`, 32 in `positions-caissa.json`). The Analysis Board path (`POST /v1/analysis/position/explanation`, the board-lines prompt) is not measured here; #462 measures it under the voice pipeline ([Analysis Board path](#analysis-board-path)). In the #429 GPU smoke it fell back to the template on 16 of 16 requests, each with `chess_token_outside_slot`. In the 13 logged answers, 37 of 48 claims have a chess word outside a slot, `material` in 28 of them: the model states the outcome in plain words, instead of or as well as the `{outcome:…}` and `{balance:…}` slots. Game-move answers through the app were accepted (2 of 2).
 - This measures narrator wording, not chess improvement for players.
 
 ## Interim slot run (superseded)
 
-The runs below were measured on the slot pipeline before the factor facts, the vocabulary rule and the compact prompt (#408), with `num_ctx` 12288 and Stockfish evidence. They are kept for comparison. Their decision (`gemma4-12b`, fallback `praxis-4b`) is replaced by the [Decision](#decision) above.
+The runs below were measured on the slot pipeline before the factor facts, the vocabulary rule and the compact prompt (#408), with `num_ctx` 12288 and Stockfish evidence. They are kept for comparison. Their decision (`gemma4-12b`, fallback `praxis-4b`) is replaced by the [Decision](#decision-slot-prompt-superseded-by-462) above.
 
 ### Slot pipeline (#386), coach voice
 
