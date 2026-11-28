@@ -626,7 +626,7 @@ format = "stockfish"
 | Rodent V | `rodent` | GPL-3.0 | run from its own folder (Scan64 starts it there) |
 | Laser | `laser` | GPL-3.0 | nothing; the table goes to standard error, and Scan64 reads it there |
 
-Only the Stockfish 11 row is recorded from a real build; the Stockfish 2.1, 8 and 15.1 rows follow the print code (#478).
+Every row is tested against a recorded output of a real build (#478).
 Stockfish 16 and later have no classical evaluation, so they print no table.
 Ethereal, Stash, Weiss and Berserk need a tuner build to print one, so they are
 not supported.
@@ -663,7 +663,8 @@ uv run python -m scan64.explanations.trace_check --profile engine.toml --fens po
 `positions.txt` has one FEN per line. Positions with a side in check are listed
 as skipped.
 
-Run on linux-5090 (2026-11-28, commit `214ddfe`) over the 324 positions of
+Run on linux-5090 (2026-11-28; commit `214ddfe` for the first three rows,
+`87fad91` for the others) over the 324 positions of
 `tests/fixtures/factors/positions.json` (34 are in check and skipped):
 
 | Engine | Positions compared | Positions with a sign disagreement | Group rows |
@@ -671,16 +672,27 @@ Run on linux-5090 (2026-11-28, commit `214ddfe`) over the 324 positions of
 | Stockfish 11 | 290 | 13 | 14 |
 | Fairy-Stockfish 14 | 290 | 42 | 44 |
 | Rodent V 1.2 | 290 | 190 | 345 |
+| Stockfish 2.1 | 290 | 195 | 401 |
+| Stockfish 8 | 290 | 119 | 169 |
+| Stockfish 15.1 | 290 | 33 | 34 |
+| RubiChess 20261103 | 289 | 219 | 413 |
+| Vajolet2 3.2 | 280 | 202 | 392 |
+| Laser 1.8 beta | 281 | 204 | 472 |
 
-Stockfish 11 is close to the factor module, which follows the Stockfish 12
-classical evaluation. Rodent V weighs the parts in its own way, so many of its
-groups differ in sign.
+RubiChess, Vajolet2 and Laser print no table for some end games, where a
+shortcut gives the evaluation (for example a known draw or a clear win).
+The report lists those positions as skipped: 1 for RubiChess, 10 for
+Vajolet2 and 9 for Laser.
+
+Stockfish 11 and 15.1 are close to the factor module, which follows the
+Stockfish 12 classical evaluation. The older Stockfish versions and the other
+engines weigh the parts in their own way, so many of their groups differ in
+sign.
 
 The test fixtures are in
 [`tests/fixtures/engine_traces/`](../tests/fixtures/engine_traces/README.md).
-Stockfish 11, Fairy-Stockfish 14 and Rodent V 1.2 are recorded outputs. The
-other formats follow each engine's print code and have made-up numbers, until
-those engines are built and recorded.
+Each file is a recorded output of a real build. The README lists the build
+commit and command of each engine.
 
 ## Follow-ups
 
