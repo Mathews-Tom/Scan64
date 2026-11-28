@@ -31,7 +31,8 @@ header = '^GAME (?P<number>\d+)\. '
 separator = '^\s*\*\s+\*\s+\*'
 expected_games = 14
 stop_at_result = false
-skip = ['^\s*\[Illustration\]\s*$']
+# "[Illustration] {4}": a diagram marker, with or without its page marker.
+skip = ['^\s*\[Illustration\](?:\s*\{\d+\})?\s*$']
 
 [sources.lasker_chess_strategy]
 title = "Chess Strategy (second edition, translated by J. du Mont)"

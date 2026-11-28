@@ -190,7 +190,10 @@ class _Reader:
             return
         move = _MOVE_LINE.match(line)
         first = re.split(r"\s{2,}", move.group("rest"))[0] if move is not None else ""
-        if move is not None and (_is_move_text(first) or _PLACEHOLDER.match(first)):
+        # "40. Resigns.": the result on a numbered line.
+        if move is not None and (
+            _is_move_text(first) or _PLACEHOLDER.match(first) or _RESULT.match(first)
+        ):
             self.move_line(int(move.group("number")), move.group("rest"))
             return
         black = _BLACK_ONLY.match(line)

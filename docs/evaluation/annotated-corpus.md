@@ -5,7 +5,7 @@ The corpus itself (`games.jsonl`, `rejections.jsonl`) is written outside the rep
 
 | Source | Games found | Replayed | Rejected | Comments | Sentences | Moves | Decided by missing "ch" |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Chess Fundamentals (1921) | 14 | 7 | 7 (50%) | 110 | 240 | 523 | 1 |
+| Chess Fundamentals (1921) | 14 | 7 | 7 (50%) | 104 | 234 | 523 | 1 |
 | Chess Strategy (second edition, translated by J. du Mont) (1915) | 48 | 30 | 18 (38%) | 470 | 878 | 1955 | 12 |
 | Lasker's Manual of Chess (1927) | pending | | | | | | |
 | My System (English translation) (1929) | pending | | | | | | |
@@ -23,3 +23,6 @@ A move converts only when exactly one legal move fits its descriptive text. When
 text fits both a checking and a non-checking move and carries no "ch", the
 non-checking move is taken; the last column counts those moves. Any other ambiguity
 rejects the whole game.
+
+Only headed games are read. Endgame and middlegame examples printed without a game
+header are not part of the corpus.

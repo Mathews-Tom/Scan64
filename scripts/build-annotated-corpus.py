@@ -113,6 +113,9 @@ def _report_markdown(
         "non-checking move is taken; the last column counts those moves. Any other ambiguity",
         "rejects the whole game.",
         "",
+        "Only headed games are read. Endgame and middlegame examples printed without a game",
+        "header are not part of the corpus.",
+        "",
     ]
     return "\n".join(lines)
 

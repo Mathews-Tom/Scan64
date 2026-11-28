@@ -173,3 +173,35 @@ def test_a_game_that_does_not_convert_is_rejected_whole() -> None:
     assert isinstance(result, Rejection)
     assert result.kind == "no legal move fits"
     assert "ply 3" in result.reason
+
+
+def _book(body: str) -> str:
+    start, end = (
+        "*** START OF THE PROJECT GUTENBERG EBOOK X ***",
+        "*** END OF THE PROJECT GUTENBERG EBOOK X ***",
+    )
+    return f"{start}\n{body}\n{end}\n"
+
+
+def test_headers_in_either_case_and_indent_and_a_numbered_result() -> None:
+    layout = BookLayout(
+        header=re.compile(r"(?i)^\s*GAME No\. (?P<number>\d+)\.?\s*$"),
+        separator=None,
+        stop_at_result=True,
+    )
+    body = "\n".join(
+        [
+            "                GAME No. 1",
+            "          1. P-K4         P-K4",
+            "          2. Resigns.",
+            "GAME NO. 2.",
+            "          1. P-Q4         P-Q4",
+            "Prose under game 2.",
+            "                   GAME No. 3",
+            "          1. P-QB4",
+        ]
+    )
+    games = read_games(_book(body), layout)
+    assert [game.number for game in games] == ["1", "2", "3"]
+    assert (games[0].moves, games[0].result, games[0].comments) == (["P-K4", "P-K4"], "Resigns", [])
+    assert games[1].comments == [(2, "Prose under game 2.")]
