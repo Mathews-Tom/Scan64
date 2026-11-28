@@ -141,6 +141,10 @@ def _relation_record(relation: Relation) -> dict[str, object]:
         record["direction"] = relation.direction
     if relation.square is not None:
         record["square"] = chess.square_name(relation.square)
+    if relation.reply is not None:
+        record["reply"] = relation.reply
+    if relation.already:
+        record["already"] = True
     return record
 
 
@@ -207,6 +211,11 @@ def _holds(relation: Relation) -> None:
             assert subject is not None and target is not None
             assert target.square in after.attacks(subject.square)
             assert target.colour != subject.colour
+            if relation.already:
+                # The same attacker on the same square already attacked the same piece.
+                on(before, subject)
+                on(before, target)
+                assert target.square in before.attacks(subject.square)
         case "gives_check":
             assert after.is_check()
             assert subject is not None and subject.square in after.checkers()
@@ -220,6 +229,10 @@ def _holds(relation: Relation) -> None:
             assert target is not None and after.king(not before.turn) == target.square
         case "stalemates":
             assert after.is_stalemate()
+            on(after, subject)
+            assert subject is not None and subject.square == move.to_square
+        case "draws":
+            assert after.is_insufficient_material() and not after.is_checkmate()
             on(after, subject)
             assert subject is not None and subject.square == move.to_square
         case "blocks":
@@ -273,6 +286,12 @@ def _holds(relation: Relation) -> None:
                 scratch = board.copy()
                 scratch.turn = subject.colour
                 assert not any(m.from_square == subject.square for m in scratch.legal_moves)
+            else:
+                # A king shut in for a mate: without this piece it is no mate.
+                assert after.is_checkmate()
+                without = after.copy()
+                without.remove_piece_at(target.square)
+                assert not without.is_checkmate()
         case "opens":
             assert subject is not None and relation.square is not None
             assert subject.piece == chess.KING
@@ -290,8 +309,19 @@ def _holds(relation: Relation) -> None:
             on(after, target)
             assert target is not None and target.colour != before.turn
             assert target.piece != chess.KING
-            assert relation.reply is not None
+            assert relation.reply is not None and relation.reply_fen is not None
             reply = chess.Move.from_uci(relation.reply)
+            # The reply was legal after the played move: one legal move from ``fen``
+            # reaches ``reply_fen``, and the same piece plays it there.
+            threatened = chess.Board(relation.reply_fen)
+            assert reply in threatened.legal_moves
+            reached = set()
+            for legal in before.legal_moves:
+                scratch = before.copy()
+                scratch.push(legal)
+                reached.add(scratch.fen())
+            assert relation.reply_fen in reached
+            on(threatened, target)
             assert reply.from_square == target.square
             # Pseudo-legal, no pin forbids it, and still illegal: the check stops it.
             assert after.is_pseudo_legal(reply) and reply not in after.legal_moves
@@ -362,26 +392,30 @@ def test_the_game_result_is_stated() -> None:
     stalemate = " ".join(fact.text for fact in _facts("H3") if fact.role == "the_move")
     assert "stalemate" in stalemate and "ends at once as a draw" in stalemate
     mate = " ".join(fact.text for fact in _facts("H3") if fact.role == "could_have_played")
-    assert "it is mate: the game ends, and White wins" in mate
+    assert "gives checkmate to the king on h8: the game ends, and White wins" in mate
 
 
 def test_a_judgement_on_the_block_and_the_alternative() -> None:
     texts = [fact.text for fact in _facts("P2")]
-    assert "7.Be2 was not the only way to block the check: 7.Qe2 also blocks it." in texts
+    assert (
+        "7.Be2 was not the only way to block the check: "
+        "7.Qe2 also blocks the check from the queen on e4." in texts
+    )
     assert "White could have played 7.Qe2 instead of 7.Be2." in texts
 
 
 def test_a_pin_names_what_it_pins_to() -> None:
     misses = [fact.text for fact in _facts("H4") if fact.role == "what_it_misses"]
     assert misses == [
-        "Black's knight on e5 cannot move, because the rook on e1 pins it to the king on e8."
+        "Black's knight on e5 cannot move, because the rook on e1 pins the knight on e5 "
+        "to the king on e8."
     ]
     # P2: the played move walks into a pin, and the pin decides what follows.
     # The pinner is the piece in front of the pinned one, not one behind its king.
     texts = [f.text for f in role_facts("4R3/8/8/4n3/4k3/8/4BP2/6K1 w - - 0 1", "g1h1", "f2f4")]
     assert (
-        "Black's knight on e5 cannot move, because the rook on e8 pins it to the king on e4."
-        in (texts)
+        "Black's knight on e5 cannot move, because the rook on e8 pins the knight on e5 "
+        "to the king on e4." in (texts)
     )
     # A rook moving along its own pin was already pinned; the attack is not "already".
     texts = [f.text for f in role_facts("4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1", "e2e3", "e1d1")]
@@ -390,8 +424,8 @@ def test_a_pin_names_what_it_pins_to() -> None:
     texts = [fact.text for fact in _facts("P2")]
     assert "Black's queen on e4 pins the bishop on e2 to the king on e1." in texts
     assert (
-        "The bishop on e2 cannot take the knight on f3: the queen on e4 pins it to the king on e1."
-        in texts
+        "The bishop on e2 cannot take the knight on f3: the queen on e4 pins the bishop on e2 "
+        "to the king on e1." in texts
     )
 
 
@@ -434,7 +468,7 @@ def test_a_mate_later_in_a_line_is_stated() -> None:
     facts = role_facts(
         "7k/8/8/8/8/8/1R6/R7 w - - 0 1", "a1a2", "b2b7", best_line=("b2b7", "h8g8", "a1a8")
     )
-    assert "The line goes on to 2.Ra8#, and it is mate: the game ends, and White wins." in [
+    assert "The line goes on to 2.Ra8#, checkmate: the game ends, and White wins." in [
         f.text for f in facts
     ]
     facts = role_facts(
@@ -444,10 +478,7 @@ def test_a_mate_later_in_a_line_is_stated() -> None:
         played_line=("a2a3", "d8h4"),
     )
     follows = [f.text for f in facts if f.role == "what_follows"]
-    assert (
-        follows[-1]
-        == "The line goes on to 3...Qh4#, and it is mate: the game ends, and Black wins."
-    )
+    assert follows[-1] == "The line goes on to 3...Qh4#, checkmate: the game ends, and Black wins."
     # After a mate there is no check to answer.
     assert not any(r.kind == "prevents" for fact in facts for r in fact.relations)
     for fact in facts:
@@ -538,6 +569,86 @@ def test_illegal_input_fails_fast() -> None:
         role_facts(fen, "e2e3", "d2d4", best_line=("e2e4",))
     with pytest.raises(RoleFactsError, match="not legal"):
         role_facts(fen, "e2e3", "d2d4", played_line=("e7e4",))
+
+
+def test_shut_in_is_stated_only_for_pawns_the_mate_needs() -> None:
+    # 1...Qa7# mates on the a-file; the pawn on b2 takes no part in it.
+    facts = role_facts("8/2q5/8/8/5p2/8/1P6/K1k1q3 b - - 0 1", "c7c8", "c7a7")
+    assert not any("shut in" in fact.text for fact in facts)
+    # The back-rank mate needs every pawn in front of the king.
+    texts = [fact.text for fact in _facts("P3")]
+    assert "Black's king on g8 is shut in by its own pawns on f7, g7 and h7." in texts
+
+
+def test_cannot_move_is_not_blamed_on_the_pin_when_a_check_also_holds_it() -> None:
+    # 1...Qxb5+ pins the rook on c6 and checks: the check also stops its moves along the pin.
+    facts = role_facts("4qn2/2r2k2/2Q2B2/1BK5/8/B1R4n/5p2/1q6 b - - 0 1", "f7g6", "b1b5")
+    pins = [fact.text for fact in facts if "because" in fact.text]
+    assert pins and all("cannot move" not in text for text in pins), pins
+
+
+def test_pin_and_check_sentences_name_the_piece_not_a_pronoun() -> None:
+    for name in NAMES:
+        for fact in _facts(name):
+            if any(r.kind in ("pins", "blocks", "mates") for r in fact.relations):
+                assert re.search(r"it", fact.text) is None, fact.text
+
+
+def test_a_draw_by_insufficient_material_in_a_line_is_stated() -> None:
+    texts = [fact.text for fact in _facts("P4")]
+    assert (
+        "The line goes on to 2.Nxa8, and the game is drawn: neither side has enough "
+        "material left to give mate." in texts
+    )
+
+
+def test_relations_hold_on_random_positions() -> None:
+    """Property check: on seeded random positions every stated relation holds."""
+    import random
+
+    rnd = random.Random(476)
+    checked = 0
+    while checked < 300:
+        board = chess.Board(None)
+        for square in rnd.sample(range(64), rnd.randint(2, 12)):
+            board.set_piece_at(
+                square, chess.Piece(rnd.choice([1, 2, 3, 4, 5, 5]), rnd.random() < 0.5)
+            )
+        board.set_piece_at(
+            rnd.choice([s for s in range(64) if not board.piece_at(s)]),
+            chess.Piece(chess.KING, chess.WHITE),
+        )
+        board.set_piece_at(
+            rnd.choice([s for s in range(64) if not board.piece_at(s)]),
+            chess.Piece(chess.KING, chess.BLACK),
+        )
+        board.turn = rnd.random() < 0.5
+        if not board.is_valid() or not any(board.legal_moves):
+            continue
+        moves = list(board.legal_moves)
+        played, best = rnd.choice(moves), rnd.choice(moves)
+        line = [best]
+        scratch = board.copy()
+        scratch.push(best)
+        for _ in range(rnd.randint(0, 3)):
+            if not any(scratch.legal_moves):
+                break
+            line.append(rnd.choice(list(scratch.legal_moves)))
+            scratch.push(line[-1])
+        after = board.copy()
+        after.push(played)
+        follow = [rnd.choice(list(after.legal_moves))] if any(after.legal_moves) else []
+        facts = role_facts(
+            board.fen(),
+            played.uci(),
+            best.uci(),
+            best_line=tuple(m.uci() for m in line),
+            played_line=tuple(m.uci() for m in follow),
+        )
+        for fact in facts:
+            for relation in fact.relations:
+                _holds(relation)
+        checked += 1
 
 
 if __name__ == "__main__":

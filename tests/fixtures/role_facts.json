@@ -44,7 +44,8 @@
           "kind": "attacks",
           "move": "e5f7",
           "subject": "black queen g5",
-          "target": "white pawn g2"
+          "target": "white pawn g2",
+          "already": true
         }
       ]
     },
@@ -138,7 +139,8 @@
           "kind": "prevents",
           "move": "c4f7",
           "target": "black queen g5",
-          "through": "white pawn g2"
+          "through": "white pawn g2",
+          "reply": "g5g2"
         }
       ]
     }
@@ -170,7 +172,7 @@
     },
     {
       "role": "The move",
-      "fact": "7.Be2 was not the only way to block the check: 7.Qe2 also blocks it.",
+      "fact": "7.Be2 was not the only way to block the check: 7.Qe2 also blocks the check from the queen on e4.",
       "relations": [
         {
           "kind": "blocks",
@@ -188,7 +190,8 @@
           "kind": "attacks",
           "move": "c4e2",
           "subject": "black king e8",
-          "target": "white knight f7"
+          "target": "white knight f7",
+          "already": true
         }
       ]
     },
@@ -230,7 +233,7 @@
     },
     {
       "role": "What follows",
-      "fact": "7...Nf3# gives check to the king on e1, and it is mate: the game ends, and Black wins.",
+      "fact": "7...Nf3# gives checkmate to the king on e1: the game ends, and Black wins.",
       "relations": [
         {
           "kind": "mates",
@@ -242,7 +245,7 @@
     },
     {
       "role": "What follows",
-      "fact": "The bishop on e2 cannot take the knight on f3: the queen on e4 pins it to the king on e1.",
+      "fact": "The bishop on e2 cannot take the knight on f3: the queen on e4 pins the bishop on e2 to the king on e1.",
       "relations": [
         {
           "kind": "pins",
@@ -400,7 +403,7 @@
     },
     {
       "role": "What White could have played",
-      "fact": "1.Rd8# gives check to the king on g8, and it is mate: the game ends, and White wins.",
+      "fact": "1.Rd8# gives checkmate to the king on g8: the game ends, and White wins.",
       "relations": [
         {
           "kind": "mates",
@@ -480,6 +483,17 @@
           "move": "c7a8",
           "subject": "white knight a8",
           "target": "black rook a8"
+        }
+      ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "The line goes on to 2.Nxa8, and the game is drawn: neither side has enough material left to give mate.",
+      "relations": [
+        {
+          "kind": "draws",
+          "move": "c7a8",
+          "subject": "white knight a8"
         }
       ]
     }
@@ -616,7 +630,8 @@
           "kind": "attacks",
           "move": "d2d3",
           "subject": "black knight f6",
-          "target": "white queen h5"
+          "target": "white queen h5",
+          "already": true
         }
       ]
     },
@@ -656,7 +671,7 @@
     },
     {
       "role": "What White could have played",
-      "fact": "4.Qxf7# gives check to the king on e8, and it is mate: the game ends, and White wins.",
+      "fact": "4.Qxf7# gives checkmate to the king on e8: the game ends, and White wins.",
       "relations": [
         {
           "kind": "mates",
@@ -738,6 +753,17 @@
           "target": "black rook b7"
         }
       ]
+    },
+    {
+      "role": "What White could have played",
+      "fact": "The line goes on to 2.Bxb7, and the game is drawn: neither side has enough material left to give mate.",
+      "relations": [
+        {
+          "kind": "draws",
+          "move": "f3b7",
+          "subject": "white bishop b7"
+        }
+      ]
     }
   ],
   "H3": [
@@ -789,7 +815,7 @@
     },
     {
       "role": "What White could have played",
-      "fact": "1.Qf8# gives check to the king on h8, and it is mate: the game ends, and White wins.",
+      "fact": "1.Qf8# gives checkmate to the king on h8: the game ends, and White wins.",
       "relations": [
         {
           "kind": "mates",
@@ -815,7 +841,7 @@
     },
     {
       "role": "What it misses",
-      "fact": "Black's knight on e5 cannot move, because the rook on e1 pins it to the king on e8.",
+      "fact": "Black's knight on e5 cannot move, because the rook on e1 pins the knight on e5 to the king on e8.",
       "relations": [
         {
           "kind": "pins",
