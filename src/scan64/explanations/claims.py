@@ -43,7 +43,9 @@ claim is about the side to move only when the side to move is its subject just
 before it ("the side to move ends up winning material") or it ends "for the
 side to move"; any other subject is read as no side. A claim in a sentence
 with a negation ("does not", "never", "neither", "without") is rejected as
-negated. Lessons have no outcome facts.
+negated. Outside its claims, the sentence may hold only slots and the words of
+``OUTCOME_SENTENCE_WORDS``; any other word leaves the outcome words to the
+vocabulary rule. Lessons have no outcome facts.
 """
 
 from __future__ import annotations
@@ -908,18 +910,69 @@ class OutcomeFacts:
     balance: int
 
 
+# The only words an outcome claim's sentence may hold outside its claims, the
+# side to move as their subject and a "for <side>" after them (second pre-PR
+# review): sentence frame, line and slot talk. Any other word (a size such as
+# "by nine points", "so does the opponent", "only in theory", "the opponent of
+# the side to move") leaves the outcome words to the vocabulary rule.
+OUTCOME_SENTENCE_WORDS = frozenset(
+    """a an the this that it its in over at by with after of to and so then also here
+    line lines line's first second third top main primary engine engine's choice option
+    path suggestion move sequence continuation start starts started begin begins began
+    show shows showing indicate indicates indicating mean means result results resulting
+    lead leads leading end ends ending ended up where which as is are was be being has
+    have all both overall throughout whole course keep keeps kept keeping maintain
+    maintains maintained leave leaves while balance""".split()
+)
+_SENTENCE_WORD = re.compile(r"~|[a-z']+", re.IGNORECASE)
+
+
+def _sentence_span(prose: str, start: int, end: int) -> tuple[int, int]:
+    first = max(prose.rfind(mark, 0, start) for mark in ".!?;") + 1
+    end_mark = _SENTENCE_END.search(prose, end)
+    return first, end_mark.start() if end_mark else len(prose)
+
+
+def _learner_before(prose: str, match: re.Match[str]) -> re.Match[str] | None:
+    first, _ = _sentence_span(prose, match.start(), match.end())
+    return _LEARNER_BEFORE.search(prose, first, match.start())
+
+
 def _outcome_side(claim: Claim, prose: str, match: re.Match[str]) -> int | None:
     """The side an outcome claim is about: its own side word, a following "for ...",
-    or the side to move as the subject just before it; else ``None`` (no side read)."""
-    if claim.side != 0:
-        return claim.side
+    or the side to move as the subject just before it; else ``None`` (no side read).
+
+    A "for ..." that names the other side than the claim's own is no side either.
+    """
     after = _FOR_SIDE.match(prose, match.end())
+    if claim.side != 0:
+        if after is not None and _side(after.group("who")) != claim.side:
+            return None
+        return claim.side
     if after is not None:
         return _side(after.group("who"))
-    sentence_start = max(prose.rfind(mark, 0, match.start()) for mark in ".!?;") + 1
-    if _LEARNER_BEFORE.search(prose[sentence_start : match.start()]):
+    if _learner_before(prose, match) is not None:
         return 1
     return None
+
+
+def _plain_sentence(prose: str, match: re.Match[str], claims: Sequence[tuple[int, int]]) -> bool:
+    """Whether the sentence of ``match`` holds only ``OUTCOME_SENTENCE_WORDS`` and slots
+    outside its outcome claims, the side to move before ``match`` and a "for <side>" after."""
+    first, last = _sentence_span(prose, match.start(), match.end())
+    cut = [(begin, end) for begin, end in claims if first <= begin and end <= last]
+    if (after := _FOR_SIDE.match(prose, match.end())) is not None:
+        cut.append(after.span())
+    if (before := _learner_before(prose, match)) is not None:
+        cut.append(before.span())
+    chars = list(prose[first:last])
+    for begin, end in cut:
+        chars[begin - first : end - first] = " " * (end - begin)
+    rest = "".join(chars)
+    return all(
+        word.lower() in OUTCOME_SENTENCE_WORDS or word == "~"
+        for word in _SENTENCE_WORD.findall(rest)
+    )
 
 
 def _negated_around(prose: str, match: re.Match[str]) -> bool:
@@ -975,36 +1028,41 @@ def outcome_claims(
     outside such a claim stay, so the vocabulary rule still rejects them
     ("this line wins for the side to move", "the material balance is better").
     """
-    admitted = list(prose)
-    rejected: RejectedClaim | None = None
+    found: list[tuple[re.Match[str], Claim]] = []
     remaining = prose
     for rule, read in CLAIM_RULES:
         pattern = rule.compiled()
         for match in pattern.finditer(remaining):
-            words = list(OUTCOME_WORDS.finditer(match[0]))
-            if not words:
+            if not OUTCOME_WORDS.search(match[0]):
                 continue
             claim = read(match)
-            if claim.topic not in ("balance", "change"):
-                continue
-            groups = match.groupdict()
-            negated = groups.get("neg") or groups.get("neg2") or _negated_around(prose, match)
-            if rejected is None and negated:
-                rejected = RejectedClaim(match[0].strip(), negated=True)
-            elif rejected is None and not all(
-                outcome_supported(
-                    claim,
-                    _outcome_side(claim, prose, match),
-                    outcome,
-                    exact=bool(_POINTS.search(match[0])),
-                )
-                for outcome in outcomes
-            ):
-                rejected = RejectedClaim(match[0].strip(), negated=False)
-            for word in words:
-                begin, end = match.start() + word.start(), match.start() + word.end()
-                admitted[begin:end] = " " * (end - begin)
+            if claim.topic in ("balance", "change"):
+                found.append((match, claim))
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
+    spans = [match.span() for match, _ in found]
+    admitted = list(prose)
+    rejected: RejectedClaim | None = None
+    for match, claim in sorted(found, key=lambda item: item[0].start()):
+        if not _plain_sentence(prose, match, spans):
+            continue  # its words stay for the vocabulary rule
+        words = list(OUTCOME_WORDS.finditer(match[0]))
+        groups = match.groupdict()
+        negated = groups.get("neg") or groups.get("neg2") or _negated_around(prose, match)
+        if rejected is None and negated:
+            rejected = RejectedClaim(match[0].strip(), negated=True)
+        elif rejected is None and not all(
+            outcome_supported(
+                claim,
+                _outcome_side(claim, prose, match),
+                outcome,
+                exact=bool(_POINTS.search(match[0])),
+            )
+            for outcome in outcomes
+        ):
+            rejected = RejectedClaim(match[0].strip(), negated=False)
+        for word in words:
+            begin, end = match.start() + word.start(), match.start() + word.end()
+            admitted[begin:end] = " " * (end - begin)
     return "".join(admitted), rejected
 
 

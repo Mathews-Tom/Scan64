@@ -234,7 +234,7 @@ def test_each_outcome_word_follows_the_line(
         (
             "scholar_threat",
             "After the opponent replies, {label:line-1} wins material.",
-            "unsupported_claim",
+            "chess_token_outside_slot",
         ),
         # A slot is no amount of material.
         (
@@ -319,6 +319,7 @@ def test_no_change_claims_on_the_lesson_path_need_an_unchanged_ply() -> None:
 # read must not be checked as the positive claim. scholar_threat line 1 wins a
 # pawn, line 3 loses one; every promotion line ends ahead.
 PREFIX = "{label:line-1} starts with {first:line-1}, and "
+REJECTED = {"negated_claim", "unsupported_claim", "chess_token_outside_slot"}
 
 
 @pytest.mark.parametrize(
@@ -337,7 +338,9 @@ PREFIX = "{label:line-1} starts with {first:line-1}, and "
     ],
 )
 def test_a_negated_outcome_claim_is_rejected(tail: str) -> None:
-    assert _reason("scholar_threat", "line-1", PREFIX + tail) == "negated_claim"
+    # A negation word outside the sentence frame leaves the outcome words to the
+    # vocabulary rule; inside it ("is not") the claim is negated.
+    assert _reason("scholar_threat", "line-1", PREFIX + tail) in REJECTED
 
 
 @pytest.mark.parametrize(
@@ -346,7 +349,7 @@ def test_a_negated_outcome_claim_is_rejected(tail: str) -> None:
 )
 def test_an_unknown_subject_is_read_as_no_side(subject: str) -> None:
     text = f"{PREFIX}{subject} wins material."
-    assert _reason("scholar_threat", "line-1", text) == "unsupported_claim"
+    assert _reason("scholar_threat", "line-1", text) in REJECTED
 
 
 def test_the_side_to_move_as_subject_across_linking_words() -> None:
@@ -358,8 +361,55 @@ def test_the_side_to_move_as_subject_across_linking_words() -> None:
 
 def test_a_negated_comparison_is_rejected() -> None:
     text = "{label:line-3} leaves the side to move ahead in material, and {label:line-1} does not."
-    assert _reason("promotion", "comparison", text) == "negated_claim"
+    assert _reason("promotion", "comparison", text) in REJECTED
     assert (
         _reason("promotion", "comparison", "All lines leave the side to move ahead in material.")
         is None
     )
+
+
+# Second pre-PR review (#449): words outside the claim that change its size or
+# side. scholar_mate_in_one line 1 wins a pawn (+1, +1); line 3 loses one.
+@pytest.mark.parametrize(
+    ("evidence_ref", "text"),
+    [
+        ("line-1", "{label:line-1}: the side to move wins material by nine points."),
+        ("line-1", "{label:line-1}: the side to move wins material, worth two points."),
+        ("line-1", "{label:line-1}: the side to move wins material three times."),
+        ("line-1", "{label:line-1}: the side to move wins material by a wide margin."),
+        ("line-1", "{label:line-1}: the side to move wins material decisively."),
+        ("line-3", "{label:line-3}: the opponent wins material by two points."),
+        ("line-1", "{label:line-1}: the side to move wins material, and so does the opponent."),
+        ("line-1", "{label:line-1}: the side to move wins material, as does the opponent."),
+        ("line-1", "{label:line-1}: the side to move wins material and the opponent does too."),
+        ("line-3", "{label:line-3}: the opponent wins material and so does the side to move."),
+        ("line-1", "{label:line-1}: the opponent of the side to move wins material."),
+        ("line-1", "{label:line-1}: the player facing the side to move wins material."),
+        ("line-1", "{label:line-1}: the opponent and the side to move win material."),
+        ("line-3", "{label:line-3}: the side to move and the opponent win material."),
+        ("line-1", "{label:line-1}: the side to move wins material for the opponent."),
+        ("line-1", "{label:line-1}: the side to move wins material only in theory."),
+        ("line-1", "{label:line-1}: the side to move wins material again and again."),
+    ],
+)
+def test_words_around_an_outcome_claim_that_change_it_are_rejected(
+    evidence_ref: str, text: str
+) -> None:
+    assert _reason("scholar_mate_in_one", evidence_ref, text) in REJECTED
+
+
+def test_material_is_equal_with_an_edge_is_rejected() -> None:
+    text = "In {label:line-1}, material is equal, with a huge edge for the side to move."
+    assert _reason("start", "line-1", text) in REJECTED
+    assert (
+        _reason("start", "line-1", "In {label:line-1}, material is equal by two points.")
+        in REJECTED
+    )
+
+
+def test_two_checked_claims_in_one_sentence() -> None:
+    # Both claims are read and both hold on scholar_mate_in_one line 1.
+    text = "{label:line-1}: the side to move wins material, while the opponent loses material."
+    assert _reason("scholar_mate_in_one", "line-1", text) is None
+    text = "{label:line-1}: the side to move wins material, while the opponent wins material."
+    assert _reason("scholar_mate_in_one", "line-1", text) == "unsupported_claim"
