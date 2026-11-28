@@ -9,7 +9,11 @@ import uvicorn
 from scan64.api.web import web_dist_directory
 from scan64.cli.main import main
 from scan64.cli.serve import _run_server, serve_command
-from scan64.providers.engine.config import ENGINE_CONFIG_ENV, STOCKFISH_PATH_ENV
+from scan64.providers.engine.config import (
+    ENGINE_CONFIG_ENV,
+    LADDER_ENGINE_CONFIG_ENV,
+    STOCKFISH_PATH_ENV,
+)
 
 
 def test_serve_dispatch_uses_loopback_and_opens_browser(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -197,3 +201,19 @@ def test_browser_uses_reachable_loopback_address(
     assert server.config.host == host
     assert url == f"http://{browser_host}:8001"
     assert open_browser is True
+
+
+def test_missing_ladder_profile_binary_names_the_ladder_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    analysis = tmp_path / "engine.toml"
+    analysis.write_text('[engine]\nname = "ethereal"\nbinary_path = "ethereal-missing"\n')
+    ladder = tmp_path / "ladder.toml"
+    ladder.write_text('[engine]\nname = "arasan"\nbinary_path = "arasan-missing"\n')
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(analysis))
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, str(ladder))
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit) as error:
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    message = str(error.value)
+    assert message.startswith(f"The ladder engine profile {ladder} (arasan) needs arasan-missing")

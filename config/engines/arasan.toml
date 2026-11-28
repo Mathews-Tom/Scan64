@@ -3,7 +3,8 @@
 # (declared 1000-3450) with a fixed move time. The eight values are the
 # UCI_Elo sent for levels 1-8, not measured playing strength; the measured
 # strength of each level is recorded in docs/engines.md.
-# Select with: SCAN64_ENGINE_CONFIG=<absolute path to this file>
+# Select for bot moves only with SCAN64_LADDER_ENGINE_CONFIG=<absolute path to
+# this file>; SCAN64_ENGINE_CONFIG selects it for analysis too.
 [engine]
 name = "arasan"
 binary_path = "~/.local/opt/engines/arasan/arasanx-64"

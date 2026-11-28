@@ -4,6 +4,9 @@ Without ``SCAN64_ENGINE_CONFIG`` the engine is Stockfish from
 ``SCAN64_STOCKFISH_PATH`` (default ``stockfish`` on ``PATH``), one thread and a
 16 MB hash: exactly the pre-configuration behaviour. With it, a TOML file names
 any UCI engine, its extra UCI options and its per-use search limits.
+
+``SCAN64_LADDER_ENGINE_CONFIG`` names a second profile for bot moves only (the
+ladder and every opponent move). Unset, bot moves use the analysis engine.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from typing import Any, Literal
 from scan64.chess.opponents.bots import BOT_LEVELS
 
 ENGINE_CONFIG_ENV = "SCAN64_ENGINE_CONFIG"
+LADDER_ENGINE_CONFIG_ENV = "SCAN64_LADDER_ENGINE_CONFIG"
 STOCKFISH_PATH_ENV = "SCAN64_STOCKFISH_PATH"
 DEFAULT_ENGINE_NAME = "stockfish"
 DEFAULT_BINARY = "stockfish"
@@ -282,10 +286,10 @@ def _limits(raw: object, config_path: Path) -> MappingProxyType[str, SearchLimit
     return MappingProxyType(limits)
 
 
-def load_engine_profile(path: Path) -> EngineProfile:
+def load_engine_profile(path: Path, env: str = ENGINE_CONFIG_ENV) -> EngineProfile:
     """Parse one engine TOML file; every error names the file and the key."""
     if not path.is_absolute():
-        raise EngineConfigurationError(f"{ENGINE_CONFIG_ENV} must be an absolute path: {path}")
+        raise EngineConfigurationError(f"{env} must be an absolute path: {path}")
     try:
         with path.open("rb") as stream:
             raw = tomllib.load(stream)
@@ -344,24 +348,37 @@ def load_engine_profile(path: Path) -> EngineProfile:
     )
 
 
-_cache: tuple[tuple[object, ...], EngineProfile] | None = None
+_cache: dict[str, tuple[tuple[object, ...], EngineProfile]] = {}
 
 
-def active_engine_profile() -> EngineProfile:
-    """The profile selected by the environment, re-read when the file changes."""
-    global _cache
-    raw_path = os.environ.get(ENGINE_CONFIG_ENV)
+def _profile_from(env: str) -> EngineProfile | None:
+    """The profile the file named by ``env`` holds, re-read when the file changes."""
+    raw_path = os.environ.get(env)
     if raw_path is None or raw_path == "":
-        return _stockfish_profile()
+        return None
     path = Path(raw_path)
+    if not path.is_absolute():
+        raise EngineConfigurationError(f"{env} must be an absolute path: {path}")
     try:
         stat = path.stat()
     except FileNotFoundError as error:
         raise EngineConfigurationError(f"Engine configuration does not exist: {path}") from error
     key = (raw_path, stat.st_mtime_ns, stat.st_size)
-    if _cache is None or _cache[0] != key:
-        _cache = (key, load_engine_profile(path))
-    return _cache[1]
+    cached = _cache.get(env)
+    if cached is None or cached[0] != key:
+        cached = (key, load_engine_profile(path, env))
+        _cache[env] = cached
+    return cached[1]
+
+
+def active_engine_profile() -> EngineProfile:
+    """The analysis profile selected by the environment."""
+    return _profile_from(ENGINE_CONFIG_ENV) or _stockfish_profile()
+
+
+def ladder_engine_profile() -> EngineProfile | None:
+    """The bot-move profile, or ``None`` when bot moves use the analysis engine."""
+    return _profile_from(LADDER_ENGINE_CONFIG_ENV)
 
 
 @dataclass(init=False)
@@ -456,6 +473,23 @@ class EngineConfig:
                 DEFAULT_SCORE_SCALE if explicit_binary else active_engine_profile().score_scale
             )
 
+    @classmethod
+    def from_profile(cls, profile: EngineProfile) -> EngineConfig:
+        """Every input from ``profile``, none from the active analysis profile."""
+        return cls(
+            binary_path=profile.binary_path,
+            threads=profile.threads,
+            hash_size=profile.hash_size,
+            name=profile.name,
+            options=profile.options,
+            limits=profile.limits,
+            node_scale=profile.node_scale,
+            protocol=profile.protocol,
+            search_deadline_s=profile.search_deadline_s,
+            ladder=profile.ladder,
+            score_scale=profile.score_scale,
+        )
+
     def fingerprint(self) -> tuple[object, ...]:
         """Process-local identity of every input that can change a search result."""
         return (
@@ -468,3 +502,20 @@ class EngineConfig:
             self.score_scale,
             tuple(sorted(self.options.items())),
         )
+
+
+def ladder_engine_config(analysis: EngineConfig) -> EngineConfig:
+    """The engine that plays bot moves: the ladder profile, else ``analysis``."""
+    profile = ladder_engine_profile()
+    if profile is None:
+        return analysis
+    ladder = EngineConfig.from_profile(profile)
+    # The same engine, ladder and deadline as analysis (both variables naming one file)
+    # needs no second pool.
+    if (ladder.fingerprint(), ladder.ladder, ladder.search_deadline_s) == (
+        analysis.fingerprint(),
+        analysis.ladder,
+        analysis.search_deadline_s,
+    ):
+        return analysis
+    return ladder

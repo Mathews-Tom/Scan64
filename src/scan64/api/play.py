@@ -45,6 +45,7 @@ from scan64.learning.sparring import (
 )
 from scan64.persistence.database import get_session
 from scan64.providers.engine import EngineCapabilityError
+from scan64.providers.engine.config import ladder_engine_config
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager
 
@@ -160,7 +161,10 @@ def bot_play_unavailable(error: EngineCapabilityError) -> HTTPException:
 
 def get_opponent_provider(request: Request) -> StockfishOpponentProvider:
     pool_manager = getattr(request.app.state, "engine_pool_manager", None)
-    return StockfishOpponentProvider(StockfishConfig(), pool_manager=pool_manager)
+    analysis = StockfishConfig()
+    return StockfishOpponentProvider(
+        ladder_engine_config(analysis), pool_manager=pool_manager, analysis_config=analysis
+    )
 
 
 def get_maia_config_path() -> Path | None:
@@ -289,7 +293,11 @@ async def create_play_session(
                 else 1
             )
         pool_manager = getattr(request.app.state, "engine_pool_manager", None)
-        engine_config = pool_manager.config if pool_manager is not None else StockfishConfig()
+        engine_config = (
+            pool_manager.ladder_config
+            if pool_manager is not None
+            else ladder_engine_config(StockfishConfig())
+        )
         config["bot_policy_version"] = bot_policy_version(engine_config)
     else:
         config.pop("bot_policy_version", None)
