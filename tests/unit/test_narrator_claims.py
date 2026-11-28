@@ -376,6 +376,13 @@ SLOT_AS_MATERIAL = [
     "You are {eval_diff} pawns in front.",
     "You are {eval_diff} pawns richer.",
     "You have {eval_diff} pawns more than your opponent.",
+    # Pre-push check of ff957df.
+    "You are {eval_diff} pawns in the lead.",
+    "You are {eval_diff} pawns short.",
+    "You are short {eval_diff} pawns.",
+    "You are plus {eval_diff} pawns.",
+    "Your opponent leads by {eval_diff} pawns.",
+    "You capture {eval_diff} pawns.",
 ]
 
 
@@ -425,6 +432,10 @@ def test_material_wording_with_a_count_still_follows_the_facts() -> None:
         "The evaluation went down by {eval_diff} pawns.",
         "The swing is {eval_diff} pawns in favor of the better choice.",
         "The position before your move had an evaluation of {eval_before} pawns.",
+        "The evaluation is down {eval_diff} pawns.",
+        "Evaluation: {eval_diff} pawns down.",
+        "The score is {eval_diff} pawns down from before.",
+        "That costs {eval_diff} pawns of evaluation.",
     ],
 )
 def test_evaluation_wording_with_the_pawn_unit_passes(text: str) -> None:

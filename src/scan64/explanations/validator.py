@@ -206,8 +206,9 @@ def slot_citation(
 _PAWN_UNIT_AFTER_SLOT = re.compile(
     r"(\{\s*(?:eval(?:_before|_after|_diff)?(?::[A-Za-z0-9_-]+)?|diff:[A-Za-z0-9_-]+"
     r"|factor:[A-Za-z0-9_:-]+)\s*\})\s+pawns?\b"
-    # Material wording keeps the word: "{eval_diff} pawns up", "... in material".
-    r"(?!\s+(?:of|in)\s+material\b|\s+(?:up|down|ahead|behind)\b)",
+    # "... pawns in material" keeps the word; the claim rule reads every other
+    # material wording from the text as written ("{eval_diff} pawns up").
+    r"(?!\s+(?:of|in)\s+material\b)",
     re.IGNORECASE,
 )
 

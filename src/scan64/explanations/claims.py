@@ -677,14 +677,41 @@ def _about_best(prose: str, match: re.Match[str]) -> bool:
 _SLOT_PAWNS = re.compile(r"~\s+(?:(?:more|extra|fewer|additional|spare)\s+)?pawns?\b", re.I)
 _MATERIAL_WORDING = re.compile(
     r"\b(?:material|materially|ahead|behind|in\s+front|richer|poorer|to\s+the\s+good|extra"
-    r"|spare|additional)\b|~\s+(?:more|fewer)\s+pawns?|\b(?:have|has|had)\s+~\s+pawns?",
+    r"|spare|additional|lead|leads|leading|short|plus|captur\w*|win|wins|won|winning"
+    r"|gain|gains|gained|gaining|lose|loses|lost|losing)\b"
+    r"|~\s+(?:more|fewer)\s+pawns?|\b(?:have|has|had)\s+~\s+pawns?",
     re.I,
 )
+# A sentence about the engine score, with no word "material": its slot amount
+# is an evaluation ("the evaluation is down {eval} pawns", "costs {eval}
+# pawns of evaluation"), so the slot-as-material checks do not apply.
+_EVALUATION_WORDING = re.compile(
+    r"\b(?:evaluation|eval|score|scores|scored|swing|rating|rated|assessment|difference"
+    r"|value)\b",
+    re.I,
+)
+_SENTENCE_END = re.compile(r"[.!?;]")
+
+
+def _evaluation_sentence(sentence: str) -> bool:
+    return bool(_EVALUATION_WORDING.search(sentence)) and not re.search(
+        r"\bmaterial", sentence, re.I
+    )
+
+
+def _sentence_at(prose: str, index: int) -> str:
+    start = max(prose.rfind(mark, 0, index) for mark in ".!?;") + 1
+    end = _SENTENCE_END.search(prose, index)
+    return prose[start : end.start() if end else len(prose)]
 
 
 def _slot_as_material(prose: str) -> str | None:
-    for sentence in re.split(r"[.!?;]", prose):
-        if _SLOT_PAWNS.search(sentence) and _MATERIAL_WORDING.search(sentence):
+    for sentence in _SENTENCE_END.split(prose):
+        if (
+            _SLOT_PAWNS.search(sentence)
+            and _MATERIAL_WORDING.search(sentence)
+            and not _evaluation_sentence(sentence)
+        ):
             return sentence.strip()
     return None
 
@@ -707,7 +734,12 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
             # A negated claim states an absence, which no fact records.
             if groups.get("neg") or groups.get("neg2"):
                 return RejectedClaim(match[0].strip(), negated=True)
-            if not supported(read(match), facts, about_best=_about_best(prose, match)):
+            claim = read(match)
+            if claim.amount == SLOT_AMOUNT and _evaluation_sentence(
+                _sentence_at(prose, match.start())
+            ):
+                continue  # "the evaluation is down {eval} pawns": a score, not material
+            if not supported(claim, facts, about_best=_about_best(prose, match)):
                 return RejectedClaim(match[0].strip(), negated=False)
         remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
     return None
