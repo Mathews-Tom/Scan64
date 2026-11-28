@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import chess
 from sqlmodel import Session, col, select
@@ -14,6 +14,7 @@ from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
 from scan64.providers.stockfish.adapter import (
+    BoardEngineAdapter,
     EngineAdapter,
     IdentifiedEngineAdapter,
     search_board,
@@ -118,7 +119,7 @@ class BatchAnalysisAdapter:
                 position_id=None, config=deepcopy(config), raw_result=deepcopy(raw_result)
             )
         else:
-            analysis = await self.adapter.analyze_position(
+            analysis = await cast(BoardEngineAdapter, self.adapter).analyze_position(
                 target, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )
             key = _key(fen, analysis.config)
