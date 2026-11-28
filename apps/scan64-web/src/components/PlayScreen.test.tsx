@@ -1076,8 +1076,10 @@ describe('PlayScreen', () => {
     render(<PlayScreen initialSession={active} />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('conversion practice');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Resign' })).toBeEnabled());
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      fen: '7k/8/8/8/8/r7/5K2/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) }));
+    // The board unlocks in a later render than the Resign button; wait for it rather than
+    // asserting the render in between (#467).
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/r7/5K2/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) })));
     await act(async () => { await getRegisteredMoveHandler()('a3', 'a1'); });
     expect(ApiClient.getPlaySession).toHaveBeenLastCalledWith('convert-1');
     expect(screen.getByText('Loading recorded conversion result…')).toBeVisible();
@@ -1102,8 +1104,8 @@ describe('PlayScreen', () => {
     expect(ApiClient.createGame).not.toHaveBeenCalled();
     expect(screen.queryByTestId('start-btn')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Conversion result' })).not.toBeInTheDocument();
-    expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
-      fen: '7k/8/8/8/8/r7/7K/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) }));
+    await waitFor(() => expect(chessgroundMock.set).toHaveBeenLastCalledWith(expect.objectContaining({ orientation: 'black',
+      fen: '7k/8/8/8/8/r7/7K/8 b - - 1 1', movable: expect.objectContaining({ color: 'black' }) })));
     expect(localStorage.getItem('scan64_active_play_session_id')).toBe('convert-2');
     expect(screen.getByText(/Practice session convert-2 · seed server-seed-2/)).toBeVisible();
     vi.mocked(ApiClient.getPlaySession).mockResolvedValue({ ...fresh, status: 'completed', sparring: {
