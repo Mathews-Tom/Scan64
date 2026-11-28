@@ -48,3 +48,29 @@ def fake_variant_uci_launcher(
     monkeypatch.setenv("FAKE_VARIANTS", variants)
     monkeypatch.setenv("FAKE_VARIANT_ILLEGAL", "1" if illegal else "0")
     return _launcher(FAKE_VARIANT_UCI, tmp_path)
+
+
+FAKE_TRACE_UCI = FIXTURES / "fake_trace_uci.py"
+
+
+def fake_trace_uci_launcher(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: Path,
+    stderr: Path | None = None,
+    *,
+    hang: bool = False,
+) -> tuple[Path, Path]:
+    """A UCI engine replaying the recorded ``eval`` session; returns ``(launcher, log)``."""
+    log = tmp_path / "trace.log"
+    monkeypatch.setenv("FAKE_TRACE_LOG", str(log))
+    monkeypatch.setenv("FAKE_TRACE_STDOUT", str(stdout))
+    if stderr is None:
+        monkeypatch.delenv("FAKE_TRACE_STDERR", raising=False)
+    else:
+        monkeypatch.setenv("FAKE_TRACE_STDERR", str(stderr))
+    if hang:
+        monkeypatch.setenv("FAKE_TRACE_HANG", "1")
+    else:
+        monkeypatch.delenv("FAKE_TRACE_HANG", raising=False)
+    return _launcher(FAKE_TRACE_UCI, tmp_path), log
