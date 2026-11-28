@@ -26,7 +26,7 @@ Load the position on the Analysis Board, see the engine lines and select a claim
 
 <p align="center"><img src="assets/demo-analysis-board.gif" alt="The position before 16... Rxc6 on the Analysis Board with three engine lines, their template explanation, and the claim after 16...Rxc6 highlighting line 3" width="860"></p>
 
-The captures come from the current web client, driven by headless Chromium against a real server with Stockfish and an empty database; the game is John vs Janowski, a historical game. `apps/scan64-web/scripts/capture-readme.mjs` and `scripts/readme-media/make_gifs.py` rebuild them.
+The captures come from the current web client, driven by headless Chromium against a real server run from source (`scan64-cli serve` with Stockfish; the desktop app analyses with Caissa) and an empty database; the game is John vs Janowski, a historical game. `apps/scan64-web/scripts/capture-readme.mjs` and `scripts/readme-media/make_gifs.py` rebuild them.
 
 ## Learn more
 
