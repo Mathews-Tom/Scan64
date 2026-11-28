@@ -1,0 +1,1465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysis engines · Scan64 documentation</title>
+<meta name="description" content="The bundled engines, engine profiles and the engine compatibility set.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html" aria-current="page">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="analysis-engines">Analysis engines</h1>
+<p>Scan64 analyses with one UCI engine selected by configuration. The Docker
+image and the desktop app bundle Stockfish 18, Caissa 2.0 and Arasan 26.1
+(<a href="#bundled-engines">Bundled engines</a>). A fresh install of either analyses with
+Caissa and plays the bot ladder with Arasan; an install from before keeps
+Stockfish (<a href="#which-engines-an-install-uses">Which engines an install uses</a>). A
+source checkout uses Stockfish on <code>PATH</code>. Any other open-source UCI engine can
+replace them for analysis, review, hints, lessons and narrator evidence without a
+code change.</p>
+<h2 id="bundled-engines">Bundled engines</h2>
+<p>Each engine is built from its pinned source archive. Every source archive,
+network and downloaded licence has a SHA-256 in the <code>Dockerfile</code>, and
+<code>scripts/build-server.py</code> reads the pins from there, so a desktop build accepts
+nothing the image would not. Source archives and licence texts ship next to each
+executable (<a href="https://github.com/Mathews-Tom/Scan64/blob/main/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Role (#396)</th>
+<th>Network</th>
+<th>Docker image</th>
+<th>Desktop resources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stockfish 18 (GPL-3.0)</td>
+<td>installs from before the bundled engines</td>
+<td>two NNUE files, embedded</td>
+<td><code>/usr/local/bin/stockfish</code></td>
+<td><code>stockfish/stockfish[.exe]</code></td>
+</tr>
+<tr>
+<td>Caissa 2.0 (MIT)</td>
+<td>analysis</td>
+<td><code>eval-ml-8-152B-spsa.pnn</code>, embedded through <code>EVALFILE</code></td>
+<td><code>/usr/local/bin/caissa</code></td>
+<td><code>caissa/caissa[.exe]</code></td>
+</tr>
+<tr>
+<td>Arasan 26.1 (MIT)</td>
+<td>bot ladder</td>
+<td><code>arasanv8-20261005.nnue</code>, loaded from the executable's directory</td>
+<td><code>/usr/local/lib/arasan/arasan</code></td>
+<td><code>arasan/arasan[.exe]</code> next to the <code>.nnue</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each package carries one profile for each permissive engine (sources in
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/config/engines/container"><code>config/engines/container/</code></a>): <code>caissa.toml</code>
+(<code>UCI_ShowWDL</code> on) and <code>arasan.toml</code> (<code>OwnBook</code> off, the <code>elo</code> ladder of
+<code>config/engines/arasan.toml</code>). The image has them in
+<code>/usr/local/share/scan64/engines/</code>. The desktop build stages them in
+<code>engines/</code> among its resources, with <code>binary_path</code> rewritten to the engine
+beside them (<code>../caissa/caissa[.exe]</code>).</p>
+<p><strong>Provisional score scale.</strong> <code>caissa.toml</code> sets no <code>score_scale</code>, so a fresh
+install reads Caissa's centipawns as Stockfish's. The committed measurement
+(<a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/narrator/results/caissa_positions_report.md"><code>caissa_positions_report.md</code></a>,
+Evaluation) puts them at 0.71–0.75 of Stockfish's (1M-node searches pooled,
+n = 37): win percentages and the 150 cp mistake threshold run on an
+uncalibrated scale, and won positions read near 600–700 cp where Stockfish
+reports 1,000 or more. The earlier #396 comparison (1 s searches, n = 31) found
+the opposite, a slope of 1.19, so no single factor fits both samples yet. The
+fit on the 50 narrator positions is open on #396.
+Installs that keep Stockfish are unaffected.</p>
+<h3 id="which-engines-an-install-uses">Which engines an install uses</h3>
+<p>A package names its profile folder in <code>SCAN64_BUNDLED_ENGINES_DIR</code>: the image
+sets it, and the desktop shell passes it. On the first start with that folder
+and no engine configured, the server records the install's engines in
+<code>&lt;database&gt;.engines.toml</code> next to its database (<code>/data/scan64.db.engines.toml</code>
+in the image, <code>scan64.db.engines.toml</code> in the desktop data folder):</p>
+<table>
+<thead>
+<tr>
+<th>At first start</th>
+<th>Recorded</th>
+<th>Analysis</th>
+<th>Bot ladder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>no database yet (a fresh install)</td>
+<td><code>engines = "bundled"</code></td>
+<td>Caissa</td>
+<td>Arasan</td>
+</tr>
+<tr>
+<td>a database already there</td>
+<td><code>engines = "stockfish"</code></td>
+<td>Stockfish</td>
+<td>Stockfish</td>
+</tr>
+</tbody>
+</table>
+<p>Every later start reads the record, so an update never changes an install's
+engines: games under way, bot sessions (each plays only under the ladder it
+started with) and stored analysis keep the engine they were made with.</p>
+<p>To switch an install, stop it and edit the record (<code>"bundled"</code> or
+<code>"stockfish"</code>); in the desktop app the record is the only switch, because
+the shell starts its server with a cleared environment. In a source run or the
+image, <code>SCAN64_ENGINE_CONFIG</code> or <code>SCAN64_LADDER_ENGINE_CONFIG</code> set explicitly
+always win, and so does <code>SCAN64_STOCKFISH_PATH</code> in the image. Nothing is
+recorded on such a start. In the image:</p>
+<pre><code class="language-sh">docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml \
+  -e SCAN64_LADDER_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml ...
+</code></pre>
+<p>Under the Caissa profile alone bot play is unavailable, since Caissa has no
+strength options. Switching the ladder engine ends a bot session started under
+the old one with 503 <code>bot_play_unavailable</code> on its next move.</p>
+<p>Every desktop installer check (<code>scripts/desktop-package-smoke.py</code>) requires the
+three engine folders and <code>engines/</code> with both profiles, checks every pinned file against its Dockerfile digest, and starts
+each engine outside its own folder: it must report its <code>id name</code> and answer <code>uci</code>
+and <code>isready</code>.</p>
+<h2 id="selecting-an-engine">Selecting an engine</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of an engine profile (TOML). When set, it fully defines the engine.</td>
+</tr>
+<tr>
+<td><code>SCAN64_STOCKFISH_PATH</code></td>
+<td><code>stockfish</code> on <code>PATH</code></td>
+<td>Stockfish binary used when no profile is selected. Ignored when <code>SCAN64_ENGINE_CONFIG</code> is set.</td>
+</tr>
+<tr>
+<td><code>SCAN64_LADDER_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of a second profile that plays the bot ladder's moves. Unset, they use the analysis engine.</td>
+</tr>
+</tbody>
+</table>
+<p>Without a profile the engine is Stockfish from <code>SCAN64_STOCKFISH_PATH</code>, one
+thread, 16 MB hash, no extra options: the same identity as before profiles
+existed, so saved analyses keep matching.</p>
+<p>A profile:</p>
+<pre><code class="language-toml">[engine]
+name = &quot;ethereal&quot;                                  # label for logs; not part of cache identity
+binary_path = &quot;~/.local/opt/engines/Ethereal.exe&quot;  # absolute (~ expands), relative to this file, or a bare command on PATH
+protocol = &quot;uci&quot;                                   # optional: &quot;uci&quot; (default) or &quot;xboard&quot;
+threads = 1                                        # sent as Threads when the engine declares it
+hash_mb = 16                                       # sent as Hash when the engine declares it
+node_scale = 1.0                                   # optional, in (0, 1]: nodes sent = budget × node_scale
+search_deadline_s = 120                            # optional, &gt; 0: wall-clock bound on node/depth-only searches
+score_scale = 1.0                                  # optional, &gt; 0: engine centipawns per Stockfish centipawn
+
+[engine.options]          # extra UCI options; each must be declared by the engine
+UCI_ShowWDL = true
+
+[limits.hint]             # optional per-use override (nodes and/or time_ms, multipv; no depth)
+nodes = 200000
+time_ms = 1500
+multipv = 4
+
+[ladder]                  # optional: how the bot ladder weakens this engine
+strength = &quot;elo&quot;          # &quot;skill&quot; (default) or &quot;elo&quot;
+elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]  # UCI_Elo for levels 1-8, increasing
+movetime_ms = 500         # fixed time per bot move; required with &quot;elo&quot;, rejected with &quot;skill&quot;
+</code></pre>
+<p>Examples: <a href="https://github.com/Mathews-Tom/Scan64/blob/main/config/engines"><code>config/engines/</code></a> (<code>ethereal.toml</code>,
+<code>berserk.toml</code>, <code>stockfish-wdl.toml</code>, <code>arasan.toml</code>).</p>
+<p>Rules (all enforced at load or engine start, failing with the file and key):</p>
+<ul>
+<li>Unknown tables/keys, a missing or relative profile path, and non-positive
+  numbers are rejected.</li>
+<li>A <code>binary_path</code> without a directory (<code>stockfish</code>) is looked up on <code>PATH</code>. A
+  relative <code>binary_path</code> with a directory (<code>../caissa/caissa</code>) is resolved
+  against the profile file's own folder.</li>
+<li><code>engine.options</code> may not set Scan64-managed options: <code>Threads</code>, <code>Hash</code>,
+  <code>MultiPV</code>, <code>Ponder</code>, <code>UCI_AnalyseMode</code>, <code>UCI_Chess960</code>, <code>UCI_Variant</code>,
+  <code>UCI_Opponent</code>, <code>UCI_RatingAdv</code>, <code>Skill Level</code>, <code>UCI_LimitStrength</code>, <code>UCI_Elo</code>,
+  and the XBoard <code>cores</code> and <code>memory</code>.</li>
+<li>An option in <code>engine.options</code> that the engine does not declare stops engine
+  start with <code>EngineConfigurationError</code>.</li>
+<li><code>Threads</code>/<code>Hash</code> are sent only to engines that declare them (Lc0 has no <code>Hash</code>).</li>
+<li>The only per-use override today is <code>hint</code> (interactive hints; it still runs
+  inside the three-second hint deadline). Review (10,000 nodes), focused passes,
+  lesson verification and mate-source searches keep the budgets in their callers.</li>
+<li><code>engine.node_scale</code> (default 1) scales every node budget Scan64 sends to this
+  engine: game analysis, focused passes, hints, lesson verification, Analysis
+  Board lines, the bot ladder and Skill Level play. The budgets are sized for an
+  alpha-beta engine's nodes/second; an engine with slow neural nodes (Lc0,
+  Maia-3) sets a value below 1, for example <code>0.002</code> so that a 1,000,000-node
+  focused search sends 2,000 nodes. The engine receives at least 1 node. Stored
+  rows keep the Scan64 budget in <code>nodes</code> and record <code>node_scale</code> when it is not
+  1, so rows from different scales never reuse each other; rows at scale 1 keep
+  their pre-existing reuse key.</li>
+<li><code>engine.search_deadline_s</code> (default 120) bounds every analysis search that
+  has no time limit of its own (fast pass, focused pass, lesson verification,
+  Analysis Board lines). Past it the search is stopped and the request fails
+  with <code>EngineCapabilityError</code> saying the engine did not finish its node or
+  depth limit: an engine that ignores <code>go nodes</code> (Rodent V 1.2) reports
+  <code>unavailable</code> instead of hanging. It is not part of the cache identity.</li>
+<li>A pooled engine whose process exits (<code>EngineTerminatedError</code>) fails that
+  request and is replaced: the next checkout from the pool starts a new
+  process.</li>
+<li><code>engine.score_scale</code> (default 1) is the engine's centipawns per Stockfish
+  centipawn. Scan64's win-probability curve (Lichess logistic) is fitted to
+  Stockfish, so every win probability divides a line's <code>score_cp</code> by it
+  first; stored <code>score_cp</code> stays the engine's own number. Each stored line and
+  the row's identity record <code>score_scale</code> when it is not 1, so rows at
+  different scales never reuse each other and rows at 1 keep their
+  pre-existing reuse key. Other centipawn thresholds (the 150 cp fast-pass
+  swing, narrator facts) still read raw <code>score_cp</code>.</li>
+<li><code>engine.protocol = "xboard"</code> runs an XBoard (protover 2) engine. The engine
+  must declare <code>ping</code> and <code>setboard</code>; one that sends <code>setboard=0</code> (Fairy-Max
+  5.0b) fails at start with <code>EngineCapabilityError</code>, since every Scan64 search
+  starts from a FEN. Scan64 sends <code>engine.threads</code> as <code>cores</code>
+  and <code>engine.hash_mb</code> as <code>memory</code> when the engine declares <code>smp</code>/<code>memory</code>.
+  XBoard has no MultiPV, so only single-line searches work: game review and
+  single-line analysis run; a search for more lines (focused passes, Analysis
+  Board lines, hints with MultiPV, the bot ladder) raises
+  <code>EngineCapabilityError</code> naming the engine, never a single-line substitute.
+  Stored rows record <code>protocol = "xboard"</code>; UCI rows omit the key.</li>
+<li>Any request the active engine cannot serve answers HTTP 503 with
+  <code>{"detail": {"code": "engine_capability_unavailable", "message": ..., "reason": ...}}</code>;
+  <code>reason</code> names the missing option and the engine. A background analysis job
+  that hits it ends <code>failed</code> with that reason as its <code>error</code>.</li>
+<li>The profile file is re-read when its modification time or size changes; a
+  running pool keeps the processes it started with.</li>
+<li><code>[ladder]</code> selects the bot ladder's strength path. <code>skill</code> (the default, and
+  the only path without a profile) searches every legal move at full strength
+  and picks a move inside the level's error budget, seeded per session; it
+  needs <code>MultiPV</code>, <code>Skill Level</code> and <code>UCI_LimitStrength</code>. <code>elo</code> sets
+  <code>UCI_LimitStrength = true</code> and the level's <code>UCI_Elo</code>, then plays one move in
+  <code>movetime_ms</code> with the engine's own randomness (not seeded; the session's
+  node budget is unused). It needs <code>UCI_LimitStrength</code> and <code>UCI_Elo</code>; a level's
+  <code>UCI_Elo</code> outside the range the engine declares fails the move with
+  <code>EngineCapabilityError</code> (a 503 the player can act on, not a server error). The <code>elo</code> values are what Scan64 sends, not a
+  measured playing strength. The analysis reset turns <code>UCI_LimitStrength</code> off
+  again before every search. Sessions record the path in <code>bot_policy_version</code>:
+  <code>stockfish-error-budget-v1</code> for <code>skill</code>,
+  <code>uci-elo-v1:&lt;engine name&gt;:&lt;elo list&gt;:&lt;movetime&gt;ms</code> for <code>elo</code>. A session
+  plays only under the policy it recorded: when the server's <code>[ladder]</code> or
+  engine changes while a bot game is open, the next bot move fails with
+  <code>EngineCapabilityError</code> naming both policies, so a game is never counted in
+  one strength cohort and played under another. Sessions without a recorded
+  policy predate the Elo path and play only under
+  <code>stockfish-error-budget-v1</code>. The opponent's name comes from the recorded
+  policy: <code>Arasan (level 1: First steps)</code> for an Elo session on the <code>arasan</code>
+  profile, <code>Stockfish (...)</code> for error-budget and unstamped sessions.</li>
+</ul>
+<h2 id="what-every-stored-line-contains">What every stored line contains</h2>
+<p><code>EngineAnalysis.raw_result</code> is one dict per MultiPV line, best first. Keys appear
+only when the engine reported them (never <code>null</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pv</code></td>
+<td>Full principal variation, UCI moves.</td>
+</tr>
+<tr>
+<td><code>score_cp</code> / <code>score_mate</code></td>
+<td>Score from the side to move (exactly one).</td>
+</tr>
+<tr>
+<td><code>wdl</code></td>
+<td><code>[wins, draws, losses]</code> per mille from the side to move.</td>
+</tr>
+<tr>
+<td><code>depth</code>, <code>seldepth</code></td>
+<td>Nominal and selective search depth.</td>
+</tr>
+<tr>
+<td><code>nodes</code>, <code>nps</code></td>
+<td>Nodes searched and speed. <code>nps</code> depends on wall-clock time; never compare or key on it.</td>
+</tr>
+<tr>
+<td><code>multipv</code></td>
+<td>1-based line index.</td>
+</tr>
+</tbody>
+</table>
+<p>Rows written before this extension contain only <code>pv</code> and a score. They load
+unchanged; <code>EngineAnalysis.lines()</code> returns typed <code>EngineLine</code> values whose
+extended fields are <code>None</code> for them. No migration is needed: the column is JSON.</p>
+<p>Stockfish reports WDL only with <code>UCI_ShowWDL = true</code> (see
+<code>config/engines/stockfish-wdl.toml</code>). That option is part of the engine
+identity, so WDL-enabled rows never reuse WDL-free rows and vice versa.</p>
+<h2 id="cache-identity">Cache identity</h2>
+<p>Batch reuse (<code>scan64/chess/analysis/reuse.py</code>) and the per-process hint cache
+are keyed on the effective engine inputs:</p>
+<ul>
+<li><code>engine_version</code>: SHA-256 of the executable (embedded networks included).</li>
+<li><code>network</code>: SHA-256 of external network/weights files named by <code>EvalFile</code>,
+  <code>EvalFileSmall</code>, <code>WeightsFile</code> or Arasan's <code>NNUE file</code> when those files
+  exist. A relative path is resolved where its engine loads it: the working
+  directory, then the executable's directory, for the first three; only the
+  executable's directory for <code>NNUE file</code> (Arasan 26.1 <code>globals.cpp</code>).</li>
+<li><code>options</code>: every UCI option value the process holds after configuration,
+  including profile options, with the full-strength overrides applied.</li>
+<li><code>nodes</code>, <code>depth</code>, <code>time_ms</code>, <code>multipv</code> and the full FEN.</li>
+</ul>
+<p>A different engine has a different executable digest and option set, so it
+never matches a Stockfish row, even if it reports the same <code>id name</code>. This is
+covered by <code>tests/unit/test_engine_config.py</code> (key separation) and
+<code>tests/integration/test_second_engine.py</code> (Stockfish rows, then Ethereal rows
+for the same owner and positions: no reuse). The profile <code>name</code> is not part of
+the key. The hint cache key includes the profile fingerprint (name, binary,
+threads, hash, options) and the effective hint limits.</p>
+<h2 id="feature-requirements-by-uci-option">Feature requirements by UCI option</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Requires</th>
+<th>Without it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fast pass, review, backfill</td>
+<td>any UCI or XBoard engine</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Focused pass, hints, Analysis Board lines, lesson verification (MultiPV 2–8)</td>
+<td><code>MultiPV</code> (UCI only)</td>
+<td><code>EngineCapabilityError</code> (API: 503 <code>engine_capability_unavailable</code>; job: <code>failed</code> with the reason). No single-line substitute.</td>
+</tr>
+<tr>
+<td>WDL in stored lines</td>
+<td>engine reports <code>wdl</code> (Berserk by default; Stockfish/Lc0 with <code>UCI_ShowWDL</code>)</td>
+<td><code>wdl</code> key absent.</td>
+</tr>
+<tr>
+<td>Full-strength reset before analysis</td>
+<td><code>Skill Level</code>, <code>UCI_LimitStrength</code> where declared (<code>UCI_Elo</code> is not sent: it is ignored while <code>UCI_LimitStrength</code> is off)</td>
+<td>Skipped: an engine without these controls is always at full strength.</td>
+</tr>
+<tr>
+<td>Bot ladder opponent (levels 1–8), <code>[ladder] strength = "skill"</code></td>
+<td><code>MultiPV</code> plus Stockfish's <code>Skill Level</code>, <code>UCI_LimitStrength</code></td>
+<td><code>EngineCapabilityError</code> naming the missing options; when the engine declares <code>UCI_Elo</code> the message names <code>[ladder] strength = "elo"</code>.</td>
+</tr>
+<tr>
+<td>Bot ladder opponent, <code>[ladder] strength = "elo"</code></td>
+<td><code>UCI_LimitStrength</code>, <code>UCI_Elo</code></td>
+<td><code>EngineCapabilityError</code> naming the missing options.</td>
+</tr>
+<tr>
+<td>Legacy Skill Level opponent (sessions without <code>bot_level</code>)</td>
+<td><code>Skill Level</code></td>
+<td><code>EngineCapabilityError</code> naming <code>Skill Level</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>skill</code> ladder stays Stockfish-only on purpose: its error budgets,
+<code>SKILL_POLICY_VERSION = "stockfish-error-budget-v1"</code> and the strength estimate
+cohorts (<code>api/strength.py</code>) are defined against Stockfish. An engine with
+<code>UCI_Elo</code> but no <code>Skill Level</code> (Arasan 26.1) plays the ladder through
+<code>[ladder] strength = "elo"</code>. Without <code>SCAN64_LADDER_ENGINE_CONFIG</code>, opponent
+moves come from the same interactive pool as hints, under the analysis
+profile's <code>[ladder]</code>. With it, ladder moves come from a pool of the ladder
+profile's engine (sized like the interactive pool) under that profile's
+<code>[ladder]</code>; the analysis profile's <code>[ladder]</code> is then unused, <code>scan64-cli serve</code>
+checks the ladder profile's binary too, and the default batch pool shrinks by
+the ladder pool's engine threads. Analysis, hints, review and legacy Skill Level
+sessions (no <code>bot_level</code>) never use the ladder profile. A ladder profile with
+the same engine and <code>[ladder]</code> as the analysis profile adds no pool. Setting or
+changing it changes the server's ladder policy, so bot games started before
+cannot continue (the policy check above). Example: Caissa for analysis, Arasan
+for the ladder:</p>
+<pre><code class="language-sh">SCAN64_ENGINE_CONFIG=/path/to/caissa.toml SCAN64_LADDER_ENGINE_CONFIG=/path/to/arasan-ladder.toml uv run scan64-cli serve
+</code></pre>
+<p>When the engine that plays bot moves (the ladder profile's, else the analysis
+profile's) can play neither ladder, bot play is unavailable;
+play never falls back to Stockfish. The play endpoints
+(<code>POST /v1/play-sessions</code> when the bot moves first, <code>…/moves</code>, <code>…/resume</code> and
+<code>…/opponent-move</code>) return 503 with
+<code>detail = {code: "bot_play_unavailable", message, reason}</code>. <code>reason</code> is the
+<code>EngineCapabilityError</code> text that names the missing options. The player's move
+stays committed; a bot-first session is not created. The web client shows
+that bot play is unavailable under the active engine profile.</p>
+<h2 id="chess-variants-398">Chess variants (#398)</h2>
+<p>Scan64 reads variant positions with python-chess's variant boards: crazyhouse,
+three-check (<code>3check</code>), atomic, antichess, king of the hill, horde and racing
+kings. Searching one needs an engine that declares the variant. Which engines
+do, how python-chess selects the variant, installing Fairy-Stockfish and its
+probe results are in "Variants" below; this section is what Scan64 does with
+them.</p>
+<ul>
+<li><strong>API.</strong> <code>POST /v1/analysis/position</code> takes an optional <code>variant</code> (the names
+  above; default <code>chess</code>). The FEN is parsed under that variant's rules: a FEN
+  that is not a position of the variant is a 422 before any engine access. The
+  reply names the variant it was searched under. The explanation endpoint
+  covers standard chess only and rejects any other <code>variant</code> with 422.</li>
+<li><strong>Engine check.</strong> Before any search (see "How the variant is selected"),
+  Scan64 compares the board's variant with the engine's declared variants:
+  the <code>UCI_Variant</code> choices over UCI, or the <code>variants</code> feature over XBoard,
+  where antichess is <code>giveaway</code>. An undeclared variant is an
+  <code>EngineCapabilityError</code>, answered as 503 <code>engine_capability_unavailable</code>
+  whose <code>reason</code> names the variant and Fairy-Stockfish. Without the check
+  python-chess raises a plain <code>EngineError</code>, which the endpoint reports as a
+  generic analysis failure.</li>
+<li><strong>Hint cache.</strong> The cache key includes the variant: the same FEN is a
+  different position under another variant's rules.</li>
+<li><strong>Not covered.</strong> Diagnosis, lessons, puzzles, the narrator's explanations,
+  bot play and position health read standard chess only.</li>
+<li><strong>Tests.</strong> The tests use the fake UCI engine
+  (<code>tests/fixtures/engines/fake_uci.py</code>, <code>FAKE_UCI_VARIANTS</code>), which plays by
+  python-chess; no test runs Fairy-Stockfish. The probe in "Variants" runs it
+  directly, not through Scan64's endpoints.</li>
+<li><strong>Variant games.</strong> A PGN with a supported <code>Variant</code> tag is stored with its
+  variant. Game analysis, review and backfill refuse it with 409
+  <code>variant_not_covered</code>; the web import says the game is saved and not
+  analysed, and Your Games labels it "<variant>, not analysed".</li>
+</ul>
+<h2 id="stockfish-specific-assumptions-outside-the-engine-provider">Stockfish-specific assumptions outside the engine provider</h2>
+<p>Found with <code>grep -rn -i stockfish src/</code> plus review of score, limit and option
+handling. "Profile-driven" means the code constructs <code>StockfishConfig()</code>, which
+is now <code>EngineConfig</code> and reads the active profile.</p>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Assumption</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api/app.py:74</code></td>
+<td>Pools built from <code>StockfishConfig()</code></td>
+<td>Profile-driven.</td>
+</tr>
+<tr>
+<td><code>chess/analysis/jobs.py:131,470</code>, <code>api/learning.py:141</code>, <code>cli/analyse.py:46</code></td>
+<td>Per-call <code>StockfishAdapter(StockfishConfig())</code></td>
+<td>Profile-driven.</td>
+</tr>
+<tr>
+<td><code>chess/analysis/orchestration.py</code>, <code>reuse.py</code>, <code>learning/exercises/sound_moves.py</code></td>
+<td>Import <code>EngineAdapter</code> protocol from <code>providers.stockfish.adapter</code></td>
+<td>Engine-neutral protocol; also exported from <code>providers.engine.adapters</code>.</td>
+</tr>
+<tr>
+<td><code>providers/stockfish/identity.py</code></td>
+<td><code>engine_name</code> fallback <code>"Stockfish"</code>; networks only <code>EvalFile</code>/<code>EvalFileSmall</code></td>
+<td>Fallback is now the executable stem; <code>WeightsFile</code> added. Stockfish identity unchanged.</td>
+</tr>
+<tr>
+<td><code>providers/stockfish/pool.py</code> (before this change)</td>
+<td><code>Skill Level</code>/<code>UCI_LimitStrength</code>/<code>UCI_Elo</code>/<code>Threads</code>/<code>Hash</code> sent unconditionally</td>
+<td>Sent only when declared; profile options validated.</td>
+</tr>
+<tr>
+<td><code>chess/opponents/bot_policy.py</code></td>
+<td>Configures <code>Skill Level 20</code>, <code>UCI_LimitStrength</code>, <code>UCI_Elo 1320</code>; error text names Stockfish</td>
+<td>Stockfish-only; pool converts the failure into <code>EngineCapabilityError</code>.</td>
+</tr>
+<tr>
+<td><code>chess/opponents/stockfish_opponent.py</code></td>
+<td>Legacy path clamps strength to 0–20 <code>Skill Level</code>; non-pool path calls <code>popen_uci</code> and sets Stockfish options directly</td>
+<td>Stockfish-only.</td>
+</tr>
+<tr>
+<td><code>api/play.py:51,69–74,248–262</code>, <code>chess/games/play_session_service.py:100–162</code>, <code>chess/games/participants.py:28–39</code>, <code>api/data_lifecycle.py:1989</code>, <code>api/strength.py:29–122</code></td>
+<td>Opponent provider name <code>"stockfish"</code>, display names "Stockfish (level …)", strength cohorts</td>
+<td>Opponent labels; unchanged (Stockfish-only opponents).</td>
+</tr>
+<tr>
+<td><code>chess/games/clocks.py:266–285</code></td>
+<td>Clocked opponent uses <code>StockfishOpponentProvider(StockfishConfig())</code></td>
+<td>Same as opponents.</td>
+</tr>
+<tr>
+<td><code>learning/tolerance.py:11</code></td>
+<td><code>win_probability</code> uses the Lichess logistic on <code>score_cp</code></td>
+<td>Assumes Stockfish-scale centipawns. Ethereal and Berserk declare a <code>Normalize</code> option (default on); other engines' scales can differ. Not engine-adjusted.</td>
+</tr>
+<tr>
+<td><code>chess/analysis/orchestration.py:91–102</code>, <code>jobs.py</code> (swing 150 cp), <code>learning/diagnosis/arbitration.py</code> ("Eval drop &gt;= 2.0")</td>
+<td>Centipawn thresholds and mate-to-score mapping</td>
+<td>Same score-scale assumption.</td>
+</tr>
+<tr>
+<td><code>chess/analysis/review.py:12</code> (<code>REVIEW_NODES = 10_000</code>), hint 200k nodes / 1.5 s, focused-pass nodes, <code>learning/evidence/composer.py</code> (mate source <code>nodes == 1_000_000</code>)</td>
+<td>Node budgets sized for Stockfish's nodes/second</td>
+<td>Hint budget overridable per profile; every budget scales by <code>engine.node_scale</code> for engines with slow nodes (Lc0, Maia-3).</td>
+</tr>
+<tr>
+<td><code>learning/exercises/exact_replay.py:42</code></td>
+<td><code>Verification(engine="stockfish")</code> label</td>
+<td>Label only; does not record the actual engine. Follow-up.</td>
+</tr>
+<tr>
+<td><code>learning/evaluation/m93_protocol.py:18</code>, <code>m94_protocol.py:30</code>, <code>lichess_themes.py:718</code></td>
+<td>Measurement protocols pinned to "Stockfish 19"</td>
+<td>Intentional: frozen evaluation protocols.</td>
+</tr>
+<tr>
+<td><code>cli/serve.py</code></td>
+<td>Checks the active profile's binary: <code>stockfish</code> on <code>PATH</code> (or <code>SCAN64_STOCKFISH_PATH</code>) for the default profile, the profile's <code>binary_path</code> otherwise</td>
+<td>Profile-driven; the error names the profile that needs the missing binary.</td>
+</tr>
+<tr>
+<td><code>cli/main.py:27</code>, <code>cli/bots.py</code></td>
+<td><code>calibrate --stockfish</code> and calibration output</td>
+<td>Calibration is Stockfish-only by design.</td>
+</tr>
+<tr>
+<td><code>Dockerfile</code>, <code>scripts/build-server.py</code>, <code>scan64-server.spec</code>, desktop shell</td>
+<td>Bundle and pin Stockfish 18, Caissa 2.0 and Arasan 26.1 with their networks; the shell passes <code>SCAN64_STOCKFISH_PATH</code> and <code>SCAN64_BUNDLED_ENGINES_DIR</code></td>
+<td>A fresh install selects Caissa and Arasan (<a href="#which-engines-an-install-uses">Which engines an install uses</a>); other engines are operator-provided.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_*</code></td>
+<td>Pool sizes</td>
+<td>Engine-neutral.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="building-a-second-engine">Building a second engine</h2>
+<p>No C toolchain is assumed. The binaries used for the measurements below were
+built on Windows 11 x64 with Zig 0.17.1's bundled clang
+(<code>uv tool run --from ziglang python -m ziglang cc</code>, target
+<code>x86_64-windows-gnu</code>, AVX2 flags) into <code>~/.local/opt/engines/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Commit</th>
+<th>Build</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ethereal 14.40</td>
+<td><code>0e47e9b</code></td>
+<td><code>cc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -DUSE_PEXT -DUSE_AVX2 -mavx2 -mfma -mbmi2 -mpopcnt src/*.c src/pyrrhic/tbprobe.c -lpthread -lm</code> (classical evaluation; no network download)</td>
+</tr>
+<tr>
+<td>Berserk 20261114</td>
+<td><code>1d2354d</code></td>
+<td>makefile <code>SRC</code> list with <code>-DEVALFILE="berserk-6fd12bbd95c8.nn"</code> (network downloaded from <code>jhonnold/berserk-networks</code>, SHA-256 prefix verified, embedded)</td>
+</tr>
+<tr>
+<td>Obsidian dev-16.15</td>
+<td><code>720614a</code></td>
+<td><code>c++ -std=c++17 -O3 -DEvalFile="net89perm.bin" src/*.cpp</code> + <code>src/fathom/src/tbprobe.c</code></td>
+</tr>
+<tr>
+<td>Koivisto 9.2</td>
+<td><code>6de225a</code></td>
+<td><code>c++ -std=c++17 -O3 -DEVALFILE="../networks/default.net"</code> over <code>src_files/*.cpp</code>, networks submodule</td>
+</tr>
+</tbody>
+</table>
+<p>Then point a profile at the binary (for example <code>config/engines/ethereal.toml</code>)
+and set <code>SCAN64_ENGINE_CONFIG</code>. <code>tests/integration/test_second_engine.py</code> runs a
+stored game through the production analysis job and the hint pool with
+Ethereal (or <code>SCAN64_TEST_SECOND_ENGINE</code>). Outside CI it skips when no binary
+exists.</p>
+<p>Tests never read the developer's engine selection: an autouse fixture in
+<code>tests/conftest.py</code> removes <code>SCAN64_ENGINE_CONFIG</code>, <code>SCAN64_LADDER_ENGINE_CONFIG</code>
+and <code>SCAN64_STOCKFISH_PATH</code> before every test, so tests that run Stockfish use the <code>stockfish</code> on <code>PATH</code>.
+A test that needs a profile or a Stockfish path sets it itself.
+<code>SCAN64_TEST_SECOND_ENGINE</code> is a test input and is kept.</p>
+<h3 id="how-ci-provides-the-second-engine">How CI provides the second engine</h3>
+<p>CI does not build a second engine. The <code>Run repository quality gate</code> step in
+<code>.github/workflows/ci.yml</code> sets <code>SCAN64_TEST_SECOND_ENGINE</code> to
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/tests/fixtures/scripted_uci_engine.py"><code>tests/fixtures/scripted_uci_engine.py</code></a>:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id name</code></td>
+<td><code>Scan64 Scripted UCI Fixture</code> (does not start with <code>Stockfish</code>)</td>
+</tr>
+<tr>
+<td>Declared options</td>
+<td><code>Threads</code>, <code>Hash</code>, <code>MultiPV</code> only (no <code>Skill Level</code>, no <code>UCI_Elo</code>)</td>
+</tr>
+<tr>
+<td>Moves and scores</td>
+<td>Legal moves only; two-ply material search; <code>mate 1</code> for a mating move</td>
+</tr>
+<tr>
+<td>Each <code>info</code> line</td>
+<td><code>depth</code>, <code>seldepth</code>, <code>multipv</code>, <code>score</code>, <code>nodes</code>, <code>pv</code></td>
+</tr>
+<tr>
+<td>Engine identity</td>
+<td>The <code>sha256:</code> digest of the script file, so its rows never match Stockfish rows</td>
+</tr>
+</tbody>
+</table>
+<p>The fixture checks the configuration path, the stored line fields and cache
+separation. It does not check chess strength or the score scale of a real engine.</p>
+<p>With <code>CI</code> set (GitHub Actions sets it), the tests do not skip. A missing second
+engine or Stockfish fails both tests. A <code>SCAN64_TEST_SECOND_ENGINE</code> path that is
+not a file fails the tests everywhere.</p>
+<p>Why not Ethereal in CI: the Ethereal build above (commit <code>0e47e9b</code>, classical,
+<code>gcc -O3 -DUSE_POPCNT</code>) passes both tests locally. On the GitHub <code>ubuntu-latest</code>
+runner (AMD EPYC 9V74) the same build crashed with a segmentation fault on its
+first <code>go</code>. The engine pool then did not shut down, and the job hung for 45 minutes.
+An <code>-O1</code> ASan build did not crash there, so the cause is not found.</p>
+<p>Run the test locally against a real engine:</p>
+<pre><code class="language-bash">commit=0e47e9b67f345c75eb965d9fb3e2493b6a11d09a
+curl -fL -o ethereal.tar.gz &quot;https://github.com/AndyGrant/Ethereal/archive/$commit.tar.gz&quot;
+echo &quot;46ac749697f33271c24afb0d501092ab4f3b6986b37573f6c42cd728d34766bf  ethereal.tar.gz&quot; | sha256sum --check
+mkdir ethereal &amp;&amp; tar -xzf ethereal.tar.gz -C ethereal --strip-components=1
+(cd ethereal/src &amp;&amp; gcc -std=gnu11 -O3 -DNDEBUG -DUSE_NNUE=0 -DUSE_POPCNT -mpopcnt *.c pyrrhic/tbprobe.c -lpthread -lm -o ../../Ethereal)
+SCAN64_TEST_SECOND_ENGINE=&quot;$PWD/Ethereal&quot; uv run pytest tests/integration/test_second_engine.py
+</code></pre>
+<p>Run it against the CI fixture:</p>
+<pre><code class="language-bash">SCAN64_TEST_SECOND_ENGINE=&quot;$PWD/tests/fixtures/scripted_uci_engine.py&quot; uv run pytest tests/integration/test_second_engine.py
+</code></pre>
+<h2 id="comparison-of-open-source-uci-engines">Comparison of open-source UCI engines</h2>
+<p>Measured with <a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/compare_engines.py"><code>benchmarks/engines/compare_engines.py</code></a>
+and <a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/engines.toml"><code>engines.toml</code></a>: five fixed positions,
+1,000,000 nodes, MultiPV 3, one thread, 64 MB hash, <code>UCI_ShowWDL</code> on where
+declared, fresh game per position. Raw lines:
+<code>benchmarks/engines/results/results_20261125_224843.jsonl</code>. One run on one
+machine; PV length depends on the node budget and on when each engine sends its
+last <code>info</code> line (Ethereal and Berserk report the last completed iteration, so
+their final <code>nodes</code> are 65–98 % of the budget). This is variation length and
+detail only, not playing strength.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Licence</th>
+<th>UCI</th>
+<th>MultiPV</th>
+<th>WDL</th>
+<th>Strength options</th>
+<th>PV length per line: start / Ruy Lopez / Kiwipete / Lucena / mate-in-one</th>
+<th>Median PV length</th>
+<th>Median depth / seldepth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stockfish 18</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td>yes</td>
+<td>with <code>UCI_ShowWDL</code></td>
+<td>Skill Level, UCI_LimitStrength, UCI_Elo</td>
+<td>21-16-18 / 25-1-16 / 19-26-17 / 18-13-14 / 1-23-23</td>
+<td>18</td>
+<td>19 / 33</td>
+</tr>
+<tr>
+<td>Ethereal 14.40 (classical)</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td>yes</td>
+<td>no</td>
+<td>none</td>
+<td>16-18-17 / 17-14-16 / 17-18-17 / 29-32-29 / 1-15-19</td>
+<td>17</td>
+<td>15 / 29</td>
+</tr>
+<tr>
+<td>Berserk 20261114</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes (default on)</td>
+<td>none</td>
+<td>18-19-21 / 15-18-17 / 13-21-24 / 22-22-32 / 1-21-20</td>
+<td>20</td>
+<td>18 / 24</td>
+</tr>
+<tr>
+<td>Obsidian dev-16.15</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td>yes</td>
+<td>no</td>
+<td>none</td>
+<td>2-18-4 / 1-4-20 / 2-5-3 / 25-25-1 / 1-22-18</td>
+<td>4</td>
+<td>17 / not reported</td>
+</tr>
+<tr>
+<td>Koivisto 9.2</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td><strong>no</strong></td>
+<td>no</td>
+<td>none</td>
+<td>17 / 17 / 27 / 33 / 1</td>
+<td>17</td>
+<td>19 / 27</td>
+</tr>
+<tr>
+<td>Lc0</td>
+<td>GPL-3.0</td>
+<td>yes</td>
+<td>yes</td>
+<td>with <code>UCI_ShowWDL</code></td>
+<td>none</td>
+<td>not measured</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Notes:</p>
+<ul>
+<li>The mate-in-one first line is always one move (<code>Qxf7#</code>).</li>
+<li>Obsidian often truncates its PV to 1–5 moves; Scan64 lesson lines and
+  narrator evidence get less continuation from it.</li>
+<li>Koivisto declares no <code>MultiPV</code>, so it cannot run focused passes, hints or
+  lesson verification (see feature table).</li>
+<li>Lc0 was not built here (it needs a neural-network backend, CUDA/cuDNN or
+  similar, and a weights file). Its licence (GPL-3.0) is from the upstream
+  repository; MultiPV and <code>UCI_ShowWDL</code> are from the
+  <a href="https://github.com/LeelaChessZero/lc0/wiki/Lc0-options">Lc0 options wiki</a>
+  and <a href="https://lczero.org/blog/2020/04/wdl-head/">WDL blog post</a>. Its nodes are
+  far more expensive than alpha-beta nodes, so equal node budgets are not
+  comparable and Scan64's fixed budgets would need per-use overrides.</li>
+</ul>
+<p>Re-run: <code>uv run python -m benchmarks.engines.compare_engines benchmarks/engines/engines.toml</code>
+(<code>--resume &lt;results.jsonl&gt;</code> continues an interrupted run). Engines whose binary
+is missing are recorded as "not installed".</p>
+<h2 id="engine-compatibility-set">Engine compatibility set</h2>
+<p><a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/compat.py"><code>benchmarks/engines/compat.py</code></a> runs every
+engine in <a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/compat.toml"><code>compat.toml</code></a> through Scan64's
+own features, each at its production entry point and budget, and records one
+of: <code>works</code>; <code>unavailable</code> (an <code>EngineCapabilityError</code>, with its exact reason,
+which the API returns as 503 <code>engine_capability_unavailable</code>); <code>blocked</code> (the
+focused pass, when game analysis did not work); <code>error</code> (any other exception:
+a bug). Each engine is selected through its profile in
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/config/engines/compat"><code>config/engines/compat/</code></a>, as a user selects it.</p>
+<pre><code>uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml
+uv run python -m benchmarks.engines.compat benchmarks/engines/compat.toml --only Lc0
+uv run python -m benchmarks.engines.compat CONFIG --resume RESULTS.jsonl
+</code></pre>
+<p>Features: <code>game_analysis</code> (fast pass, <code>REVIEW_NODES</code>), <code>focused_pass</code>
+(1,000,000 nodes, MultiPV 4), <code>hints</code> (play assistance), <code>lesson_verification</code>
+(MultiPV 2/4/8 widening), <code>analysis_board</code> (hint search, scored legal lines),
+<code>bot_ladder</code>, <code>skill_level_opponent</code>.</p>
+<p>Every record carries its provenance: the Scan64 <code>commit</code>, <code>dirty</code> (uncommitted
+changes under <code>src/</code> or <code>benchmarks/</code>), and the SHA-256 of the profile file and
+of the resolved engine binary. A profile whose binary is missing records <code>not
+installed</code>.</p>
+<p>Scan64 downloads and bundles none of these engines. Each user installs the
+engine and points a profile at it.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Source</th>
+<th>Licence</th>
+<th>Behaviour it stresses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alexandria</td>
+<td>https://github.com/PGG106/Alexandria</td>
+<td>GPL-3.0</td>
+<td>no MultiPV; unusual centipawn scale</td>
+</tr>
+<tr>
+<td>Minic</td>
+<td>https://github.com/tryingsomestuff/Minic</td>
+<td>GPL-3.0</td>
+<td>MultiPV capped below 8; non-standard WDL option</td>
+</tr>
+<tr>
+<td>Obsidian</td>
+<td>https://github.com/gab8192/Obsidian</td>
+<td>GPL-3.0</td>
+<td>truncated PVs</td>
+</tr>
+<tr>
+<td>Triumviratus</td>
+<td>https://github.com/Tors3/Triumviratus</td>
+<td>GPL-3.0</td>
+<td>network from an external file</td>
+</tr>
+<tr>
+<td>Fairy-Max</td>
+<td>Debian package <code>fairymax</code></td>
+<td>public domain; also GPL or MIT (see below)</td>
+<td>XBoard only; no MultiPV, Hash or Threads</td>
+</tr>
+<tr>
+<td>Fairy-Stockfish</td>
+<td>https://github.com/fairy-stockfish/Fairy-Stockfish</td>
+<td>GPL-3.0</td>
+<td>several protocols; evaluation-term trace</td>
+</tr>
+<tr>
+<td>Rodent V</td>
+<td>https://github.com/nescitus/Rodent-V</td>
+<td>GPL-3.0</td>
+<td>large option list; personality files</td>
+</tr>
+<tr>
+<td>PZChessBot</td>
+<td>https://github.com/kevlu8/PZChessBot</td>
+<td>AGPL-3.0</td>
+<td>lower-case option names</td>
+</tr>
+<tr>
+<td>Lc0</td>
+<td>https://github.com/LeelaChessZero/lc0</td>
+<td>GPL-3.0 (network licence not stated)</td>
+<td>slow neural nodes; no Hash</td>
+</tr>
+<tr>
+<td>Maia-3</td>
+<td>https://github.com/CSSLab/maia3</td>
+<td>AGPL-3.0 (weights licence not stated)</td>
+<td>Python UCI wrapper; rating options</td>
+</tr>
+</tbody>
+</table>
+<p>Fairy-Max's licence is the notice at the top of <code>fairymax.c</code> in the Debian
+source package <code>fairymax_5.0b.orig.tar.gz</code> (unchanged by the Debian patches):
+"Fairy-Max 5.0 is free software, released in the public domain so that you have
+my permission do with it whatever you want, whether it is commercial or not, at
+your own risk. Those that are not comfortable with this, can also use or
+redistribute it under the GNU Public License or the MIT License." The notice
+names no GPL version. The package's <code>debian/copyright</code> gives upstream files the
+custom licence <code>fairmyax-license</code> (sic), whose text is the older Fairy-Max 4.8
+grant: "Fairy-Max 4.8 is free software, and you have my permission do with it
+whatever you want, whether it is commercial or not." It does not mention the
+GPL or MIT. Both texts add that configuring patented variants needs the patent
+holders' permission and that there is no warranty. The results tables generated
+before this change (<code>benchmarks/engines/results/compat_*.md</code>) still say "not
+stated at source".</p>
+<h3 id="results">Results</h3>
+<p>Windows smoke (windows-4080, 2026-11-27): Stockfish 18 and Ethereal 14.40 from
+the comparison above, and the XBoard test engine
+<code>tests/fixtures/engines/fake_xboard.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>game_analysis</th>
+<th>focused_pass</th>
+<th>hints</th>
+<th>lesson_verification</th>
+<th>analysis_board</th>
+<th>bot_ladder</th>
+<th>skill_level_opponent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stockfish 18</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+</tr>
+<tr>
+<td>Ethereal 14.40</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable¹</td>
+<td>unavailable²</td>
+</tr>
+<tr>
+<td>XBoard test engine</td>
+<td>works</td>
+<td>unavailable³</td>
+<td>unavailable³</td>
+<td>unavailable³</td>
+<td>unavailable³</td>
+<td>unavailable⁴</td>
+<td>unavailable²</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>"The bot ladder requires UCI option(s) Skill Level, UCI_LimitStrength,
+   which Ethereal 14.40 (PEXT) does not declare". The table was recorded before
+   5732be7, when the reset also required <code>UCI_Elo</code>.</li>
+<li>"Skill Level opponent play requires UCI option(s) Skill Level, which … does
+   not declare".</li>
+<li>"4 analysis lines need MultiPV, which FakeXBoard 1 cannot provide over
+   XBoard" (lesson verification: 2 lines).</li>
+<li>As 1, plus <code>MultiPV</code>.</li>
+</ol>
+<p>Linux run (linux-5090, 2026-11-27, commit <code>edda2ed</code>, #411): the ten engines
+above plus Stockfish 11, Lc0 with the BT4 network, Caissa, Arasan, Ethereal,
+Berserk and Koivisto, from <code>benchmarks/engines/compat-linux.toml</code> with the
+profiles in <code>config/engines/compat/linux/</code>. The states are copied from
+<code>benchmarks/engines/results/compat_20261127_202247.jsonl</code>, except the two Lc0
+rows, which come from <code>compat_20261127_233522.jsonl</code> (an Lc0-only rerun at
+<code>747152f</code>, after the profiles moved to wrapper scripts; same states as
+<code>202247</code>). The generated tables with the reason for every <code>unavailable</code> and
+<code>blocked</code> cell, and the run notes, are the <code>.md</code> files next to them. Each engine's source, tag and
+commit, build command, binary SHA-256 and network URL and SHA-256 are in
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/linux-builds.md"><code>benchmarks/engines/linux-builds.md</code></a>;
+the binary SHA-256 is also in every JSONL record. This table replaces nothing above.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Version</th>
+<th>Protocol</th>
+<th>node_scale</th>
+<th>game_analysis</th>
+<th>focused_pass</th>
+<th>hints</th>
+<th>lesson_verification</th>
+<th>analysis_board</th>
+<th>bot_ladder</th>
+<th>skill_level_opponent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stockfish 18</td>
+<td>18</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+</tr>
+<tr>
+<td>Alexandria</td>
+<td>9.1.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Minic</td>
+<td>3.46</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Obsidian</td>
+<td>16.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Triumviratus</td>
+<td>8.1</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Fairy-Max</td>
+<td>5.0b</td>
+<td>XBoard</td>
+<td>1</td>
+<td>unavailable</td>
+<td>blocked</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Fairy-Stockfish</td>
+<td>14</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+</tr>
+<tr>
+<td>Rodent V</td>
+<td>1.2</td>
+<td>UCI</td>
+<td>1</td>
+<td>unavailable</td>
+<td>blocked</td>
+<td>works</td>
+<td>unavailable</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>PZChessBot</td>
+<td>8.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Lc0</td>
+<td>0.32.1 (T1 net)</td>
+<td>UCI</td>
+<td>0.12</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Lc0 (BT4)</td>
+<td>0.32.1 (BT4 net)</td>
+<td>UCI</td>
+<td>0.013</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Maia-3</td>
+<td>0.1.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Caissa</td>
+<td>2.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Arasan</td>
+<td>26.1</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Stockfish 11</td>
+<td>11</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+</tr>
+<tr>
+<td>Ethereal</td>
+<td>14.40</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Berserk</td>
+<td>14</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+<tr>
+<td>Koivisto</td>
+<td>9.0</td>
+<td>UCI</td>
+<td>1</td>
+<td>works</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+<td>unavailable</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>unavailable</code> on the multi-line features (Alexandria, PZChessBot, Koivisto):
+  "N analysis lines need the UCI option MultiPV, which … does not declare".</li>
+<li><code>bot_ladder</code> and <code>skill_level_opponent</code> are <code>unavailable</code> on every engine
+  without <code>Skill Level</code> (and, for the ladder, <code>UCI_LimitStrength</code>); Stockfish 18,
+  Stockfish 11 and Fairy-Stockfish declare them.</li>
+<li>Fairy-Max: "does not declare the XBoard setboard feature", so no feature runs
+  and <code>focused_pass</code> is <code>blocked</code>.</li>
+<li>Rodent V ignores <code>go nodes N</code>; with the profile's <code>search_deadline_s = 30</code>
+  its node-only searches (<code>game_analysis</code>, <code>lesson_verification</code>) are
+  <code>unavailable</code> after 30 s and <code>focused_pass</code> is <code>blocked</code>. Hints and the
+  Analysis Board have a time limit and work.</li>
+<li>Arasan 26.1 stops after about 6k nodes for any N and Maia-3 ignores node
+  limits, so their node-budget features <code>work</code> with less search than asked
+  (see Follow-ups).</li>
+<li>Lc0's <code>node_scale</code> is measured nodes per second against Stockfish 18 (T1
+  0.12, BT4 0.013); Maia-3 stays at 1.</li>
+</ul>
+<h2 id="follow-ups">Follow-ups</h2>
+<ul>
+<li>Separate the opponent engine from the analysis engine (app/play wiring) so a
+  non-Stockfish analysis profile keeps Stockfish bot play.</li>
+<li><code>exact_replay.py</code> should record the actual engine name in <code>Verification</code>.</li>
+<li>The bot ladder fails on engines with MultiPV but no strength controls
+  (Ethereal): it requires the Stockfish reset options even where the engine is
+  always at full strength.</li>
+<li>The pool-less legacy Skill Level opponent (<code>stockfish_opponent.py</code>) still
+  starts the engine with <code>popen_uci</code> and sets <code>Hash</code> unconditionally.</li>
+<li>The bot ladder's node-limited MultiPV search and Skill Level play do not
+  go through the search deadline yet; <code>[limits]</code> accepts only <code>hint</code>.</li>
+<li>The legacy Skill Level opponent (sessions without <code>bot_level</code>) has no
+  <code>UCI_Elo</code> path; it still needs <code>Skill Level</code>.</li>
+<li>A bot game open when <code>[ladder]</code> or the engine changes cannot continue (see
+  the ladder section); it stays in its recorded cohort, and the player starts
+  a new game.</li>
+<li>An engine that stops far short of <code>go nodes N</code> (Arasan 26.1, about 6k nodes
+  for any N) reports <code>works</code> with much less search than asked for; no state in
+  the compatibility table shows it.</li>
+<li>Profiles have no working directory, environment variables or command-line
+  arguments (Rodent V, Triumviratus and Maia-3 need wrapper scripts on Linux),
+  and option values get no <code>~</code> expansion (both Lc0 profiles use a wrapper that
+  passes <code>--weights</code> from <code>$HOME</code>).</li>
+</ul>
+<h2 id="variants">Variants</h2>
+<p>What Scan64 does with variants is in "Chess variants (#398)" above. This
+section records which engines can serve them and how python-chess selects a
+variant, measured with the variant probe below.</p>
+<h3 id="engines">Engines</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>python-chess board</th>
+<th><code>UCI_Variant</code></th>
+<th>Fairy-Stockfish 14</th>
+<th>Standard-chess engines (Stockfish 18 probed)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Crazyhouse</td>
+<td><code>CrazyhouseBoard</code></td>
+<td><code>crazyhouse</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Three-check</td>
+<td><code>ThreeCheckBoard</code></td>
+<td><code>3check</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Atomic</td>
+<td><code>AtomicBoard</code></td>
+<td><code>atomic</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Antichess</td>
+<td><code>AntichessBoard</code></td>
+<td><code>antichess</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>King of the hill</td>
+<td><code>KingOfTheHillBoard</code></td>
+<td><code>kingofthehill</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Horde</td>
+<td><code>HordeBoard</code></td>
+<td><code>horde</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Racing kings</td>
+<td><code>RacingKingsBoard</code></td>
+<td><code>racingkings</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>"yes" means the engine lists the value in its <code>UCI_Variant</code> option and
+analysed every probe position of that variant. Fairy-Stockfish 14 declares 64
+<code>UCI_Variant</code> values in all; the seven above are those python-chess has
+boards for. Stockfish 18 declares no <code>UCI_Variant</code> option (probe run below).
+The other standard engines were not probed; they are standard-chess engines
+and are not treated as variant engines.</p>
+<p>Fairy-Stockfish (https://github.com/fairy-stockfish/Fairy-Stockfish) is
+GPL-3.0. Scan64 does not download or bundle it: the user installs the release
+binary and points a profile at it, for example
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/config/engines/linux/fairy-stockfish.toml"><code>config/engines/linux/fairy-stockfish.toml</code></a>
+(<code>fairy-stockfish_x86-64</code> in <code>~/.local/opt/engines/fairy-stockfish/</code>). #398
+states that no permissively licensed engine supports crazyhouse and
+three-check (not checked here), so Scan64 has no bundled variant engine.</p>
+<h3 id="how-the-variant-is-selected">How the variant is selected</h3>
+<p>The board selects the variant. python-chess sends <code>UCI_Variant</code> before every
+search from the type of the board it is given (<code>CrazyhouseBoard</code> sends
+<code>crazyhouse</code>) and raises <code>EngineError: cannot set UCI_Variant which is
+automatically managed</code> when a caller sets it. <code>UCI_Variant</code> is therefore one
+of the Scan64-managed options a profile may not set (see the rules above);
+a variant engine's profile is an ordinary profile. Before a search, read the
+values the engine declares (<code>engine.options["UCI_Variant"].var</code>). Without
+that check python-chess raises <code>EngineError</code> ("engine does not support
+UCI_Variant" for an engine without the option, "invalid value for combo option
+'UCI_Variant'" for a value it does not list), not a capability message.</p>
+<h3 id="probe-results">Probe results</h3>
+<p><a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/engines/variants_probe.py"><code>benchmarks/engines/variants_probe.py</code></a>
+analyses the start position and two or three fixed positions per variant,
+including crazyhouse positions with pieces in hand and three-check positions
+after checks (one where the side to move has a check left that wins). Each
+search: 300,000 nodes, MultiPV 3, one thread, 16 MB hash, a fresh game per
+position. The probe never sets <code>UCI_Variant</code>; a variant the engine does not
+list is recorded as <code>not declared</code> and not searched. Every move of each raw
+<code>pv</code> the engine sent is replayed on the python-chess variant board; an empty
+<code>pv</code> counts as not legal (python-chess itself drops a <code>pv</code> it cannot play, so
+its parsed lines cannot show an illegal move).</p>
+<p>linux-5090, 2026-11-28, commit <code>f10d6d6</code> (clean tree), Fairy-Stockfish 14
+release binary <code>fairy-stockfish_x86-64</code> (SHA-256 <code>ab6b8582…e150f</code>, no
+network file: <code>EvalFile</code> unset), python-chess 1.11.2, CPUs 32-39. Raw records:
+<code>benchmarks/engines/results/variants_probe_20261128_002851.jsonl</code>; the
+manifest and the per-position table (scores included) are the <code>.manifest.json</code>
+and <code>.md</code> files next to it. One run on one machine; PV length and time are
+not playing strength.</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Positions</th>
+<th>Lines per position</th>
+<th>PV lengths in plies, per position</th>
+<th>All PV moves legal</th>
+<th>Time per position</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Crazyhouse</td>
+<td>start, fried-liver, alekhine, scandinavian</td>
+<td>3</td>
+<td>14-16-17 / 2-8-12 / 2-11-11 / 13-2-11</td>
+<td>yes</td>
+<td>0.354–0.383 s</td>
+</tr>
+<tr>
+<td>Three-check</td>
+<td>start, white-two-checks, black-two-checks</td>
+<td>3</td>
+<td>2-2-13 / 2-2-2 / 1-2-12</td>
+<td>yes</td>
+<td>0.316–0.349 s</td>
+</tr>
+<tr>
+<td>Atomic</td>
+<td>start, knight-threat, pinned-knight</td>
+<td>3</td>
+<td>6-2-11 / 1-3-3 / 3-5-2</td>
+<td>yes</td>
+<td>0.037–0.294 s</td>
+</tr>
+<tr>
+<td>Antichess</td>
+<td>start, forced-capture, middlegame</td>
+<td>3; 1 in forced-capture</td>
+<td>15-2-16 / 12 / 12-14-2</td>
+<td>yes</td>
+<td>0.309–0.357 s</td>
+</tr>
+<tr>
+<td>King of the hill</td>
+<td>start, king-walk, italian</td>
+<td>3</td>
+<td>11-13-10 / 10-2-13 / 14-2-14</td>
+<td>yes</td>
+<td>0.354–0.410 s</td>
+</tr>
+<tr>
+<td>Horde</td>
+<td>start, opening, pawn-wedge</td>
+<td>3</td>
+<td>15-13-12 / 13-13-2 / 15-14-15</td>
+<td>yes</td>
+<td>0.355–0.401 s</td>
+</tr>
+<tr>
+<td>Racing kings</td>
+<td>start, race, knights-out</td>
+<td>3</td>
+<td>13-12-2 / 9-8-13 / 11-12-9</td>
+<td>yes</td>
+<td>0.337–0.352 s</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The forced-capture antichess position has one legal move, so it returns one
+  line.</li>
+<li>Mates end the line: black-two-checks (<code>...Bb4+</code>, the third check) and
+  knight-threat (<code>Nxf7</code>, whose explosion takes the e8 king) are <code>mate 1</code> with a
+  one-ply first line, and pinned-knight is <code>mate 2</code>. Knight-threat finished in
+  0.037 s.</li>
+<li>Many lines are 2 plies long. The probe does not show why; standard-chess
+  engines also return short MultiPV lines (Stockfish 18's 1-ply second line in
+  the comparison above).</li>
+</ul>
+<p>Stockfish 18 through the same probe (<code>variants_probe_20261128_002924.jsonl</code>,
+commit <code>ee61d81</code>, profile <code>config/engines/compat/linux/stockfish-18.toml</code>):
+every position is <code>not declared</code> ("Stockfish 18 declares no UCI_Variant
+option") and no search starts.</p>
+<p>Re-run:</p>
+<pre><code>taskset -c 32-39 uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux.toml
+uv run python -m benchmarks.engines.variants_probe benchmarks/engines/variants_probe_linux_stockfish.toml
+uv run python -m benchmarks.engines.variants_probe --summarise RESULTS.jsonl
+</code></pre>
+<p>A run writes <code>variants_probe_&lt;UTC stamp&gt;.jsonl</code>, its <code>.manifest.json</code> and a
+<code>.md</code> summary under <code>benchmarks/engines/results/</code>; there is no resume. The
+manifest records the commit and dirty flag (the whole tree, the results
+directory excluded), the engine's name, executable SHA-256 and option values,
+its declared <code>UCI_Variant</code> values, the config and profile SHA-256 and a config
+digest over them and every position, and the python-chess version. Its digest,
+<code>run_id</code>, is in every record. <code>--summarise</code> rebuilds the summary from the
+manifest and records alone and re-checks every PV's legality from the
+recorded FEN and moves. <code>tests/unit/test_variants_probe.py</code> covers the
+<code>not declared</code> path and the legality check with a scripted UCI engine
+(<code>tests/fixtures/engines/fake_variant_uci.py</code>).</p>
+<h3 id="what-scan64-lacks-for-variants">What Scan64 lacks for variants</h3>
+<p>Tracked in #398:</p>
+<ul>
+<li>Narration: the explanation endpoint refuses a variant with 422.</li>
+<li>The variant Analysis Board cannot load a FEN or an imported variant game;
+  it starts from the variant's start position.</li>
+<li>Game analysis (<code>ingest_pgn</code> raises <code>NonStandardVariantError</code>), review,
+  diagnosis, lessons, puzzles, bot play and position health stay standard
+  chess; variant games are stored, labelled and refused with 409
+  <code>variant_not_covered</code>.</li>
+</ul>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

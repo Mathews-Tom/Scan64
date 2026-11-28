@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System design · Scan64 documentation</title>
+<meta name="description" content="Runtime, components, the learning loop, privacy and engine capacity.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html" aria-current="page">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="scan64--system-design">Scan64 — System Design</h1>
+<p>This document describes the current implementation. Product behavior and operating instructions are in the <a href="user-guide.html">user guide</a>.</p>
+<h2 id="runtime">Runtime</h2>
+<p>The normal source entry point, <code>uv run scan64-cli serve</code>, serves the built React client and FastAPI on <code>http://127.0.0.1:8001</code>. Build the client first; <code>--host</code>, <code>--port</code> and <code>--no-browser</code> control binding and browser launch. <code>SCAN64_WEB_DIST</code> can select another built-client directory. API namespaces remain reserved, missing assets return 404, and extensionless client routes fall back to the application's HTML.</p>
+<p>The React shell loads screens on demand. In browsers, the service worker caches requested scripts so visited screens can reload offline. Analysis and desktop puzzle-import progress use authenticated streaming HTTP; the desktop updater pushes status through native events. Browsers do not run the updater.</p>
+<p>The Dockerfile builds the client, pinned Stockfish 18, Caissa 2.0 and Arasan 26.1, runs as a non-root user, and starts the same command on <code>0.0.0.0:8001</code> with <code>--no-browser</code>. Its database is <code>/data/scan64.db</code>; preserve the <code>/data</code> volume.</p>
+<p>The desktop app (macOS arm64, Windows x64, Linux x64) uses a Tauri 2 system-webview window containing that same React client. <code>scripts/build-server.py</code> freezes <code>scan64.desktop_server</code> through the one-folder <code>scan64-server.spec</code>, compiles the Dockerfile's SHA-256-pinned Stockfish 18 for the target and verifies both pinned networks. Tauri packages the server folder, engine/networks, corresponding GPL source archive, <code>Copying.txt</code>, Scan64 licence and notices as app resources. No Tk or browser process is required. Installers are not code-signed (macOS ad-hoc, not notarized; Windows not Authenticode-signed); update bundles are signed with the updater key and verified by the app.</p>
+<p>The shell selects a free loopback port, creates a per-launch shell token, starts the resource-directory server with a cleared, allowlisted environment, and waits up to 30 seconds with three retries. It passes the absolute bundled Stockfish path through <code>SCAN64_STOCKFISH_PATH</code> and the bundled Caissa and Arasan profiles' folder through <code>SCAN64_BUNDLED_ENGINES_DIR</code>, without modifying PATH, so application folders containing colons work too. The server records on first start which engines the install keeps (<a href="engines.html#which-engines-an-install-uses">which engines an install uses</a>). Only debug builds accept <code>SCAN64_SERVER_COMMAND</code> and <code>SCAN64_DEBUG_PUZZLE_URL</code> for development/CI. Startup failure shows the log path and Restart. The server serves no client files, permits only shell origins through CORS and requires the shell token for every request except minimal <code>/health</code>; player bearer authorization remains underneath.</p>
+<p>The fixed shell origin preserves player local storage across port changes. Data lives under the OS app-data directory <code>org.scan64.desktop</code> (macOS <code>~/Library/Application Support</code>, Windows <code>%APPDATA%</code>, Linux <code>${XDG_DATA_HOME:-~/.local/share}</code>), including <code>scan64.db</code>, <code>backups/</code> and <code>logs/server.log</code>; on Windows the webview's local storage, which holds the player token, lives separately under <code>%LOCALAPPDATA%\org.scan64.desktop\EBWebView</code>. Older desktop data is not migrated. A second launch focuses the existing window. Quit closes the server's stdin pipe; EOF triggers graceful shutdown and a three-second independent process-tree hard exit. macOS/Linux kill the isolated process group; Windows uses a kill-on-close Job Object, including engine descendants.</p>
+<p>For development, <code>scripts/run.sh</code> starts two local processes. Only the Vite client hot-reloads; the API runs without <code>--reload</code>, so restart the script after Python changes:</p>
+<pre><code class="language-text">FastAPI API:  http://127.0.0.1:8001
+React client: http://127.0.0.1:5173
+</code></pre>
+<p>The FastAPI lifespan migrates the local schema, initializes learning plugins, idempotently seeds the transfer catalog, creates Stockfish engine pools when pooling is enabled, and recovers pending/running analysis jobs. Shutdown stops admission work, closes the pools and clears the plugin registry.</p>
+<p>The API exposes <code>GET /health</code>, generated interactive documentation at <code>/docs</code>, and its machine-readable contract at <code>/openapi.json</code>.</p>
+<h2 id="components">Components</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Implemented responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/scan64-web</code></td>
+<td>React client for Today, onboarding, play, PGN import, game history, per-move review, Daily Training, puzzles, profile, opening explorer, famous-game study, and coach dashboard.</td>
+</tr>
+<tr>
+<td><code>src/scan64/api</code></td>
+<td>FastAPI routers, bearer-token ownership boundaries, idempotency middleware, lifecycle endpoints, reports, and application orchestration.</td>
+</tr>
+<tr>
+<td><code>src/scan64/chess</code></td>
+<td>Game/play-session state, Stockfish opponents, analysis jobs, diagnosis candidates, and admission control.</td>
+</tr>
+<tr>
+<td><code>src/scan64/learning</code></td>
+<td>Evidence, diagnostics, profile updates, spaced review, lesson attempts, transfer measurement, verification, and plugins.</td>
+</tr>
+<tr>
+<td><code>packages/chess-lesson-spec</code></td>
+<td>Versioned, renderer-independent Pydantic models for <code>LessonSpec</code>.</td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td>Default local persistence for players, games, analysis artifacts, evidence, lessons, schedules, study sessions, attempts, transfer measurements, puzzle runs/ratings/daily sets, onboarding, habit evidence, and lifecycle records.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="owned-learning-loop">Owned learning loop</h2>
+<pre><code class="language-mermaid">flowchart LR
+  Game[Played or imported game] --&gt; Analysis[Stockfish analysis]
+  Analysis --&gt; Evidence[Persisted evidence]
+  Evidence --&gt; Diagnosis[Diagnosis and opportunity]
+  Diagnosis --&gt; Lesson[Owned LessonSpec and review schedule]
+  Lesson --&gt; Attempt[Server-verified attempt]
+  Attempt --&gt; Profile[Mastery and review update]
+</code></pre>
+<h3 id="analysis-and-persistence">Analysis and persistence</h3>
+<p>A completed or resigned play session can enqueue analysis automatically. Imported games can be analysed through the owned game path. Analysis persists positions, engine analyses, and evidence for every flagged move. Only learning opportunities, lessons, and profile observations are limited to moves by the owner's side; the read paths do not depend on synthetic ownership.</p>
+<p>The analysis board renders every ply with persisted fast-pass scores, owner-move bands, accuracy and coverage, a White-perspective probability graph, and up to three trusted key moments. Review-only backfill is an explicit write for older games; ordinary reads do not search an engine. Retry lessons share their lifetime attempt budget with Daily Training. Analysis keeps at most five lessons at distinct source positions; retained lessons and coarse per-move scores are separate.</p>
+<h3 id="lessons-review-and-transfer">Lessons, review, and transfer</h3>
+<p>The service creates a durable opportunity, review schedule, and study session before serving an owned persisted lesson. Lesson moves are checked on the server; a verified attempt updates only the matching active skill and review schedule.</p>
+<p>Daily Training derives ordering from active mastery, due review, verified attempt history, fatigue, and an exploration floor. Opening Explorer missions remain a separate, ungraded path.</p>
+<p>Owned repertoires keep separate FSRS schedules for each saved decision. Repertoire reviews do not contribute to mastery, rating or diagnosis. Comparing imported games is read-only and matches equivalent legal positions across move orders.</p>
+<p>Transfer positions are seeded at application startup. When the existing mastery threshold is reached, the service can assign a separate transfer measurement; later training sessions serve it as a required exercise and its result is reported separately.</p>
+<h3 id="coach-mode-interruption">Coach-mode interruption</h3>
+<p>Coach mode is explicitly enabled on a play session. During eligible practice moves, the server can run a capacity-bounded diagnosis path. It returns a <code>CriticalInterruptionRead</code> only after persisting the owned opportunity, review schedule, and study session. Normal play, independent calculation, and ordinary post-game analysis do not claim this interruption behavior.</p>
+<h3 id="position-hints">Position hints</h3>
+<p><code>POST /v1/insights/position</code> requires the player's bearer token, <code>player_id</code>, and <code>step</code> (1–3), plus exactly one of <code>play_session_id</code> (an owned active game, on the player's turn) or <code>fen</code> (a valid, non-terminal position). Missing tokens return 401; a different player's identity or session is not disclosed (404); invalid FENs or missing/out-of-range steps return 422 and finished positions/sessions return 409. Session positions are reconstructed on the server, including repetition history.</p>
+<p>Only automatic game-over states are terminal here, matching Play: checkmate, stalemate, insufficient material, fivefold repetition, or the 75-move rule. A claimable threefold repetition or 50-move draw does not disable hints while the game remains active.</p>
+<p>Each response contains only the requested step's data:</p>
+<ul>
+<li><strong>Step 1 — nudge:</strong> <code>step</code>, a question in <code>text</code>, and <code>visualizations</code> highlighting one safe cue square. The square is never the origin or destination of any candidate (or any accepted lesson move). Without a safe reason square, the cue is the most valuable legally attacked opponent piece, otherwise the opponent's last-moved piece when history is available, otherwise the opponent king. The question matches the cue; only when none of these squares is available is it text-only with empty <code>visualizations</code>.</li>
+<li><strong>Step 2 — idea:</strong> <code>step</code>, <code>text</code>, <code>motif</code>, <code>piece</code>, its origin <code>square</code>, filtered <code>targets</code>, and square-highlight <code>visualizations</code>. Targets exclude every candidate destination; lessons also exclude every accepted move's origin and destination from targets.</li>
+<li><strong>Step 3 — moves:</strong> <code>step</code>, the source <code>fen</code>, up to three engine <code>candidates</code> within the shared win-probability-loss tolerance of 0.08, and <code>visualizations</code>. Candidates include their UCI move, SAN, engine line, numbered drawings, and board-validated reasons or an explicit engine-preference fallback.</li>
+</ul>
+<p>Steps 1 and 2 never include candidate SAN/UCI moves, engine lines, or destination drawings. FEN is omitted from those hint-only payloads; the client already has the source board. Lessons use the same three projections in <code>LessonSpec.hints</code>. Every step-3 reason carries a legal prefix of its own candidate's line. A mate threat means a new mate-in-one opportunity created by the candidate if the opponent did not respond; a mating move already available before the candidate is not credited. It does not claim the engine's actual reply allows mate. Previewing a line never changes the stored game or submits a move.</p>
+<p>Hydrating legacy lesson hints permits at most one fallback analysis per read. Invalid engine results consume that budget and mark the lesson invalid rather than temporarily unavailable; subsequent reads do not search that invalid lesson again.</p>
+<p>Hints use only the interactive pool: one hint is admitted at a time, leaving at least one engine available for opponent moves in the default two-engine configuration. Hints have no admission queue, wait at most 250 ms for a checkout, and search with MultiPV 4, 200,000 nodes and a 1.5-second search limit inside a three-second wall deadline (including lazy startup). Busy capacity returns retryable 503 with a visible panel message; hints are explicitly unavailable (503) when pooling is disabled or the interactive pool has fewer than two engines. Background batch work is never used for hints.</p>
+<p>Live-session hints persist server-side assistance before disclosure; that canonical source remains ineligible for positive good-move credit after reload or takeback. Candidate reasons separate tactical line proofs from local positional principles; neither engine preference nor a principle is a proof that a move wins. Bounded engine results can be reused without reusing player-specific disclosure or assistance records.</p>
+<h3 id="puzzles-orientation-and-habit-evidence">Puzzles, orientation and habit evidence</h3>
+<p>Puzzle catalogs are imported explicitly through <code>scan64-cli puzzles import</code>, or in the desktop window through Puzzles/Settings → Puzzle library. Desktop-only POST/GET/DELETE <code>/v1/app/puzzle-import</code> start, read and cancel one staged job. <code>GET /v1/app/puzzle-import/events</code> pushes Download → Read → Import → Save progress to the UI and sidebar. These endpoints require the shell token; browser/container servers return 404. Cancel/failure leaves the catalog unchanged, temporary downloads are removed, and selected local files remain untouched. Startup never downloads puzzles. Source-verified continuations, not Stockfish diagnoses, grade these multi-move runs. The server persists the active cursor, wrong-attempt budget and revealed hints, with revision checks for conflicting tabs. Daily sets are stable for a UTC day; first-exposure rating events use a separate 1200/K32 puzzle scale. Theme and solve-streak modes are unrated, and Your mistakes reuses owned lesson retries.</p>
+<p>Onboarding maps declared experience to an overridable bot suggestion, not measured strength. Puzzle rating and Stockfish level/policy result cohorts remain separate. Recurring patterns project retained trusted evidence, while habit outcome writers record qualifying solves and bounded pattern-target awards. Reads do not mint habit rewards. Puzzle hints are server-tracked; lesson zero-hint status is app-reported. Goals, calendar streaks and targets grant no rating or mastery bonus. See the <a href="user-guide.html#daily-goals-and-tracked-pattern-evidence">user guide</a> for qualification and coverage limits.</p>
+<h2 id="authorization-and-privacy">Authorization and privacy</h2>
+<p>Player identities receive bearer tokens. Player-reachable game, play-session, position, analysis-job, and lesson-attempt routes resolve the authenticated player before returning or changing owned data. Missing, malformed, ownerless, and non-owned resources intentionally share an undisclosing not-found response.</p>
+<p>Player-derived records participate in export, import, and deletion. Deletion is destructive; use a disposable local player and database while testing the lifecycle.</p>
+<h2 id="engine-capacity">Engine capacity</h2>
+<p>The analysis engine is any UCI engine selected by an engine profile
+(<code>SCAN64_ENGINE_CONFIG</code>); without one it is Stockfish from
+<code>SCAN64_STOCKFISH_PATH</code>, unchanged from earlier releases. Configuration, stored
+line fields, cache identity, per-feature UCI requirements and a measured engine
+comparison are in <a href="engines.html">Analysis engines</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Source</th>
+<th>Default</th>
+<th>Applies to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Engine binary</td>
+<td>profile <code>engine.binary_path</code>, else <code>SCAN64_STOCKFISH_PATH</code></td>
+<td><code>stockfish</code> on <code>PATH</code></td>
+<td>every pool process and per-call adapter</td>
+</tr>
+<tr>
+<td>Threads / Hash</td>
+<td>profile <code>engine.threads</code> / <code>engine.hash_mb</code></td>
+<td>1 / 16 MB</td>
+<td>sent only if the engine declares them</td>
+</tr>
+<tr>
+<td>Extra UCI options</td>
+<td>profile <code>[engine.options]</code></td>
+<td>none</td>
+<td>validated against the engine's declared options at start</td>
+</tr>
+<tr>
+<td>Hint search</td>
+<td>profile <code>[limits.hint]</code></td>
+<td>200,000 nodes, 1.5 s, MultiPV 4</td>
+<td>interactive hints</td>
+</tr>
+<tr>
+<td>Review / focused / verification search</td>
+<td>callers</td>
+<td>10,000-node review; fixed focused and verification budgets</td>
+<td>batch analysis</td>
+</tr>
+<tr>
+<td>Interactive pool size</td>
+<td><code>SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY</code></td>
+<td>2</td>
+<td>hints, and opponents unless a ladder profile is set</td>
+</tr>
+<tr>
+<td>Ladder pool</td>
+<td><code>SCAN64_LADDER_ENGINE_CONFIG</code></td>
+<td>none: opponents use the interactive pool</td>
+<td>opponent moves; sized like the interactive pool</td>
+</tr>
+<tr>
+<td>Batch pool size</td>
+<td><code>SCAN64_ENGINE_POOL_BATCH_CONCURRENCY</code></td>
+<td><code>max(2, CPUs − interactive − ladder engine threads − 1)</code>; the ladder term applies when a separate ladder profile is active</td>
+<td>analysis jobs and backfill</td>
+</tr>
+</tbody>
+</table>
+<p>Each stored line records the full PV, the cp or mate score and, when reported,
+WDL, depth, seldepth, nodes, nps and the MultiPV index; older rows without
+those fields load unchanged. Bot-ladder and Skill Level opponents need
+Stockfish's strength options and fail with a named <code>EngineCapabilityError</code> on
+engines without them.</p>
+<p>Engine work uses separate interactive and batch pools by default. Interactive opponent work is isolated from background analysis. Admission control applies a per-player daily quota to immediately admitted analysis games; work beyond the quota remains queued fairly rather than rejected. At most four admitted analysis games run at once per server event loop; the rest wait without holding a database connection, so a bulk import leaves connections for API requests. A job first waits on its game's lock and only then takes a run slot, so duplicate jobs for one game cannot occupy slots that other games need.</p>
+<p>Fast and focused analysis passes keep at most the batch pool's engine count of searches in flight, preserve position order, and cancel and await outstanding searches before returning a failure. Without a pool, analysis remains serial and starts only one engine at a time.</p>
+<p>Batch game analysis and explicit review backfill reuse ordinary saved analyses
+only from positions linked to the same owner's games. Read-only projections are
+loaded in bounded FEN batches with autoflush disabled before searching. Keys
+include the full FEN (including clocks), executable SHA-256, external network
+content when present, all effective UCI defaults/overrides, exact nodes/depth/time
+limits and MultiPV. Each engine process identifies its executable once; legacy
+unknown or incomplete identities miss. The reported engine name stays unchanged.
+A different engine binary always has a different key, so a new engine never
+reuses Stockfish rows.</p>
+<p>Hits create fresh detached analysis IDs and independent result/config payloads;
+source analyses, game links, review occurrences and lesson provenance never move.
+Every completed batch call, including intermediate MultiPV 2/4/8 verification
+and rejected/sound lesson candidates, is staged on its source position and saved
+only in the existing atomic final write phase. Failed or cancelled work does not
+publish partial cache rows. There is no cache table, migration, background writer
+or hint/opponent cache change; export, import and deletion use the existing
+analysis lifecycle.</p>
+<p>Runtime controls:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_DATABASE_URL</code></td>
+<td><code>sqlite:///database.db</code></td>
+<td>SQLite database URL.</td>
+</tr>
+<tr>
+<td><code>SCAN64_DATA_DIR</code></td>
+<td>SQLite database directory for puzzle downloads</td>
+<td>Overrides the puzzle download directory; does not relocate the database. The desktop app sets it to its app-data directory.</td>
+</tr>
+<tr>
+<td><code>SCAN64_WEB_DIST</code></td>
+<td><code>apps/scan64-web/dist</code> in a source checkout</td>
+<td>Built web-client directory; Docker sets <code>/app/web</code>.</td>
+</tr>
+<tr>
+<td><code>SCAN64_BUNDLED_ENGINES_DIR</code></td>
+<td>unset</td>
+<td>Folder of bundled engine profiles (<code>caissa.toml</code>, <code>arasan.toml</code>) used on a fresh install; Docker and the desktop app set it.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ANALYSIS_DAILY_QUOTA</code></td>
+<td><code>50</code></td>
+<td>Immediately admitted analysis games per player per day; <code>0</code> queues every job.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of an engine profile TOML; selects the analysis engine. See <a href="engines.html">Analysis engines</a>.</td>
+</tr>
+<tr>
+<td><code>SCAN64_STOCKFISH_PATH</code></td>
+<td><code>stockfish</code> on <code>PATH</code></td>
+<td>Stockfish binary when no engine profile is set.</td>
+</tr>
+<tr>
+<td><code>SCAN64_LADDER_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of an engine profile TOML for bot moves only; unset, bot moves use the analysis engine. See <a href="engines.html">Analysis engines</a>.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY</code></td>
+<td><code>2</code></td>
+<td>Interactive engine pool size.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_BATCH_CONCURRENCY</code></td>
+<td><code>max(2, available CPUs − interactive pool size − 1)</code></td>
+<td>Batch engine pool size; uses process affinity where supported, otherwise the system CPU count. An unknown CPU count uses the minimum of 2.</td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_ENABLED</code></td>
+<td>enabled</td>
+<td>Set <code>0</code>, <code>false</code>, <code>no</code>, or <code>off</code> to construct engines per call.</td>
+</tr>
+<tr>
+<td><code>SCAN64_MAIA_CONFIG</code></td>
+<td>unset</td>
+<td>Operator-owned Maia configuration file.</td>
+</tr>
+<tr>
+<td><code>SCAN64_LLM_CONFIG</code></td>
+<td>unset</td>
+<td>Optional explanation-provider configuration file.</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code></td>
+<td><code>180</code></td>
+<td>Deadline for one local Ollama explanation (model listing plus chat), (0, 600].</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES</code></td>
+<td><code>262144</code></td>
+<td>Largest serialised local explanation request, [1024, 16 MiB].</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES</code></td>
+<td><code>262144</code></td>
+<td>Largest local Ollama response body, [1024, 16 MiB].</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code></td>
+<td><code>4096</code></td>
+<td><code>num_ctx</code> sent to local Ollama; a prompt that fills it is rejected, [2048, 131072].</td>
+</tr>
+</tbody>
+</table>
+<h2 id="optional-providers">Optional providers</h2>
+<p>Stockfish is required for the local application with the default engine profile (<code>scan64-cli serve</code> checks for <code>stockfish</code> on <code>PATH</code>, or the <code>SCAN64_STOCKFISH_PATH</code> binary). An engine profile can select another UCI engine for analysis; <code>scan64 serve</code> then checks that profile's binary and does not need Stockfish. Bot play is unavailable under a non-Stockfish profile: play never falls back to Stockfish, and bot-move requests return 503 with code <code>bot_play_unavailable</code>. The player's committed move stays saved, and the web client shows that bot play is unavailable under the active engine profile. Maia is optional and requires operator-provided assets; follow <a href="maia.html">Maia operator provisioning</a>. Optional LLM explanations never replace the deterministic chess-analysis path: generated claims are validated against evidence before use.</p>
+<p>The desktop starts with deterministic templates. Settings probes only the fixed Ollama loopback endpoint without chess evidence. Generation requires an installation-local owner grant, rechecked immediately before evidence dispatch. Missing or rejected output falls back to templates. Claim text is grounded as well as its cited line: <code>explanations/validator.py</code> reads each claim with a fixed grammar (SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns within 25 cp, mate-in-N, material, check, side to move, castling, promotion, en passant and named tactics) and checks every fact against the cited evidence payload and the boards it proves. A move must be one of that evidence's verified or payload moves at the point it is legal; a chess token outside the grammar rejects the claim. Each fallback is logged with a reason code, never evidence contents, and counted in-process (<code>template_fallback_counts()</code> in <code>explanations/assembly.py</code>). The model never receives raw engine payloads: <code>explanations/facts.py</code> builds a JSON document (<code>schemas/narrator-facts.schema.json</code>) with, for every move of every verified line, SAN, UCI, piece, capture, check, mate, promotion, castling, material after the move, new undefended threats and the stored engine evaluation after the move (or <code>unknown</code>; no search runs in the explanation path), plus side to move, evaluations before and after the played move, the best move and its evaluation, their difference and the mistake class. Every line starts at the position before the mistake and is cut after 8 plies. The validator admits evaluations, material balances and attacks only where those facts or the cited evidence's boards prove them. Evidence whose lines do not replay legally falls back to the template. See <a href="narrator-pipeline.html">Narrator pipeline</a>. Disabling changes only future generation, never stored explanations. Operator-supplied <code>SCAN64_LLM_CONFIG</code> retains precedence where explicitly configured.</p>
+<h2 id="deliberate-limits">Deliberate limits</h2>
+<ul>
+<li>SQLite is the implemented local storage target; PostgreSQL production verification is not delivered.</li>
+<li>No hosted deployment is documented or supported here.</li>
+<li>Behavioural-habit and context-conditioned profiling are not implemented as calibrated production capabilities.</li>
+<li>The shared board exposes readable coordinates/pieces/side/check/result, legal choices and strict UCI/canonical English SAN entry through the same authoritative chess state and move callback as pointer input. Replay and Famous Game study remain read-only; Famous Game prediction resolves locally and submits canonical SAN to unchanged server grading. Navigation, hints, retries, promotion and responsive controls target WCAG 2.2 AA across shipped routes. Conformance is not certified: human Safari/VoiceOver acceptance is pending owner observation, and no universal AT support is claimed. See <a href="user-guide.html#keyboard-touch-and-screen-readers">keyboard coverage and limits</a>.</li>
+<li>Persisted engine payload retention and compaction are not configurable.</li>
+</ul>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

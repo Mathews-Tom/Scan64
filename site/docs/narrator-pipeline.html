@@ -1,0 +1,1547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narrator pipeline · Scan64 documentation</title>
+<meta name="description" content="How engine lines become a checked explanation, with or without a model.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html" aria-current="page">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="narrator-pipeline-how-engine-variations-reach-the-explanation-llm">Narrator pipeline: how engine variations reach the explanation LLM</h1>
+<p>Status: describes current behaviour only. Written for issue #361 at commit <code>8f0071168be9d4a31f4573246660c76977a3b94d</code> (branch <code>epic/371</code>); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, <code>think: false</code>, <code>num_ctx</code> 4096). <code>file:line</code> references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.</p>
+<p>The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (<code>{played}</code>, <code>{capture:best}</code>) and code fills each slot from the facts (section 13). Its output is shown only if <code>validate_generated_explanation</code> accepts it. Otherwise the deterministic template is shown.</p>
+<p>Paths are relative to the repository root.</p>
+<h2 id="1-flow-overview">1. Flow overview</h2>
+<pre><code class="language-mermaid">flowchart TD
+    SF[&quot;Stockfish UCI process&quot;] --&gt; AD[&quot;StockfishAdapter.analyze_position / PooledStockfishAdapter.analyze_position&lt;br/&gt;providers/stockfish/adapter.py, pool.py&lt;br/&gt;keeps pv + score only&quot;]
+    AD --&gt; EA[&quot;EngineAnalysis.raw_result&lt;br/&gt;chess/analysis/models.py&quot;]
+    EA --&gt; FP[&quot;FastPassOrchestrator.run_fast_pass&lt;br/&gt;MultiPV 1, REVIEW_NODES=10 000&quot;]
+    EA --&gt; FO[&quot;FocusedPassOrchestrator.run_focused_pass&lt;br/&gt;after-position, MultiPV 4, 1 000 000 nodes&quot;]
+    EA --&gt; MS[&quot;mate source search&lt;br/&gt;before-position, MultiPV 4, 1 000 000 nodes&lt;br/&gt;only if needs_mate_source&quot;]
+    FP --&gt; CE[&quot;compose_candidate_evidence&lt;br/&gt;learning/evidence/composer.py&quot;]
+    FO --&gt; CE
+    MS --&gt; CE
+    CE --&gt; DX[&quot;detectors + arbitrate_diagnoses&lt;br/&gt;learning/diagnosis/arbitration.py&quot;]
+    DX --&gt; DG[&quot;Diagnosis(primary, evidence_refs)&quot;]
+    DG --&gt; RE[&quot;resolve_explanation&lt;br/&gt;explanations/assembly.py&quot;]
+    CE --&gt; RE
+    RE --&gt; TP[&quot;TemplateExplanationProvider.explain&lt;br/&gt;always computed first&quot;]
+    RE --&gt; NF[&quot;build_narrator_facts&lt;br/&gt;explanations/facts.py&lt;br/&gt;JSON, schemas/narrator-facts.schema.json&quot;]
+    NF --&gt;|&quot;NarratorFactsError&quot;| TP
+    NF --&gt;|&quot;SCAN64_LLM_CONFIG set&quot;| OP[&quot;create_llm_provider&lt;br/&gt;OllamaExplanationAdapter (think false, num_ctx 4096) / HostedExplanationAdapter&quot;]
+    NF --&gt;|&quot;unset + owner grant&quot;| LO[&quot;LocalOllamaExplanationProvider&lt;br/&gt;127.0.0.1:11434, SCAN64_LOCAL_LLM_* limits&lt;br/&gt;default 180 s, 256 KiB / 256 KiB, think false, num_ctx 4096&quot;]
+    GR[&quot;OwnerExplanationSettings&lt;br/&gt;explanations/settings.py&lt;br/&gt;api/explanation_settings.py&quot;] --&gt; LO
+    OP --&gt; VA[&quot;validate_generated_explanation&lt;br/&gt;explanations/validator.py&quot;]
+    LO --&gt; VA
+    VA --&gt;|&quot;accepted&quot;| EX[&quot;Explanation(text, claims)&quot;]
+    VA --&gt;|&quot;GroundedExplanationValidationError&quot;| TP
+    OP --&gt;|&quot;LLMProviderError&quot;| TP
+    LO --&gt;|&quot;LLMProviderError&quot;| TP
+    TP --&gt; EX2[&quot;Explanation(text, claims=[])&quot;]
+    EX --&gt; FH[&quot;fill_lesson_hints overwrites explanation.visualizations&lt;br/&gt;from lesson source analysis&quot;]
+    EX2 --&gt; FH
+    FH --&gt; DB[&quot;PersistedLessonOpportunity.lesson_spec&quot;]
+    DB --&gt; API[&quot;GET /v1/games/{id}/learning-opportunities&lt;br/&gt;GET /v1/learning/session&lt;br/&gt;POST /v1/play-sessions/{id}/moves (critical_interruption)&quot;]
+    API --&gt; UI[&quot;CriticalMomentReview.tsx, DailyTrainingScreen.tsx,&lt;br/&gt;OwnedGameReview.tsx: render explanation.text&quot;]
+</code></pre>
+<h2 id="2-engine-analysis-srcscan64providersstockfish">2. Engine analysis (<code>src/scan64/providers/stockfish/</code>)</h2>
+<p>Both adapters run <code>chess.engine</code> <code>analyse(board, limit, multipv=multipv)</code> and reduce each info dict to two fields:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Kept</th>
+<th>Form</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StockfishAdapter.analyze_position</code> (<code>adapter.py:76-124</code>)</td>
+<td><code>pv</code></td>
+<td>list of UCI strings, full length as Stockfish reports it</td>
+</tr>
+<tr>
+<td>same</td>
+<td><code>score</code></td>
+<td><code>score_cp</code> or <code>score_mate</code>, relative to the side to move (<code>info["score"].pov(board.turn)</code>)</td>
+</tr>
+<tr>
+<td><code>PooledStockfishAdapter.analyze_position</code> (<code>pool.py:127-178</code>)</td>
+<td>same two fields</td>
+<td>same</td>
+</tr>
+</tbody>
+</table>
+<p>Dropped by both adapters (not copied into <code>raw_result</code>): <code>depth</code>, <code>seldepth</code>, <code>nodes</code>, <code>nps</code>, <code>time</code>, <code>hashfull</code>, <code>tbhits</code>, the <code>multipv</code> index, <code>lowerbound</code>/<code>upperbound</code> flags, <code>currmove</code>, <code>refutation</code>, <code>string</code>. WDL is not produced: neither adapter sets <code>UCI_ShowWDL</code>.</p>
+<p><code>EngineAnalysis.config</code> (<code>chess/analysis/models.py:21-29</code>) records the engine identity and the <em>requested</em> limits (<code>nodes</code>, <code>depth</code>, <code>time_ms</code>, <code>multipv</code>), not the depth reached. The adapter does not cut PV length. Every later cut happens downstream.</p>
+<p><code>PoolBoundAdapter</code> (<code>pool.py:235-260</code>) and <code>BatchAnalysisAdapter</code> (<code>chess/analysis/reuse.py:34</code>) produce the same <code>raw_result</code> shape. <code>BatchAnalysisAdapter</code> reuses saved rows keyed by FEN and config.</p>
+<h2 id="3-analysis-jobs-and-the-focused-pass-srcscan64chessanalysis">3. Analysis jobs and the focused pass (<code>src/scan64/chess/analysis/</code>)</h2>
+<p><code>resolve_explanation</code> has three callers. Each one feeds <code>compose_candidate_evidence</code> different engine budgets:</p>
+<table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Fast pass (<code>fast_analysis</code>, <code>reply_analysis</code>)</th>
+<th><code>focused_analysis</code></th>
+<th>Mate source</th>
+<th>LLM provider</th>
+<th>Time budget around the LLM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run_analysis_for_game</code> (<code>jobs.py:91</code>)</td>
+<td><code>FastPassConfig(nodes=REVIEW_NODES)</code>; <code>REVIEW_NODES = 10_000</code> (<code>review.py:12</code>), MultiPV 1</td>
+<td><code>FocusedPassConfig(nodes=1_000_000, multipv=4)</code> on the <strong>after</strong> position (<code>jobs.py:150-158</code>)</td>
+<td>1 000 000 nodes, MultiPV 4, before position (<code>jobs.py:195-198</code>)</td>
+<td>operator config, else <code>read_local_explanation_provider</code> (<code>jobs.py:332-337</code>)</td>
+<td>Local Ollama 4 s; hosted: httpx default 5 s per request (the <code>httpx.AsyncClient()</code> that <code>resolve_explanation</code> opens at <code>assembly.py:162</code>)</td>
+</tr>
+<tr>
+<td><code>analyse_command</code> (<code>cli/analyse.py:26</code>)</td>
+<td><code>FastPassConfig(nodes=10000)</code> (<code>analyse.py:48</code>), MultiPV 1</td>
+<td><code>analyze_position(candidate.fen, nodes=1_000_000, multipv=4)</code> (<code>analyse.py:84</code>)</td>
+<td>same as above (<code>analyse.py:86-90</code>)</td>
+<td>operator config only; no <code>local_provider</code> (<code>analyse.py:153</code>)</td>
+<td>as above</td>
+</tr>
+<tr>
+<td><code>prepare_coach_interruption</code> (<code>coach_interruption.py:146</code>), called from <code>play_session_service.py:449,686</code></td>
+<td><code>analyze_interactive(nodes=COACH_DIAGNOSTIC_NODES)</code>, 10 000 nodes, MultiPV 1 (<code>coach_interruption.py:205-210</code>)</td>
+<td><strong><code>after_analysis</code> reused</strong>: 10 000 nodes, MultiPV 1 (<code>coach_interruption.py:250</code>)</td>
+<td>as above (<code>coach_interruption.py:237-241</code>)</td>
+<td>operator config, else local grant (<code>_resolve_coach_explanation</code>, <code>coach_interruption.py:130-143</code>)</td>
+<td><code>COACH_EXPLANATION_TIMEOUT_SECONDS = 0.25</code> for consent read plus generation; on <code>TimeoutError</code>, template</td>
+</tr>
+</tbody>
+</table>
+<p><code>run_analysis_for_game</code> with the batch pool also scores every position along each prepared lesson's verified lines (10 000 nodes, MultiPV 1) before resolving its explanation (section 5, "Evaluations along lines").</p>
+<p><code>FastPassOrchestrator.run_fast_pass</code> (<code>orchestration.py:144</code>) flags a candidate when the mover's swing exceeds <code>swing_threshold_cp</code> (150). <code>FocusedPassOrchestrator.run_focused_pass</code> (<code>orchestration.py:224</code>) searches <code>candidate.fen</code>, the position <strong>after</strong> the mistake, with the opponent to move.</p>
+<p>The lesson source search <code>analyze_lesson_source</code> (<code>learning/exercises/sound_moves.py:57</code>) runs 1 000 000 nodes at MultiPV 2, 4, then 8 on the before-position. It builds the accepted-move set and the hints (<code>fill_lesson_hints</code>). It is <strong>not</strong> passed to <code>resolve_explanation</code>, so it never reaches the LLM.</p>
+<h2 id="4-evidence-composition-srcscan64learningevidencecomposerpy">4. Evidence composition (<code>src/scan64/learning/evidence/composer.py</code>)</h2>
+<p><code>compose_candidate_evidence</code> (<code>composer.py:331-607</code>) builds a <code>provenance</code> dict (<code>composer.py:355-373</code>). Every evidence item it emits copies that dict into its payload. Engine-derived provenance fields:</p>
+<table>
+<thead>
+<tr>
+<th>Payload field</th>
+<th>Content</th>
+<th>Origin position</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fast_line</code></td>
+<td>full <code>pv</code> of <code>fast_analysis.raw_result[0]</code> (<code>_pv_line</code>, <code>composer.py:56</code>)</td>
+<td>before</td>
+</tr>
+<tr>
+<td><code>proving_line</code></td>
+<td>full <code>pv</code> of <code>reply_analysis.raw_result[0]</code></td>
+<td>after</td>
+</tr>
+<tr>
+<td><code>source_score_mate</code></td>
+<td><code>score_mate</code> of <code>fast_analysis.raw_result[0]</code></td>
+<td>before</td>
+</tr>
+<tr>
+<td><code>focused_multipv</code></td>
+<td>the whole <code>focused_analysis.raw_result</code> list: every MultiPV entry with full <code>pv</code> and <code>score_cp</code>/<code>score_mate</code></td>
+<td>after</td>
+</tr>
+<tr>
+<td><code>focused_line</code></td>
+<td>full <code>pv</code> of <code>focused_analysis.raw_result[0]</code> only</td>
+<td>after</td>
+</tr>
+<tr>
+<td><code>fast_score_cp</code> / <code>fast_score_mate</code></td>
+<td>best-line score of <code>fast_analysis</code> (side to move = learner); <code>None</code> when not reported</td>
+<td>before</td>
+</tr>
+<tr>
+<td><code>reply_score_cp</code> / <code>reply_score_mate</code></td>
+<td>best-line score of <code>reply_analysis</code> (side to move = opponent); <code>None</code> when not reported</td>
+<td>after</td>
+</tr>
+<tr>
+<td><code>swing_cp</code>, <code>analysis_depth</code>, <code>before_fen</code>, <code>after_fen</code>, <code>played_move</code> (SAN)</td>
+<td>scalars</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>fast_analysis_id</code>, <code>reply_analysis_id</code>, <code>focused_analysis_id</code>, <code>diagnosis_rule_version</code>, <code>diagnosis_capabilities</code></td>
+<td>identifiers</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The fast and reply scores were added for #367. Evidence rows stored earlier lack the four score keys; the line pass (<code>line_evaluations</code>, section 5) scores those positions when it runs, else the narrator facts mark those evaluations <code>unknown</code>.</p>
+<p><code>line_evaluations</code> (#367) is added to each evidence item a lesson references, after the lesson is chosen and before its explanation is resolved. Each entry is <code>{fen, score_cp, score_mate, analysis_id}</code>: one 10 000-node MultiPV 1 search (<code>LINE_NODES</code>) of a position along the item's verified lines, scores from the side to move of <code>fen</code>. The search is also stored as an <code>EngineAnalysis</code> row of the game.</p>
+<p>Per-kind additions (all at <code>composer.py</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>Extra engine fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>allowed mate (<code>composer.py:399-425</code>)</td>
+<td><code>mate_source_config</code> (engine identity and limits), <code>mate_source_multipv</code> (four before-position lines with scores), <code>before_score_mate</code>, <code>before_score_cp</code>, <code>after_score_mate</code>, <code>mate_in</code>, <code>mating_line</code> (= <code>proving_line</code>)</td>
+</tr>
+<tr>
+<td>hanging piece (<code>composer.py:426-436</code>)</td>
+<td><code>hanging_square</code>, <code>hanging_piece</code>, <code>material_gain</code>, <code>exchange_gain</code></td>
+</tr>
+<tr>
+<td>missed check / capture (<code>composer.py:443-486</code>)</td>
+<td>single move <code>best_move</code> = <code>fast_line[0]</code></td>
+</tr>
+<tr>
+<td>knight fork / pin / overload (<code>composer.py:487-504</code>)</td>
+<td><code>best_move</code>; pin adds <code>pinning_move</code> (= <code>best_move</code>)</td>
+</tr>
+<tr>
+<td>missed direct threat (<code>composer.py:512-539</code>)</td>
+<td>single move <code>threat_move</code> = <code>proving_line[0]</code></td>
+</tr>
+<tr>
+<td>king safety (<code>composer.py:540-553</code>)</td>
+<td>single move <code>incoming_threat</code> = <code>proving_line[0]</code></td>
+</tr>
+<tr>
+<td>calculation hypothesis (<code>composer.py:556-571</code>)</td>
+<td><code>sequence_plies</code> = <code>len(proving_line)</code></td>
+</tr>
+<tr>
+<td>motifs (<code>composer.py:588-606</code>, <code>motifs.py:66</code>)</td>
+<td>motif squares and pieces; back rank adds <code>mating_line</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only codes in <code>TRUSTED_CODES</code> (<code>learning/diagnosis/trust.py:12-21</code>) reach an explanation: hanging piece, missed check, missed capture, missed direct threat, allowed mate, knight fork. <code>arbitrate_diagnoses</code> (<code>arbitration.py:79</code>) always returns an empty secondary tuple.</p>
+<h2 id="5-explanation-assembly-and-the-prompt-srcscan64explanationsassemblypy">5. Explanation assembly and the prompt (<code>src/scan64/explanations/assembly.py</code>)</h2>
+<p><code>resolve_explanation</code> (<code>assembly.py:115-168</code>):</p>
+<ol>
+<li>Computes <code>TemplateExplanationProvider().explain(diagnosis, evidence)</code> first (<code>assembly.py:135</code>).</li>
+<li>If <code>SCAN64_LLM_CONFIG</code> is unset: uses <code>local_provider</code> if given, else returns the template (<code>assembly.py:139-148</code>).</li>
+<li>If it is set: <code>LLMProviderConfig.from_toml</code>. With <code>provider = "template"</code>, it returns the template. Otherwise <code>create_llm_provider</code> builds an adapter. Operator config overrides the owner grant. Steps 2 and 3 are <code>run_with_explanation_provider</code>, shared with the Analysis Board path (section 12).</li>
+<li><code>_attempt_grounded_generation</code> (<code>assembly.py:99-112</code>) builds the grounding context and the request, calls <code>provider.generate</code>, and validates the result.</li>
+</ol>
+<p><code>_attempt_grounded_generation</code> first calls <code>build_narrator_facts(diagnosis, evidence, fen)</code> (<code>explanations/facts.py</code>). A <code>NarratorFactsError</code> (no referenced evidence, unparsable FEN, payload <code>before_fen</code> differing from <code>fen</code>, referenced items disagreeing on <code>played_move</code> or <code>before_fen</code>, an illegal played move or stored line, an untaxonomised code) logs a warning and falls back to the template with reason <code>invalid_evidence</code>; no provider is called. <code>fen</code> is the <strong>before</strong> position in all three callers (<code>jobs.py</code>, <code>analyse.py</code>, <code>coach_interruption.py</code>). <code>_grounding_context</code> keeps the referenced evidence, takes the verified lines from the facts (<code>verified_lines_by_evidence</code>) and sets <code>requested_hint_level = 3</code>.</p>
+<p><code>_explanation_request</code> produces two messages (#408; before, the <code>NarratorFacts</code> JSON was a second user message):</p>
+<ul>
+<li><code>system</code>: <code>NARRATOR_SYSTEM_PROMPT</code>, then the voice line (section 14). It states that code computed every fact with the board library, the engine and the factor module. Its slot rules (<code>slot_rules</code>, shared with the Analysis Board prompt) tell the model to write every chess fact only as a slot from the slot list and to copy slot names exactly; to write no moves, squares, piece names, colours, numbers or evaluations outside slots, and a chess word only when the slot list allows it as a plain word (section 13); and to name a cause only through a <code>{factor:...}</code> slot, and no cause without one. It asks for claims with the quoted <code>evidence_ref</code> of an evidence item (never a line ID), <code>line</code> <code>[]</code>, and names the sides "you" and "your opponent".</li>
+<li><code>user</code>: the slot list (<code>SlotCatalogue.prompt</code>, section 13): the slots with their code-rendered values, the mistake class (<code>{mistake}</code>), the plain chess words each evidence item allows, the factor module version, and an example claim text built from this position's own slots.</li>
+</ul>
+<p>The <code>NarratorFacts</code> document is not sent. It stays in the pipeline: it builds the slots and the grounding context, and <code>to_prompt_json</code> remains its compact serialisation for storage and tests.</p>
+<p><code>_grounding_context</code> also sets <code>slots</code> to <code>lesson_slot_catalogue(facts)</code>, so the validator checks provider output on the slot path (section 8).</p>
+<h3 id="narrator-facts-schemasnarrator-factsschemajson-narrator-facts1">Narrator facts (<code>schemas/narrator-facts.schema.json</code>, <code>narrator-facts/1</code>)</h3>
+<p>The schema is generated from the pydantic models in <code>explanations/facts.py</code> (<code>uv run python -m scan64.explanations.facts</code>); <code>tests/unit/test_narrator_facts.py</code> fails when the stored file is stale and parses every prompt built from the fixture corpus with <code>NarratorFacts.model_validate_json(..., strict=True)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Object</th>
+<th>Fields</th>
+<th>Computed by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>factors</code> (#408)</td>
+<td><code>source</code> (factor module version), <code>points</code> (<code>before</code>, <code>played</code>, <code>best</code>: moves from the before-position, <code>quiet</code>), <code>engine_swing_cp</code>, <code>changes[]</code> (<code>key</code>, <code>name</code>, <code>kind</code>, <code>guide_name</code>, <code>compared_with</code>, <code>change_pawns</code>)</td>
+<td>factor module at quiet positions; section 16</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td><code>fen</code>, <code>side_to_move</code> (the learner), <code>material</code>, <code>played_move</code> and <code>best_move</code> (move facts), <code>evaluation_before</code>, <code>evaluation_after</code> (after the played move), <code>best_move_evaluation</code>, <code>evaluation_difference_cp</code> (best minus played, both centipawn scores only), <code>swing_cp</code>, <code>mistake_class</code> (<code>code</code> = <code>diagnosis.primary</code>, <code>name</code> from the taxonomy seeds)</td>
+<td>python-chess; evaluations from stored searches</td>
+</tr>
+<tr>
+<td><code>evidence[]</code></td>
+<td><code>evidence_id</code>, <code>kind</code>, <code>claim</code>, <code>line_ids</code>, <code>pieces</code> (square, piece, colour, payload role), <code>squares</code>, <code>tactic</code>, <code>mate_in</code>, <code>material_gain</code></td>
+<td>payload fields</td>
+</tr>
+<tr>
+<td><code>lines[]</code></td>
+<td><code>line_id</code>, <code>origins</code> (payload fields), <code>begins_with_played_move</code>, <code>uci</code> (citable), <code>full_plies</code> (set when cut), <code>moves[]</code></td>
+<td>python-chess replay</td>
+</tr>
+<tr>
+<td>move facts</td>
+<td><code>ply</code>, <code>side</code>, <code>mover</code> (<code>learner</code>/<code>opponent</code>), <code>san</code>, <code>uci</code>, <code>piece</code>, <code>captures</code> (piece, colour, square; en passant names the captured pawn's square), <code>check</code>, <code>checkmate</code>, <code>promotion</code>, <code>castling</code>, <code>material_after</code> (white, black, learner advantage; pawn 1, knight 3, bishop 3, rook 5, queen 9), <code>new_threats</code>, <code>evaluation_after</code></td>
+<td>python-chess; evaluation from stored searches</td>
+</tr>
+</tbody>
+</table>
+<p><code>new_threats</code> lists the opponent-of-mover pieces, kings excluded, that are attacked by the mover and not defended after the move and were not attacked-and-undefended before it.</p>
+<p><strong>Line coordinates.</strong> Every line starts at the position before the learner's move. Lines searched from the position after it (<code>focused_line</code>, every <code>focused_multipv</code> entry, <code>proving_line</code>, <code>threat_move</code>, <code>incoming_threat</code>, and <code>mating_line</code> for an allowed mate) are prefixed with the learner's move. <code>fast_line</code>, <code>best_move</code>, <code>pinning_move</code>, every <code>mate_source_multipv</code> entry and a back-rank motif's <code>mating_line</code> start at the before-position as stored. Identical lines are merged (<code>origins</code> lists every source field); a line that is a prefix of another is merged into the longer one. Each line is cut after <code>MAX_LINE_PLIES = 8</code> plies and <code>full_plies</code> records the engine line's length. The validator accepts the cut lines only.</p>
+<p><strong>Evaluations.</strong> No engine search runs in the explanation path. Game analysis scores the lines before (see "Evaluations along lines" below). <code>StoredEvaluations.from_payload</code> maps positions to scores already in the payload: each <code>line_evaluations</code> entry to its position (source <code>line_pass</code>); the fast score to the position after <code>fast_line[0]</code> and to <code>evaluation_before</code>; the reply score to the position after the played move (<code>evaluation_after</code>); each <code>focused_multipv</code> entry to the position after the played move and that entry's first move; each <code>mate_source_multipv</code> entry to the position after its first move. Later searches overwrite earlier ones for the same position: the line pass first, then fast and reply (10 000 nodes), then focused and mate source (1 000 000 nodes). When the fast or reply score is missing (evidence stored before #367), <code>evaluation_before</code> or <code>evaluation_after</code> is the line pass score of that position. A move whose position no search scored has <code>evaluation_after</code> <code>{"status": "unknown"}</code>. Scores are converted to the learner's point of view; mates are <code>mate_in</code> full moves, negative when the learner is mated. <code>source</code> names the search.</p>
+<p><strong>Evaluations along lines (#367, #368).</strong> <code>score_verified_lines</code> (<code>chess/analysis/line_scoring.py</code>) runs in <code>run_analysis_for_game</code> for each lesson it prepares, before <code>resolve_explanation</code>:</p>
+<ol>
+<li><code>unscored_line_positions</code> lists the positions after each ply of each verified line of the referenced evidence (cut at <code>MAX_LINE_PLIES = 8</code>), and the line start when <code>evaluation_before</code> is unknown. It skips positions a stored search already scored and game-over positions (the move facts state checkmate or stalemate). Each position appears once, ordered by ply.</li>
+<li><code>BatchAnalysisAdapter.prefetch</code> loads the owner's saved searches of those FENs. A saved row is reused only at the exact key: FEN, engine identity (executable SHA-256, networks, every UCI option) and limits. Rows are never reused across engines.</li>
+<li>The rest are searched through the job's batch adapter (the batch pool; no new pool, rule 14), <code>LINE_NODES = 10 000</code> nodes, MultiPV 1, up to the batch pool's concurrency at once. Every search is staged as an <code>EngineAnalysis</code> row with the job's other searches, on a <code>Position</code> row of the game. <code>GET /v1/games/{game_id}/positions</code> lists only the positions the game's moves reach, so line positions are not shown as moves of the game.</li>
+<li>The scores are written to each item's payload as <code>line_evaluations</code>.</li>
+</ol>
+<p>The per-call adapter (no pool, <code>SCAN64_ENGINE_POOL_ENABLED=0</code>) and <code>scan64 analyse</code> do not score lines: they would start one engine process per position (about 0.4 s each). Their lines keep only the stored scores.</p>
+<p><strong>Line summary.</strong> Each verified line has <code>evaluation_change</code> (<code>LineEvaluationChange</code>): <code>start</code> (<code>evaluation_before</code>), <code>end</code> (the <code>evaluation_after</code> of its last scored move), <code>end_ply</code>, and <code>change_cp</code> (<code>end - start</code>, learner's view, only when both are centipawns). It is absent when the start or every move is unscored.</p>
+<p><strong>Measured</strong> (linux-5090, AMD Ryzen Threadripper 9960X, Stockfish 18, one thread per engine, warm batch pool of 2, 50 narrator benchmark lessons; <code>tests/fixtures/record_narrator_line_evaluations.py</code> and a pooled run of the same function):</p>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Searches per lesson</td>
+<td>median 33, maximum 56</td>
+</tr>
+<tr>
+<td>Added engine time per lesson, batch pool of 2</td>
+<td>median 240 ms, p95 347 ms, maximum 355 ms</td>
+</tr>
+<tr>
+<td>Added engine time per lesson, one engine</td>
+<td>median 440 ms, maximum 699 ms</td>
+</tr>
+<tr>
+<td>Line plies with a score, without the line pass</td>
+<td>272 of 2119 (12.8%)</td>
+</tr>
+<tr>
+<td>Line plies with a score, with the line pass</td>
+<td>2098 of 2119 (99.0%)</td>
+</tr>
+</tbody>
+</table>
+<p>The 21 unscored plies are game-over positions. A game analysis prepares at most 5 lessons, so the added engine time is at most about 5 × 0.36 s per game on this machine.</p>
+<p>Not in the prompt: the diagnosis confidence, <code>position_id</code>, <code>engine_analysis_id</code> and <code>producer</code> of each evidence item, unreferenced evidence, engine identities and configs, analysis IDs, the lesson's accepted moves and the lesson source analysis (MultiPV 2/4/8).</p>
+<p>Measured prompt sizes on real Stockfish evidence are in section 6.</p>
+<h3 id="where-variations-are-cut">Where variations are cut</h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Cut</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Adapter</td>
+<td>all info fields except <code>pv</code> and score</td>
+<td><code>adapter.py:103-114</code>, <code>pool.py:158-168</code></td>
+</tr>
+<tr>
+<td>Fast pass</td>
+<td>MultiPV 1, 10 000 nodes</td>
+<td><code>jobs.py:135-141</code>, <code>analyse.py:48</code>, <code>coach_interruption.py:205-210</code></td>
+</tr>
+<tr>
+<td>Focused pass</td>
+<td>MultiPV 4 (jobs, CLI). Coach: MultiPV 1, 10 000 nodes, the fast reply reused</td>
+<td><code>jobs.py:152-155</code>, <code>analyse.py:84</code>, <code>coach_interruption.py:250</code></td>
+</tr>
+<tr>
+<td>Prompt and verified lines</td>
+<td>every stored line of the referenced evidence (section 5), each cut after 8 plies with <code>full_plies</code> recorded; lesson source analysis excluded</td>
+<td><code>MAX_LINE_PLIES</code>, <code>verified_lines</code> in <code>facts.py</code></td>
+</tr>
+<tr>
+<td>Validator replay origin</td>
+<td>every verified line is replayed from the <strong>before</strong> FEN; after-position lines carry the played move as their first move</td>
+<td><code>_validate_line</code>, <code>validator.py</code></td>
+</tr>
+<tr>
+<td>Local Ollama request</td>
+<td>serialised request body &gt; <code>SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES</code> (default 256 KiB) raises <code>LLMProviderError</code></td>
+<td><code>LocalOllamaLimits</code>, <code>local_ollama.py</code></td>
+</tr>
+<tr>
+<td>Local Ollama response</td>
+<td>body &gt; <code>SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES</code> (default 256 KiB) raises <code>LLMProviderError</code></td>
+<td><code>LocalOllamaLimits</code>, <code>local_ollama.py</code></td>
+</tr>
+<tr>
+<td>Local Ollama time</td>
+<td><code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code> (default 180 s, maximum 600 s) for model listing plus chat, one <code>asyncio.timeout</code>; 180 s covers a cold model load plus the slowest measured request. The evidence-free settings probe keeps 4 s</td>
+<td><code>LocalOllamaLimits</code>, <code>_PROBE_SECONDS</code>, <code>local_ollama.py</code></td>
+</tr>
+<tr>
+<td>Coach</td>
+<td>0.25 s for consent read plus generation</td>
+<td><code>coach_interruption.py:39,139</code></td>
+</tr>
+<tr>
+<td>Ollama context</td>
+<td>both Ollama paths send <code>options.num_ctx</code>: the local provider <code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code>, the operator adapter <code>llm.context_tokens</code>. The default is 4096 (<code>DEFAULT_OLLAMA_CONTEXT_TOKENS</code>, #429): the longest prompt plus a 2,048-token answer (system prompt and slot list only since #408: largest measured 1,565 tokens for a lesson in the #428 benchmark and 1,608 for the Analysis Board at MultiPV 4, section 16; with the facts JSON, before #408, about 7,400 and 6,000). The default was 12288 before #429. Use at least 4096. A response whose <code>prompt_eval_count</code> reaches <code>num_ctx</code> raises <code>LLMProviderError</code> (Ollama drops the start of a longer prompt). <code>test_llm_context_budget.py</code> fails if the largest fixture prompt of either kind (every lesson fixture diagnosis; every recorded Analysis Board position at the hint MultiPV), at <code>estimated_prompt_tokens</code> (2.4 characters per token; the #428 benchmark's lowest measured ratio is 2.63), plus 2,048 output tokens exceeds the default, or if <code>PROMPT_TOKEN_TARGET</code> plus 2,048 does</td>
+<td><code>OllamaExplanationAdapter.generate</code>, <code>adapters.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>Before #367 the after-position lines (<code>focused_line</code>, <code>threat_move</code>, <code>incoming_threat</code>) were replayed from the before FEN, began with an opponent move and were always rejected as illegal. They are now prefixed with the played move, so every trusted code can cite its continuation, for example <code>["g1f3", "g5g2"]</code> (the learner's Nf3, then the reply Qxg2). A line from the after-position without the played move is still rejected (<code>illegal_line_move</code>).</p>
+<h2 id="6-providers-srcscan64providersllm">6. Providers (<code>src/scan64/providers/llm/</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Transport</th>
+<th>Output contract</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OllamaExplanationAdapter</code></td>
+<td><code>POST {base_url}/api/chat</code>, <code>stream: false</code>, <code>think: false</code> (#429: the narrator must not reason; the benchmark measured every model with it), <code>format</code> = <code>GeneratedExplanation</code> JSON schema; with <code>context_tokens</code>, also <code>options.num_ctx</code></td>
+<td><code>message.content</code> parsed by <code>GeneratedExplanation.model_validate_json</code>; with <code>context_tokens</code>, <code>prompt_eval_count &gt;= context_tokens</code> raises <code>LLMProviderError</code> (truncated prompt)</td>
+<td><code>adapters.py</code></td>
+</tr>
+<tr>
+<td><code>HostedExplanationAdapter</code></td>
+<td><code>POST {base_url}/v1/chat/completions</code>, bearer key from <code>llm.api_key_environment</code>, one forced strict function <code>submit_grounded_explanation</code></td>
+<td><code>tool_calls[0].function.arguments</code> parsed the same way; <code>_strict_schema</code> marks every property required and removes defaults</td>
+<td><code>adapters.py:110-172</code></td>
+</tr>
+<tr>
+<td><code>LocalOllamaExplanationProvider</code></td>
+<td>fixed <code>LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"</code>; <code>_BoundedTransport</code> (no proxy env, no retries, no redirects, identity encoding only)</td>
+<td>lists <code>/api/tags</code>, requires the granted model to be installed and not a <code>*cloud</code> name or remote entry (<code>_permitted_name</code>, <code>_models</code>), rechecks consent in a request hook (<code>_authorize_dispatch</code>), then delegates to <code>OllamaExplanationAdapter</code> with <code>context_tokens</code></td>
+<td><code>local_ollama.py</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>GeneratedExplanation</code> (<code>contracts.py:18-23</code>) is <code>claims: tuple[ExplanationClaim, ...]</code> with at least one claim. <code>ExplanationClaim</code> (<code>packages/chess-lesson-spec/src/chess_lesson_spec/claims.py:8-17</code>) has <code>text</code>, <code>evidence_ref</code>, <code>line</code> (UCI tuple, default empty), <code>certainty</code> (default <code>observed</code>) and <code>disclosure_level</code> (≥ 1).</p>
+<p><code>LLMProviderConfig.from_toml</code> and <code>create_llm_provider</code> (<code>config.py</code>) accept <code>template</code>, <code>ollama</code> (HTTPS, or loopback HTTP) and <code>openai</code> (HTTPS only, <code>_validated_base_url</code>). The optional <code>llm.voice</code> selects the narrator voice (section 14); an unknown name raises <code>LLMConfigurationError</code>.</p>
+<p>Operator Ollama setup (<code>SCAN64_LLM_CONFIG</code> points at an absolute TOML path):</p>
+<pre><code class="language-toml">[llm]
+provider = &quot;ollama&quot;
+model = &quot;scan64-narrator-gemma4-e4b-q3km:latest&quot;
+base_url = &quot;http://127.0.0.1:11434&quot;
+context_tokens = 4096  # optional; sent as options.num_ctx
+</code></pre>
+<p><code>llm.context_tokens</code> defaults to 4096 and accepts integers in [2048, 131072]. Use at least 4096; below that, the longest prompt plus its answer can fill the context and the generation falls back to the template. The value overrides a Modelfile <code>PARAMETER num_ctx</code>. The key is rejected for <code>openai</code>. The local provider's default deadline is 180 s (<code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code>). The operator path has no such setting: <code>resolve_explanation</code> opens <code>httpx.AsyncClient()</code> with the httpx default of 5 s per request (<code>assembly.py:181</code>), shorter than the 10–58 s measured below (#414).</p>
+<h3 id="default-local-model-429">Default local model (#429)</h3>
+<p>The default narrator model is gemma-4-E4B-it at Q3_K_M, chosen in #389 from the #428 benchmark (<a href="narrator-models.html#decision">narrator model evaluation</a>). <code>providers/llm/narrator_model.py</code> pins it:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ollama name</td>
+<td><code>scan64-narrator-gemma4-e4b-q3km:latest</code> (<code>DEFAULT_NARRATOR_MODEL</code>)</td>
+</tr>
+<tr>
+<td>Source</td>
+<td><code>unsloth/gemma-4-E4B-it-GGUF</code>, revision <code>bfc15c382204943c3a8fff0c750b94ae2364d7a3</code>, file <code>gemma-4-E4B-it-Q3_K_M.gguf</code> (4,058,137,728 bytes)</td>
+</tr>
+<tr>
+<td>SHA-256</td>
+<td><code>0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4</code>, the file the benchmark ran (<code>benchmarks/narrator/narrator.toml</code>)</td>
+</tr>
+<tr>
+<td>Modelfile</td>
+<td><code>MODELFILE_TEMPLATE</code>, identical to <code>benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile</code> (<code>RENDERER</code>/<code>PARSER gemma4</code>, temperature 1, top_k 64, top_p 0.95), rendered with <code>num_ctx</code> 4096 and <code>num_predict</code> 2048</td>
+</tr>
+<tr>
+<td>Licence</td>
+<td>Apache-2.0 (GGUF <code>general.license</code>), <a href="https://ai.google.dev/gemma/docs/gemma_4_license">Gemma 4 licence</a>; Scan64 does not ship the weights</td>
+</tr>
+<tr>
+<td>GPU memory</td>
+<td>2.96–3.13 GiB measured at <code>num_ctx</code> 4096 (RTX 5090, <code>runs_20261127_213350</code>); budget 4 GiB (<code>NARRATOR_GPU_MEMORY_BUDGET_MIB</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><code>scan64-cli narrator install</code> (<code>cli/narrator.py</code>) is the install step. It stops with a message, and installs nothing, when <code>ollama</code> is not on <code>PATH</code>, when <code>127.0.0.1:11434/api/version</code> does not answer, or when no NVIDIA GPU has 4,096 MiB free (<code>nvidia-smi --query-gpu=name,memory.total,memory.free</code>; <code>--skip-gpu-check</code> for GPUs it can't read). Then it streams the file, hashes it while writing <code>&lt;file&gt;.part</code>, deletes it on a digest mismatch, writes the Modelfile next to it with <code>FROM ./&lt;file&gt;</code>, and runs <code>ollama create scan64-narrator-gemma4-e4b-q3km</code> there with <code>OLLAMA_HOST=127.0.0.1:11434</code>. It skips every step after the Ollama check when <code>/api/tags</code> already lists the model, and deletes the GGUF after <code>ollama create</code> unless <code>--keep-gguf</code>. It never loads the model. The manual steps are in the <a href="user-guide.html#the-recommended-narrator-model">user guide</a>.</p>
+<p>Selection stays with the owner grant (section 7): nothing is enabled without consent. The probe returns <code>recommended_model</code>, and Settings preselects it when it is listed, unless the owner's saved grant names another listed model. A saved grant is never rewritten. Without a grant, without Ollama, or without the granted model in <code>/api/tags</code>, the template explanation is used and no evidence is sent (<code>test_without_a_local_model_the_template_explains</code>). The hosted (OpenAI-compatible) adapter sends no <code>think</code> field: it is not part of that API.</p>
+<h3 id="local-ollama-limits">Local Ollama limits</h3>
+<p><code>LocalOllamaLimits.from_environment</code> (<code>local_ollama.py</code>) reads the bounds of one local explanation when <code>generate</code> runs. An invalid value raises <code>LLMConfigurationError</code>, which is not converted to a template fallback.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Accepted</th>
+<th>Bounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code></td>
+<td><code>180</code></td>
+<td>(0, 600]</td>
+<td>model listing plus chat, one <code>asyncio.timeout</code> and the httpx timeout</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>[1024, 16 MiB]</td>
+<td>serialised chat request, checked before any network I/O</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>[1024, 16 MiB]</td>
+<td>each response body, checked while streaming</td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code></td>
+<td><code>4096</code></td>
+<td>[2048, 131072]; use at least 4096</td>
+<td><code>options.num_ctx</code>; a prompt that fills it is rejected</td>
+</tr>
+</tbody>
+</table>
+<p>Ollama allocates the KV cache for the whole <code>num_ctx</code> when it loads the model, so every 4,096 tokens of context cost the memory below whether a prompt uses them or not. The 4096 default reserves the least that still fits the longest prompt and its answer. Measured 2026-11-27 on an RTX 5090, Ollama 0.40.18, default f16 KV cache, model loaded with a one-token generation, GPU memory used minus the 1,132 MiB baseline (<code>/api/ps</code> <code>size_vram</code> in brackets; for gemma4-12b it reports about 1.4 GiB, far below the memory in use):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th><code>num_ctx</code> 8192</th>
+<th>12288</th>
+<th>16384</th>
+<th>per 4,096 tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scan64-bench-praxis-4b</code> (Qwen3.5 4B, Q4_K_M)</td>
+<td>3,632 MiB (3,043)</td>
+<td>3,771 MiB (3,179)</td>
+<td>3,904 MiB (3,315)</td>
+<td>about 136 MiB</td>
+</tr>
+<tr>
+<td><code>scan64-bench-gemma4-12b</code> (Gemma 4 12B, Q4_K_M)</td>
+<td>9,548 MiB</td>
+<td>9,628 MiB</td>
+<td>9,708 MiB</td>
+<td>about 80 MiB</td>
+</tr>
+</tbody>
+</table>
+<p>The settings probe (<code>detect_local_ollama</code>) sends no evidence and keeps a fixed 4 s deadline. The coach path keeps its 0.25 s budget (<code>coach_interruption.py</code>), so local narration of a coach interruption only succeeds with a model that answers within it.</p>
+<h3 id="measured-local-run">Measured local run</h3>
+<p>Measured on 2026-11-26: RTX 4080 Laptop GPU (12 GB), Ollama 0.17.5 (the user's installed app), <code>qwen3:8b</code> Q4_K_M (8.2 B parameters), Stockfish 18 evidence (fast and reply 10 000 nodes, focused 1 000 000 nodes MultiPV 4, mate source when the reply is a mate) for four positions: 3.Nf3 missing 3.Bxg5 (missed capture), 3...Nd4 allowing Qxf7# (missed direct threat, allowed mate), and O-O leaving Nb5 and missing Nxc7+ (hanging piece, missed check, missed capture, missed direct threat, knight fork). Eight diagnoses, two runs each. Another client shared the same Ollama server during the run, so wall time includes queueing behind its requests; Ollama's <code>total_duration</code> is the server time of one request.</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Before (#361 limits, server default context)</th>
+<th>After (this change)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prompt, serialised request</td>
+<td>19–33 KB (12-ply lines, all fields)</td>
+<td>11.7–18.0 KB (8-ply lines, defaults omitted)</td>
+</tr>
+<tr>
+<td>Prompt tokens (<code>prompt_eval_count</code>)</td>
+<td>4096 in every request: the 4096-token default context truncated every prompt</td>
+<td>3509–7355 with <code>num_ctx</code> 8192</td>
+</tr>
+<tr>
+<td>Output tokens</td>
+<td>1043–1226</td>
+<td>161–427</td>
+</tr>
+<tr>
+<td>Ollama <code>total_duration</code> per request, model loaded</td>
+<td>20 s</td>
+<td>11.5–51.5 s</td>
+</tr>
+<tr>
+<td>Cold model load (<code>load_duration</code>), GPU shared</td>
+<td>97 s</td>
+<td>81 s (first request of an earlier run)</td>
+</tr>
+<tr>
+<td>Wall time per explanation</td>
+<td>34–92 s</td>
+<td>10.0–57.6 s</td>
+</tr>
+<tr>
+<td>Outcome</td>
+<td>0/6 accepted (invented evidence IDs; invalid output schema)</td>
+<td>10/16 accepted; rejected: 4 bare colour word (<code>unparsed_chess_token</code>), 2 evaluation not in the facts (<code>9 points</code> for a nine-point material gain, <code>3 pawns</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>A run between these two, with the current prompt before it stated that <code>line</code> holds UCI moves, accepted 10/18; five rejections were line IDs (<code>L1</code>) placed in <code>line</code>. The default deadline of 180 s covers the observed cold load (81 s) plus the slowest request (51.5 s) with margin; the previous 4 s deadline could not complete one request. Accepted claims passed the grammar in section 8; the grammar does not check relations between facts (for example which piece a capture removes), and some accepted sentences in this run state such relations wrongly. Model choice and accuracy rates are measured in #369, not here.</p>
+<h2 id="7-owner-grant-local-ollama">7. Owner grant (local Ollama)</h2>
+<ul>
+<li>Table <code>OwnerExplanationSettings(player_id, model, revision, voice)</code> (<code>explanations/settings.py</code>). <code>voice</code> (#387, migration <code>20261127_26</code>) is nullable; NULL reads as the default voice (<code>stored_narrator_voice</code>).</li>
+<li>API router <code>/v1/players/{player_id}/explanation-settings</code> (<code>api/explanation_settings.py:18</code>):</li>
+<li><code>GET</code> returns <code>mode</code> <code>disabled</code> | <code>local</code> | <code>operator</code> and, in <code>local</code> mode, the saved <code>voice</code> (<code>get_explanation_settings</code>).</li>
+<li><code>POST /probe</code> calls <code>detect_local_ollama</code> and lists local model names, with <code>recommended_model</code> (#429, section 6). It sends no evidence (<code>probe_explanation_settings</code>).</li>
+<li><code>PUT</code> takes <code>{model, consent}</code> and an optional <code>voice</code>. <code>consent</code> must equal <code>model is not None</code>. A <code>voice</code> without a model is rejected (422). An absent <code>voice</code> keeps the saved voice; a new grant without one gets the default. The model must be in the current local listing (503 if Ollama is unreachable, 422 if the model is not installed). The handler re-authorises under <code>lock_puzzle_player</code>, then inserts, updates (new <code>revision</code>) or deletes the row (<code>set_explanation_settings</code>).</li>
+<li>Both write endpoints return 409 while <code>SCAN64_LLM_CONFIG</code> is set (<code>_require_settings_control</code>).</li>
+<li>Job fence: <code>_execute_analysis_job_async</code> selects <code>local_explanation_owner_generation</code> (deletion-audit count) in the same query as the game (<code>jobs.py:550</code>). <code>read_local_explanation_provider</code> (<code>settings.py:81-98</code>) returns a provider only if the committed grant's generation matches. It wraps the provider in <code>LocalNarratorProvider</code>, which carries the voice read with the grant. Its <code>still_authorized</code> closure requires the same <code>(model, revision)</code> at chat dispatch; a voice change does not revoke the grant.</li>
+<li>Client: <code>LocalExplanationSettings.tsx</code> in <code>SettingsScreen.tsx:91</code> (model and <strong>Narrator voice</strong> selects), API calls in <code>apps/scan64-web/src/api/explanationSettings.ts</code>.</li>
+</ul>
+<h2 id="8-validator-srcscan64explanationsvalidatorpy">8. Validator (<code>src/scan64/explanations/validator.py</code>)</h2>
+<p><code>validate_generated_explanation</code> checks claim text on one of two paths:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>When</th>
+<th>Claim text check</th>
+<th>Returned claims</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Slot (#386)</td>
+<td><code>context.slots</code> is set: lesson provider output (<code>_grounding_context</code>) and Analysis Board provider output (<code>board_slot_grounding</code>)</td>
+<td><code>render_slot_text</code>: every slot is listed for the cited evidence item, and the prose outside the slots holds no notation and no chess word outside the item's vocabulary (section 13, #408)</td>
+<td>text with every slot filled by code; a claim with an empty <code>line</code> gets the line of its slots (<code>slot_citation</code>)</td>
+</tr>
+<tr>
+<td>Grammar (#366)</td>
+<td><code>context.slots</code> is unset: the Analysis Board template (<code>board_lines_grounding</code>), <code>attach_validated_explanation</code> callers, tests</td>
+<td><code>_validate_claim_text</code>, the claim grammar below</td>
+<td>unchanged</td>
+</tr>
+</tbody>
+</table>
+<p>The slot path does not run the claim grammar. On the slot path an <code>evidence_ref</code> wrapped in one pair of quotes that a model copied from the slot list is read without them when the inner ID is known (<code>_unquoted_evidence_ref</code>). A claim with an empty <code>line</code> cites the longest <code>Slot.citation</code> among its slots that is a prefix of a verified line of its evidence item (<code>slot_citation</code>); the Analysis Board links a comparison claim to a line this way. Slot-path reason codes:</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Raised when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unknown_slot</code></td>
+<td>a <code>{...}</code> names no slot of this position, or braces are malformed (<code>{played</code>, <code>{}</code>, <code>{Played}</code>)</td>
+</tr>
+<tr>
+<td><code>slot_not_in_evidence</code></td>
+<td>the slot exists for another evidence item of this position, not the cited one</td>
+</tr>
+<tr>
+<td><code>chess_token_outside_slot</code></td>
+<td>the prose outside the slots holds chess content (section 13)</td>
+</tr>
+<tr>
+<td><code>unsupported_claim</code></td>
+<td>the prose outside the slots states a relational claim no fact of the cited item supports (section 13, claim rule, #431)</td>
+</tr>
+<tr>
+<td><code>negated_claim</code></td>
+<td>the prose outside the slots states a negated relational claim ("you are not up a piece"); no fact records an absence (#431)</td>
+</tr>
+</tbody>
+</table>
+<p>It raises <code>GroundedExplanationValidationError</code> with a <code>reason</code> code (<code>REJECTION_REASONS</code>) on the first failure:</p>
+<ol>
+<li><code>requested_hint_level &lt; 1</code>.</li>
+<li>The context FEN does not parse.</li>
+<li>Duplicate evidence IDs in the context.</li>
+<li>Per claim (<code>_validate_claim</code>):
+   - <code>evidence_ref</code> is blank or not among the referenced evidence IDs;
+   - <code>certainty</code> ranks above <code>maximum_certainty</code>. The default is <code>observed</code> and <code>resolve_explanation</code> does not override it, so <code>likely</code> and <code>certain</code> are always rejected;
+   - <code>disclosure_level</code> &gt; <code>requested_hint_level</code> (3);
+   - <code>line</code> non-empty and (<code>_validate_line</code>): any move is malformed UCI, or illegal when replayed from the context FEN, or the line is not a prefix of a verified line for that <code>evidence_ref</code> (the narrator-facts lines, section 5);
+   - <code>text</code>, slot path: see the table above;
+   - <code>text</code>, grammar path (<code>_validate_claim_text</code>, #366): a fixed grammar reads SAN and UCI moves, squares, pieces with colour, evaluations in pawns or centipawns, mate-in-N, material won or lost, check, side to move, castling, promotion, en passant and named tactics, and checks each against the cited evidence item, its payload and every board its lines reach. A chess token outside the grammar rejects the claim (<code>unparsed_chess_token</code>).</li>
+</ol>
+<p>Facts added for #367 and the claims they admit:</p>
+<table>
+<thead>
+<tr>
+<th>Claim form</th>
+<th>Accepted when</th>
+<th>Rejection reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>an evaluation (<code>8.5 pawns</code>, <code>-0.4</code>, <code>850 cp</code>)</td>
+<td>within 25 cp (<code>EVALUATION_TOLERANCE_CP</code>) of a payload score, a stored evaluation of the narrator facts (<code>StoredEvaluations.numbers</code>: before, after the played move, after each scored move) or the best-minus-played difference</td>
+<td><code>evaluation_not_supported</code></td>
+</tr>
+<tr>
+<td>mate in N</td>
+<td>N equals a payload or stored mate distance, or a verified line ends in mate after N moves</td>
+<td><code>mate_not_supported</code></td>
+</tr>
+<tr>
+<td>material balance: <code>White is up a knight</code>, <code>you are down 2 pawns</code>, <code>your opponent is behind in material</code>, <code>material is equal</code></td>
+<td>some board of the cited evidence (before, after, or any position of its lines) has exactly that learner-or-side advantage in pawn units (pawn 1, knight 3, bishop 3, rook 5, queen 9, exchange 2), the sign for <code>ahead/behind in material</code>, or zero for <code>equal</code></td>
+<td><code>material_not_supported</code></td>
+</tr>
+<tr>
+<td>attack or threat on a piece: <code>Qxg2 attacks the rook on h1</code>, <code>threatens the undefended knight</code></td>
+<td>some board of the cited evidence has a piece of that type (and colour and square, when named) attacked by the other side; with <code>undefended</code>, also not defended</td>
+<td><code>threat_not_supported</code></td>
+</tr>
+<tr>
+<td><code>hangs</code>, <code>hanging</code>, <code>undefended</code>, <code>en prise</code></td>
+<td>a line proves a material gain, or some board has a non-king piece attacked and not defended</td>
+<td><code>material_not_supported</code></td>
+</tr>
+</tbody>
+</table>
+<p>Verified evaluations for a claim come only from its cited evidence item; another item's scores do not admit it.</p>
+<p>Added for #368: the payload field <code>board_multipv</code> (Analysis Board lines, replayed from the context FEN, scores admitted like <code>mate_source_multipv</code>) and the list field <code>best_differences_cp</code> (best-line score minus a compared line's score) are read as evidence. A signed evaluation that ends a sentence (<code>scored +1.50.</code>) is now read as an evaluation; before, the full stop after it kept the grammar from matching and the number passed unchecked. The reason <code>missing_line</code> is raised by the Analysis Board path, not by <code>validate_generated_explanation</code> (section 12).</p>
+<p>On success the validator returns <code>Explanation(text=" ".join(claim.text …), claims=…)</code>; on the slot path both hold the rendered text.</p>
+<p><code>attach_validated_explanation</code> is a second entry point with an added FEN-match check. None of the three callers uses it.</p>
+<h2 id="9-template-fallback">9. Template fallback</h2>
+<p><code>TemplateExplanationProvider.explain</code> (<code>templates/provider.py:236-257</code>) renders one template per code from the first evidence item in <code>diagnosis.evidence_refs</code> (<code>_matched_payload</code>). It returns <code>Explanation(text, visualizations=[])</code> with <code>claims</code> empty. Allowed mate prints the full mating line in SAN (<code>_allowed_mate_text</code>). The other trusted codes print <code>played_move</code> and one move or square.</p>
+<p>Paths that return the template instead of LLM output:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Condition</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>SCAN64_LLM_CONFIG</code> unset and no <code>local_provider</code> (no grant, generation mismatch, operator mode, or CLI)</td>
+<td><code>assembly.py:139-148</code>, <code>settings.py:72-73,85-90</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>[llm] provider = "template"</code></td>
+<td><code>assembly.py:151-152</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>create_llm_provider</code> returns <code>None</code> (template config only)</td>
+<td><code>assembly.py:156-157,164-165</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>NarratorFactsError</code> from <code>build_narrator_facts</code> (section 5); reason <code>invalid_evidence</code>, a warning names the cause; no provider is called</td>
+<td><code>_attempt_grounded_generation</code>, <code>assembly.py</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>LLMProviderError</code> from <code>generate</code>: HTTP error or non-2xx, invalid JSON, wrong shape, schema mismatch, no choices or tool call, wrong function name, prompt filled the Ollama context; local: model not installed or not permitted, consent changed before dispatch, request or response over its byte limit, encoded or ambiguous framing, length mismatch, timeout; reason <code>provider_error</code></td>
+<td><code>assembly.py</code>, <code>adapters.py</code>, <code>local_ollama.py</code></td>
+</tr>
+<tr>
+<td>5a</td>
+<td><code>GroundedExplanationValidationError</code> (section 8); reason = the validator's code</td>
+<td><code>assembly.py</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Coach path: 0.25 s timeout. The template is computed again</td>
+<td><code>coach_interruption.py:142-143</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Consent read raises <code>SQLAlchemyError</code>: provider <code>None</code>, then path 1</td>
+<td><code>settings.py:75-78</code></td>
+</tr>
+</tbody>
+</table>
+<p>Failures that do <strong>not</strong> fall back. These propagate to the caller: <code>ExplanationTemplateError</code> (raised before any LLM call, because the template is computed first) and <code>LLMConfigurationError</code> (bad config file, missing API key env var, non-HTTPS URL, invalid <code>SCAN64_LOCAL_LLM_*</code> value).</p>
+<p>Paths 4 to 5a are logged by <code>record_template_fallback</code> (event <code>explanation_template_fallback</code>, the pipeline and the reason code only, never evidence) and counted in-process. Section 15 gives the attempt, accept and fallback counts and the fallback rate. The stored <code>Explanation</code> has no field naming its source. The only implicit marker is that template output has an empty <code>claims</code> list.</p>
+<h2 id="10-after-resolution-storage-api-client">10. After resolution: storage, API, client</h2>
+<ul>
+<li><code>fill_lesson_hints</code> (<code>learning/exercises/hints.py:54-62</code>) runs after <code>resolve_explanation</code> in all three callers. It replaces <code>explanation.visualizations</code> with level-3 hint drawings plus one <code>AnimateLineCommand</code> per lesson-source candidate line. Engine lines shown on the board therefore come from the lesson source analysis, not from the LLM.</li>
+<li><code>verify_lesson</code> checks the lesson, including visualizations (<code>verification/verifier.py:99-100</code>). It does not check explanation text.</li>
+<li>The lesson is stored in <code>PersistedLessonOpportunity.lesson_spec</code> and served through <code>GET /v1/games/{game_id}/learning-opportunities</code> (<code>api/games.py:266</code>), <code>GET /v1/learning/session</code> (<code>api/learning.py:331</code>), game review (<code>api/game_review.py:47</code>) and <code>critical_interruption</code> on play moves (<code>api/play.py:130-139,539-546</code>).</li>
+<li>On the slot path the stored <code>explanation.text</code> and <code>claims[].text</code> hold the rendered text: the slot names are not stored, and the stored format is unchanged.</li>
+<li>The client renders <code>explanation.text</code> only: <code>CriticalMomentReview.tsx:171-174</code>, <code>DailyTrainingScreen.tsx:184</code>, <code>OwnedGameReview.tsx:301</code>. <code>claims</code> and <code>claims[].line</code> are not rendered. <code>CriticalMomentReview</code> also appears in <code>PlayScreen.tsx:1522</code>, <code>PgnImportScreen.tsx:157</code> and <code>PuzzlesScreen.tsx:342</code>.</li>
+</ul>
+<h2 id="11-gaps">11. Gaps</h2>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Evidence in code</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Adapter drops depth, seldepth, nodes, time, WDL, bound flags and the MultiPV index</td>
+<td><code>adapter.py:103-114</code>, <code>pool.py:158-168</code></td>
+<td>#360</td>
+</tr>
+<tr>
+<td>~~Claim text is not grounded~~ Resolved: claim-text grammar (section 8)</td>
+<td><code>validator.py</code></td>
+<td>#366</td>
+</tr>
+<tr>
+<td>~~Prompt is a Python-<code>repr</code> dump of raw UCI payloads with no SAN, per-move facts or schema~~ Resolved: narrator facts JSON (section 5)</td>
+<td><code>facts.py</code>, <code>assembly.py</code></td>
+<td>#367</td>
+</tr>
+<tr>
+<td>~~Narration exists only for diagnosed mistakes (lessons, coach), not for arbitrary positions~~ Resolved: Analysis Board line explanations (section 12)</td>
+<td><code>board_lines.py</code>, <code>api/analysis_explanation.py</code></td>
+<td>#368</td>
+</tr>
+<tr>
+<td>No evaluation of which open model words chess lines with the fewest false statements</td>
+<td>—</td>
+<td>#369</td>
+</tr>
+<tr>
+<td>~~Verified lines from the after-position always fail replay; most stored lines cannot be cited~~ Resolved: every stored line is a verified line from the before FEN, cut after 8 plies</td>
+<td><code>facts.py</code></td>
+<td>#367</td>
+</tr>
+<tr>
+<td>~~Only the position after a line's first move has an engine score; later plies are <code>unknown</code>~~ Resolved: every ply up to 8 is scored (section 5, "Evaluations along lines"; section 12, "Per-move scoring")</td>
+<td><code>line_scoring.py</code>, <code>pool.py</code></td>
+<td>#367, #368</td>
+</tr>
+<tr>
+<td>~~The operator-configured Ollama adapter sends no <code>num_ctx</code>; the server default context (4096 tokens on Ollama 0.17.5) truncates prompts larger than it without an error~~ Resolved: <code>llm.context_tokens</code> (default 12288, 4096 since #429) and the truncation check</td>
+<td><code>create_llm_provider</code>, <code>config.py</code></td>
+<td>#388</td>
+</tr>
+<tr>
+<td>Coach focused evidence is a 10 000-node MultiPV 1 search</td>
+<td><code>coach_interruption.py:250</code></td>
+<td>#360</td>
+</tr>
+<tr>
+<td>The lesson source analysis (1 000 000 nodes, MultiPV up to 8) never reaches the prompt</td>
+<td><code>jobs.py:306</code>, <code>assembly.py:115</code></td>
+<td>#367</td>
+</tr>
+<tr>
+<td>The explanation records no source (fallbacks are logged and counted since #366)</td>
+<td>section 9</td>
+<td>—</td>
+</tr>
+<tr>
+<td>The <code>calculation.stopped_too_early</code> template prints <code>focused_line</code> (after-position line 1) with <code>sequence_plies = len(proving_line)</code>, so the count and the printed line come from different searches. The code is untrusted today</td>
+<td><code>templates/provider.py:175-183</code>, <code>composer.py:566</code></td>
+<td>#367</td>
+</tr>
+</tbody>
+</table>
+<h3 id="steps-to-give-the-narrator-full-long-variations">Steps to give the narrator full, long variations</h3>
+<ol>
+<li>Engine contract (#360): keep the full <code>InfoDict</code> per MultiPV entry in <code>raw_result</code> (<code>pv</code>, score with bound flags, <code>depth</code>, <code>seldepth</code>, <code>nodes</code>, <code>time</code>, <code>multipv</code>, and WDL with <code>UCI_ShowWDL</code>) in both <code>StockfishAdapter</code> and <code>PooledStockfishAdapter</code>. Store the reached depth, not only the requested limits.</li>
+<li>Record each line's start FEN. Store every line as a verified line with the FEN it starts from: before-position fast and source lines, after-position focused and reply lines. Extend <code>GroundedExplanationContext.verified_lines</code> to map an evidence ID to <code>(start_fen, line)</code> pairs, and make <code>_validate_line</code> replay each line from its own start FEN.</li>
+<li>Widen verified lines: include every <code>focused_multipv</code> entry, <code>fast_line</code>, <code>proving_line</code>, <code>mating_line</code> and <code>mate_source_multipv</code> in <code>_verified_lines_for</code>. Pass the lesson source analysis (MultiPV 2/4/8, 1 000 000 nodes) into <code>resolve_explanation</code> as evidence.</li>
+<li>Raise coach depth or reuse a deeper search: replace <code>focused_analysis=after_analysis</code> (<code>coach_interruption.py:250</code>) with a MultiPV search inside the coach budget, or keep the 10 000-node line labelled as <code>interactive</code> evidence.</li>
+<li>~~Precompute per-move facts (#367): for each move of each verified line, give SAN, the piece moved, capture, check, material balance and engine evaluation. Serialise as JSON with a declared schema instead of <code>repr</code>.~~ Done (section 5), with an engine evaluation after every move since the line pass.</li>
+<li>Budget the prompt: measure the serialised request against <code>_MAX_REQUEST_BYTES</code> (256 KiB) and the model context. Set <code>options.num_ctx</code> in <code>OllamaExplanationAdapter</code>. When a line must be shortened, cut it deterministically at a stated ply and mark the cut in the payload. Review the 4 s local limit for background jobs; the coach keeps 0.25 s.</li>
+<li>Ground the claim text (#366) so long lines cannot carry invented prose facts.</li>
+<li>Log every fallback with its reason (provider error class, validator message) and record the explanation source on <code>Explanation</code>. Done: <code>narrator_counts</code> records attempts, accepted outputs and template fallbacks (section 15).</li>
+<li>~~Expose narration of MultiPV lines on the Analysis Board (#368), with the same validator and template floor.~~ Done (section 12).</li>
+<li>Choose the narrator model through the evaluation in #369 before changing the default.</li>
+</ol>
+<h2 id="12-analysis-board-line-explanations-368">12. Analysis Board line explanations (#368)</h2>
+<p><code>POST /v1/analysis/position/explanation</code> (<code>api/analysis_explanation.py</code>) explains the engine lines of any position. No diagnosis or stored evidence is involved.</p>
+<pre><code class="language-mermaid">flowchart TD
+    REQ[&quot;player_id, fen, multipv?, nodes?, depth?&quot;] --&gt; ADM[&quot;free_analysis_board + free_analysis_manager&lt;br/&gt;api/insights.py (same checks as /v1/analysis/position)&quot;]
+    ADM --&gt; SLOT[&quot;ExplanationCalls.claim: the latest request per player wins&lt;br/&gt;cancel the player's running model call&lt;br/&gt;read the provider grant, close the request session&quot;]
+    SLOT --&gt; HINT[&quot;EnginePoolManager.analyze_hint(board, nodes, depth)&lt;br/&gt;hint admission, 3 s deadline, hint cache&quot;]
+    HINT --&gt; SL[&quot;scored_legal_lines: one score kind, PV legal to its end&lt;br/&gt;first multipv lines (default 3)&quot;]
+    SL --&gt; LS[&quot;analyze_hint_positions: plies 2 to 8&lt;br/&gt;10 000 nodes each, same admission and deadline&quot;]
+    LS --&gt; BF[&quot;build_board_lines_facts&lt;br/&gt;board-lines-facts/1&quot;]
+    BF --&gt; TPL[&quot;template_board_explanation&lt;br/&gt;validated; a rejection raises&quot;]
+    BF --&gt; RUN[&quot;ExplanationCalls.run(run_with_explanation_provider)&lt;br/&gt;409 if a newer request claimed&lt;br/&gt;operator config, else owner grant&quot;]
+    RUN --&gt; GEN[&quot;provider.generate(board_lines_request)&quot;]
+    GEN --&gt; VAL[&quot;validate_generated_explanation (slot path) + claim_line_id&quot;]
+    VAL --&gt;|&quot;accepted&quot;| NAR[&quot;source narrator&quot;]
+    VAL --&gt;|&quot;rejected / LLMProviderError&quot;| TPL
+    TPL --&gt; RESP[&quot;lines (White view), claims with line_id and cited UCI prefix, facts, source, fallback_reason&quot;]
+    NAR --&gt; RESP
+</code></pre>
+<p><strong>Search.</strong> The endpoint reuses the free-analysis search: the interactive pool, the hint admission (no queue, 250 ms acquisition, 3 s wall deadline, at least two interactive engines) and the hint cache. With no <code>nodes</code> or <code>depth</code> the call is <code>analyze_hint(board)</code> with the default budget, so the explanation covers the lines <code>POST /v1/analysis/position</code> returned for that position, from the same cached search. <code>nodes</code> may only lower the hint node budget (<code>[limits.hint]</code> or 200 000); <code>depth</code> adds a depth limit (1 to 245) while the node and time limits still apply; both are part of the cache key. <code>multipv</code> (1 up to the hint MultiPV, default 3) selects how many of the ranked lines are explained; it does not change the search. Out-of-range values return 422 before any search; an ended position returns 409; no usable line evicts the cached search and returns 503.</p>
+<p><strong>Lines.</strong> <code>scored_legal_lines</code> keeps a MultiPV entry only if it has exactly one of <code>score_cp</code>/<code>score_mate</code> and its whole PV replays legally; <code>/v1/analysis/position</code> uses the same filter. Lines are not cut: the full principal variation the engine reported is in the facts, the verified lines and the response. In 15 positions searched through the real pool (Stockfish 18, 200 000 nodes), line lengths ranged from 1 to 27 plies. The narrator prompt does not hold the facts: since #408 it is the system prompt and the slot list (section 16), where a line slot shows the first 6 plies of a long line and the clause slots of its first 2 plies are listed. With the facts JSON in the prompt, the recorded <code>king_pawn</code> lines at MultiPV 4 (27, 15, 22 and 17 plies) made a 19,325-character prompt, about 11,000 tokens, which with the answer did not fit the default 12288-token context (#388, which then cut the per-move facts in the prompt to 8 plies). With the slot list only, the largest recorded board prompt at MultiPV 4 (<code>castling_choice</code>) is 4,619 characters. A claim can still cite the whole line, and the outcome covers it.</p>
+<p><strong>Facts</strong> (<code>explanations/board_lines.py</code>, <code>schemas/board-lines-facts.schema.json</code>, regenerate with <code>uv run python -m scan64.explanations.board_lines</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Object</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>position</code></td>
+<td><code>fen</code>, <code>side_to_move</code>, <code>material</code>, <code>evaluation</code> (line 1's score)</td>
+</tr>
+<tr>
+<td><code>lines[]</code></td>
+<td><code>line_id</code> (<code>line-1</code> ...), <code>rank</code>, <code>evaluation</code>, <code>difference_from_best_cp</code> (line 1 minus this line, both centipawns), <code>depth</code>, <code>seldepth</code>, <code>wdl</code>, <code>uci</code> (full line), <code>moves[]</code> (the #367 move facts), <code>outcome</code></td>
+</tr>
+<tr>
+<td><code>outcome</code></td>
+<td><code>material_change</code> (pawn units won over the line, <code>line_material_gain</code>), <code>material_at_end</code>, <code>checks_by_side_to_move</code>, <code>checks_by_opponent</code>, <code>ends_in_checkmate</code>, <code>ends_in_stalemate</code>, <code>first_move_threats</code> (the first move's <code>new_threats</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Evaluations are from the side to move's point of view. A line's MultiPV score (source <code>analysis_board_pass</code>) is the <code>evaluation_after</code> of its first move. Plies 2 to <code>MAX_LINE_PLIES = 8</code> carry the per-move searches below (source <code>line_pass</code>); later plies are <code>unknown</code>. Each line has <code>evaluation_change</code>: the board position's score (line 1) against the line's last scored move (section 5, "Line summary"). In move facts, <code>mover: "learner"</code> is the side to move.</p>
+<p><strong>Per-move scoring (#367, #368).</strong> The request has one deadline, <code>HINT_DEADLINE_S = 3.0</code> s from before the line search. After the line search, <code>board_line_positions</code> lists plies 2 to 8 of each explained line, ordered by ply then line; positions equal to a line's first-move position, repeated positions and game-over positions are skipped. <code>EnginePoolManager.analyze_hint_positions</code> scores them in that order:</p>
+<ul>
+<li>Same admission as the hint: no queue, 250 ms acquisition, at least two interactive engines, one hint at a time. Busy capacity scores nothing.</li>
+<li>One interactive engine, <code>LINE_NODES = 10 000</code> nodes, MultiPV 1, each board with its moves from the board position (repetition history).</li>
+<li>It stops at the request deadline. A position not searched by then is <code>unknown</code>; the request still succeeds. An engine error also leaves the rest <code>unknown</code>.</li>
+<li>Results are cached (1024 entries) by position, moves, node budget and the engine's analysis identity (executable SHA-256, networks, every UCI option), so a cached search is never reused for another engine.</li>
+</ul>
+<p><strong>Measured</strong> (linux-5090, Stockfish 18, cold caches, the 12 recorded positions; <code>tests/fixtures/record_analysis_board_line_evaluations.py</code> records the searches):</p>
+<table>
+<thead>
+<tr>
+<th>Explained lines</th>
+<th>Positions per request</th>
+<th>Added engine time per request</th>
+<th>Hint search</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MultiPV 3 (default)</td>
+<td>median 15, maximum 21</td>
+<td>median 176 ms, maximum 208 ms</td>
+<td>median 228 ms, maximum 282 ms</td>
+</tr>
+<tr>
+<td>MultiPV 4</td>
+<td>median 22, maximum 28</td>
+<td>median 245 ms, maximum 331 ms</td>
+<td>median 220 ms, maximum 270 ms</td>
+</tr>
+</tbody>
+</table>
+<p>On this machine every ply up to 8 is scored well inside the deadline. On a slower machine the deadline cuts the later plies first.</p>
+<p><strong>Grounding.</strong> <code>board_lines_grounding</code> builds one <code>Evidence</code> per line (<code>board_multipv</code> with that line and its score, <code>best_differences_cp</code> with its difference to line 1) whose only verified line is the full line, and, with two or more lines, <code>comparison</code> holding every line, every score and every difference. The context FEN is the board position, so "you" in the claim grammar is the side to move. Provider output is validated against <code>board_slot_grounding(facts)</code>: the same evidence and verified lines plus <code>board_slot_catalogue(facts)</code> (section 13), so it is checked on the slot path. The template keeps the grammar path. After <code>validate_generated_explanation</code>, <code>claim_line_id</code> links each claim to a line: its <code>evidence_ref</code> when that is a line, else the line its cited UCI prefix starts; a claim linked to no line (a <code>comparison</code> claim with an empty <code>line</code>) is rejected with <code>missing_line</code>.</p>
+<p><strong>Template.</strong> <code>template_board_claims</code> writes, from the facts only: the side to move and line 1's first move; per line, the line in numbered SAN, its score and depth, the first move's attacks on undefended pieces (up to two), whether it wins or loses material and the material balance at its end, the side to move's checks, and checkmate or stalemate at its end; per line after the first, its difference to line 1, or both scores when a mate is involved. <code>template_board_explanation</code> runs these claims through the same validator: the template is grounded by construction, and a rejection is a bug that raises instead of being shown. <code>tests/unit/test_board_lines.py</code> validates it for the 12 recorded positions at MultiPV 1 to 4.</p>
+<p><strong>Provider.</strong> <code>BOARD_NARRATOR_SYSTEM_PROMPT</code> (with the shared <code>slot_rules</code> and the voice line), then the board slot list; since #408 the <code>BoardLinesFacts</code> JSON is not sent (it stays in the response as <code>facts</code>). Lines 2 and later carry <code>factors</code>: factor changes against line 1 (section 16), stated by <code>{factor:KEY:line-K}</code> slots. The response carries <code>source</code> (<code>template</code> or <code>narrator</code>) and <code>fallback_reason</code> (a <code>TemplateFallbackReason</code>, or null when no provider ran or the provider's wording was accepted); fallbacks are counted by <code>record_template_fallback</code> like lesson fallbacks. No time limit beyond the provider's own applies (local Ollama: <code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code>, default 180 s).</p>
+<p><strong>Admission and cancellation.</strong> The latest explanation request from a player wins. <code>ExplanationCalls</code> (in-process state on <code>app.state</code>) keeps each player's latest request and running model-call task. On arrival, after the request checks, <code>claim</code> makes the request the player's latest and cancels the model call the player has running; cancelling it closes the provider's HTTP stream. <code>run</code> starts the model call as a task only if the request is still the latest; an older request that is still in its engine search returns 409 <code>A newer explanation request from this player replaced this one</code> without calling the model, and so does a request whose running call was cancelled. So each player has at most one model call running; other players are not affected. The engine search and the per-move scoring are not cancelled: the one 3 s request deadline bounds them. The endpoint does not rely on client disconnects: behind <code>IdempotencyMiddleware</code>, a Starlette <code>BaseHTTPMiddleware</code>, <code>Request.is_disconnected()</code> never reports one, so an abandoned call keeps running until the same player's next explanation request cancels it, or until it ends. After the provider grant is read (<code>read_local_explanation_provider</code> re-checks the grant on its own connection), the endpoint closes the request session, so no DB connection or transaction is held during the search or the generation.</p>
+<p><strong>Measured local run.</strong> 2026-11-26, RTX 4080 Laptop GPU, Ollama with <code>qwen3:8b</code>, the recorded <code>start</code>, <code>scholar_mate_in_one</code>, <code>italian_black</code> and <code>promotion</code> lines (MultiPV 3), one run before and one after the prompt change below: 0 of 8 explanations accepted, 15 to 38 s per request. Rejection reasons: <code>check_not_supported</code> and <code>move_type_not_supported</code> (a negated fact such as "no checks" or "does not threaten stalemate" is read as a claim), <code>evaluation_not_supported</code> (a line's gap to line 1 cited from that line's evidence, which did not hold it; it does now), <code>malformed_line_move</code> (SAN in <code>line</code>; the prompt now states UCI), <code>missing_line</code> (comparison claims without a line) and <code>unparsed_chess_token</code> (a bare colour word). One unsupported claim rejects the whole explanation, so with this model the board shows the template. Model choice is evaluated in #369.</p>
+<p><strong>Client.</strong> <code>AnalysisScreen.tsx</code> shows <strong>Explain lines</strong> under the engine lines. On success it replaces the shown lines with the explained lines and lists the claims; hovering or focusing a claim highlights the cited prefix of its line (<code>data-cited</code>), and selecting it pins the highlight. <code>explainLines</code> passes an <code>AbortController</code> signal to <code>ApiClient.explainPosition</code>. Selecting another position, a new <strong>Explain lines</strong> request and unmounting abort it; an aborted request shows nothing. A response for a position the user has left is dropped.</p>
+<h2 id="13-fact-slots-386">13. Fact slots (#386)</h2>
+<p>The narrator writes prose with named slots; code writes every chess token. For example the claim text <code>You played {played}, but {capture:best}.</code> renders as <code>You played Nf3, but Bxg5 captures the black queen on g5.</code> Module: <code>src/scan64/explanations/slots.py</code>.</p>
+<p><strong>Why.</strong> In the #385 benchmark run the claim grammar rejected most answers of the strongest models as <code>unparsed_chess_token</code> (granite4.2-8b 42 of 58 fallbacks, qwen3.5-9b 60 of 82). Each grammar gap is a false rejection or an unchecked statement. With slots, the free-prose check is a fixed rule set, and the rendered chess tokens come only from the facts.</p>
+<h3 id="catalogue">Catalogue</h3>
+<p><code>lesson_slot_catalogue(NarratorFacts)</code> and <code>board_slot_catalogue(BoardLinesFacts)</code> (<code>board_lines.py</code>) build a <code>SlotCatalogue</code>: per evidence item, a map from slot name to <code>Slot(name, value, meaning, moves, phrase)</code>. <code>value</code> is rendered by code; <code>moves</code> are the UCI moves the value states (the benchmark counts coverage from them); <code>phrase</code> marks a value that starts with a word, which is capitalised at a sentence start. Since #408: <code>source</code> labels a value from another module (the factor module version on factor slots); <code>group</code>, <code>listed</code> and <code>preview</code> shape the prompt only; <code>cite</code> is the line prefix a claim using the slot cites when <code>moves</code> is empty.</p>
+<p><strong>Prompt layout (#408).</strong> <code>SlotCatalogue.prompt</code> lists each slot once: the position slots, then each line's slots under <code>Line L:</code> (the line value cut to <code>PROMPT_LINE_PLIES = 6</code> plies with its length, the clause slots of the first <code>PROMPT_CLAUSE_PLIES = 2</code> plies with the mover, and one note for every <code>{move:L:N}</code>), then each evidence item as <code>evidence_ref "ID"; lines ...:</code> with its own slots and <code>Allowed plain words: ...</code> (the item's vocabulary words that are chess words, then, since #431, its factor names that hold a chess word). It ends with the factor module version (or <code>No factor slot: no cause was measured, so name no cause.</code>) and an example claim text built from the position's own slots. Validation accepts every slot of the catalogue, listed or not.</p>
+<table>
+<thead>
+<tr>
+<th>Slot</th>
+<th>Value (example)</th>
+<th>Present when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{played}</code></td>
+<td>SAN of the learner's move (<code>Nf3</code>)</td>
+<td>always (lessons)</td>
+</tr>
+<tr>
+<td><code>{best}</code></td>
+<td>SAN of the engine's best move (<code>Bxg5</code>)</td>
+<td><code>position.best_move</code> is set</td>
+</tr>
+<tr>
+<td><code>{mistake}</code></td>
+<td>mistake class name (<code>Missed capture</code>)</td>
+<td>always (lessons)</td>
+</tr>
+<tr>
+<td><code>{eval_before}</code>, <code>{eval_after}</code></td>
+<td>signed pawn units, learner's view (<code>+8.50 pawns</code>), or <code>mate in 2 for the learner</code> / <code>for the opponent</code></td>
+<td>the evaluation is not <code>unknown</code></td>
+</tr>
+<tr>
+<td><code>{eval_diff}</code></td>
+<td><code>8.90 pawns</code></td>
+<td><code>evaluation_difference_cp</code> is set and positive</td>
+</tr>
+<tr>
+<td><code>{line:L}</code></td>
+<td>the line in numbered SAN (<code>3.Bxg5 Nf6 4.Bxf6</code>)</td>
+<td>line <code>L</code> is in the evidence item's <code>line_ids</code></td>
+</tr>
+<tr>
+<td><code>{move:L:N}</code></td>
+<td>SAN of ply N of line L</td>
+<td>as above</td>
+</tr>
+<tr>
+<td><code>{capture:K}</code></td>
+<td><code>Bxg5 captures the black queen on g5</code></td>
+<td>the move captures</td>
+</tr>
+<tr>
+<td><code>{check:K}</code> / <code>{mate:K}</code></td>
+<td><code>Bb5+ gives check</code> / <code>Qh4# is checkmate</code></td>
+<td>the move checks / mates</td>
+</tr>
+<tr>
+<td><code>{threat:K}</code></td>
+<td><code>Nd5 attacks the undefended black queen on c7 and black rook on a8</code></td>
+<td>the move's <code>new_threats</code> is not empty</td>
+</tr>
+<tr>
+<td><code>{promotion:K}</code>, <code>{castle:K}</code></td>
+<td><code>e8=Q promotes to a queen</code>, <code>O-O castles kingside</code></td>
+<td>the move promotes / castles</td>
+</tr>
+<tr>
+<td><code>{tactic}</code></td>
+<td><code>knight fork</code>, <code>pin</code>, <code>skewer</code>, <code>discovered attack</code>, <code>back-rank mate</code>, <code>overloaded defender</code></td>
+<td>the evidence item's <code>tactic</code> is one of these</td>
+</tr>
+<tr>
+<td><code>{mate_in}</code></td>
+<td><code>mate in 1</code></td>
+<td>the evidence item's <code>mate_in</code> is positive</td>
+</tr>
+<tr>
+<td><code>{material_gain}</code></td>
+<td><code>a material swing of 9 points</code></td>
+<td>the evidence item's <code>material_gain</code> is not zero</td>
+</tr>
+<tr>
+<td><code>{piece:N}</code></td>
+<td><code>the black queen on g5</code></td>
+<td>Nth entry of the evidence item's <code>pieces</code></td>
+</tr>
+<tr>
+<td><code>{factor:KEY:played}</code></td>
+<td><code>after your move, king safety fell by 0.65 pawns for you</code></td>
+<td>a factor change from the position before the move passed (section 16)</td>
+</tr>
+<tr>
+<td><code>{factor:KEY:best}</code></td>
+<td><code>after your move, king safety is 0.60 pawns worse for you than after the best move</code></td>
+<td>a factor change against the best move's line passed</td>
+</tr>
+<tr>
+<td><code>{square:N}</code></td>
+<td><code>e7</code></td>
+<td>Nth entry of the evidence item's <code>squares</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>K</code> is <code>played</code>, <code>best</code> or <code>L:N</code> (ply N of line L). Position slots (<code>played</code>, <code>best</code>, their clause slots, <code>mistake</code>, evaluations) are listed for every evidence item; line and evidence slots only for their own item. <code>{material_gain}</code> does not say which side gains, because the payload field does not.</p>
+<p>Analysis Board slots, per line evidence item <code>line-K</code>. The <code>comparison</code> item may use the slots of every line; the slot list names those lines (<code>SlotCatalogue.combined</code>: <code>evidence_ref "comparison"; lines line-1, line-2, ...:</code>) instead of repeating their slots (#415), so each line's slots appear once and the board prompt stays inside the 4096-token default (12288 before #429) with a 2,048-token answer (<code>tests/unit/test_llm_context_budget.py</code>) and under the #408 target (<code>tests/unit/test_narrator_prompt_size.py</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Slot</th>
+<th>Value (example)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{eval}</code></td>
+<td>the position's score (line 1), side to move's view (<code>+0.41 pawns</code>, <code>mate in 2 for the side to move</code>)</td>
+</tr>
+<tr>
+<td><code>{label:line-K}</code></td>
+<td><code>line K</code></td>
+</tr>
+<tr>
+<td><code>{first:line-K}</code></td>
+<td>the first move in numbered SAN (<code>1.e4</code>)</td>
+</tr>
+<tr>
+<td><code>{eval:line-K}</code></td>
+<td>the line's score</td>
+</tr>
+<tr>
+<td><code>{diff:line-K}</code></td>
+<td><code>0.06 pawns less than line 1</code> (difference set and not zero)</td>
+</tr>
+<tr>
+<td><code>{outcome:line-K}</code></td>
+<td><code>over line K the side to move wins 3 points of material</code> / <code>loses</code> / <code>the material balance does not change</code></td>
+</tr>
+<tr>
+<td><code>{balance:line-K}</code></td>
+<td><code>at the end of line K the side to move is up 3 points of material</code> / <code>material is equal</code></td>
+</tr>
+<tr>
+<td><code>{checks:line-K}</code></td>
+<td><code>the side to move gives check twice in line K</code> (only with checks)</td>
+</tr>
+<tr>
+<td><code>{end:line-K}</code></td>
+<td><code>line K ends in checkmate</code> / <code>stalemate</code></td>
+</tr>
+<tr>
+<td><code>{factor:KEY:line-K}</code></td>
+<td><code>in line 2, king safety is 0.62 pawns worse for the side to move than in line 1</code> (lines 2 and later, up to 2 per line)</td>
+</tr>
+<tr>
+<td><code>{line:line-K}</code>, <code>{move:line-K:N}</code> and the clause slots</td>
+<td>as for lessons</td>
+</tr>
+</tbody>
+</table>
+<h3 id="prose-rule-set-and-vocabulary-rule">Prose rule set and vocabulary rule</h3>
+<p>The prose outside the slots (each slot replaced by a placeholder) is checked by <code>chess_words_outside_slots</code> against two fixed, case-insensitive patterns. <code>CHESS_PROSE</code> is their union (the #386 blanket rule) and stays exported.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Rule</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NOTATION</code></td>
+<td>always rejected</td>
+<td>a digit (squares, SAN, UCI, move numbers, evaluations, mate counts, <code>+150 cp</code>); <code>#</code>, <code>O-O</code>/<code>0-0</code>, figurines</td>
+</tr>
+<tr>
+<td><code>CHESS_WORDS</code></td>
+<td>rejected unless the facts contain the word</td>
+<td>piece names; <code>white</code>, <code>black</code>; check and mate forms; capture, take, exchange and trade forms; tactic and move-type words (fork, pin, skewer, discovered, back rank, overload, deflect, decoy, sacrifice, zwischenzug, en passant, promote, castle); threat, attack, hang, undefended, defend, en prise; material, centipawn, win, lose, gain, ahead, behind, advantage, equal; <code>a-file</code>, <code>a-pawn</code>, kingside, queenside, file, rank, diagonal</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vocabulary rule (#408).</strong> A <code>CHESS_WORDS</code> match passes when each of its words is in the cited evidence item's vocabulary (<code>SlotCatalogue.vocabulary</code>), or, since #431, when it lies inside the ending of a passed Threats factor name (<code>SlotCatalogue.phrases</code>). The vocabulary is the words of four kinds of fact names:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Example</th>
+<th>Words</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>slot names listed for the item, except <code>{factor:...}</code> slots</td>
+<td><code>{capture:best}</code>, <code>{threat:L1:2}</code>, <code>{mate_in}</code></td>
+<td>capture, best, threat, mate ...</td>
+</tr>
+<tr>
+<td>the mistake class name</td>
+<td><code>Missed direct threat</code></td>
+<td>missed, direct, threat</td>
+</tr>
+<tr>
+<td>the evidence tactic</td>
+<td><code>knight_fork</code></td>
+<td>knight, fork</td>
+</tr>
+<tr>
+<td>names of passed factor changes outside the Threats group (lessons and Analysis Board lines)</td>
+<td><code>king safety</code>, <code>weak queen</code>, <code>connected pawns</code></td>
+<td>king, safety, weak, queen, connected, pawn</td>
+</tr>
+<tr>
+<td>names of passed Threats factor changes (#431, <code>factor_names</code>)</td>
+<td><code>rook threats</code>, <code>safe pawn threats</code>, <code>slider on the queen</code></td>
+<td>a name ending in "threats" with its head noun: "rook threats", "pawn threats", "threats", never a bare "rook" or "pawn"; any other only as the whole name</td>
+</tr>
+</tbody>
+</table>
+<p>A Threats name names an attacking piece type, not a piece of the position, so its piece word is not admitted alone. The other names are about the side's own king, pieces or pawns; claims about them ("your king is safer") are read by the claim rule below. <code>{factor:...}</code> slot names add no word. <strong>Looseness:</strong> such a name admits its piece word for any prose, as before #431: with <code>weak queen</code> passed, "your queen is trapped" meets the vocabulary rule, and no claim pattern reads "trapped".</p>
+<p><strong>Pawn unit after a slot (#431).</strong> The word <code>pawn</code> or <code>pawns</code> right after an evaluation, difference or factor slot (<code>{eval_diff} pawns</code>, <code>{eval:line-1} pawns</code>, <code>{factor:king_safety:played} pawns</code>) repeats the unit the value already ends with. It is dropped before the checks and from the rendered text (<code>_PAWN_UNIT_AFTER_SLOT</code>). After <code>{material_gain}</code> (points) it stays a chess word. Before <code>in material</code> or <code>of material</code> the word stays and the vocabulary rule checks it. The claim rule reads the text as written: a slot used as a count ("you are {eval_diff} pawns up", "up {eval_diff} pawns", "wins {eval_diff} pawns") never matches a material fact (<code>SLOT_AMOUNT</code>), because the slot states an evaluation, not material. A sentence that has a slot as the pawn amount and material wording anywhere in it is rejected as <code>unsupported_claim</code>. The material words are: material, ahead, behind, in front, richer, extra, lead, short, plus, capture, win, gain, lose, "{eval_diff} more pawns" and "have {eval_diff} pawns". Two examples: "you are {eval_diff} pawns, up in material" and "your opponent leads by {eval_diff} pawns". A sentence about the score is exempt from both checks: it has an evaluation word (evaluation, eval, score, swing, rating, assessment, difference, value) and no material word (material, capture, win, gain, lose, piece, have). "Score: you capture {eval_diff} pawns" stays rejected. Examples are "the evaluation is down {eval_diff} pawns" and "that costs {eval_diff} pawns of evaluation". No stored benchmark claim is rejected by these checks.</p>
+<p>Words compare in lower case with a plural <code>s</code> removed (<code>threats</code> = <code>threat</code>); other forms do not match (<code>threatened</code> is not <code>threat</code>). The rule is one mechanism over the facts; it has no phrase list. Squares, moves, numbers and evaluations stay rejected because they contain a digit; colour words, <code>advantage</code> and <code>equal</code> stay rejected because no fact name contains them; a piece-on-square phrase needs a square.</p>
+<table>
+<thead>
+<tr>
+<th>Text</th>
+<th>Position</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Your move, {played}, missed a direct threat, as seen in line {line:L2}.</code></td>
+<td>missed direct threat</td>
+<td>passes</td>
+</tr>
+<tr>
+<td><code>After {played}, your piece on d2 became a {mistake}.</code></td>
+<td>any</td>
+<td><code>chess_token_outside_slot</code> (<code>2</code>)</td>
+</tr>
+<tr>
+<td><code>{played} missed a threat.</code></td>
+<td>missed capture, no threat slot or factor (<code>a301qp92:21</code>)</td>
+<td><code>chess_token_outside_slot</code></td>
+</tr>
+<tr>
+<td><code>After {played}, your king safety suffered.</code></td>
+<td>no king-safety factor</td>
+<td><code>chess_token_outside_slot</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every adversarial text of the claim-grounding suite (#366, #384) is still rejected as free prose on three benchmark positions (<code>tests/unit/test_narrator_vocabulary.py</code>). A correct grammar-suite text without notation may now pass when the facts name its words, for example <code>Check the opponent's captures before moving.</code> where check and capture slots exist.</p>
+<h3 id="claim-rule-431">Claim rule (#431)</h3>
+<p>A relational claim can hold no chess word and no notation: "You are up a piece" passed the vocabulary rule on the starting position. <code>claims.unsupported_claim</code> reads the prose outside the slots with a closed table of patterns (<code>CLAIM_RULES</code>, <code>src/scan64/explanations/claims.py</code>) and rejects the claim as <code>unsupported_claim</code> unless a fact of the cited evidence item (<code>SlotCatalogue.claims</code>, <code>ClaimFacts</code>) supports it, side and sign checked. It runs after the vocabulary rule, so <code>unsupported_claim</code> and <code>negated_claim</code> count only the outputs the claim rule rejects and the slot-token rule passed, and it only adds rejections: a supported claim still needs its chess words named ("you won the exchange" also needs "won" and "exchange" in the vocabulary).</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Examples</th>
+<th>Supported by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>material balance</td>
+<td>you are up a piece, you're a pawn down, you have an extra pawn, material is level</td>
+<td>a fact position (the root, or after any move of the item's lines, the played move or the best move) with that learner material advantage; units pawn 1, piece 3, exchange 2, rook 5, queen 9, and a piece or rook may be one pawn more ("about a minor piece")</td>
+</tr>
+<tr>
+<td>material change</td>
+<td>you won the exchange, your opponent wins a piece, this loses a pawn, costs you a pawn</td>
+<td>a move of those lines whose material advantage minus the root's is that</td>
+</tr>
+<tr>
+<td>evaluation</td>
+<td>you are winning, your opponent is better, you are in serious trouble, your position is bad, the evaluation favors you, you have a decisive advantage, the position is equal</td>
+<td>an engine score of the root, the best move or a line move: better 50 cp, winning 200 cp, equal within 50 cp (<code>BETTER_CP</code>, <code>WINNING_CP</code>, <code>EQUAL_CP</code>)</td>
+</tr>
+<tr>
+<td>king safety</td>
+<td>your king is safe, the opponent's king is exposed, your king safety suffered, your pawn shelter is intact</td>
+<td>a passed King factor change with that sign</td>
+</tr>
+<tr>
+<td>threats</td>
+<td>the opponent has no counterplay, you have the initiative; bare counterplay, compensation</td>
+<td>a passed Threats factor change with that sign (a bare word: any sign)</td>
+</tr>
+<tr>
+<td>piece activity</td>
+<td>your pieces are passive, you are cramped, you have more space, your mobility improved</td>
+<td>a passed Pieces, Mobility or Space factor change with that sign</td>
+</tr>
+</tbody>
+</table>
+<p>Side words: <code>you</code>, <code>your</code>, <code>the learner</code>, <code>the side to move</code> are the learner (the Analysis Board's side to move); <code>your opponent</code>, <code>the opponent</code>, <code>they</code>, <code>their</code> the other side. A claim with no side word ("{played} wins a piece", "the position is winning") holds when either side has the fact. A judgement around a factor name ("your king safety is poor", "... is stronger") is read with its sign, so a passed factor name no longer licenses any predicate. Plain tone is not read: "you can do better", "you were better off playing {best}", "you are better than this", "they are better prepared than you think", "you are struggling with this pattern", "that shows real initiative" pass; "ahead of the curve" and "behind on the clock" are no claim, though their chess word still meets the vocabulary rule (<code>tests/unit/test_narrator_claims.py</code>).</p>
+<p>Measured on the start position of the Analysis Board through the endpoint with an Ollama HTTP double (#431): "You are up a piece." and "Your opponent has no counterplay." were accepted on the base and fall back to the template on the head.</p>
+<p><strong>Looseness (claim rule).</strong> A claim is checked against every fact position of the item, not one moment: "you were winning before {played}" holds when any fact position is winning. Long lines hold many positions: "You are up a piece." is supported for the first evidence item of 26 of the 50 benchmark positions. A side-free claim takes either side's fact. A negated claim ("you are not up a piece", "you aren't losing") is rejected as <code>negated_claim</code>, because no fact records an absence. A claim no pattern reads is left to the vocabulary rule. A king, threats or activity claim about the best move, named before it in the sentence ("the best move keeps your king safer", "{best} keeps ...") or as its condition after it ("your king is safe only after the best move", but not the base of a comparison, "worse than after the best move"), needs a factor change against the best move with the opposite sign: the change is the played move minus the best move, so "the best move keeps your king safer" and "your king is weaker than after the best move" state the same change, and "the best move makes your king weaker" is rejected.</p>
+<p><strong>Replay of the committed records.</strong> <code>python -m benchmarks.narrator.replay_grounding</code> validates every stored claim of the committed slot-path runs again, offline, and prints the claims whose result changed (<code>tests/unit/test_narrator_replay.py</code>). The 5 runs whose positions file is unchanged hold 5966 accepted claims. At #442 the claim rule and the vocabulary changes newly reject 5 of them, each a true rejection: "you lost {material_gain} pawns" (the slot is points of material), "your opponent's position was much better after your move" (the learner is still +0.61), "with the best move, {best}, your king is more exposed to attack" (the change says the best move leaves the king safer), "your opponent's king is not in immediate danger after your move, as {check:played}" (<code>negated_claim</code>) and "{factor:safe_pawn_threats:played} reduced your chances to keep pawns safe" (misreads the factor). 46 claims rejected then are accepted now, each the pawn unit after a slot. The #431 example and its wrong-side form are rejected on every rebuilt position whose material does not support them and accepted on every one that does.</p>
+<p><strong>Looseness.</strong> A clause slot of any ply admits its word for the whole item: <code>threat</code> is in the vocabulary of 48 of the 50 benchmark positions, because most lines have a <code>{threat:L:N}</code> slot. The word then carries no square, move or number, so it cannot state which piece is threatened.</p>
+<p><strong>Limits.</strong> A slot value is true by construction, but the prose may still relate two true slots wrongly (for example "after <code>{best}</code>, <code>{threat:L2:2}</code>" when line L2 does not start with the best move). Clause slots (<code>{capture:K}</code>, <code>{threat:K}</code>) state the move inside the value to keep such relations local. The mover words in the slot list (<code>your move</code>, <code>your opponent's move</code>) help the model attach a move to the right side.</p>
+<h3 id="contract-decision">Contract decision</h3>
+<p>The output contract is unchanged: <code>GeneratedExplanation</code> claims with <code>text</code>, <code>evidence_ref</code>, <code>line</code>, <code>certainty</code>, <code>disclosure_level</code>. A smaller contract (text only) would drop the evidence scope that keeps a claim to one item's slots and the cited line the Analysis Board links claims with, and would change the provider JSON schema. Since #408 the slot list is the only user message; <code>line</code> stays in the contract, the prompt asks for <code>[]</code>, and code fills it from the claim's slots (section 8).</p>
+<h3 id="benchmark">Benchmark</h3>
+<p><code>benchmarks/narrator/run_benchmark.py</code> records, per claim, <code>slots</code>: each slot name the text uses, its rendered value (<code>null</code> when not listed) and its UCI moves; per run of the slot pipeline, <code>slots_used</code> (all claims' slots in order). Coverage (played move, key move, result) of a record with <code>slots_used</code> is counted from the listed slots only (<code>slot_coverage</code>): a move counts when a used slot's moves or rendered SAN hold it; the result counts when a used slot's value names it. Records without <code>slots_used</code> (all runs before #386) keep the claim-text count, so their summaries recompute unchanged. <code>chess_token_outside_slot</code>, <code>unsupported_claim</code> and <code>negated_claim</code> count as false chess statements; the per-reason counts (<code>claim_rejection_reasons</code>, <code>fallback_reasons</code>) keep the claim rule's fallbacks apart from the slot-token rule.</p>
+<h2 id="14-narrator-voice-387">14. Narrator voice (#387)</h2>
+<p>A voice sets the tone and sentence style of the plain words around the slots. It adds no chess fact and asks for no reasoning. Module: <code>src/scan64/explanations/voice.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Voice</th>
+<th>Prompt fragment (start)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>coach</code> (default)</td>
+<td>a calm, friendly coach; short, encouraging sentences</td>
+</tr>
+<tr>
+<td><code>terse</code></td>
+<td>as few plain words as possible; no greetings, praise or filler</td>
+</tr>
+<tr>
+<td><code>playful</code></td>
+<td>lively, everyday words; a warm, cheerful tone; short sentences</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prompt.</strong> <code>with_voice</code> appends one line to the system prompt: the voice fragment, then a fixed sentence that every slot rule applies unchanged and that the voice never adds a chess fact. <code>narrator_system_prompt(voice)</code> (lessons) and <code>board_narrator_system_prompt(voice)</code> (Analysis Board) build it. <code>NARRATOR_SYSTEM_PROMPT</code> and <code>BOARD_NARRATOR_SYSTEM_PROMPT</code> are unchanged; the voice line comes after them. The facts JSON and the slot list do not depend on the voice. Because the default voice also adds its line, the default prompt differs from the #386 prompt by that line.</p>
+<p><strong>Checks.</strong> The voice does not reach the validator. Every voice uses the same slot path, the same prose rules (<code>NOTATION</code>, <code>CHESS_WORDS</code> and the vocabulary rule) and the same reason codes (sections 8 and 13). Tests (<code>tests/unit/test_narrator_voice.py</code>) check, for each voice, that the prompt builds, that a raw chess claim outside a slot falls back as <code>chess_token_outside_slot</code> for lessons and the Analysis Board, and that no fragment matches <code>CHESS_PROSE</code> or names reasoning.</p>
+<p><strong>Selection.</strong> <code>run_with_explanation_provider</code> picks the voice in this order:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Where</th>
+<th>Absent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>voice=</code> argument</td>
+<td><code>resolve_explanation</code>, <code>resolve_board_lines_explanation</code> (benchmark, tests)</td>
+<td>next source</td>
+</tr>
+<tr>
+<td>operator</td>
+<td><code>voice</code> in the <code>[llm]</code> table of <code>SCAN64_LLM_CONFIG</code></td>
+<td><code>coach</code></td>
+</tr>
+<tr>
+<td>local grant</td>
+<td><code>OwnerExplanationSettings.voice</code>, set in <strong>Settings → Local explanation wording</strong></td>
+<td><code>coach</code></td>
+</tr>
+</tbody>
+</table>
+<p>Example operator file:</p>
+<pre><code class="language-toml">[llm]
+provider = &quot;ollama&quot;
+model = &quot;gemma4:12b&quot;
+base_url = &quot;http://127.0.0.1:11434&quot;
+voice = &quot;terse&quot;
+</code></pre>
+<p><strong>Benchmark.</strong> <code>voice</code> in the <code>[run]</code> table of <code>benchmarks/narrator/narrator.toml</code> (default <code>"coach"</code>) is passed to <code>pipeline_entry</code> as <code>voice=</code> and recorded in the run header and the summary. One runs file holds one voice; resume refuses a different voice. To compare voices, run once per voice and compare the summaries (grounding pass and coverage).</p>
+<h2 id="15-factor-module-407">15. Factor module (#407)</h2>
+<p>The factor module computes the evaluation of a position as named factors, so the narrator can say why a move changed the score (section 16, #408). It is a Python port of the Stockfish Evaluation Guide (hxim, GPL-3.0, commit <code>63ff375</code>), which documents the Stockfish 12-era classical evaluation. Module: <code>src/scan64/explanations/factors/</code>. Since #408 the narrator reads it through factor facts (section 16).</p>
+<p><strong>API.</strong> <code>evaluate_factors(board)</code> takes a python-chess board or a FEN and returns a <code>FactorReport</code> (White's point of view, internal units; <code>FactorReport.to_pawns</code> divides by 206):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>terms</code></td>
+<td>all 125 guide functions under their guide names and groups; <code>white</code> = value on the position, <code>black</code> = value on the colour-flipped position</td>
+</tr>
+<tr>
+<td><code>contributions</code></td>
+<td>48 named parts (for example <code>Hanging</code>, <code>King danger</code>, <code>Passed block</code>) with White and Black middle-game and end-game values, net values and the tapered total</td>
+</tr>
+<tr>
+<td><code>groups</code></td>
+<td>Material, Imbalance, Pawns, Pieces, Mobility, Threats, Passed pawns, Space, King, Winnable: the sums of their contributions</td>
+</tr>
+<tr>
+<td><code>phase</code>, <code>scale_factor</code>, <code>middle_game</code>, <code>end_game</code>, <code>tempo</code>, <code>rule50</code>, <code>evaluation</code></td>
+<td>the guide's taper inputs and its <code>Main evaluation</code></td>
+</tr>
+</tbody>
+</table>
+<p>A side value belongs to the side that earns it, as in the guide: White's <code>King danger</code> measures White's attack on the black king. <code>Imbalance total</code> and <code>Winnable</code> are net only.</p>
+<p><strong>Parity.</strong> <code>tests/unit/test_factors_parity.py</code> compares every term, for both sides, with the guide's own JavaScript on 324 positions (curated cases, the 50 narrator-benchmark positions before and after the played move, FENs from <code>tests/fixtures</code>, and openings, middle games and endgames from the recorded real games). All values match exactly. The reference values are a committed fixture (<code>tests/fixtures/factors/seg_reference.json.gz</code>), so CI needs no Node. To regenerate: build the position set with <code>tests/helpers/factors/build_positions.py</code>, then run <code>tests/helpers/factors/regenerate_reference.py &lt;guide index.html&gt;</code> on a guide checkout outside the repository.</p>
+<p><strong>Stockfish 11 comparison.</strong> <code>tests/helpers/factors/sf11_compare.py</code> records the Stockfish 11 <code>eval</code> trace (development machine only) and compares the net middle-game and end-game group totals in internal units. Tolerance: 50 units (about 0.25 pawn) per group and phase. Of 324 positions, 232 are compared; Stockfish 11 prints no trace for 34 positions in check, 51 lazy evaluations and 7 specialized endgames. 50 group values exceed the tolerance, in King (30), Winnable (10), Pieces (4), Threats (4) and Space (2). Each one has a cause code checked against the Stockfish 11 source, for example safe checks that the guide multiplies by their count, the guide's king-pawn distance of 6 for a side without pawns, and the guide's space weight. The table of every difference is <code>tests/fixtures/factors/sf11_comparison.md</code>; a unit test rebuilds it and checks that every row has a cause.</p>
+<p><strong>Speed.</strong> On linux-5090 (AMD Ryzen Threadripper 9960X, Python 3.12.13), <code>evaluate_factors</code> takes 2.87 ms mean, 3.7 ms p95 and 7.2 ms maximum over the 324 positions (3 passes). The port uses a padded board with precomputed attack tables and per-position caches. A unit test fails above 50 ms mean.</p>
+<p><strong>Limits.</strong></p>
+<ul>
+<li>The guide is the classical Stockfish evaluation, not the engine that judges moves (Caissa, or Stockfish with NNUE). Its factors explain a score; they do not replace the engine's judgement.</li>
+<li>The guide skips Stockfish's specialized endgames (KPK, KRK and others) and has no search, so factor values in those endgames and in tactical positions describe the static position only.</li>
+<li>The module needs exactly one king per side and no pawn on the first or last rank (<code>ValueError</code> otherwise).</li>
+<li>Pure Python on python-chess: no engine binary and no network access at runtime.</li>
+</ul>
+<h2 id="16-factor-facts-408">16. Factor facts (#408)</h2>
+<p>Factor changes across each mistake are narrator facts, so the narrator can name why the engine's score changed. The engine judges; a factor change is stated only when the engine's verdict agrees with it. Module: <code>src/scan64/explanations/factor_facts.py</code>.</p>
+<p><strong>Three points.</strong> <code>narrator_factor_facts</code> measures the factor module (section 15) at:</p>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>Position</th>
+<th>Line followed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>before</code></td>
+<td>before the learner's move</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>played</code></td>
+<td>after the learner's move and the engine's reply line</td>
+<td>the verified line from <code>focused_line</code>, else <code>focused_multipv[1]</code>, else the played move alone</td>
+</tr>
+<tr>
+<td><code>best</code></td>
+<td>after the engine's best move and its line</td>
+<td>the verified line from <code>fast_line</code>, else the best move alone</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quiet positions.</strong> <code>quiet_ply</code> follows a line from its first move to the first quiet position, within <code>quiet_ply_limit = 8</code> plies. Quiet: the side to move is not in check, and the line's next move is neither a capture nor a check. At the end of a line the engine names no next move, so quiet also needs no pending capture: no legal capture of an undefended piece, of a more valuable piece, or en passant. A point with no quiet position is <code>quiet: false</code> and is not measured. On the 50 benchmark positions, <code>played</code> is not quiet in 11 (mostly allowed mates, whose lines are checks to the end) and <code>best</code> in 6.</p>
+<p><strong>Rule.</strong> A change is <code>played</code> minus a reference point (<code>before</code> or <code>best</code>), in pawns (internal units / 206), from the learner's point of view. It becomes a fact only when both hold:</p>
+<ol>
+<li>its size reaches its threshold: the <code>overrides</code> value of its group or part, else the value of its kind;</li>
+<li>its sign agrees with the engine swing between the two points (#367): the engine score at the <code>played</code> position minus the score at the reference position (<code>before</code>: <code>evaluation_before</code>; <code>best</code>: the score at the <code>best</code> position), read from the per-move evaluations of the verified lines (section 5), learner's view; a mate counts as ±(100 000 − distance). When either score is unknown, the swing across the mistake is used: the score after the learner's move minus the score before it, or <code>-swing_cp</code>. A zero or unknown swing gives no fact.</li>
+</ol>
+<p><code>FactorFacts.swings</code> records the swing each comparison used and its <code>source</code>: <code>points</code> (scores at both measured positions) or <code>mistake</code> (the fallback). On the 50 benchmark lessons with recorded line scores (<code>tests/fixtures/narrator_line_evaluations.json</code>), all 71 comparisons use <code>points</code>. Against the same lessons without line scores, 8 changes are added and 5 dropped; 36 lessons have a passed change (37 without line scores). The measurement below uses the benchmark payloads, which have no <code>line_evaluations</code>.</p>
+<p><strong>Config table</strong> (<code>FACTOR_CONFIG</code>; fitted in #410, method and data in <code>docs/evaluation/factor-calibration.md</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>thresholds["group"]</code></td>
+<td>0.10 pawns</td>
+<td>smallest change of an evaluation group without an override (passed pawns, space)</td>
+</tr>
+<tr>
+<td><code>thresholds["term"]</code></td>
+<td>0.10 pawns</td>
+<td>smallest change of one named part of a group without an override</td>
+</tr>
+<tr>
+<td><code>overrides</code> (groups)</td>
+<td>King 0.75, Threats 0.60, Mobility 0.35, Pieces 0.35, Pawns 0.25</td>
+<td>per-group value, by guide name</td>
+</tr>
+<tr>
+<td><code>overrides</code> (parts)</td>
+<td>King danger 0.45, Hanging 0.35, Minor threat 0.30, Slider on queen 0.30, Pawn push threat 0.25, Flank attack 0.20, Trapped rook 0.20; 0.15 for Bishop pawns, Connected bonus, King protector, Passed file, Restricted, Rook on file, Rook threat</td>
+<td>per-part value, by guide name</td>
+</tr>
+<tr>
+<td><code>quiet_ply_limit</code></td>
+<td>8 plies</td>
+<td>longest walk to a quiet position</td>
+</tr>
+<tr>
+<td><code>excluded_groups</code></td>
+<td>Material, Imbalance, Winnable</td>
+<td>never stated: capture and material slots state material; Imbalance and Winnable are scaling terms</td>
+</tr>
+<tr>
+<td><code>max_changes</code></td>
+<td>3</td>
+<td>facts per comparison, largest first</td>
+</tr>
+<tr>
+<td><code>max_board_changes</code></td>
+<td>2</td>
+<td>facts per Analysis Board line</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Names.</strong> Groups: pawn structure, piece placement, mobility, threats, passed pawns, space, king safety. Parts have plain names (<code>GROUP_NAMES</code>, <code>TERM_NAMES</code>), for example <code>King danger</code> is <code>king attack</code> and <code>Shelter strength</code> is <code>pawn shelter</code>. A part that is the only part of its group (Mobility, Space) is stated as the group. Each name gives the slot key (<code>king safety</code> → <code>king_safety</code>) and the words the vocabulary rule admits; a Threats name admits them only with its head noun (section 13, #431).</p>
+<p><strong>Facts and slots.</strong> <code>NarratorFacts.factors</code> (<code>FactorFacts</code>, schema <code>narrator-facts/1</code>, optional, so earlier documents stay valid) holds <code>source</code> (<code>FACTOR_SOURCE</code>, <code>scan64-factors/1, Stockfish Evaluation Guide 63ff375</code>), the points, the swing and the passed changes. Each change is a slot: <code>{factor:KEY:played}</code> (against <code>before</code>) and <code>{factor:KEY:best}</code> (against <code>best</code>), shared by every evidence item and labelled with the source (<code>Slot.source</code>). Analysis Board: <code>BoardLineFacts.factors</code> for lines 2 and later compares the line's quiet position with line 1's, with the swing the score at this line's quiet position minus the score at line 1's (else this line's score minus line 1's); its slots are <code>{factor:KEY:line-K}</code>. Values are rendered by code and name their position, so they stay true wherever the model places them.</p>
+<p><strong>Measured on the 50 benchmark positions</strong> (fitted thresholds, #410). 33 of the 49 measured positions have at least one passed change (37 with the #408 starting values 0.30 and 0.15). Most frequent: king attack (18 facts), king safety (13), pawn shelter (10). In 11 the <code>played</code> point is not quiet, and in 1 (<code>ui2g2idg:59</code>) the stored best move equals the played move, so nothing is measured (<code>factors</code> absent). Facts for all 50 take 0.72 s (linux-5090).</p>
+<p><strong>Prompt size.</strong> The model gets the system prompt and the slot list only (section 5). Largest prompt, <code>prompt_eval_count</code> from Ollama with think=false (<code>tests/helpers/narrator/prompt_tokens.py --ollama</code>), RTX 5090:</p>
+<table>
+<thead>
+<tr>
+<th>Prompt set</th>
+<th>Before (#386 prompt with facts JSON)</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lessons, 50 benchmark positions (gemma4-12b)</td>
+<td>9869</td>
+<td>1410</td>
+</tr>
+<tr>
+<td>Analysis Board, 12 recorded positions, MultiPV 3 (gemma4-12b)</td>
+<td>10047</td>
+<td>1302</td>
+</tr>
+<tr>
+<td>Analysis Board, MultiPV 4 (gemma4-12b)</td>
+<td>—</td>
+<td>1608</td>
+</tr>
+</tbody>
+</table>
+<p>The lowest ratio measured was 2.58 characters per token (gemma4-12b, qwen3.5-9b, granite4.2-8b). <code>estimated_prompt_tokens</code> divides characters by 2.4, and <code>tests/unit/test_narrator_prompt_size.py</code> fails when any lesson or board prompt (MultiPV 1 to 4, every voice) reaches <code>PROMPT_TOKEN_TARGET = 2000</code> estimated tokens.</p>
+<p><strong>Grounding check.</strong> An ad-hoc run (not the benchmark harness), 2026-11-27, RTX 5090, 50 benchmark positions, one run per model, think=false, <code>num_ctx</code> 4096. Accepted explanations: gemma4-e4b 49, gemma4-12b 45, qwen3.5-4b 24 (24 rejected as <code>chess_token_outside_slot</code>). The interim #386 run had gemma4-e4b at 45%. These are grounding pass counts, not a measure of chess teaching quality.</p>
+<p><strong>Limits.</strong></p>
+<ul>
+<li>The factors are the classical Stockfish evaluation (section 15), not the engine that judges. A factor fact names a part of the classical evaluation whose change agrees in sign with the engine; it does not prove that part caused the engine's score.</li>
+<li>The sign rule does not compare sizes: a 0.3-pawn factor change can accompany a 9-pawn swing.</li>
+<li>A group and one of its parts can both pass (king safety and king attack).</li>
+<li>Lines are the stored verified lines, cut at 8 plies (section 5); a line that is still forcing at its end gives no measurement.</li>
+</ul>
+<h2 id="17-observability-366">17. Observability (#366)</h2>
+<p>The process counts narrator outcomes per pipeline: <code>lesson</code> (<code>resolve_explanation</code>) and <code>board</code> (<code>resolve_board_lines_explanation</code>). The counts start at zero when the server starts. They hold counts and reason codes only: no evidence, prompt, model output or player data.</p>
+<table>
+<thead>
+<tr>
+<th>Counter</th>
+<th>Incremented when</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attempts</td>
+<td>A configured provider is about to be used (after paths 1 to 3 of section 9)</td>
+<td><code>record_narrator_attempt</code></td>
+</tr>
+<tr>
+<td>accepted</td>
+<td>The provider's wording passed validation and replaced the template</td>
+<td><code>record_narrator_accepted</code></td>
+</tr>
+<tr>
+<td>fallbacks by reason</td>
+<td>Paths 4 to 5a of section 9 (<code>invalid_evidence</code>, <code>provider_error</code>, a validator code)</td>
+<td><code>record_template_fallback</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>One lock guards all counters, so concurrent requests count correctly.</li>
+<li>Each finished attempt adds one to <code>accepted</code> or to one fallback reason. A request in flight, or one ended by an unexpected exception, has an attempt only.</li>
+<li>Template-only resolution (no provider) counts nothing. The fallback rate therefore measures the narrator, not the share of template output.</li>
+<li><code>narrator_counts()</code> returns a snapshot per pipeline. <code>template_fallback_counts()</code> returns the fallbacks by reason summed over both pipelines.</li>
+</ul>
+<p><strong>Endpoint.</strong> <code>GET /v1/diagnostics/narrator</code> (<code>api/diagnostics.py</code>) is read-only and needs no player token. It answers only a loopback client (<code>127.0.0.1</code>, <code>::1</code>); other clients get 403. The desktop shell token applies as for every other route. The response has <code>Cache-Control: no-store</code>.</p>
+<pre><code class="language-json">{
+  &quot;lesson&quot;: {
+    &quot;attempts&quot;: 12,
+    &quot;accepted&quot;: 9,
+    &quot;fallbacks&quot;: 3,
+    &quot;fallback_rate&quot;: 0.25,
+    &quot;fallbacks_by_reason&quot;: {&quot;provider_error&quot;: 1, &quot;unparsed_chess_token&quot;: 2}
+  },
+  &quot;board&quot;: {
+    &quot;attempts&quot;: 0,
+    &quot;accepted&quot;: 0,
+    &quot;fallbacks&quot;: 0,
+    &quot;fallback_rate&quot;: null,
+    &quot;fallbacks_by_reason&quot;: {}
+  }
+}
+</code></pre>
+<p><code>fallback_rate</code> is <code>fallbacks / attempts</code>, or <code>null</code> before the first attempt.</p>
+<pre><code class="language-bash">curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64-cli serve default port
+</code></pre>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

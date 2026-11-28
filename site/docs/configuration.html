@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · Scan64 documentation</title>
+<meta name="description" content="Every server setting, its default and where it is read.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html" aria-current="page">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="configuration">Configuration</h1>
+<p>Scan64 has no settings file of its own. Learners change their preferences under <strong>Settings</strong> in the app. Operators configure a source or Docker server through environment variables, some of which point at TOML files. The desktop app starts its server with a cleared environment and sets only the variables in <a href="#set-by-the-desktop-app">Set by the desktop app</a>, so the others do not reach it. Every variable below is read by the code named in its row, and an invalid value is never replaced by a default. Most stop <code>scan64-cli serve</code> at start. <code>SCAN64_MAIA_CONFIG</code>, <code>SCAN64_LLM_CONFIG</code> and the <code>SCAN64_LOCAL_LLM_*</code> limits are checked on first use and fail that request. <code>SCAN64_ENGINE_POOL_ENABLED</code> treats any value other than <code>0</code>, <code>false</code>, <code>no</code> or <code>off</code> as on.</p>
+<p>The desktop app sets its own server variables (marked <em>desktop</em>). Do not set those yourself.</p>
+<h2 id="server-and-data">Server and data</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+<th>Read in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_DATABASE_URL</code></td>
+<td><code>sqlite:///database.db</code> in the working directory</td>
+<td>SQLAlchemy URL of the database. Blank is an error. Example: <code>sqlite:////absolute/path/to/scan64.db</code>. The desktop app sets it to <code>scan64.db</code> in its data directory.</td>
+<td><code>persistence/database.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_DATA_DIR</code></td>
+<td>puzzles: the SQLite database's directory, else <code>./data</code>; narrator: <code>./data</code></td>
+<td>Where <code>scan64-cli puzzles import --download</code> saves the puzzle file, and where <code>scan64-cli narrator install</code> downloads the model (<code>&lt;dir&gt;/narrator</code>). The desktop app sets it to its data directory (<em>desktop</em>).</td>
+<td><code>cli/puzzles.py</code>, <code>cli/narrator.py</code>, <code>desktop_server.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_WEB_DIST</code></td>
+<td><code>apps/scan64-web/dist</code> in the checkout</td>
+<td>Directory of the built web client that <code>scan64-cli serve</code> serves. The Docker image sets it to <code>/app/web</code>.</td>
+<td><code>api/web.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_ANALYSIS_DAILY_QUOTA</code></td>
+<td><code>50</code></td>
+<td>Games per player per day whose analysis starts at once. Later games queue round-robin across players; none are rejected. <code>0</code> queues every game.</td>
+<td><code>chess/analysis/admission.py</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>scan64-cli serve</code> takes <code>--host</code> (default <code>127.0.0.1</code>), <code>--port</code> (default <code>8001</code>) and <code>--no-browser</code>. Scan64 is built for loopback use only; it is not a hardened LAN or hosted server.</p>
+<p>Where the desktop app keeps its data on each system is listed in the <a href="user-guide.html#desktop-first-run-and-data">user guide</a>.</p>
+<h2 id="engines">Engines</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+<th>Read in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of an engine profile (TOML) for analysis, hints and grading.</td>
+<td><code>providers/engine/config.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_LADDER_ENGINE_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of a second profile that plays the bot ladder's moves. Unset, the bots use the analysis engine.</td>
+<td><code>providers/engine/config.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_STOCKFISH_PATH</code></td>
+<td><code>stockfish</code> on <code>PATH</code></td>
+<td>Stockfish binary used when no profile is selected.</td>
+<td><code>providers/engine/config.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_BUNDLED_ENGINES_DIR</code></td>
+<td>unset</td>
+<td>Directory of bundled engine profiles. The desktop app and the Docker image set it; a new install then records which engines it uses.</td>
+<td><code>providers/engine/install_defaults.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_ENABLED</code></td>
+<td>on</td>
+<td><code>0</code>, <code>false</code>, <code>no</code> or <code>off</code> starts a fresh engine process for each call instead of reusing pooled engines.</td>
+<td><code>providers/stockfish/pool.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_INTERACTIVE_CONCURRENCY</code></td>
+<td><code>2</code></td>
+<td>Engines kept for live bot moves and on-demand review. At least 1.</td>
+<td><code>providers/stockfish/pool.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_ENGINE_POOL_BATCH_CONCURRENCY</code></td>
+<td>CPUs − interactive engines − ladder threads − 1, at least 2</td>
+<td>Engines for game analysis. At least 1.</td>
+<td><code>providers/stockfish/pool.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>The profile format, the bundled engines and which engines a new install uses are in <a href="engines.html#selecting-an-engine">Analysis engines</a>.</p>
+<h2 id="opponents">Opponents</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+<th>Read in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_MAIA_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of a Maia configuration (TOML) naming <code>lc0</code> and operator-owned checkpoints. Unset or invalid, the server still starts and the first Maia bot move fails with HTTP 500.</td>
+<td><code>api/play.py</code>, <code>chess/games/play_session_service.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>The file format and the checks are in <a href="maia.html#configure-scan64">Maia opponents</a>.</p>
+<h2 id="explanation-wording">Explanation wording</h2>
+<p>Built-in explanations need no model. Local wording is turned on by the learner under <strong>Settings → Local explanation wording</strong> (<a href="user-guide.html#optional-local-explanation-wording">user guide</a>); an operator can instead fix the provider for every player.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+<th>Read in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN64_LLM_CONFIG</code></td>
+<td>unset</td>
+<td>Absolute path of an <code>[llm]</code> TOML file (<code>template</code>, <code>ollama</code> or <code>openai</code> provider). When set, it overrides every player's local grant.</td>
+<td><code>explanations/settings.py</code>, <code>explanations/assembly.py</code>, <code>providers/llm/config.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code></td>
+<td><code>180</code></td>
+<td>Deadline for one local explanation, model listing included; at most 600.</td>
+<td><code>providers/llm/local_ollama.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES</code></td>
+<td><code>262144</code></td>
+<td>Largest chat request sent to the local model; 1 KiB to 16 MiB.</td>
+<td><code>providers/llm/local_ollama.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES</code></td>
+<td><code>262144</code></td>
+<td>Largest response body accepted; 1 KiB to 16 MiB.</td>
+<td><code>providers/llm/local_ollama.py</code></td>
+</tr>
+<tr>
+<td><code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code></td>
+<td><code>4096</code></td>
+<td>Context size sent as <code>num_ctx</code>; 2048 to 131072, at least 4096 recommended.</td>
+<td><code>providers/llm/local_ollama.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>[llm]</code> format, the default narrator model and the memory each context size costs are in the <a href="narrator-pipeline.html#local-ollama-limits">narrator pipeline</a>. The models that were compared are in <a href="narrator-models.html">Narrator models</a>.</p>
+<h2 id="set-by-the-desktop-app">Set by the desktop app</h2>
+<p>The desktop shell starts the server with <code>SCAN64_PORT</code>, <code>SCAN64_SHELL_TOKEN</code>, <code>SCAN64_APP_VERSION</code>, <code>SCAN64_DATA_DIR</code>, <code>SCAN64_BUNDLED_ENGINES_DIR</code> and <code>SCAN64_STOCKFISH_PATH</code>. The server then sets <code>SCAN64_DATABASE_URL</code> and <code>SCAN64_DISTRIBUTION=desktop</code> itself (<code>desktop_server.py</code>). The other <code>SCAN64_*</code> names in the code (<code>SCAN64_SERVER_COMMAND</code>, <code>SCAN64_DEBUG_PUZZLE_URL</code>, <code>SCAN64_UPDATER_*</code>, <code>SCAN64_UPDATE_SMOKE_*</code>, <code>SCAN64_SMOKE_*</code>) are test and build switches, not settings.</p>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

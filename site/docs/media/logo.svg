@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12.857 -12.857 205.714 205.714" width="1024" height="1024" role="img" aria-labelledby="title desc">
+  <title id="title">Scan64</title>
+  <desc id="desc">An ink tile with a faint chessboard. A mint knight's tour traces an S through six legal knight moves, f7 d6 b5 d4 f3 d2 b1, from a light start square to a mint finish on b1.</desc>
+  <defs>
+    <pattern id="board" x="26" y="26" width="32" height="32" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#ffffff" fill-opacity="0.14"/>
+      <rect x="16" y="16" width="16" height="16" fill="#ffffff" fill-opacity="0.14"/>
+    </pattern>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="#232323"/>
+  <rect x="26" y="26" width="128" height="128" fill="url(#board)"/>
+  <g fill="#ffffff" fill-opacity="0.9">
+    <rect x="82" y="58" width="16" height="16"/>
+    <rect x="50" y="74" width="16" height="16"/>
+    <rect x="82" y="90" width="16" height="16"/>
+    <rect x="114" y="106" width="16" height="16"/>
+    <rect x="82" y="122" width="16" height="16"/>
+  </g>
+  <polyline points="122,50 90,66 58,82 90,98 122,114 90,130 58,146" fill="none" stroke="#a1ffcb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="111" y="39" width="22" height="22" rx="3.5" fill="#ffffff"/>
+  <rect x="46" y="134" width="24" height="24" rx="4" fill="#a1ffcb" stroke="#232323" stroke-width="3"/>
+</svg>

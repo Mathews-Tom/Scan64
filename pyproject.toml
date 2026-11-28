@@ -65,9 +65,11 @@ build = [
 ]
 dev = [
     "hypothesis>=6.156.6",
+    "markdown>=3.11,<3.11.4",
     "mypy>=2.2.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.21",
+    "types-markdown>=3.10,<3.11.3",
 ]

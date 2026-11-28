@@ -1,4 +1,4 @@
-"""Check the static entry point without dependencies or network access."""
+"""Check the static pages without dependencies or network access."""
 
 from html.parser import HTMLParser
 from pathlib import Path
@@ -22,17 +22,30 @@ class Page(HTMLParser):
                 self.links.append(str(values[key]))
 
 
-page = Page()
-page.feed((ROOT / "index.html").read_text())
-for link in page.links:
-    url = urlsplit(link)
-    if url.scheme or url.netloc:
-        assert url.scheme == "https", f"Non-HTTPS resource: {link}"
-        continue
-    assert not url.path.startswith("/"), f"Not sub-path safe: {link}"
-    target = (ROOT / unquote(url.path)).resolve()
-    assert target.is_relative_to(ROOT), f"Resource escapes site: {link}"
-    assert target.exists(), f"Missing resource: {link}"
-    if not url.path and url.fragment:
-        assert url.fragment in page.ids, f"Missing anchor: {link}"
-print(f"PASS: {len(page.links)} HTML resources and links; relative assets support /Scan64/.")
+def parse(path: Path) -> Page:
+    page = Page()
+    page.feed(path.read_text(encoding="utf-8"))
+    return page
+
+
+# Published pages: the landing page and the documentation site.
+sources = [ROOT / "index.html", *sorted((ROOT / "docs").rglob("*.html"))]
+pages = {path.resolve(): parse(path) for path in sources}
+count = 0
+for path, page in pages.items():
+    name = path.relative_to(ROOT).as_posix()
+    for link in page.links:
+        count += 1
+        url = urlsplit(link)
+        if url.scheme or url.netloc:
+            assert url.scheme == "https", f"{name}: non-HTTPS resource: {link}"
+            continue
+        assert not url.path.startswith("/"), f"{name}: not sub-path safe: {link}"
+        target = (path.parent / unquote(url.path)).resolve() if url.path else path
+        assert target.is_relative_to(ROOT), f"{name}: resource escapes site: {link}"
+        assert target.exists(), f"{name}: missing resource: {link}"
+        if url.fragment:
+            linked = pages.get(target / "index.html" if target.is_dir() else target)
+            assert linked is not None, f"{name}: anchor on a non-page: {link}"
+            assert url.fragment in linked.ids, f"{name}: missing anchor: {link}"
+print(f"PASS: {count} links in {len(pages)} pages; relative assets support /Scan64/.")

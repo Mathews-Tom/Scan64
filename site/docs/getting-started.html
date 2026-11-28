@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get started · Scan64 documentation</title>
+<meta name="description" content="Install the desktop app, Docker or a source checkout, then play and review your first game.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html" aria-current="page">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="get-started">Get started</h1>
+<h2 id="install-the-desktop-app">Install the desktop app</h2>
+<p>The unified desktop app opens Scan64 in one window, without a browser tab. It bundles Python and three engines: a fresh install analyses with Caissa and plays the bot levels with Arasan; an install from before keeps Stockfish (<a href="engines.html#which-engines-an-install-uses">which engines an install uses</a>). No developer tools or separate engine are needed.</p>
+<p><strong>Download the installer for your platform from the <a href="https://github.com/Mathews-Tom/Scan64/releases/latest">latest published Scan64 release</a>.</strong> <a href="https://github.com/Mathews-Tom/Scan64/actions/workflows/desktop.yml">Desktop CI</a> artifacts are test builds, not release installers.</p>
+<p><strong>Upgrading from 0.6.1 or earlier:</strong> the old macOS app cannot update itself. Delete it and install the current desktop release by hand. Its data is not migrated.</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Release asset</th>
+<th>Install and open</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>macOS Apple silicon (arm64)</strong></td>
+<td><code>.dmg</code></td>
+<td>Open the disk image, drag <strong>Scan64</strong> into <strong>Applications</strong>, eject the image and launch Scan64 from Applications.</td>
+</tr>
+<tr>
+<td><strong>Windows x64</strong></td>
+<td><code>-setup.exe</code></td>
+<td>Run the installer, then launch Scan64 from the Start menu. Installation is for your current user, without administrator rights.</td>
+</tr>
+<tr>
+<td><strong>Linux x64 — AppImage</strong></td>
+<td><code>.AppImage</code></td>
+<td>Make the downloaded AppImage executable, then run it from your download folder. Requires FUSE support; otherwise use the Debian package.</td>
+</tr>
+<tr>
+<td><strong>Linux x64 — Debian/Ubuntu</strong></td>
+<td><code>.deb</code></td>
+<td><a href="user-guide.html#install-on-your-os">Install the downloaded package with <code>apt</code></a>, then launch Scan64 from the application menu.</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="#open-an-unsigned-installer-safely">Open an unsigned installer safely</a> before the first launch on macOS or Windows.</p>
+<p>The desktop app includes signed in-app updates: <strong>Settings → Updates</strong> checks GitHub Releases, downloads in the background by default, and waits for <strong>Restart to update</strong>. It never restarts automatically. Linux <code>.deb</code> installs instead link to the release download. See the <a href="user-guide.html#updates">updates guide</a>.</p>
+<h2 id="open-an-unsigned-installer-safely">Open an unsigned installer safely</h2>
+<p>Scan64 is a free project with one developer, and it does not pay for Apple Developer ID or Windows code-signing certificates. The macOS app is ad-hoc signed and not notarized. The Windows installer has no Authenticode signature. Your operating system therefore cannot confirm who built the download and warns you on first launch. These warnings do not mean the app is harmful, but they also do not tell you it is safe. The steps below confirm that your file is exactly the one published on the Scan64 release, not a corrupted or swapped copy; whether to trust that release is still your decision.</p>
+<p><strong>1. Download only from the <a href="https://github.com/Mathews-Tom/Scan64/releases/latest">Scan64 releases page</a>.</strong> Other mirrors, Desktop CI artifacts and files sent to you by someone else are not release installers.</p>
+<p><strong>2. Check the file's SHA-256 against the release.</strong> GitHub lists a <code>sha256:</code> digest for every release file. With the <a href="https://cli.github.com/">GitHub CLI</a>, print the latest release's digests with <code>gh release view --repo Mathews-Tom/Scan64 --json assets --jq '.assets[] | [.digest, .name] | @tsv'</code>. Hash your download with the command below. Then compare its output with the hex after <code>sha256:</code> for the same file name. Every character must match; letter case does not matter.</p>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td><code>shasum -a 256 ~/Downloads/Scan64_*_aarch64.dmg</code></td>
+</tr>
+<tr>
+<td>Windows (PowerShell)</td>
+<td><code>Get-FileHash $HOME\Downloads\Scan64_*_x64-setup.exe -Algorithm SHA256 \| Format-List Path,Hash</code></td>
+</tr>
+<tr>
+<td>Linux AppImage</td>
+<td><code>sha256sum ~/Downloads/Scan64_*_amd64.AppImage</code></td>
+</tr>
+<tr>
+<td>Linux Debian/Ubuntu</td>
+<td><code>sha256sum ~/Downloads/Scan64_*_amd64.deb</code></td>
+</tr>
+</tbody>
+</table>
+<p>If the values differ, delete the file and download it again. Do not open a file whose digest does not match.</p>
+<p><strong>3. macOS: allow Scan64 once.</strong></p>
+<ol>
+<li>Drag Scan64 to <strong>Applications</strong> and open it. macOS refuses because it cannot verify the developer. Choose <strong>Done</strong>, not <strong>Move to Trash</strong>.</li>
+<li>Open <strong>System Settings → Privacy &amp; Security</strong>. Under <strong>Security</strong>, select <strong>Open Anyway</strong> next to the Scan64 message. The button appears for about an hour after the blocked launch; open Scan64 again if it is missing.</li>
+<li>Confirm <strong>Open Anyway</strong> and enter your login password. macOS remembers this exception for Scan64.</li>
+</ol>
+<p>Since macOS 15, Control-click → <strong>Open</strong> no longer bypasses this check; use <strong>Open Anyway</strong>. If the <strong>Open Anyway</strong> button never appears, you can instead remove the download flag from this one app in Terminal: <code>xattr -dr com.apple.quarantine /Applications/Scan64.app</code>. On a Mac managed by your work or school, ask its administrator rather than working around their settings. Never turn Gatekeeper off for the whole Mac with <code>spctl --master-disable</code> or similar. <strong>If macOS says Scan64 is damaged or will damage your computer, stop.</strong> That is not the unsigned-developer warning. Delete the file and download it again, then check the digest.</p>
+<p><strong>4. Windows: get past SmartScreen.</strong></p>
+<ul>
+<li>If <strong>Windows protected your PC</strong> appears, select <strong>More info</strong>, check that the file name is the one you verified, then select <strong>Run anyway</strong>.</li>
+<li>Alternatively, before running the installer, right-click it, choose <strong>Properties</strong>, tick <strong>Unblock</strong> and select <strong>OK</strong>. This removes the downloaded-from-the-internet mark from that one file.</li>
+<li><strong>Smart App Control</strong> blocks unsigned apps that it has no reputation data for, and it offers no per-app exception. If it blocks the installer, the only way to run Scan64 is to turn Smart App Control off in <strong>Windows Security → App &amp; browser control → Smart App Control settings</strong>. That removes its protection for every app, so decide whether the trade-off is acceptable for your PC before you change it.</li>
+</ul>
+<p><strong>5. Linux needs no bypass.</strong> AppImages and <code>.deb</code> packages carry no platform signature to check; verify the digest as in step 2.</p>
+<p><strong>After installation, updates are verified for you.</strong> On macOS, Windows and the AppImage, <strong>Settings → Updates</strong> installs an update only if its signature matches Scan64's update key (key id <code>A1BF33DC0D262D9E</code>, listed in <a href="https://github.com/Mathews-Tom/Scan64/blob/main/SECURITY.md">SECURITY.md</a>). This is separate from operating-system code signing. The <code>.deb</code> package does not update itself. Whenever you install a version by downloading it yourself, including every <code>.deb</code> update, repeat steps 1, 2 and the step for your system.</p>
+<h2 id="build-the-macos-app-apple-silicon">Build the macOS app (Apple silicon)</h2>
+<p>You can also build the unified desktop app locally.
+It opens one window with the whole client, not a browser tab or a status window.
+You need Xcode Command Line Tools, Rust, uv with managed Python 3.12+, Node.js 24+ and pnpm 10.33.3:</p>
+<pre><code class="language-sh">uv sync --locked --group build --python-preference only-managed
+pnpm install --frozen-lockfile
+cargo install cargo-about --version 0.8.2 --locked
+pnpm --dir apps/scan64-web build
+uv run --no-sync python scripts/build-server.py
+SCAN64_UPDATER_DRY_RUN=1 pnpm --dir apps/scan64-desktop tauri build --config src-tauri/tauri.bundle.conf.json --bundles app
+open apps/scan64-desktop/src-tauri/target/release/bundle/macos/Scan64.app
+</code></pre>
+<p>The build bundles Python, Stockfish 18, Caissa 2.0 and Arasan 26.1, their networks and their licences/source; runtime needs no developer tools or system Stockfish. It is <strong>unsigned and not notarized</strong> (ad-hoc signing only). If macOS blocks a trusted build, use <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>; never disable Gatekeeper globally.</p>
+<p>This is an explicit development dry run: it skips the production public-key guard and cannot consume production updates. The published installers use the production updater key; never use the test-only updater overlay for a release.</p>
+<p>Quit with <strong>⌘Q</strong>, the application menu or by closing the window; another launch focuses the existing window. Data and logs live in <code>~/Library/Application Support/org.scan64.desktop</code>. The fixed shell origin keeps your player signed in even when the loopback server port changes; retain the app's local storage as well as its database. Older desktop data is not migrated.</p>
+<p>Use <strong>Download puzzles</strong> or <strong>Choose a file…</strong> in Puzzles or <strong>Settings → Puzzle library</strong>. Manage app updates in <strong>Settings → Updates</strong>. Browser and container installation below is unchanged. See the <a href="user-guide.html">user guide</a> and <a href="https://github.com/Mathews-Tom/Scan64/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a>.</p>
+<h2 id="docker">Docker</h2>
+<p>No local Python, Node or Stockfish needed:</p>
+<pre><code class="language-sh">docker build -t scan64 .
+docker run --name scan64 -p 127.0.0.1:8001:8001 -v scan64-data:/data scan64
+</code></pre>
+<p>Open <code>http://127.0.0.1:8001</code>. The image supports Linux amd64 and arm64, includes checksum-verified Stockfish 18, runs as a non-root user and keeps its database in the <code>scan64-data</code> volume. Stop with Ctrl-C and resume with <code>docker start -a scan64</code>; your games survive as long as you reuse the volume.</p>
+<h2 id="from-source">From source</h2>
+<p>You need <a href="https://docs.astral.sh/uv/">uv</a>, Python 3.12+, Node.js 24+, <a href="https://pnpm.io/installation">pnpm</a> 10.33.3, and Stockfish 18+ available as <code>stockfish</code> on your <code>PATH</code>.</p>
+<pre><code class="language-sh">git clone https://github.com/Mathews-Tom/Scan64.git
+cd Scan64
+uv sync --locked
+pnpm --dir apps/scan64-web install --frozen-lockfile
+pnpm --dir apps/scan64-web build
+uv run scan64-cli serve
+</code></pre>
+<p>This serves the app and API at <code>http://127.0.0.1:8001</code> and opens your browser. Use <code>--no-browser</code> to skip that, or <code>--port 8061</code> for another port. Scan64 binds to loopback only; it is not a hardened LAN or hosted deployment. To keep the database somewhere specific:</p>
+<pre><code class="language-sh">SCAN64_DATABASE_URL=&quot;sqlite:////absolute/path/to/scan64.db&quot; uv run scan64-cli serve
+</code></pre>
+<h2 id="your-first-session">Your first session</h2>
+<ol>
+<li>Enter a display name and choose <strong>Start learning</strong>. Declare a starting level for an overridable bot suggestion—not an Elo estimate.</li>
+<li>From <strong>Today</strong>, play a bot or use <strong>Review → Import games</strong> for a Lichess/Chess.com username or PGN. Let analysis finish, then inspect a key moment and retry it.</li>
+<li>Open <strong>Train</strong> for a lesson or <strong>Safe or blunder</strong>, or start <strong>Convert the win</strong> from an eligible review. Profile shows game insights and patterns; sparse before/after samples say <strong>Not enough games</strong>.</li>
+<li>Explore <strong>Library</strong> for repertoires and community packs. Use <strong>Settings → Send feedback</strong> to preview a GitHub issue draft; Scan64 sends nothing itself.</li>
+</ol>
+<p>Puzzles need a one-time import of the free <a href="https://database.lichess.org/#puzzles">Lichess puzzle database</a> (CC0). Nothing is downloaded automatically:</p>
+<pre><code class="language-sh">uv run scan64-cli puzzles import --download --json
+</code></pre>
+<p>The download is about 310 MB. See <a href="user-guide.html#import-a-puzzle-catalog">Import a puzzle catalog</a> for local files, Docker and filters. In the desktop app, choose <strong>Download puzzles</strong> or <strong>Choose a file…</strong> in Puzzles or <strong>Settings → Puzzle library</strong>.</p>
+<h2 id="development">Development</h2>
+<p><code>scripts/run.sh</code> starts the development setup: the API on <code>http://127.0.0.1:8001</code> and the hot-reloading Vite client on <code>http://127.0.0.1:5173</code>. The API does not reload, so restart the script after Python changes. <code>scripts/check.sh</code> runs the full local gate (Ruff, mypy, pytest, the web build and tests, and Playwright); it needs <code>stockfish</code> on <code>PATH</code> and port 5173 free.</p>
+<h2 id="optional-extras">Optional extras</h2>
+<ul>
+<li><strong>Maia weights.</strong> Scan64 never bundles, downloads or hosts Maia weights. If you have the right to use a checkpoint, follow the <a href="maia.html">Maia guide</a>.</li>
+<li><strong>Local wording.</strong> Opt into an installed Ollama model in <strong>Settings → Local explanation wording</strong>. It can reword new explanations, not change engine verdicts; unavailable or rejected wording falls back to built-in templates. See the <a href="user-guide.html#optional-local-explanation-wording">privacy boundary</a>.</li>
+</ul>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

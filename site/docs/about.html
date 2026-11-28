@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About Scan64 · Scan64 documentation</title>
+<meta name="description" content="What Scan64 does, what it shows you, and what it does not claim.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html" aria-current="page">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="about-scan64">About Scan64</h1>
+<h2 id="why-scan64">Why Scan64?</h2>
+<p>Most chess tools can tell you that a move was bad. Scan64 tries to help you see <em>why</em>, and then gives you something to practise. It is built for improving club players, roughly 600 to 1600, who keep losing to the same kinds of mistakes, but anyone who enjoys the game is welcome.</p>
+<ul>
+<li><strong>Your games are the curriculum.</strong> Import by Lichess or Chess.com username, paste a PGN, or play here. Stockfish turns supported mistakes into lessons and evidence-linked patterns.</li>
+<li><strong>Help at the right depth.</strong> Three-step hints go from a nudge to the idea to sound moves. Candidates and an optional blunder guard let you examine choices before committing.</li>
+<li><strong>Evidence, not promises.</strong> Profile shows game insights, recurring patterns and before/after recurrence with sample sizes. A change is not proof that training caused it, or that your rating improved.</li>
+<li><strong>Local-first.</strong> Games and progress stay on your computer. Online imports, <strong>Download puzzles</strong> from Lichess, desktop updates and optional local model wording have explicit network boundaries; no online Scan64 account is needed. See <a href="#stable-from-10">Stable from 1.0</a> for the compatibility boundary.</li>
+</ul>
+<h2 id="see-it-in-action">See it in action</h2>
+<p>These are <strong>headless Chromium captures of the current React client</strong>, at 1440 × 1000 in dark mode with the default board appearance. They use a disposable demo player, public Lichess games and genuine CC0 puzzles—not the maintainer's data or native desktop windows. Insights and Progress share one completed analysis state; the other scenes follow the same demo player's play, review and practice. The desktop app runs the same client.</p>
+<h3 id="play-a-bot-and-ask-for-a-hint">Play a bot and ask for a hint</h3>
+<p>Pick one of eight relative bot levels, a colour and an optional clock. Untimed games allow takebacks; hints reveal a nudge, an idea, then sound moves with arrows and reasons.</p>
+<p align="center"><img src="media/demo-play-hints.gif" alt="Playing a bot game in Scan64 and stepping through the three-step hint ladder until arrows and a reason appear" width="860"></p>
+
+<h3 id="turn-a-reviewed-mistake-into-practice">Turn a reviewed mistake into practice</h3>
+<p>Replay every move with Scan64 accuracy and coverage, an evaluation graph, and up to three trusted key moments to retry. Daily Training brings your eligible lessons back on a review schedule; this recording follows a real game-derived lesson through hints to a server-verified answer. The Analysis Board also lets you explore up to three engine lines and save variations as PGN.</p>
+<p align="center"><img src="media/demo-review.gif" alt="Daily Training on a position from an imported game: revealing three hints, inspecting the Nxf2 candidate arrow, then recording a correct hinted answer" width="860"></p>
+
+<h3 id="practise-puzzles">Practise puzzles</h3>
+<p>Solve multi-move puzzles from the free Lichess puzzle database. Scan64 keeps a separate puzzle rating, builds a daily set and lets you practise by theme or revisit your misses.</p>
+<p align="center"><img src="media/demo-puzzles.gif" alt="Revealing hints for Lichess puzzle 001wR, playing its three solver moves and reaching the recorded Puzzle solved result" width="860"></p>
+
+<table>
+  <tr>
+    <td width="50%"><a href="media/screenshot-today.png"><img src="media/screenshot-today.png" alt="Today with Play, Train and Review actions, a declared Club starting point, daily puzzle progress and the latest analysed game"></a></td>
+    <td width="50%"><a href="media/screenshot-review.png"><img src="media/screenshot-review.png" alt="Review of maia1 versus cartolo after 10. O-O, a trusted hanging-piece key moment with Black to move"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Today</b>: choose your next session</td>
+    <td align="center"><b>Review</b>: inspect a turning point</td>
+  </tr>
+  <tr>
+    <td><a href="media/screenshot-profile.png"><img src="media/screenshot-profile.png" alt="Profile game insights: 96.9% accuracy across 834 scored and eligible owner moves, with phase, colour and opening breakdowns; 2 of 832 moves under clock pressure (0.2%)"></a></td>
+    <td><a href="media/screenshot-patterns.png"><img src="media/screenshot-patterns.png" alt="Hanging-piece recurrence before training: 15 games, 505 moves, 5 occurrences, 0.99 per 100 moves (95% Wilson interval 0.42–2.30); after: 4 games, 118 moves, 3 occurrences, 2.54 per 100 (0.87–7.21), with the non-causal caveat"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Insights</b>: 834 scored owner moves</td>
+    <td align="center"><b>Progress</b>: 0.99 → 2.54 per 100 moves—not a causal claim</td>
+  </tr>
+</table>
+
+<h2 id="what-you-can-do">What you can do</h2>
+<table>
+<thead>
+<tr>
+<th>Play and review</th>
+<th>Practise</th>
+<th>Understand your progress</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eight bot levels; untimed or 1+0, 3+2, 5+0 and 10+5</td>
+<td>Engine-checked lessons; FSRS-scheduled lesson and eligible puzzle reviews</td>
+<td>Game insights by phase, colour and opening; clock-pressure coverage when available</td>
+</tr>
+<tr>
+<td>Three-step hints, Candidates and opt-in blunder guard</td>
+<td><strong>Safe or blunder</strong>: choose a sound move over your played mistake</td>
+<td>Recurring patterns with source positions, game counts and scored coverage</td>
+</tr>
+<tr>
+<td><strong>Review → Import games</strong>: Lichess/Chess.com username or PGN</td>
+<td><strong>Convert the win</strong>: separate sparring from eligible review positions</td>
+<td>Before/after pattern recurrence with game/move counts, intervals and insufficient-data states—not a causal claim</td>
+</tr>
+<tr>
+<td>Per-move review, key moments and an Analysis Board with engine lines</td>
+<td>Daily puzzles, theme runs, missed-puzzle retries and a separate puzzle rating</td>
+<td>Daily goals, calendar streaks, named skills and bot results by level and time control, excluding assisted games</td>
+</tr>
+<tr>
+<td>Premoves, annotations, keyboard moves and board appearance choices</td>
+<td>Import a repertoire PGN, practise due decisions and compare imported-game deviations</td>
+<td>Download a local coach packet with a pattern summary and annotated PGN evidence</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Library → Community lesson packs</strong> installs local JSON packs and re-verifies their solver moves with your engine. Pack play <strong>never changes progress or review schedules</strong>; keep the original files because player exports exclude packs. Optional <a href="maia.html">Maia opponents</a> require operator-provided weights.</p>
+<h2 id="how-it-works">How it works</h2>
+<pre><code class="language-text">Play or import → Stockfish analysis → supported diagnosis → lesson → verified answer
+       ↑                                                                    ↓
+       └──────────── Profile evidence and scheduled practice ───────────────┘
+</code></pre>
+<p>Lesson answers are checked on the server before they update skills and matching review schedules; hints remain app-reported. Patterns use your own moves and show their evidence coverage. Related puzzle themes are practice, not a new diagnosis. <a href="user-guide.html#optional-local-explanation-wording">Optional local Ollama wording</a> is off by default: built-in explanations need no model, and generated wording must pass evidence checks. See the <a href="system-overview.html">system overview</a>.</p>
+<h2 id="stable-from-10">Stable from 1.0</h2>
+<p>Scan64 uses semantic versioning. From 1.0, these are compatibility commitments; breaking one requires a major version:</p>
+<ul>
+<li><strong>Saved data:</strong> upgrading a database from v0.9.0 or later preserves player progress. Tests upgrade a populated database produced by the v0.9.0 release to the current schema. A separate test migrates a copy built at the v0.8.0 schema revision through later upgrades. The desktop app automatically copies the database before a version upgrade migrates it; source and Docker users keep their own copy.</li>
+<li><strong>Player export archives:</strong> archives exported by v0.9.0 and by the current release import into the current release. Tests restore a real v0.9.0 export and current archive forms, including games, completed analysis, lesson and puzzle progress, skill state and review schedules. From 1.0, an archive exported by a 1.x release stays importable in later 1.x releases.</li>
+<li><strong>In-app updates:</strong> updates are verified with the committed Tauri updater public key. This is separate from operating-system installer signing.</li>
+</ul>
+<p>The internal HTTP API, CLI flags and UI layout are not stable interfaces. Untested older data is not covered; in particular, data from the older browser-based app (0.6.1 and earlier) is not migrated. These tests are not acceptance of a published 1.0 installer.</p>
+<h2 id="what-scan64-does-not-claim">What Scan64 does not claim</h2>
+<ul>
+<li>It has not been shown to improve over-the-board results or ratings. Bot levels have no Elo figure.</li>
+<li>Lesson hints are reported by the app rather than proven by the server, and the user guide says so.</li>
+<li>Accessibility targets WCAG 2.2 AA on every route, but the hands-on Safari/VoiceOver pass is still pending. See <a href="user-guide.html#keyboard-touch-and-screen-readers">keyboard use and accessibility</a>.</li>
+<li>There is no hosted service, published container image or PyPI package. Desktop installers and Linux packages are not operating-system signed; macOS builds are unsigned and not notarized (ad-hoc signing only). Updater bundles carry separate <code>.sig</code> files verified by the app; <code>.deb</code> packages do not update themselves.</li>
+</ul>
+<h2 id="contributing">Contributing</h2>
+<p>Bug reports, ideas and pull requests are welcome. The <a href="https://github.com/Mathews-Tom/Scan64/blob/main/docs/roadmap.md">roadmap</a> lists features open for contributors, with items ready to start marked <strong>Ready</strong>. Read <a href="https://github.com/Mathews-Tom/Scan64/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> to set up and run the checks. Report security issues privately as described in <a href="https://github.com/Mathews-Tom/Scan64/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+<h2 id="license-and-credits">License and credits</h2>
+<p>Scan64 is licensed under the <a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU General Public License v3.0</a>.</p>
+<p>It builds on <a href="https://stockfishchess.org/">Stockfish</a>, <a href="https://github.com/niklasf/python-chess">python-chess</a> and <a href="https://github.com/lichess-org/chessground">Chessground</a> (all GPL-3.0-or-later), and imports the <a href="https://database.lichess.org/#puzzles">Lichess puzzle database</a> (CC0). See <a href="https://github.com/Mathews-Tom/Scan64/blob/main/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a> for the full list.</p>
+<p>The Scan64 <a href="media/logo.svg">mark</a> and <a href="media/social-preview.png">social preview</a> are available in <code>assets/</code>.</p>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>
