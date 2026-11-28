@@ -1,0 +1,1142 @@
+{
+ "c001": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Lasker"
+ },
+ "c002": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Chernev"
+ },
+ "c003": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Capablanca"
+ },
+ "c004": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "plain+board",
+  "style": null
+ },
+ "c005": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Tal"
+ },
+ "c006": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c007": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Tal"
+ },
+ "c008": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c009": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Chernev"
+ },
+ "c010": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Lasker"
+ },
+ "c011": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Lasker"
+ },
+ "c012": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Lasker"
+ },
+ "c013": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Bronstein"
+ },
+ "c014": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Capablanca"
+ },
+ "c015": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Nimzowitsch"
+ },
+ "c016": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Tal"
+ },
+ "c017": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Lasker"
+ },
+ "c018": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Bronstein"
+ },
+ "c019": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Capablanca"
+ },
+ "c020": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Nimzowitsch"
+ },
+ "c021": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Bronstein"
+ },
+ "c022": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c023": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Chernev"
+ },
+ "c024": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Bronstein"
+ },
+ "c025": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Lasker"
+ },
+ "c026": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Tal"
+ },
+ "c027": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c028": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Chernev"
+ },
+ "c029": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Tal"
+ },
+ "c030": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c031": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "plain+board+roles",
+  "style": null
+ },
+ "c032": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Capablanca"
+ },
+ "c033": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Lasker"
+ },
+ "c034": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Bronstein"
+ },
+ "c035": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Chernev"
+ },
+ "c036": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "plain+board+roles",
+  "style": null
+ },
+ "c037": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c038": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Lasker"
+ },
+ "c039": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Capablanca"
+ },
+ "c040": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Tal"
+ },
+ "c041": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Nimzowitsch"
+ },
+ "c042": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Lasker"
+ },
+ "c043": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Chernev"
+ },
+ "c044": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c045": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Capablanca"
+ },
+ "c046": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c047": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Capablanca"
+ },
+ "c048": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Capablanca"
+ },
+ "c049": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Bronstein"
+ },
+ "c050": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Nimzowitsch"
+ },
+ "c051": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Lasker"
+ },
+ "c052": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Tal"
+ },
+ "c053": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Tal"
+ },
+ "c054": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Chernev"
+ },
+ "c055": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c056": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c057": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Lasker"
+ },
+ "c058": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Chernev"
+ },
+ "c059": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c060": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Bronstein"
+ },
+ "c061": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c062": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Chernev"
+ },
+ "c063": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c064": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c065": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Chernev"
+ },
+ "c066": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Chernev"
+ },
+ "c067": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Bronstein"
+ },
+ "c068": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Bronstein"
+ },
+ "c069": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c070": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Lasker"
+ },
+ "c071": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "plain+board+roles",
+  "style": null
+ },
+ "c072": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Lasker"
+ },
+ "c073": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Capablanca"
+ },
+ "c074": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Tal"
+ },
+ "c075": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c076": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Lasker"
+ },
+ "c077": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Tal"
+ },
+ "c078": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c079": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Chernev"
+ },
+ "c080": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Tal"
+ },
+ "c081": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Bronstein"
+ },
+ "c082": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Bronstein"
+ },
+ "c083": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "plain+board+roles",
+  "style": null
+ },
+ "c084": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "plain+board+roles",
+  "style": null
+ },
+ "c085": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c086": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Bronstein"
+ },
+ "c087": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Tal"
+ },
+ "c088": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Lasker"
+ },
+ "c089": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Tal"
+ },
+ "c090": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Lasker"
+ },
+ "c091": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Bronstein"
+ },
+ "c092": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Lasker"
+ },
+ "c093": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "plain+board",
+  "style": null
+ },
+ "c094": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c095": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Capablanca"
+ },
+ "c096": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Capablanca"
+ },
+ "c097": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Tal"
+ },
+ "c098": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Bronstein"
+ },
+ "c099": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c100": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Capablanca"
+ },
+ "c101": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Bronstein"
+ },
+ "c102": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Tal"
+ },
+ "c103": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Tal"
+ },
+ "c104": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "plain+board",
+  "style": null
+ },
+ "c105": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Tal"
+ },
+ "c106": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Chernev"
+ },
+ "c107": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board+roles",
+  "style": "Tal"
+ },
+ "c108": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Lasker"
+ },
+ "c109": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c110": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Tal"
+ },
+ "c111": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Lasker"
+ },
+ "c112": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Lasker"
+ },
+ "c113": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Capablanca"
+ },
+ "c114": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Chernev"
+ },
+ "c115": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Lasker"
+ },
+ "c116": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Capablanca"
+ },
+ "c117": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c118": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board",
+  "style": "Chernev"
+ },
+ "c119": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Nimzowitsch"
+ },
+ "c120": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board",
+  "style": "Chernev"
+ },
+ "c121": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c122": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Capablanca"
+ },
+ "c123": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c124": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Tal"
+ },
+ "c125": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Chernev"
+ },
+ "c126": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c127": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Lasker"
+ },
+ "c128": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c129": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Lasker"
+ },
+ "c130": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Tal"
+ },
+ "c131": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "examples+board+roles",
+  "style": "Tal"
+ },
+ "c132": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Bronstein"
+ },
+ "c133": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board",
+  "style": "Chernev"
+ },
+ "c134": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c135": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c136": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Chernev"
+ },
+ "c137": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Chernev"
+ },
+ "c138": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c139": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Chernev"
+ },
+ "c140": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board+roles",
+  "style": "Chernev"
+ },
+ "c141": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Chernev"
+ },
+ "c142": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c143": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Chernev"
+ },
+ "c144": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Capablanca"
+ },
+ "c145": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c146": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Chernev"
+ },
+ "c147": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Lasker"
+ },
+ "c148": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c149": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "plain+board",
+  "style": null
+ },
+ "c150": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Capablanca"
+ },
+ "c151": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board+roles",
+  "style": "Tal"
+ },
+ "c152": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c153": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board",
+  "style": "Bronstein"
+ },
+ "c154": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c155": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "examples+board+roles",
+  "style": "Lasker"
+ },
+ "c156": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Chernev"
+ },
+ "c157": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Lasker"
+ },
+ "c158": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Capablanca"
+ },
+ "c159": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Tal"
+ },
+ "c160": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Bronstein"
+ },
+ "c161": {
+  "run": "run3-roles.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "name+board+roles",
+  "style": "Lasker"
+ },
+ "c162": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board",
+  "style": "Capablanca"
+ },
+ "c163": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board",
+  "style": "Chernev"
+ },
+ "c164": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c165": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Bronstein"
+ },
+ "c166": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board+roles",
+  "style": "Tal"
+ },
+ "c167": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board",
+  "style": "Capablanca"
+ },
+ "c168": {
+  "run": "run2-board.jsonl",
+  "test": "P2-boxed-king",
+  "variant": "traits+examples+board",
+  "style": "Chernev"
+ },
+ "c169": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Tal"
+ },
+ "c170": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Lasker"
+ },
+ "c171": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Chernev"
+ },
+ "c172": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c173": {
+  "run": "run2-board.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "traits+examples+board",
+  "style": "Lasker"
+ },
+ "c174": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c175": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "traits+examples+board",
+  "style": "Tal"
+ },
+ "c176": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "plain+board",
+  "style": null
+ },
+ "c177": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board",
+  "style": "Tal"
+ },
+ "c178": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board",
+  "style": "Tal"
+ },
+ "c179": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c180": {
+  "run": "run2-board.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board",
+  "style": "Nimzowitsch"
+ },
+ "c181": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c182": {
+  "run": "run3-roles.jsonl",
+  "test": "P1-greedy-knight",
+  "variant": "name+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c183": {
+  "run": "run2-board.jsonl",
+  "test": "P4-fork",
+  "variant": "name+board",
+  "style": "Lasker"
+ },
+ "c184": {
+  "run": "run3-roles.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "examples+board+roles",
+  "style": "Bronstein"
+ },
+ "c185": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Tal"
+ },
+ "c186": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c187": {
+  "run": "run3-roles.jsonl",
+  "test": "P4-fork",
+  "variant": "traits+examples+board+roles",
+  "style": "Nimzowitsch"
+ },
+ "c188": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "name+board+roles",
+  "style": "Bronstein"
+ },
+ "c189": {
+  "run": "run3-roles.jsonl",
+  "test": "P3-back-rank",
+  "variant": "traits+examples+board+roles",
+  "style": "Capablanca"
+ },
+ "c190": {
+  "run": "run2-board.jsonl",
+  "test": "P5-shut-bishop",
+  "variant": "name+board",
+  "style": "Chernev"
+ }
+}

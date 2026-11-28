@@ -1,0 +1,802 @@
+[
+ {
+  "id": "k001",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k002",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k003",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k004",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k005",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k006",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k007",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k008",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k009",
+  "faithful": false,
+  "error": "\"even snags Black's queen on e4\": 7.Qe2 only attacks the queen; it does not take it.",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k010",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k011",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k012",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k013",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k014",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k015",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k016",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k017",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k018",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k019",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k020",
+  "faithful": false,
+  "error": "\"the checking inmate is checkmate\": nonsense.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k021",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k022",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k023",
+  "faithful": false,
+  "error": "\"give check while snatching the rook on a8\": the rook falls only after the king moves.",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k024",
+  "faithful": false,
+  "error": "\"a fine defensive dance\": praises 7.Be2, which allows mate.",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k025",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k026",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k027",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k028",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k029",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k030",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k031",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k032",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k033",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k034",
+  "faithful": false,
+  "error": "\"simultaneously snips the rook on a8\": the rook is taken only after the king moves.",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k035",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k036",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k037",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k038",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k039",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k040",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k041",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k042",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k043",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k044",
+  "faithful": false,
+  "error": "\"struck the rook on a8 with a knight's check\": the check is on the king, not the rook.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k045",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k046",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k047",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k048",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k049",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k050",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k051",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k052",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k053",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k054",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k055",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k056",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k057",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k058",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k059",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k060",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k061",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k062",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k063",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k064",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k065",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k066",
+  "faithful": false,
+  "error": "\"a sensible 1.e3\": positive verdict not in facts; facts say it misses.",
+  "lively": 2,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k067",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k068",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k069",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k070",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k071",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k072",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k073",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k074",
+  "faithful": false,
+  "error": "\"Black's queen on g5 already snags the pawn on g2\": it only attacks g2 before Qxg2.",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k075",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k076",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k077",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k078",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k079",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k080",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k081",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k082",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k083",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k084",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k085",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k086",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k087",
+  "faithful": true,
+  "error": "",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k088",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k089",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k090",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k091",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k092",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k093",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k094",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k095",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k096",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k097",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 2,
+  "jargon": false
+ },
+ {
+  "id": "k098",
+  "faithful": false,
+  "error": "\"swiped the rook on a8 at the same time\": the rook is taken only after the king moves.",
+  "lively": 2,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k099",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ },
+ {
+  "id": "k100",
+  "faithful": true,
+  "error": "",
+  "lively": 3,
+  "clear": 3,
+  "jargon": false
+ }
+]
